@@ -69,12 +69,10 @@ process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Ke
     Query = "select distinct owner from all_tables",
     io:format(user, "[~p] Users for ~p~n", [Key, {Session, Query}]),
     {statement, Statement} = Session:execute_sql(Query, [], 10001),
+    io:format(user, "[~p] Rows ~p~n", [Key, Statement:next_rows()]),
     Resp = prepare_json_rows(Statement, Key),
     Statement:close(),
     {reply, Resp, State};
-process_call({"users", _ReqData}, _From, #state{session=Session, key=Key} = State) ->
-    io:format(user, "[~p] User State ~p~n", [Key, {Session, Key}]),
-    {reply, <<>>, State};
 process_call({"tables", ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
     {struct, [{<<"tables">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
@@ -219,26 +217,51 @@ order_str([{struct, S} | Sorts], Acc) ->
             1 -> " DESC"
         end | Acc1].
 
-%cond_to_json({Op, A, B}, Json) when Op =:= 'and'; Op =:= 'or' ->
-%    JL = cond_to_json(A, []),
-%    JR = cond_to_json(B, []),
-%    Json ++ ", {\"title\": atom_to_list(Op),
-%         \"tooltip\": '',
-%         \"isFolder\": true,
-%         \"expand\": true,
-%         \"children\": []}";
-%cond_to_json({Op, A, B}, _) ->
-%         "{\"title\": 'exp',
-%         \"tooltip\": '"++A++atom_to_list(Op)++B++"',
-%         \"isFolder\": false,
-%         \"expand\": true}".
+cond_to_json({Op, A, B}, Json) when Op =:= 'and'; Op =:= 'or' ->
+%%    {S, C} = if erlang:element(1, A) == Op -> {[cond_to_json(A, [])], ""};
+%%        true -> {[], cond_to_json(A, [])} end,
+%%    {S1, C1} = if erlang:element(1, B) == Op -> {S ++ [cond_to_json(B, [])], C};
+%%        true ->
+%%           {S, string:join(
+%%                   lists:foldl(fun(E,Acc) ->
+%%                                   if length(E) > 0 -> [E|Acc];
+%%                                   true -> Acc end
+%%                          end
+%%                          , []
+%%                          , [C, cond_to_json(B, [])]
+%%                          )
+%%                   , ",")}
+%%        end,
+%%    string:join(lists:foldl(fun(E,Acc) -> if length(E) > 0 -> [E|Acc]; true -> Acc end end, [], [Json,
+%%         "{\"title\": \""++string:to_upper(atom_to_list(Op))++"\",
+%%         \"icon\":false,
+%%         \"isFolder\": true,
+%%         \"expand\": true,
+%%         \"children\": ["++C1++"]}"]++S1), ",");
+    Json ++ "{\"title\": \""++string:to_upper(atom_to_list(Op))++"\",
+    \"icon\":false,
+    \"isFolder\": true,
+    \"expand\": true,
+    \"children\": ["++cond_to_json(A, [])++","++cond_to_json(B, [])++"]}";
+cond_to_json({Op, A}, _) ->
+         "{\"title\": \""++string:to_upper(atom_to_list(Op))++"\",
+         \"icon\":false,
+         \"isFolder\": true,
+         \"expand\": true,
+         \"children\": ["++cond_to_json(A, [])++"]}";
+cond_to_json({Op, A, B}, _) ->
+         "{\"title\": \""++A++" "++string:to_upper(atom_to_list(Op))++" "++B++"\",
+         \"icon\":false,
+         \"isFolder\": false,
+         \"expand\": true}";
+cond_to_json([], _) -> "".
 
 sql_parse_to_json(Key,
                   {select, {opt, _Opt},
                            {fields, Fields},
                            {into, _Into},
                            {from, Tables},
-                           {where, _Cond},
+                           {where, Cond},
                            {group_by, _GroupBy},
                            {having, _Having},
                            {order_by, Orders}}) ->
@@ -246,7 +269,7 @@ sql_parse_to_json(Key,
     JsonTables = string_list_to_json(Tables, []),
     OrdStr =
     case lists:foldl(fun({N,O},L) ->
-                        "{\"txt\":\"" ++ N ++ "\", \"dir\":"++ (if O =:= 'ASC' -> "0"; true -> "1" end) ++"}," ++ L
+                        "{\"txt\":\""++N++"\", \"dir\":"++(if O =:= 'ASC' -> "0"; true -> "1" end)++"},"++L
                      end,
                      "",
                      Orders)
@@ -254,8 +277,9 @@ sql_parse_to_json(Key,
         Str when length(Str) > 0 -> string:substr(Str,1,length(Str)-1);
         _ -> ""
     end,
-    "{\"session\":"++ integer_to_list(Key) ++
-    ", \"fields\":"++ JsonFields ++
-    ", \"tables\":"++ JsonTables ++
-    ", \"sorts\":["++ OrdStr ++ "]" ++
+    "{\"session\":"++integer_to_list(Key)++
+    ", \"fields\":"++JsonFields++
+    ", \"tables\":"++JsonTables++
+    ", \"sorts\":["++OrdStr++"]"++
+    ", \"conds\":["++cond_to_json(Cond, [])++"]"++
     "}".

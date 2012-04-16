@@ -15,7 +15,6 @@
 
 	<style>
 		body { font-size: 62.5%; }
-		label, input { display:block; }
 		input.text { margin-bottom:12px; width:95%; padding: .4em; }
 		fieldset { padding:0; border:0; margin-top:25px; }
 		h1 { font-size: 1.2em; margin: .6em 0; }
@@ -104,7 +103,17 @@
 <body>
     <ul id="cond_pop" class="contextMenu">
         <li class="add">
-            <a href="#add">Add</a>
+            <!-- a href="#add">Add</a -->
+            <a href="#add">Add
+                <ul id="cond_pop_add" class="contextMenu">
+                    <li class="edit separator">
+                        <a href="#edit">1</a>
+                    </li>
+                    <li class="copy">
+                        <a href="#copy">2</a>
+                    </li>
+                </ul>
+            </a>
         </li>
         <li class="edit separator">
             <a href="#edit">Edit</a>
@@ -126,7 +135,7 @@
     <div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F;">
         <button id="login-button" class="menubutton" style="left: 5px;" onclick='show_login()'>Log In</button>
         <button id="tbl-view-button" class="menubutton" style="left: 60px; width: 100px;" onclick='show_tables()'>Tables/Views</button>
-        <button id="test-button" class="menubutton" style="left: 200px; width: 100px;" onclick='sql_conditions(null)'>Cond Test</button>
+        <button id="test-button" class="menubutton" style="left: 200px; width: 100px;" onclick='parse_and_hit()'>Cond Test</button>
         <div class="ui-widget" style="position:absolute; right: 5px; top: 4px;">
             <select id="users" onchange="generate_table_views(session, this.options[this.selectedIndex].value)">
             	<option value="">Select User...</option>
@@ -190,7 +199,7 @@
     <script src="../static/slickgrid/slick.editors.js"></script>    
     <script src="../static/slickgrid/slick.grid.js"></script>
     <script src="../static/slickgrid/slick.dataview.js"></script>
-    <script src="../static/slickgrid/controls/slick.columnpicker.js"></script>
+    <script src="https://raw.github.com/dergraf/SlickGrid/columnpicker-zindex/controls/slick.columnpicker.js"></script>
     <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
     <script src="../static/jquery.contextMenu-1.01/jquery.contextMenu.js"></script>
 

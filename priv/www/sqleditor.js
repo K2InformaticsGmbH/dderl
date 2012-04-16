@@ -147,17 +147,27 @@ function prepareChildren(tree) {
     return [];
 }
 
-function sql_conditions(tree) {
-    $('<div id=pick_conds style="width:100%">'+
-            '<div id=pick_conds_tree/>'+
+function parse_and_hit() {
+    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:"select * from abc where not a=b and c=d or (e=f or g=h)"}}, null, null, function(pTree) {
+        sql_conditions(0, pTree.conds, null);
+    });
+}
+
+function sql_conditions(dc, tree, pos) {
+    $('<div id=pick_conds'+dc+' style="width:100%">'+
+            '<div id=pick_conds_tree'+dc+'/>'+
       '</div>'
     ).appendTo(document.body);
 
-    $("#pick_conds_tree").dynatree({
+    $('#pick_conds_tree'+dc).dynatree({
         onActivate: function(node) {
             $(node.span).contextMenu({menu: 'cond_pop'}, function(action, el, pos) {
                 if(action == "add")
                     node.addChild({title: "AND", isFolder: true, children: [{title:"A = B", isFolder:false}, {title:"OR", isFolder:true}]});
+                else if(action == "edit") {
+                    if(node.data.isFolder == true)
+                        sql_conditions(dc + 1, node.data.children, pos)
+                }
                 else
                     alert(
                         'Action: ' + action + '\n\n' +
@@ -167,36 +177,32 @@ function sql_conditions(tree) {
                     );
             });
         },
-        children: [{
-            title: "Conditions",
-            tooltip: "Root node for adding conditions.",
-            isFolder: true,
-            expand: true,
-            children: prepareChildren(tree)
-        }]
+        children: tree
     });
 
-    $('#pick_conds').dialog({
+    var X = 115, Y = 115;
+    if(pos != null) {X = pos.docX; Y = pos.docY; }
+    $('#pick_conds'+dc).dialog({
         autoOpen: false,
         height: 300,
         width: 400,
         modal: true,
-        position: [115, 115],
+        position: [X, Y],
         resizable: false,
         title: "Conditions",
         close: function() {
-            $('#pick_conds').dialog('destroy');
-            $('#pick_conds').remove();
+            $('#pick_conds'+dc).dialog('destroy');
+            $('#pick_conds'+dc).remove();
         },
         buttons: {
             "Delete": function() {
             },
             "Cancel": function() {
-                $('#pick_conds').dialog('close');
+                $('#pick_conds'+dc).dialog('close');
             },
             "Ok": function() {
                 load_div($('#sql_edit_cnd'), selected.conds);
-                $('#pick_conds').dialog('close');
+                $('#pick_conds'+dc).dialog('close');
             },
             "Add()": function() {
             },
@@ -204,7 +210,7 @@ function sql_conditions(tree) {
             }
         }
     });
-    $('#pick_conds').dialog("open");
+    $('#pick_conds'+dc).dialog("open");
 }
 
 function sql_sorts() {

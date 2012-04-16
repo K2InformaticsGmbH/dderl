@@ -200,10 +200,11 @@ function render_table(tableNameList, query, owner) {
         enableColumnReorder: true,
        enableCellNavigation: true,
          asyncEditorLoading: false,
-                   autoEdit: false};
+                   autoEdit: false,
+                     zIndex: 1300};
 
     var dataView = new Slick.Data.DataView({ inlineFilters: false });
-    var tblGrid = new Slick.Grid('#qr'+tableName, dataView, [], options);
+    var tblGrid = new Slick.Grid('#qr'+tableName, dataView, [{id:""}], options);
     var copyManager = new Slick.CellCopyManager();
 
     tblGrid.registerPlugin(copyManager);
