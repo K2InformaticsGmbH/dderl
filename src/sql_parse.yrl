@@ -3,7 +3,7 @@ Header "%% Copyright (C) K2 Informatics GmbH"
 "%% @Author Bikram Chatterjee"
 "%% @Email bikram.chatterjee@k2informatics.ch".
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Nonterminals
  sql_list
@@ -96,6 +96,7 @@ Nonterminals
  user
  sql
  when_action
+ opt_hint
 .
 
     %% symbolic tokens
@@ -184,6 +185,8 @@ Terminals
  WHERE
  WITH
  WORK
+ %COMMENT
+ HINT
  'AND'
  'NOT'
  'OR'
@@ -212,7 +215,7 @@ Left        300 '+' '-'.
 Left        400 '*' '/'.
 %Unary       500 '-'.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 sql_list -> sql ';'                                                                             : ['$1'].
 sql_list -> sql_list sql ';'                                                                    : '$1' ++ ['$2'].
@@ -361,8 +364,15 @@ open_statement -> OPEN cursor                                                   
 
 rollback_statement -> ROLLBACK WORK                                                             : 'rollback_work'.
 
-select_statement -> SELECT opt_all_distinct selection INTO target_commalist table_exp           : list_to_tuple([select, '$2', '$3', '$5'] ++ '$6').
+select_statement -> SELECT opt_hint opt_all_distinct selection INTO target_commalist table_exp
+                 : case '$2' of
+                     {hint, ""} -> list_to_tuple([select, '$3', '$4', '$6'] ++ '$7');
+                     _          -> list_to_tuple([select, '$2', '$3', '$4', '$6'] ++ '$7')
+                   end.
 select_statement -> query_spec                                                                  : '$1'.
+
+opt_hint -> '$empty'                                                                            : {hint, ""}.
+opt_hint -> HINT                                                                                : {hint, unwrap('$1')}.
 
 opt_all_distinct -> '$empty'                                                                    : {opt, []}.
 opt_all_distinct -> ALL                                                                         : {opt, 'ALL'}.
@@ -395,7 +405,11 @@ query_exp -> query_exp UNION ALL query_term                                     
 query_term -> query_spec                                                                        : '$1'.
 query_term -> '(' query_exp ')'                                                                 : '$2'.
 
-query_spec -> SELECT opt_all_distinct selection table_exp                                       : list_to_tuple([select, '$2', {fields, '$3'}, {into, []}] ++ '$4').
+query_spec -> SELECT opt_hint opt_all_distinct selection table_exp
+           : case '$2' of
+               {hint, ""} -> list_to_tuple([select, '$3', {fields, '$4'}, {into, []}] ++ '$5');
+               _          -> list_to_tuple([select, '$2', '$3', {fields, '$4'}, {into, []}] ++ '$5')
+             end.
 
 selection -> scalar_exp_commalist                                                               : '$1'.
 selection -> '*'                                                                                : ["*"].
@@ -442,11 +456,11 @@ predicate -> existence_test                                                     
 comparison_predicate -> scalar_exp COMPARISON scalar_exp                                        : {unwrap('$2'), '$1', '$3'}.
 comparison_predicate -> scalar_exp COMPARISON subquery                                          : {unwrap('$2'), '$1', '$3'}.
 
-between_predicate -> scalar_exp NOT BETWEEN scalar_exp AND scalar_exp                           : {'not_between', '$1', {'and', '$4', '$6'}}.
-between_predicate -> scalar_exp BETWEEN scalar_exp AND scalar_exp                               : {'between', '$1', {'and', '$4', '$5'}}.
+between_predicate -> scalar_exp NOT BETWEEN scalar_exp AND scalar_exp                           : {'not_between', '$1', {'$4', '$6'}}.
+between_predicate -> scalar_exp BETWEEN scalar_exp AND scalar_exp                               : {'between', '$1', {'$3', '$5'}}.
 
-like_predicate -> scalar_exp NOT LIKE atom opt_escape                                           : {'like', '$1', '$4', '$5'}.
-like_predicate -> scalar_exp LIKE atom opt_escape                                               : {'like', '$1', '$3', '$4'}.
+like_predicate -> scalar_exp NOT LIKE atom opt_escape                                           : {'not_like', '$1', {'$4', '$5'}}.
+like_predicate -> scalar_exp LIKE atom opt_escape                                               : {'like', '$1', {'$3', '$4'}}.
 
 opt_escape -> '$empty'                                                                          : [].
 opt_escape -> ESCAPE atom                                                                       : {escape, '$2'}.
@@ -551,7 +565,7 @@ sql -> WHENEVER SQLERROR when_action                                            
 when_action -> GOTO NAME                                                                        : {'goto', unwrap('$2')}.
 when_action -> CONTINUE                                                                         : 'continue'.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Erlang code.
 

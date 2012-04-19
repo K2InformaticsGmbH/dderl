@@ -91,12 +91,14 @@ Rules.
 (WITH|with)						:				{token, {'WITH', TokenLine}}.
 (WORK|work)						:				{token, {'WORK', TokenLine}}.
 
+    %% hint
+((\/\*).*(\*\/))        : {token, {'HINT', TokenLine, TokenChars}}.
+
 	%% punctuation
 
 (=|<>|<|>|<=|>=)        : {token, {'COMPARISON', TokenLine, list_to_atom(TokenChars)}}.
 
 [\-\+\*\/\(\)\,\.\;]    : {token, {list_to_atom(TokenChars), TokenLine}}.
-
 
 	%% names
 [A-Za-z][A-Za-z0-9_]*   : {token, {'NAME', TokenLen, TokenChars}}.
@@ -119,32 +121,12 @@ Rules.
 %% - <SQL>\n		{ save_str(" ");lineno++; }
 %% - \n		{ lineno++; ECHO; }
 
-([\s\t\r]+)  :   skip_token.	%% white space
+([\s\t\r\n]+)  :   skip_token.	%% white space
 
-((\-\-).*)	:	skip_token.
+((\-\-).*[\n])	:	{token, {'COMMENT', TokenLine, TokenChars}}.
 
 %% - .		ECHO;	/* random non-SQL text */
 %%
 
 Erlang code.
 
-%% - void
-%% - yyerror(char *s)
-%% - {
-%% - 	printf("%d: %s at %s\n", lineno, s, yytext);
-%% - }
-%% - 
-%% - int main()
-%% - {
-%% - 	if(!yyparse())
-%% - 		fprintf(stderr, "Embedded SQL parse worked\n");
-%% - 	else
-%% - 		fprintf(stderr, "Embedded SQL parse failed\n");
-%% - 	return 0;
-%% - } /* main */
-%% - 
-%% - /* leave SQL lexing mode */
-%% - un_sql()
-%% - {
-%% - 	BEGIN INITIAL;
-%% - } /* un_sql */

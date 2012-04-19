@@ -147,14 +147,15 @@ function prepareChildren(tree) {
     return [];
 }
 
-function parse_and_hit() {
-    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:"select * from abc where not a=b and c=d or (e=f or g=h)"}}, null, null, function(pTree) {
-        sql_conditions(0, pTree.conds, null);
+function parse_and_hit(qry) {
+    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
+        sql_conditions(0, pTree.conds, null, qry);
     });
 }
 
-function sql_conditions(dc, tree, pos) {
+function sql_conditions(dc, tree, pos, qry) {
     $('<div id=pick_conds'+dc+' style="width:100%">'+
+            '<textarea id=pick_conds_str'+dc+' style="width: 350px; height: 100px">'+qry+'</textarea>'+
             '<div id=pick_conds_tree'+dc+'/>'+
       '</div>'
     ).appendTo(document.body);
@@ -184,7 +185,7 @@ function sql_conditions(dc, tree, pos) {
     if(pos != null) {X = pos.docX; Y = pos.docY; }
     $('#pick_conds'+dc).dialog({
         autoOpen: false,
-        height: 300,
+        height: 500,
         width: 400,
         modal: true,
         position: [X, Y],
@@ -195,7 +196,11 @@ function sql_conditions(dc, tree, pos) {
             $('#pick_conds'+dc).remove();
         },
         buttons: {
-            "Delete": function() {
+            "Requery": function() {
+                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
+                $('#pick_conds'+dc).dialog('close');
+                $('#pick_conds'+dc).remove();
+                parse_and_hit(qStr);
             },
             "Cancel": function() {
                 $('#pick_conds'+dc).dialog('close');
@@ -575,3 +580,15 @@ function sql_editor(tblDlg, pTree) {
     });
     $('#sql_edit').dialog("open");
 }
+
+/*
+{
+select:["*"],
+options:[],
+from:["abc","def"],
+where: {op:"and", argList:[]},
+groupby:[],
+having:[],
+order_by:[]
+}
+ */

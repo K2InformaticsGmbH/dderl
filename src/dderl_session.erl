@@ -5,6 +5,7 @@
 -export([start/0
         , process_request/3
         , get_state/1
+        , sql_to_json/1
         ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, format_status/2]).
@@ -188,6 +189,7 @@ convert_rows_to_json([], Acc) -> Acc;
 convert_rows_to_json([Row|Rows], Acc) ->
     convert_rows_to_json(Rows, Acc ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
 
+string_list_to_json([], []) -> "[]";
 string_list_to_json([], Json) -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
 string_list_to_json([S|Strings], Json) ->
     string_list_to_json(Strings, Json ++ "\"" ++ lists:flatten([if X > 127 -> "&#" ++ integer_to_list(X) ++ ";";
@@ -249,6 +251,21 @@ cond_to_json({Op, A}, _) ->
          \"isFolder\": true,
          \"expand\": true,
          \"children\": ["++cond_to_json(A, [])++"]}";
+cond_to_json({Op, A, {B1,[]}}, _) ->
+         "{\"title\": \""++A++" "++string:to_upper(atom_to_list(Op))++" "++B1++"\",
+         \"icon\":false,
+         \"isFolder\": false,
+         \"expand\": true}";
+cond_to_json({Op, A, {B1,{escape, B2}}}, _) ->
+         "{\"title\": \""++A++" "++string:to_upper(atom_to_list(Op))++" "++B1++" ESCAPE "++B2++"\",
+         \"icon\":false,
+         \"isFolder\": false,
+         \"expand\": true}";
+cond_to_json({Op, A, {B1,B2}}, _) ->
+         "{\"title\": \""++A++" "++string:to_upper(atom_to_list(Op))++" "++B1++" AND "++B2++"\",
+         \"icon\":false,
+         \"isFolder\": false,
+         \"expand\": true}";
 cond_to_json({Op, A, B}, _) ->
          "{\"title\": \""++A++" "++string:to_upper(atom_to_list(Op))++" "++B++"\",
          \"icon\":false,
@@ -283,3 +300,227 @@ sql_parse_to_json(Key,
     ", \"sorts\":["++OrdStr++"]"++
     ", \"conds\":["++cond_to_json(Cond, [])++"]"++
     "}".
+
+%where: {op:"and", argList:[]},
+
+conds_to_json(Cond) -> conds_to_json(Cond,[]).
+conds_to_json(Cond,Json) when is_tuple(Cond) -> conds_to_json(tuple_to_list(Cond),Json);
+conds_to_json([],Json) -> Json;
+conds_to_json(A,_) when is_list(A) -> A;
+conds_to_json([Op,A,B],Json) ->
+    io:format(user, "1. ~p~n", [Json]),
+    Json ++
+    "{\"op\":"++string:to_upper(atom_to_list(Op))++"\",
+    \"argList\":["++conds_to_json(A,[])++","++conds_to_json(B,[])++"]}";
+conds_to_json([select|_]=Q,Json) ->
+    io:format(user, "2. ~p~n", [Json]),
+    Json ++ select_to_json(list_to_tuple(Q)).
+
+%add_session_to_json(Key, Json) ->
+%    "{ \"session\":"++integer_to_list(Key)++
+%    ", \"data\":" ++ Json ++ "}".
+
+sql_to_json(Sql) ->
+    {ok, T, _} = sql_lex:string(Sql),
+    {ok, [S|_]} = sql_parse:parse(T),
+    io:format(user, "Parsed ~p~n", [S]),
+    select_to_json(S).
+
+select_to_json({select, {opt, Opt},
+                        {fields, Fields},
+                        {into, Into},
+                        {from, Tables},
+                        {where, Cond},
+                        {group_by, GroupBy},
+                        {having, Having},
+                        {order_by, Orders}}) ->
+    "{  \"select\":"++string_list_to_json(Fields, [])++
+    ", \"options\":"++string_list_to_json(Opt, [])++
+    ",    \"into\":"++string_list_to_json(Into, [])++
+    ",    \"from\":"++ string_list_to_json(Tables, [])++
+    ",   \"where\":"++ conds_to_json(Cond)++
+    ", \"groupby\":"++ string_list_to_json(GroupBy, [])++
+    ",  \"having\":"++ string_list_to_json(Having, [])++
+    ",\"order_by\":"++ string_list_to_json(Orders, [])++
+    "}".
+
+%
+% TEST CASES %
+%
+
+-include_lib("eunit/include/eunit.hrl").
+
+-define (TEST_SQLS, [
+        "select * from abc where a = b"
+
+        , "select * from abc where a = b and c = d"
+
+        , "select * from abc where
+           a=b 
+           and c=d 
+           and e=f
+           and g=h"
+
+        , "select * from abc where
+          not a=b 
+          and c=d 
+          and e=f
+          and g=h"
+          
+        , "select * from abc where
+          a=b 
+          and not c=d 
+          and e=f
+          and g=h"
+          
+          
+        , "select * from abc where
+          a=b 
+          and c=d 
+          and e=f
+          and not g=h"
+          
+        , "select * from abc where
+          	a=b 
+          	and c=d 
+          	and e=f
+          or g=h"
+          
+        , "select * from abc where
+          	a=b 
+          	and c=d 
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	not a=b 
+          	and c=d 
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	a=b 
+          	and not c=d 
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	not a=b 
+          	and not c=d 
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	a=b 
+          	and c=d 
+          or not e=f
+          or not g=h"
+          
+        , "select * from abc where
+          a=b 
+          or c=d 
+          or not e=f
+          or g=h"
+          
+        , "select * from abc where
+          	not
+          		(
+          		a=b 
+          		and c=d
+          		)
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	not a=b 
+          	and c=d
+          or e=f
+          or g=h"
+          
+        , "select * from abc where
+          	(
+          	a=b 
+          	or c=d
+          	) 
+          	and e=f
+          or g=h"
+          
+        , "select * from abc where
+          	(	
+          	a=b 
+          	or c=d
+          	) 
+          and e=f
+          and g=h"
+          
+        , "select * from abc where
+          a=b 
+          or 
+          	c=d 
+          	and not e=f
+          or g=h"
+          
+        , "select * from abc where
+          a=b 
+          or 
+          	c=d 
+          	and e=f 
+          	and g=h"
+          
+        , "select * from abc where
+          a between b and c  
+          and d between e and f 
+          and g=h"
+          
+        , "select * from abc where
+          a between b and c 
+          or 
+          	d between e and f 
+          	and g=h"
+          
+        , "select * from abc where
+          not a between b and c 
+          and d between e and f 
+          and g=h"
+          
+        , "select * from abc where
+          	a between b and c 
+          	and d between e and f 
+          or g=h"
+          
+        , "select * from abc where
+          	(
+          	a=b 
+          	or c=d
+          	) 
+          and 
+          	(
+          	e=f 
+          	or g=h
+          	)"
+          
+        , "select * from abc where
+          a=b 
+          or 
+          	c=d 
+          	and 	
+          		(
+          		e=f 
+          		or g=h
+          		)"
+          
+        , "select /*+ index(t1 t1_abc) */ * from abc where a = b"
+
+%        , "SELECT /*+ INDEX(ACCOUNT IDXU_AC_SHORT)*/  AC_ID, AC_NAME, AC_ETID, AC_SHORT, AC_DEPTID, AC_LANGID,  AC_LOGRET, NVL(AC_MAXLOG, SYS_MAXLOG) MAXLOG,  AC_LASTLOGINTIME, AC_IPMASK, AC_REMOTEADDR,  (SYSDATE - NVL(AC_LASTLOGINTIME,SYSDATE))*24*60 - NVL(SYS_DELAY,3) TIME_DIFF FROM ACCOUNT, SYSPARAMETERS WHERE AC_ESID = 'A' AND AC_SHORT = 'ADMIN';"
+        ]).
+
+parse_test() -> test_parse(?TEST_SQLS).
+test_parse([]) -> ok;
+test_parse([S|Sqls]) ->
+    io:format(user, "===============================~nSql: ~p~n...............................~nParseTree:~n", [S]),
+    {ok, Tokens, _} = sql_lex:string(S ++ ";"),
+    case sql_parse:parse(Tokens) of
+        {ok, [ParseTree|_]} -> io:format(user, "~p~n", [ParseTree]);
+        Error -> io:format(user, "Failed ~p~nTokens~p~n", [Error, Tokens])
+    end,
+    test_parse(Sqls).

@@ -135,7 +135,7 @@
     <div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F;">
         <button id="login-button" class="menubutton" style="left: 5px;" onclick='show_login()'>Log In</button>
         <button id="tbl-view-button" class="menubutton" style="left: 60px; width: 100px;" onclick='show_tables()'>Tables/Views</button>
-        <button id="test-button" class="menubutton" style="left: 200px; width: 100px;" onclick='parse_and_hit()'>Cond Test</button>
+        <button id="test-button" class="menubutton" style="left: 200px; width: 100px;" onclick='parse_and_hit("select * from abc where not a=b and c=d or (e=f or g=h)")'>Cond Test</button>
         <div class="ui-widget" style="position:absolute; right: 5px; top: 4px;">
             <select id="users" onchange="generate_table_views(session, this.options[this.selectedIndex].value)">
             	<option value="">Select User...</option>
