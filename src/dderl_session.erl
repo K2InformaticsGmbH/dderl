@@ -70,8 +70,8 @@ process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Ke
     Query = "select distinct owner from all_tables",
     io:format(user, "[~p] Users for ~p~n", [Key, {Session, Query}]),
     {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    io:format(user, "[~p] Rows ~p~n", [Key, Statement:next_rows()]),
     Resp = prepare_json_rows(Statement, Key),
+    io:format(user, "[~p] Users Resp ~p~n", [Key, Resp]),
     Statement:close(),
     {reply, Resp, State};
 process_call({"tables", ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
