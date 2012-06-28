@@ -66,7 +66,7 @@ $(function() {
                                     usr = userRows[i][0];
                                     $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
                             }
-                            generate_table_views(session, owner);
+                            generate_tables_views(session, owner);
                         })
                     });
                     $(this).dialog("close");
@@ -82,7 +82,7 @@ $(function() {
 
 });
 
-function generate_table_views(session, owner) {
+function generate_tables_views(session, owner) {
     if(owner.length == 0) return;
     var root = $("#db-tables-views").dynatree("getRoot");
     root.removeChildren(true, false);
@@ -97,22 +97,25 @@ function generate_table_views(session, owner) {
         var tableRows = data.rows;
         trTables.setTitle("Tables ("+tableRows.length+")");
         for(var i = 0; i < tableRows.length; ++i) {
-                title = tableRows[i][0];
-                trTables.addChild({title: title, tooltip: owner + '.' + tableRows[i][0]}, null);
-                if(title.length > maxStrLength) maxStrLength = title.length;
-        }
-        ajax_post('/app/views', {views: {owner: owner}}, null, null, function(data) {
-            var viewRows = data.rows;
-            trViews.setTitle("Views ("+viewRows.length+")");
-            for(var i = 0; i < viewRows.length; ++i) {
-                title = viewRows[i][0];
-                trViews.addChild({title: title, tooltip: owner + '.' + viewRows[i][0]}, null);
-                if(title.length > maxStrLength) maxStrLength = title.length;
-            }
-            //$('#tables').width(5 * maxStrLength + 100);
+            title = tableRows[i][0];
+            trTables.addChild({title: title, tooltip: owner + '.' + tableRows[i][0]}, null);
+            if(title.length > maxStrLength) maxStrLength = title.length;
             var len = 80 + 8 * maxStrLength;
             $('#tables').width(len < 100 ? 100 : len);
-        });
+        }
+    });
+    ajax_post('/app/views', {views: {owner: owner}}, null, null, function(data) {
+        var title = '';
+        var maxStrLength = 0;
+        var viewRows = data.rows;
+        trViews.setTitle("Views ("+viewRows.length+")");
+        for(var i = 0; i < viewRows.length; ++i) {
+            title = viewRows[i][0];
+            trViews.addChild({title: title, tooltip: owner + '.' + viewRows[i][0]}, null);
+            if(title.length > maxStrLength) maxStrLength = title.length;
+            var len = 80 + 8 * maxStrLength;
+            $('#tables').width(len < 100 ? 100 : len);
+        }
     });
 }
 
@@ -455,16 +458,20 @@ function load_login_form(systemid) {
     $('input:radio[name=db_type][value='+login_systems[systemid].type+']').click();
 }
 
-$(document).ready(function() {
+var pageTitlePrefix = null;
+$(document).ready(function() {    
     if(session == null) {
+        if(null == pageTitlePrefix)
+            pageTitlePrefix = document.title.trim() + " ";
         show_login();
         $('#config_list').html('');
         for(var i=0;i<configs.length; ++i)
             $('<option value="'+configs[i]+'">'+configs[i]+'</option>').appendTo($('#config_list'));
         $('#config_list').change(function() {
+            document.title = pageTitlePrefix + $(this).val();
             load_login_form($(this).val());
         });
-        load_login_form(configs[0]);
+        load_login_form(configs[1]);
     }
 });
 
