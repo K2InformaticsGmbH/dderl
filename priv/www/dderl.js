@@ -1,87 +1,3 @@
-$(function() {
-    // a workaround for a flaw in the demo system (http://dev.jqueryui.com/ticket/4375), ignore!
-    $("#dialog:ui-dialog").dialog("destroy");
-    
-    var ip = $( "#ip" );
-    var port = $( "#port" );
-    var service = $( "#service" );
-    var user = $( "#user" );
-    var password = $( "#password" );
-    var allFields = $( [] ).add( ip ).add( port ).add( service ).add( user ).add( password );
-    var tips = $( ".validateTips" );
-
-    function updateTips(t) {
-        tips
-            .text(t)
-            .addClass("ui-state-highlight");
-        setTimeout(function() {
-            tips.removeClass( "ui-state-highlight", 1500 );
-        }, 500 );
-    }
-
-    function checkLength( o, n, min, max ) {
-        if ( o.val().length > max || o.val().length < min ) {
-            o.addClass( "ui-state-error" );
-            updateTips( "Length of " + n + " must be between " +
-                min + " and " + max + "." );
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    $("#dialog-login").dialog({
-        autoOpen: false,
-        height: 400,
-        width: 300,
-        //resizable: false,
-        modal: true,
-        buttons: {
-            "Login": function() {
-                var bValid = true;
-                allFields.removeClass( "ui-state-error" );
-
-                bValid = bValid && checkLength( ip, "IP address", 7, 15 );
-                bValid = bValid && checkLength( port, "port", 1, 5 );
-                bValid = bValid && checkLength( service, "service", 0, 100 );
-                bValid = bValid && checkLength( user, "user name", 1, 100 );
-                bValid = bValid && checkLength( password, "password", 5, 16 );
-
-                if ( bValid ) {
-                    var loginJson = {login: { ip        :ip.val(),
-                                              port      :port.val(),
-                                              service   :service.val(),
-                                              type      :$('input:radio[name=db_type]:checked').val(),
-                                              user      :user.val(),
-                                              password  :password.val()
-                                              }
-                                    };
-                    owner = user.val();
-                    ajax_post('/app/login', loginJson, null, null, function(data) {
-                        $("#db-tables-views").dynatree();
-                        ajax_post('/app/users', null, null, null, function(data) {
-                            var usr = '';
-                            var userRows = data.rows;
-                            for(var i = 0; i < userRows.length; ++i) {
-                                    usr = userRows[i][0];
-                                    $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
-                            }
-                            generate_tables_views(session, owner);
-                        })
-                    });
-                    $(this).dialog("close");
-                    show_tables();
-                }
-            },
-            Cancel: function() {
-                $(this).dialog("close");
-                $("#login-button").css("color", "rgb(255, 255, 255)");
-            }
-        },
-    });
-
-});
-
 function generate_tables_views(session, owner) {
     if(owner.length == 0) return;
     var root = $("#db-tables-views").dynatree("getRoot");
@@ -390,7 +306,8 @@ var owner = null;
 
 function show_login() {
     if(session == null)
-        $("#dialog-login").dialog("open");
+        display_login();
+//        $("#dialog-login").dialog("open");
     $('#login-button').css("color", "rgb(127,127,127)");
 }
 
@@ -448,30 +365,12 @@ function ajax_post(url, dataJson, headers, context, successFun) {
     });
 }
 
-function load_login_form(systemid) {
-    $('#ip').val(login_systems[systemid].ip);
-    $('#port').val(login_systems[systemid].port);
-    $('#service').val(login_systems[systemid].service);
-    $('#sid').val(login_systems[systemid].sid);
-    $('#user').val(login_systems[systemid].user);
-    $('#password').val(login_systems[systemid].password);
-    $('input:radio[name=db_type][value='+login_systems[systemid].type+']').click();
-}
-
 var pageTitlePrefix = null;
 $(document).ready(function() {    
     if(session == null) {
         if(null == pageTitlePrefix)
             pageTitlePrefix = document.title.trim() + " ";
         show_login();
-        $('#config_list').html('');
-        for(var i=0;i<configs.length; ++i)
-            $('<option value="'+configs[i]+'">'+configs[i]+'</option>').appendTo($('#config_list'));
-        $('#config_list').change(function() {
-            document.title = pageTitlePrefix + $(this).val();
-            load_login_form($(this).val());
-        });
-        load_login_form(configs[1]);
     }
 });
 

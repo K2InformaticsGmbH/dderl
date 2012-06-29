@@ -142,31 +142,6 @@
             </select>
         </div>
     </div>
-    <div id="dialog-login" title="Login to Oracle Database" style="diaply:none">
-        <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>
-            <tr><td align=right valign=center>Connections&nbsp;</td>
-                <td valign=center><select id="config_list" class="ui-corner-all"/></td></tr>
-            <tr><td colspan=2><hr></td></tr>
-            <tr><td align=right valign=center>IP Address&nbsp;</td>
-                <td valign=bottom><input type="text" id="ip" class="text ui-widget-content ui-corner-all"/></td></tr>
-            <tr><td align=right valign=center>DB Port&nbsp;</td>
-                <td valign=bottom><input type="text" id="port" class="text ui-widget-content ui-corner-all"/></td></tr>
-            <tr><td align=right valign=center>DB&nbsp;</td>
-                <td valign=bottom><input type="text" id="service" class="text ui-widget-content ui-corner-all"/></td></tr>
-            <tr><td align=right valign=center>DB Type&nbsp;</td>
-                <td valign=center><table border=0 cellpadding=0 cellspacing=0>
-                    <tr><td valign=center><input type="radio" name="db_type" value="service" checked></td>
-                        <td valign=center>&nbsp;Service&nbsp;&nbsp;</td>
-                        <td valign=center><input type="radio" name="db_type" value="sid"></td>
-                        <td valign=center>&nbsp;SID</td></tr></table>
-                </td></tr>
-            <tr><td align=right valign=center>Username&nbsp;</td>
-                <td valign=bottom><input type="text" id="user" class="text ui-widget-content ui-corner-all"/></td></tr>
-            <tr><td align=right valign=center>Password&nbsp;</td>
-                <td valign=bottom><input type="password" id="password" class="text ui-widget-content ui-corner-all"/></td></tr>
-        </table>
-        <p class="validateTips">* All fields are mandatory</p>
-    </div>
     
     <div id='tables' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
         <div id="db-tables-views"></div>
@@ -203,6 +178,7 @@
     <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
     <script src="../static/jquery.contextMenu-1.01/jquery.contextMenu.js"></script>
 
+	<script src="login.js"></script>
 	<script src="config.js"></script>
 	<script src="dderl.js"></script>
 	<script src="sqleditor.js"></script>
