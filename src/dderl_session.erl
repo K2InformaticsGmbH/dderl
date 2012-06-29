@@ -46,6 +46,12 @@ handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = State) ->
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
 
+process_call({"save", ReqData}, _From, #state{key=Key} = State) ->
+    Data = "var logins = eval(\n'" ++ binary_to_list(wrq:req_body(ReqData)) ++ "'\n)",
+    Path = filename:absname("")++"/www/config.js",
+    file:write_file(Path, list_to_binary(Data)),
+    io:format("[~p] config replaced @ ~p~n", [Key, Path]),
+    {reply, "{\"result\": \"saved successfully\"}", State};
 process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
