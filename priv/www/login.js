@@ -50,30 +50,6 @@ function display_login()
             $("#login-button").css("color", "rgb(255, 255, 255)");
         },
         buttons: {
-            "Save": function() {
-                saveSettings = {name     :$("#name").val(),
-                                ip       :$("#ip").val(),
-                                port     :$("#port").val(),
-                                service  :$("#service").val(),
-                                type     :$('input:radio[name=db_type]:checked').val(),
-                                user     :$("#user").val(),
-                                password :$("#password").val()};
-                var lidx=0;
-                for(lidx=0; lidx < logins.length; ++lidx) {
-                    if(logins[lidx].name == saveSettings.name) {
-                        logins[lidx] = saveSettings;
-                        break;
-                    }
-                }
-                if (lidx >= logins.length) {
-                    logins[lidx] = saveSettings;
-                    $('<option value="'+lidx+'">'+logins[lidx].name+'</option>').appendTo($('#config_list'));
-                }
-
-                ajax_post('/app/save', logins, null, null, function(data) {
-                    alert(data.result);
-                });
-            },
             "Login": function() {
                 var bValid = true;
                 allFields.removeClass( "ui-state-error" );
@@ -109,19 +85,50 @@ function display_login()
                     show_tables();
                 }
             },
+            "Save": function() {
+                name = $("#name").val();
+                saveSettings = {ip       :$("#ip").val(),
+                                port     :$("#port").val(),
+                                service  :$("#service").val(),
+                                type     :$('input:radio[name=db_type]:checked').val(),
+                                user     :$("#user").val(),
+                                password :$("#password").val()};
+                logins[name] = saveSettings;
+                $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
+                load_login_form(name);
+
+                ajax_post('/app/save', logins, null, null, function(data) {
+                    alert(data.result);
+                });
+            },
+            "Delete": function() {
+                delByName = $("#name").val();
+                delete logins[delByName];
+                $('#config_list option[value="'+delByName+'"]').remove();
+                var name = null;
+                for(name in logins);
+                if(null != name) load_login_form(name);
+
+                ajax_post('/app/save', logins, null, null, function(data) {
+                    alert(data.result);
+                });
+            },
             Cancel: function() {
                 $(this).dialog("close");
             }
         },
     });
     $('#config_list').html('');
-    for(var i=0;i<logins.length; ++i)
-        $('<option value="'+i+'">'+logins[i].name+'</option>').appendTo($('#config_list'));
+    for(var name in logins)
+        $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
     $('#config_list').change(function() {
         document.title = pageTitlePrefix + $(this).val();
         load_login_form($(this).val());
     });
-    load_login_form(1);
+    for(var name in logins) {
+        load_login_form(name);
+        break;
+    }
     $('#dialog-login').dialog("open");
 }
 
@@ -145,14 +152,14 @@ function checkLength( o, n, min, max ) {
     }
 }
 
-function load_login_form(systemid) {
-    $('#name').val(logins[systemid].name);
-    $('#ip').val(logins[systemid].ip);
-    $('#port').val(logins[systemid].port);
-    $('#service').val(logins[systemid].service);
-    $('#sid').val(logins[systemid].sid);
-    $('#user').val(logins[systemid].user);
-    $('#password').val(logins[systemid].password);
-    $('input:radio[name=db_type][value='+logins[systemid].type+']').click();
-    $('#config_list option[value="'+systemid+'"]').attr("selected","selected"); 
+function load_login_form(name) {
+    $('#name').val(name);
+    $('#ip').val(logins[name].ip);
+    $('#port').val(logins[name].port);
+    $('#service').val(logins[name].service);
+    $('#sid').val(logins[name].sid);
+    $('#user').val(logins[name].user);
+    $('#password').val(logins[name].password);
+    $('input:radio[name=db_type][value='+logins[name].type+']').click();
+    $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
 }

@@ -47,8 +47,8 @@ handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = State) ->
     {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
 
 process_call({"save", ReqData}, _From, #state{key=Key} = State) ->
-    Data = "var logins = eval(\n'" ++ binary_to_list(wrq:req_body(ReqData)) ++ "'\n)",
-    Path = filename:absname("")++"/www/config.js",
+    Data = "var logins = JSON.parse(\n'" ++ binary_to_list(wrq:req_body(ReqData)) ++ "'\n)",
+    Path = filename:absname("")++"/priv/www/config.js",
     file:write_file(Path, list_to_binary(Data)),
     io:format("[~p] config replaced @ ~p~n", [Key, Path]),
     {reply, "{\"result\": \"saved successfully\"}", State};
@@ -516,6 +516,8 @@ select_to_json({select, {opt, Opt},
           		)"
           
         , "select /*+ index(t1 t1_abc) */ * from abc where a = b"
+
+        , "SELECT /*+ INDEX(BDETAIL6 IDX_BD_UMSGGRPID) */ NULL ROW_ID_S, BDETAIL6.ROWID ROW_ID_M, BD_UMSGGRPID MSGID, to_char(BD_DATESUBMIT,'DD.MM.YYYY HH24:MI:SS') SUBMITTIME, to_char(BD_DATEEXPIRE,'DD.MM.YYYY HH24:MI:SS') EXPIRETIME, to_char(BD_DATEDELIVERY,'DD.MM.YYYY HH24:MI:SS') RECTIME, BD_MSISDN_A SENDER, BD_MSISDN_B RECEIVER, BD_MSGSIZE MSGLEN, NVL(MMSCCRT_LANG01,BD_CDRRECTYPE) TYPE, NVL(MMSCCRT_VALUE1,BD_CDRRECTYPE) TYPE_TT1, NVL(MMSCCRT_VALUE2,BD_CDRRECTYPE) TYPE_TT2, DECODE(BD_MSGTYPE||BD_EVENTDISP,01,'Y',012,'Y','N') ISDELIV, NVL(MMSCET_LANG02,BD_EVENTDISP) EVENTDISP_STATCODE, NVL(MMSCMT_LANG02,BD_MSGTYPE) MSGTYPE_ERRCODE, NVL(MMSCET_VALUE2,BD_EVENTDISP) EVENTDISP_TT, NVL(MMSCMT_VALUE2,BD_MSGTYPE) MSGTYPE_TT, 'MMS' ROWTYPE, to_char(BD_DATETIME,'DD.MM.YYYY HH24:MI:SS') DATETIME FROM BDETAIL6, MMSC_CDRRECTYPE, MMSC_EVENTDISPTYPE, MMSC_MSGTYPE Where BD_CDRRECTYPE=MMSCCRT_ID (+) AND ltrim(to_char(BD_EVENTDISP))=MMSCET_ID (+) AND ltrim(to_char(BD_MSGTYPE))=MMSCMT_ID (+) AND BD_UMSGGRPID = 'mj78yk7r307fga5a01' AND BD_MSISDN_B = '41796187332' AND BD_DATETIME >= to_date('19.06.12 11:15:09','DD.MM.YY HH24:MI:SS') - 14 AND BD_DATETIME <= to_date('19.06.12 11:15:09','DD.MM.YY HH24:MI:SS') + 14 ORDER BY BD_DATETIME, NVL(BD_DATEDELIVERY,BD_DATETIME), BD_MSGTYPE"
 
 %        , "SELECT /*+ INDEX(ACCOUNT IDXU_AC_SHORT)*/  AC_ID, AC_NAME, AC_ETID, AC_SHORT, AC_DEPTID, AC_LANGID,  AC_LOGRET, NVL(AC_MAXLOG, SYS_MAXLOG) MAXLOG,  AC_LASTLOGINTIME, AC_IPMASK, AC_REMOTEADDR,  (SYSDATE - NVL(AC_LASTLOGINTIME,SYSDATE))*24*60 - NVL(SYS_DELAY,3) TIME_DIFF FROM ACCOUNT, SYSPARAMETERS WHERE AC_ESID = 'A' AND AC_SHORT = 'ADMIN';"
         ]).

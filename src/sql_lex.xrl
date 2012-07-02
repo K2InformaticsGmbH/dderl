@@ -5,7 +5,7 @@ Rules.
 (ALL|all)						:				{token, {'ALL', TokenLine}}.
 (AND|and)						:				{token, {'AND', TokenLine}}.
 
-(AVG|avg|MIN|min|MAX|max|SUM|sum|COUNT|count)
+(AVG|avg|MIN|min|MAX|max|SUM|sum|COUNT|count|to_char)
                                 :				{token, {'AMMSC', TokenLine, list_to_atom(TokenChars)}}.
 (BOOL_AND|bool_and|BOOL_OR|bool_or|SELECTIVITY|selectivity|STDDEV_POP|stddev_pop)
                                 :				{token, {'UFUN', TokenLine, list_to_atom(TokenChars)}}.
@@ -98,7 +98,7 @@ Rules.
 
 (=|<>|<|>|<=|>=)        : {token, {'COMPARISON', TokenLine, list_to_atom(TokenChars)}}.
 
-[\-\+\*\/\(\)\,\.\;]    : {token, {list_to_atom(TokenChars), TokenLine}}.
+[\|\-\+\*\/\(\)\,\.\;]    : {token, {list_to_atom(TokenChars), TokenLine}}.
 
 	%% names
 [A-Za-z][A-Za-z0-9_]*   : {token, {'NAME', TokenLen, TokenChars}}.
