@@ -1,4 +1,4 @@
-var logins = {};
+var logins = new Object();
 function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
