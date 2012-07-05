@@ -44,19 +44,20 @@ process_request(SessKey, WReq, {?MODULE, Pid}) ->
 update_account(User, {pswd, Password}) ->
     Pswd = lists:flatten(io_lib:format(lists:flatten(array:to_list(array:new([{size,16},{default,"~.16b"}])))
                                      , binary_to_list(erlang:md5(Password)))),
-    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
-    mnesia:transaction(fun() ->
-                        mnesia:write(
-                            Account#accounts{password = Pswd})
-                       end);
+    Acnt = case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
+            {atomic, []} -> #accounts{user=User, password = Pswd};
+            {atomic, [Account|_]} -> Account#accounts{password = Pswd}
+    end,
+    mnesia:transaction(fun() -> mnesia:write(Acnt) end);
 update_account(User, {pswd_md5, Password}) ->
-    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
-    mnesia:transaction(fun() ->
-                        mnesia:write(
-                            Account#accounts{password = Password})
-                       end);
+    Acnt = case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
+            {atomic, []} -> #accounts{user=User, password = Password};
+            {atomic, [Account|_]} -> Account#accounts{password = Password}
+    end,
+    mnesia:transaction(fun() -> mnesia:write(Acnt) end);
 update_account(User, {cons, Connections}) ->
     {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
+    io:format(user, "Connections ~p~n", [Connections]),
     mnesia:transaction(fun() ->
                         mnesia:write(
                             Account#accounts{db_connections = Connections})
@@ -64,14 +65,15 @@ update_account(User, {cons, Connections}) ->
 
 retrieve(cons, User) ->
     case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
-        {atomic, [#accounts{db_connections=Connections}|_]} ->
-            {ok, Connections};
+        {atomic, []} -> {error, "User does not exists"};
+        {atomic, [#accounts{db_connections=Connections}|_]} -> {ok, Connections};
         {aborted, Reason} ->
             io:format(user, "mnesia:read failed ~p~n", [Reason]),
             {error, Reason}
     end;
 retrieve(pswd, User) ->
     case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
+        {atomic, []} -> {error, "User does not exists"};
         {atomic, [#accounts{password=Password}|_]} ->
             {ok, Password};
         {aborted, Reason} ->
@@ -121,19 +123,21 @@ process_call({"save", ReqData}, _From, #state{key=Key, user=User} = State) ->
     case User of
         [] -> {reply, "{\"save\": \"not logged in\"}", State};
         _ ->
-            case update_account(User, {cons, binary_to_list(wrq:req_body(ReqData))}) of
+            Data = binary_to_list(wrq:req_body(ReqData)),
+            io:format(user, "Saving... ~p~n", [Data]),
+            case update_account(User, {cons, Data}) of
                 {atomic, ok} ->
-                    io:format("[~p] config updated~n", [Key]),
+                    io:format("[~p] config updated for user ~p~n", [Key, User]),
                     {reply, "{\"save\": \"ok\"}", State};
                 abort ->  {reply, "{\"save\": \"unable to save config\"}", State}
             end
     end;
 process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
     case retrieve(cons, User) of
-        {ok, Connections} ->  
-            {reply, Connections, State#state{user=User}};
-        {error, Reason} ->
-            {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
+        {ok, []} -> {reply, "[]", State};
+        {ok, undefined} ->  {reply, "[]", State};
+        {ok, Connections} -> {reply, Connections, State#state{user=User}};
+        {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
 process_call({"connect", ReqData}, _From, #state{key=Key} = State) ->
     {struct, [{<<"connect">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),

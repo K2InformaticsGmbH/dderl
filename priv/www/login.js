@@ -1,4 +1,4 @@
-var logins = null;
+var logins = {};
 function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
@@ -195,7 +195,7 @@ function display_db_login()
                 load_login_form(name);
 
                 ajax_post('/app/save', logins, null, null, function(data) {
-                    alert(data.result);
+                    alert(data.save);
                 });
             },
             "Delete": function() {
