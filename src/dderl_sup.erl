@@ -2,6 +2,8 @@
 
 -behaviour(supervisor).
 
+-include("dderl.hrl").
+
 %% API
 -export([start_link/0]).
 
@@ -58,4 +60,13 @@ init([]) ->
            permanent, 5000, worker, dynamic},
     Processes = [Web],
     ets:new(dderl_req_sessions, [set, public, named_table]),
+    case mnesia:create_schema([node()]) of
+        ok -> ok;
+        {error, R0} -> io:format(user, "mnesia:create_schema error ~p~n", [R0])
+    end,
+    ok = mnesia:start(),
+    case mnesia:create_table(accounts, [{disc_copies, [node()]}, {attributes, record_info(fields, accounts)}]) of
+        {atomic, ok} -> ok;
+        {aborted, R1} -> io:format(user, "mnesia:create_table aborted ~p~n", [R1])
+    end,
     {ok, { {one_for_one, 10, 10}, Processes} }.

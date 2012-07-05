@@ -5,8 +5,10 @@ Rules.
 (ALL|all)						:				{token, {'ALL', TokenLine}}.
 (AND|and)						:				{token, {'AND', TokenLine}}.
 
-(AVG|avg|MIN|min|MAX|max|SUM|sum|COUNT|count|to_char)
+(AVG|avg|MIN|min|MAX|max|SUM|sum|COUNT|count)
                                 :				{token, {'AMMSC', TokenLine, list_to_atom(TokenChars)}}.
+(To_Char|TO_CHAR|to_char|NVL|nvl|DECODE|decode|ltrim|LTRIM|to_date|TO_DATE)
+                                :				{token, {'FUNS', TokenLine, list_to_atom(TokenChars)}}.
 (BOOL_AND|bool_and|BOOL_OR|bool_or|SELECTIVITY|selectivity|STDDEV_POP|stddev_pop)
                                 :				{token, {'UFUN', TokenLine, list_to_atom(TokenChars)}}.
 (ABS|abs|ACOS|acos|ASIN|asin|ATAN|atan|COS|cos|COSH|cosh|COT|cot|SIN|sin|SINH|sinh|TAN|tan|TANH|tanh)
@@ -98,7 +100,7 @@ Rules.
 
 (=|<>|<|>|<=|>=)        : {token, {'COMPARISON', TokenLine, list_to_atom(TokenChars)}}.
 
-[\|\-\+\*\/\(\)\,\.\;]    : {token, {list_to_atom(TokenChars), TokenLine}}.
+([\|\-\+\*\/\(\)\,\.\;]|(\|\|))    : {token, {list_to_atom(TokenChars), TokenLine}}.
 
 	%% names
 [A-Za-z][A-Za-z0-9_]*   : {token, {'NAME', TokenLen, TokenChars}}.

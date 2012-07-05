@@ -2,13 +2,22 @@
 
 -behavior(gen_server).
 
+-include("dderl.hrl").
+
 -export([start/0
         , process_request/3
         , get_state/1
         , sql_to_json/1
         ]).
 
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, format_status/2]).
+-export([init/1
+        , handle_call/3
+        , handle_cast/2
+        , handle_info/2
+        , terminate/2
+        , code_change/3
+        , format_status/2
+        , update_account/2]).
 
 -define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
 
@@ -29,7 +38,46 @@ process_request(SessKey, WReq, {?MODULE, Pid}) ->
         , session
         , statements = []
         , tref
+        , user = []
     }).
+
+update_account(User, {pswd, Password}) ->
+    Pswd = lists:flatten(io_lib:format(lists:flatten(array:to_list(array:new([{size,16},{default,"~.16b"}])))
+                                     , binary_to_list(erlang:md5(Password)))),
+    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
+    mnesia:transaction(fun() ->
+                        mnesia:write(
+                            Account#accounts{password = Pswd})
+                       end);
+update_account(User, {pswd_md5, Password}) ->
+    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
+    mnesia:transaction(fun() ->
+                        mnesia:write(
+                            Account#accounts{password = Password})
+                       end);
+update_account(User, {cons, Connections}) ->
+    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
+    mnesia:transaction(fun() ->
+                        mnesia:write(
+                            Account#accounts{db_connections = Connections})
+                       end).
+
+retrieve(cons, User) ->
+    case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
+        {atomic, [#accounts{db_connections=Connections}|_]} ->
+            {ok, Connections};
+        {aborted, Reason} ->
+            io:format(user, "mnesia:read failed ~p~n", [Reason]),
+            {error, Reason}
+    end;
+retrieve(pswd, User) ->
+    case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
+        {atomic, [#accounts{password=Password}|_]} ->
+            {ok, Password};
+        {aborted, Reason} ->
+            io:format(user, "mnesia:read failed ~p~n", [Reason]),
+            {error, Reason}
+    end.
 
 init(_Args) ->
     io:format(user, "dderl_session ~p started...~n", [self()]),
@@ -46,18 +94,53 @@ handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = State) ->
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
 
-process_call({"save", ReqData}, _From, #state{key=Key} = State) ->
-    Data = "var logins = JSON.parse(\n'" ++ binary_to_list(wrq:req_body(ReqData)) ++ "'\n)",
-    Path = filename:absname("")++"/priv/www/config.js",
-    file:write_file(Path, list_to_binary(Data)),
-    io:format("[~p] config replaced @ ~p~n", [Key, Path]),
-    {reply, "{\"result\": \"saved successfully\"}", State};
 process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    io:format("[~p] login ~p~n", [Key, {User, Password}]),
+    case retrieve(pswd, User) of
+        {ok, Password} ->  
+            {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
+        {ok, DifferentPassword} ->
+            io:format(user, "[~p] Password missmatch Got ~p Has ~p~n", [Key, Password, DifferentPassword]),
+            {reply, "{\"login\": \"invalid password\"}", State};
+        {error, Reason} ->
+            {reply, "{\"login\": \"invalid user -- " ++ Reason ++ "\"}", State}
+    end;
+process_call({"login_change_pswd", ReqData}, _From, #state{key=Key} = State) ->
+    {struct, [{<<"change_pswd">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    io:format("[~p] change password ~p~n", [Key, {User, Password}]),
+    case update_account(User, {pswd_md5, Password}) of
+        {atomic, ok} ->  {reply, "{\"change_pswd\": \"ok\"}", State};
+        abort ->  {reply, "{\"change_pswd\": \"unable to change password\"}", State}
+    end;
+process_call({"save", ReqData}, _From, #state{key=Key, user=User} = State) ->
+    case User of
+        [] -> {reply, "{\"save\": \"not logged in\"}", State};
+        _ ->
+            case update_account(User, {cons, binary_to_list(wrq:req_body(ReqData))}) of
+                {atomic, ok} ->
+                    io:format("[~p] config updated~n", [Key]),
+                    {reply, "{\"save\": \"ok\"}", State};
+                abort ->  {reply, "{\"save\": \"unable to save config\"}", State}
+            end
+    end;
+process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
+    case retrieve(cons, User) of
+        {ok, Connections} ->  
+            {reply, Connections, State#state{user=User}};
+        {error, Reason} ->
+            {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
+    end;
+process_call({"connect", ReqData}, _From, #state{key=Key} = State) ->
+    {struct, [{<<"connect">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
     Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
     Service  = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
-    Type      = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
+    Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     io:format(user, "[~p] Params ~p~n", [Key, {IpAddr, Port, Service, Type, User, Password}]),
@@ -70,8 +153,7 @@ process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
     %%oci_session_pool:enable_log(Pool),
     Session = oci_session_pool:get_session(Pool),
     io:format(user, "[~p] Session ~p~n", [Key, {Session,Pool}]),
-    Resp = "{\"session\":" ++ integer_to_list(State#state.key) ++ "}",
-    {reply, Resp, State#state{session={Session,Pool}}};
+    {reply, "{\"connect\":\"ok\"}", State#state{session={Session,Pool}}};
 process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
     Query = "select distinct owner from all_tables",
     io:format(user, "[~p] Users for ~p~n", [Key, {Session, Query}]),

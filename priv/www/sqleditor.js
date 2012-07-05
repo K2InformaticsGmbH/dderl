@@ -3,7 +3,7 @@ var selected = {
     fields: new Array(),
     sorts: new Array(),
     conds: new Array(),
-    joins: new Array(),
+    joins: new Array()
 };
 
 function load_fields(fields_target) {

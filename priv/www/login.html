@@ -35,7 +35,6 @@
             position: absolute;
             top: 5px;
             border: none;
-            width: 60px;
         }
 
         .loading-indicator {
@@ -81,6 +80,10 @@
             background:#EFEFEF;
         }
         .download_incomplete {
+            width:15px; height:15px;
+            background-image:url('../static/images/ball_yellow.gif');
+        }
+        .download_error {
             width:15px; height:15px;
             background-image:url('../static/images/ball_red.gif');
         }
@@ -133,20 +136,28 @@
     </ul>
     
     <div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F;">
-        <button id="login-button" class="menubutton" style="left: 5px;" onclick='show_login()'>Log In</button>
-        <button id="tbl-view-button" class="menubutton" style="left: 60px; width: 100px;" onclick='show_tables()'>Tables/Views</button>
-        <button id="test-button" class="menubutton" style="left: 200px; width: 100px;" onclick='parse_and_hit("select * from abc where not a=b and c=d or (e=f or g=h)")'>Cond Test</button>
-        <div class="ui-widget" style="position:absolute; right: 5px; top: 4px;">
-            <select id="users" onchange="generate_table_views(session, this.options[this.selectedIndex].value)">
-            	<option value="">Select User...</option>
-            </select>
-        </div>
+        <table width="100%" height="100%" cellpadding=0 cellspacing=0 border=0>
+            <tr><td align="left" width="10%">
+                    <button id="login-button" class="menubutton" onclick='display_login()'>Log In</button></td>
+                <td align="left" width="10%">
+                    <button id="tbl-view-button" class="menubutton" onclick='show_tables()'>Tables/Views</button></td>
+                <td align="left" width="10%">
+                    <button id="test-button" class="menubutton" onclick='parse_and_hit("select * from abc")'>Cond Test</button></td>
+                <td align="left" width="10%">
+                    <button id="change-pswd-button" class="menubutton" onclick='change_password()'>Change Password</button></td>
+                <td align="right">
+                    <div class="ui-widget">
+                    <select id="users" onchange="generate_tables_views(session, this.options[this.selectedIndex].value)">
+                    	<option value="">Select User...</option>
+                    </select>
+                    </div></td></tr>
+        </table>
     </div>
     
-    <div id='tables' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
-        <div id="db-tables-views"></div>
+    <div id='db-tables-views' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
     </div>
     
+
 	<script src="../static/jquery-1.7.1.js"></script>
 	<script src="../static/external/jquery.bgiframe-2.1.2.js"></script>
 	<script src="../static/ui/jquery.ui.core.js"></script>
@@ -163,7 +174,7 @@
 	<script src="../static/ui/jquery.effects.core.js"></script>
     <script src="../static/jquery.dynatree.js" type="text/javascript"></script>
     <script src="../static/jquery.event.drag-2.0.min.js"></script>
-    <script src="https://raw.github.com/dergraf/SlickGrid/cellrowcolselectionmodel/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
     <script src="../static/firebugx.js"></script>    
     <script src="../static/slickgrid/slick.core.js"></script>
     <script src="../static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
@@ -174,13 +185,13 @@
     <script src="../static/slickgrid/slick.editors.js"></script>    
     <script src="../static/slickgrid/slick.grid.js"></script>
     <script src="../static/slickgrid/slick.dataview.js"></script>
-    <script src="https://raw.github.com/dergraf/SlickGrid/columnpicker-zindex/controls/slick.columnpicker.js"></script>
+    <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
     <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
     <script src="../static/jquery.contextMenu-1.01/jquery.contextMenu.js"></script>
 
-	<script src="login.js"></script>
-	<script src="config.js"></script>
+	<script src="md5.js"></script>
 	<script src="dderl.js"></script>
+	<script src="login.js"></script>
 	<script src="sqleditor.js"></script>
 </body>
 </html>

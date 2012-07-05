@@ -1,39 +1,53 @@
 function generate_tables_views(session, owner) {
     if(owner.length == 0) return;
-    var root = $("#db-tables-views").dynatree("getRoot");
-    root.removeChildren(true, false);
-    var trTables = root.addChild({title: "Tables", isFolder: true, expand: true});
-    var trViews = root.addChild({title: "Views", isFolder: true});
-    $("#db-tables-views").dynatree("getTree").options.onClick = function(node) {
-        if(!node.data.isFolder) render_table([node.data.title], "select * from " + node.data.tooltip, owner);
-    };
+    $("#db-tables-views").html('');
+    $('<select style="height: 50%;" size=10 id="db-tables">').appendTo("#db-tables-views");
+    $('#db-tables').change(function() {
+        table_view_change('#db-views', $(this).val(), owner)
+    });
     ajax_post('/app/tables', {tables: {owner: owner}}, null, null, function(data) {
         var title = '';
-        var maxStrLength = 0;
         var tableRows = data.rows;
-        trTables.setTitle("Tables ("+tableRows.length+")");
+        var maxWidth = 0;
         for(var i = 0; i < tableRows.length; ++i) {
             title = tableRows[i][0];
-            trTables.addChild({title: title, tooltip: owner + '.' + tableRows[i][0]}, null);
-            if(title.length > maxStrLength) maxStrLength = title.length;
-            var len = 80 + 8 * maxStrLength;
-            $('#tables').width(len < 100 ? 100 : len);
+            $('<option value="'+owner+'.'+tableRows[i][0]+'">'+ tableRows[i][0] +'</option>').appendTo('#db-tables');
+            if(title.length > maxWidth) maxWidth = title.length;
         }
+        adjustTableViewWidth(maxWidth);
+    });
+    $('<select style="height: 50%;" size=10 id="db-views">').appendTo("#db-tables-views");
+    $('#db-views').change(function() {
+        table_view_change('#db-tables', $(this).val(), owner)
     });
     ajax_post('/app/views', {views: {owner: owner}}, null, null, function(data) {
         var title = '';
-        var maxStrLength = 0;
         var viewRows = data.rows;
-        trViews.setTitle("Views ("+viewRows.length+")");
+        var maxWidth = 0;
         for(var i = 0; i < viewRows.length; ++i) {
             title = viewRows[i][0];
-            trViews.addChild({title: title, tooltip: owner + '.' + viewRows[i][0]}, null);
-            if(title.length > maxStrLength) maxStrLength = title.length;
-            var len = 80 + 8 * maxStrLength;
-            $('#tables').width(len < 100 ? 100 : len);
+            $('<option value="'+owner+'.'+viewRows[i][0]+'">'+ viewRows[i][0] +'</option>').appendTo('#db-views');
+            if(title.length > maxWidth) maxWidth = title.length;
         }
+        adjustTableViewWidth(maxWidth);
     });
 }
+
+function table_view_change(otherList, tableName, owner)
+{
+    $(otherList + ' option:selected').removeAttr("selected");
+    render_table([tableName], "select * from " + tableName, owner);
+}
+
+function adjustTableViewWidth(maxWidth) {
+    var len = 80 + 8 * maxWidth;
+    len = len < 100 ? 100 : len;
+    if(len > $("#db-tables-views").width())
+        $("#db-tables-views").width(len);
+    $('#db-tables').width(len);
+    $('#db-views').width(len);
+}
+
 
 var dlgX = 0;
 var dlgY = 0;
@@ -71,7 +85,7 @@ function render_table(tableNameList, query, owner) {
     }
 
     $('<div id=' + dialogueId + '/>').appendTo(document.body);
-    if(dlgX == 0) dlgX = $('#tables').width();
+    if(dlgX == 0) dlgX = $('#db-tables-views').width();
     if(dlgY == 0) dlgY = $('#menubar').height();
     var qLink = $('<img id=state_'+tableName+' class="download_incomplete"/>&nbsp;'+
             '&nbsp;<a href="javascript:void(0)">'+owner+'.'+origTableName+'</a>'); //'@'+$(ip).val()+
@@ -293,8 +307,8 @@ function prepareHeader(headers) {
 }
 
 function show_tables() {
-    $('#tables').toggle();
-    $('#tables').height($(window).height() - $('#menubar').height() - 2);
+    $('#db-tables-views').toggle();
+    $('#db-tables-views').height($(window).height() - $('#menubar').height() - 2);
     if($('#tbl-view-button').css("color") == "rgb(255, 255, 255)")
         $('#tbl-view-button').css("color", "rgb(127, 127, 127)");
     else
@@ -303,13 +317,6 @@ function show_tables() {
 
 var session = null;
 var owner = null;
-
-function show_login() {
-    if(session == null)
-        display_login();
-//        $("#dialog-login").dialog("open");
-    $('#login-button').css("color", "rgb(127,127,127)");
-}
 
 var queryId = 0;
 function edit_sql(tblDlg, sql) {
@@ -358,7 +365,8 @@ function ajax_post(url, dataJson, headers, context, successFun) {
         headers: headers,
         context: context,
         success: function(_data) {
-            session = _data.session;
+            if(_data.hasOwnProperty('session'))
+                session = _data.session;
             if(successFun != null)
                 successFun.call(context, _data);
         }
@@ -369,13 +377,14 @@ var pageTitlePrefix = null;
 $(document).ready(function() {    
     if(session == null) {
         if(null == pageTitlePrefix)
-            pageTitlePrefix = document.title.trim() + " ";
-        show_login();
+            pageTitlePrefix = document.title + " "; // IE can't trim()
+            //pageTitlePrefix = document.title.trim() + " ";
+        display_login();
     }
 });
 
 $(window).resize(function() {
-    $('#tables').height($(window).height() - $('#menubar').height() - 2);
+    $('#db-tables-views').height($(window).height() - $('#menubar').height() - 2);
 });
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");

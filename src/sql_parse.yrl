@@ -85,6 +85,8 @@ Nonterminals
  atom
  parameter_ref
  function_ref
+ %concat_list
+ fun_args
  literal
  table
  column_ref
@@ -110,6 +112,7 @@ Terminals
  APPROXNUM
  COMPARISON
  ALL
+ FUNS
  AMMSC
  ANY
  AS
@@ -152,7 +155,6 @@ Terminals
  IS
  KEY
  LIKE
- NULL
  NULLX
  NUMERIC
  OF
@@ -201,6 +203,7 @@ Terminals
  ','
  '='
  '.'
+ '||'
 .
 
 Rootsymbol sql_list.
@@ -360,7 +363,6 @@ insert_atom_commalist -> insert_atom_commalist ',' insert_atom                  
 
 insert_atom -> atom                                                                             : '$1'.
 insert_atom -> NULLX                                                                            : 'nullx'.
-insert_atom -> NULL                                                                             : 'null'.
 
 open_statement -> OPEN cursor                                                                   : {'open', '$2'}.
 
@@ -387,7 +389,6 @@ assignment_commalist -> assignment_commalist ',' assignment                     
 
 assignment -> column '=' scalar_exp                                                             : {'=', '$1', '$3'}.
 assignment -> column '=' NULLX                                                                  : {'=', '$1', "NULLX"}.
-assignment -> column '=' NULL                                                                   : {'=', '$1', "NULL"}.
 
 update_statement_searched -> UPDATE table SET assignment_commalist opt_where_clause             : {'update', '$2', {'set', '$4'}, '$5'}.
 
@@ -468,8 +469,6 @@ like_predicate -> scalar_exp LIKE atom opt_escape                               
 opt_escape -> '$empty'                                                                          : [].
 opt_escape -> ESCAPE atom                                                                       : {escape, '$2'}.
 
-test_for_null -> column_ref IS NOT NULL                                                         : {'is_not_null', '$1'}.
-test_for_null -> column_ref IS NULL                                                             : {'is_null', '$1'}.
 test_for_null -> column_ref IS NOT NULLX                                                        : {'is_not_nullx', '$1'}.
 test_for_null -> column_ref IS NULLX                                                            : {'is_nullx', '$1'}.
 
@@ -500,10 +499,19 @@ scalar_exp -> scalar_exp '/' scalar_exp                                         
 scalar_exp -> '+' scalar_exp                                                                    : {'+','$1'}. %prec UMINU
 scalar_exp -> '-' scalar_exp                                                                    : {'-','$1'}. %prec UMINU
 scalar_exp -> scalar_exp NAME                                                                   : {as, '$1', unwrap('$2')}.
+scalar_exp -> NULLX NAME                                                                        : {as, "NULL", unwrap('$2')}.
+scalar_exp -> NAME NAME                                                                         : {as, unwrap('$1'), unwrap('$2')}.
+scalar_exp -> STRING NAME                                                                       : {as, unwrap('$1'), unwrap('$2')}.
+scalar_exp -> INTNUM NAME                                                                       : {as, unwrap('$1'), unwrap('$2')}.
+scalar_exp -> APPROXNUM NAME                                                                    : {as, unwrap('$1'), unwrap('$2')}.
 scalar_exp -> atom                                                                              : '$1'.
 scalar_exp -> column_ref                                                                        : '$1'.
 scalar_exp -> function_ref                                                                      : '$1'.
+%scalar_exp -> concat_list                                                                       : {'||','$1'}.
 scalar_exp -> '(' scalar_exp ')'                                                                : ['$2'].
+
+%concat_list -> scalar_exp '||' scalar_exp                                                       : '$1'.
+%concat_list -> concat_list '||' scalar_exp                                                     : '$1' ++ ['$3'].
 
 scalar_exp_commalist -> scalar_exp                                                              : ['$1'].
 scalar_exp_commalist -> scalar_exp_commalist ',' scalar_exp                                     : '$1' ++ ['$3'].
@@ -516,10 +524,17 @@ parameter_ref -> parameter                                                      
 parameter_ref -> parameter parameter                                                            : {'$1', '$2'}.
 parameter_ref -> parameter INDICATOR parameter                                                  : {'indicator', '$1', '$3'}.
 
+function_ref -> FUNS  '(' fun_args ')'                                                          : {'fun', unwrap('$1'), '$3'}.
+
 function_ref -> AMMSC '(' '*' ')'                                                               : {'fun', unwrap('$1'), {}}.
 function_ref -> AMMSC '(' DISTINCT column_ref ')'                                               : {'fun', unwrap('$1'), {'distinct', '$4'}}.
 function_ref -> AMMSC '(' ALL scalar_exp ')'                                                    : {'fun', unwrap('$1'), {'all', '$4'}}.
 function_ref -> AMMSC '(' scalar_exp ')'                                                        : {'fun', unwrap('$1'), {'$4'}}.
+
+fun_args -> NAME                                                                                : unwrap('$1').
+fun_args -> STRING                                                                              : unwrap('$1').
+fun_args -> function_ref                                                                        : ['$1'].
+fun_args -> fun_args ',' fun_args                                                               : '$1' ++ '$3'.
 
 literal -> STRING                                                                               : unwrap('$1').
 literal -> INTNUM                                                                               : unwrap('$1').
