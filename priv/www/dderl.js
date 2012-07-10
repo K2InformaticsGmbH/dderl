@@ -1,4 +1,38 @@
-function generate_tables_views(session, owner) {
+function show_logs()
+{
+    ajax_post('/app/logs', {}, null, null, function(data) {
+        $('<div id="dialog-show-logs" title="Logs" style="diaply:none">' +
+          '  <select id="logs_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>' +
+          '</div>').appendTo(document.body);
+        for(var i=0;i<data.logs.length; ++i)
+            $('<option value="'+data.logs[i]+'">'+data.logs[i]+'</option>').appendTo($('#logs_list'));
+        $("#dialog-show-logs").dialog({
+            autoOpen: false,
+            height: 400,
+            width: 300,
+            resizable: false,
+            modal: true,
+            close: function() {
+                $("#dialog-show-logs").dialog('destroy');
+                $("#dialog-show-logs").remove();
+            },
+            buttons: {
+                "Show": function() {
+                    window.open($('#logs_list option:selected').val());
+                },
+                "Delete": function() {
+                },
+                Cancel: function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+        $('#dialog-show-logs').dialog("open");
+    });
+}
+
+function generate_tables_views(session, owner)
+{
     if(owner.length == 0) return;
     $("#db-tables-views").html('');
     $('<select style="height: 50%;" size=10 id="db-tables">').appendTo("#db-tables-views");
@@ -33,10 +67,19 @@ function generate_tables_views(session, owner) {
     });
 }
 
+var valChar = '!"#$%&\'()*+,./:;<=>?@[\\]^`{|}~';
 function table_view_change(otherList, tableName, owner)
 {
     $(otherList + ' option:selected').removeAttr("selected");
-    render_table([tableName], "select * from " + tableName, owner);
+    var tableParts = tableName.split('.');
+
+/*    if(tableParts.length > 2) {
+        if(valChar.indexOf(table[i]);
+    
+    }*/
+    
+    render_table([tableName], 'SELECT * FROM ' + tableName, owner);
+
 }
 
 function adjustTableViewWidth(maxWidth) {

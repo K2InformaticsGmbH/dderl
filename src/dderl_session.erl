@@ -20,6 +20,7 @@
         , update_account/2]).
 
 -define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
+-define(GENLOG, "global.log").
 
 start() ->
     {ok, Pid} = gen_server:start_link(?MODULE, [], []),
@@ -39,6 +40,8 @@ process_request(SessKey, WReq, {?MODULE, Pid}) ->
         , statements = []
         , tref
         , user = []
+        , file
+        , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
     }).
 
 update_account(User, {pswd, Password}) ->
@@ -57,7 +60,6 @@ update_account(User, {pswd_md5, Password}) ->
     mnesia:transaction(fun() -> mnesia:write(Acnt) end);
 update_account(User, {cons, Connections}) ->
     {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
-    io:format(user, "Connections ~p~n", [Connections]),
     mnesia:transaction(fun() ->
                         mnesia:write(
                             Account#accounts{db_connections = Connections})
@@ -68,7 +70,7 @@ retrieve(cons, User) ->
         {atomic, []} -> {error, "User does not exists"};
         {atomic, [#accounts{db_connections=Connections}|_]} -> {ok, Connections};
         {aborted, Reason} ->
-            io:format(user, "mnesia:read failed ~p~n", [Reason]),
+            log(?GENLOG, "mnesia:read failed ~p~n", [Reason]),
             {error, Reason}
     end;
 retrieve(pswd, User) ->
@@ -77,57 +79,63 @@ retrieve(pswd, User) ->
         {atomic, [#accounts{password=Password}|_]} ->
             {ok, Password};
         {aborted, Reason} ->
-            io:format(user, "mnesia:read failed ~p~n", [Reason]),
+            log(?GENLOG, "mnesia:read failed ~p~n", [Reason]),
             {error, Reason}
     end.
 
 init(_Args) ->
-    io:format(user, "dderl_session ~p started...~n", [self()]),
+    log(?GENLOG, "dderl_session ~p started...~n", [self()]),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {ok, #state{key=erlang:phash2({dderl_session, self()}),tref=TRef}}.
 
 handle_call(get_state, _From, State) ->
     {reply, State, State};
-handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = State) ->
+handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key, file=File} = State) ->
     timer:cancel(TRef),
     NewKey = if SessKey =/= Key -> SessKey; true -> Key end,
-    io:format(user, "[~p] process_request ~p~n", [NewKey, Typ]),
+    log(File, "[~p] process_request ~p~n", [NewKey, Typ]),
     {Rep, Resp, NewState} = process_call({Typ, WReq}, From, State#state{key=NewKey}),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
 
-process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
+process_call({"login", ReqData}, _From, #state{key=Key, logdir=Dir} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    io:format("[~p] login ~p~n", [Key, {User, Password}]),
+    {Y,M,D} = date(),
+    File     = filename:join([Dir, User ++ "_" ++ io_lib:format("~p~p~p", [Y,M,D]) ++ ".log"]),
+    log(?GENLOG, "Logfile ~p~n", [File]),
+    log(File, "[~p] login ~p~n", [Key, {User, Password}]),
     case retrieve(pswd, User) of
         {ok, Password} ->  
-            {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
+            {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User,file=File}};
         {ok, DifferentPassword} ->
-            io:format(user, "[~p] Password missmatch Got ~p Has ~p~n", [Key, Password, DifferentPassword]),
+            log(File, "[~p] Password missmatch Got ~p Has ~p~n", [Key, Password, DifferentPassword]),
             {reply, "{\"login\": \"invalid password\"}", State};
         {error, Reason} ->
             {reply, "{\"login\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
-process_call({"login_change_pswd", ReqData}, _From, #state{key=Key} = State) ->
+process_call({"logs", _ReqData}, _From, #state{user=User,logdir=Dir} = State) ->
+    Files = filelib:fold_files(Dir, User ++ "_.*\.log", false, fun(F, A) -> [filename:join(["logs", filename:basename(F)])|A] end, []),
+    {reply, "{\"logs\": "++string_list_to_json(Files, [])++"}", State};
+process_call({"login_change_pswd", ReqData}, _From, #state{key=Key,file=File} = State) ->
     {struct, [{<<"change_pswd">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    io:format("[~p] change password ~p~n", [Key, {User, Password}]),
+    log(File, "[~p] change password ~p~n", [Key, {User, Password}]),
     case update_account(User, {pswd_md5, Password}) of
         {atomic, ok} ->  {reply, "{\"change_pswd\": \"ok\"}", State};
         abort ->  {reply, "{\"change_pswd\": \"unable to change password\"}", State}
     end;
-process_call({"save", ReqData}, _From, #state{key=Key, user=User} = State) ->
+process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = State) ->
     case User of
         [] -> {reply, "{\"save\": \"not logged in\"}", State};
         _ ->
             Data = binary_to_list(wrq:req_body(ReqData)),
-            io:format(user, "Saving... ~p~n", [Data]),
+            log(File, "Saving... ~p~n", [Data]),
             case update_account(User, {cons, Data}) of
                 {atomic, ok} ->
-                    io:format("[~p] config updated for user ~p~n", [Key, User]),
+                    log(File, "[~p] config updated for user ~p~n", [Key, User]),
                     {reply, "{\"save\": \"ok\"}", State};
                 abort ->  {reply, "{\"save\": \"unable to save config\"}", State}
             end
@@ -139,7 +147,7 @@ process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
         {ok, Connections} -> {reply, Connections, State#state{user=User}};
         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
-process_call({"connect", ReqData}, _From, #state{key=Key} = State) ->
+process_call({"connect", ReqData}, _From, #state{key=Key,file=File} = State) ->
     {struct, [{<<"connect">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
     Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
@@ -147,7 +155,7 @@ process_call({"connect", ReqData}, _From, #state{key=Key} = State) ->
     Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    io:format(user, "[~p] Params ~p~n", [Key, {IpAddr, Port, Service, Type, User, Password}]),
+    log(File, "[~p] Params ~p~n", [Key, {IpAddr, Port, Service, Type, User, Password}]),
     {ok, Pool} =
         if Service =/= "MOCK" ->
             oci_session_pool:start_link(IpAddr, Port, {list_to_atom(Type), Service}, User, Password, []);
@@ -156,67 +164,68 @@ process_call({"connect", ReqData}, _From, #state{key=Key} = State) ->
     end,
     %%oci_session_pool:enable_log(Pool),
     Session = oci_session_pool:get_session(Pool),
-    io:format(user, "[~p] Session ~p~n", [Key, {Session,Pool}]),
+    log(File, "[~p] Session ~p~n", [Key, {Session,Pool}]),
     {reply, "{\"connect\":\"ok\"}", State#state{session={Session,Pool}}};
-process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
-    Query = "select distinct owner from all_tables",
-    io:format(user, "[~p] Users for ~p~n", [Key, {Session, Query}]),
+process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
+    Query = "SELECT DISTINCT OWNER FROM \"ALL_TABLES\"",
+    log(File, "[~p] Users for ~p~n", [Key, {Session, Query}]),
     {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, Key),
-    io:format(user, "[~p] Users Resp ~p~n", [Key, Resp]),
+    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
+    log(File, "[~p] Users Resp ~p~n", [Key, Resp]),
     Statement:close(),
     {reply, Resp, State};
-process_call({"tables", ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
+process_call({"tables", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
     {struct, [{<<"tables">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-    Query = "select table_name from all_tables where owner='" ++ Owner ++ "' order by table_name desc",
-    io:format(user, "[~p] Tables for ~p~n", [Key, {Session, Query}]),
+    Query = "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER='" ++ Owner ++ "' ORDER BY TABLE_NAME DESC",
+    log(File, "[~p] Tables for ~p~n", [Key, {Session, Query}]),
     {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, Key),
+    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
     Statement:close(),
     {reply, Resp, State};
-process_call({"views", ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
+process_call({"views", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
     {struct, [{<<"views">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-    Query = "select view_name from all_views where owner='" ++ Owner ++ "' order by view_name desc",
-    io:format(user, "[~p] Views for ~p~n", [Key, {Session, Query}]),
+    Query = "SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER='" ++ Owner ++ "' ORDER BY VIEW_NAME DESC",
+    log(File, "[~p] Views for ~p~n", [Key, {Session, Query}]),
     {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, Key),
+    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
     Statement:close(),
     {reply, Resp, State};
-process_call({"columns", ReqData}, _From, #state{session={Session, _Pool}, key=Key} = State) ->
+process_call({"columns", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
     {struct, [{<<"cols">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     TableNames = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"tables">>, BodyJson, <<>>)], ","),
     Owner = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"owners">>, BodyJson, <<>>)], ","),
-    Query = "select column_name from all_tab_cols where table_name in (" ++ TableNames ++ ") and owner in (" ++ Owner ++ ")",
-    io:format(user, "[~p] Columns for ~p~n", [Key, {Session, Query, TableNames}]),
+    Query = "SELECT COLUMN_NAME FROM ALL_TAB_COLS WHERE TABLE_NAME IN (" ++ TableNames ++ ") AND OWNER IN (" ++ Owner ++ ")",
+    log(File, "[~p] Columns for ~p~n", [Key, {Session, Query, TableNames}]),
     {statement, Statement} = Session:execute_sql(Query, [], 150),
-    Resp = prepare_json_rows(Statement, Key),
+    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
     Statement:close(),
     {reply, Resp, State};
-process_call({"query", ReqData}, _From, #state{session={Session, _Pool}, statements=Statements, key=Key} = State) ->
+process_call({"query", ReqData}, _From, #state{session={Session, _Pool}, statements=Statements, key=Key,file=File} = State) ->
     {struct, [{<<"query">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    {ok, Tokens, _} = sql_lex:string(Query++";"),
-    {ok, [ParseTree|_]} = sql_parse:parse(Tokens),
+    %{ok, Tokens, _} = sql_lex:string(Query++";"),
+    %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
+    ParseTree = [],
     TableName = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
-    io:format(user, "[~p] Query ~p~n", [Key, {Session, Query, TableName}]),
+    log(File, "[~p] Query ~p~n", [Key, {Session, Query, TableName}]),
     {statement, Statement} = Session:execute_sql(Query, [], 150, true),
     {ok, Clms} = Statement:get_columns(),
     StmtHndl = erlang:phash2(Statement),
     Columns = lists:reverse(lists:map(fun({N,_,_})->N end, Clms)),
     Resp = "{\"session\":"++integer_to_list(Key)++", \"table\":\""++TableName++"\",\"headers\":"++string_list_to_json(Columns, [])++",\"statement\":"++integer_to_list(StmtHndl)++"}",
     {reply, Resp, State#state{statements=[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}};
-process_call({"row", ReqData}, _From, #state{statements=Statements, key=Key} = State) ->
+process_call({"row", ReqData}, _From, #state{statements=Statements, key=Key,file=File} = State) ->
     {struct, [{<<"row">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            io:format("[~p, ~p] Statements ~p~n", [Key, StmtKey, Statements]),
+            log(File, "[~p, ~p] Statements ~p~n", [Key, StmtKey, Statements]),
             {reply, "{\"session\":"++integer_to_list(Key)++"}", State};
-        {Statement, _, _} -> {reply, prepare_json_rows(Statement, Key, StmtKey), State}
+        {Statement, _, _} -> {reply, prepare_json_rows(Statement, Key, StmtKey, File), State}
     end;
-process_call({"build_qry", ReqData}, _From, #state{key=Key} = State) ->
+process_call({"build_qry", ReqData}, _From, #state{key=Key,file=File} = State) ->
     {struct, [{<<"build_qry">>, BodyJson}]} = mochijson2:decode(wrq:req_body(ReqData)),
     {struct, QObj} = mochijson2:decode(BodyJson),
     Tables      = proplists:get_value(<<"tables">>, QObj, <<>>),
@@ -224,32 +233,32 @@ process_call({"build_qry", ReqData}, _From, #state{key=Key} = State) ->
     Sorts       = proplists:get_value(<<"sorts">>, QObj, <<>>),
     Conditions  = proplists:get_value(<<"conds">>, QObj, <<>>),
     Joins       = proplists:get_value(<<"joins">>, QObj, <<>>),
-    io:format(user, "[~p] Sorts: ~p~n", [Key, Sorts]),
+    log(File, "[~p] Sorts: ~p~n", [Key, Sorts]),
     SqlStr = create_select_string(Tables, Fields, Sorts, Conditions, Joins),
-    io:format(user, "[~p] SQL: ~p~n", [Key, SqlStr]),
+    log(File, "[~p] SQL: ~p~n", [Key, SqlStr]),
     {reply, "{\"session\":"++integer_to_list(Key)++", \"sql\":\""++SqlStr++"\"}", State};
-process_call({"parse_stmt", ReqData}, _From, #state{key=Key} = State) ->
+process_call({"parse_stmt", ReqData}, _From, #state{key=Key,file=File} = State) ->
     {struct, [{<<"parse_stmt">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     {ok, Tokens, _} = sql_lex:string(Query++";"),
     {ok, [ParseTree|_]} = sql_parse:parse(Tokens),
-    io:format(user, "[~p] parsed sql ~p~n", [Key, ParseTree]),
+    log(File, "[~p] parsed sql ~p~n", [Key, ParseTree]),
     {reply, sql_parse_to_json(Key, ParseTree), State};
-process_call({"stmt_close", ReqData}, _From, #state{statements=Statements, key=Key} = State) ->
+process_call({"stmt_close", ReqData}, _From, #state{statements=Statements, key=Key,file=File} = State) ->
     {struct, [{<<"stmt_close">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            io:format("[~p] Statement ~p not found. Statements ~p~n", [Key, StmtKey, proplists:get_keys(Statements)]),
+            log(File, "[~p] Statement ~p not found. Statements ~p~n", [Key, StmtKey, proplists:get_keys(Statements)]),
             {reply, "{\"session\":"++integer_to_list(Key)++"}", State};
         {Statement, _, _} ->
-            io:format("[~p, ~p] Remove statement ~p~n", [Key, StmtKey, Statement]),
+            log(File, "[~p, ~p] Remove statement ~p~n", [Key, StmtKey, Statement]),
             Statement:close(),
             {_,NewStatements} = proplists:split(Statements, [StmtKey]),
             {reply, "{\"session\":"++integer_to_list(Key)++"}", State#state{statements = NewStatements}}
     end;
-process_call(Request, _From, {key=Key}=State) ->
-    io:format(user, "[~p] Unknown request ~p~n", [Key, Request]),
+process_call(Request, _From, {key=Key,file=File}=State) ->
+    log(File, "[~p] Unknown request ~p~n", [Key, Request]),
     {reply, "{\"dderl-version\":1.0}", State}.
 
 handle_cast(_Request, State) -> {noreply, State}.
@@ -257,8 +266,8 @@ handle_cast(_Request, State) -> {noreply, State}.
 handle_info(die, State) -> {stop, timeout, State};
 handle_info(_Info, State) -> {noreply, State}.
 
-terminate(Reason, #state{key=Key}) ->
-    io:format(user, "[~p] ~p terminating for ~p~n", [Key, self(), Reason]),
+terminate(Reason, #state{key=Key,file=File}) ->
+    log(File, "[~p] ~p terminating for ~p~n", [Key, self(), Reason]),
     ets:delete(dderl_req_sessions, Key).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
@@ -267,14 +276,20 @@ format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-prepare_json_rows(Statement, Key) -> prepare_json_rows(Statement, Key, undefined).
-prepare_json_rows(Statement, Key, StmtKey) ->
+prepare_json_rows(Statement, Key, StmtKey, File) ->
     case Statement:next_rows() of
         [] -> "{\"session\":"++integer_to_list(Key)++", \"rows\":[]}";
         Rows ->
-            io:format(user, "[~p, ~p] row produced _______ ~p _______~n", [Key, StmtKey, length(Rows)]),
+            log(File, "[~p, ~p] row produced _______ ~p _______~n", [Key, StmtKey, length(Rows)]),
             J = convert_rows_to_json(Rows, "[\n"),
             "{\"session\":"++integer_to_list(Key)++", \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+    end.
+
+log(Filename, Format, Content) ->
+    FormatWithDate = "[" ++ io_lib:format("~p ~p", [date(), time()]) ++ "] " ++ Format,
+    case Filename of
+        undefined -> file:write_file(?GENLOG, list_to_binary(io_lib:format(FormatWithDate, Content)), [append]);
+        _         -> file:write_file(Filename, list_to_binary(io_lib:format(FormatWithDate, Content)), [append])
     end.
 
 convert_rows_to_json([], Acc) -> Acc;

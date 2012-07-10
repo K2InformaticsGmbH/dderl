@@ -188,7 +188,7 @@ function display_db_login()
                                 port     :$("#port").val(),
                                 service  :$("#service").val(),
                                 type     :$('input:radio[name=db_type]:checked').val(),
-                                user     :$("#user").val(),
+                                user     :$("#user").val().toUpperCase(),
                                 password :$("#password").val()};
                 logins[name] = saveSettings;
                 $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
