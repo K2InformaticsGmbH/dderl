@@ -43,6 +43,10 @@ malformed_request(ReqData, Context) ->
 to_html(ReqData) ->
     Session = wrq:get_req_header("dderl_sess",ReqData),
     {SessKey, DderlSess} = create_new_session(Session),
+    case wrq:get_req_header("adapter",ReqData) of
+        undefined -> ok;
+        Adapter   -> DderlSess:set_adapter(Adapter)
+    end,
     DderlSess:process_request(SessKey, ReqData).
 
 create_new_session([]) -> create_new_session(undefined);

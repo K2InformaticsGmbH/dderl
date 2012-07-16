@@ -1,4 +1,7 @@
 var logins = new Object();
+var db_types = [{type: "oci", desc: "Oracle"}
+               ,{type: "imem", desc: "Mnesia Cluster"}];
+var adapter = null;
 function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
@@ -98,6 +101,15 @@ function change_password()
     $('#dialog-change-password').dialog("open");
 }
 
+function get_db_types_html()
+{
+    var html = '<select id="adapter_list" class="ui-corner-all">';
+    for(var i=0; i<db_types.length; ++i)
+        html += '<option value='+db_types[i].type+'>'+db_types[i].desc+'</option>';
+    html += '</option>';
+    return html;
+}
+
 function display_db_login()
 {
     $('<div id="dialog-db-login" title="Connect to Oracle Database" style="diaply:none">' +
@@ -107,13 +119,15 @@ function display_db_login()
       '      <tr><td colspan=2><hr></td></tr>' +
       '      <tr><td align=right valign=center>Connection Name&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="name" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>DB Type&nbsp;</td>' +
+      '          <td valign=bottom>'+get_db_types_html()+'</td></tr>' +
       '      <tr><td align=right valign=center>IP Address&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="ip" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>DB Port&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="port" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>DB&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="service" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>DB Type&nbsp;</td>' +
+      '      <tr><td align=right valign=center>Oracle DB Type&nbsp;</td>' +
       '          <td valign=center><table border=0 cellpadding=0 cellspacing=0>' +
       '              <tr><td valign=center><input type="radio" name="db_type" value="service" checked></td>' +
       '                  <td valign=center>&nbsp;Service&nbsp;&nbsp;</td>' +
@@ -125,18 +139,7 @@ function display_db_login()
       '      <tr><td align=right valign=center>Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '  </table>' +
-      '  <p class="validateTips">* All fields are mandatory</p>' +
       '</div>').appendTo(document.body);
-
-    var name        = $("#name");
-    var ip          = $("#ip");
-    var port        = $("#port");
-    var service     = $("#service");
-    var user        = $("#user");
-    var password    = $("#password");
-
-    var allFields   = $([]).add(ip).add(port).add(service).add(user).add(password);
-    var tips = $(".validateTips");
 
     $("#dialog-db-login").dialog({
         autoOpen: false,
@@ -150,41 +153,32 @@ function display_db_login()
         },
         buttons: {
             "Login": function() {
-                var bValid = true;
-                allFields.removeClass( "ui-state-error" );
-
-                bValid = bValid && checkLength( ip, "IP address", 7, 15 );
-                bValid = bValid && checkLength( port, "port", 1, 5 );
-                bValid = bValid && checkLength( service, "service", 0, 100 );
-                bValid = bValid && checkLength( user, "user name", 1, 100 );
-                bValid = bValid && checkLength( password, "password", 5, 16 );
-
-                if ( bValid ) {
-                    var connectJson = {connect: { ip        :ip.val(),
-                                                  port      :port.val(),
-                                                  service   :service.val(),
-                                                  type      :$('input:radio[name=db_type]:checked').val(),
-                                                  user      :user.val(),
-                                                  password  :password.val()}};
-                    owner = user.val();
-                    ajax_post('/app/connect', connectJson, null, null, function(data) {
-                        ajax_post('/app/users', null, null, null, function(data) {
-                            var usr = '';
-                            var userRows = data.rows;
-                            for(var i = 0; i < userRows.length; ++i) {
-                                    usr = userRows[i][0];
-                                    $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
-                            }
-                            generate_tables_views(session, owner);
-                        })
-                    });
-                    $(this).dialog("close");
-                    show_tables();
-                }
+                adapter = $('#adapter_list option:checked').val();
+                var connectJson = {connect: {ip        :$("#ip").val(),
+                                             port      :$("#port").val(),
+                                             service   :$("#service").val(),
+                                             type      :$('input:radio[name=db_type]:checked').val(),
+                                             user      :$("#user").val(),
+                                             password  :$("#password").val()}};
+                owner = $("#user").val();
+                ajax_post('/app/connect', connectJson, null, null, function(data) {
+                    ajax_post('/app/users', null, null, null, function(data) {
+                        var usr = '';
+                        var userRows = data.rows;
+                        for(var i = 0; i < userRows.length; ++i) {
+                                usr = userRows[i][0];
+                                $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
+                        }
+                        generate_tables_views(session, owner);
+                    })
+                });
+                $(this).dialog("close");
+                show_tables();
             },
             "Save": function() {
                 name = $("#name").val();
-                saveSettings = {ip       :$("#ip").val(),
+                saveSettings = {adapter  :$('#adapter_list option:checked').val(),
+                                ip       :$("#ip").val(),
                                 port     :$("#port").val(),
                                 service  :$("#service").val(),
                                 type     :$('input:radio[name=db_type]:checked').val(),
@@ -233,26 +227,6 @@ function display_db_login()
     $('#dialog-db-login').dialog("open");
 }
 
-function updateTips(t) {
-    tips
-        .text(t)
-        .addClass("ui-state-highlight");
-    setTimeout(function() {
-        tips.removeClass( "ui-state-highlight", 1500 );
-    }, 500 );
-}
-
-function checkLength( o, n, min, max ) {
-    if ( o.val().length > max || o.val().length < min ) {
-        o.addClass( "ui-state-error" );
-        updateTips( "Length of " + n + " must be between " +
-            min + " and " + max + "." );
-        return false;
-    } else {
-        return true;
-    }
-}
-
 function load_login_form(name) {
     $('#name').val(name);
     $('#ip').val(logins[name].ip);
@@ -262,5 +236,6 @@ function load_login_form(name) {
     $('#user').val(logins[name].user);
     $('#password').val(logins[name].password);
     $('input:radio[name=db_type][value='+logins[name].type+']').click();
+    $('#adapter_list option[value="'+logins[name].adapter+'"]').attr("selected","selected"); 
     $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
 }

@@ -33,38 +33,53 @@ function show_logs()
 
 function generate_tables_views(session, owner)
 {
-    if(owner.length == 0) return;
     $("#db-tables-views").html('');
     $('<select style="height: 50%;" size=10 id="db-tables">').appendTo("#db-tables-views");
     $('#db-tables').change(function() {
         table_view_change('#db-views', $(this).val(), owner)
     });
-    ajax_post('/app/tables', {tables: {owner: owner}}, null, null, function(data) {
-        var title = '';
-        var tableRows = data.rows;
-        var maxWidth = 0;
-        for(var i = 0; i < tableRows.length; ++i) {
-            title = tableRows[i][0];
-            $('<option value="'+owner+'.'+tableRows[i][0]+'">'+ tableRows[i][0] +'</option>').appendTo('#db-tables');
-            if(title.length > maxWidth) maxWidth = title.length;
-        }
-        adjustTableViewWidth(maxWidth);
-    });
-    $('<select style="height: 50%;" size=10 id="db-views">').appendTo("#db-tables-views");
-    $('#db-views').change(function() {
-        table_view_change('#db-tables', $(this).val(), owner)
-    });
-    ajax_post('/app/views', {views: {owner: owner}}, null, null, function(data) {
-        var title = '';
-        var viewRows = data.rows;
-        var maxWidth = 0;
-        for(var i = 0; i < viewRows.length; ++i) {
-            title = viewRows[i][0];
-            $('<option value="'+owner+'.'+viewRows[i][0]+'">'+ viewRows[i][0] +'</option>').appendTo('#db-views');
-            if(title.length > maxWidth) maxWidth = title.length;
-        }
-        adjustTableViewWidth(maxWidth);
-    });
+    if(adapter == "oci") {
+        if(owner.length == 0) return;
+        ajax_post('/app/tables', {tables: {owner: owner}}, null, null, function(data) {
+            var title = '';
+            var tableRows = data.rows;
+            var maxWidth = 0;
+            for(var i = 0; i < tableRows.length; ++i) {
+                title = tableRows[i][0];
+                $('<option value="'+owner+'.'+tableRows[i][0]+'">'+ tableRows[i][0] +'</option>').appendTo('#db-tables');
+                if(title.length > maxWidth) maxWidth = title.length;
+            }
+            adjustTableViewWidth(maxWidth);
+        });
+        $('<select style="height: 50%;" size=10 id="db-views">').appendTo("#db-tables-views");
+        $('#db-views').change(function() {
+            table_view_change('#db-tables', $(this).val(), owner)
+        });
+        ajax_post('/app/views', {views: {owner: owner}}, null, null, function(data) {
+            var title = '';
+            var viewRows = data.rows;
+            var maxWidth = 0;
+            for(var i = 0; i < viewRows.length; ++i) {
+                title = viewRows[i][0];
+                $('<option value="'+owner+'.'+viewRows[i][0]+'">'+ viewRows[i][0] +'</option>').appendTo('#db-views');
+                if(title.length > maxWidth) maxWidth = title.length;
+            }
+            adjustTableViewWidth(maxWidth);
+        });
+    }
+    else {
+        ajax_post('/app/tables', null, null, null, function(data) {
+            var title = '';
+            var tableRows = data.rows;
+            var maxWidth = 0;
+            for(var i = 0; i < tableRows.length; ++i) {
+                title = tableRows[i];
+                $('<option value="'+tableRows[i]+'">'+tableRows[i]+'</option>').appendTo('#db-tables');
+                if(title.length > maxWidth) maxWidth = title.length;
+            }
+            adjustTableViewWidth(maxWidth);
+        });
+    }
 }
 
 var valChar = '!"#$%&\'()*+,./:;<=>?@[\\]^`{|}~';
@@ -398,6 +413,8 @@ function ajax_post(url, dataJson, headers, context, successFun) {
     else dataJson = JSON.stringify(dataJson);
 
     headers["dderl_sess"] = (session != null ? '' + session : '');
+    if (adapter != null)
+        headers["adapter"] = adapter;
 
     $.ajax({
         type: 'POST',
