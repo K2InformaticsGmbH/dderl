@@ -15,7 +15,6 @@ process_cmd({"users", _BodyJson}, _SrvPid, MPort) ->
     iprocess({users},MPort),
     {MPort, "{\"rows\":[]}"};
 process_cmd({"tables", _BodyJson}, _SrvPid, MPort) ->
-    io:format(user, "tables 1~n", []),
     Tables = iprocess({tables},MPort),
     Tabs = dderl_session:string_list_to_json([atom_to_list(X) || X <- Tables], []),
     io:format(user, "tables ~p~n", [Tabs]),
@@ -34,12 +33,16 @@ process_cmd({"query", BodyJson}, _SrvPid, MPort) ->
 process_cmd({"row", BodyJson}, _SrvPid, MPort) ->
     Table = list_to_atom(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowsTerm = iprocess({row, Table}, MPort),
-    io:format(user, "table ~p rows ~p~n", [Table, RowsTerm]),
     Rows = dderl_session:convert_rows_to_string(RowsTerm),
-    io:format(user, "table ~p rows ~p~n", [Table, Rows]),
-    Rs = dderl_session:convert_rows_to_json(Rows, []),
-    {MPort, "{\"rows\":["++string:substr(Rs,1,length(Rs)-1)++"]}"};
-    %{MPort, "{\"rows\":[]}"};
+    Rs = dderl_session:convert_rows_to_json(Rows),
+    io:format(user, "table ~p rows ~p~n", [Table, Rs]),
+    {MPort, "{\"rows\":"++Rs++"}"};
+process_cmd({"create_table", BodyJson}, _SrvPid, MPort) ->
+    Table = list_to_atom(binary_to_list(proplists:get_value(<<"table_name">>, BodyJson, <<>>))),
+    Columns = binary_to_list(proplists:get_value(<<"table_cols">>, Columns, <<>>)),
+    io:format(user, "create table ~p cols ~p~n", [Table, Columns]),
+    %iprocess({build_table, Table, Columns}, MPort),
+    {MPort, "{\"create_table\":\"ok\"}"};
 process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
@@ -51,15 +54,16 @@ iprocess({connect,IpAddr,Port}, _) ->
     MPort;
 iprocess({tables}, MPort) ->
     gen_tcp:send(MPort, term_to_binary({tables})),
-    io:format(user, "tables 2~n", []),
     Tables = recv_term(MPort, <<>>),
-    io:format(user, "tables 3~n", []),
     Tables;
 iprocess({columns, Table}, MPort) ->
     gen_tcp:send(MPort, term_to_binary({table, Table})),
     recv_term(MPort, <<>>);
 iprocess({row, Table}, MPort) ->
     gen_tcp:send(MPort, term_to_binary({row, Table})),
+    recv_term(MPort, <<>>);
+iprocess({build_table, TableName, Columns}, MPort) ->
+    gen_tcp:send(MPort, term_to_binary({build_table, TableName, Columns})),
     recv_term(MPort, <<>>);
 iprocess(Unknown, _MPort) ->
     io:format(user, "command unimplimented ~p~n", [Unknown]).

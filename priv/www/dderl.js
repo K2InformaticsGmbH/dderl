@@ -34,11 +34,11 @@ function show_logs()
 function generate_tables_views(session, owner)
 {
     $("#db-tables-views").html('');
-    $('<select style="height: 50%;" size=10 id="db-tables">').appendTo("#db-tables-views");
-    $('#db-tables').change(function() {
-        table_view_change('#db-views', $(this).val(), owner)
-    });
     if(adapter == "oci") {
+        $('<select style="height: 50%;" size=10 id="db-tables">').appendTo("#db-tables-views");
+        $('#db-tables').change(function() {
+            table_view_change('#db-views', $(this).val(), owner)
+        });
         if(owner.length == 0) return;
         ajax_post('/app/tables', {tables: {owner: owner}}, null, null, function(data) {
             var title = '';
@@ -68,6 +68,10 @@ function generate_tables_views(session, owner)
         });
     }
     else {
+        $('<select style="height: 100%;" size=10 id="db-tables">').appendTo("#db-tables-views");
+        $('#db-tables').dblclick(function() {
+            table_view_change('#db-views', $(this).val(), owner)
+        });
         ajax_post('/app/tables', null, null, null, function(data) {
             var title = '';
             var tableRows = data.rows;

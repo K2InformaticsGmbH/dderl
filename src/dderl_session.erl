@@ -10,7 +10,7 @@
         , get_state/1
         , log/3
         , string_list_to_json/2
-        , convert_rows_to_json/2
+        , convert_rows_to_json/1
         , convert_rows_to_string/1
         ]).
 
@@ -202,9 +202,14 @@ string_list_to_json([S|Strings], Json) ->
                                                                    true -> X
                                                                end || X <- S]) ++ "\",").
 
-convert_rows_to_json([], Acc) -> Acc;
-convert_rows_to_json([Row|Rows], Acc) ->
-    convert_rows_to_json(Rows, Acc ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
+convert_rows_to_json(Rows) -> convert_rows_to_json(Rows, "").
+convert_rows_to_json([], Json) ->
+    if length(Json) > 0 ->
+        "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
+        true -> "[]"
+    end;
+convert_rows_to_json([Row|Rows], Json) ->
+    convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
 
 
 convert_rows_to_string([]) -> [];
