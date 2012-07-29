@@ -39,7 +39,7 @@ process_cmd({"row", BodyJson}, _SrvPid, MPort) ->
     {MPort, "{\"rows\":"++Rs++"}"};
 process_cmd({"create_table", BodyJson}, _SrvPid, MPort) ->
     Table = list_to_atom(binary_to_list(proplists:get_value(<<"table_name">>, BodyJson, <<>>))),
-    Columns = binary_to_list(proplists:get_value(<<"table_cols">>, Columns, <<>>)),
+    Columns = binary_to_list(proplists:get_value(<<"table_cols">>, BodyJson, <<>>)),
     io:format(user, "create table ~p cols ~p~n", [Table, Columns]),
     %iprocess({build_table, Table, Columns}, MPort),
     {MPort, "{\"create_table\":\"ok\"}"};
