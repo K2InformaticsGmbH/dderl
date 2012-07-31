@@ -2,7 +2,7 @@
 
 -export([process_cmd/2]).
 
-process_cmd({"connect", BodyJson}, srv) ->
+process_cmd({"connect", BodyJson}, Srv) ->
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
     Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
     Service  = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
