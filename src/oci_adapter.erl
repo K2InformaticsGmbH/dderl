@@ -1,15 +1,15 @@
 -module(oci_adapter).
 
--export([process_cmd/2]).
+-export([process_cmd/3]).
 
-process_cmd({"connect", BodyJson}, Srv) ->
+process_cmd({"connect", BodyJson}, SrvPid, _) ->
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
     Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
     Service  = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-        dderl_session:log(srv, "Params ~p~n", [{IpAddr, Port, Service, Type, User, Password}]),
+    dderl_session:log(SrvPid, "Params ~p~n", [{IpAddr, Port, Service, Type, User, Password}]),
     {ok, Pool} =
         if Service =/= "MOCK" ->
             oci_session_pool:start_link(IpAddr, Port, {list_to_atom(Type), Service}, User, Password, []);
@@ -18,67 +18,77 @@ process_cmd({"connect", BodyJson}, Srv) ->
     end,
     %%oci_session_pool:enable_log(Pool),
     Session = oci_session_pool:get_session(Pool),
-    {Session,Pool}.
+    {{Session,Pool,[]}, "{\"connect\":\"ok\"}"};
+process_cmd({"users", _BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+    Query = "SELECT DISTINCT OWNER FROM \"ALL_TABLES\"",
+    dderl_session:log(SrvPid, "[~p] Users for ~p~n", [SrvPid, {Session, Query}]),
+    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+    dderl_session:log(SrvPid, "[~p] Users Resp ~p~n", [SrvPid, Resp]),
+    Statement:close(),
+    {MPort, Resp};
+process_cmd({"tables", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
+    Query = "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER='" ++ Owner ++ "' ORDER BY TABLE_NAME DESC",
+    dderl_session:log(SrvPid, "[~p] Tables for ~p~n", [SrvPid, {Session, Query}]),
+    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+    Statement:close(),
+    {MPort, Resp};
+process_cmd({"views", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
+    Query = "SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER='" ++ Owner ++ "' ORDER BY VIEW_NAME DESC",
+    dderl_session:log(SrvPid, "[~p] Views for ~p~n", [SrvPid, {Session, Query}]),
+    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+    Statement:close(),
+    {MPort, Resp};
+process_cmd({"columns", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+    TableNames = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"tables">>, BodyJson, <<>>)], ","),
+    Owner = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"owners">>, BodyJson, <<>>)], ","),
+    Query = "SELECT COLUMN_NAME FROM ALL_TAB_COLS WHERE TABLE_NAME IN (" ++ TableNames ++ ") AND OWNER IN (" ++ Owner ++ ")",
+    dderl_session:log(SrvPid, "[~p] Columns for ~p~n", [SrvPid, {Session, Query, TableNames}]),
+    {statement, Statement} = Session:execute_sql(Query, [], 150),
+    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+    Statement:close(),
+    {MPort, Resp};
+process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
+    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
+    %{ok, Tokens, _} = sql_lex:string(Query++";"),
+    %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
+    ParseTree = [],
+    TableName = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
+    dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query, TableName}]),
+    {statement, Statement} = Session:execute_sql(Query, [], 150, true),
+    {ok, Clms} = Statement:get_columns(),
+    StmtHndl = erlang:phash2(Statement),
+    Columns = lists:reverse(lists:map(fun({N,_,_})->N end, Clms)),
+    Resp = "{\"table\":\""++TableName++"\",\"headers\":"++dderl_session:string_list_to_json(Columns, [])++",\"statement\":"++integer_to_list(StmtHndl)++"}",
+    {{Session,Pool,[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
+process_cmd({"row", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p, ~p] Statements ~p~n", [SrvPid, StmtKey, Statements]),
+            {MPort, "{\"rows\":[]}"};
+        {Statement, _, _} -> {MPort, prepare_json_rows(Statement, StmtKey, SrvPid)}
+    end;
+process_cmd({"stmt_close", BodyJson}, SrvPid, {Session,Pool,Statements} = MPort) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {MPort, "{\"rows\":[]}"};
+        {Statement, _, _} ->
+            dderl_session:log(SrvPid, "[~p, ~p] Remove statement ~p~n", [SrvPid, StmtKey, Statement]),
+            Statement:close(),
+            {_,NewStatements} = proplists:split(Statements, [StmtKey]),
+            {{Session,Pool,NewStatements}, "{\"rows\":[]}"}
+    end;
+process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
+    io:format(user, "Cmd ~p~n", [Cmd]),
+    {MPort, "{\"rows\":[]}"}.
 
-%process_call({"users", _ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
-%    Query = "SELECT DISTINCT OWNER FROM \"ALL_TABLES\"",
-%    logi(File, "[~p] Users for ~p~n", [Key, {Session, Query}]),
-%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-%    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
-%    logi(File, "[~p] Users Resp ~p~n", [Key, Resp]),
-%    Statement:close(),
-%    {reply, Resp, State};
-%process_call({"tables", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
-%    {struct, [{<<"tables">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-%    Query = "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER='" ++ Owner ++ "' ORDER BY TABLE_NAME DESC",
-%    logi(File, "[~p] Tables for ~p~n", [Key, {Session, Query}]),
-%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-%    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
-%    Statement:close(),
-%    {reply, Resp, State};
-%process_call({"views", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
-%    {struct, [{<<"views">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-%    Query = "SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER='" ++ Owner ++ "' ORDER BY VIEW_NAME DESC",
-%    logi(File, "[~p] Views for ~p~n", [Key, {Session, Query}]),
-%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-%    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
-%    Statement:close(),
-%    {reply, Resp, State};
-%process_call({"columns", ReqData}, _From, #state{session={Session, _Pool}, key=Key,file=File} = State) ->
-%    {struct, [{<<"cols">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    TableNames = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"tables">>, BodyJson, <<>>)], ","),
-%    Owner = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"owners">>, BodyJson, <<>>)], ","),
-%    Query = "SELECT COLUMN_NAME FROM ALL_TAB_COLS WHERE TABLE_NAME IN (" ++ TableNames ++ ") AND OWNER IN (" ++ Owner ++ ")",
-%    logi(File, "[~p] Columns for ~p~n", [Key, {Session, Query, TableNames}]),
-%    {statement, Statement} = Session:execute_sql(Query, [], 150),
-%    Resp = prepare_json_rows(Statement, Key, erlang:phash2(Statement), File),
-%    Statement:close(),
-%    {reply, Resp, State};
-%process_call({"query", ReqData}, _From, #state{session={Session, _Pool}, statements=Statements, key=Key,file=File} = State) ->
-%    {struct, [{<<"query">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-%    %{ok, Tokens, _} = sql_lex:string(Query++";"),
-%    %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
-%    ParseTree = [],
-%    TableName = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
-%    logi(File, "[~p] Query ~p~n", [Key, {Session, Query, TableName}]),
-%    {statement, Statement} = Session:execute_sql(Query, [], 150, true),
-%    {ok, Clms} = Statement:get_columns(),
-%    StmtHndl = erlang:phash2(Statement),
-%    Columns = lists:reverse(lists:map(fun({N,_,_})->N end, Clms)),
-%    Resp = "{\"session\":"++integer_to_list(Key)++", \"table\":\""++TableName++"\",\"headers\":"++string_list_to_json(Columns, [])++",\"statement\":"++integer_to_list(StmtHndl)++"}",
-%    {reply, Resp, State#state{statements=[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}};
-%process_call({"row", ReqData}, _From, #state{statements=Statements, key=Key,file=File} = State) ->
-%    {struct, [{<<"row">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-%    case proplists:get_value(StmtKey, Statements) of
-%        undefined ->
-%            logi(File, "[~p, ~p] Statements ~p~n", [Key, StmtKey, Statements]),
-%            {reply, "{\"session\":"++integer_to_list(Key)++"}", State};
-%        {Statement, _, _} -> {reply, prepare_json_rows(Statement, Key, StmtKey, File), State}
-%    end;
 %process_call({"build_qry", ReqData}, _From, #state{key=Key,file=File} = State) ->
 %    {struct, [{<<"build_qry">>, BodyJson}]} = mochijson2:decode(wrq:req_body(ReqData)),
 %    {struct, QObj} = mochijson2:decode(BodyJson),
@@ -98,29 +108,16 @@ process_cmd({"connect", BodyJson}, Srv) ->
 %    {ok, [ParseTree|_]} = sql_parse:parse(Tokens),
 %    logi(File, "[~p] parsed sql ~p~n", [Key, ParseTree]),
 %    {reply, sql_parse_to_json(Key, ParseTree), State};
-%process_call({"stmt_close", ReqData}, _From, #state{statements=Statements, key=Key,file=File} = State) ->
-%    {struct, [{<<"stmt_close">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-%    case proplists:get_value(StmtKey, Statements) of
-%        undefined ->
-%            logi(File, "[~p] Statement ~p not found. Statements ~p~n", [Key, StmtKey, proplists:get_keys(Statements)]),
-%            {reply, "{\"session\":"++integer_to_list(Key)++"}", State};
-%        {Statement, _, _} ->
-%            logi(File, "[~p, ~p] Remove statement ~p~n", [Key, StmtKey, Statement]),
-%            Statement:close(),
-%            {_,NewStatements} = proplists:split(Statements, [StmtKey]),
-%            {reply, "{\"session\":"++integer_to_list(Key)++"}", State#state{statements = NewStatements}}
-%    end.
 %
-%prepare_json_rows(Statement, Key, StmtKey, File) ->
-%    case Statement:next_rows() of
-%        [] -> "{\"session\":"++integer_to_list(Key)++", \"rows\":[]}";
-%        Rows ->
-%            logi(File, "[~p, ~p] row produced _______ ~p _______~n", [Key, StmtKey, length(Rows)]),
-%            J = convert_rows_to_json(Rows, "[\n"),
-%            "{\"session\":"++integer_to_list(Key)++", \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
-%    end.
-%
+prepare_json_rows(Statement, StmtKey, SrvPid) ->
+    case Statement:next_rows() of
+        [] -> "{\"rows\":[]}";
+        Rows ->
+            dderl_session:log(SrvPid, "[~p] row produced _______ ~p _______~n", [StmtKey, length(Rows)]),
+            J = dderl_session:convert_rows_to_json(Rows),
+            "{\"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+    end.
+
 %create_select_string(Tables, Fields, Sorts, Conditions, Joins) ->
 %    "select " ++ string:join([binary_to_list(X)||X<-Fields],", ") ++
 %    " from " ++ string:join([binary_to_list(X)||X<-Tables],", ") ++

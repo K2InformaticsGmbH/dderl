@@ -110,6 +110,15 @@ function get_db_types_html()
     return html;
 }
 
+function load_nodes(elm)
+{
+    elm.show();
+    ajax_post('/app/imem_nodes', null, null, null, function(data) {
+        for(var i=0; i<data.nodes.length; ++i)
+            $('<option value="'+data.nodes[i]+'">'+data.nodes[i]+'</option>').appendTo(elm);
+    });
+}
+
 function display_db_login()
 {
     $('<div id="dialog-db-login" title="Connect to Oracle Database" style="diaply:none">' +
@@ -170,7 +179,7 @@ function display_db_login()
                                 $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
                         }
                         generate_tables_views(session, owner);
-                    })
+                    });
                 });
                 $(this).dialog("close");
                 show_tables();

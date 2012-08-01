@@ -73,6 +73,7 @@ function generate_tables_views(session, owner)
             table_view_change('#db-views', $(this).val(), owner)
         });
         ajax_post('/app/tables', null, null, null, function(data) {
+            load_nodes($('#menu'));
             var title = '';
             var tableRows = data.rows;
             var maxWidth = 0;

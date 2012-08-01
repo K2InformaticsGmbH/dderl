@@ -11,6 +11,7 @@
         , log/3
         , string_list_to_json/2
         , convert_rows_to_json/1
+        , convert_row_to_string/1
         , convert_rows_to_string/1
         ]).
 
@@ -32,7 +33,7 @@ start() ->
     {Key, {dderl_session, Pid}}.
 
 log(Pid, Format, Content) ->
-    gen_server:call(Pid, {log, Format, Content}).
+    gen_server:cast(Pid, {log, Format, Content}).
 
 get_state({?MODULE, Pid}) ->
     gen_server:call(Pid, get_state, infinity).
@@ -102,9 +103,6 @@ init(_Args) ->
 
 handle_call({adapter, Adapter}, _From, State) ->
     {reply, ok, State#state{adapter=Adapter}};
-handle_call({log, Format, Content}, _From, #state{key=Key, file=File} = State) ->
-    logi(File, "[~p] " ++ Format, [Key|Content]),
-    {reply, ok, State};
 handle_call(get_state, _From, State) ->
     {reply, State, State};
 handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key, file=File} = State) ->
@@ -172,6 +170,9 @@ process_call({Cmd, ReqData}, _From, #state{session=SessionHandle, adapter=AdaptM
     {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
     {reply, Resp, State#state{session=NewSessionHandle}}.
 
+handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
+    logi(File, "[~p] " ++ Format, [Key|Content]),
+    {noreply, State};
 handle_cast(_Request, State) -> {noreply, State}.
 
 handle_info(die, State) -> {stop, timeout, State};
@@ -199,6 +200,7 @@ string_list_to_json([], Json) -> "[" ++ string:substr(Json,1,length(Json)-1) ++ 
 string_list_to_json([S|Strings], Json) ->
     string_list_to_json(Strings, Json ++ "\"" ++ lists:flatten([if X > 127 -> "&#" ++ integer_to_list(X) ++ ";";
                                                                    (X == 10) or (X == 13) -> "";
+                                                                   (X == $") -> "";
                                                                    true -> X
                                                                end || X <- S]) ++ "\",").
 
@@ -211,6 +213,9 @@ convert_rows_to_json([], Json) ->
 convert_rows_to_json([Row|Rows], Json) ->
     convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
 
+
+convert_row_to_string([]) -> [];
+convert_row_to_string(Row) -> [lists:flatten(io_lib:format("~p", [R])) || R <- Row].
 
 convert_rows_to_string([]) -> [];
 convert_rows_to_string(Rows) -> [lists:reverse([lists:flatten(io_lib:format("~p", [R])) || R <- Row]) || Row <- Rows].

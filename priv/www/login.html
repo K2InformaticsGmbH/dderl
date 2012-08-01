@@ -147,6 +147,12 @@
                     <button id="change-pswd-button" class="menubutton" onclick='change_password()'>Change Password</button></td>
                 <td align="right" width="10%">
                     <button id="show-logs-button" class="menubutton" onclick='show_logs()'>Logs</button></td>
+                <td align="right" width="10%">
+                    <div class="ui-widget">
+                    <select id="menu" style="display:none;">
+                    	<option value="">Nodes...</option>
+                    </select>
+                    </div></td>
                 <td align="right">
                     <div class="ui-widget">
                     <select id="users" onchange="generate_tables_views(session, this.options[this.selectedIndex].value)">
