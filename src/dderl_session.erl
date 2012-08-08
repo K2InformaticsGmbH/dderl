@@ -27,6 +27,17 @@
 -define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
 -define(GENLOG, "global.log").
 
+-record(state, {
+        key
+        , session
+        , statements = []
+        , tref
+        , user = []
+        , file
+        , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
+        , adapter = gen_adapter
+    }).
+
 start() ->
     {ok, Pid} = gen_server:start_link(?MODULE, [], []),
     Key = erlang:phash2({dderl_session, Pid}),
@@ -45,17 +56,6 @@ process_request(SessKey, WReq, {?MODULE, Pid}) ->
 set_adapter(Adapter, {?MODULE, Pid}) ->
     AdaptMod  = list_to_atom(Adapter++"_adapter"),
     gen_server:call(Pid, {adapter, AdaptMod}, infinity).
-
--record(state, {
-        key
-        , session
-        , statements = []
-        , tref
-        , user = []
-        , file
-        , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
-        , adapter
-    }).
 
 update_account(User, {pswd, Password}) ->
     Pswd = lists:flatten(io_lib:format(lists:flatten(array:to_list(array:new([{size,16},{default,"~.16b"}])))

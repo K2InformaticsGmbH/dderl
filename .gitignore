@@ -21,7 +21,8 @@ priv/log/
 *.zip
 *.DCD
 *.DAT
-deps/
+deps/*
+ebin/*
 
 # External tool builders
 .externalToolBuilders/

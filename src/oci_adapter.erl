@@ -85,6 +85,7 @@ process_cmd({"stmt_close", BodyJson}, SrvPid, {Session,Pool,Statements} = MPort)
             {_,NewStatements} = proplists:split(Statements, [StmtKey]),
             {{Session,Pool,NewStatements}, "{\"rows\":[]}"}
     end;
+process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort);
 process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
@@ -101,14 +102,7 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
 %    SqlStr = create_select_string(Tables, Fields, Sorts, Conditions, Joins),
 %    logi(File, "[~p] SQL: ~p~n", [Key, SqlStr]),
 %    {reply, "{\"session\":"++integer_to_list(Key)++", \"sql\":\""++SqlStr++"\"}", State};
-%process_call({"parse_stmt", ReqData}, _From, #state{key=Key,file=File} = State) ->
-%    {struct, [{<<"parse_stmt">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-%    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-%    {ok, Tokens, _} = sql_lex:string(Query++";"),
-%    {ok, [ParseTree|_]} = sql_parse:parse(Tokens),
-%    logi(File, "[~p] parsed sql ~p~n", [Key, ParseTree]),
-%    {reply, sql_parse_to_json(Key, ParseTree), State};
-%
+
 prepare_json_rows(Statement, StmtKey, SrvPid) ->
     case Statement:next_rows() of
         [] -> "{\"rows\":[]}";

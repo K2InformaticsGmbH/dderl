@@ -185,9 +185,13 @@ function render_table(tableNameList, query, owner) {
         ajax_post('/app/stmt_close', {stmt_close: {statement: $('#'+this.id).data("statement")}}, null, null, null);
         $('#'+this.id).dialog('destroy');
         $('#'+this.id).remove();
+        /*/
         ajax_post('/app/build_qry', {build_qry: JSON.stringify(sqlObj)}, null, this, function(data) {
             render_table(tableNameList, data.sql, owner)
         });
+        /*/
+        render_table(tableNameList, sqlObj, owner);
+        //*/
     });
 
     var gDiv = $('<div id=qr'+tableName+' style="width: 100%; border: 1px solid rgb(128, 128, 128);"></div>').appendTo($('#'+dialogueId));
@@ -383,9 +387,13 @@ var owner = null;
 
 var queryId = 0;
 function edit_sql(tblDlg, sql) {
+    /*
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:sql}}, null, null, function(pTree) { 
         sql_editor(tblDlg, pTree);
     });
+    /*/
+    parse_and_hit(tblDlg, sql);
+    //*/
 }
 
 function loading(b, target) {
@@ -440,6 +448,7 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 var pageTitlePrefix = null;
 $(document).ready(function() {    
+    Json = {"error":'{1,sql_parse,["syntax error before: ",["\"+2\""]]}'};
     if(session == null) {
         if(null == pageTitlePrefix)
             pageTitlePrefix = document.title + " "; // IE can't trim()

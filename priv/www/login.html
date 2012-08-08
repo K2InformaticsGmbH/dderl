@@ -101,7 +101,33 @@
 	    .ui-button-icon-only .ui-button-text { padding: 0.35em; } 
     	.ui-autocomplete-input { margin: 0; padding: 0.48em 0 0.47em 0.45em; }
 	</style>
+    <style>
+        #sql-div {
+            background-color: rgb(0,255,255);
+            position:absolute;
+            top:0px;
+            right:0px;
+            width:49.9%;
+            height:900px;
+            overflow:auto;
+        }
 
+        .edit_div {
+            height:20px;
+            width:900px;
+        }
+
+        .inner_div {
+            min-height:20px;
+            position:relative;
+            width:900px;
+            height:20px;
+            overflow:hidden;
+            font-family:courier;
+            font-size:10pt;
+            vertical-align: top;
+        }
+    </style>
 </head>
 <body>
     <ul id="cond_pop" class="contextMenu">
@@ -142,7 +168,7 @@
                 <td align="left" width="10%">
                     <button id="tbl-view-button" class="menubutton" onclick='show_tables()'>Tables/Views</button></td>
                 <td align="left" width="10%">
-                    <button id="test-button" class="menubutton" onclick='parse_and_hit("select * from abc")'>Cond Test</button></td>
+                    <button id="test-button" class="menubutton" onclick='parse_and_hit(null, "select * from abc")'>SQL</button></td>
                 <td align="left" width="10%">
                     <button id="change-pswd-button" class="menubutton" onclick='change_password()'>Change Password</button></td>
                 <td align="right" width="10%">

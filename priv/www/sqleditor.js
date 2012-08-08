@@ -1,3 +1,182 @@
+function get_text(tree, txt)
+{
+    txt = (tree.name + ' ');
+    for(var i=0; i < tree.children.length; ++i) {
+        txt += get_text(tree.children[i], txt) + ' ';
+    }
+    return txt.trim();
+}
+
+function prep_tree(tree)
+{
+    if(tree.name.length > 0)
+        tree.height = def_height;
+    for (var i=0; i < tree.children.length ; ++i) {
+        tree.children[i]["top"] = 0;
+        tree.children[i]["height"] = 0;
+        tree.children[i]["summary"] = get_text(tree.children[i], '');
+        if(i == 0 ) {
+            if(tree.name.length > 0) tree.children[i].top = def_height;
+        } else
+            tree.children[i].top = tree.children[i-1].top + tree.children[i-1].height;
+        prep_tree(tree.children[i]);
+        tree.height += tree.children[i].height; 
+    }
+}
+
+var def_height = 20;
+var tab_len    = 10;
+function build_boxes_r(tree, parent_node, left, depth) {
+    var bgcol = (255 - 10 * depth);
+    //var col = (30 * depth);
+    var node = (tree.name.length > 0
+                ? $('<div id="'+tree.name+'"></div>').append('<span>'+tree.name+'</span>')
+                : $('<div></div>'));
+
+    var editbx = $('<textarea></textarea>')
+        .appendTo(node)
+        .addClass('edit_div')
+        .hide()
+        .height(tree.height - def_height)
+        .text(tree.summary);
+
+    node.dblclick(function(evt) {
+            event.stopPropagation();
+            var dom = $(this).data("tree");
+            for(var i=0; i < dom.children.length; ++i)
+                if(dom.children[i].display == "none")
+                    dom.children[i].display = "inline";
+                else
+                    dom.children[i].display = "none";
+            build_boxes($('#sql_tree'), $('#sql_tree').data('treeroot'));
+        })
+        .addClass('inner_div')
+        .css('display', tree.display)
+        .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
+        //.css('color', 'rgb('+col+','+col+','+col+')')
+        .data("tree", tree)
+        .data("edit", editbx)
+        .css('top', 0)
+        .css('left', left + tab_len);
+
+    parent_node.append(node);
+    if(tree.display == "none" && parent_node.data("edit") != undefined)
+        parent_node.data("edit").show();
+
+    for (var i=0; i < tree.children.length ; ++i) {
+        build_boxes_r(tree.children[i], node, left, depth + 1);
+    }
+    node.height(tree.height);
+}
+
+function build_boxes(div, tree)
+{
+    div.text('');
+    div.data('treeroot', tree);
+    build_boxes_r(tree, div, 1, 0);
+}
+
+function parse_and_update(qry) {
+    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
+        if (pTree.hasOwnProperty('error')) {
+            alert(pTree.error);
+        } else {
+            prep_tree(pTree);
+            build_boxes($('#sql_tree'), pTree);
+        }
+    });
+}
+
+function parse_and_hit(tblDlg, qry) {
+    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
+        if (pTree.hasOwnProperty('error')) {
+            alert(pTree.error);
+        } else {
+            prep_tree(pTree);
+            sql_conditions(tblDlg, 0, pTree, null, qry);
+        }
+    });
+}
+
+function sql_conditions(tblDlg, dc, tree, pos, qry) {
+    var visHeight    = 600;
+    var sqlTxtHeight = 100;
+    var boxWidth     = 500;
+    $('<div id=pick_conds'+dc+' style="width:100%">'+
+            '<div id="cond_tree"'+dc+' style="width: '+boxWidth+'px; height: '+visHeight+'px; overflow:auto" ><div id="sql_tree"></div></div>'+
+            '<textarea id=pick_conds_str'+dc+' style="width: '+boxWidth+'px; height: '+sqlTxtHeight+'px">'+qry+'</textarea>'+
+      '</div>'
+    ).appendTo(document.body);
+
+    /*
+    $('#cond_tree'+dc).dynatree({
+        onActivate: function(node) {
+            $(node.span).contextMenu({menu: 'cond_pop'}, function(action, el, pos) {
+                if(action == "add")
+                    node.addChild({title: "AND", isFolder: true, children: [{title:"A = B", isFolder:false}, {title:"OR", isFolder:true}]});
+                else if(action == "edit") {
+                    if(node.data.isFolder == true)
+                        sql_conditions(dc + 1, node.data.children, pos)
+                }
+                else
+                    alert(
+                        'Action: ' + action + '\n\n' +
+                        'Element ID: ' + $(el).attr('id') + '\n\n' +
+                        'X: ' + pos.x + '  Y: ' + pos.y + ' (relative to element)\n\n' +
+                        'X: ' + pos.docX + '  Y: ' + pos.docY+ ' (relative to document)'
+                    );
+            });
+        },
+        children: tree
+    });
+    /*/
+    build_boxes($('#sql_tree'), tree);
+    //*/
+
+    var X = 115, Y = 115;
+    if(pos != null) {X = pos.docX; Y = pos.docY; }
+    $('#pick_conds'+dc).dialog({
+        autoOpen: false,
+        height: (visHeight + sqlTxtHeight + 100),
+        width: (boxWidth + 25),
+        modal: true,
+        position: [X, Y],
+        resizable: false,
+        title: "Sql Visualizar",
+        close: function() {
+            $('#pick_conds'+dc).dialog('destroy');
+            $('#pick_conds'+dc).remove();
+        },
+        buttons: {
+            "Re-Draw": function() {
+                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
+                parse_and_update(qStr);
+            },
+            "Re-Query": function() {
+                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
+                parse_and_update(qStr);
+                if(tblDlg != null && tblDlg != undefined)
+                    tblDlg.trigger('requery', qStr);
+            },
+            "Cancel": function() {
+                $('#pick_conds'+dc).dialog('close');
+            },
+            "Ok": function() {
+                //load_div($('#sql_edit_cnd'), selected.conds);
+                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
+                $('#pick_conds'+dc).dialog('close');
+                if(tblDlg != null && tblDlg != undefined)
+                    tblDlg.trigger('requery', qStr);
+            }
+        }
+    });
+    $('#pick_conds'+dc).dialog("open");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// OLD UNUSED CODE
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 var selected = {
     tables: new Array(),
     fields: new Array(),
@@ -140,82 +319,6 @@ function reload_selection_table() {
        $('#join_inp').hide();
        $('#sql_edit').height(400);
     }
-}
-
-function prepareChildren(tree) {
-    if (tree == null) return [];
-    return [];
-}
-
-function parse_and_hit(qry) {
-    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
-        sql_conditions(0, pTree.conds, null, qry);
-    });
-}
-
-function sql_conditions(dc, tree, pos, qry) {
-    $('<div id=pick_conds'+dc+' style="width:100%">'+
-            '<textarea id=pick_conds_str'+dc+' style="width: 350px; height: 100px">'+qry+'</textarea>'+
-            '<div id=pick_conds_tree'+dc+'/>'+
-      '</div>'
-    ).appendTo(document.body);
-
-    $('#pick_conds_tree'+dc).dynatree({
-        onActivate: function(node) {
-            $(node.span).contextMenu({menu: 'cond_pop'}, function(action, el, pos) {
-                if(action == "add")
-                    node.addChild({title: "AND", isFolder: true, children: [{title:"A = B", isFolder:false}, {title:"OR", isFolder:true}]});
-                else if(action == "edit") {
-                    if(node.data.isFolder == true)
-                        sql_conditions(dc + 1, node.data.children, pos)
-                }
-                else
-                    alert(
-                        'Action: ' + action + '\n\n' +
-                        'Element ID: ' + $(el).attr('id') + '\n\n' +
-                        'X: ' + pos.x + '  Y: ' + pos.y + ' (relative to element)\n\n' +
-                        'X: ' + pos.docX + '  Y: ' + pos.docY+ ' (relative to document)'
-                    );
-            });
-        },
-        children: tree
-    });
-
-    var X = 115, Y = 115;
-    if(pos != null) {X = pos.docX; Y = pos.docY; }
-    $('#pick_conds'+dc).dialog({
-        autoOpen: false,
-        height: 500,
-        width: 400,
-        modal: true,
-        position: [X, Y],
-        resizable: false,
-        title: "Conditions",
-        close: function() {
-            $('#pick_conds'+dc).dialog('destroy');
-            $('#pick_conds'+dc).remove();
-        },
-        buttons: {
-            "Requery": function() {
-                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                $('#pick_conds'+dc).dialog('close');
-                $('#pick_conds'+dc).remove();
-                parse_and_hit(qStr);
-            },
-            "Cancel": function() {
-                $('#pick_conds'+dc).dialog('close');
-            },
-            "Ok": function() {
-                load_div($('#sql_edit_cnd'), selected.conds);
-                $('#pick_conds'+dc).dialog('close');
-            },
-            "Add()": function() {
-            },
-            "Del()": function() {
-            }
-        }
-    });
-    $('#pick_conds'+dc).dialog("open");
 }
 
 function sql_sorts() {
