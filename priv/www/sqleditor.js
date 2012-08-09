@@ -9,16 +9,13 @@ function get_text(tree, txt)
 
 function prep_tree(tree)
 {
+    tree['summary'] = get_text(tree, '');
+    tree['display'] = true;
+    if(!tree.hasOwnProperty('height')) tree['height'] = 0;
     if(tree.name.length > 0)
         tree.height = def_height;
     for (var i=0; i < tree.children.length ; ++i) {
-        tree.children[i]["top"] = 0;
-        tree.children[i]["height"] = 0;
-        tree.children[i]["summary"] = get_text(tree.children[i], '');
-        if(i == 0 ) {
-            if(tree.name.length > 0) tree.children[i].top = def_height;
-        } else
-            tree.children[i].top = tree.children[i-1].top + tree.children[i-1].height;
+        tree.children[i]['height'] = 0;
         prep_tree(tree.children[i]);
         tree.height += tree.children[i].height; 
     }
@@ -26,122 +23,170 @@ function prep_tree(tree)
 
 var def_height = 20;
 var tab_len    = 10;
-function build_boxes_r(tree, parent_node, left, depth) {
+function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
+    var id_siffix = tree.name+'_'+dc+'_'+'_'+depth;
+
     var bgcol = (255 - 10 * depth);
     //var col = (30 * depth);
+
+    var content = $(('<span>'+tree.name+'</span>'));
+
     var node = (tree.name.length > 0
-                ? $('<div id="'+tree.name+'"></div>').append('<span>'+tree.name+'</span>')
+                ? $('<div id="'+id_siffix+'d"></div>').append(content)
+                                                      .data("content", content)
                 : $('<div></div>'));
 
     var editbx = $('<textarea></textarea>')
         .appendTo(node)
         .addClass('edit_div')
+        .css("font-family","courier")
+        .css("font-size","10pt")
         .hide()
-        .height(tree.height - def_height)
         .text(tree.summary);
 
     node.dblclick(function(evt) {
             event.stopPropagation();
             var dom = $(this).data("tree");
             for(var i=0; i < dom.children.length; ++i)
-                if(dom.children[i].display == "none")
-                    dom.children[i].display = "inline";
-                else
-                    dom.children[i].display = "none";
-            build_boxes($('#sql_tree'), $('#sql_tree').data('treeroot'));
+                dom.children[i].display = !dom.children[i].display;
+            build_boxes(root_node, dc, root_node.data('treeroot'));
         })
         .addClass('inner_div')
-        .css('display', tree.display)
+        .addClass('context-menu-one')
+        .toggle(tree.display)
         .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
         //.css('color', 'rgb('+col+','+col+','+col+')')
         .data("tree", tree)
         .data("edit", editbx)
         .css('top', 0)
-        .css('left', left + tab_len);
+        .css('left', (depth > 0 ? tab_len : 0));
 
-    parent_node.append(node);
-    if(tree.display == "none" && parent_node.data("edit") != undefined)
-        parent_node.data("edit").show();
+    last_parent_node.append(node);
 
+    var child_hide = false;
     for (var i=0; i < tree.children.length ; ++i) {
-        build_boxes_r(tree.children[i], node, left, depth + 1);
+        if(!tree.children[i].display && !child_hide) child_hide = true;
+        build_boxes_r(root_node, dc, tree.children[i], node, depth + 1);
     }
-    node.height(tree.height);
+
+    if(child_hide) node.height(node.data("edit").height());
+    else           node.height(tree.height);
+
+    if(!tree.display && last_parent_node.data("edit") != undefined) {
+        var edit = last_parent_node.data("edit").show();
+        var c = last_parent_node.data("content");
+        if(c != undefined) c.hide();
+    }
 }
 
-function build_boxes(div, tree)
+function build_boxes(div, dc, tree)
 {
     div.text('');
     div.data('treeroot', tree);
-    build_boxes_r(tree, div, 1, 0);
+    build_boxes_r(div, dc, tree, div, 0);
 }
 
-function parse_and_update(qry) {
+function parse_and_update(root_node, qry, dc) {
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
         if (pTree.hasOwnProperty('error')) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
-            build_boxes($('#sql_tree'), pTree);
+            build_boxes(root_node, dc, pTree);
         }
     });
 }
 
 function parse_and_hit(tblDlg, qry) {
+    /*
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
         if (pTree.hasOwnProperty('error')) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
-            sql_conditions(tblDlg, 0, pTree, null, qry);
+            sql_edit(tblDlg, 0, pTree, null, qry);
         }
     });
+    /*/
+    pTree = JSON.parse(
+                        '{"name":"select", "children":['
+                        +	'{"name":"", "children":['
+                        +		'{"name":"a", "children":[]},'
+                        +		'{"name":", b", "children":[]},'
+                        +		'{"name":", c", "children":[]}'
+                        +	']},'
+                        +	'{"name":"from", "children":['
+                        +		'{"name":"abc", "children":[]},'
+                        +		'{"name":", def", "children":[]}'
+                        +	']},'
+                        +	'{"name":"where", "children":['
+                        +		'{"name":"", "children":['
+                        +			'{"name":"a", "children":[]},'
+                        +			'{"name":"=", "children":[]},'
+                        +			'{"name":"b", "children":[]}'
+                        +		']},'
+                        +		'{"name":"or", "children":['
+                        +			'{"name":"c", "children":[]},'
+                        +			'{"name":"=", "children":[]},'
+                        +			'{"name":"d", "children":[]}'
+                        +		']}'
+                        +	']}'
+                        +']}'
+    );
+    prep_tree(pTree);
+    qry = "\r\nselect \r\n\ta\r\n\t,b\r\n\t,c\r\nfrom \r\n\tabc\r\n\t, def\r\nwhere\r\n\t\ta\r\n\t\t=\r\n\t\tb\r\n\tor\r\n\t\tc\r\n\t\t=\r\n\t\td\r\n";
+    sql_edit(null, 0, pTree, null, qry);
+    //*/
+
 }
 
-function sql_conditions(tblDlg, dc, tree, pos, qry) {
-    var visHeight    = 600;
-    var sqlTxtHeight = 100;
+function sql_edit(tblDlg, dc, tree, pos, qry) {
+    var share        = 80; // percent
+    var boxHeight    = 500;
     var boxWidth     = 500;
-    $('<div id=pick_conds'+dc+' style="width:100%">'+
-            '<div id="cond_tree"'+dc+' style="width: '+boxWidth+'px; height: '+visHeight+'px; overflow:auto" ><div id="sql_tree"></div></div>'+
-            '<textarea id=pick_conds_str'+dc+' style="width: '+boxWidth+'px; height: '+sqlTxtHeight+'px">'+qry+'</textarea>'+
+    var visHeight    = Math.round(boxHeight * share / 100);
+    var sqlTxtHeight = boxHeight - visHeight;
+    $('<div id="pick_conds'+dc+'" style="width:100%">'+
+            '<div id="cond_viz'+dc+'" >'+
+            '<div id="sql_tree'+dc+'"></div>'+
+            '</div>'+
+            '<textarea id="pick_conds_str'+dc+'">'+qry+'</textarea>'+
       '</div>'
     ).appendTo(document.body);
 
-    /*
-    $('#cond_tree'+dc).dynatree({
-        onActivate: function(node) {
-            $(node.span).contextMenu({menu: 'cond_pop'}, function(action, el, pos) {
-                if(action == "add")
-                    node.addChild({title: "AND", isFolder: true, children: [{title:"A = B", isFolder:false}, {title:"OR", isFolder:true}]});
-                else if(action == "edit") {
-                    if(node.data.isFolder == true)
-                        sql_conditions(dc + 1, node.data.children, pos)
-                }
-                else
-                    alert(
-                        'Action: ' + action + '\n\n' +
-                        'Element ID: ' + $(el).attr('id') + '\n\n' +
-                        'X: ' + pos.x + '  Y: ' + pos.y + ' (relative to element)\n\n' +
-                        'X: ' + pos.docX + '  Y: ' + pos.docY+ ' (relative to document)'
-                    );
-            });
-        },
-        children: tree
+    $('#cond_viz'+dc)
+        .width(boxWidth)
+        .height(visHeight)
+        .css('background-color', 'rgb(255,255,0)')
+        .addClass("ui-widget-content")
+        .css("overflow", "auto");
+
+    $('#pick_conds_str'+dc)
+        .width(boxWidth - 4)
+        .height(sqlTxtHeight);
+
+    $('#pick_conds'+dc).bind("dialogresize", function (event, ui) {
+        var dh = $('#pick_conds'+dc).height() - 10;
+        var dw = $('#pick_conds'+dc).width() - 8;
+        var seh = Math.round(dh * share / 100);
+        var sth = dh - seh;
+        $('#cond_viz'+dc).width(dw)
+                         .height(seh);
+        $('#pick_conds_str'+dc).width(dw - 4)
+                               .height(sth);
     });
-    /*/
-    build_boxes($('#sql_tree'), tree);
-    //*/
+    
+    build_boxes($('#sql_tree'+dc), dc, tree);
 
     var X = 115, Y = 115;
     if(pos != null) {X = pos.docX; Y = pos.docY; }
     $('#pick_conds'+dc).dialog({
         autoOpen: false,
-        height: (visHeight + sqlTxtHeight + 100),
-        width: (boxWidth + 25),
+        height: 'auto',
+        width: 'auto',
         modal: true,
         position: [X, Y],
-        resizable: false,
+        resizable: true,
         title: "Sql Visualizar",
         close: function() {
             $('#pick_conds'+dc).dialog('destroy');
@@ -150,11 +195,11 @@ function sql_conditions(tblDlg, dc, tree, pos, qry) {
         buttons: {
             "Re-Draw": function() {
                 qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                parse_and_update(qStr);
+                parse_and_update($('#sql_tree'+dc), qStr, dc);
             },
             "Re-Query": function() {
                 qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                parse_and_update(qStr);
+                parse_and_update($('#sql_tree'+dc), qStr, dc);
                 if(tblDlg != null && tblDlg != undefined)
                     tblDlg.trigger('requery', qStr);
             },
@@ -162,7 +207,6 @@ function sql_conditions(tblDlg, dc, tree, pos, qry) {
                 $('#pick_conds'+dc).dialog('close');
             },
             "Ok": function() {
-                //load_div($('#sql_edit_cnd'), selected.conds);
                 qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
                 $('#pick_conds'+dc).dialog('close');
                 if(tblDlg != null && tblDlg != undefined)

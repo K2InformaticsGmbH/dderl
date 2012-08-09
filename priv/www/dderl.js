@@ -448,14 +448,55 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 var pageTitlePrefix = null;
 $(document).ready(function() {    
-    Json = {"error":'{1,sql_parse,["syntax error before: ",["\"+2\""]]}'};
     if(session == null) {
         if(null == pageTitlePrefix)
             pageTitlePrefix = document.title + " "; // IE can't trim()
             //pageTitlePrefix = document.title.trim() + " ";
-        display_login();
+        //display_login();
     }
+
+    add_context_menu($('#menubar'),
+        {
+            'Add'    : {cls: 'copy', evt: function() { alert('Add'); } },
+            'Edit'   : {cls: 'edit', evt: function() { alert('Edit'); } },
+            'Copy'   : {cls: 'add', evt: function() { alert('Copy'); } },
+            'Paste'  : {cls: 'paste', evt: function() { alert('Paste'); } },
+            'Cut'    : {cls: 'cut', evt: function() { alert('Cut'); } },
+            'Delete' : {cls: 'delete'   /*, evt: function() { alert('Delete'); } */},
+            'Bikram' : {evt: function() { alert('Bikram'); } }
+        }
+    );
 });
+
+function add_context_menu(node, options)
+{
+    var cm_id = node.id+'_cm';
+    var menu = $('<ul>')
+                    .attr("id", cm_id)
+                    .addClass("contextMenu")
+                    .appendTo(node);
+
+    var evts = new Object();
+    for(var id in options) {
+        var name = id.toLowerCase();
+        evts[name] = (options[id].hasOwnProperty('evt') ? options[id].evt : function(){});
+        var clsname = (options[id].hasOwnProperty('cls') ? options[id].cls.toLowerCase() : 'default'); 
+        $('<li>')
+            .addClass(clsname)
+            .append($('<a>')
+                        .attr("href", '#'+name)
+                        .text(id)
+                   ).appendTo(menu);
+    }
+
+    node.data("evts", evts)
+        .contextMenu(
+        { menu: cm_id } ,
+        function(action, el, pos) {
+            $(el).data("evts")[action]($(el));
+        }
+    );
+}
 
 $(window).resize(function() {
     $('#db-tables-views').height($(window).height() - $('#menubar').height() - 2);
