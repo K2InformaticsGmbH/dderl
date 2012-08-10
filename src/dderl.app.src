@@ -8,5 +8,20 @@
                   stdlib
                  ]},
   {mod, { dderl_app, []}},
-  {env, []}
+  {env, [{webconfigs, [
+            [ {name, dderl_ssl},
+                        {ip, "0.0.0.0"},
+                        {port, 443},
+                        {ssl, true},
+                        {ssl_opts, [{certfile, "certs/host.cert"},
+                                   %{cacertfile,"tmp/api_server.ca.crt"},
+                                    {keyfile, "certs/host.key"}
+                        ]},
+                        {log_dir, "priv/log"}]
+            %, [ {name, dderl_http},
+            %    {ip, "0.0.0.0"},
+            %    {port, 80},
+            %    {log_dir, "priv/log"}]
+         ]}
+  ]}
  ]}.

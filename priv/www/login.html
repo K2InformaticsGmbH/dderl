@@ -4,6 +4,7 @@
 	<meta charset="utf-8">
 	<title>DD Explorer 1.0</title>
 
+	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css" media="screen, projection"/>
 	<link rel="stylesheet" href="../static/themes/base/jquery.ui.all.css">
     <link rel="stylesheet" href="../static/slickgrid/slick.grid.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.pager.css" type="text/css"/>
@@ -11,163 +12,32 @@
     <link rel="stylesheet" href="../static/slickgrid/css/smoothness/jquery-ui-1.8.16.custom.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.columnpicker.css" type="text/css"/>
     <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
-
-	<style>
-		body { font-size: 62.5%; }
-		input.text { margin-bottom:12px; width:95%; padding: .4em; }
-		fieldset { padding:0; border:0; margin-top:25px; }
-		h1 { font-size: 1.2em; margin: .6em 0; }
-		div#users-contain { width: 350px; margin: 20px 0; }
-		div#users-contain table { margin: 1em 0; border-collapse: collapse; width: 100%; }
-		div#users-contain table td, div#users-contain table th { border: 1px solid #eee; padding: .6em 10px; text-align: left; }
-		.ui-dialog .ui-state-error { padding: .3em; }
-		.validateTips { border: 1px solid transparent; padding: 0.3em; }
-        .cell-title { font-weight: bold; }
-        .cell-effort-driven { text-align: center; }
-        button.menubutton
-        {
-            font-size:13px;
-            font-family:Verdana,sans-serif;
-            color:#FFFFFF;
-            height:20px;
-            background-color:#00005F;
-            position: absolute;
-            top: 5px;
-            border: none;
-        }
-
-        .loading-indicator {
-          display: inline-block;
-          padding: 12px;
-          background: white;
-          -opacity: 0.5;
-          color: black;
-          font-weight: bold;
-          z-index: 9999;
-          border: 1px solid red;
-          -moz-border-radius: 10px;
-          -webkit-border-radius: 10px;
-          -moz-box-shadow: 0 0 5px red;
-          -webkit-box-shadow: 0px 0px 5px red;
-          -text-shadow: 1px 1px 1px white;
-        }
-
-        .loading-indicator label {
-          padding-left: 20px;
-          background: url('../static/images/ajax-loader-small.gif') no-repeat center left;
-        }
-
-        .cell-selection {
-          border-right-color: silver;
-          border-right-style: solid;
-          background: #f5f5f5;
-          color: gray;
-          text-align: right;
-          font-size: 10px;
-        }
-
-        .slick-row.selected .cell-selection {
-          background-color: transparent; /* show default selected row background */
-        }
-        
-        .sql_edit_flds {
-            border:1px;
-            border-color:#AFAFAF;
-            border-style:solid;
-            height:85%;
-            overflow:auto;
-            background:#EFEFEF;
-        }
-        .download_incomplete {
-            width:15px; height:15px;
-            background-image:url('../static/images/ball_yellow.gif');
-        }
-        .download_error {
-            width:15px; height:15px;
-            background-image:url('../static/images/ball_red.gif');
-        }
-        .download_complete {
-            width:15px; height:15px;
-            background-image:url('../static/images/ball_green.gif');
-        }
-        .slick-cell.selected {
-          background-color: black;
-          color: white;
-        }
-	</style>
-    <style>
-    	.ui-button { margin-left: -1px; }
-	    .ui-button-icon-only .ui-button-text { padding: 0.35em; } 
-    	.ui-autocomplete-input { margin: 0; padding: 0.48em 0 0.47em 0.45em; }
-	</style>
-    <style>
-        #sql-div {
-            background-color: rgb(0,255,255);
-            position:absolute;
-            top:0px;
-            right:0px;
-            width:49.9%;
-            height:900px;
-            overflow:auto;
-        }
-
-        .edit_div {
-            height:14px;
-            width:100%;
-        }
-
-        .inner_div {
-            min-height:20px;
-            position:relative;
-            width:900px;
-            height:20px;
-            overflow:hidden;
-            font-family:courier;
-            font-size:10pt;
-            vertical-align: top;
-        }
-    </style>
+    <link rel="stylesheet" href="dderl.css" type="text/css"/>
 </head>
+
 <body>
-    <ul id="cond_pop" class="contextMenu">
-        <li class="add">
-            <a href="#add">Add</a>
-            <a href="#add">Add
-                <ul id="cond_pop_add" class="contextMenu">
-                    <li class="edit separator">
-                        <a href="#edit">1</a>
-                    </li>
-                    <li class="copy">
-                        <a href="#copy">2</a>
-                    </li>
-                </ul>
-            </a>
-        </li>
-        <li class="edit separator">
-            <a href="#edit">Edit</a>
-        </li>
-        <li class="copy">
-            <a href="#copy">Copy</a>
-        </li>
-        <li class="paste">
-            <a href="#paste">Paste</a>
-        </li>
-        <li class="cut">
-            <a href="#cut">Cut</a>
-        </li>
-        <li class="delete separator">
-            <a href="#delete">Delete</a>
-        </li>
-    </ul>
-    
-    <div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F;">
+    <div id="main-menu-bar">
+        <ul class="dropdown">
+        	<li><a href="#">File</a>
+        		<ul class="sub_menu">
+        			 <li><a id="login-button" href="#" onclick='display_login()'>Log In</a></li>
+        			 <li><a id="tbl-view-button" href="#" onclick='show_tables()'>Tables/Views</a></li>
+        			 <li><a id="test-button" href="#" onclick='edit_sql(null, null)'>SQL</a></li>
+        			 <li><a id="change-pswd-button" href="#" onclick='change_password()'>Change Password</a></li>
+        			 <li><a id="show-logs-button" href="#" onclick='show_logs()'>Logs</a></li>
+        		</ul>
+        	</li>
+        </ul>
+	</div>
+
+    <!-- div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F; display:none;">
         <table width="100%" height="100%" cellpadding=0 cellspacing=0 border=0>
             <tr><td align="left" width="10%">
                     <button id="login-button" class="menubutton" onclick='display_login()'>Log In</button></td>
                 <td align="left" width="10%">
                     <button id="tbl-view-button" class="menubutton" onclick='show_tables()'>Tables/Views</button></td>
                 <td align="left" width="10%">
-                    <button id="test-button" class="menubutton" onclick='parse_and_hit(null, "select * from abc")'>SQL</button></td>
+                    <button id="test-button" class="menubutton" onclick='edit_sql(null, null)'>SQL</button></td>
                 <td align="left" width="10%">
                     <button id="change-pswd-button" class="menubutton" onclick='change_password()'>Change Password</button></td>
                 <td align="right" width="10%">
@@ -185,13 +55,13 @@
                     </select>
                     </div></td></tr>
         </table>
-    </div>
+    </div -->
     
     <div id='db-tables-views' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
     </div>
     
 
-	<script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+	<script src="../static/jquery-1.7.2.min.js"></script>
 	<script src="../static/external/jquery.bgiframe-2.1.2.js"></script>
 	<script src="../static/ui/jquery.ui.core.js"></script>
 	<script src="../static/ui/jquery.ui.widget.js"></script>
@@ -220,6 +90,7 @@
     <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
     <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
     <script src="../static/jquery.contextMenu-1.01/jquery.contextMenu.js"></script>
+	<script src="../static/dropdown/jquery.dropdownPlain.js"></script>
 
 	<script src="md5.js"></script>
 	<script src="dderl.js"></script>

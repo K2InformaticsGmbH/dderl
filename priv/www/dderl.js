@@ -386,16 +386,6 @@ var session = null;
 var owner = null;
 
 var queryId = 0;
-function edit_sql(tblDlg, sql) {
-    /*
-    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:sql}}, null, null, function(pTree) { 
-        sql_editor(tblDlg, pTree);
-    });
-    /*/
-    parse_and_hit(tblDlg, sql);
-    //*/
-}
-
 function loading(b, target) {
     if(b) {
         if (!loadingIndicator)
@@ -452,20 +442,20 @@ $(document).ready(function() {
         if(null == pageTitlePrefix)
             pageTitlePrefix = document.title + " "; // IE can't trim()
             //pageTitlePrefix = document.title.trim() + " ";
-        //display_login();
+        display_login();
     }
 
-    add_context_menu($('#menubar'),
-        {
-            'Add'    : {cls: 'copy', evt: function() { alert('Add'); } },
-            'Edit'   : {cls: 'edit', evt: function() { alert('Edit'); } },
-            'Copy'   : {cls: 'add', evt: function() { alert('Copy'); } },
-            'Paste'  : {cls: 'paste', evt: function() { alert('Paste'); } },
-            'Cut'    : {cls: 'cut', evt: function() { alert('Cut'); } },
-            'Delete' : {cls: 'delete'   /*, evt: function() { alert('Delete'); } */},
-            'Bikram' : {evt: function() { alert('Bikram'); } }
-        }
-    );
+    //add_context_menu($('#menubar'),
+    //    {
+    //        'Add'    : {cls: 'copy', evt: function() { alert('Add'); } },
+    //        'Edit'   : {cls: 'edit', evt: function() { alert('Edit'); } },
+    //        'Copy'   : {cls: 'add', evt: function() { alert('Copy'); } },
+    //        'Paste'  : {cls: 'paste', evt: function() { alert('Paste'); } },
+    //        'Cut'    : {cls: 'cut', evt: function() { alert('Cut'); } },
+    //        'Delete' : {cls: 'delete'   /*, evt: function() { alert('Delete'); } */},
+    //        'Bikram' : {evt: function() { alert('Bikram'); } }
+    //    }
+    //);
 });
 
 function add_context_menu(node, options)

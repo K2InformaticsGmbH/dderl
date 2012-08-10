@@ -97,14 +97,19 @@ function parse_and_update(root_node, qry, dc) {
     });
 }
 
-function parse_and_hit(tblDlg, qry) {
-    /*
+function edit_sql(tblDlg, qry) {
+    //*
+    if(qry == null || qry.length == 0) {
+        sql_editor(tblDlg, 0, null, null, "");
+        return;
+    }
+
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
         if (pTree.hasOwnProperty('error')) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
-            sql_edit(tblDlg, 0, pTree, null, qry);
+            sql_editor(tblDlg, 0, pTree, null, qry);
         }
     });
     /*/
@@ -135,12 +140,12 @@ function parse_and_hit(tblDlg, qry) {
     );
     prep_tree(pTree);
     qry = "\r\nselect \r\n\ta\r\n\t,b\r\n\t,c\r\nfrom \r\n\tabc\r\n\t, def\r\nwhere\r\n\t\ta\r\n\t\t=\r\n\t\tb\r\n\tor\r\n\t\tc\r\n\t\t=\r\n\t\td\r\n";
-    sql_edit(null, 0, pTree, null, qry);
+    sql_editor(null, 0, pTree, null, qry);
     //*/
 
 }
 
-function sql_edit(tblDlg, dc, tree, pos, qry) {
+function sql_editor(tblDlg, dc, tree, pos, qry) {
     var share        = 80; // percent
     var boxHeight    = 500;
     var boxWidth     = 500;
@@ -176,7 +181,8 @@ function sql_edit(tblDlg, dc, tree, pos, qry) {
                                .height(sth);
     });
     
-    build_boxes($('#sql_tree'+dc), dc, tree);
+    if(tree != null)
+        build_boxes($('#sql_tree'+dc), dc, tree);
 
     var X = 115, Y = 115;
     if(pos != null) {X = pos.docX; Y = pos.docY; }
@@ -631,102 +637,102 @@ function load_div(target, array) {
 
 var sqlObj = null;
 
-function sql_editor(tblDlg, pTree) {
-    sqlObj = {tables:[],fields:[],sorts:[],conds:[],joins:[]};
-    selected.tables = pTree.tables;
-    $('<div id=sql_edit style="width:100%">'+
-            '<table width=100% height=100% border=0>'+
-                '<tr><td width=50% valign="top">Tables'+
-                        '<div id=sql_edit_tbls class=sql_edit_flds style="width:93%"/>'+
-                    '</td><td width=50% rowspan=2 valign="top">Fields'+
-                        '<div id=sql_edit_flds class=sql_edit_flds style="height:93%"/>'+
-                    '</td></tr>'+
-                '<tr><td width=50% valign="top">Sort Order'+
-                        '<div id=sql_edit_srt class=sql_edit_flds style="width:93%"/>'+
-                    '</td></tr>'+
-                '<tr id="join_inp" hidden><td valign="top" colspan = 2>Table Joins<div id=sql_tbl_join class=sql_edit_flds/></td></tr>'+
-                '<tr><td valign="top" colspan = 2>Conditions<div id=sql_edit_cnd class=sql_edit_flds/></td></tr>'+
-            '</table>'+
-      '</div>'
-    ).appendTo(document.body);
-
-    sqlObj.tables = [];
-    for(var i = 0; i < selected.tables.length; ++i)
-        sqlObj.tables[sqlObj.tables.length] = selected.tables[i];
-
-    load_div($('#sql_edit_tbls'), selected.tables);
-    selected.fields = [];
-    if(pTree.fields.length == 1 && pTree.fields[0] == "*")
-        get_columns(function(data) {
-            var colRows = data.rows;
-            pTree.fields = [];
-            for(var i = 0; i < colRows.length; ++i) {
-                selected.fields[selected.fields.length] = pTree.fields[pTree.fields.length] = colRows[i][0];
-                sqlObj.fields[sqlObj.fields.length] = colRows[i][0];
-            }
-            load_div($('#sql_edit_flds'), selected.fields);
-        });
-    else {
-        for(var i = 0; i < pTree.fields.length; ++i)
-            selected.fields[selected.fields.length] = sqlObj.fields[sqlObj.fields.length] = pTree.fields[i];
-        load_div($('#sql_edit_flds'), selected.fields);
-    }
-    selected.sorts = [];
-    for(var i = 0; i < pTree.sorts.length; ++i)
-        selected.sorts[selected.sorts.length] = sqlObj.sorts[sqlObj.sorts.length] = pTree.sorts[i];
-    load_srt_div($('#sql_edit_srt'), selected.sorts);
-
-    $('#sql_edit_tbls').click(function(){
-        sql_tables();
-        selected.tables = $('#sql_edit_tbls').html().split('<br>');
-        for(var i=0; i<selected.tables.length; ++i)
-            if(selected.tables[i].length == 0) selected.tables.splice(i,1);
-        reload_selection_table();
-    });
-    $('#sql_edit_flds').click(function(){
-        sql_fields();
-        selected.fields = $('#sql_edit_flds').html().split('<br>');
-        for(var i=0; i<selected.fields.length; ++i)
-            if(selected.fields[i].length == 0) selected.fields.splice(i,1);
-        reload_selection_fields();
-    });
-    $('#sql_edit_srt').click(function(){
-        sql_sorts();
-        var sorts = $('#sql_edit_srt').html().split('<br>');
-        for(var i=0; i<sorts.length && sorts[i].length>0; ++i) {
-            var s = sorts[i].split(' ');
-            var sdir = ($.trim(s[0]).charCodeAt(0) == 8593 ? 0 : 1);
-            selected.sorts[i] = {txt: $.trim(s[1]), dir:sdir};
-        }
-        for(var i=0; i<selected.sorts.length; ++i)
-            if(selected.sorts[i].length == 0) selected.sorts.splice(i,1);
-        reload_selection_sorts();
-    });
-
-    $('#sql_edit').dialog({
-        autoOpen: false,
-        height: 400,
-        width: 400,
-        modal: true,
-        position: [100, 100],
-        resizable: false,
-        title: "Query Editor",
-        close: function() {
-            $('#sql_edit').dialog('destroy');
-            $('#sql_edit').remove();
-        },
-        buttons: {
-            "Ok": function() {
-                $('#sql_edit').dialog('close');
-                tblDlg.trigger('requery', sqlObj);
-            },
-            "Cancel": function() {
-                $('#sql_edit').dialog('close');
-            }
-        }
-    });
-    $('#sql_edit').dialog("open");
-}
+//function sql_editor(tblDlg, pTree) {
+//    sqlObj = {tables:[],fields:[],sorts:[],conds:[],joins:[]};
+//    selected.tables = pTree.tables;
+//    $('<div id=sql_edit style="width:100%">'+
+//            '<table width=100% height=100% border=0>'+
+//                '<tr><td width=50% valign="top">Tables'+
+//                        '<div id=sql_edit_tbls class=sql_edit_flds style="width:93%"/>'+
+//                    '</td><td width=50% rowspan=2 valign="top">Fields'+
+//                        '<div id=sql_edit_flds class=sql_edit_flds style="height:93%"/>'+
+//                    '</td></tr>'+
+//                '<tr><td width=50% valign="top">Sort Order'+
+//                        '<div id=sql_edit_srt class=sql_edit_flds style="width:93%"/>'+
+//                    '</td></tr>'+
+//                '<tr id="join_inp" hidden><td valign="top" colspan = 2>Table Joins<div id=sql_tbl_join class=sql_edit_flds/></td></tr>'+
+//                '<tr><td valign="top" colspan = 2>Conditions<div id=sql_edit_cnd class=sql_edit_flds/></td></tr>'+
+//            '</table>'+
+//      '</div>'
+//    ).appendTo(document.body);
+//
+//    sqlObj.tables = [];
+//    for(var i = 0; i < selected.tables.length; ++i)
+//        sqlObj.tables[sqlObj.tables.length] = selected.tables[i];
+//
+//    load_div($('#sql_edit_tbls'), selected.tables);
+//    selected.fields = [];
+//    if(pTree.fields.length == 1 && pTree.fields[0] == "*")
+//        get_columns(function(data) {
+//            var colRows = data.rows;
+//            pTree.fields = [];
+//            for(var i = 0; i < colRows.length; ++i) {
+//                selected.fields[selected.fields.length] = pTree.fields[pTree.fields.length] = colRows[i][0];
+//                sqlObj.fields[sqlObj.fields.length] = colRows[i][0];
+//            }
+//            load_div($('#sql_edit_flds'), selected.fields);
+//        });
+//    else {
+//        for(var i = 0; i < pTree.fields.length; ++i)
+//            selected.fields[selected.fields.length] = sqlObj.fields[sqlObj.fields.length] = pTree.fields[i];
+//        load_div($('#sql_edit_flds'), selected.fields);
+//    }
+//    selected.sorts = [];
+//    for(var i = 0; i < pTree.sorts.length; ++i)
+//        selected.sorts[selected.sorts.length] = sqlObj.sorts[sqlObj.sorts.length] = pTree.sorts[i];
+//    load_srt_div($('#sql_edit_srt'), selected.sorts);
+//
+//    $('#sql_edit_tbls').click(function(){
+//        sql_tables();
+//        selected.tables = $('#sql_edit_tbls').html().split('<br>');
+//        for(var i=0; i<selected.tables.length; ++i)
+//            if(selected.tables[i].length == 0) selected.tables.splice(i,1);
+//        reload_selection_table();
+//    });
+//    $('#sql_edit_flds').click(function(){
+//        sql_fields();
+//        selected.fields = $('#sql_edit_flds').html().split('<br>');
+//        for(var i=0; i<selected.fields.length; ++i)
+//            if(selected.fields[i].length == 0) selected.fields.splice(i,1);
+//        reload_selection_fields();
+//    });
+//    $('#sql_edit_srt').click(function(){
+//        sql_sorts();
+//        var sorts = $('#sql_edit_srt').html().split('<br>');
+//        for(var i=0; i<sorts.length && sorts[i].length>0; ++i) {
+//            var s = sorts[i].split(' ');
+//            var sdir = ($.trim(s[0]).charCodeAt(0) == 8593 ? 0 : 1);
+//            selected.sorts[i] = {txt: $.trim(s[1]), dir:sdir};
+//        }
+//        for(var i=0; i<selected.sorts.length; ++i)
+//            if(selected.sorts[i].length == 0) selected.sorts.splice(i,1);
+//        reload_selection_sorts();
+//    });
+//
+//    $('#sql_edit').dialog({
+//        autoOpen: false,
+//        height: 400,
+//        width: 400,
+//        modal: true,
+//        position: [100, 100],
+//        resizable: false,
+//        title: "Query Editor",
+//        close: function() {
+//            $('#sql_edit').dialog('destroy');
+//            $('#sql_edit').remove();
+//        },
+//        buttons: {
+//            "Ok": function() {
+//                $('#sql_edit').dialog('close');
+//                tblDlg.trigger('requery', sqlObj);
+//            },
+//            "Cancel": function() {
+//                $('#sql_edit').dialog('close');
+//            }
+//        }
+//    });
+//    $('#sql_edit').dialog("open");
+//}
 
 /*
 {

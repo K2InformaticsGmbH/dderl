@@ -46,19 +46,36 @@ upgrade() ->
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
 init([]) ->
-    Ip = case os:getenv("WEBMACHINE_IP") of false -> "0.0.0.0"; Any -> Any end,
+%    Ip = case os:getenv("WEBMACHINE_IP") of false -> "0.0.0.0"; Any -> Any end,
     {ok, Dispatch} = file:consult(filename:join(
                          [filename:dirname(code:which(?MODULE)),
                           "..", "priv", "dispatch.conf"])),
-    WebConfig = [
-                 {ip, Ip},
-                 {port, 8123},
-                 {log_dir, "priv/log"},
-                 {dispatch, Dispatch}],
-    Web = {webmachine_mochiweb,
-           {webmachine_mochiweb, start, [WebConfig]},
-           permanent, 5000, worker, dynamic},
-    Processes = [Web],
+    Processes =
+    case application:get_env(webconfigs) of
+        undefined -> [
+                {webmachine_mochiweb,
+                    {webmachine_mochiweb, start, [
+                        [{name, webmachine_mochiweb},
+                        {ip, "127.0.0.1"},
+                        {port, 443},
+                        {ssl, true},
+                        {ssl_opts, [{certfile, "certs/host.cert"},
+                                   %{cacertfile,"tmp/api_server.ca.crt"},
+                                    {keyfile, "certs/host.key"}
+                        ]},
+                        {log_dir, "priv/log"},
+                        {dispatch, Dispatch}]
+                    ]},
+                permanent, 5000, worker, dynamic}
+        ];
+        {ok, WebConfigs} ->  [
+            {proplists:get_value(name, Wc, default),
+            {webmachine_mochiweb, start, [Wc++[{dispatch, Dispatch}]]},
+             permanent, 5000, worker, dynamic}
+        || Wc <- WebConfigs
+        ]
+    end,
+
     ets:new(dderl_req_sessions, [set, public, named_table]),
     case mnesia:create_schema([node()]) of
         ok -> ok;
