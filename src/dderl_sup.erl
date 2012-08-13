@@ -43,6 +43,8 @@ upgrade() ->
     [supervisor:start_child(?MODULE, Spec) || Spec <- Specs],
     ok.
 
+-define(TBL_SPEC(T), {T, record_info(fields, T)}).
+
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
 init([]) ->
@@ -77,13 +79,25 @@ init([]) ->
     end,
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
-    case mnesia:create_schema([node()]) of
-        ok -> ok;
-        {error, R0} -> io:format(user, "mnesia:create_schema error ~p~n", [R0])
-    end,
-    ok = mnesia:start(),
-    case mnesia:create_table(accounts, [{disc_copies, [node()]}, {attributes, record_info(fields, accounts)}]) of
-        {atomic, ok} -> ok;
-        {aborted, R1} -> io:format(user, "mnesia:create_table aborted ~p~n", [R1])
-    end,
+    
+    init_tables([
+              ?TBL_SPEC(accounts)
+            , ?TBL_SPEC(common)
+        ]),
+    %case imem_if:build_table(accounts, [record_info(fields, accounts)]) of
+    %    {atomic, ok} -> ok;
+    %    {aborted, R1} -> io:format(user, "mnesia:create_table aborted ~p~n", [R1])
+    %end,
+    %case imem_if:build_table(common, [record_info(fields, common)]) of
+    %    {atomic, ok} -> ok;
+    %    {aborted, R2} -> io:format(user, "mnesia:create_table aborted ~p~n", [R2])
+    %end,
     {ok, { {one_for_one, 10, 10}, Processes} }.
+
+init_tables([]) -> ok;
+init_tables([{T,C}|Tables]) ->
+    case imem_if:build_table(T, C) of
+        {atomic, ok} -> ok;
+        {aborted, R} -> io:format(user, "mnesia:create_table aborted ~p~n", [R])
+    end,    
+    init_tables(Tables).

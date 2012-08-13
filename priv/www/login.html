@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<title>DD Explorer 1.0</title>
+	<title>DDerl 1.0</title>
 
-	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css" media="screen, projection"/>
+	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
 	<link rel="stylesheet" href="../static/themes/base/jquery.ui.all.css">
     <link rel="stylesheet" href="../static/slickgrid/slick.grid.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.pager.css" type="text/css"/>
-    <link rel="stylesheet" href="../static/slickgrid/examples.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/css/smoothness/jquery-ui-1.8.16.custom.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.columnpicker.css" type="text/css"/>
     <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
@@ -17,20 +16,23 @@
 
 <body>
     <div id="main-menu-bar">
-        <ul class="dropdown">
+        <ul class="dropdown" style="background:#AFAFAF;">
         	<li><a href="#">File</a>
         		<ul class="sub_menu">
         			 <li><a id="login-button" href="#" onclick='display_login()'>Log In</a></li>
-        			 <li><a id="tbl-view-button" href="#" onclick='show_tables()'>Tables/Views</a></li>
+        			 <li><a id="connect-button" href="#" onclick='display_db_login()'>Connect</a></li>
+        			 <li><a id="files-list-button" href="#" onclick='show_files()'>Query Files</a></li>
         			 <li><a id="test-button" href="#" onclick='edit_sql(null, null)'>SQL</a></li>
         			 <li><a id="change-pswd-button" href="#" onclick='change_password()'>Change Password</a></li>
         			 <li><a id="show-logs-button" href="#" onclick='show_logs()'>Logs</a></li>
         		</ul>
         	</li>
         </ul>
+        <div id="login-msg" style="float:right;">
+        </div>
 	</div>
 
-    <!-- div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 0px; left: 0px; background: #00005F; display:none;">
+    <!-- div id="menubar" style="width: 100%; height: 30px; position: absolute; top: 50px; left: 0px; background: #00005F; display:block;">
         <table width="100%" height="100%" cellpadding=0 cellspacing=0 border=0>
             <tr><td align="left" width="10%">
                     <button id="login-button" class="menubutton" onclick='display_login()'>Log In</button></td>

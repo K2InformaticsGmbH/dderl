@@ -113,7 +113,43 @@ function edit_sql(tblDlg, qry) {
         }
     });
     /*/
-    pTree = JSON.parse(
+  	pTree =JSON.parse(
+'{"name":"select", "children":['
++	'{"name":"", "children":['
++		'{"name":"a", "children":[]},'
++		'{"name":",", "children":[]},'
++		'{"name":"b as bb", "children":[]},'
++		'{"name":",", "children":[]},'
++		'{"name":"c", "children":[]}'
++	']},'
++	'{"name":"from", "children":['
++		'{"name":"abc", "children":[]},'
++		'{"name":",", "children":[]},'
++		'{"name":"def", "children":[]}'
++	']},'
++	'{"name":"where", "children":['
++		'{"name":"", "children":['
++			'{"name":"a", "children":[]},'
++			'{"name":"=", "children":[]},'
++			'{"name":"b", "cildren":[]}'
++		']},'
++		'{"name":"or", "children":['
++			'{"name":"", "children":['
++				'{"name":"nvl", "children":['
++					'{"name":"(", "children":['
++						'{"name":"a", "children":[]},'
++						'{"name":",", "children":[]},'
++						'{"name":"0", "children":[]}'
++					']},'
++					'{"name":")", "children":[]}'
++				']}'
++			']},'
++			'{"name":"=", "children":[]},'
++			'{"name":"0", "children":[]}'
++		']}'
++	']}'
++']}'
+pTree = JSON.parse(
                         '{"name":"select", "children":['
                         +	'{"name":"", "children":['
                         +		'{"name":"a", "children":[]},'
@@ -142,7 +178,6 @@ function edit_sql(tblDlg, qry) {
     qry = "\r\nselect \r\n\ta\r\n\t,b\r\n\t,c\r\nfrom \r\n\tabc\r\n\t, def\r\nwhere\r\n\t\ta\r\n\t\t=\r\n\t\tb\r\n\tor\r\n\t\tc\r\n\t\t=\r\n\t\td\r\n";
     sql_editor(null, 0, pTree, null, qry);
     //*/
-
 }
 
 function sql_editor(tblDlg, dc, tree, pos, qry) {

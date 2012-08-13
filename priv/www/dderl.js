@@ -438,12 +438,12 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 var pageTitlePrefix = null;
 $(document).ready(function() {    
-    if(session == null) {
-        if(null == pageTitlePrefix)
-            pageTitlePrefix = document.title + " "; // IE can't trim()
-            //pageTitlePrefix = document.title.trim() + " ";
-        display_login();
-    }
+    //if(session == null) {
+    //    if(null == pageTitlePrefix)
+    //        pageTitlePrefix = document.title + " "; // IE can't trim()
+    //        //pageTitlePrefix = document.title.trim() + " ";
+    //    display_login();
+    //}
 
     //add_context_menu($('#menubar'),
     //    {
@@ -457,6 +457,39 @@ $(document).ready(function() {
     //    }
     //);
 });
+
+function show_files()
+{
+    ajax_post('/app/files', {}, null, null, function(data) {
+        $('<div id="dialog-show-files" title="Query Files" style="display:none">' +
+          '  <select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>' +
+          '</div>').appendTo(document.body);
+        for(var i=0;i<data.files.length; ++i)
+            $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>').appendTo($('#files_list'));
+        $("#dialog-show-files").dialog({
+            autoOpen: false,
+            height: 400,
+            width: 300,
+            resizable: false,
+            modal: true,
+            close: function() {
+                $("#dialog-show-files").dialog('destroy');
+                $("#dialog-show-files").remove();
+            },
+            buttons: {
+                "Show": function() {
+                    render_table([$('#files_list option:selected').text()], $('#files_list option:selected').val(), "");
+                },
+                "Delete": function() {
+                },
+                Cancel: function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+        $('#dialog-show-files').dialog("open");
+    });
+}
 
 function add_context_menu(node, options)
 {

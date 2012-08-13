@@ -1,4 +1,4 @@
-var logins = new Object();
+var logins = null;
 var db_types = [{type: "oci", desc: "Oracle"}
                ,{type: "imem", desc: "Mnesia Cluster"}];
 var adapter = null;
@@ -8,6 +8,7 @@ function display_login()
         $('#login-button').html('Log In');
         $("#db-tables-views").html('');
         $('#change-pswd-button').data("logged_in_user", "");
+        $('#login-msg').html('Welcome guest');
     }
     $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
@@ -19,8 +20,8 @@ function display_login()
       '</div>').appendTo(document.body);
     $('#dialog-login').dialog({
         autoOpen: false,
-        height: 158,
-        width: 300,
+        height: 'auto',
+        width: 'auto',
         resizable: false,
         modal: true,
         close: function() {
@@ -35,9 +36,10 @@ function display_login()
                     if(data.login == "ok") {
                         var user = $('#user_login').val();
                         $('#change-pswd-button').data("logged_in_user", user);
+                        $('#login-msg').html('Welcome ' + user);
                         $('#login-button').html('Log out ' + user);
                         $("#dialog-login").dialog("close");
-                        display_db_login();
+                        //display_db_login();
                     }
                     else
                         alert('Login falied : ' + data.login);
@@ -170,19 +172,21 @@ function display_db_login()
                                              user      :$("#user").val(),
                                              password  :$("#password").val()}};
                 owner = $("#user").val();
+                var name = $("#name").val();
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
+                    document.title = name + " DDerl 1.0";
                     ajax_post('/app/users', null, null, null, function(data) {
                         var usr = '';
-                        var userRows = data.rows;
-                        for(var i = 0; i < userRows.length; ++i) {
-                                usr = userRows[i][0];
-                                $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
-                        }
-                        generate_tables_views(session, owner);
+                        var userRows = data.rows;                        
+                        //for(var i = 0; i < userRows.length; ++i) {
+                        //        usr = userRows[i][0];
+                        //        $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
+                        //}
+                        //generate_tables_views(session, owner);
                     });
                 });
                 $(this).dialog("close");
-                show_tables();
+                //show_tables();
             },
             "Save": function() {
                 name = $("#name").val();

@@ -17,6 +17,7 @@ start_link() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
+    ensure_started(imem),
     application:set_env(webmachine, webmachine_logger_module, 
                         webmachine_logger),
     ensure_started(webmachine),
@@ -29,6 +30,7 @@ start() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
+    ensure_started(imem),
     application:set_env(webmachine, webmachine_logger_module, 
                         webmachine_logger),
     ensure_started(webmachine),
@@ -42,4 +44,5 @@ stop() ->
     application:stop(mochiweb),
     application:stop(crypto),
     application:stop(erloci),
+    application:stop(imem),
     Res.

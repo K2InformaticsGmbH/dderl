@@ -1,6 +1,15 @@
 -module(oci_adapter).
 
--export([process_cmd/3]).
+-export([ process_cmd/3
+        , init/0
+        ]).
+
+init() ->
+    imem_if:insert_into_table(common, {?MODULE, [
+                {"Users.sql",   "SELECT DISTINCT OWNER FROM ALL_TABLES"}
+              , {"Tables.sql",  "SELECT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME DESC"}
+              , {"Views.sql",   "SELECT VIEW_NAME FROM ALL_VIEWS ORDER BY VIEW_NAME DESC"}
+            ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),

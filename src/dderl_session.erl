@@ -54,43 +54,45 @@ process_request(SessKey, WReq, {?MODULE, Pid}) ->
     gen_server:call(Pid, {SessKey, Type, WReq}, infinity).
 
 set_adapter(Adapter, {?MODULE, Pid}) ->
-    AdaptMod  = list_to_atom(Adapter++"_adapter"),
+    AdaptMod  = list_to_existing_atom(Adapter++"_adapter"),
     gen_server:call(Pid, {adapter, AdaptMod}, infinity).
 
 update_account(User, {pswd, Password}) ->
-    Pswd = lists:flatten(io_lib:format(lists:flatten(array:to_list(array:new([{size,16},{default,"~.16b"}])))
+    Pswd = lists:flatten(io_lib:format(lists:flatten(array:to_list(array:new([{size,16},{default,"~2.16.0b"}])))
                                      , binary_to_list(erlang:md5(Password)))),
-    Acnt = case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
-            {atomic, []} -> #accounts{user=User, password = Pswd};
-            {atomic, [Account|_]} -> Account#accounts{password = Pswd}
+    update_account(User, {pswd_md5, Pswd});
+update_account(User, {pswd_md5, Pswd}) ->
+    Acnt = case imem_if:read(accounts, User) of
+            [] -> #accounts{user=User, password=Pswd};
+            [Account|_] -> Account#accounts{password=Pswd}
     end,
-    mnesia:transaction(fun() -> mnesia:write(Acnt) end);
-update_account(User, {pswd_md5, Password}) ->
-    Acnt = case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
-            {atomic, []} -> #accounts{user=User, password = Password};
-            {atomic, [Account|_]} -> Account#accounts{password = Password}
-    end,
-    mnesia:transaction(fun() -> mnesia:write(Acnt) end);
+    imem_if:insert_into_table(accounts, Acnt);
 update_account(User, {cons, Connections}) ->
-    {atomic, [Account|_]} = mnesia:transaction(fun() -> mnesia:read({accounts, User}) end),
-    mnesia:transaction(fun() ->
-                        mnesia:write(
-                            Account#accounts{db_connections = Connections})
-                       end).
+    case imem_if:read(accounts, User) of
+        [] -> {error, "User does not exists"};
+        [Account|_] -> imem_if:insert_into_table(accounts, Account#accounts{db_connections = Connections})
+    end.
 
 retrieve(cons, User) ->
-    case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
-        {atomic, []} -> {error, "User does not exists"};
-        {atomic, [#accounts{db_connections=Connections}|_]} -> {ok, Connections};
+    case imem_if:read(accounts, User) of
+        [] -> {error, "User does not exists"};
+        [#accounts{db_connections=Connections}|_] -> {ok, Connections};
         {aborted, Reason} ->
             logi(?GENLOG, "mnesia:read failed ~p~n", [Reason]),
             {error, Reason}
     end;
 retrieve(pswd, User) ->
-    case mnesia:transaction(fun() -> mnesia:read({accounts, User}) end) of
-        {atomic, []} -> {error, "User does not exists"};
-        {atomic, [#accounts{password=Password}|_]} ->
-            {ok, Password};
+    case imem_if:read(accounts, User) of
+        [] -> {error, "User does not exists"};
+        [#accounts{password=Password}|_] -> {ok, Password};
+        {aborted, Reason} ->
+            logi(?GENLOG, "mnesia:read failed ~p~n", [Reason]),
+            {error, Reason}
+    end;
+retrieve(files, User) ->
+    case imem_if:read(accounts, User) of
+        [] -> {error, "User does not exists"};
+        [#accounts{db_files=Files}|_] -> {ok, Files};
         {aborted, Reason} ->
             logi(?GENLOG, "mnesia:read failed ~p~n", [Reason]),
             {error, Reason}
@@ -102,6 +104,7 @@ init(_Args) ->
     {ok, #state{key=erlang:phash2({dderl_session, self()}),tref=TRef}}.
 
 handle_call({adapter, Adapter}, _From, State) ->
+    Adapter:init(),
     {reply, ok, State#state{adapter=Adapter}};
 handle_call(get_state, _From, State) ->
     {reply, State, State};
@@ -130,6 +133,15 @@ process_call({"login", ReqData}, _From, #state{key=Key, logdir=Dir} = State) ->
         {error, Reason} ->
             {reply, "{\"login\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
+process_call({"files", _}, _From, #state{adapter=AdaptMod, user=User} = State) ->
+    [{_,_,CmnFs}|_] = imem_if:read(common, AdaptMod),
+    Files = create_files_json(
+        case retrieve(files, User) of
+            {ok, undefined} -> CmnFs;
+            {ok, Fs} -> Fs ++ CmnFs;
+            {error, _} -> []
+        end),
+    {reply, "{\"files\": ["++Files++"]}", State};
 process_call({"logs", _ReqData}, _From, #state{user=User,logdir=Dir} = State) ->
     Files = filelib:fold_files(Dir, User ++ "_.*\.log", false, fun(F, A) -> [filename:join(["logs", filename:basename(F)])|A] end, []),
     {reply, "{\"logs\": "++string_list_to_json(Files, [])++"}", State};
@@ -149,7 +161,7 @@ process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = St
             Data = binary_to_list(wrq:req_body(ReqData)),
             logi(File, "Saving... ~p~n", [Data]),
             case update_account(User, {cons, Data}) of
-                {atomic, ok} ->
+                ok ->
                     logi(File, "[~p] config updated for user ~p~n", [Key, User]),
                     {reply, "{\"save\": \"ok\"}", State};
                 abort ->  {reply, "{\"save\": \"unable to save config\"}", State}
@@ -157,8 +169,8 @@ process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = St
     end;
 process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
     case retrieve(cons, User) of
-        {ok, []} -> {reply, "[]", State};
-        {ok, undefined} ->  {reply, "[]", State};
+        {ok, []} -> {reply, "{}", State};
+        {ok, undefined} ->  {reply, "{}", State};
         {ok, Connections} -> {reply, Connections, State#state{user=User}};
         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
@@ -169,6 +181,11 @@ process_call({Cmd, ReqData}, _From, #state{session=SessionHandle, adapter=AdaptM
     end,
     {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
     {reply, Resp, State#state{session=NewSessionHandle}}.
+
+create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
+create_files_json([], Json) -> Json;
+create_files_json([{FName, Content}|Files], Json) ->
+    create_files_json(Files, ["{\"name\":\""++FName++"\", \"content\":\""++Content++"\"}"|Json]).
 
 handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
     logi(File, "[~p] " ++ Format, [Key|Content]),
