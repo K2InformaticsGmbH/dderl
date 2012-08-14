@@ -10,7 +10,6 @@ function get_text(tree, txt)
 function prep_tree(tree)
 {
     tree['summary'] = get_text(tree, '');
-    tree['display'] = true;
     if(!tree.hasOwnProperty('height')) tree['height'] = 0;
     if(tree.name.length > 0)
         tree.height = def_height;
@@ -29,6 +28,10 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
     var bgcol = (255 - 10 * depth);
     //var col = (30 * depth);
 
+    // '(' or ')' collapses the parent
+    if(tree.name == "(" || tree.name == ")")
+        tree.collapsed = false;
+
     var content = $(('<span>'+tree.name+'</span>'));
 
     var node = (tree.name.length > 0
@@ -36,8 +39,9 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
                                                       .data("content", content)
                 : $('<div></div>'));
 
-    var editbx = $('<textarea></textarea>')
+    var editbx = $('<span></span>')
         .appendTo(node)
+        .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
         .addClass('edit_div')
         .css("font-family","courier")
         .css("font-size","10pt")
@@ -46,14 +50,19 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
 
     node.dblclick(function(evt) {
             event.stopPropagation();
-            var dom = $(this).data("tree");
-            for(var i=0; i < dom.children.length; ++i)
-                dom.children[i].display = !dom.children[i].display;
+            var parent_tree = last_parent_node.data("tree");
+            tree.collapsed = !tree.collapsed;
+            if(tree.name == "(" || tree.name == ")") {
+                parent_tree.collapsed = tree.collapsed;
+                for (var i =0; i < tree.children.length; ++i)
+                    tree.children[i].collapsed = tree.collapsed
+            }
+            if(tree.children.length == 0)
+                parent_tree.collapsed = !parent_tree.collapsed;
             build_boxes(root_node, dc, root_node.data('treeroot'));
         })
         .addClass('inner_div')
         .addClass('context-menu-one')
-        .toggle(tree.display)
         .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
         //.css('color', 'rgb('+col+','+col+','+col+')')
         .data("tree", tree)
@@ -65,18 +74,30 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
 
     var child_hide = false;
     for (var i=0; i < tree.children.length ; ++i) {
-        if(!tree.children[i].display && !child_hide) child_hide = true;
-        build_boxes_r(root_node, dc, tree.children[i], node, depth + 1);
+        if(tree.collapsed) {
+            if(!child_hide)
+                child_hide = true;
+        } else
+            build_boxes_r(root_node, dc, tree.children[i], node, depth + 1);
     }
 
-    if(child_hide) node.height(node.data("edit").height());
+    if(child_hide) node.height(editbx.height());
     else           node.height(tree.height);
 
-    if(!tree.display && last_parent_node.data("edit") != undefined) {
-        var edit = last_parent_node.data("edit").show();
-        var c = last_parent_node.data("content");
-        if(c != undefined) c.hide();
+    if(tree.collapsed) {
+        editbx.show();
+        content.hide();
     }
+}
+
+function get_tree_height(tree)
+{
+    var height = def_height;
+    if(!tree.collapsed) {
+        for(var i=0; i < tree.children; ++i)
+            height += get_tree_height(tree.children[i]);
+    }
+    return height;
 }
 
 function build_boxes(div, dc, tree)
@@ -88,7 +109,7 @@ function build_boxes(div, dc, tree)
 
 function parse_and_update(root_node, qry, dc) {
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
-        if (pTree.hasOwnProperty('error')) {
+        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
@@ -98,86 +119,19 @@ function parse_and_update(root_node, qry, dc) {
 }
 
 function edit_sql(tblDlg, qry) {
-    //*
     if(qry == null || qry.length == 0) {
         sql_editor(tblDlg, 0, null, null, "");
         return;
     }
 
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
-        if (pTree.hasOwnProperty('error')) {
+        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
             sql_editor(tblDlg, 0, pTree, null, qry);
         }
     });
-    /*/
-  	pTree =JSON.parse(
-'{"name":"select", "children":['
-+	'{"name":"", "children":['
-+		'{"name":"a", "children":[]},'
-+		'{"name":",", "children":[]},'
-+		'{"name":"b as bb", "children":[]},'
-+		'{"name":",", "children":[]},'
-+		'{"name":"c", "children":[]}'
-+	']},'
-+	'{"name":"from", "children":['
-+		'{"name":"abc", "children":[]},'
-+		'{"name":",", "children":[]},'
-+		'{"name":"def", "children":[]}'
-+	']},'
-+	'{"name":"where", "children":['
-+		'{"name":"", "children":['
-+			'{"name":"a", "children":[]},'
-+			'{"name":"=", "children":[]},'
-+			'{"name":"b", "cildren":[]}'
-+		']},'
-+		'{"name":"or", "children":['
-+			'{"name":"", "children":['
-+				'{"name":"nvl", "children":['
-+					'{"name":"(", "children":['
-+						'{"name":"a", "children":[]},'
-+						'{"name":",", "children":[]},'
-+						'{"name":"0", "children":[]}'
-+					']},'
-+					'{"name":")", "children":[]}'
-+				']}'
-+			']},'
-+			'{"name":"=", "children":[]},'
-+			'{"name":"0", "children":[]}'
-+		']}'
-+	']}'
-+']}'
-pTree = JSON.parse(
-                        '{"name":"select", "children":['
-                        +	'{"name":"", "children":['
-                        +		'{"name":"a", "children":[]},'
-                        +		'{"name":", b", "children":[]},'
-                        +		'{"name":", c", "children":[]}'
-                        +	']},'
-                        +	'{"name":"from", "children":['
-                        +		'{"name":"abc", "children":[]},'
-                        +		'{"name":", def", "children":[]}'
-                        +	']},'
-                        +	'{"name":"where", "children":['
-                        +		'{"name":"", "children":['
-                        +			'{"name":"a", "children":[]},'
-                        +			'{"name":"=", "children":[]},'
-                        +			'{"name":"b", "children":[]}'
-                        +		']},'
-                        +		'{"name":"or", "children":['
-                        +			'{"name":"c", "children":[]},'
-                        +			'{"name":"=", "children":[]},'
-                        +			'{"name":"d", "children":[]}'
-                        +		']}'
-                        +	']}'
-                        +']}'
-    );
-    prep_tree(pTree);
-    qry = "\r\nselect \r\n\ta\r\n\t,b\r\n\t,c\r\nfrom \r\n\tabc\r\n\t, def\r\nwhere\r\n\t\ta\r\n\t\t=\r\n\t\tb\r\n\tor\r\n\t\tc\r\n\t\t=\r\n\t\td\r\n";
-    sql_editor(null, 0, pTree, null, qry);
-    //*/
 }
 
 function sql_editor(tblDlg, dc, tree, pos, qry) {
