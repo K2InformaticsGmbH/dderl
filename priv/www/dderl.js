@@ -458,7 +458,7 @@ $(document).ready(function() {
     //);
 });
 
-function show_files()
+function show_qry_files()
 {
     ajax_post('/app/files', {}, null, null, function(data) {
         $('<div id="dialog-show-files" title="Query Files" style="display:none">' +

@@ -20,6 +20,8 @@ if(jQuery)( function() {
 			if( o.menu == undefined ) return false;
 			if( o.inSpeed == undefined ) o.inSpeed = 150;
 			if( o.outSpeed == undefined ) o.outSpeed = 75;
+			if( o.xShift == undefined ) o.xShift = 0;
+			if( o.yShift == undefined ) o.yShift = 0;
 			// 0 needs to be -1 for expected results (no fade)
 			if( o.inSpeed == 0 ) o.inSpeed = -1;
 			if( o.outSpeed == 0 ) o.outSpeed = -1;
@@ -69,7 +71,7 @@ if(jQuery)( function() {
 							
 							// Show the menu
 							$(document).unbind('click');
-							$(menu).css({ top: y, left: x }).fadeIn(o.inSpeed);
+							$(menu).css({ top: y + o.yShift, left: x + o.xShift}).fadeIn(o.inSpeed);
 							// Hover events
 							$(menu).find('A').mouseover( function() {
 								$(menu).find('LI.hover').removeClass('hover');
