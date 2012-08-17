@@ -27,7 +27,7 @@ classes should alter those!
   height: 16px;
   line-height: 16px;
   margin: 0;
-  padding: 4px;
+  padding: 1px;
   border-right: 1px solid silver;
   border-left: 0px;
   border-top: 0px;
@@ -87,8 +87,8 @@ classes should alter those!
 .slick-cell, .slick-headerrow-column {
   position: absolute;
 
-  border: 1px solid transparent;
-  border-right: 1px dotted silver;
+ /* border: 1px solid transparent;*/
+ /* border-right: 1px dotted silver;*/
   border-bottom-color: silver;
 
   overflow: hidden;
@@ -96,7 +96,7 @@ classes should alter those!
   white-space: nowrap;
   vertical-align: middle;
   z-index: 1;
-  padding: 1px 2px 2px 1px;
+  padding: 2px 2px 2px 1px;
   margin: 0;
 
   white-space: nowrap;

@@ -37,7 +37,7 @@ classes should alter those!
   position: absolute;
   background: white;
   border: 0px;
-  line-height: 20px;
+/*  line-height: 20px;*/
 }
 
 .slick-row.selected {
@@ -79,7 +79,9 @@ classes should alter those!
 
 .slick-cell.active {
   border-color: gray;
-  border-style: solid;
+  /*border-style: solid;*/
+  background: gray;
+  color: white;
 }
 
 .slick-sortable-placeholder {
