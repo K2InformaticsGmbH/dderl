@@ -1,4 +1,4 @@
-var BUFFER_SIZE = 100;
+var BUFFER_SIZE = 200;
 var OpsBufEnum = Object.freeze({
                                  APPEND  : 1
                                , PREPEND : 2
@@ -15,56 +15,27 @@ var OpsFetchEnum = Object.freeze({
                                  , RELOAD   :7
                                  });
 
-var samplecolumns = [
-  "Column 1",
-  "Column 2",
-  "Column 3",
-  "Column 4",
-  "Column 5",
-];
+function renderTable(tableName, columns, rowfun, editFun, width, height, position) {
+    if (width    == undefined) width = 500;
+    if (height   == undefined) height = 500;
+    if (position == undefined) position = 'center';
 
-var samplemaxrows = 1000;
-
-function samplerows(opsfetch, startRow)
-{
-    var rows = new Array();
-    var rowcount = BUFFER_SIZE;
-    if(opsfetch == OpsFetchEnum.NEXT) {
-        if(startRow + BUFFER_SIZE > samplemaxrows && startRow < samplemaxrows)
-            rowcount = samplemaxrows - startRow + 1;
-        else if(startRow == samplemaxrows)
-            return {finished: true, startRow: startRow, rows: rows};
-    }
-    if(opsfetch != OpsFetchEnum.NEXT && startRow <= 1)
-        return {finished: false, startRow: startRow, rows: rows};
-    for (var i = 0; i < rowcount; i++) {
-        rows[i] = new Array();
-        for(var j=0;j<samplecolumns.length;++j)
-            rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startRow + i : startRow - i);
-    }
-    return {finished: false, startRow: startRow, rows: rows};
-}
-
-function renderSampleTable(tableName)
-{
-    renderTable(tableName, samplerows, samplecolumns);
-}
-
-function renderTable(tableName, rowfun, columns) {
-    var defHeight = 500;
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
-    var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(defHeight-50)+'px;"></div>')
+    var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
-    var title = $('<img id="state_'+tableName+'" class="download_incomplete"/>&nbsp;&nbsp;<a href=#>'+tableName+'</a>');
+    var title = $('<a href=#>'+tableName+'</a>').click(function() {
+        editFun(dlg);
+    });
 
     dlg.dialog({
         autoOpen: false,
-        height: defHeight,
-        width: 500,
+        height: height,
+        width: width,
         resizable: true,
         modal: false,
         title: title,
+        position: position,
         close: function() {
             dlg.dialog('destroy');
             dlg.remove();
@@ -76,16 +47,54 @@ function renderTable(tableName, rowfun, columns) {
     });
 
     dlg.dialog("open");
+    table.data("dlg", dlg);
 
-    table.data("rowrange", {startRow : 1, endRow : 1});
-    table.data("finished", $('#state_'+tableName));
+    var statuslight = $('<img class="download_incomplete" style="border:none; position:relative; top:5px; left:0px;"/>');
+    table.data("finished", statuslight);
 
+    addFooter(dlg.parent(), tableName, table, statuslight, rowfun);
+
+    loadTable(table, prepareColumns(columns));
+    table.data("finished")
+        .removeClass("download_incomplete")
+        .removeClass("download_complete")
+        .addClass("downloading");
+    rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
+
+    table.data("grid").onScroll.subscribe(function(e, args) {
+        var gcP = args.grid.getCanvasNode().parentNode;
+        //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
+        if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
+            //console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
+            rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
+        }
+        if (gcP.scrollTop == 0) {
+            //console.log('top_event '+ gcP.scrollTop);
+            rowFunWrapper(rowfun, table, OpsFetchEnum.PREVIOUS, null, loadRows, OpsBufEnum.PREPEND);
+        }
+    });
+}
+
+function rowFunWrapper(rowfun, table, opts, rowNum, loadFun, loadFunOpts)
+{
+    table.data("finished")
+        .removeClass("download_incomplete")
+        .removeClass("download_complete")
+        .addClass("downloading");
+
+    rowfun(opts, rowNum, loadFun, [table, loadFunOpts]);
+}
+
+function addFooter(parent_node, tableName, table, statuslight, rowfun)
+{
     $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
+    .append(statuslight)
+    .append($('<img style="border:none; width:5px;"/>'))
     .append($('<button>Reload</button>')
             .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})
             .click(function()
             {
-                loadRows(table, rowfun(OpsFetchEnum.RELOAD, table.data("rowrange").endRow), OpsBufEnum.REPLACE);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.RELOAD, null, loadRows, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -94,7 +103,7 @@ function renderTable(tableName, rowfun, columns) {
             .click(function()
             {
                 table.data("rowrange").startRow = 1;
-                loadRows(table, rowfun(OpsFetchEnum.TOBEGIN, table.data("rowrange").startRow), OpsBufEnum.REPLACE);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.TOBEGIN, null, loadRows, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -102,61 +111,46 @@ function renderTable(tableName, rowfun, columns) {
             .button({icons: { primary: "ui-icon-seek-prev" }, text: false})
             .click(function()
             {
-                loadRows(table, rowfun(OpsFetchEnum.JUMPPREV, table.data("rowrange").startRow), OpsBufEnum.REPLACE);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.JUMPPREV, null, loadRows, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<input id="'+tableName+'_rownum" type="text" size=10>'))
+    .append($('<input type="text" size=10>')
+            .keypress(function(evt)
+            {
+                if(evt.which == 13) {
+                    var row = parseInt($(this).val());
+                    if(row != NaN)
+                        rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, row, loadRows, OpsBufEnum.REPLACE);
+                }
+                return true;
+            })
+           )
     .append($('<button>Next page</button>')
             .button({icons: { primary: "ui-icon-play" }, text: false})
             .click(function()
             {
-                var row = $('#'+tableName+'_rownum').val();
-                var rowRange = table.data("rowrange");
-                var op = OpsBufEnum.APPEND;        
-                if(row.length > 0 && parseInt(row) != NaN) {
-                    op = OpsBufEnum.REPLACE;
-                    rowRange.endRow = parseInt(row);
-                }
-                loadRows(table, rowfun(OpsFetchEnum.NEXT, rowRange.endRow), op);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
                 return false;
             })
            )
     .append($('<button>Jump to next page</button>')
-            .button({icons: { primary: "ui-icon-seek-next" }, text: false})
+            .button({icons: {primary: "ui-icon-seek-next" }, text: false})
             .click(function()
             {
-                loadRows(table, rowfun(OpsFetchEnum.JUMPNEXT, table.data("rowrange").endRow), OpsBufEnum.REPLACE);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.JUMPNEXT, null, loadRows, OpsBufEnum.REPLACE);
                 return false;
             })
            )
     .append($('<button>Move to end</button>')
-            .button({icons: { primary: "ui-icon-seek-end" }, text: false})
+            .button({icons: {primary: "ui-icon-seek-end" }, text: false})
             .click(function()
             {
-                table.data("rowrange").startRow = 1;
-                loadRows(table, rowfun(OpsFetchEnum.TOEND, table.data("rowrange").endRow), OpsBufEnum.REPLACE);
+                rowFunWrapper(rowfun, table, OpsFetchEnum.TOEND, null, loadRows, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .appendTo(dlg.parent());
-
-    loadTable(table, prepareColumns(columns));
-
-    table.data("grid").onScroll.subscribe(function(e, args) {
-        var gcP = args.grid.getCanvasNode().parentNode;
-        //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
-        if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
-            //console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
-            var rowRange = table.data("rowrange");
-            loadRows(table, rowfun(OpsFetchEnum.NEXT, rowRange.endRow),  OpsBufEnum.APPEND);
-        }
-        if (gcP.scrollTop == 0) {
-            //console.log('top_event '+ gcP.scrollTop);
-            var rowRange = table.data("rowrange");
-            loadRows(table, rowfun(OpsFetchEnum.PREVIOUS, rowRange.startRow), OpsBufEnum.PREPEND);
-        }
-    });
+    .appendTo(parent_node);
 }
 
 function prepareColumns(headers) {
@@ -167,9 +161,12 @@ function prepareColumns(headers) {
                             field: "id",
                          behavior: "select",
                          cssClass: "cell-selection",
-                            width: 40,
+                         maxWidth: 35,
+                         minWidth: 35,
+                            width: 35,
               cannotTriggerInsert: true,
                         resizable: true,
+                         sortable: false,
                        selectable: false};
     for (i=0;i<headers.length;++i)
         header[header.length] = {  id: headers[i].toLowerCase(),
@@ -179,6 +176,7 @@ function prepareColumns(headers) {
                              minWidth: 10 * headers[i].length,
                                 width: 10 * headers[i].length,
                             resizable: true,
+                             sortable: false,
                            selectable: true};
     return header;
 }
@@ -192,24 +190,45 @@ function loadTable(table, columns)
          asyncEditorLoading: false,
                    autoEdit: false,
                      zIndex: 1300,
-                  rowHeight: 15};
+                  rowHeight: 15,
+            forceFitColumns: true };
 
-    var grid = new Slick.Grid('#' + table.attr('id'), [], columns, options);
+    var node_id = '#' + table.attr('id');
+    var grid = new Slick.Grid(node_id, [], columns, options);
     grid.setSelectionModel(new Slick.CellRowColSelectionModel());
     grid.onContextMenu.subscribe(function(e, args){
         var cell = grid.getCellFromEvent(e);
         var row = cell.row;
         var column = grid.getColumns()[cell.cell];
-        grid.setActiveCell(row, cell);
-        var data = table.data("rows")[cell.row][column.field];
+        var data = grid.getData()[cell.row][column.field];
+        var R = new Slick.Range();
+        R.toCell = R.fromCell = cell.cell;
+        R.toRow = R.fromRow = cell.row;
+        grid.getSelectionModel().setSelectedRanges([R]);
+        grid.setActiveCell(row, cell.cell)
+        e.preventDefault();
+        var off = grid.getActiveCellPosition();
+        var dlgPos = table.data("dlg").dialog('widget').position();
+        if(off != null) {
+            $(node_id+'_cm')
+                .data("data", data)
+                .css("top", off.top - dlgPos.top - 25)
+                .css("left", off.left - dlgPos.left + 15)
+                .show();
+
+            $("body").one("click", function () {
+              $(node_id+'_cm').hide();
+            });
+        }
     });
 
-    add_context_menu($('#' + table.attr('id')), {
-        'Browse Data'       : {evt: function() { alert('Add'); } },
-        'Quick condition'   : {evt: function() { alert('Add'); } },
-        'Hide Column'       : {evt: function() { alert('Add'); } },
-    }
-    );
+    add_context_menu($(node_id), {
+        'Browse Data'       : {evt: function(data) {
+            load_new_table(data); } 
+        },
+        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
+        'Hide Column'       : {evt: function() { alert('Hide Column'); } },
+    });
 
     table.data("grid", grid)
          .data("columns", columns);
@@ -217,10 +236,11 @@ function loadTable(table, columns)
 
 function add_context_menu(node, options)
 {
-    var cm_id = node.id+'_cm';
-    var menu = $('<ul>')
+    var cm_id = node.attr('id')+'_cm';
+    var menu = $('<ul id="'+cm_id+'">')
                     .attr("id", cm_id)
-                    .addClass("contextMenu")
+                    .addClass("context_menu")
+                    .hide()
                     .appendTo(node);
 
     var evts = new Object();
@@ -229,67 +249,147 @@ function add_context_menu(node, options)
         evts[name] = (options[id].hasOwnProperty('evt') ? options[id].evt : function(){});
         var clsname = (options[id].hasOwnProperty('cls') ? options[id].cls.toLowerCase() : 'default'); 
         $('<li>')
-            .addClass(clsname)
-            .append($('<a>')
-                        .attr("href", '#'+name)
-                        .text(id)
-                   ).appendTo(menu);
+            .attr("action", name)
+            .text(id)
+            .appendTo(menu);
     }
 
-    node.data("evts", evts)
-        .contextMenu(
-            { menu: cm_id
-            , xShift: -385
-            , yShift: -100
-            },
-            function(action, el, pos) {
-                $(el).data("evts")[action]($(el));
-            }
-    );
+    node.data("evts", evts);
+    $('#'+cm_id).click(function (e) {
+        var action = $(e.target).attr("action");
+        var data = $(this).data("data");
+        evts[action](data);
+      });
 }
 
-function loadRows(table, rowObj, ops)
+function loadRows(table, ops, rowObj)
 {
     var d = table.data("grid").getData();
     var c = table.data("columns");
-    var r = table.data("rowrange");
     var rows = rowObj.rows;
 
-    r.startRow = rowObj.startRow;
-    var idx = (ops != OpsBufEnum.PREPEND ? r.endRow : r.startRow);
-    
     if(ops == OpsBufEnum.REPLACE)
         d = new Array();
 
+    var vBMin = (d.length > 0    ? parseInt(d[0].id) : 0);
+    var vBMax = (d.length > 0    ? parseInt(d[d.length-1].id) : 0);
+    var dBMin = (rows.length > 0 ? parseInt(rows[0][c.length-1]) : 0);
+    var dBMax = (rows.length > 0 ? parseInt(rows[rows.length-1][c.length-1]) : 0);
+
+    console.log('Data Buf ('+ dBMin + ', ' + dBMax + ')');
+
     for (var i = 0; i < rows.length; i++) {
         var row = {};
-        row['id'] = (ops != OpsBufEnum.PREPEND ? idx + i : idx - i);
-
-        if(ops == OpsBufEnum.PREPEND && idx - i <= 0) break;
-        
         for(var j=1;j<c.length;++j)
             row[c[j].field] = rows[i][j-1];
-        switch(ops) {
-            case OpsBufEnum.APPEND:    d[d.length] = row;      break;
-            case OpsBufEnum.REPLACE:   d[i] = row;             break;
-            default:                d.splice(0, 0, row);    break;
+        row['id'] = rows[i][j-1];
+        var k = 0;
+        for(k=0;k<d.length;++k)
+            if(d[k].id == row.id) {
+                d[k] = row;
+                break;
+            }
+        if (dBMin <= vBMin && dBMax <= vBMax) { // prepend with head replace
+            if(k >= d.length) {
+                if(i > 0) {
+                    for(k=0;k<d.length;++k)
+                        if(d[k].id == rows[i-1][c.length-1]) {
+                            d.splice(k+1, 0, row);
+                            break;
+                        }
+                } else
+                    d.splice(0, 0, row);
+            }
+        }
+        else if (dBMin >= vBMin && dBMax >= vBMax) { // tail replace then append
+            if(k >= d.length)
+                d[d.length] = row;
         }
     }
 
     if (d.length > 2 * BUFFER_SIZE) {
         if(ops == OpsBufEnum.APPEND)    d.splice(0, d.length - BUFFER_SIZE);
-        else                         d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
+        else                            d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
     }
 
     table.data("grid").setData(d);
     table.data("grid").updateRowCount();
     table.data("grid").render();
-    if(ops == OpsBufEnum.PREPEND && d[0].id > 1) table.data("grid").scrollRowIntoView(d.length-1);
+//    if(ops == OpsBufEnum.PREPEND && d[0].id > 1) table.data("grid").scrollRowIntoView(d.length-1);
     
-    if(rowObj.finished)
-        table.data("finished").removeClass("download_incomplete").addClass("download_complete");
+    if(rowObj.done)
+        table.data("finished")
+            .removeClass("downloading")
+            .removeClass("download_incomplete")
+            .addClass("download_complete");
     else
-        table.data("finished").removeClass("download_complete").addClass("download_incomplete");
+        table.data("finished")
+            .removeClass("downloading")
+            .removeClass("download_complete")
+            .addClass("download_incomplete");
 
-    table.data("rowrange", {startRow : d[0].id, endRow :d[d.length-1].id});
+    console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
 }
+
+///////////////////////// SAMPLE-TEST ///////////////////////////////////////
+var samplecolumns = [
+  //"Column 1",
+  //"Column 2",
+  //"Column 3",
+  //"Column 4",
+  "Column 5",
+];
+
+var samplemaxrows = 1000;
+
+var startRow = 0;
+var endRow = 0;
+var sample_buf_sz = BUFFER_SIZE / 2;
+function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
+{
+    var rows = new Array();
+    var rowcount = sample_buf_sz;
+    var ret = null;
+    var startIndex = endRow + 1;
+    if(rowNum != null) startIndex = rowNum;
+    if(opsfetch == OpsFetchEnum.PREVIOUS)
+        startIndex = startRow - 1;
+    if(startIndex < 0) startIndex = 0;
+
+    if(opsfetch == OpsFetchEnum.NEXT) {
+        if(startIndex + sample_buf_sz > samplemaxrows && startIndex < samplemaxrows)
+            rowcount = samplemaxrows - startIndex + 1;
+        else if(startIndex >= samplemaxrows) {
+            ret = {done: true, rows: rows};
+            renderFunArgs[renderFunArgs.length] = ret;
+            renderFun.apply(this, renderFunArgs);
+            return;
+        }
+    }
+    if(opsfetch != OpsFetchEnum.NEXT && startIndex <= 1) {
+        ret = {done: false, rows: rows};
+        renderFunArgs[renderFunArgs.length] = ret;
+        renderFun.apply(this, renderFunArgs);
+        return;
+    }
+    for (var i = 0; i < rowcount; i++) {
+        rows[i] = new Array();
+        for(var j=0;j<samplecolumns.length;++j)
+            rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
+        rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
+        if(opsfetch == OpsFetchEnum.PREVIOUS && startIndex - i - 1 < 0)
+            break;
+    }
+    startRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex : startIndex - rowcount + 1);
+    endRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex + rowcount - 1 : startIndex);
+    ret = {done: false, rows: rows};
+    renderFunArgs[renderFunArgs.length] = ret;
+    renderFun.apply(this, renderFunArgs);
+}
+
+function renderSampleTable(tableName)
+{
+    renderTable(tableName, samplecolumns, samplerows, null, 400, 400, [10,10]);
+    //renderTable(tableName, samplecolumns, samplerows, null);
+}
+///////////////////////// SAMPLE-TEST ///////////////////////////////////////

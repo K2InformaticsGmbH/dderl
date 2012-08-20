@@ -61,26 +61,47 @@ process_cmd({"columns", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
     Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
     Statement:close(),
     {MPort, Resp};
+process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
+    Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
+    Query = "SELECT * FROM " ++ Table,
+    dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
+    {{Session,Pool,Statements}, "{\"qry\":\""++Query++"\"}"};
 process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     %{ok, Tokens, _} = sql_lex:string(Query++";"),
     %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
     ParseTree = [],
-    TableName = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
-    dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query, TableName}]),
-    {statement, Statement} = Session:execute_sql(Query, [], 150, true),
-    {ok, Clms} = Statement:get_columns(),
-    StmtHndl = erlang:phash2(Statement),
-    Columns = lists:reverse(lists:map(fun({N,_,_})->N end, Clms)),
-    Resp = "{\"table\":\""++TableName++"\",\"headers\":"++dderl_session:string_list_to_json(Columns, [])++",\"statement\":"++integer_to_list(StmtHndl)++"}",
-    {{Session,Pool,[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
-process_cmd({"row", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
+    dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
+    
+    case Session:execute_sql(Query, [], 150, true) of
+        {statement, Statement} ->
+            {ok, Clms} = Statement:get_columns(),
+            StmtHndl = erlang:phash2(Statement),
+            Columns = lists:reverse(lists:map(fun({N,_,_})->N end, Clms)),
+            Resp = "{\"headers\":"++dderl_session:string_list_to_json(Columns, [])++
+            ",\"statement\":"++integer_to_list(StmtHndl)++"}",
+            {{Session,Pool,[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
+        {error, Error} ->
+            dderl_session:log(SrvPid, "[~p] Query Error ~p~n", [SrvPid, Error]),
+            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Error++"\"}",
+            {{Session,Pool,Statements}, Resp}
+    end;
+process_cmd({"row_prev", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
             dderl_session:log(SrvPid, "[~p, ~p] Statements ~p~n", [SrvPid, StmtKey, Statements]),
             {MPort, "{\"rows\":[]}"};
-        {Statement, _, _} -> {MPort, prepare_json_rows(Statement, StmtKey, SrvPid)}
+        {Statement, _, _} -> {MPort, prepare_json_rows(prev, -1, Statement, StmtKey, SrvPid)}
+    end;
+process_cmd({"row_next", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p, ~p] Statements ~p~n", [SrvPid, StmtKey, Statements]),
+            {MPort, "{\"rows\":[]}"};
+        {Statement, _, _} -> {MPort, prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid)}
     end;
 process_cmd({"stmt_close", BodyJson}, SrvPid, {Session,Pool,Statements} = MPort) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -112,13 +133,29 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
 %    logi(File, "[~p] SQL: ~p~n", [Key, SqlStr]),
 %    {reply, "{\"session\":"++integer_to_list(Key)++", \"sql\":\""++SqlStr++"\"}", State};
 
-prepare_json_rows(Statement, StmtKey, SrvPid) ->
-    case Statement:next_rows() of
-        [] -> "{\"rows\":[]}";
+prepare_json_rows(Statement, StmtKey, SrvPid) -> prepare_json_rows(Statement, next_rows, -1, StmtKey, SrvPid).
+
+prepare_json_rows(prev, RowNum, Statement, StmtKey, SrvPid) ->
+    prepare_json_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid);
+prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid) ->
+    prepare_json_rows(Statement, RowNum, next_rows, StmtKey, SrvPid);
+prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid) ->
+    case apply(Statement, Fun, []) of
+        [] -> "{\"done\":true, \"rows\":[]}";
         Rows ->
-            dderl_session:log(SrvPid, "[~p] row produced _______ ~p _______~n", [StmtKey, length(Rows)]),
-            J = dderl_session:convert_rows_to_json(Rows),
-            "{\"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+            RowNum1 = list_to_integer(lists:nth(1, lists:nth(1, Rows))),
+            if (RowNum1 =< RowNum) or (RowNum < 1) ->
+                Rows0 = [R|| R <- Rows, list_to_integer(lists:nth(1, R)) >= RowNum],
+                dderl_session:log(SrvPid, "[~p] row produced ~p starting ~p~n", [StmtKey, RowNum, length(Rows0)]),
+                if length(Rows0) =< 0 ->
+                        prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid);
+                    true ->
+                        J = dderl_session:convert_rows_to_json(Rows0),
+                        "{\"done\":false, \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+                end;
+            (RowNum >= 1) and (RowNum1 > RowNum)->
+                prepare_json_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid)
+            end
     end.
 
 %create_select_string(Tables, Fields, Sorts, Conditions, Joins) ->

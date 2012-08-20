@@ -175,15 +175,6 @@ function display_db_login()
                 var name = $("#name").val();
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
                     document.title = name + " DDerl 1.0";
-                    ajax_post('/app/users', null, null, null, function(data) {
-                        var usr = '';
-                        var userRows = data.rows;                        
-                        //for(var i = 0; i < userRows.length; ++i) {
-                        //        usr = userRows[i][0];
-                        //        $('<option value="'+usr+'" '+(usr==owner?"selected":"")+'>'+usr+'</option>').appendTo($('#users'));
-                        //}
-                        //generate_tables_views(session, owner);
-                    });
                 });
                 $(this).dialog("close");
                 //show_tables();

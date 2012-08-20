@@ -63,6 +63,10 @@ button.menubutton
     overflow:auto;
     background:#EFEFEF;
 }
+.downloading {
+    width:15px; height:15px;
+    background-image:url('../static/images/loading.gif');
+}
 .download_incomplete {
     width:15px; height:15px;
     background-image:url('../static/images/ball_yellow.gif');
@@ -106,4 +110,26 @@ button.menubutton
     font-family:courier;
     font-size:10pt;
     vertical-align: top;
+}
+
+.context_menu {
+  background: #e1efc7;
+  border: 1px solid gray;
+  padding: 2px;
+  display: inline-block;
+  min-width: 100px;
+  -moz-box-shadow: 2px 2px 2px silver;
+  -webkit-box-shadow: 2px 2px 2px silver;
+  z-index: 99999;
+  position:absolute;
+}
+
+.context_menu li {
+  padding: 4px 4px 4px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.context_menu li:hover {
+  background-color: white;
 }

@@ -134,7 +134,10 @@ process_call({"login", ReqData}, _From, #state{key=Key, logdir=Dir} = State) ->
             {reply, "{\"login\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
 process_call({"files", _}, _From, #state{adapter=AdaptMod, user=User} = State) ->
-    [{_,_,CmnFs}|_] = imem_if:read(common, AdaptMod),
+    CmnFs = case imem_if:read(common, AdaptMod) of
+        [] -> [];
+        [{_,_,CFs}|_] -> CFs
+    end,
     Files = create_files_json(
         case retrieve(files, User) of
             {ok, undefined} -> CmnFs;

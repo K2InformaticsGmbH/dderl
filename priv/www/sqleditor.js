@@ -151,7 +151,7 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
     $('#cond_viz'+dc)
         .width(boxWidth)
         .height(visHeight)
-        .css('background-color', 'rgb(255,255,0)')
+        //.css('background-color', 'rgb(255,255,0)')
         .addClass("ui-widget-content")
         .css("overflow", "auto");
 
