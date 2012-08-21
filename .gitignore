@@ -22,7 +22,9 @@ priv/log/
 *.DCD
 *.DAT
 deps/*
+deps
 ebin/*
+*.DCL
 
 # External tool builders
 .externalToolBuilders/

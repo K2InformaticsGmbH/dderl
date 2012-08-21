@@ -28,39 +28,39 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
     %%oci_session_pool:enable_log(Pool),
     Session = oci_session_pool:get_session(Pool),
     {{Session,Pool,[]}, "{\"connect\":\"ok\"}"};
-process_cmd({"users", _BodyJson}, SrvPid, {Session,_,_} = MPort) ->
-    Query = "SELECT DISTINCT OWNER FROM \"ALL_TABLES\"",
-    dderl_session:log(SrvPid, "[~p] Users for ~p~n", [SrvPid, {Session, Query}]),
-    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
-    dderl_session:log(SrvPid, "[~p] Users Resp ~p~n", [SrvPid, Resp]),
-    Statement:close(),
-    {MPort, Resp};
-process_cmd({"tables", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
-    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-    Query = "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER='" ++ Owner ++ "' ORDER BY TABLE_NAME DESC",
-    dderl_session:log(SrvPid, "[~p] Tables for ~p~n", [SrvPid, {Session, Query}]),
-    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
-    Statement:close(),
-    {MPort, Resp};
-process_cmd({"views", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
-    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
-    Query = "SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER='" ++ Owner ++ "' ORDER BY VIEW_NAME DESC",
-    dderl_session:log(SrvPid, "[~p] Views for ~p~n", [SrvPid, {Session, Query}]),
-    {statement, Statement} = Session:execute_sql(Query, [], 10001),
-    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
-    Statement:close(),
-    {MPort, Resp};
-process_cmd({"columns", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
-    TableNames = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"tables">>, BodyJson, <<>>)], ","),
-    Owner = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"owners">>, BodyJson, <<>>)], ","),
-    Query = "SELECT COLUMN_NAME FROM ALL_TAB_COLS WHERE TABLE_NAME IN (" ++ TableNames ++ ") AND OWNER IN (" ++ Owner ++ ")",
-    dderl_session:log(SrvPid, "[~p] Columns for ~p~n", [SrvPid, {Session, Query, TableNames}]),
-    {statement, Statement} = Session:execute_sql(Query, [], 150),
-    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
-    Statement:close(),
-    {MPort, Resp};
+%process_cmd({"users", _BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+%    Query = "SELECT DISTINCT OWNER FROM \"ALL_TABLES\"",
+%    dderl_session:log(SrvPid, "[~p] Users for ~p~n", [SrvPid, {Session, Query}]),
+%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+%    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+%    dderl_session:log(SrvPid, "[~p] Users Resp ~p~n", [SrvPid, Resp]),
+%    Statement:close(),
+%    {MPort, Resp};
+%process_cmd({"tables", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+%    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
+%    Query = "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER='" ++ Owner ++ "' ORDER BY TABLE_NAME DESC",
+%    dderl_session:log(SrvPid, "[~p] Tables for ~p~n", [SrvPid, {Session, Query}]),
+%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+%    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+%    Statement:close(),
+%    {MPort, Resp};
+%process_cmd({"views", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+%    Owner = binary_to_list(proplists:get_value(<<"owner">>, BodyJson, <<>>)),
+%    Query = "SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER='" ++ Owner ++ "' ORDER BY VIEW_NAME DESC",
+%    dderl_session:log(SrvPid, "[~p] Views for ~p~n", [SrvPid, {Session, Query}]),
+%    {statement, Statement} = Session:execute_sql(Query, [], 10001),
+%    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+%    Statement:close(),
+%    {MPort, Resp};
+%process_cmd({"columns", BodyJson}, SrvPid, {Session,_,_} = MPort) ->
+%    TableNames = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"tables">>, BodyJson, <<>>)], ","),
+%    Owner = string:join(["'" ++ binary_to_list(X) ++ "'" || X <- proplists:get_value(<<"owners">>, BodyJson, <<>>)], ","),
+%    Query = "SELECT COLUMN_NAME FROM ALL_TAB_COLS WHERE TABLE_NAME IN (" ++ TableNames ++ ") AND OWNER IN (" ++ Owner ++ ")",
+%    dderl_session:log(SrvPid, "[~p] Columns for ~p~n", [SrvPid, {Session, Query, TableNames}]),
+%    {statement, Statement} = Session:execute_sql(Query, [], 150),
+%    Resp = prepare_json_rows(Statement, erlang:phash2(Statement), SrvPid),
+%    Statement:close(),
+%    {MPort, Resp};
 process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
     Query = "SELECT * FROM " ++ Table,

@@ -71,6 +71,11 @@ update_account(User, {cons, Connections}) ->
     case imem_if:read(accounts, User) of
         [] -> {error, "User does not exists"};
         [Account|_] -> imem_if:insert_into_table(accounts, Account#accounts{db_connections = Connections})
+    end;
+update_account(User, {files, Files}) ->
+    case imem_if:read(accounts, User) of
+        [] -> {error, "User does not exists"};
+        [Account|_] -> imem_if:insert_into_table(accounts, Account#accounts{db_files = Files})
     end.
 
 retrieve(cons, User) ->
@@ -145,6 +150,17 @@ process_call({"files", _}, _From, #state{adapter=AdaptMod, user=User} = State) -
             {error, _} -> []
         end),
     {reply, "{\"files\": ["++Files++"]}", State};
+process_call({"save_file", ReqData}, _From, #state{key=Key,user=User,file=File} = State) ->
+    {struct, [{<<"save">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    FileName     = binary_to_list(proplists:get_value(<<"file_name">>, BodyJson, <<>>)),
+    FileContent  = binary_to_list(proplists:get_value(<<"file_content">>, BodyJson, <<>>)),
+    logi(File, "[~p] save file ~p~n", [Key, {FileName, FileContent}]),
+    case retrieve(files, User) of
+        {ok, undefined} -> [];
+        {ok, Fs} -> Fs;
+        {error, _} -> []
+    end,
+    {reply, "{\"save_file\": \"ok\"}", State};
 process_call({"logs", _ReqData}, _From, #state{user=User,logdir=Dir} = State) ->
     Files = filelib:fold_files(Dir, User ++ "_.*\.log", false, fun(F, A) -> [filename:join(["logs", filename:basename(F)])|A] end, []),
     {reply, "{\"logs\": "++string_list_to_json(Files, [])++"}", State};

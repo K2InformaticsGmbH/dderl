@@ -27,7 +27,7 @@ function renderTable(tableName, columns, rowfun, editFun, width, height, positio
     var title = $('<a href=#>'+tableName+'</a>').click(function() {
         editFun(dlg);
     });
-
+    
     dlg.dialog({
         autoOpen: false,
         height: height,
@@ -36,6 +36,8 @@ function renderTable(tableName, columns, rowfun, editFun, width, height, positio
         modal: false,
         title: title,
         position: position,
+        canMinimize:true,
+        canMaximize:true,
         close: function() {
             dlg.dialog('destroy');
             dlg.remove();
@@ -65,11 +67,11 @@ function renderTable(tableName, columns, rowfun, editFun, width, height, positio
         var gcP = args.grid.getCanvasNode().parentNode;
         //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
         if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
-            //console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
+            console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
             rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
         }
-        if (gcP.scrollTop == 0) {
-            //console.log('top_event '+ gcP.scrollTop);
+        else if (gcP.scrollTop == 0) {
+            console.log('top_event '+ gcP.scrollTop);
             rowFunWrapper(rowfun, table, OpsFetchEnum.PREVIOUS, null, loadRows, OpsBufEnum.PREPEND);
         }
     });
@@ -328,16 +330,19 @@ function loadRows(table, ops, rowObj)
             .removeClass("download_complete")
             .addClass("download_incomplete");
 
-    console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
+    if(d.length > 0) console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
 }
 
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////
 var samplecolumns = [
-  //"Column 1",
-  //"Column 2",
-  //"Column 3",
-  //"Column 4",
+  "Column 1",
+  "Column 2",
+  "Column 3",
+  "Column 4",
   "Column 5",
+  "Column 6",
+  "Column 7",
+  "Column 8"
 ];
 
 var samplemaxrows = 1000;
@@ -389,7 +394,7 @@ function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
 
 function renderSampleTable(tableName)
 {
-    renderTable(tableName, samplecolumns, samplerows, null, 400, 400, [10,10]);
-    //renderTable(tableName, samplecolumns, samplerows, null);
+    //renderTable(tableName, samplecolumns, samplerows, null, 400, 400, [10,10]);
+    renderTable(tableName, samplecolumns, samplerows, null);
 }
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////
