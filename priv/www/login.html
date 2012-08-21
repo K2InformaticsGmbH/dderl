@@ -12,6 +12,16 @@
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.columnpicker.css" type="text/css"/>
     <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
     <link rel="stylesheet" href="dderl.css" type="text/css"/>
+    <style>
+	#main-content-tabs { height: 97%; width: 99%; position:absolute; top: 25px; left:1px; } 
+	#main-content-tabs .sub-tabs { height: 95%; width: 97%; } 
+	.tabs-bottom { position: relative; } 
+	.tabs-bottom .ui-tabs-panel { height: 140px; overflow: auto; } 
+	.tabs-bottom .ui-tabs-nav { position: absolute !important; left: 0; bottom: 0; right:0; padding: 0 0.2em 0.2em 0; } 
+	.tabs-bottom .ui-tabs-nav li { margin-top: -2px !important; margin-bottom: 1px !important; border-top: none; border-bottom-width: 1px; }
+	.ui-tabs-selected { margin-top: -3px !important; }
+	</style>
+    
 </head>
 
 <body>
@@ -31,6 +41,10 @@
             <a id="login-button" href="#" onclick='display_login()'></a>
         </div>
 	</div>
+    <div id="main-content-tabs">
+        <ul></ul>
+	</div>
+
 
     <div id='db-tables-views' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
     </div>
@@ -48,6 +62,7 @@
 	<script src="../static/ui/jquery.ui.sortable.js"></script>
     <script src="../static/ui/jquery.ui.autocomplete.js"></script>
     <script src="../static/ui/jquery.ui.combobox.js"></script>
+	<script src="../static/ui/jquery.ui.tabs.js"></script>
 	<script src="../static/ui/jquery.effects.core.js"></script>
     <script src="../static/jquery.event.drag-2.0.min.js"></script>
     <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>

@@ -17,3 +17,5 @@
                   , height = 0
                   }
        ).
+
+-define(DEFAULT_ROW_SIZE, 150).

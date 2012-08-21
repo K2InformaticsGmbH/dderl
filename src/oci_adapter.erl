@@ -75,7 +75,7 @@ process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     ParseTree = [],
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
     
-    case Session:execute_sql(Query, [], 150, true) of
+    case Session:execute_sql(Query, [], ?DEFAULT_ROW_SIZE, true) of
         {statement, Statement} ->
             {ok, Clms} = Statement:get_columns(),
             StmtHndl = erlang:phash2(Statement),
@@ -135,28 +135,50 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
 %    logi(File, "[~p] SQL: ~p~n", [Key, SqlStr]),
 %    {reply, "{\"session\":"++integer_to_list(Key)++", \"sql\":\""++SqlStr++"\"}", State};
 
-prepare_json_rows(Statement, StmtKey, SrvPid) -> prepare_json_rows(Statement, next_rows, -1, StmtKey, SrvPid).
+%prepare_json_rows(Statement, StmtKey, SrvPid) -> prepare_json_rows(Statement, next_rows, -1, StmtKey, SrvPid).
 
 prepare_json_rows(prev, RowNum, Statement, StmtKey, SrvPid) ->
     prepare_json_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid);
 prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid) ->
     prepare_json_rows(Statement, RowNum, next_rows, StmtKey, SrvPid);
 prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid) ->
-    case apply(Statement, Fun, []) of
-        [] -> "{\"done\":true, \"rows\":[]}";
-        Rows ->
-            RowNum1 = list_to_integer(lists:nth(1, lists:nth(1, Rows))),
+    Rows = fetch_rows(Statement, RowNum, Fun, StmtKey, SrvPid, []),
+    NewRows = if length(Rows) > ?DEFAULT_ROW_SIZE ->
+            {First, _} = lists:split(?DEFAULT_ROW_SIZE, Rows),
+            First;
+        true -> Rows
+    end,
+    dderl_session:log(SrvPid, "[~p] fetched ~p rows from row ~p~n", [StmtKey, length(NewRows), RowNum]),
+    case NewRows of
+        [] ->
+            "{\"done\":true, \"rows\":[]}";
+        NewRows ->
+            J = dderl_session:convert_rows_to_json(NewRows),
+            "{\"done\":false, \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+    end.
+
+fetch_rows(Statement, RowNum, Fun, StmtKey, SrvPid, RowsAcc) ->
+    case {apply(Statement, Fun, []), length(RowsAcc)} of
+        {[], 0} -> [];
+        {[], L} when L > 0 -> RowsAcc;
+        {Rows, _} ->
+            NewRows = [R || R <- case Fun of
+                next_rows -> RowsAcc ++ Rows;
+                prev_rows -> Rows ++ RowsAcc
+            end, list_to_integer(lists:nth(1, R)) >= RowNum],
+            RowNum1 = if length(NewRows) > 0 ->
+                        list_to_integer(lists:nth(1, lists:nth(1, NewRows)));
+                      true -> 0
+            end,
             if (RowNum1 =< RowNum) or (RowNum < 1) ->
-                Rows0 = [R|| R <- Rows, list_to_integer(lists:nth(1, R)) >= RowNum],
-                dderl_session:log(SrvPid, "[~p] row produced ~p starting ~p~n", [StmtKey, RowNum, length(Rows0)]),
-                if length(Rows0) =< 0 ->
-                        prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid);
+                dderl_session:log(SrvPid, "[~p] rows ~p starting ~p~n", [StmtKey, length(NewRows), RowNum]),
+                if (length(NewRows) =< 0) or (length(NewRows) < ?DEFAULT_ROW_SIZE) ->
+                        fetch_rows(Statement, RowNum, next_rows, StmtKey, SrvPid, NewRows);
                     true ->
-                        J = dderl_session:convert_rows_to_json(Rows0),
-                        "{\"done\":false, \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
+                        NewRows
                 end;
             (RowNum >= 1) and (RowNum1 > RowNum)->
-                prepare_json_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid)
+                fetch_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid, NewRows)
             end
     end.
 

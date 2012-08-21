@@ -230,7 +230,7 @@ process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
         {ok, Connections} -> {reply, Connections, State#state{user=User}};
         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
-process_call({Cmd, ReqData}, _From, #state{session=SessionHandle, adapter=AdaptMod} = State) ->
+process_call({Cmd, ReqData}, _From, #state{session=SessionHandle,adapter=AdaptMod} = State) ->
     BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
         {struct, [{_, {struct, B}}]} ->  B;
         _ -> []

@@ -40,7 +40,7 @@ function display_login()
                         $('#change-pswd-button').data("logged_in_user", user);
                         $('#login-button').html('Log out ' + user);
                         $("#dialog-login").dialog("close");
-                        //display_db_login();
+                        display_db_login();
                     }
                     else
                         alert('Login falied : ' + data.login);
@@ -119,9 +119,10 @@ function load_nodes(elm)
     });
 }
 
+var tabIdx=0;
 function display_db_login()
 {
-    $('<div id="dialog-db-login" title="Connect to Oracle Database" style="diaply:none">' +
+    $('<div id="dialog-db-login" title="Connect to Database" style="diaply:none">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>Connections&nbsp;</td>' +
       '          <td valign=center><select id="config_list" class="ui-corner-all"/></td></tr>' +
@@ -148,17 +149,17 @@ function display_db_login()
       '      <tr><td align=right valign=center>Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '  </table>' +
-      '</div>').appendTo(document.body);
-
-    $("#dialog-db-login").dialog({
+      '</div>')
+    .appendTo(document.body)
+    .dialog({
         autoOpen: false,
         height: 400,
         width: 300,
         resizable: false,
         modal: true,
         close: function() {
-            $("#dialog-db-login").dialog('destroy');
-            $("#dialog-db-login").remove();
+            $(this).dialog('destroy');
+            $(this).remove();
         },
         buttons: {
             "Login": function() {
@@ -173,9 +174,25 @@ function display_db_login()
                 var name = $("#name").val();
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
                     document.title = name + " DDerl 1.0";
+                    var nm = name.replace(/\s/, '_');
+                    if($('#main-content-tabs #page_'+nm).length < 1) {
+                        $('#main-content-tabs')
+                        .append($('<div id="page_'+nm+'"></div>').addClass('sub-tabs'))
+                        .tabs('add', '#page_'+nm, name);
+                        tabIdx = 0;
+                    } else if($('#main-content-tabs #page_'+nm+tabIdx).length < 1) {
+                        $('#main-content-tabs')
+                        .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
+                        .tabs('add', '#page_'+nm+tabIdx, name);
+                    } else {
+                        ++tabIdx;
+                        $('#main-content-tabs')
+                        .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
+                        .tabs('add', '#page_'+nm+tabIdx, name);
+                    }
+                    $('#main-content-tabs').data('curtab', $('#main-content-tabs').tabs('select', 0));
                 });
                 $(this).dialog("close");
-                //show_tables();
             },
             "Save": function() {
                 name = $("#name").val();
@@ -210,7 +227,9 @@ function display_db_login()
                 $(this).dialog("close");
             }
         }
-    });
+    })
+    .dialog("open");
+
     $('#config_list').html('');
     ajax_post('/app/get_connects', null, null, null, function(data) {
         logins = data;
@@ -225,8 +244,6 @@ function display_db_login()
         document.title = pageTitlePrefix + $(this).val();
         load_login_form($(this).val());
     });
-    
-    $('#dialog-db-login').dialog("open");
 }
 
 function load_login_form(name) {

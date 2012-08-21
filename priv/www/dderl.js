@@ -429,47 +429,40 @@ function ajax_post(url, dataJson, headers, context, successFun) {
     });
 }
 
-var pageTitlePrefix = null;
-$(document).ready(function() {    
-    if(session == null) {
-        if(null == pageTitlePrefix)
-            pageTitlePrefix = document.title + " "; // IE can't trim()
-            //pageTitlePrefix = document.title.trim() + " ";
-        display_login();
-    }
-});
-
 function show_qry_files()
 {
-    ajax_post('/app/files', {}, null, null, function(data) {
-        $('<div id="dialog-show-files" title="Query Files" style="display:none"></div>')
-        .append($('<select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
-                .dblclick(function(){
-                    load_table($('#files_list option:selected').text(), $('#files_list option:selected').val());
-                })
-               )
-        .appendTo(document.body);
-        for(var i=0;i<data.files.length; ++i)
-            $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>').appendTo($('#files_list'));
-        $("#dialog-show-files").dialog({
-            autoOpen: false,
-            height: 300,
-            width: 200,
-            resizable: false,
-            modal: false,
-            close: function() {
-                $(this).dialog('destroy');
-                $(this).remove();
-            },
-            buttons: {
-                "Delete": function() {
-                    var selFile = $('#files_list option:selected');
-                    ajax_post('/app/del_file', {del: {file_name: selFile.text()}}, null, null, function(data) {selFile.remove();});
+    var tab = $('#main-content-tabs').data('curtab');
+    if(tab != null || tab != undefined) {
+        ajax_post('/app/files', {}, null, null, function(data) {
+            $('<div id="dialog-show-files" title="Query Files" style="display:none"></div>')
+            .append($('<select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
+                    .dblclick(function(){
+                        load_table($('#files_list option:selected').text(), $('#files_list option:selected').val());
+                    })
+                   )
+            .appendTo(tab);
+            for(var i=0;i<data.files.length; ++i)
+                $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>').appendTo($('#files_list'));
+            $("#dialog-show-files").dialog({
+                autoOpen: false,
+                height: 300,
+                width: 200,
+                resizable: false,
+                modal: false,
+                close: function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                },
+                buttons: {
+                    "Delete": function() {
+                        var selFile = $('#files_list option:selected');
+                        ajax_post('/app/del_file', {del: {file_name: selFile.text()}}, null, null, function(data) {selFile.remove();});
+                    }
                 }
-            }
-        })
-        .dialog("open");
-    });
+            })
+            .dialog("open");
+        });
+    }
 }
 
 function load_new_table(tableName)
@@ -526,4 +519,26 @@ $(window).resize(function() {
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 
-var loadingIndicator = null;
+var pageTitlePrefix = null;
+$(document).ready(function() {    
+    $('#main-content-tabs')
+    .tabs()
+    .bind('tabsselect', function(event, ui) {
+     ui.options // options used to intialize this widget
+     ui.tab // anchor element of the selected (clicked) tab
+     ui.panel // element, that contains the contents of the selected (clicked) tab
+     ui.index // zero-based index of the selected (clicked) tab
+     $('#main-content-tabs').data('curtab', ui.panel);
+    })
+    .hide();
+
+    $( ".tabs-bottom .ui-tabs-nav, .tabs-bottom .ui-tabs-nav > *" )
+			.removeClass( "ui-corner-all ui-corner-top" )
+			.addClass( "ui-corner-bottom" );
+    if(session == null) {
+        if(null == pageTitlePrefix)
+            pageTitlePrefix = document.title + " "; // IE can't trim()
+            //pageTitlePrefix = document.title.trim() + " ";
+        display_login();
+    }
+});

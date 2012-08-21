@@ -63,6 +63,19 @@ button.menubutton
     overflow:auto;
     background:#EFEFEF;
 }
+
+.downloading_txt {
+    color:#0000FF;
+}
+.download_error_txt {
+    color:#5F0000;
+}
+.download_incomplete_txt {
+    color:#5F5F00;
+}
+.download_complete_txt {
+    color:#005F00;
+}
 .downloading {
     width:15px; height:15px;
     background-image:url('../static/images/loading.gif');
@@ -79,6 +92,7 @@ button.menubutton
     width:15px; height:15px;
     background-image:url('../static/images/ball_green.gif');
 }
+
 .slick-cell.selected {
   background-color: black;
   color: white;
