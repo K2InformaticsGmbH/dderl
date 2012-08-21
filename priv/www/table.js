@@ -15,7 +15,8 @@ var OpsFetchEnum = Object.freeze({
                                  , RELOAD   :7
                                  });
 
-function renderTable(tableName, columns, rowfun, editFun, width, height, position) {
+function renderTable(tabName, columns, rowfun, editFun, width, height, position) {
+    var tableName = tabName.replace(/[\.]/, '_');
     if (width    == undefined) width = 500;
     if (height   == undefined) height = 500;
     if (position == undefined) position = 'center';
@@ -24,7 +25,7 @@ function renderTable(tableName, columns, rowfun, editFun, width, height, positio
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
-    var title = $('<a href=#>'+tableName+'</a>').click(function() {
+    var title = $('<a href=#>'+tabName+'</a>').click(function() {
         editFun(dlg);
     });
     

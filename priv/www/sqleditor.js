@@ -175,16 +175,20 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
     if(tree != null)
         build_boxes($('#sql_tree'+dc), dc, tree);
 
+    var titleStr = "Sql Visualizer";
+    if(tblDlg != null && tblDlg != undefined)
+        titleStr = tblDlg.dialog("option", "title").text();
+
     var X = 115, Y = 115;
     if(pos != null) {X = pos.docX; Y = pos.docY; }
     $('#pick_conds'+dc).dialog({
         autoOpen: false,
         height: 'auto',
         width: 'auto',
-        modal: true,
+        modal: false,
         position: [X, Y],
         resizable: true,
-        title: "Sql Visualizar",
+        title: titleStr,
         close: function() {
             $('#pick_conds'+dc).dialog('destroy');
             $('#pick_conds'+dc).remove();
@@ -193,6 +197,8 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
             "Save": function() {
                 qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
                 undefinedTableIdx = 0;
+                ajax_post("/app/save_file", {save: {file_name:titleStr, file_content:qStr}}, null, null, null);
+                $(this).dialog('close');
             },
             "Save As": function() {
                 qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
@@ -213,9 +219,8 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
                         },
                         buttons: {
                             "Ok": function() {
-                                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                                ajax_post("/app/save_file", {save: {file_name:$('#saveas_'+dc).val(), file_content:qStr}}, null, null, function(data) {
-                                });
+                                var fileName = $('#saveas_'+dc).val();
+                                ajax_post("/app/save_file", {save: {file_name:FileName, file_content:qStr}}, null, null, null);
                                 $(this).dialog('close');
                             }
                         }})

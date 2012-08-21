@@ -1,5 +1,7 @@
 -module(oci_adapter).
 
+-include("dderl.hrl").
+
 -export([ process_cmd/3
         , init/0
         ]).

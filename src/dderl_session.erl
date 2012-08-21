@@ -155,15 +155,52 @@ process_call({"save_file", ReqData}, _From, #state{key=Key,user=User,file=File} 
     FileName     = binary_to_list(proplists:get_value(<<"file_name">>, BodyJson, <<>>)),
     FileContent  = binary_to_list(proplists:get_value(<<"file_content">>, BodyJson, <<>>)),
     logi(File, "[~p] save file ~p~n", [Key, {FileName, FileContent}]),
-    case retrieve(files, User) of
+    Files = case retrieve(files, User) of
         {ok, undefined} -> [];
         {ok, Fs} -> Fs;
         {error, _} -> []
     end,
-    {reply, "{\"save_file\": \"ok\"}", State};
+    NewFiles = lists:keystore(FileName, 1, Files, {FileName, FileContent}),
+    case update_account(User, {files, NewFiles}) of
+        ok ->
+            logi(File, "[~p] files updated for user ~p~n", [Key, User]),
+            {reply, "{\"save_file\": \"ok\"}", State};
+        abort ->  {reply, "{\"save_file\": \"unable to save files\"}", State}
+    end;
+process_call({"del_file", ReqData}, _From, #state{key=Key,user=User,file=File} = State) ->
+    {struct, [{<<"del">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    FileName     = binary_to_list(proplists:get_value(<<"file_name">>, BodyJson, <<>>)),
+    logi(File, "[~p] delete file ~p~n", [Key, {FileName}]),
+    Files = case retrieve(files, User) of
+        {ok, undefined} -> [];
+        {ok, Fs} -> Fs;
+        {error, _} -> []
+    end,
+    NewFiles = case lists:keytake(FileName, 1, Files) of
+        {value, _, NFs} -> NFs;
+        false -> Files
+    end,
+    case update_account(User, {files, NewFiles}) of
+        ok ->
+            logi(File, "[~p] files updated for user ~p~n", [Key, User]),
+            {reply, "{\"delete_file\": \"ok\"}", State};
+        abort ->  {reply, "{\"delete_file\": \"unable to delete files\"}", State}
+    end;
 process_call({"logs", _ReqData}, _From, #state{user=User,logdir=Dir} = State) ->
     Files = filelib:fold_files(Dir, User ++ "_.*\.log", false, fun(F, A) -> [filename:join(["logs", filename:basename(F)])|A] end, []),
     {reply, "{\"logs\": "++string_list_to_json(Files, [])++"}", State};
+process_call({"delete_log", ReqData}, _From, #state{key=Key,logdir=Dir,file=File} = State) ->
+    {struct, [{<<"log">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    LogFileName = filename:basename(binary_to_list(proplists:get_value(<<"file">>, BodyJson, <<>>))),
+    LogFilePath = filename:join([Dir,LogFileName]),
+    logi(File, "[~p] deleting log file ~p ~n", [Key, LogFilePath]),
+    case file:delete(LogFilePath) of
+        ok ->
+            {reply, "{\"delete_log\": \"ok\"}", State};
+        {error, Reason} ->
+            logi(File, "[~p] deleting log file ~p failed for ~p~n", [Key, LogFilePath, Reason]),
+            {reply, "{\"delete_log\": \"failed! see log for details\"}", State}
+    end;
 process_call({"login_change_pswd", ReqData}, _From, #state{key=Key,file=File} = State) ->
     {struct, [{<<"change_pswd">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),

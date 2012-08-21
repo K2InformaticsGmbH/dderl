@@ -133,3 +133,5 @@ button.menubutton
 .context_menu li:hover {
   background-color: white;
 }
+
+.no-close .ui-dialog-titlebar-close {display: none }

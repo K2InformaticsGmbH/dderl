@@ -19,7 +19,6 @@
         <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
         	<li><a href="#">File</a>
         		<ul class="sub_menu">
-        			 <li><a id="login-button" href="#" onclick='display_login()'>Log In</a></li>
         			 <li><a id="connect-button" href="#" onclick='display_db_login()'>Connect</a></li>
         			 <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Query Files</a></li>
         			 <li><a id="test-button" href="#" onclick='edit_sql(null, null)'>SQL</a></li>
@@ -28,7 +27,8 @@
         		</ul>
         	</li>
         </ul>
-        <div id="login-msg" style="float:right;">
+        <div style="float:right;">
+            <a id="login-button" href="#" onclick='display_login()'></a>
         </div>
 	</div>
 

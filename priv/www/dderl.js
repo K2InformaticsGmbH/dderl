@@ -1,33 +1,35 @@
 function show_logs()
 {
     ajax_post('/app/logs', {}, null, null, function(data) {
-        $('<div id="dialog-show-logs" title="Logs" style="diaply:none">' +
-          '  <select id="logs_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>' +
-          '</div>').appendTo(document.body);
-        for(var i=0;i<data.logs.length; ++i)
-            $('<option value="'+data.logs[i]+'">'+data.logs[i]+'</option>').appendTo($('#logs_list'));
-        $("#dialog-show-logs").dialog({
+        $('<div style="diaply:none" />')
+        .append($('<select id="logs_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
+                .dblclick(function(){
+                    window.open($('#logs_list option:selected').val());
+                })
+        )
+        .appendTo(document.body)
+        .dialog({
             autoOpen: false,
             height: 400,
             width: 300,
             resizable: false,
             modal: true,
+            title: "Logs",
             close: function() {
-                $("#dialog-show-logs").dialog('destroy');
-                $("#dialog-show-logs").remove();
+                $(this).dialog('destroy');
+                $(this).remove();
             },
             buttons: {
-                "Show": function() {
-                    window.open($('#logs_list option:selected').val());
-                },
                 "Delete": function() {
-                },
-                Cancel: function() {
-                    $(this).dialog("close");
+                    var selLogItem = $('#logs_list option:selected');
+                    ajax_post('/app/delete_log', {log:{file:selLogItem.val()}}, null, null, function(data) {selLogItem.remove();});
                 }
             }
-        });
-        $('#dialog-show-logs').dialog("open");
+        })
+        .dialog("open");
+
+        for(var i=0;i<data.logs.length; ++i)
+            $('<option value="'+data.logs[i]+'">'+data.logs[i]+'</option>').appendTo($('#logs_list'));
     });
 }
 
@@ -456,21 +458,17 @@ function show_qry_files()
             resizable: false,
             modal: false,
             close: function() {
-                $("#dialog-show-files").dialog('destroy');
-                $("#dialog-show-files").remove();
+                $(this).dialog('destroy');
+                $(this).remove();
             },
             buttons: {
-                //"Show": function() {
-                //    load_table($('#files_list option:selected').text(), $('#files_list option:selected').val());
-                //},
                 "Delete": function() {
-                },
-                Cancel: function() {
-                    $(this).dialog("close");
+                    var selFile = $('#files_list option:selected');
+                    ajax_post('/app/del_file', {del: {file_name: selFile.text()}}, null, null, function(data) {selFile.remove();});
                 }
             }
-        });
-        $('#dialog-show-files').dialog("open");
+        })
+        .dialog("open");
     });
 }
 
@@ -483,10 +481,9 @@ function load_new_table(tableName)
 
 function load_table(tableName, query)
 {
-    var tabName = tableName.replace(/[\.]/, '_');
     ajax_post('/app/query', {query: {qstr: query}}, null, null, function(table) {
         var statement = table.statement;
-        renderTable(tabName, table.headers,
+        renderTable(tableName, table.headers,
             function (opsfetch, rowNum, renderFun, renderFunArgs)
             {
                 var Cmd = '/app/row';

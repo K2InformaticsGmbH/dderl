@@ -9,3 +9,11 @@
                   , db_files
                   }
        ).
+
+-record(file,     {content = ""
+                  , posX = 0
+                  , posY = 0
+                  , width = 0
+                  , height = 0
+                  }
+       ).

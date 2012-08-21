@@ -5,7 +5,7 @@ var adapter = null;
 function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
-        $('#login-button').html('Log In');
+        $('#login-button').html('');
         $("#db-tables-views").html('');
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
@@ -24,9 +24,11 @@ function display_login()
         width: 'auto',
         resizable: false,
         modal: true,
+        closeOnEscape: false,
+        dialogClass: 'no-close',
         close: function() {
-            $("#dialog-login").dialog('destroy');
-            $("#dialog-login").remove();
+            $(this).dialog('destroy');
+            $(this).remove();
         },
         buttons: {
             "Login": function() {
@@ -36,7 +38,6 @@ function display_login()
                     if(data.login == "ok") {
                         var user = $('#user_login').val();
                         $('#change-pswd-button').data("logged_in_user", user);
-                        $('#login-msg').html('Welcome ' + user);
                         $('#login-button').html('Log out ' + user);
                         $("#dialog-login").dialog("close");
                         //display_db_login();
@@ -44,9 +45,6 @@ function display_login()
                     else
                         alert('Login falied : ' + data.login);
                 });
-            },
-            Cancel: function() {
-                $(this).dialog("close");
             }
         }
     });
