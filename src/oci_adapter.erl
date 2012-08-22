@@ -10,8 +10,8 @@
 init() ->
     imem_if:insert_into_table(common, {?MODULE, [
                 #file{name="Users.sql",  content="SELECT DISTINCT OWNER FROM ALL_TABLES"}
-              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME DESC"}
-              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS ORDER BY VIEW_NAME DESC"}
+              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES"}
+              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS"}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
