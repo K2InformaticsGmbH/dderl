@@ -10,16 +10,18 @@ function display_login()
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
     }
-    $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td align=right valign=center>User&nbsp;</td>' +
-      '          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '  </table>' +
-      '</div>').appendTo(document.body);
-    $('#dialog-login').dialog({
+    $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">'
+     +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
+     +'      <tr><td align=right valign=center>User&nbsp;</td>'
+     +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
+     +'      <tr><td align=right valign=center>Password&nbsp;</td>'
+     +'          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
+     +'  </table>'
+     +'</div>')
+    .appendTo(document.body)
+    .dialog({
         autoOpen: false,
+        minHeight: 100,
         height: 'auto',
         width: 'auto',
         resizable: false,
@@ -29,26 +31,26 @@ function display_login()
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
-        },
-        buttons: {
-            "Login": function() {
-                var loginJson = {login: { user      :$('#user_login').val(),
-                                          password  :MD5($('#password_login').val())}};
-                ajax_post('/app/login', loginJson, null, null, function(data) {
-                    if(data.login == "ok") {
-                        var user = $('#user_login').val();
-                        $('#change-pswd-button').data("logged_in_user", user);
-                        $('#login-button').html('Log out ' + user);
-                        $("#dialog-login").dialog("close");
-                        display_db_login();
-                    }
-                    else
-                        alert('Login falied : ' + data.login);
-                });
-            }
+        }
+    })
+    .dialog("open");
+    $("#password_login").keypress(function(e) {
+        if(e.which == 13) {
+            var loginJson = {login: { user      :   $('#user_login').val(),
+                                      password  :   MD5($('#password_login').val())}};
+            ajax_post('/app/login', loginJson, null, null, function(data) {
+                if(data.login == "ok") {
+                    var user = $('#user_login').val();
+                    $('#change-pswd-button').data("logged_in_user", user);
+                    $('#login-button').html('Log out ' + user);
+                    $("#dialog-login").dialog("close");
+                    display_db_login();
+                }
+                else
+                    alert('Login falied : ' + data.login);
+            });        
         }
     });
-    $('#dialog-login').dialog("open");
 }
 
 function change_password()
