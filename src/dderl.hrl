@@ -23,10 +23,10 @@
 
 -record(file,     {name = ""
                   , content = ""
-                  , posX = 0
-                  , posY = 0
-                  , width = 0
-                  , height = 0
+                  , posX = -1
+                  , posY = -1
+                  , width = -1
+                  , height = -1
                   }
        ).
 

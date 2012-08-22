@@ -436,13 +436,15 @@ function show_qry_files()
         ajax_post('/app/files', {}, null, null, function(data) {
             $('<div id="dialog-show-files" title="Query Files" style="display:none"></div>')
             .append($('<select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
-                    .dblclick(function(){
-                        load_table($('#files_list option:selected').text(), $('#files_list option:selected').val());
+                    .dblclick(function() {
+                        load_table($('#files_list option:selected').data("context"));
                     })
                    )
             .appendTo(tab);
             for(var i=0;i<data.files.length; ++i)
-                $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>').appendTo($('#files_list'));
+                $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>')
+                .appendTo($('#files_list'))
+                .data("context", data.files[i]);
             $("#dialog-show-files").dialog({
                 autoOpen: false,
                 height: 300,
@@ -468,16 +470,30 @@ function show_qry_files()
 function load_new_table(tableName)
 {
     ajax_post('/app/get_query', {get_query: {table: tableName}}, null, null, function(query) {
-        load_table(tableName, query.qry);
+        load_table(query);
     });
 }
 
-function load_table(tableName, query)
+function load_table(context)
 {
+    var query = context.content;
+    var tableName = context.name;   
     ajax_post('/app/query', {query: {qstr: query}}, null, null, function(table) {
         var statement = table.statement;
         renderTable(tableName, table.headers,
-            function (opsfetch, rowNum, renderFun, renderFunArgs)
+            function(tblDlg) {
+                tblDlg.bind('requery', function(e, sqlObj) {
+                    ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
+                    tblDlg.dialog('destroy');
+                    tblDlg.remove();
+                    context.content = sqlObj;
+                    load_table(context);
+                });
+            },
+            function() {
+                ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
+            },
+            function(opsfetch, rowNum, renderFun, renderFunArgs)
             {
                 var Cmd = '/app/row';
                 if(rowNum == null) {
@@ -501,14 +517,9 @@ function load_table(tableName, query)
                 });
             },
             function(tblDlg) {
-                tblDlg.bind('requery', function(e, sqlObj) {
-                    ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
-                    tblDlg.dialog('destroy');
-                    tblDlg.remove();
-                    load_table(tableName, sqlObj);
-                });
                 edit_sql(tblDlg, query);
-            }
+            },
+            context
         );
     });
 }

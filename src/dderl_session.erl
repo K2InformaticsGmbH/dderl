@@ -13,6 +13,7 @@
         , convert_rows_to_json/1
         , convert_row_to_string/1
         , convert_rows_to_string/1
+        , create_files_json/1
         ]).
 
 -export([init/1

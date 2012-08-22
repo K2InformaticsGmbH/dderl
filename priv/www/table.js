@@ -15,11 +15,13 @@ var OpsFetchEnum = Object.freeze({
                                  , RELOAD   :7
                                  });
 
-function renderTable(tabName, columns, rowfun, editFun, width, height, position) {
+function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx) {
     var tableName = tabName.replace(/[\.]/, '_');
-    if (width    == undefined) width = 500;
-    if (height   == undefined) height = 500;
-    if (position == undefined) position = 'center';
+
+    var width=500, height=500, position='center';
+    if (ctx.hasOwnProperty('width') && ctx.width > 0) width = ctx.width;
+    if (ctx.hasOwnProperty('height') && ctx.width > 0) height = ctx.height;
+    if (ctx.hasOwnProperty('posX') && ctx.hasOwnProperty('posY') && ctx.posX >= 0 && ctx.posY >= 0) position = [ctx.posX, ctx.posY];
 
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
@@ -42,14 +44,18 @@ function renderTable(tabName, columns, rowfun, editFun, width, height, position)
         close: function() {
             dlg.dialog('destroy');
             dlg.remove();
+            if(destroyfun != null || destroyfun != undefined)
+                destroyfun();
         },
     }).bind("dialogresize", function(event, ui) {
         table.height(dlg.height()-27)
              .width(dlg.width()-2)
              .data("grid").resizeCanvas();
-    });
+    }).dialog("open");
 
-    dlg.dialog("open");
+    if(initfun != null || initfun != undefined)
+        initfun(dlg);
+
     table.data("dlg", dlg);
 
     addFooter(dlg.parent(), tableName, table, rowfun);
@@ -396,7 +402,7 @@ function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
 
 function renderSampleTable(tableName)
 {
-    //renderTable(tableName, samplecolumns, samplerows, null, 400, 400, [10,10]);
-    renderTable(tableName, samplecolumns, samplerows, null);
+    //renderTable(tableName, samplecolumns, null, null, samplerows, null, {width:200,height:200,posX:10,posY:10});
+    renderTable(tableName, samplecolumns, null, null, samplerows, null);
 }
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////

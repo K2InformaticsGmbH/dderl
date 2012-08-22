@@ -9,9 +9,9 @@
 
 init() ->
     imem_if:insert_into_table(common, {?MODULE, [
-                #file{name="Users.sql",  content="SELECT DISTINCT OWNER FROM ALL_TABLES"}
-              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES"}
-              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS"}
+                #file{name="Users.sql",  content="SELECT DISTINCT OWNER FROM ALL_TABLES", posX=0, posY=10, width=200, height=500}
+              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES", posX=0, posY=10, width=200, height=500}
+              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS", posX=0, posY=10, width=200, height=500}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
@@ -68,7 +68,7 @@ process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
     Query = "SELECT * FROM " ++ Table,
     dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
-    {{Session,Pool,Statements}, "{\"qry\":\""++Query++"\"}"};
+    {{Session,Pool,Statements}, "{\"qry\":"++dderl_session:create_files_json([#file{name=Table, content=Query}])++"}"};
 process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     %{ok, Tokens, _} = sql_lex:string(Query++";"),
