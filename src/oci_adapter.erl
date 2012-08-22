@@ -4,13 +4,14 @@
 
 -export([ process_cmd/3
         , init/0
+        , import_sql/2
         ]).
 
 init() ->
     imem_if:insert_into_table(common, {?MODULE, [
-                {"Users.sql",   "SELECT DISTINCT OWNER FROM ALL_TABLES"}
-              , {"Tables.sql",  "SELECT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME DESC"}
-              , {"Views.sql",   "SELECT VIEW_NAME FROM ALL_VIEWS ORDER BY VIEW_NAME DESC"}
+                #file{name="Users.sql",  content="SELECT DISTINCT OWNER FROM ALL_TABLES"}
+              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME DESC"}
+              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS ORDER BY VIEW_NAME DESC"}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
@@ -328,3 +329,12 @@ fetch_rows(Statement, RowNum, Fun, StmtKey, SrvPid, RowsAcc) ->
 %    ",  \"having\":"++ string_list_to_json(Having, [])++
 %    ",\"order_by\":"++ string_list_to_json(Orders, [])++
 %    "}".
+
+%% Import sqls
+import_sql(User, Path) ->
+    [Acc|_]=imem_if:read(accounts, User),
+    Files = [#file{name=Fn, content=binary_to_list(Fc)}
+            ||{Fn,{ok,Fc}}<-[{filename:basename(F),file:read_file(F)}
+                            ||F<-filelib:wildcard(Path++"/*.sql")]],
+    NewAcc = Acc#accounts{db_files = Files},
+    imem_if:insert_into_table(accounts, NewAcc).

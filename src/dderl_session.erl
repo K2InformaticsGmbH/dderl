@@ -215,19 +215,30 @@ process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = St
         [] -> {reply, "{\"save\": \"not logged in\"}", State};
         _ ->
             Data = binary_to_list(wrq:req_body(ReqData)),
-            logi(File, "Saving... ~p~n", [Data]),
-            case update_account(User, {cons, Data}) of
+            {struct, ConsList} = mochijson:decode(Data),
+            NewConsList = [#db_connection {
+                    name       = N
+                    , adapter  = proplists:get_value("adapter", P, "")
+                    , ip       = proplists:get_value("ip", P, "")
+                    , port     = list_to_integer(proplists:get_value("port", P, "0"))
+                    , service  = proplists:get_value("service", P, "")
+                    , type     = proplists:get_value("type", P, "")
+                    , user     = proplists:get_value("user", P, "")
+                    , password = proplists:get_value("password", P, "")
+                } || {N, {struct, P}} <- ConsList],
+            logi(File, "Saving... ~p~n", [NewConsList]),
+            case update_account(User, {cons, NewConsList}) of
+                abort ->  {reply, "{\"save\": \"unable to save config\"}", State};
                 ok ->
                     logi(File, "[~p] config updated for user ~p~n", [Key, User]),
-                    {reply, "{\"save\": \"ok\"}", State};
-                abort ->  {reply, "{\"save\": \"unable to save config\"}", State}
+                    {reply, "{\"save\": \"ok\"}", State}
             end
     end;
 process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
     case retrieve(cons, User) of
         {ok, []} -> {reply, "{}", State};
         {ok, undefined} ->  {reply, "{}", State};
-        {ok, Connections} -> {reply, Connections, State#state{user=User}};
+        {ok, Connections} -> {reply, conns_json(Connections), State#state{user=User}};
         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
 process_call({Cmd, ReqData}, _From, #state{session=SessionHandle,adapter=AdaptMod} = State) ->
@@ -238,10 +249,32 @@ process_call({Cmd, ReqData}, _From, #state{session=SessionHandle,adapter=AdaptMo
     {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
     {reply, Resp, State#state{session=NewSessionHandle}}.
 
+conns_json(Connections) ->
+    "{"++string:join([""++jsq(C#db_connection.name)++":{"
+                ++"\"adapter\":"++jsq(C#db_connection.adapter)
+                ++", \"ip\":"++jsq(C#db_connection.ip)
+                ++", \"port\":\""++integer_to_list(C#db_connection.port)++"\""
+                ++", \"service\":"++jsq(C#db_connection.service)
+                ++", \"type\":"++jsq(C#db_connection.type)
+                ++", \"user\":"++jsq(C#db_connection.user)
+                ++", \"password\":"++jsq(C#db_connection.password)
+                ++"}"
+                ||C<-Connections], ",")++"}".
+
 create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
 create_files_json([], Json) -> Json;
-create_files_json([{FName, Content}|Files], Json) ->
-    create_files_json(Files, ["{\"name\":\""++FName++"\", \"content\":\""++Content++"\"}"|Json]).
+create_files_json([F|Files], Json) ->
+    create_files_json(Files, [
+            "{\"name\":"++jsq(F#file.name)
+         ++", \"content\":"++jsq(F#file.content)
+         ++", \"posX\":"++integer_to_list(F#file.posX)
+         ++", \"posY\":"++integer_to_list(F#file.posY)
+         ++", \"width\":"++integer_to_list(F#file.width)
+         ++", \"height\":"++integer_to_list(F#file.height)
+         ++"}"
+         |Json]).
+
+jsq(Str) -> io_lib:format("~p", [Str]).
 
 handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
     logi(File, "[~p] " ++ Format, [Key|Content]),

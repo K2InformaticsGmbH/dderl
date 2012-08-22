@@ -25,7 +25,7 @@ function renderTable(tabName, columns, rowfun, editFun, width, height, position)
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
-    var title = $('<a href=#  class="download_incomplete_txt" >'+tabName+'</a>').click(function() {
+    var title = $('<a href=#>'+tabName+'</a>').click(function() {
         editFun(dlg);
     });
     
@@ -52,21 +52,13 @@ function renderTable(tabName, columns, rowfun, editFun, width, height, position)
     dlg.dialog("open");
     table.data("dlg", dlg);
 
-    var statuslight = $('<img class="download_incomplete" style="border:none; position:relative; top:5px; left:0px;"/>');
-    table.data("finished", statuslight);
-    table.data("finished_txt", title);
-
-    addFooter(dlg.parent(), tableName, table, statuslight, rowfun);
+    addFooter(dlg.parent(), tableName, table, rowfun);
 
     loadTable(table, prepareColumns(columns));
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
-    table.data("finished_txt")
-        .removeClass("download_incomplete_txt")
-        .removeClass("download_complete_txt")
-        .addClass("downloading_txt");
     rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
 
     table.data("grid").onScroll.subscribe(function(e, args) {
@@ -89,19 +81,15 @@ function rowFunWrapper(rowfun, table, opts, rowNum, loadFun, loadFunOpts)
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
-    table.data("finished_txt")
-        .removeClass("download_incomplete_txt")
-        .removeClass("download_complete_txt")
-        .addClass("downloading_txt");
 
     rowfun(opts, rowNum, loadFun, [table, loadFunOpts]);
 }
 
-function addFooter(parent_node, tableName, table, statuslight, rowfun)
+function addFooter(parent_node, tableName, table, rowfun)
 {
+    RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
+        .click(function() { $(this).select(); });
     $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
-    .append(statuslight)
-    .append($('<img style="border:none; width:5px;"/>'))
     .append($('<button>Reload</button>')
             .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})
             .click(function()
@@ -127,7 +115,7 @@ function addFooter(parent_node, tableName, table, statuslight, rowfun)
                 return false;
             })
            )
-    .append($('<input type="text" size=10>')
+    .append(RowJumpTextBox
             .keypress(function(evt)
             {
                 if(evt.which == 13) {
@@ -163,6 +151,7 @@ function addFooter(parent_node, tableName, table, statuslight, rowfun)
             })
            )
     .appendTo(parent_node);
+    table.data("finished", RowJumpTextBox);
 }
 
 function prepareColumns(headers) {
@@ -329,27 +318,21 @@ function loadRows(table, ops, rowObj)
     table.data("grid").render();
 //    if(ops == OpsBufEnum.PREPEND && d[0].id > 1) table.data("grid").scrollRowIntoView(d.length-1);
     
-    if(rowObj.done) {
+    if(rowObj.done)
         table.data("finished")
             .removeClass("downloading")
             .removeClass("download_incomplete")
             .addClass("download_complete");
-        table.data("finished_txt")
-            .removeClass("downloading_txt")
-            .removeClass("download_incomplete_txt")
-            .addClass("download_complete_txt");
-    } else {
+    else
         table.data("finished")
             .removeClass("downloading")
             .removeClass("download_complete")
             .addClass("download_incomplete");
-        table.data("finished_txt")
-            .removeClass("downloading_txt")
-            .removeClass("download_complete_txt")
-            .addClass("download_incomplete_txt");
-    }
 
-    if(d.length > 0) console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
+    if(d.length > 0) {
+        console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
+        table.data("finished").val(d[d.length-1].id);
+    }
 }
 
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////

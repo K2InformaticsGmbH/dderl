@@ -43,10 +43,10 @@ button.menubutton
 }
 
 .cell-selection {
-  /*border-right-color: silver;*/
-  /*border-right-style: solid;*/
-  background: silver;
-  color: black;
+  /*border-right-color: silver;
+  border-right-style: solid;*/
+  background: #ECECEC;
+  color: #8A8A8A;
   text-align: right;
   font-size: 10px;
 }
@@ -64,33 +64,21 @@ button.menubutton
     background:#EFEFEF;
 }
 
-.downloading_txt {
-    color:#0000FF;
-}
-.download_error_txt {
-    color:#5F0000;
-}
-.download_incomplete_txt {
-    color:#5F5F00;
-}
-.download_complete_txt {
-    color:#005F00;
-}
 .downloading {
-    width:15px; height:15px;
-    background-image:url('../static/images/loading.gif');
-}
-.download_incomplete {
-    width:15px; height:15px;
-    background-image:url('../static/images/ball_yellow.gif');
+    color:#FFFFFF;
+    background-color:#0000FF;
 }
 .download_error {
-    width:15px; height:15px;
-    background-image:url('../static/images/ball_red.gif');
+    color:#000000;
+    background-color:#FF0000;
+}
+.download_incomplete {
+    color:#000000;
+    background-color:#FFFF00;
 }
 .download_complete {
-    width:15px; height:15px;
-    background-image:url('../static/images/ball_green.gif');
+    color:#000000;
+    background-color:#00FF00;
 }
 
 .slick-cell.selected {
