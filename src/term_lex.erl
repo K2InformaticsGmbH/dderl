@@ -1,4 +1,4 @@
--file("d:/Programs/erl5.9/lib/parsetools-2.0.7/include/leexinc.hrl", 0).
+-file("c:/PROGRA~1/ERL59~1.1/lib/parsetools-2.0.7/include/leexinc.hrl", 0).
 %% The source of this file is part of leex distribution, as such it
 %% has the same Copyright as the other files in the leex
 %% distribution. The Copyright is defined in the accompanying file
@@ -14,7 +14,7 @@
 %% User code. This is placed here to allow extra attributes.
 -file("src/term_lex.xrl", 11).
 
--file("d:/Programs/erl5.9/lib/parsetools-2.0.7/include/leexinc.hrl", 14).
+-file("c:/PROGRA~1/ERL59~1.1/lib/parsetools-2.0.7/include/leexinc.hrl", 14).
 
 format_error({illegal,S}) -> ["illegal characters ",io_lib:write_string(S)];
 format_error({user,S}) -> S.
@@ -437,4 +437,4 @@ yyaction_3(TokenChars, TokenLen) ->
 yyaction_4() ->
      skip_token .
 
--file("d:/Programs/erl5.9/lib/parsetools-2.0.7/include/leexinc.hrl", 282).
+-file("c:/PROGRA~1/ERL59~1.1/lib/parsetools-2.0.7/include/leexinc.hrl", 282).

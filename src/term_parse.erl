@@ -8,7 +8,7 @@
 
 unwrap({_,_,X}) -> X.
 
--file("d:/Programs/erl5.9/lib/parsetools-2.0.7/include/yeccpre.hrl", 0).
+-file("c:/PROGRA~1/ERL59~1.1/lib/parsetools-2.0.7/include/yeccpre.hrl", 0).
 %%
 %% %CopyrightBegin%
 %%

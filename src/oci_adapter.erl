@@ -85,31 +85,37 @@ process_cmd({"stmt_close", BodyJson}, SrvPid, {Session,Pool,Statements} = MPort)
             {_,NewStatements} = proplists:split(Statements, [StmtKey]),
             {{Session,Pool,NewStatements}, "{\"rows\":[]}"}
     end;
+process_cmd({"get_buffer_max", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {MPort, "-1"};
+        {Statement, _, _} ->
+            {ok, CacheSize} = Statement:get_buffer_max(),
+            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p~n", [SrvPid, StmtKey, CacheSize]),
+            {MPort, integer_to_list(CacheSize)}
+    end;
 process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort);
 process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
 
 prepare_json_rows(C, RowNum, Statement, StmtKey, SrvPid) when RowNum >= 0, is_atom(C) ->
-    case apply(Statement, rows_from, [RowNum]) of
-        [] -> "{\"done\":true, \"rows\":[]}";
-        Rows ->
-            dderl_session:log(SrvPid, "[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]),
-            J = dderl_session:convert_rows_to_json(Rows),
-            "{\"done\":false, \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
-    end;
+    {Rows, Status, CacheSize} = apply(Statement, rows_from, [RowNum]),
+    if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]); true -> ok end,
+    process_data(Rows, Status, CacheSize);
 prepare_json_rows(prev, RowNum, Statement, StmtKey, SrvPid) ->
     prepare_json_rows(Statement, RowNum, prev_rows, StmtKey, SrvPid);
 prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid) ->
     prepare_json_rows(Statement, RowNum, next_rows, StmtKey, SrvPid);
 prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid) ->
-    case apply(Statement, Fun, []) of
-        [] -> "{\"done\":true, \"rows\":[]}";
-        Rows ->
-            dderl_session:log(SrvPid, "[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]),
-            J = dderl_session:convert_rows_to_json(Rows),
-            "{\"done\":false, \"rows\":"++string:substr(J,1,length(J)-1)++"]}"
-    end.
+    {Rows, Status, CacheSize} = apply(Statement, Fun, []),
+    if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]); true -> ok end,
+    process_data(Rows, Status, CacheSize).
+
+process_data(Rows, more, CacheSize) -> "{\"done\":false, \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}";
+process_data(Rows, _, CacheSize)    -> "{\"done\":true,  \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}".
 
 %% Import sqls
 import_sql(User, Path) ->

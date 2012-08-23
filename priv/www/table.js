@@ -1,21 +1,24 @@
 var BUFFER_SIZE = 200;
-var OpsBufEnum = Object.freeze({
-                                 APPEND  : 1
-                               , PREPEND : 2
-                               , REPLACE : 3
-                               });
+var OpsBufEnum = { APPEND  : 1
+                 , PREPEND : 2
+                 , REPLACE : 3
+                 };
 
-var OpsFetchEnum = Object.freeze({
-                                   NEXT     :1
-                                 , PREVIOUS :2
-                                 , JUMPNEXT :3
-                                 , JUMPPREV :4
-                                 , TOEND    :5
-                                 , TOBEGIN  :6
-                                 , RELOAD   :7
-                                 });
+var OpsFetchEnum = { NEXT     :1
+                   , PREVIOUS :2
+                   , JUMPNEXT :3
+                   , JUMPPREV :4
+                   , TOEND    :5
+                   , TOBEGIN  :6
+                   , RELOAD   :7
+                   };
 
-function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx) {
+if(Object.hasOwnProperty('freeze')) {
+    Object.freeze(OpsBufEnum);
+    Object.freeze(OpsFetchEnum);
+}
+
+function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, editFun, ctx) {
     var tableName = tabName.replace(/[\.]/, '_');
 
     var width=500, height=500, position='center';
@@ -49,7 +52,7 @@ function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx
             dlg.remove();
             if(destroyfun != null || destroyfun != undefined)
                 destroyfun();
-        },
+        }
     }).bind("dialogresize", function(event, ui) {
         table.height(dlg.height()-27)
              .width(dlg.width()-2)
@@ -61,67 +64,76 @@ function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, tableName, table, rowfun);
+    addFooter(dlg, tableName, table, countFun, rowfun);
 
     loadTable(table, prepareColumns(columns));
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
-    rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
+    rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
 
     table.data("grid").onScroll.subscribe(function(e, args) {
         var gcP = args.grid.getCanvasNode().parentNode;
         //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
         if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
             console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
-            rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
+            rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
         }
         else if (gcP.scrollTop == 0) {
             console.log('top_event '+ gcP.scrollTop);
-            rowFunWrapper(rowfun, table, OpsFetchEnum.PREVIOUS, null, loadRows, OpsBufEnum.PREPEND);
+            rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.PREVIOUS, null, OpsBufEnum.PREPEND);
         }
     });
 }
 
-function rowFunWrapper(rowfun, table, opts, rowNum, loadFun, loadFunOpts)
+var rowStatusCheckInterval = 500;
+var rowStatusCheckIntervalId = null;
+
+function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
 {
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
 
-    rowfun(opts, rowNum, loadFun, [table, loadFunOpts]);
+    rowStatusCheckIntervalId = setInterval(function() {
+        countFun(function(count) {
+           table.data("finished").val(''+count);
+        });
+    }, rowStatusCheckInterval);
+    rowfun(opts, rowNum, loadRows, [table, loadFunOpts]);
 }
 
-function addFooter(dlg, tableName, table, rowfun)
+function addFooter(dlg, tableName, table, countFun, rowfun)
 {
     var parent_node = dlg.parent();
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
         .click(function() { $(this).select(); });
     var dlgMinWidth = 
     $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>').append($('<button>Reload</button>')
-            .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})
+            .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})                                      // Refresh
             .click(function()
             {
-                rowFunWrapper(rowfun, table, OpsFetchEnum.RELOAD, null, loadRows, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.RELOAD, 1, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<button>Move to first</button>')
+    .append($('<button>Move to first</button>')                                                                         // |<
             .button({icons: { primary: "ui-icon-seek-first" }, text: false})
             .click(function()
             {
-                table.data("rowrange").startRow = 1;
-                rowFunWrapper(rowfun, table, OpsFetchEnum.TOBEGIN, null, loadRows, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<button>Jump to previous page</button>')
+    .append($('<button>Jump to previous page</button>')                                                                 // <<
             .button({icons: { primary: "ui-icon-seek-prev" }, text: false})
             .click(function()
             {
-                rowFunWrapper(rowfun, table, OpsFetchEnum.JUMPPREV, null, loadRows, OpsBufEnum.REPLACE);
+                var d = table.data("grid").getData();
+                var rownum = (d.length > 0 ? Math.floor(parseInt(d[0].id) / 2) : null);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -131,32 +143,34 @@ function addFooter(dlg, tableName, table, rowfun)
                 if(evt.which == 13) {
                     var row = parseInt($(this).val());
                     if(row != NaN)
-                        rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, row, loadRows, OpsBufEnum.REPLACE);
+                        rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, row, OpsBufEnum.REPLACE);
                 }
                 return true;
             })
            )
-    .append($('<button>Next page</button>')
+    .append($('<button>Next page</button>')                                                                             // >
             .button({icons: { primary: "ui-icon-play" }, text: false})
             .click(function()
             {
-                rowFunWrapper(rowfun, table, OpsFetchEnum.NEXT, null, loadRows, OpsBufEnum.APPEND);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
                 return false;
             })
            )
-    .append($('<button>Jump to next page</button>')
+    .append($('<button>Jump to next page</button>')                                                                     // >>
             .button({icons: {primary: "ui-icon-seek-next" }, text: false})
             .click(function()
             {
-                rowFunWrapper(rowfun, table, OpsFetchEnum.JUMPNEXT, null, loadRows, OpsBufEnum.REPLACE);
+                var d = table.data("grid").getData();
+                var rownum = (d.length > 0 ? 2 * parseInt(d[0].id) : null);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<button>Move to end</button>')
+    .append($('<button>Move to end</button>')                                                                           // >|
             .button({icons: {primary: "ui-icon-seek-end" }, text: false})
             .click(function()
             {
-                rowFunWrapper(rowfun, table, OpsFetchEnum.TOEND, null, loadRows, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.TOEND, null, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -240,7 +254,7 @@ function loadTable(table, columns)
             load_new_table(data); } 
         },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
-        'Hide Column'       : {evt: function() { alert('Hide Column'); } },
+        'Hide Column'       : {evt: function() { alert('Hide Column'); } }
     });
 
     table.data("grid", grid)
@@ -277,6 +291,11 @@ function add_context_menu(node, options)
 
 function loadRows(table, ops, rowObj)
 {
+    if(rowStatusCheckIntervalId != null) {
+       clearInterval(rowStatusCheckIntervalId);
+       rowStatusCheckIntervalId = null;
+    }
+
     var d = table.data("grid").getData();
     var c = table.data("columns");
     var rows = rowObj.rows;
@@ -341,10 +360,10 @@ function loadRows(table, ops, rowObj)
             .removeClass("download_complete")
             .addClass("download_incomplete");
 
-    if(d.length > 0) {
+    if(d.length > 0)
         console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
-        table.data("finished").val(d[d.length-1].id);
-    }
+
+    table.data("finished").val(rowObj.cache_max);
 }
 
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////

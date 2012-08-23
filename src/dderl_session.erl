@@ -312,13 +312,9 @@ string_list_to_json([S|Strings], Json) ->
                                                                end || X <- S]) ++ "\",").
 
 convert_rows_to_json(Rows) -> convert_rows_to_json(Rows, "").
-convert_rows_to_json([], Json) ->
-    if length(Json) > 0 ->
-        "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
-        true -> "[]"
-    end;
-convert_rows_to_json([Row|Rows], Json) ->
-    convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
+convert_rows_to_json([], Json) when length(Json) > 0 -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
+convert_rows_to_json([], _)                          -> "[]";
+convert_rows_to_json([Row|Rows], Json)               -> convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
 
 
 convert_row_to_string([]) -> [];
