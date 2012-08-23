@@ -32,20 +32,21 @@
 
 -define(DEFAULT_ROW_SIZE, 150).
 
-%%F = fun(User) ->
-%%    [Acc|_]=imem_if:read(accounts, User),
-%%    {struct, ConsList} = mochijson:decode(Acc#accounts.db_connections),
-%%    NewAcc = Acc#accounts{db_connections =
-%%        [#db_connection {
-%%            name       = N
-%%            , adapter  = proplists:get_value("adapter", P, "")
-%%            , ip       = proplists:get_value("ip", P, "")
-%%            , port     = list_to_integer(proplists:get_value("port", P, "0"))
-%%            , service  = proplists:get_value("service", P, "")
-%%            , type     = proplists:get_value("type", P, "")
-%%            , user     = proplists:get_value("user", P, "")
-%%            , password = proplists:get_value("password", P, "")
-%%        } || {N, {struct, P}} <- ConsList]},
-%%    imem_if:insert_into_table(accounts, NewAcc)
-%%end.
+%% rr("src/dderl.hrl").
+%% F = fun(User) ->
+%%     [Acc|_]=imem_if:read(accounts, User),
+%%     {struct, ConsList} = mochijson:decode(Acc#accounts.db_connections),
+%%     NewAcc = Acc#accounts{db_connections =
+%%         [#db_connection {
+%%             name       = N
+%%             , adapter  = proplists:get_value("adapter", P, "")
+%%             , ip       = proplists:get_value("ip", P, "")
+%%             , port     = list_to_integer(proplists:get_value("port", P, "0"))
+%%             , service  = proplists:get_value("service", P, "")
+%%             , type     = proplists:get_value("type", P, "")
+%%             , user     = proplists:get_value("user", P, "")
+%%             , password = proplists:get_value("password", P, "")
+%%         } || {N, {struct, P}} <- ConsList]},
+%%     imem_if:insert_into_table(accounts, NewAcc)
+%% end.
 

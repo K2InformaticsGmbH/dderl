@@ -65,20 +65,20 @@ button.menubutton
 }
 
 .downloading {
-    color:#FFFFFF;
-    background-color:#0000FF;
+    color:#000000;
+    background-color:#AFAFFF;
 }
 .download_error {
     color:#000000;
-    background-color:#FF0000;
+    background-color:#FF7F7F;
 }
 .download_incomplete {
     color:#000000;
-    background-color:#FFFF00;
+    background-color:#FFFF7F;
 }
 .download_complete {
     color:#000000;
-    background-color:#00FF00;
+    background-color:#AFFFAF;
 }
 
 .slick-cell.selected {

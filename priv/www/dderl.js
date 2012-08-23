@@ -469,8 +469,8 @@ function show_qry_files()
 
 function load_new_table(tableName)
 {
-    ajax_post('/app/get_query', {get_query: {table: tableName}}, null, null, function(query) {
-        load_table(query);
+    ajax_post('/app/get_query', {get_query: {table: tableName}}, null, null, function(data) {
+        load_table(data.qry);
     });
 }
 

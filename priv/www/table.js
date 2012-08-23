@@ -19,9 +19,12 @@ function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx
     var tableName = tabName.replace(/[\.]/, '_');
 
     var width=500, height=500, position='center';
-    if (ctx.hasOwnProperty('width') && ctx.width > 0) width = ctx.width;
-    if (ctx.hasOwnProperty('height') && ctx.width > 0) height = ctx.height;
-    if (ctx.hasOwnProperty('posX') && ctx.hasOwnProperty('posY') && ctx.posX >= 0 && ctx.posY >= 0) position = [ctx.posX, ctx.posY];
+        if (ctx != null || ctx != undefined) {
+        if (ctx.hasOwnProperty('width') && ctx.width > 0) width = ctx.width;
+        if (ctx.hasOwnProperty('height') && ctx.width > 0) height = ctx.height;
+        if (ctx.hasOwnProperty('posX') && ctx.hasOwnProperty('posY') && ctx.posX >= 0 && ctx.posY >= 0)
+            position = [ctx.posX, ctx.posY];
+    }
 
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
@@ -58,7 +61,7 @@ function renderTable(tabName, columns, initfun, destroyfun, rowfun, editFun, ctx
 
     table.data("dlg", dlg);
 
-    addFooter(dlg.parent(), tableName, table, rowfun);
+    addFooter(dlg, tableName, table, rowfun);
 
     loadTable(table, prepareColumns(columns));
     table.data("finished")
@@ -91,12 +94,13 @@ function rowFunWrapper(rowfun, table, opts, rowNum, loadFun, loadFunOpts)
     rowfun(opts, rowNum, loadFun, [table, loadFunOpts]);
 }
 
-function addFooter(parent_node, tableName, table, rowfun)
+function addFooter(dlg, tableName, table, rowfun)
 {
+    var parent_node = dlg.parent();
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
         .click(function() { $(this).select(); });
-    $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
-    .append($('<button>Reload</button>')
+    var dlgMinWidth = 
+    $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>').append($('<button>Reload</button>')
             .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})
             .click(function()
             {
@@ -156,8 +160,10 @@ function addFooter(parent_node, tableName, table, rowfun)
                 return false;
             })
            )
-    .appendTo(parent_node);
+    .appendTo(parent_node)
+    .width() + 60;
     table.data("finished", RowJumpTextBox);
+    dlg.dialog( "option", "minWidth", dlgMinWidth);
 }
 
 function prepareColumns(headers) {
@@ -360,44 +366,47 @@ var endRow = 0;
 var sample_buf_sz = BUFFER_SIZE / 2;
 function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
 {
-    var rows = new Array();
-    var rowcount = sample_buf_sz;
-    var ret = null;
-    var startIndex = endRow + 1;
-    if(rowNum != null) startIndex = rowNum;
-    if(opsfetch == OpsFetchEnum.PREVIOUS)
-        startIndex = startRow - 1;
-    if(startIndex < 0) startIndex = 0;
-
-    if(opsfetch == OpsFetchEnum.NEXT) {
-        if(startIndex + sample_buf_sz > samplemaxrows && startIndex < samplemaxrows)
-            rowcount = samplemaxrows - startIndex + 1;
-        else if(startIndex >= samplemaxrows) {
-            ret = {done: true, rows: rows};
+    setTimeout(
+    function() {
+        var rows = new Array();
+        var rowcount = sample_buf_sz;
+        var ret = null;
+        var startIndex = endRow + 1;
+        if(rowNum != null) startIndex = rowNum;
+        if(opsfetch == OpsFetchEnum.PREVIOUS)
+            startIndex = startRow - 1;
+        if(startIndex < 0) startIndex = 0;
+    
+        if(opsfetch == OpsFetchEnum.NEXT) {
+            if(startIndex + sample_buf_sz > samplemaxrows && startIndex < samplemaxrows)
+                rowcount = samplemaxrows - startIndex + 1;
+            else if(startIndex >= samplemaxrows) {
+                ret = {done: true, rows: rows};
+                renderFunArgs[renderFunArgs.length] = ret;
+                renderFun.apply(this, renderFunArgs);
+                return;
+            }
+        }
+        if(opsfetch != OpsFetchEnum.NEXT && startIndex <= 1) {
+            ret = {done: false, rows: rows};
             renderFunArgs[renderFunArgs.length] = ret;
             renderFun.apply(this, renderFunArgs);
             return;
         }
-    }
-    if(opsfetch != OpsFetchEnum.NEXT && startIndex <= 1) {
+        for (var i = 0; i < rowcount; i++) {
+            rows[i] = new Array();
+            for(var j=0;j<samplecolumns.length;++j)
+                rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
+            rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
+            if(opsfetch == OpsFetchEnum.PREVIOUS && startIndex - i - 1 < 0)
+                break;
+        }
+        startRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex : startIndex - rowcount + 1);
+        endRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex + rowcount - 1 : startIndex);
         ret = {done: false, rows: rows};
         renderFunArgs[renderFunArgs.length] = ret;
         renderFun.apply(this, renderFunArgs);
-        return;
-    }
-    for (var i = 0; i < rowcount; i++) {
-        rows[i] = new Array();
-        for(var j=0;j<samplecolumns.length;++j)
-            rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
-        rows[i][j] = (opsfetch == OpsFetchEnum.NEXT ? startIndex + i : startIndex - (rowcount - i - 1));
-        if(opsfetch == OpsFetchEnum.PREVIOUS && startIndex - i - 1 < 0)
-            break;
-    }
-    startRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex : startIndex - rowcount + 1);
-    endRow = (opsfetch == OpsFetchEnum.NEXT ? startIndex + rowcount - 1 : startIndex);
-    ret = {done: false, rows: rows};
-    renderFunArgs[renderFunArgs.length] = ret;
-    renderFun.apply(this, renderFunArgs);
+    }, Math.floor((Math.random()*100)+1000));
 }
 
 function renderSampleTable(tableName)
