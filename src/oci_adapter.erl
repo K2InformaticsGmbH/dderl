@@ -9,9 +9,9 @@
 
 init() ->
     imem_if:insert_into_table(common, {?MODULE, [
-                #file{name="Users.sql",  content="SELECT DISTINCT OWNER FROM ALL_TABLES", posX=0, posY=20, width=200, height=500}
-              , #file{name="Tables.sql", content="SELECT TABLE_NAME FROM ALL_TABLES", posX=0, posY=20, width=200, height=500}
-              , #file{name="Views.sql",  content="SELECT VIEW_NAME FROM ALL_VIEWS", posX=0, posY=20, width=200, height=500}
+                #file{name="Users.sql",  content="SELECT DISTINCT OWNER      FROM ALL_TABLES ORDER BY OWNER",       posX=0, posY=20, width=200, height=500}
+              , #file{name="Tables.sql", content="SELECT DISTINCT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME",  posX=0, posY=20, width=200, height=500}
+              , #file{name="Views.sql",  content="SELECT DISTINCT VIEW_NAME  FROM ALL_VIEWS  ORDER BY VIEW_NAME",   posX=0, posY=20, width=200, height=500}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
@@ -92,9 +92,9 @@ process_cmd({"get_buffer_max", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
             dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
             {MPort, "-1"};
         {Statement, _, _} ->
-            {ok, CacheSize} = Statement:get_buffer_max(),
+            {ok, Finished, CacheSize} = Statement:get_buffer_max(),
             dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p~n", [SrvPid, StmtKey, CacheSize]),
-            {MPort, integer_to_list(CacheSize)}
+            {MPort, "{\"count\":"++integer_to_list(CacheSize)++", \"finished\":"++atom_to_list(Finished)++"}"}
     end;
 process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort);
 process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->

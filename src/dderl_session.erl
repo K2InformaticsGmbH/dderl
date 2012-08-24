@@ -37,6 +37,7 @@
         , file
         , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
         , adapter = gen_adapter
+        , resps = []
     }).
 
 start() ->
@@ -51,8 +52,20 @@ get_state({?MODULE, Pid}) ->
     gen_server:call(Pid, get_state, infinity).
 
 process_request(SessKey, WReq, {?MODULE, Pid}) ->
+    Parent = self(),
     Type = wrq:disp_path(WReq),
-    gen_server:call(Pid, {SessKey, Type, WReq}, infinity).
+    case gen_server:call(Pid, {SessKey, Type, WReq, Parent}, infinity) of
+        deferred -> get_resp(Pid, Parent);
+        Resp -> Resp
+    end.
+
+get_resp(Pid, Parent) ->
+    case gen_server:call(Pid, {get_resp, Parent}, infinity) of
+        undefined ->
+            timer:sleep(10),
+            get_resp(Pid, Parent);
+        Resp -> Resp
+    end.
 
 set_adapter(Adapter, {?MODULE, Pid}) ->
     AdaptMod  = list_to_existing_atom(Adapter++"_adapter"),
@@ -114,11 +127,17 @@ handle_call({adapter, Adapter}, _From, State) ->
     {reply, ok, State#state{adapter=Adapter}};
 handle_call(get_state, _From, State) ->
     {reply, State, State};
-handle_call({SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key, file=File} = State) ->
+handle_call({get_resp, Parent}, _From, #state{resps=Responces} = State) ->
+    {NewResponces, Resp} = case lists:keytake(Parent, 1, Responces) of
+        {value, {_, R}, NRs} -> {NRs, R};
+        false -> {Responces, undefined}
+    end,
+    {reply, Resp, State#state{resps=NewResponces}};
+handle_call({SessKey, Typ, WReq, Parent}, _From, #state{tref=TRef, key=Key, file=File} = State) ->
     timer:cancel(TRef),
     NewKey = if SessKey =/= Key -> SessKey; true -> Key end,
     logi(File, "[~p] process_request ~p~n", [NewKey, Typ]),
-    {Rep, Resp, NewState} = process_call({Typ, WReq}, From, State#state{key=NewKey}),
+    {Rep, Resp, NewState} = process_call({Typ, WReq}, Parent, State#state{key=NewKey}),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
 
@@ -242,13 +261,38 @@ process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
         {ok, Connections} -> {reply, conns_json(Connections), State#state{user=User}};
         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
     end;
-process_call({Cmd, ReqData}, _From, #state{session=SessionHandle,adapter=AdaptMod} = State) ->
+process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod,resps=Responces} = State) ->
     BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
         {struct, [{_, {struct, B}}]} ->  B;
         _ -> []
     end,
-    {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
-    {reply, Resp, State#state{session=NewSessionHandle}}.
+    Self=self(),
+    spawn(fun() ->
+            {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
+            gen_server:cast(Self, {resp, {NewSessionHandle, Resp, Parent}})
+    end),
+    {reply, deferred, State#state{resps=lists:keystore(Parent, 1, Responces, {Parent, undefined})}}.
+
+handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
+    logi(File, "[~p] " ++ Format, [Key|Content]),
+    {noreply, State};
+handle_cast({resp, {NewSessionHandle, Resp, Parent}}, #state{resps=Responces}=State) ->
+    NewResponces = lists:keystore(Parent, 1, Responces, {Parent, Resp}),
+    {noreply, State#state{session=NewSessionHandle, resps=NewResponces}};
+handle_cast(_Request, State) -> {noreply, State}.
+
+handle_info(die, State) -> {stop, timeout, State};
+handle_info(_Info, State) -> {noreply, State}.
+
+terminate(Reason, #state{key=Key,file=File}) ->
+    logi(File, "[~p] ~p terminating for ~p~n", [Key, self(), Reason]),
+    ets:delete(dderl_req_sessions, Key).
+
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+format_status(_Opt, [_PDict, State]) -> State.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 conns_json(Connections) ->
     "{"++string:join([""++jsq(C#db_connection.name)++":{"
@@ -276,24 +320,6 @@ create_files_json([F|Files], Json) ->
          |Json]).
 
 jsq(Str) -> io_lib:format("~p", [Str]).
-
-handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
-    logi(File, "[~p] " ++ Format, [Key|Content]),
-    {noreply, State};
-handle_cast(_Request, State) -> {noreply, State}.
-
-handle_info(die, State) -> {stop, timeout, State};
-handle_info(_Info, State) -> {noreply, State}.
-
-terminate(Reason, #state{key=Key,file=File}) ->
-    logi(File, "[~p] ~p terminating for ~p~n", [Key, self(), Reason]),
-    ets:delete(dderl_req_sessions, Key).
-
-code_change(_OldVsn, State, _Extra) -> {ok, State}.
-
-format_status(_Opt, [_PDict, State]) -> State.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 logi(Filename, Format, Content) ->
     FormatWithDate = "[" ++ io_lib:format("~p ~p", [date(), time()]) ++ "] " ++ Format,

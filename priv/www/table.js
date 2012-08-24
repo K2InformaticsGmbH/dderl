@@ -48,7 +48,8 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
         canMinimize:true,
         canMaximize:true,
         close: function() {
-            dlg.data("menu").remove();
+//            if(dlg.data("menu") != undefined)
+//                dlg.data("menu").remove();
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyfun != null || destroyfun != undefined)
@@ -89,7 +90,6 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
 }
 
 var rowStatusCheckInterval = 500;
-var rowStatusCheckIntervalId = null;
 
 function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
 {
@@ -98,13 +98,18 @@ function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
         .removeClass("download_complete")
         .addClass("downloading");
 
-    rowStatusCheckIntervalId = setInterval(function() {
+    function statusCheckFun() {
         if(jQuery.isFunction(countFun)) {
-            countFun(function(count) {
-               table.data("finished").val(''+count);
+            countFun(function(resp) {
+                table.data("finished").val(''+resp.count);
+                if(!resp.finished)
+                    setTimeout(statusCheckFun, rowStatusCheckInterval);
+                //table.data("rowStatusCheckIntervalId", setTimeout(statusCheckFun), rowStatusCheckInterval);
             });
         }
-    }, rowStatusCheckInterval);
+    };
+    setTimeout(statusCheckFun, rowStatusCheckInterval);
+    //table.data("rowStatusCheckIntervalId", setTimeout(statusCheckFun, rowStatusCheckInterval));
     rowfun(opts, rowNum, loadRows, [table, loadFunOpts]);
 }
 
@@ -242,8 +247,10 @@ function loadTable(table, columns)
         if(off != null) {
             $(node_id+'_cm')
                 .data("data", data)
-                .css("top", off.top)
-                .css("left", off.left + 15)
+                .css("top", off.top - dlgPos.top - 25)
+                .css("left", off.left - dlgPos.left + 15)        
+                //.css("top", off.top)
+                //.css("left", off.left + 15)
                 .show() 
 
             $("body").one("click", function () {
@@ -267,12 +274,15 @@ function loadTable(table, columns)
 function add_context_menu(node, options)
 {
     var cm_id = node.attr('id')+'_cm';
+//    if($(cm_id) != undefined)
+//        $(cm_id).remove();
     var menu = $('<ul id="'+cm_id+'">')
                     .attr("id", cm_id)
                     .addClass("context_menu")
                     .hide()
-                    .appendTo(document.body);
-    node.data("dlg").data("menu", menu);
+                    .appendTo(node.data("dlg"));
+//                    .appendTo(document.body);
+//    node.data("dlg").data("menu", menu);
 
     var evts = new Object();
     for(var id in options) {
@@ -295,10 +305,10 @@ function add_context_menu(node, options)
 
 function loadRows(table, ops, rowObj)
 {
-    if(rowStatusCheckIntervalId != null) {
-       clearInterval(rowStatusCheckIntervalId);
-       rowStatusCheckIntervalId = null;
-    }
+    //if(table.data("rowStatusCheckIntervalId") != null) {
+    //   clearInterval(table.data("rowStatusCheckIntervalId"));
+    //   table.data("rowStatusCheckIntervalId", null);
+    //}
 
     var d = table.data("grid").getData();
     var c = table.data("columns");
