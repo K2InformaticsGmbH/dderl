@@ -48,6 +48,7 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
         canMinimize:true,
         canMaximize:true,
         close: function() {
+            dlg.data("menu").remove();
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyfun != null || destroyfun != undefined)
@@ -98,9 +99,11 @@ function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
         .addClass("downloading");
 
     rowStatusCheckIntervalId = setInterval(function() {
-        countFun(function(count) {
-           table.data("finished").val(''+count);
-        });
+        if(jQuery.isFunction(countFun)) {
+            countFun(function(count) {
+               table.data("finished").val(''+count);
+            });
+        }
     }, rowStatusCheckInterval);
     rowfun(opts, rowNum, loadRows, [table, loadFunOpts]);
 }
@@ -239,9 +242,9 @@ function loadTable(table, columns)
         if(off != null) {
             $(node_id+'_cm')
                 .data("data", data)
-                .css("top", off.top - dlgPos.top - 25)
-                .css("left", off.left - dlgPos.left + 15)
-                .show();
+                .css("top", off.top)
+                .css("left", off.left + 15)
+                .show() 
 
             $("body").one("click", function () {
               $(node_id+'_cm').hide();
@@ -268,7 +271,8 @@ function add_context_menu(node, options)
                     .attr("id", cm_id)
                     .addClass("context_menu")
                     .hide()
-                    .appendTo(node);
+                    .appendTo(document.body);
+    node.data("dlg").data("menu", menu);
 
     var evts = new Object();
     for(var id in options) {
@@ -430,7 +434,7 @@ function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
 
 function renderSampleTable(tableName)
 {
-    //renderTable(tableName, samplecolumns, null, null, samplerows, null, {width:200,height:200,posX:10,posY:10});
-    renderTable(tableName, samplecolumns, null, null, samplerows, null);
+    //renderTable(tableName, samplecolumns, null, null, null, samplerows, null, {width:200,height:200,posX:10,posY:10});
+    renderTable(tableName, samplecolumns, null, null, null, samplerows, null);
 }
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////
