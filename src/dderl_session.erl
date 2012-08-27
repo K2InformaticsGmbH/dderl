@@ -245,8 +245,9 @@ process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = St
                     , type     = proplists:get_value("type", P, "")
                     , user     = proplists:get_value("user", P, "")
                     , password = proplists:get_value("password", P, "")
+                    , tns      = proplists:get_value("tnsstring", P, "")
                 } || {N, {struct, P}} <- ConsList],
-            logi(File, "Saving... ~p~n", [NewConsList]),
+            logi(File, "Saving...~p~n", [NewConsList]),
             case update_account(User, {cons, NewConsList}) of
                 abort ->  {reply, "{\"save\": \"unable to save config\"}", State};
                 ok ->
@@ -303,6 +304,7 @@ conns_json(Connections) ->
                 ++", \"type\":"++jsq(C#db_connection.type)
                 ++", \"user\":"++jsq(C#db_connection.user)
                 ++", \"password\":"++jsq(C#db_connection.password)
+                ++", \"tnsstring\":"++jsq(C#db_connection.tns)
                 ++"}"
                 ||C<-Connections], ",")++"}".
 
