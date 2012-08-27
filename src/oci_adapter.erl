@@ -9,9 +9,17 @@
 
 init() ->
     imem_if:insert_into_table(common, {?MODULE, [
-                #file{name="Users.sql",  content="SELECT DISTINCT OWNER      FROM ALL_TABLES ORDER BY OWNER",       posX=0, posY=20, width=200, height=500}
-              , #file{name="Tables.sql", content="SELECT DISTINCT TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME",  posX=0, posY=20, width=200, height=500}
-              , #file{name="Views.sql",  content="SELECT DISTINCT VIEW_NAME  FROM ALL_VIEWS  ORDER BY VIEW_NAME",   posX=0, posY=20, width=200, height=500}
+                #file{name="Users.sql",
+                      content="SELECT USERNAME FROM ALL_USERS",
+                      posX=0, posY=20, width=200, height=500}
+              , #file{name="Tables.sql",
+                      %content="SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME",
+                      content="SELECT OWNER, TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME",
+                      posX=0, posY=20, width=200, height=500}
+              , #file{name="Views.sql",
+                      %content="SELECT OWNER, VIEW_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME",
+                      content="SELECT DISTINCT OWNER, VIEW_NAME  FROM ALL_VIEWS ORDER BY VIEW_NAME",
+                      posX=0, posY=20, width=200, height=500}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
@@ -21,16 +29,22 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
     Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
     User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    dderl_session:log(SrvPid, "Params ~p~n", [{IpAddr, Port, Service, Type, User, Password}]),
+    Tnsstr   = binary_to_list(proplists:get_value(<<"tnsstring">>, BodyJson, <<>>)),
+    dderl_session:log(SrvPid, "Params ~p~n", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),
     {ok, Pool} =
-        if Service =/= "MOCK" ->
+        if length(Tnsstr) > 0 ->
+            oci_session_pool:start_link(Tnsstr, User, Password, []);
+        Service =/= "MOCK" ->
             oci_session_pool:start_link(IpAddr, Port, {list_to_atom(Type), Service}, User, Password, []);
         true ->
             oci_session_pool:start_link(IpAddr, Port,  {list_to_atom(Type), "db.local"},  User, Password, [{port_options, [{mock_port, oci_port_mock}]}])
     end,
     %%oci_session_pool:enable_log(Pool),
-    Session = oci_session_pool:get_session(Pool),
-    {{Session,Pool,[]}, "{\"connect\":\"ok\"}"};
+    case oci_session_pool:get_session(Pool) of
+        {error, Error} ->
+            {{undefined,Pool,[]}, "{\"connect\":false, \"msg\":\""++re:replace(Error, "(\\n)", "", [global, {return, list}])++"\"}"};
+        Session -> {{Session,Pool,[]}, "{\"connect\":true}"}
+    end;
 process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
     Query = "SELECT * FROM " ++ Table,
