@@ -73,6 +73,9 @@ $.widget( "ui.combobox", {
 			})
 			.addClass( "ui-widget ui-widget-content ui-corner-left" );
 
+            // This line added to set default value of the combobox
+            input.val(jQuery("#"+select.attr("id")+" :selected").text());
+
 		input.data( "autocomplete" )._renderItem = function( ul, item ) {
 			return $( "<li></li>" )
 				.data( "item.autocomplete", item )
