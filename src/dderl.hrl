@@ -13,6 +13,7 @@
                        , type
                        , user
                        , password
+                       , tns
                        }
        ).
 
