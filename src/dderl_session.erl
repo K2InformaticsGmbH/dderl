@@ -180,7 +180,7 @@ process_call({"save_file", ReqData}, _From, #state{key=Key,user=User,file=File} 
         {ok, Fs} -> Fs;
         {error, _} -> []
     end,
-    NewFiles = lists:keystore(FileName, 1, Files, {FileName, FileContent}),
+    NewFiles = lists:keystore(FileName, 2, Files, #file{name=FileName, content=FileContent, posX=0, posY=25, width=200, height=500}),
     case update_account(User, {files, NewFiles}) of
         ok ->
             logi(File, "[~p] files updated for user ~p~n", [Key, User]),
@@ -196,7 +196,7 @@ process_call({"del_file", ReqData}, _From, #state{key=Key,user=User,file=File} =
         {ok, Fs} -> Fs;
         {error, _} -> []
     end,
-    NewFiles = case lists:keytake(FileName, 1, Files) of
+    NewFiles = case lists:keytake(FileName, 2, Files) of
         {value, _, NFs} -> NFs;
         false -> Files
     end,
@@ -269,7 +269,7 @@ process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptM
     end,
     Self=self(),
     spawn(fun() ->
-            {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, self(), SessionHandle),
+            {NewSessionHandle, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, Self, SessionHandle),
             gen_server:cast(Self, {resp, {NewSessionHandle, Resp, Parent}})
     end),
     {reply, deferred, State#state{resps=lists:keystore(Parent, 1, Responces, {Parent, undefined})}}.
