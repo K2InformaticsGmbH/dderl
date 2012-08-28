@@ -11,15 +11,13 @@ init() ->
     imem_if:insert_into_table(common, {?MODULE, [
                 #file{name="Users.sql",
                       content="SELECT USERNAME FROM ALL_USERS",
-                      posX=0, posY=20, width=200, height=500}
+                      posX=0, posY=25, width=200, height=500}
               , #file{name="Tables.sql",
-                      %content="SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME",
-                      content="SELECT OWNER, TABLE_NAME FROM ALL_TABLES ORDER BY TABLE_NAME",
-                      posX=0, posY=20, width=200, height=500}
+                      content="SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME",
+                      posX=0, posY=25, width=200, height=500}
               , #file{name="Views.sql",
-                      %content="SELECT OWNER, VIEW_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME",
-                      content="SELECT DISTINCT OWNER, VIEW_NAME  FROM ALL_VIEWS ORDER BY VIEW_NAME",
-                      posX=0, posY=20, width=200, height=500}
+                      content="SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME",
+                      posX=0, posY=25, width=200, height=500}
             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
@@ -56,7 +54,6 @@ process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
     ParseTree = [],
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
-    
     case Session:execute_sql(Query, [], ?DEFAULT_ROW_SIZE, true) of
         {statement, Statement} ->
             {ok, Clms} = Statement:get_columns(),
@@ -107,7 +104,7 @@ process_cmd({"get_buffer_max", BodyJson}, SrvPid, {_,_,Statements} = MPort) ->
             {MPort, "-1"};
         {Statement, _, _} ->
             {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p~n", [SrvPid, StmtKey, CacheSize]),
+            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p Fînished ~p~n", [SrvPid, StmtKey, CacheSize, Finished]),
             {MPort, "{\"count\":"++integer_to_list(CacheSize)++", \"finished\":"++atom_to_list(Finished)++"}"}
     end;
 process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort);
@@ -115,6 +112,14 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
 
+prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid) ->
+    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
+    case Status of
+        more -> prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid);
+        _ ->
+            if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] next_rows end table ~p~n", [StmtKey, length(Rows)]); true -> ok end,
+            process_data(Rows, Status, CacheSize)
+    end;
 prepare_json_rows(C, RowNum, Statement, StmtKey, SrvPid) when RowNum >= 0, is_atom(C) ->
     {Rows, Status, CacheSize} = apply(Statement, rows_from, [RowNum]),
     if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]); true -> ok end,
