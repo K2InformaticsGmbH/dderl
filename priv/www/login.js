@@ -10,7 +10,7 @@ function display_login()
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
     }
-    $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">'
+    var dlg = $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">'
      +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
      +'      <tr><td align=right valign=center>User&nbsp;</td>'
      +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
@@ -18,8 +18,9 @@ function display_login()
      +'          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
      +'  </table>'
      +'</div>')
-    .appendTo(document.body)
-    .dialog({
+    .appendTo(document.body);
+
+    dlg.dialog({
         autoOpen: false,
         minHeight: 100,
         height: 'auto',
@@ -34,6 +35,7 @@ function display_login()
         }
     })
     .dialog("open");
+
     $("#password_login").keypress(function(e) {
         if(e.which == 13) {
             var loginJson = {login: { user      :   $('#user_login').val(),
@@ -61,7 +63,7 @@ function change_password()
         return;
     }
 
-    $('<div id="dialog-change-password" title="Change DDerl account password" style="diaply:none">' +
+    $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>User&nbsp;</td>' +
       '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +

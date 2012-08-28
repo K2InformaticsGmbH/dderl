@@ -132,18 +132,23 @@ function load_table(context)
             function(opsfetch, rowNum, renderFun, renderFunArgs)
             {
                 var Cmd = '/app/row';
-                if(rowNum == null) {
-                    switch(opsfetch) {
-                        case OpsFetchEnum.NEXT:
-                            Cmd += '_next';
-                            break;
-                        case OpsFetchEnum.PREVIOUS:
-                            Cmd += '_prev';
-                            break;
-                    }
+                switch(opsfetch) {
+                    case OpsFetchEnum.NEXT:
+                        Cmd += '_next';
+                        break;
+                    case OpsFetchEnum.PREVIOUS:
+                        Cmd += '_prev';
+                        break;
+                    case OpsFetchEnum.TOEND:
+                        Cmd += '_next';
+                        rowNum = -2;
+                        break;
+                    default:
+                        Cmd += '_next';
+                        break;
+                }
+                if(rowNum == null)
                     rowNum = -1;
-                } else
-                    Cmd += '_next';
                 ajax_post(Cmd, {row: {statement: statement, row_num: rowNum}}, null, null,
                 function(data) {
                     renderFunArgs[renderFunArgs.length] = data;

@@ -220,7 +220,7 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
                         buttons: {
                             "Ok": function() {
                                 var fileName = $('#saveas_'+dc).val();
-                                ajax_post("/app/save_file", {save: {file_name:FileName, file_content:qStr}}, null, null, null);
+                                ajax_post("/app/save_file", {save: {file_name:fileName, file_content:qStr}}, null, null, null);
                                 $(this).dialog('close');
                             }
                         }})
@@ -239,7 +239,7 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
                 if(tblDlg != null && tblDlg != undefined)
                     tblDlg.trigger('requery', qStr);
                 else {
-                    load_table(undefinedTable + undefinedTableIdx + ".sql", qStr);
+                    load_table({name: undefinedTable + undefinedTableIdx + ".sql", content : qStr});
                     ++undefinedTableIdx;
                 }
             }

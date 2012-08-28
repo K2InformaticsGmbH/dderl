@@ -47,9 +47,8 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
         position: position,
         canMinimize:true,
         canMaximize:true,
+        closeOnEscape: false,
         close: function() {
-//            if(dlg.data("menu") != undefined)
-//                dlg.data("menu").remove();
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyfun != null || destroyfun != undefined)
@@ -66,7 +65,7 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, tableName, table, countFun, rowfun);
+    addFooter(dlg, tabName, table, countFun, rowfun);
 
     loadTable(table, prepareColumns(columns));
     table.data("finished")
@@ -104,12 +103,10 @@ function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
                 table.data("finished").val(''+resp.count);
                 if(!resp.finished)
                     setTimeout(statusCheckFun, rowStatusCheckInterval);
-                //table.data("rowStatusCheckIntervalId", setTimeout(statusCheckFun), rowStatusCheckInterval);
             });
         }
     };
     setTimeout(statusCheckFun, rowStatusCheckInterval);
-    //table.data("rowStatusCheckIntervalId", setTimeout(statusCheckFun, rowStatusCheckInterval));
     rowfun(opts, rowNum, loadRows, [table, loadFunOpts]);
 }
 
@@ -119,11 +116,13 @@ function addFooter(dlg, tableName, table, countFun, rowfun)
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
         .click(function() { $(this).select(); });
     var dlgMinWidth = 
-    $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>').append($('<button>Reload</button>')
-            .button({icons: { primary: "ui-icon-arrowrefresh-1-e" }, text: false})                                      // Refresh
+    $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
+    .append($('<button>Reload</button>')                                                                                // Refresh
+            .button({icons: {primary: "ui-icon-arrowrefresh-1-e"}, text: false})
             .click(function()
             {
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.RELOAD, 1, OpsBufEnum.REPLACE);
+                dlg.dialog("close");
+                load_new_table(tableName);
                 return false;
             })
            )
@@ -196,7 +195,6 @@ function prepareColumns(headers) {
                             field: "id",
                          behavior: "select",
                          cssClass: "cell-selection",
-                         maxWidth: 35,
                          minWidth: 35,
                             width: 35,
               cannotTriggerInsert: true,
@@ -225,8 +223,7 @@ function loadTable(table, columns)
          asyncEditorLoading: false,
                    autoEdit: false,
                      zIndex: 1300,
-                  rowHeight: 15,
-            forceFitColumns: true };
+                  rowHeight: 15};
 
     var node_id = '#' + table.attr('id');
     var grid = new Slick.Grid(node_id, [], columns, options);
@@ -260,9 +257,7 @@ function loadTable(table, columns)
     });
 
     add_context_menu($(node_id), {
-        'Browse Data'       : {evt: function(data) {
-            load_new_table(data); } 
-        },
+        'Browse Data'       : {evt: function(data) { load_new_table(data); } },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
         'Hide Column'       : {evt: function() { alert('Hide Column'); } }
     });
@@ -305,11 +300,6 @@ function add_context_menu(node, options)
 
 function loadRows(table, ops, rowObj)
 {
-    //if(table.data("rowStatusCheckIntervalId") != null) {
-    //   clearInterval(table.data("rowStatusCheckIntervalId"));
-    //   table.data("rowStatusCheckIntervalId", null);
-    //}
-
     var d = table.data("grid").getData();
     var c = table.data("columns");
     var rows = rowObj.rows;
@@ -324,6 +314,7 @@ function loadRows(table, ops, rowObj)
 
     console.log('Data Buf ('+ dBMin + ', ' + dBMax + ')');
 
+    var updateStartIdx = -1;
     for (var i = 0; i < rows.length; i++) {
         var row = {};
         for(var j=1;j<c.length;++j)
@@ -333,6 +324,7 @@ function loadRows(table, ops, rowObj)
         for(k=0;k<d.length;++k)
             if(d[k].id == row.id) {
                 d[k] = row;
+                if(updateStartIdx < 0) updateStartIdx = k;
                 break;
             }
         if (dBMin <= vBMin && dBMax <= vBMax) { // prepend with head replace
@@ -341,6 +333,7 @@ function loadRows(table, ops, rowObj)
                     for(k=0;k<d.length;++k)
                         if(d[k].id == rows[i-1][c.length-1]) {
                             d.splice(k+1, 0, row);
+                            if(updateStartIdx < 0) updateStartIdx = k+1;
                             break;
                         }
                 } else
@@ -348,8 +341,10 @@ function loadRows(table, ops, rowObj)
             }
         }
         else if (dBMin >= vBMin && dBMax >= vBMax) { // tail replace then append
-            if(k >= d.length)
+            if(k >= d.length) {
+                if(updateStartIdx < 0) updateStartIdx = d.length;
                 d[d.length] = row;
+            }
         }
     }
 
@@ -357,11 +352,13 @@ function loadRows(table, ops, rowObj)
         if(ops == OpsBufEnum.APPEND)    d.splice(0, d.length - BUFFER_SIZE);
         else                            d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
     }
+    if(updateStartIdx < 0) updateStartIdx = 0;
+    else if(updateStartIdx > d.length - 1) updateStartIdx = d.length-1;
 
     table.data("grid").setData(d);
     table.data("grid").updateRowCount();
     table.data("grid").render();
-//    if(ops == OpsBufEnum.PREPEND && d[0].id > 1) table.data("grid").scrollRowIntoView(d.length-1);
+    table.data("grid").scrollRowIntoView(updateStartIdx);
     
     if(rowObj.done)
         table.data("finished")
