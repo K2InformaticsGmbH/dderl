@@ -1,6 +1,6 @@
 -module(dderl).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
--export([start/0, start_link/0, stop/0]).
+-export([start/0, start_link/0, stop/0, ensure_started/1]).
 
 ensure_started(App) ->
     case application:start(App) of
@@ -17,7 +17,6 @@ start_link() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
-    ensure_started(imem),
     application:set_env(webmachine, webmachine_logger_module, 
                         webmachine_logger),
     ensure_started(webmachine),
@@ -30,7 +29,6 @@ start() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
-    ensure_started(imem),
     application:set_env(webmachine, webmachine_logger_module, 
                         webmachine_logger),
     ensure_started(webmachine),

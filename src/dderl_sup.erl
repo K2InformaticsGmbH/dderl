@@ -79,20 +79,28 @@ init([]) ->
     end,
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
-    
+
+    Nodes = case application:get_env(dderlnodes) of
+        {ok, Ns} -> Ns;
+        _ -> []
+    end,
+    io:format(user, "building imem cluster with ~p~n", [Nodes]),
+    build_cluster(Nodes),
+    dderl:ensure_started(imem),
     init_tables([
               ?TBL_SPEC(accounts)
             , ?TBL_SPEC(common)
         ]),
-    %case imem_if:build_table(accounts, [record_info(fields, accounts)]) of
-    %    {atomic, ok} -> ok;
-    %    {aborted, R1} -> io:format(user, "mnesia:create_table aborted ~p~n", [R1])
-    %end,
-    %case imem_if:build_table(common, [record_info(fields, common)]) of
-    %    {atomic, ok} -> ok;
-    %    {aborted, R2} -> io:format(user, "mnesia:create_table aborted ~p~n", [R2])
-    %end,
     {ok, { {one_for_one, 10, 10}, Processes} }.
+
+build_cluster([]) ->
+    io:format(user, "imem cluster build up done~n", []);
+build_cluster([N|Nodes]) ->
+    case net_adm:ping(N) of
+        pong -> io:format(user, "found clustering node ~p~n", [N]);
+        pang -> io:format(user, "clustering node ~p not found~n", [N])
+    end,
+    build_cluster(Nodes).
 
 init_tables([]) -> ok;
 init_tables([{T,C}|Tables]) ->
