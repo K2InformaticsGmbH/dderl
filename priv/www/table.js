@@ -242,7 +242,7 @@ function loadTable(table, columns)
         var off = grid.getActiveCellPosition();
         var dlgPos = table.data("dlg").dialog('widget').position();
         if(off != null) {
-            $(node_id+'_cm')
+            $(node_id+'_rcm')
                 .data("data", data)
                 .css("top", off.top - dlgPos.top - 25)
                 .css("left", off.left - dlgPos.left + 15)        
@@ -251,33 +251,51 @@ function loadTable(table, columns)
                 .show() 
 
             $("body").one("click", function () {
-              $(node_id+'_cm').hide();
+              $(node_id+'_rcm').hide();
             });
         }
     });
+    grid.onHeaderContextMenu.subscribe(function(e, args){
+        e.preventDefault();
+        var dlgPos = table.data("dlg").dialog('widget').position();
+        $(node_id+'_hcm')
+            .data("data", args)
+            .css("top", 25)
+            .css("left", 15)
+            .show() 
 
-    add_context_menu($(node_id), {
+        $("body").one("click", function () {
+          $(node_id+'_hcm').hide();
+        });
+    });
+
+    add_context_menu($(node_id), '_rcm', {
         'Browse Data'       : {evt: function(data) { load_new_table(data); } },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
-        'Hide Column'       : {evt: function() { alert('Hide Column'); } }
+    });
+
+    add_context_menu($(node_id), '_hcm', {
+        'Browse Data'       : {evt: function() { alert('Quick condition'); } },
+        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
+        'Hide Column'       : {evt: function(data) {
+            var cols = data.grid.getColumns();
+            cols.splice(cols.indexOf(data.column),1);
+            data.grid.setColumns(cols);
+        }}
     });
 
     table.data("grid", grid)
          .data("columns", columns);
 }
 
-function add_context_menu(node, options)
+function add_context_menu(node, ext, options)
 {
-    var cm_id = node.attr('id')+'_cm';
-//    if($(cm_id) != undefined)
-//        $(cm_id).remove();
+    var cm_id = node.attr('id')+ext;
     var menu = $('<ul id="'+cm_id+'">')
                     .attr("id", cm_id)
                     .addClass("context_menu")
                     .hide()
                     .appendTo(node.data("dlg"));
-//                    .appendTo(document.body);
-//    node.data("dlg").data("menu", menu);
 
     var evts = new Object();
     for(var id in options) {
