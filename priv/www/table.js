@@ -33,10 +33,17 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
-    var title = $('<a href=#>'+tabName+'</a>').click(function() {
-        editFun(dlg);
-    });
-    
+    var title = $('<a href=#>'+tabName+'</a>');
+    //'<ul class="dropdown" style="background:#AFAFAF;z-index:99999;">'
+    //+'	<li><a href=#>'+tabName+'</a>'
+    //+'		<ul class="sub_menu">'
+    //+'			 <li><a id="connect-button" href="#" onclick="display_db_login()">Edit Query</a></li>'
+    //+'			 <li><a id="files-list-button" href="#" onclick="show_qry_files()">Save</a></li>'
+    //+'			 <li><a id="test-button" href="#" onclick="edit_sql(null, null)">Save As</a></li>'
+    //+'		</ul>'
+    //+'	</li>'
+    //+'</ul>';
+  
     dlg.dialog({
         autoOpen: false,
         height: height,
@@ -49,6 +56,10 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
         canMaximize:true,
         closeOnEscape: false,
         close: function() {
+            $('#'+tableName+'_grid_row_context').remove();
+            $('#'+tableName+'_grid_header_context').remove();
+            $('#'+tableName+'_grid_title_context').remove();
+
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyfun != null || destroyfun != undefined)
@@ -59,6 +70,31 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
              .width(dlg.width()-2)
              .data("grid").resizeCanvas();
     }).dialog("open");
+
+//    title.hover(
+//    function(e) {
+//        e.preventDefault();
+//        $('#'+tableName+'_grid_title_context')
+//            .css("top", dlg.dialog("widget").position().top + $(e.target).position().top + $(e.target).height())
+//            .css("left", dlg.dialog("widget").position().left + $(e.target).position().left)
+//            .show();
+//        //editFun(dlg);
+//    },
+//    function(e) {
+//     //   $('#'+tableName+'_grid_title_context').hide();
+//    });
+    //title.click(function(e) {
+    //    e.preventDefault();
+    //    $('#'+tableName+'_grid_row_context').hide();
+    //    $('#'+tableName+'_grid_header_context').hide();
+    //    $('#'+tableName+'_grid_title_context')
+    //        .css("top", dlg.dialog("widget").position().top + $(e.target).position().top + $(e.target).height())
+    //        .css("left", dlg.dialog("widget").position().left + $(e.target).position().left)
+    //        .show();
+    //    //editFun(dlg);
+    //});
+
+//    title.css('z-index', dlg.css('z-index')+1);
 
     if(initfun != null || initfun != undefined)
         initfun(dlg);
@@ -206,7 +242,7 @@ function prepareColumns(headers) {
                                  name: headers[i],
                                 field: headers[i].toLowerCase(),
                                editor: Slick.Editors.Text,
-                             minWidth: 10 * headers[i].length,
+                             minWidth: 20,
                                 width: 10 * headers[i].length,
                             resizable: true,
                              sortable: false,
@@ -228,7 +264,21 @@ function loadTable(table, columns)
     var node_id = '#' + table.attr('id');
     var grid = new Slick.Grid(node_id, [], columns, options);
     grid.setSelectionModel(new Slick.CellRowColSelectionModel());
+
+    // Context Menus
+    var row_cm_id = table.attr('id') + '_row_context';
+    var header_cm_id = table.attr('id') + '_header_context';
+    var title_cm_id = table.attr('id') + '_title_context';
+
+    add_context_menu(row_cm_id, {
+        'Browse Data'       : {evt: function(data) { load_new_table(data); } },
+        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
+    });
     grid.onContextMenu.subscribe(function(e, args){
+        e.preventDefault();
+        $('#'+header_cm_id).hide();
+        $('#'+row_cm_id).hide();
+        //$('#'+title_cm_id).hide();
         var cell = grid.getCellFromEvent(e);
         var row = cell.row;
         var column = grid.getColumns()[cell.cell];
@@ -238,43 +288,18 @@ function loadTable(table, columns)
         R.toRow = R.fromRow = cell.row;
         grid.getSelectionModel().setSelectedRanges([R]);
         grid.setActiveCell(row, cell.cell)
-        e.preventDefault();
         var off = grid.getActiveCellPosition();
         var dlgPos = table.data("dlg").dialog('widget').position();
         if(off != null) {
-            $(node_id+'_rcm')
+            $('#'+row_cm_id)
                 .data("data", data)
-                .css("top", off.top - dlgPos.top - 25)
-                .css("left", off.left - dlgPos.left + 15)        
-                //.css("top", off.top)
-                //.css("left", off.left + 15)
-                .show() 
-
-            $("body").one("click", function () {
-              $(node_id+'_rcm').hide();
-            });
+                .css("top", off.top)
+                .css("left", off.left + 15)
+                .show(); 
         }
     });
-    grid.onHeaderContextMenu.subscribe(function(e, args){
-        e.preventDefault();
-        var dlgPos = table.data("dlg").dialog('widget').position();
-        $(node_id+'_hcm')
-            .data("data", args)
-            .css("top", 25)
-            .css("left", 15)
-            .show() 
 
-        $("body").one("click", function () {
-          $(node_id+'_hcm').hide();
-        });
-    });
-
-    add_context_menu($(node_id), '_rcm', {
-        'Browse Data'       : {evt: function(data) { load_new_table(data); } },
-        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
-    });
-
-    add_context_menu($(node_id), '_hcm', {
+    add_context_menu(header_cm_id, {
         'Browse Data'       : {evt: function() { alert('Quick condition'); } },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
         'Hide Column'       : {evt: function(data) {
@@ -283,19 +308,47 @@ function loadTable(table, columns)
             data.grid.setColumns(cols);
         }}
     });
+    grid.onHeaderContextMenu.subscribe(function(e, args){
+        e.preventDefault();
+        $('#'+header_cm_id).hide();
+        $('#'+row_cm_id).hide();
+        //$('#'+title_cm_id).hide();
+        var dlgPos = table.data("dlg").dialog('widget').position();
+        $('#'+header_cm_id)
+            .data("data", args)
+            .css("top", e.clientY - 10)
+            .css("left", e.clientX)
+            .show();
+    });
+
+    add_context_menu(title_cm_id, {
+        'Edit Query'        : {evt: function() { alert('Edit Query'); } },
+        'Save'              : {evt: function() { alert('Save'); } },
+        'Save As'           : {evt: function() { alert('Save As'); } }
+    });
+
+    $(document.body).click(function () {
+        $('#'+header_cm_id).hide();
+        $('#'+row_cm_id).hide();
+        //$('#'+title_cm_id).hide();
+    });
+    grid.onClick.subscribe(function(e, args){
+        $('#'+header_cm_id).hide();
+        $('#'+row_cm_id).hide();
+        //$('#'+title_cm_id).hide();
+    });
 
     table.data("grid", grid)
          .data("columns", columns);
 }
 
-function add_context_menu(node, ext, options)
+function add_context_menu(cm_id, options)
 {
-    var cm_id = node.attr('id')+ext;
     var menu = $('<ul id="'+cm_id+'">')
                     .attr("id", cm_id)
                     .addClass("context_menu")
                     .hide()
-                    .appendTo(node.data("dlg"));
+                    .appendTo(document.body);
 
     var evts = new Object();
     for(var id in options) {
@@ -308,7 +361,6 @@ function add_context_menu(node, ext, options)
             .appendTo(menu);
     }
 
-    node.data("evts", evts);
     $('#'+cm_id).click(function (e) {
         var action = $(e.target).attr("action");
         var data = $(this).data("data");
@@ -371,7 +423,7 @@ function loadRows(table, ops, rowObj)
         else                            d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
     }
     if(updateStartIdx < 0) updateStartIdx = 0;
-    else if(updateStartIdx > d.length - 1) updateStartIdx = d.length-1;
+    else if(updateStartIdx > rows.length - 1) updateStartIdx = rows[rows.length - 1][c.length-1];
 
     table.data("grid").setData(d);
     table.data("grid").updateRowCount();

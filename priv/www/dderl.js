@@ -170,7 +170,7 @@ $(window).resize(function() {
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 
 var pageTitlePrefix = null;
-$(document).ready(function() {    
+$(document).ready(function() {
     if(Object.hasOwnProperty('freeze')) {
         $('#main-content-tabs')
         .tabs()

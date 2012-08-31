@@ -101,8 +101,7 @@ function change_password()
                 $(this).dialog("close");
             }
         }
-    });
-    $('#dialog-change-password').dialog("open");
+    }).dialog("open");
 }
 
 function get_db_types_html()
@@ -191,7 +190,7 @@ function display_db_login()
                 var name = $('#config_list option:checked').val();
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
                     if(data.connect) {
-                        document.title = name + " DDerl 1.0";
+                        document.title = name;
                         var nm = name.replace(/\s/, '_');
                         if($('#main-content-tabs #page_'+nm).length < 1) {
                             $('#main-content-tabs')
@@ -209,6 +208,7 @@ function display_db_login()
                             .tabs('add', '#page_'+nm+tabIdx, name);
                         }
                         $('#main-content-tabs').data('curtab', $('#main-content-tabs').tabs('select', 0));
+                        show_qry_files();
                     }
                     else {
                         alert(data.msg);
@@ -245,9 +245,6 @@ function display_db_login()
                 ajax_post('/app/save', logins, null, null, function(data) {
                     alert(data.result);
                 });
-            },
-            Cancel: function() {
-                $(this).dialog("close");
             }
         }
     })
