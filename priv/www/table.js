@@ -18,7 +18,14 @@ if(Object.hasOwnProperty('freeze')) {
     Object.freeze(OpsFetchEnum);
 }
 
-function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, editFun, ctx) {
+function renderTable(ctx) {
+    var tabName = ctx.name;
+    var columns = ctx.columns;
+    var initfun = ctx.initfun;
+    var destroyfun = ctx.destroyfun;
+    var countFun = ctx.countFun;
+    var rowfun = ctx.rowfun;
+
     var tableName = tabName.replace(/[\.]/, '_');
 
     var width=500, height=500, position='center';
@@ -34,15 +41,6 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
     var title = $('<a href=#>'+tabName+'</a>');
-    //'<ul class="dropdown" style="background:#AFAFAF;z-index:99999;">'
-    //+'	<li><a href=#>'+tabName+'</a>'
-    //+'		<ul class="sub_menu">'
-    //+'			 <li><a id="connect-button" href="#" onclick="display_db_login()">Edit Query</a></li>'
-    //+'			 <li><a id="files-list-button" href="#" onclick="show_qry_files()">Save</a></li>'
-    //+'			 <li><a id="test-button" href="#" onclick="edit_sql(null, null)">Save As</a></li>'
-    //+'		</ul>'
-    //+'	</li>'
-    //+'</ul>';
   
     dlg.dialog({
         autoOpen: false,
@@ -55,6 +53,12 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
         canMinimize:true,
         canMaximize:true,
         closeOnEscape: false,
+        focus: function(e,ui) {
+            ctx.tblDlg = dlg;
+            $('#tbl-opts').data('data', ctx);
+            $('#tbl-opts').text(tabName + ' Options');
+            $('#tbl-opts').show();
+        },
         close: function() {
             $('#'+tableName+'_grid_row_context').remove();
             $('#'+tableName+'_grid_header_context').remove();
@@ -70,31 +74,6 @@ function renderTable(tabName, columns, initfun, destroyfun, countFun, rowfun, ed
              .width(dlg.width()-2)
              .data("grid").resizeCanvas();
     }).dialog("open");
-
-//    title.hover(
-//    function(e) {
-//        e.preventDefault();
-//        $('#'+tableName+'_grid_title_context')
-//            .css("top", dlg.dialog("widget").position().top + $(e.target).position().top + $(e.target).height())
-//            .css("left", dlg.dialog("widget").position().left + $(e.target).position().left)
-//            .show();
-//        //editFun(dlg);
-//    },
-//    function(e) {
-//     //   $('#'+tableName+'_grid_title_context').hide();
-//    });
-    //title.click(function(e) {
-    //    e.preventDefault();
-    //    $('#'+tableName+'_grid_row_context').hide();
-    //    $('#'+tableName+'_grid_header_context').hide();
-    //    $('#'+tableName+'_grid_title_context')
-    //        .css("top", dlg.dialog("widget").position().top + $(e.target).position().top + $(e.target).height())
-    //        .css("left", dlg.dialog("widget").position().left + $(e.target).position().left)
-    //        .show();
-    //    //editFun(dlg);
-    //});
-
-//    title.css('z-index', dlg.css('z-index')+1);
 
     if(initfun != null || initfun != undefined)
         initfun(dlg);
@@ -511,7 +490,19 @@ function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
 
 function renderSampleTable(tableName)
 {
-    //renderTable(tableName, samplecolumns, null, null, null, samplerows, null, {width:200,height:200,posX:10,posY:10});
-    renderTable(tableName, samplecolumns, null, null, null, samplerows, null);
+    var ctx = 
+    {
+        name        : tableName,
+        columns     : samplecolumns,
+        initfun     : null,
+        destroyfun  : null,
+        countFun    : null,
+        rowfun      : samplerows,
+//        width       : 200,
+//        height      : 200,
+//        posX        : 10,
+//        posY        : 10
+    };
+    renderTable(ctx);
 }
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////

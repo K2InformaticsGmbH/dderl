@@ -110,57 +110,68 @@ function load_new_table(tableName)
 function load_table(context)
 {
     var query = context.content;
-    var tableName = context.name;   
+    var tableName = context.name;
     ajax_post('/app/query', {query: {qstr: query}}, null, null, function(table) {
         var statement = table.statement;
-        renderTable(tableName, table.headers,
-            function(tblDlg) {
-                tblDlg.bind('requery', function(e, sqlObj) {
-                    ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
-                    tblDlg.dialog('destroy');
-                    tblDlg.remove();
-                    context.content = sqlObj;
-                    load_table(context);
-                });
-            },
-            function() {
-                ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
-            },
-            function(countUpdateFun) {
-                ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: statement}}, null, null, countUpdateFun);
-            },
-            function(opsfetch, rowNum, renderFun, renderFunArgs)
-            {
-                var Cmd = '/app/row';
-                switch(opsfetch) {
-                    case OpsFetchEnum.NEXT:
-                        Cmd += '_next';
-                        break;
-                    case OpsFetchEnum.PREVIOUS:
-                        Cmd += '_prev';
-                        break;
-                    case OpsFetchEnum.TOEND:
-                        Cmd += '_next';
-                        rowNum = -2;
-                        break;
-                    default:
-                        Cmd += '_next';
-                        break;
-                }
-                if(rowNum == null)
-                    rowNum = -1;
-                ajax_post(Cmd, {row: {statement: statement, row_num: rowNum}}, null, null,
-                function(data) {
-                    renderFunArgs[renderFunArgs.length] = data;
-                    renderFun.apply(this, renderFunArgs);
-                });
-            },
-            function(tblDlg) {
+
+        context.columns = table.headers;
+        context.initfun = function(tblDlg) {
+            tblDlg.bind('requery', function(e, sqlObj) {
+                ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
+                          null, null, null);
+                tblDlg.dialog('destroy');
+                tblDlg.remove();
+                context.content = sqlObj;
+                load_table(context);
+            });
+        };        
+        context.destroyfun = function() {
+            ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
+        };
+       
+        context.countFun = function(countUpdateFun) {
+            ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: statement}},
+                      null, null, countUpdateFun);
+        };
+
+        context.rowfun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
+            var Cmd = '/app/row';
+            switch(opsfetch) {
+                case OpsFetchEnum.NEXT:
+                    Cmd += '_next';
+                    break;
+                case OpsFetchEnum.PREVIOUS:
+                    Cmd += '_prev';
+                    break;
+                case OpsFetchEnum.TOEND:
+                    Cmd += '_next';
+                    rowNum = -2;
+                    break;
+                default:
+                    Cmd += '_next';
+                    break;
+            }
+            if(rowNum == null)
+                rowNum = -1;
+            ajax_post(Cmd, {row: {statement: statement, row_num: rowNum}}, null, null,
+            function(data) {
+                renderFunArgs[renderFunArgs.length] = data;
+                renderFun.apply(this, renderFunArgs);
+            });
+        };
+
+        context.editFun = function(tblDlg) {
                 edit_sql(tblDlg, query);
-            },
-            context
-        );
+        };
+
+        renderTable(context);
     });
+}
+
+function edit_table()
+{
+    context = $('#tbl-opts').data('data');
+    edit_sql(context.tblDlg, context.content);
 }
 
 $(window).resize(function() {

@@ -1,4 +1,4 @@
-#main-menu-bar						{ position:absolute; top:0px; left:0px; font: 14px Helvetica, Sans-Serif; width:100%; background:#ccc; } 
+#main-menu-bar						{ position:absolute; top:0px; left:0px; font: 10px Verdana, Sans-Serif; width:100%; background:#ccc; } 
 #main-menu-bar	a					{ text-decoration: none; }
 #main-menu-bar	ul					{ list-style: none; margin: 0; padding: 0;}
 #main-menu-bar	p                   { margin: 0px 0; }

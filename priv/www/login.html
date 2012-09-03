@@ -30,13 +30,21 @@
         <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
         	<li><a href="#">File</a>
         		<ul class="sub_menu">
-        			 <li><a id="connect-button" href="#" onclick='display_db_login()'>Connect</a></li>
         			 <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Query Files</a></li>
-        			 <li><a id="test-button" href="#" onclick='edit_sql(null, null)'>SQL</a></li>
         			 <li><a id="change-pswd-button" href="#" onclick='change_password()'>Change Password</a></li>
         			 <li><a id="show-logs-button" href="#" onclick='show_logs()'>Logs</a></li>
         		</ul>
         	</li>
+        	<li><a id="connect-button" href="#" onclick='display_db_login()'>New Connection</a></li>
+        	<li><a id="test-button" href="#" onclick='edit_sql(null, null)'>New Query</a></li>
+            <li><a id="tbl-opts" href="#" style="display:none">Options</a>
+        		<ul class="sub_menu">
+        			 <li><a id="table-edit-query" href="#" onclick='edit_table()'>Edit Query</a></li>
+        			 <li><a id="table-save" href="#">Save</a></li>
+        			 <li><a id="table-save-as" href="#">Save As</a></li>
+        			 <li><a id="table-export" href="#">Export Rows</a></li>
+        		</ul>
+            </li>
         </ul>
         <div style="float:right;">
             <a id="login-button" href="#" onclick='display_login()'></a>
