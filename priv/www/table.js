@@ -21,10 +21,10 @@ if(Object.hasOwnProperty('freeze')) {
 function renderTable(ctx) {
     var tabName = ctx.name;
     var columns = ctx.columns;
-    var initfun = ctx.initfun;
-    var destroyfun = ctx.destroyfun;
+    var initFun = ctx.initFun;
+    var destroyFun = ctx.destroyFun;
     var countFun = ctx.countFun;
-    var rowfun = ctx.rowfun;
+    var rowFun = ctx.rowFun;
 
     var tableName = tabName.replace(/[\.]/, '_');
 
@@ -36,11 +36,17 @@ function renderTable(ctx) {
             position = [ctx.posX, ctx.posY];
     }
 
+    // Initial cleanup -- can't open two instances of the same table
+    $('#'+tableName+'_grid_row_context').remove();
+    $('#'+tableName+'_grid_header_context').remove();
+    $('#'+tableName+'_grid_title_context').remove();
+    $('#'+tableName+'_dlg').remove();
+
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
                 .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
                 .appendTo(dlg));
-    var title = $('<a href=#>'+tabName+'</a>');
+    var title = $('<span>'+tabName+'</span>');
   
     dlg.dialog({
         autoOpen: false,
@@ -53,6 +59,12 @@ function renderTable(ctx) {
         canMinimize:true,
         canMaximize:true,
         closeOnEscape: false,
+        open: function(e,ui) {
+            var tbls = 0;
+            if($('#tbl-opts').data('tbls') != undefined)
+                tbls = $('#tbl-opts').data('tbls');
+            $('#tbl-opts').data('tbls', ++tbls);
+        },
         focus: function(e,ui) {
             ctx.tblDlg = dlg;
             $('#tbl-opts').data('data', ctx);
@@ -66,8 +78,15 @@ function renderTable(ctx) {
 
             dlg.dialog('destroy');
             dlg.remove();
-            if(destroyfun != null || destroyfun != undefined)
-                destroyfun();
+            if(destroyFun != null || destroyFun != undefined)
+                destroyFun();
+            var tbls = 0;
+            if($('#tbl-opts').data('tbls') != undefined)
+                tbls = $('#tbl-opts').data('tbls');
+            --tbls;
+            if(tbls <= 0)
+                $('#tbl-opts').hide();
+            $('#tbl-opts').data('tbls', (tbls < 0 ? 0 : tbls));
         }
     }).bind("dialogresize", function(event, ui) {
         table.height(dlg.height()-27)
@@ -75,64 +94,52 @@ function renderTable(ctx) {
              .data("grid").resizeCanvas();
     }).dialog("open");
 
-    if(initfun != null || initfun != undefined)
-        initfun(dlg);
+    if(initFun != null || initFun != undefined)
+        initFun(dlg);
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, tabName, table, countFun, rowfun);
+    addFooter(dlg, tabName, table, countFun, rowFun);
 
     loadTable(table, prepareColumns(columns));
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
-    rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
+    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.APPEND);
 
     table.data("grid").onScroll.subscribe(function(e, args) {
-        var gcP = args.grid.getCanvasNode().parentNode;
-        //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
-        if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
-            console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
-            rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
+        if(table.data("shouldScroll")) {
+            var gcP = args.grid.getCanvasNode().parentNode;
+            //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
+            if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
+                console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
+                var d = table.data("grid").getData();
+                var rownum = table.data("grid").getViewport().bottom;
+                rownum = (d.length > rownum ? parseInt(d[rownum].id) + 1 : parseInt(d[d.length - 1].id) + 1);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+            }
+            else if (gcP.scrollTop == 0) {
+                console.log('top_event '+ gcP.scrollTop);
+                var d = table.data("grid").getData();
+                var rownum = table.data("grid").getViewport().top;
+                rownum = (d.length > rownum ? parseInt(d[rownum].id) - 1 : parseInt(d[d.length - 1].id) - 1);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.PREVIOUS, (rownum < 1 ? 1 : rownum), OpsBufEnum.PREPEND);
+            }
         }
-        else if (gcP.scrollTop == 0) {
-            console.log('top_event '+ gcP.scrollTop);
-            rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.PREVIOUS, null, OpsBufEnum.PREPEND);
-        }
+        else
+            table.data("shouldScroll", true);
     });
 }
 
-var rowStatusCheckInterval = 500;
-
-function rowFunWrapper(countFun, rowfun, table, opts, rowNum, loadFunOpts)
-{
-    table.data("finished")
-        .removeClass("download_incomplete")
-        .removeClass("download_complete")
-        .addClass("downloading");
-
-    function statusCheckFun() {
-        if(jQuery.isFunction(countFun)) {
-            countFun(function(resp) {
-                table.data("finished").val(''+resp.count);
-                if(!resp.finished)
-                    setTimeout(statusCheckFun, rowStatusCheckInterval);
-            });
-        }
-    };
-    setTimeout(statusCheckFun, rowStatusCheckInterval);
-    rowfun(opts, rowNum, loadRows, [table, loadFunOpts]);
-}
-
-function addFooter(dlg, tableName, table, countFun, rowfun)
+function addFooter(dlg, tableName, table, countFun, rowFun)
 {
     var parent_node = dlg.parent();
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
         .click(function() { $(this).select(); });
     var dlgMinWidth = 
     $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
-    .append($('<button>Reload</button>')                                                                                // Refresh
+    .append($('<button>Reload</button>')  // Refresh
             .button({icons: {primary: "ui-icon-arrowrefresh-1-e"}, text: false})
             .click(function()
             {
@@ -141,21 +148,22 @@ function addFooter(dlg, tableName, table, countFun, rowfun)
                 return false;
             })
            )
-    .append($('<button>Move to first</button>')                                                                         // |<
+    .append($('<button>Move to first</button>')  // |<
             .button({icons: { primary: "ui-icon-seek-first" }, text: false})
             .click(function()
             {
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<button>Jump to previous page</button>')                                                                 // <<
+    .append($('<button>Jump to previous page</button>')   // <<
             .button({icons: { primary: "ui-icon-seek-prev" }, text: false})
             .click(function()
             {
                 var d = table.data("grid").getData();
-                var rownum = (d.length > 0 ? Math.floor(parseInt(d[0].id) / 2) : null);
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
+                var rownum = table.data("grid").getViewport().top;
+                rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -163,36 +171,40 @@ function addFooter(dlg, tableName, table, countFun, rowfun)
             .keypress(function(evt)
             {
                 if(evt.which == 13) {
-                    var row = parseInt($(this).val());
-                    if(row != NaN)
-                        rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, row, OpsBufEnum.REPLACE);
+                    var rownum = parseInt($(this).val());
+                    if(rownum != NaN)
+                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
                 }
                 return true;
             })
            )
-    .append($('<button>Next page</button>')                                                                             // >
+    .append($('<button>Next page</button>') // >
             .button({icons: { primary: "ui-icon-play" }, text: false})
             .click(function()
             {
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, null, OpsBufEnum.APPEND);
+                var d = table.data("grid").getData();
+                var rownum = table.data("grid").getViewport().top;
+                rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                 return false;
             })
            )
-    .append($('<button>Jump to next page</button>')                                                                     // >>
+    .append($('<button>Jump to next page</button>') // >>
             .button({icons: {primary: "ui-icon-seek-next" }, text: false})
             .click(function()
             {
                 var d = table.data("grid").getData();
-                var rownum = (d.length > 0 ? 2 * parseInt(d[0].id) : null);
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
+                var rownum = table.data("grid").getViewport().top;
+                rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.REPLACE);
                 return false;
             })
            )
-    .append($('<button>Move to end</button>')                                                                           // >|
+    .append($('<button>Move to end</button>') // >|
             .button({icons: {primary: "ui-icon-seek-end" }, text: false})
             .click(function()
             {
-                rowFunWrapper(countFun, rowfun, table, OpsFetchEnum.TOEND, null, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.TOEND, null, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -247,7 +259,6 @@ function loadTable(table, columns)
     // Context Menus
     var row_cm_id = table.attr('id') + '_row_context';
     var header_cm_id = table.attr('id') + '_header_context';
-    var title_cm_id = table.attr('id') + '_title_context';
 
     add_context_menu(row_cm_id, {
         'Browse Data'       : {evt: function(data) { load_new_table(data); } },
@@ -257,7 +268,6 @@ function loadTable(table, columns)
         e.preventDefault();
         $('#'+header_cm_id).hide();
         $('#'+row_cm_id).hide();
-        //$('#'+title_cm_id).hide();
         var cell = grid.getCellFromEvent(e);
         var row = cell.row;
         var column = grid.getColumns()[cell.cell];
@@ -291,7 +301,6 @@ function loadTable(table, columns)
         e.preventDefault();
         $('#'+header_cm_id).hide();
         $('#'+row_cm_id).hide();
-        //$('#'+title_cm_id).hide();
         var dlgPos = table.data("dlg").dialog('widget').position();
         $('#'+header_cm_id)
             .data("data", args)
@@ -300,21 +309,13 @@ function loadTable(table, columns)
             .show();
     });
 
-    add_context_menu(title_cm_id, {
-        'Edit Query'        : {evt: function() { alert('Edit Query'); } },
-        'Save'              : {evt: function() { alert('Save'); } },
-        'Save As'           : {evt: function() { alert('Save As'); } }
-    });
-
     $(document.body).click(function () {
         $('#'+header_cm_id).hide();
         $('#'+row_cm_id).hide();
-        //$('#'+title_cm_id).hide();
     });
     grid.onClick.subscribe(function(e, args){
         $('#'+header_cm_id).hide();
         $('#'+row_cm_id).hide();
-        //$('#'+title_cm_id).hide();
     });
 
     table.data("grid", grid)
@@ -347,7 +348,28 @@ function add_context_menu(cm_id, options)
       });
 }
 
-function loadRows(table, ops, rowObj)
+var rowStatusCheckInterval = 500;
+function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
+{
+    table.data("finished")
+        .removeClass("download_incomplete")
+        .removeClass("download_complete")
+        .addClass("downloading");
+
+    function statusCheckFun() {
+        if(jQuery.isFunction(countFun)) {
+            countFun(function(resp) {
+                table.data("finished").val(''+resp.count);
+                if(!resp.finished)
+                    setTimeout(statusCheckFun, rowStatusCheckInterval);
+            });
+        }
+    };
+    setTimeout(statusCheckFun, rowStatusCheckInterval);
+    rowFun(opts, rowNum, loadRows, [table, rowNum, loadFunOpts]);
+}
+
+function loadRows(table, rowNum, ops, rowObj)
 {
     var d = table.data("grid").getData();
     var c = table.data("columns");
@@ -363,7 +385,6 @@ function loadRows(table, ops, rowObj)
 
     console.log('Data Buf ('+ dBMin + ', ' + dBMax + ')');
 
-    var updateStartIdx = -1;
     for (var i = 0; i < rows.length; i++) {
         var row = {};
         for(var j=1;j<c.length;++j)
@@ -373,7 +394,6 @@ function loadRows(table, ops, rowObj)
         for(k=0;k<d.length;++k)
             if(d[k].id == row.id) {
                 d[k] = row;
-                if(updateStartIdx < 0) updateStartIdx = k;
                 break;
             }
         if (dBMin <= vBMin && dBMax <= vBMax) { // prepend with head replace
@@ -382,7 +402,6 @@ function loadRows(table, ops, rowObj)
                     for(k=0;k<d.length;++k)
                         if(d[k].id == rows[i-1][c.length-1]) {
                             d.splice(k+1, 0, row);
-                            if(updateStartIdx < 0) updateStartIdx = k+1;
                             break;
                         }
                 } else
@@ -391,7 +410,6 @@ function loadRows(table, ops, rowObj)
         }
         else if (dBMin >= vBMin && dBMax >= vBMax) { // tail replace then append
             if(k >= d.length) {
-                if(updateStartIdx < 0) updateStartIdx = d.length;
                 d[d.length] = row;
             }
         }
@@ -401,13 +419,16 @@ function loadRows(table, ops, rowObj)
         if(ops == OpsBufEnum.APPEND)    d.splice(0, d.length - BUFFER_SIZE);
         else                            d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
     }
-    if(updateStartIdx < 0) updateStartIdx = 0;
-    else if(updateStartIdx > rows.length - 1) updateStartIdx = rows[rows.length - 1][c.length-1];
 
     table.data("grid").setData(d);
     table.data("grid").updateRowCount();
     table.data("grid").render();
-    table.data("grid").scrollRowIntoView(updateStartIdx);
+    var scrollIdx = 0;
+    for(k=0;k<d.length;++k)
+        if(parseInt(d[k].id) == rowNum) { scrollIdx = k; break; }
+    if(scrollIdx == 0 && k >= d.length) scrollIdx = d.length - 1;
+    table.data("shouldScroll", false);
+    table.data("grid").scrollRowIntoView(scrollIdx);
     
     if(rowObj.done)
         table.data("finished")
@@ -488,16 +509,22 @@ function samplerows(opsfetch, rowNum, renderFun, renderFunArgs)
     }, Math.floor((Math.random()*100)+1000));
 }
 
+var row_cnt=0;
 function renderSampleTable(tableName)
 {
     var ctx = 
     {
         name        : tableName,
         columns     : samplecolumns,
-        initfun     : null,
-        destroyfun  : null,
-        countFun    : null,
-        rowfun      : samplerows,
+        initFun     : null,
+        destroyFun  : null,
+        countFun    : function(countUpdateFun) {
+            ++row_cnt;
+            setTimeout(
+              countUpdateFun({count:row_cnt,finished:(row_cnt >= endRow ? true: false)})
+            , Math.floor(Math.random()*10+1));
+        },
+        rowFun      : samplerows,
 //        width       : 200,
 //        height      : 200,
 //        posX        : 10,

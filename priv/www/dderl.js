@@ -115,7 +115,7 @@ function load_table(context)
         var statement = table.statement;
 
         context.columns = table.headers;
-        context.initfun = function(tblDlg) {
+        context.initFun = function(tblDlg) {
             tblDlg.bind('requery', function(e, sqlObj) {
                 ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
                           null, null, null);
@@ -125,7 +125,7 @@ function load_table(context)
                 load_table(context);
             });
         };        
-        context.destroyfun = function() {
+        context.destroyFun = function() {
             ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
         };
        
@@ -134,7 +134,7 @@ function load_table(context)
                       null, null, countUpdateFun);
         };
 
-        context.rowfun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
+        context.rowFun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
             var Cmd = '/app/row';
             switch(opsfetch) {
                 case OpsFetchEnum.NEXT:
@@ -159,11 +159,6 @@ function load_table(context)
                 renderFun.apply(this, renderFunArgs);
             });
         };
-
-        context.editFun = function(tblDlg) {
-                edit_sql(tblDlg, query);
-        };
-
         renderTable(context);
     });
 }
@@ -172,6 +167,42 @@ function edit_table()
 {
     context = $('#tbl-opts').data('data');
     edit_sql(context.tblDlg, context.content);
+}
+
+function save_table()
+{
+    context = $('#tbl-opts').data('data');
+    qStr = context.content.replace(/(\r\n|\n|\r)/gm," ");
+    undefinedTableIdx = 0;
+    ajax_post("/app/save_file", {save: {file_name:context.name, file_content:qStr}}, null, null, null);
+}
+
+function save_as_table()
+{
+    context = $('#tbl-opts').data('data');
+    qStr = context.content.replace(/(\r\n|\n|\r)/gm," ");
+    undefinedTableIdx = 0;
+    $('<div><input type="text" value="'+context.name+'"/></div>')
+    .appendTo(document.body)
+    .dialog({
+        autoOpen: false,
+        height: 105,
+        width: 'auto',
+        modal: true,
+        resizable: false,
+        title: "Save SQL as",
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        },
+        buttons: {
+            "Save": function() {
+                var fileName = $(this).children('input').val();
+                ajax_post("/app/save_file", {save: {file_name:fileName, file_content:qStr}}, null, null, null);
+                $(this).dialog('close');
+            }
+        }
+    }).dialog("open");
 }
 
 $(window).resize(function() {

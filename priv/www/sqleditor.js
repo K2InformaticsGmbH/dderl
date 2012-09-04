@@ -22,8 +22,8 @@ function prep_tree(tree)
 
 var def_height = 20;
 var tab_len    = 10;
-function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
-    var id_siffix = tree.name+'_'+dc+'_'+'_'+depth;
+function build_boxes_r(root_node, tree, last_parent_node, depth) {
+    var id_siffix = tree.name+'_'+depth;
 
     var bgcol = (255 - 10 * depth);
     //var col = (30 * depth);
@@ -59,7 +59,7 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
             }
             if(tree.children.length == 0)
                 parent_tree.collapsed = !parent_tree.collapsed;
-            build_boxes(root_node, dc, root_node.data('treeroot'));
+            build_boxes(root_node, root_node.data('treeroot'));
         })
         .addClass('inner_div')
         .addClass('context-menu-one')
@@ -78,7 +78,7 @@ function build_boxes_r(root_node, dc, tree, last_parent_node, depth) {
             if(!child_hide)
                 child_hide = true;
         } else
-            build_boxes_r(root_node, dc, tree.children[i], node, depth + 1);
+            build_boxes_r(root_node, tree.children[i], node, depth + 1);
     }
 
     if(child_hide) node.height(editbx.height());
@@ -100,27 +100,27 @@ function get_tree_height(tree)
     return height;
 }
 
-function build_boxes(div, dc, tree)
+function build_boxes(div, tree)
 {
     div.text('');
     div.data('treeroot', tree);
-    build_boxes_r(div, dc, tree, div, 0);
+    build_boxes_r(div, tree, div, 0);
 }
 
-function parse_and_update(root_node, qry, dc) {
+function parse_and_update(root_node, qry) {
     ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
         if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
-            build_boxes(root_node, dc, pTree);
+            build_boxes(root_node, pTree);
         }
     });
 }
 
 function edit_sql(tblDlg, qry) {
     if(qry == null || qry.length == 0) {
-        sql_editor(tblDlg, 0, null, null, "");
+        sql_editor(tblDlg, null, null, "");
         return;
     }
 
@@ -129,59 +129,40 @@ function edit_sql(tblDlg, qry) {
             alert(pTree.error);
         } else {
             prep_tree(pTree);
-            sql_editor(tblDlg, 0, pTree, null, qry);
+            sql_editor(tblDlg, pTree, null, qry);
         }
     });
 }
 
 var undefinedTable = "Query";
 var undefinedTableIdx = 0;
-function sql_editor(tblDlg, dc, tree, pos, qry) {
+function sql_editor(tblDlg, tree, pos, qry) {
     var share        = 80; // percent
     var boxHeight    = 500;
     var boxWidth     = 500;
     var visHeight    = Math.round(boxHeight * share / 100);
     var sqlTxtHeight = boxHeight - visHeight;
-    $('<div id="pick_conds'+dc+'" style="width:100%">'+
-            '<div id="cond_viz'+dc+'" >'+
-            '<div id="sql_tree'+dc+'"></div>'+
-            '</div>'+
-            '<textarea id="pick_conds_str'+dc+'">'+qry+'</textarea>'+
-      '</div>'
-    ).appendTo(document.body);
-
-    $('#cond_viz'+dc)
-        .width(boxWidth)
-        .height(visHeight)
-        //.css('background-color', 'rgb(255,255,0)')
-        .addClass("ui-widget-content")
-        .css("overflow", "auto");
-
-    $('#pick_conds_str'+dc)
-        .width(boxWidth - 4)
-        .height(sqlTxtHeight);
-
-    $('#pick_conds'+dc).bind("dialogresize", function (event, ui) {
-        var dh = $('#pick_conds'+dc).height() - 10;
-        var dw = $('#pick_conds'+dc).width() - 8;
-        var seh = Math.round(dh * share / 100);
-        var sth = dh - seh;
-        $('#cond_viz'+dc).width(dw)
-                         .height(seh);
-        $('#pick_conds_str'+dc).width(dw - 4)
-                               .height(sth);
-    });
-    
-    if(tree != null)
-        build_boxes($('#sql_tree'+dc), dc, tree);
 
     var titleStr = "Sql Visualizer";
     if(tblDlg != null && tblDlg != undefined)
         titleStr = tblDlg.dialog("option", "title").text();
 
     var X = 115, Y = 115;
-    if(pos != null) {X = pos.docX; Y = pos.docY; }
-    $('#pick_conds'+dc).dialog({
+    if(pos != null) {X = pos.docX; Y = pos.docY;}
+
+    $('<div style="width:100%"></div>')
+    .appendTo(document.body)
+    .bind("dialogresize", function (event, ui) {
+        var dh = $(this).height() - 10;
+        var dw = $(this).width() - 8;
+        var seh = Math.round(dh * share / 100);
+        var sth = dh - seh;
+        $(this).children('div').width(dw)
+                               .height(seh);
+        $(this).children('textarea').width(dw - 4)
+                                    .height(sth);
+    })
+    .dialog({
         autoOpen: false,
         height: 'auto',
         width: 'auto',
@@ -190,52 +171,21 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
         resizable: true,
         title: titleStr,
         close: function() {
-            $('#pick_conds'+dc).dialog('destroy');
-            $('#pick_conds'+dc).remove();
+            $(this).dialog('destroy');
+            $(this).remove();
+        },
+        open: function(event, ui) {
+            if(tree != null)
+                build_boxes($(this).children('div'), tree);
         },
         buttons: {
-            "Save": function() {
-                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                undefinedTableIdx = 0;
-                ajax_post("/app/save_file", {save: {file_name:titleStr, file_content:qStr}}, null, null, null);
-                $(this).dialog('close');
-            },
-            "Save As": function() {
-                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                undefinedTableIdx = 0;
-                $('<div><input id="saveas_'+dc+'" type="text" value="'+undefinedTable + undefinedTableIdx + '.sql"/>'
-                    +'</div>')
-                    .appendTo(document.body)
-                    .dialog({
-                        autoOpen: false,
-                        height: 105,
-                        width: 'auto',
-                        modal: true,
-                        resizable: false,
-                        title: "Save SQL as",
-                        close: function() {
-                            $(this).dialog('destroy');
-                            $(this).remove();
-                        },
-                        buttons: {
-                            "Ok": function() {
-                                var fileName = $('#saveas_'+dc).val();
-                                ajax_post("/app/save_file", {save: {file_name:fileName, file_content:qStr}}, null, null, null);
-                                $(this).dialog('close');
-                            }
-                        }})
-                    .dialog("open");
-            },
             "Re-Draw": function() {
-                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                parse_and_update($('#sql_tree'+dc), qStr, dc);
-            },
-            "Cancel": function() {
-                $('#pick_conds'+dc).dialog('close');
+                qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
+                parse_and_update($(this).children('div'), qStr);
             },
             "Ok": function() {
-                qStr = $('#pick_conds_str'+dc).val().replace(/(\r\n|\n|\r)/gm," ");
-                $('#pick_conds'+dc).dialog('close');
+                qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
+                $(this).dialog('close');
                 if(tblDlg != null && tblDlg != undefined)
                     tblDlg.trigger('requery', qStr);
                 else {
@@ -244,6 +194,15 @@ function sql_editor(tblDlg, dc, tree, pos, qry) {
                 }
             }
         }
-    });
-    $('#pick_conds'+dc).dialog("open");
+    })
+    .append($('<div></div>') // For holding the box
+            .width(boxWidth)
+            .height(visHeight)
+            //.css('background-color', 'rgb(255,255,0)')
+            .addClass("ui-widget-content")
+            .css("overflow", "auto"))
+    .append($('<textarea>'+qry+'</textarea>')
+            .width(boxWidth - 4)
+            .height(sqlTxtHeight))
+    .dialog("open");
 }
