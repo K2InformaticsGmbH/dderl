@@ -10,6 +10,7 @@ function get_text(tree, txt)
 function prep_tree(tree)
 {
     tree['summary'] = get_text(tree, '');
+    tree['issummary'] = true;
     if(!tree.hasOwnProperty('height')) tree['height'] = 0;
     if(tree.name.length > 0)
         tree.height = def_height;
@@ -48,8 +49,30 @@ function build_boxes_r(root_node, tree, last_parent_node, depth) {
         .hide()
         .text(tree.summary);
 
+    var txtarea = $('<textarea></textarea>')
+        .appendTo(node)
+        .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
+        .addClass('edit_div')
+        .css("font-family","courier")
+        .css("font-size","10pt")
+        .hide()
+        .text(tree.summary);
+
     node.dblclick(function(evt) {
-            event.stopPropagation();
+            evt.stopPropagation();
+            var parent_tree = last_parent_node.data("tree");
+            tree.collapsed = !tree.collapsed;
+            if(tree.name == "(" || tree.name == ")") {
+                parent_tree.collapsed = tree.collapsed;
+                for (var i =0; i < tree.children.length; ++i)
+                    tree.children[i].collapsed = tree.collapsed
+            }
+            if(tree.children.length == 0)
+                parent_tree.collapsed = !parent_tree.collapsed;
+            build_boxes(root_node, root_node.data('treeroot'));
+        })
+        .click(function(evt) {
+            evt.stopPropagation();
             var parent_tree = last_parent_node.data("tree");
             tree.collapsed = !tree.collapsed;
             if(tree.name == "(" || tree.name == ")") {
@@ -66,7 +89,6 @@ function build_boxes_r(root_node, tree, last_parent_node, depth) {
         .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
         //.css('color', 'rgb('+col+','+col+','+col+')')
         .data("tree", tree)
-        .data("edit", editbx)
         .css('top', 0)
         .css('left', (depth > 0 ? tab_len : 0));
 
@@ -84,7 +106,8 @@ function build_boxes_r(root_node, tree, last_parent_node, depth) {
     if(child_hide) node.height(editbx.height());
     else           node.height(tree.height);
 
-    if(tree.collapsed) {
+    if(tree.collapsed && tree.issummary) {
+        //txtarea.show();
         editbx.show();
         content.hide();
     }

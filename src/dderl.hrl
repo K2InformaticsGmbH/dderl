@@ -31,7 +31,7 @@
                   }
        ).
 
--define(DEFAULT_ROW_SIZE, 150).
+-define(DEFAULT_ROW_SIZE, 100).
 
 %% rr("src/dderl.hrl").
 %% F = fun(User) ->
