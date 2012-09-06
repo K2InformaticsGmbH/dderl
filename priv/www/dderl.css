@@ -1,0 +1,146 @@
+body { font-size: 62.5%; }
+input.text { width:95%; padding: .4em; }
+fieldset { padding:0; border:0; margin-top:25px; }
+h1 { font-size: 1.2em; margin: .6em 0; }
+select { padding: .3em; }
+div#users-contain { width: 350px; margin: 20px 0; }
+div#users-contain table { margin: 1em 0; border-collapse: collapse; width: 100%; }
+div#users-contain table td, div#users-contain table th { border: 1px solid #eee; padding: .6em 10px; text-align: left; }
+.ui-dialog .ui-state-error { padding: .3em; }
+.validateTips { border: 1px solid transparent; padding: 0.3em; }
+.cell-title { font-weight: bold; }
+.cell-effort-driven { text-align: center; }
+button.menubutton
+{
+    font-size:13px;
+    font-family:Verdana,sans-serif;
+    color:#FFFFFF;
+    height:20px;
+    background-color:#00005F;
+    position: absolute;
+    top: 5px;
+    border: none;
+}
+
+.loading-indicator {
+  display: inline-block;
+  padding: 12px;
+  background: white;
+  -opacity: 0.5;
+  color: black;
+  font-weight: bold;
+  z-index: 9999;
+  border: 1px solid red;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+  -moz-box-shadow: 0 0 5px red;
+  -webkit-box-shadow: 0px 0px 5px red;
+  -text-shadow: 1px 1px 1px white;
+}
+
+.loading-indicator label {
+  padding-left: 20px;
+  background: url('../static/images/ajax-loader-small.gif') no-repeat center left;
+}
+
+.cell-selection {
+  /*border-right-color: silver;
+  border-right-style: solid;*/
+  background: #ECECEC;
+  color: #8A8A8A;
+  text-align: right;
+  font-size: 10px;
+}
+
+.slick-row.selected .cell-selection {
+  background-color: transparent; /* show default selected row background */
+}
+
+.sql_edit_flds {
+    border:1px;
+    border-color:#AFAFAF;
+    border-style:solid;
+    height:85%;
+    overflow:auto;
+    background:#EFEFEF;
+}
+
+.downloading {
+    color:#000000;
+    background-color:#AFAFFF;
+}
+.download_error {
+    color:#000000;
+    background-color:#FF7F7F;
+}
+.download_incomplete {
+    color:#000000;
+    background-color:#FFFF7F;
+}
+.download_complete {
+    color:#000000;
+    background-color:#AFFFAF;
+}
+
+.slick-cell.selected {
+  background-color: black;
+  color: white;
+}
+/* .ui-button { margin-left: -1px; } */
+.ui-button-icon-only .ui-button-text { padding: 0.35em; } 
+.ui-autocomplete-input { margin: 0; padding: 0.48em 0 0.47em 0.45em; }
+#sql-div {
+    background-color: rgb(0,255,255);
+    position:absolute;
+    top:0px;
+    right:0px;
+    width:49.9%;
+    height:900px;
+    overflow:auto;
+}
+
+.edit_div {
+    height:14px;
+    width:100%;
+}
+
+.inner_div {
+    min-height:20px;
+    position:relative;
+    width:900px;
+    height:20px;
+    overflow:hidden;
+    font-family:courier;
+    font-size:10pt;
+    vertical-align: top;
+}
+
+.context_menu {
+  font-size:10px;
+  font-family:Verdana,sans-serif;
+  background: #E0E0E0;
+  border: 1px solid gray;
+  padding: 0px;
+  display: inline-block;
+  min-width: 100px;
+  -moz-box-shadow: 2px 2px 2px silver;
+  -webkit-box-shadow: 2px 2px 2px silver;
+  z-index: 99999;
+  position:absolute;
+}
+
+.context_menu li {
+  padding: 4px 4px 4px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.context_menu li:hover {
+  background-color: white;
+}
+
+.no-close .ui-dialog-titlebar-close {display: none }
+
+.ui-icon-txt-align-wrap { background-position: -100px -224px; }
+.ui-icon-txt-align-free { background-position: -116px -224px; }
+.ui-icon-sql-box { background-position: -138px -222px; }
