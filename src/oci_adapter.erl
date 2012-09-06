@@ -112,14 +112,14 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
 
-prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid) ->
-    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
-    case Status of
-        more -> prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid);
-        _ ->
-            if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] next_rows end table ~p~n", [StmtKey, length(Rows)]); true -> ok end,
-            process_data(Rows, Status, CacheSize)
-    end;
+%prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid) ->
+%    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
+%    case Status of
+%        more -> prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid);
+%        _ ->
+%            if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] next_rows end table ~p~n", [StmtKey, length(Rows)]); true -> ok end,
+%            process_data(Rows, Status, CacheSize)
+%    end;
 prepare_json_rows(C, RowNum, Statement, StmtKey, SrvPid) when RowNum >= 0, is_atom(C) ->
     {Rows, Status, CacheSize} = apply(Statement, rows_from, [RowNum]),
     if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]); true -> ok end,

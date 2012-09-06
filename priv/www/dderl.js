@@ -145,7 +145,7 @@ function load_table(context)
                     break;
                 case OpsFetchEnum.TOEND:
                     Cmd += '_next';
-                    rowNum = -2;
+                    rowNum = 10000000; // 10 mil for end of table for most table
                     break;
                 default:
                     Cmd += '_next';
