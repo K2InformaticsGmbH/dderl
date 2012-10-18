@@ -2,11 +2,16 @@
 
 -include("dderl.hrl").
 
+-export([ create_table/1
+        , delete_table/1
+        ]).
+
 -export([ create/2
-        , read/1
+        , get/2
+        , read/2
         , update/2
         , delete/2
-         , exists/1
+        , exists/1
         , add_role/3
         , remove_role/3
         , grant_permission/3
@@ -19,13 +24,43 @@
 
 
 
-create(_RequestorCredentials,_Role) -> ok.
+create_table(_RequestorCredentials) ->
+    imem_if:build_table(ddRole, record_info(fields, ddRole)).
 
-read(_RoleId) -> ok.
+delete_table(_RequestorCredentials) -> 
+    imem_if:delete_table(ddRole).
+
+
+create(_RequestorCredentials, #ddRole{id=RoleId}=Role) -> 
+    case imem_if:read(ddRole, RoleId) of
+        [] ->   imem_if:write(ddRole, Role);
+        [_] -> {error, {"Role already exists",RoleId}}
+    end;
+create(_RequestorCredentials, RoleId) -> 
+    case imem_if:read(ddRole, RoleId) of
+        [] ->   imem_if:write(ddRole, #ddRole{id=RoleId});
+        [_] -> {error, {"Role already exists",RoleId}}
+    end.
+
+read(_RequestorCredentials, RoleId) -> 
+    imem_if:read(ddRole, RoleId).
+
+get(_RequestorCredentials, RoleId) -> 
+    case imem_if:read(ddRole, RoleId) of
+        [] -> {error, {"Role does not exist", RoleId} };
+        [Role] -> Role
+    end.
 
 update(_RequestorCredentials,_Role) -> ok.
 
-delete(_RequestorCredentials,_RoleId) -> ok.
+delete(RequestorCredentials, #ddRole{id=RoleId}=Role) ->
+    case imem_if:read(ddRole, RoleId) of
+        [] -> {error, {"Role does not exist", RoleId}};
+        [Role] -> delete(RequestorCredentials, RoleId);
+        [_] -> {error, {"Role is modified by someone else", RoleId}}
+    end;
+delete(_RequestorCredentials, RoleId) -> 
+    imem_if:delete(ddRole, RoleId).
 
 exists(_RoleId) -> ok.
 

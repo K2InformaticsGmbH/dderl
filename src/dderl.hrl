@@ -17,7 +17,8 @@
                   }
        ).
 
--define(ddAccountCols,[tab,id,name,type,credentials,fullName,lastLoginTime,lastFailureTime,lastPasswordChangeTime,isLocked] ).
+%% -define(ddAccountCols,[tab,id,name,type,credentials,fullName,lastLoginTime,lastFailureTime,lastPasswordChangeTime,isLocked] ).
+
 -record(ddAccount,                          %% DDerl account  (as opposed to database accounts)
                   { id                      ::ddEntityId() 
                   , name                    ::binary()          %% unique login id (mutable)
