@@ -91,7 +91,7 @@ exists(#ddAccount{id=AccountId}=Account) ->         %% exists unchanged
 exists(AccountId) ->                                %% exists, maybe in changed form
     case imem_if:read(ddAccount, AccountId) of
         [] -> false;
-        [_Account|_] -> true
+        [_] -> true
     end.
 
 authenticate(_Credentials) -> ok.
@@ -198,11 +198,44 @@ test(_) ->
     ?assertEqual(Account1, dderl_account:get(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_get_unchanged]), 
 
-
     io:format(user, "----TEST--~p:test_manage_account_roles~n", [?MODULE]),
 
-
-
+    ?assertEqual(true, dderl_role:has_role(no_credentials, AccountId, AccountId)),
+    io:format(user, "success ~p~n", [role_has_own_role]), 
+    ?assertEqual(false, dderl_role:has_role(no_credentials, AccountId, some_unknown_role)),
+    io:format(user, "success ~p~n", [role_has_some_unknown_role]), 
+    ?assertEqual({error, {"Role does not exist", some_unknown_role}}, dderl_role:grant_role(no_credentials, AccountId, some_unknown_role)),
+    io:format(user, "success ~p~n", [role_grant_reject]), 
+    ?assertEqual({error, {"Role does not exist", some_unknown_role}}, dderl_role:grant_role(no_credentials, some_unknown_role, AccountId)),
+    io:format(user, "success ~p~n", [role_grant_reject]), 
+    ?assertEqual(ok, dderl_role:create(no_credentials, admin)),
+    io:format(user, "success ~p~n", [role_create_empty_role]), 
+    ?assertEqual({error, {"Role already exists",admin}}, dderl_role:create(no_credentials, admin)),
+    io:format(user, "success ~p~n", [role_create_existing_role]), 
+    ?assertEqual(false, dderl_role:has_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_has_not_admin_role]), 
+    ?assertEqual(ok, dderl_role:grant_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_grant_admin_role]), 
+    ?assertEqual(true, dderl_role:has_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_has_admin_role]), 
+    ?assertEqual(ok, dderl_role:grant_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_re_grant_admin_role]), 
+    ?assertEqual(#ddRole{id=AccountId,roles=[admin]}, dderl_role:get(no_credentials, AccountId)),
+    io:format(user, "success ~p~n", [role_get]), 
+    ?assertEqual(ok, dderl_role:revoke_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_revoke_admin_role]), 
+    ?assertEqual(#ddRole{id=AccountId,roles=[]}, dderl_role:get(no_credentials, AccountId)),
+    io:format(user, "success ~p~n", [role_get]),
+    ?assertEqual(ok, dderl_role:grant_role(no_credentials, AccountId, admin)),
+    io:format(user, "success ~p~n", [role_grant_admin_role]),      
+    ?assertEqual(ok, dderl_role:create(no_credentials, #ddRole{id=test_role,roles=[],permissions=[perform_tests]})),
+    io:format(user, "success ~p~n", [role_create_test_role]), 
+    ?assertEqual(false, dderl_role:has_role(no_credentials, AccountId, test_role)),
+    io:format(user, "success ~p~n", [role_has_test_role]), 
+    ?assertEqual(ok, dderl_role:grant_role(no_credentials, admin, test_role)),
+    io:format(user, "success ~p~n", [role_grant_test_role]), 
+    ?assertEqual(true, dderl_role:has_role(no_credentials, AccountId, test_role)),
+    io:format(user, "success ~p~n", [role_has_test_role]), 
 
 
     ?assertEqual({atomic,ok}, dderl_role:delete_table(no_credentials)),
