@@ -17,8 +17,6 @@
                   }
        ).
 
-%% -define(ddAccountCols,[tab,id,name,type,credentials,fullName,lastLoginTime,lastFailureTime,lastPasswordChangeTime,isLocked] ).
-
 -record(ddAccount,                          %% DDerl account  (as opposed to database accounts)
                   { id                      ::ddEntityId() 
                   , name                    ::binary()          %% unique login id (mutable)
@@ -72,6 +70,14 @@
                   }
        ).
 
+-record(ddSession,                          %% user representation of a db command including rendering parameters
+                  { id                      ::integer()
+                  , pointer                 ::{atom(),pid()}    %% for parameterized access to session process
+                  , connectTime             ::ddTimestamp()     %% first http request time
+                  , loginTime               ::ddTimestamp()     
+                  , accountId               ::ddEntityId()      
+                  }
+       ).
 
 
 -record(accounts, { user
