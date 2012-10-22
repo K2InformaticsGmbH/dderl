@@ -10,11 +10,10 @@
 
 -export([ create/2
         , get/2
-        , read/2
-        , write/2
+        , get_by_name/2
         , update/3
         , delete/2
-        , exists/1
+        , exists/2
         , authenticate/1
         , authorize/2
         , authorize_all/2
@@ -23,51 +22,88 @@
         , unlock/2
         ]).
 
-create_table(_RequestorCredentials) ->
+
+%% --Interface functions  (calling imem_if for now) ----------------------------------
+
+if_create_table(_RequestorCredentials) ->
     imem_if:build_table(ddAccount, record_info(fields, ddAccount)).
 
-delete_table(_RequestorCredentials) -> 
+if_delete_table(_RequestorCredentials) -> 
     imem_if:delete_table(ddAccount).
 
-create(RequestorCredentials, #ddAccount{id=AccountId}=Account) -> 
-    case imem_if:read(ddAccount, AccountId) of
-        [] ->   ok = imem_if:write(ddAccount, Account),
-                case dderl_role:create(RequestorCredentials,AccountId) of
-                    ok  ->      ok;
-                    Error ->    %% simple transaction rollback
-                                delete(RequestorCredentials, Account),
-                                Error
-                end;    
-        [_] ->  {error, {"Account already exists",AccountId}}
-    end.
+if_write(_RequestorCredentials, #ddAccount{}=Account) -> 
+    imem_if:write(ddAccount, Account).
 
-write(_RequestorCredentials, #ddAccount{}=Account) -> 
-        imem_if:write(ddAccount, Account).
-
-read(_RequestorCredentials, AccountId) -> 
+if_read(_RequestorCredentials, AccountId) -> 
     imem_if:read(ddAccount, AccountId).
 
-get(_RequestorCredentials, AccountId) -> 
-    case imem_if:read(ddAccount, AccountId) of
-        [] -> {error, {"Account does not exist", AccountId} };
+if_select(_RequestorCredentials, MatchSpec) ->
+    imem_if:select_rows(ddAccount, MatchSpec). 
+
+if_delete(_RequestorCredentials, AccountId) ->
+    imem_if:delete(ddAccount, AccountId).
+
+%% --Implementation ------------------------------------------------------------------
+
+create_table(RequestorCredentials) ->
+    if_create_table(RequestorCredentials).
+
+delete_table(RequestorCredentials) -> 
+    if_delete_table(RequestorCredentials).
+
+% create(RequestorCredentials, #ddAccount{id=AccountId, name=Name}) when is_atom(Name)->
+%     create(RequestorCredentials, #ddAccount{id=AccountId, name=atom_to_list(Name)});
+% create(RequestorCredentials, #ddAccount{id=AccountId, name=Name}) when is_list(Name)->
+%     create(RequestorCredentials, #ddAccount{id=AccountId, name=list_to_binary(Name)});
+create(RequestorCredentials, #ddAccount{id=AccountId, name=Name}=Account) when is_binary(Name) -> 
+    case get(RequestorCredentials, AccountId) of
+        {error, {"Account does not exist", AccountId}} ->   
+            case get_by_name(RequestorCredentials, Name) of
+                {error, {"Account does not exist", Name}} ->   
+                    ok = if_write(RequestorCredentials, Account),
+                    case dderl_role:create(RequestorCredentials,AccountId) of
+                        ok  ->      ok;
+                        Error ->    %% simple transaction rollback
+                                    delete(RequestorCredentials, Account),
+                                    Error
+                    end;
+                #ddAccount{} ->     {error, {"Account name already exists for",Name}};
+                Error ->            Error
+            end;
+        #ddAccount{} ->  
+            {error, {"Account already exists",AccountId}}
+    end.
+
+get(RequestorCredentials, AccountId) -> 
+    case if_read(RequestorCredentials, AccountId) of
+        [] -> {error, {"Account does not exist", AccountId}};
         [Account] -> Account
     end.
 
-update(_RequestorCredentials, #ddAccount{id=AccountId}=Account, AccountNew) -> 
-    case imem_if:read(ddAccount, AccountId) of
+get_by_name(RequestorCredentials, Name) -> 
+    MatchHead = #ddAccount{name='$1', _='_'},
+    Guard = {'==', '$1', Name},
+    Result = '$_',
+    case if_select(RequestorCredentials, [{MatchHead, [Guard], [Result]}]) of
+        [] ->           {error, {"Account does not exist", Name}};
+        [Account] ->    Account
+    end.
+
+update(RequestorCredentials, #ddAccount{id=AccountId}=Account, AccountNew) -> 
+    case if_read(RequestorCredentials, AccountId) of
         [] -> {error, {"Account does not exist", AccountId}};
-        [Account] -> imem_if:insert_into_table(ddAccount, AccountNew);
+        [Account] -> if_write(RequestorCredentials, AccountNew);
         [_] -> {error, {"Account is modified by someone else", AccountId}}
     end.
 
 delete(RequestorCredentials, #ddAccount{id=AccountId}=Account) ->
-    case imem_if:read(ddAccount, AccountId) of
+    case if_read(RequestorCredentials, AccountId) of
         [] -> {error, {"Account does not exist", AccountId}};
         [Account] -> delete(RequestorCredentials, AccountId);
         [_] -> {error, {"Account is modified by someone else", AccountId}}
     end;
 delete(RequestorCredentials, AccountId) -> 
-    imem_if:delete(ddAccount, AccountId),
+    if_delete(RequestorCredentials, AccountId),
     dderl_role:delete(RequestorCredentials, AccountId).
 
 lock(RequestorCredentials, #ddAccount{}=Account) -> 
@@ -82,14 +118,14 @@ unlock(RequestorCredentials, AccountId) ->
     Account = get(RequestorCredentials, AccountId),
     update(RequestorCredentials, Account, Account#ddAccount{isLocked=false,lastFailureTime=undefined}).
 
-exists(#ddAccount{id=AccountId}=Account) ->         %% exists unchanged
-    case imem_if:read(ddAccount, AccountId) of
+exists(RequestorCredentials, #ddAccount{id=AccountId}=Account) ->   %% exists unchanged
+    case if_read(RequestorCredentials, AccountId) of
         [] -> false;
         [Account] -> true;
         [_] -> false
     end;
-exists(AccountId) ->                                %% exists, maybe in changed form
-    case imem_if:read(ddAccount, AccountId) of
+exists(RequestorCredentials, AccountId) ->                          %% exists, maybe in changed form
+    case if_read(RequestorCredentials, AccountId) of
         [] -> false;
         [_] -> true
     end.
@@ -152,6 +188,8 @@ test(_) ->
 
     AccountId = make_ref(),
     Account = #ddAccount{id=AccountId,name= <<"test">>,credentials=no_credentials,fullName= <<"FullName">>},
+    AccountId0 = make_ref(),
+    Account0 = #ddAccount{id=AccountId0,name= <<"test">>,credentials=no_credentials,fullName= <<"AnotherName">>},
     Account1 = Account#ddAccount{credentials=new_credentials,fullName= <<"NewFullName">>,isLocked='true'},
     Account2 = Account#ddAccount{credentials=new_credentials,fullName= <<"OldFullName">>},
 
@@ -159,6 +197,8 @@ test(_) ->
     io:format(user, "success ~p~n", [account_create]),
     ?assertEqual({error, {"Account already exists",AccountId}}, dderl_account:create(no_credentials, Account)),
     io:format(user, "success ~p~n", [account_create_already_exists]), 
+    ?assertEqual({error, {"Account name already exists for",<<"test">>}}, dderl_account:create(no_credentials, Account0)),
+    io:format(user, "success ~p~n", [account_create_name_already_exists]), 
     ?assertEqual(Account, dderl_account:get(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_get]), 
     ?assertEqual(#ddRole{id=AccountId}, dderl_role:get(no_credentials, AccountId)),
@@ -169,7 +209,7 @@ test(_) ->
     io:format(user, "success ~p~n", [account_delete_even_no_exists]), 
     ?assertEqual({error, {"Account does not exist", AccountId}}, dderl_account:delete(no_credentials, Account)),
     io:format(user, "success ~p~n", [account_delete_no_exists]), 
-    ?assertEqual(false, dderl_account:exists(AccountId)),
+    ?assertEqual(false, dderl_account:exists(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_no_exists]), 
     ?assertEqual({error, {"Account does not exist", AccountId}}, dderl_account:get(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_get_no_exists]), 
@@ -183,7 +223,7 @@ test(_) ->
     io:format(user, "success ~p~n", [account_delete_with_check]), 
     ?assertEqual(ok, dderl_account:create(no_credentials, Account)),
     io:format(user, "success ~p~n", [account_create]), 
-    ?assertEqual(true, dderl_account:exists(AccountId)),
+    ?assertEqual(true, dderl_account:exists(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_exists]), 
     ?assertEqual(Account, dderl_account:get(no_credentials, AccountId)),
     io:format(user, "success ~p~n", [account_get]), 
@@ -230,18 +270,52 @@ test(_) ->
     io:format(user, "success ~p~n", [role_grant_admin_role]),      
     ?assertEqual(ok, dderl_role:create(no_credentials, #ddRole{id=test_role,roles=[],permissions=[perform_tests]})),
     io:format(user, "success ~p~n", [role_create_test_role]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, test_role, perform_tests)),
+    io:format(user, "success ~p~n", [role_has_test_permission]), 
+    ?assertEqual(false, dderl_role:has_permission(no_credentials, test_role, stupid_permission)),
+    io:format(user, "success ~p~n", [role_has_stupid_permission]), 
     ?assertEqual(false, dderl_role:has_role(no_credentials, AccountId, test_role)),
     io:format(user, "success ~p~n", [role_has_test_role]), 
+    ?assertEqual(false, dderl_role:has_permission(no_credentials, AccountId, perform_tests)),
+    io:format(user, "success ~p~n", [role_has_test_permission]), 
     ?assertEqual(ok, dderl_role:grant_role(no_credentials, admin, test_role)),
     io:format(user, "success ~p~n", [role_grant_test_role]), 
     ?assertEqual(true, dderl_role:has_role(no_credentials, AccountId, test_role)),
     io:format(user, "success ~p~n", [role_has_test_role]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, AccountId, perform_tests)),
+    io:format(user, "success ~p~n", [role_has_test_permission]), 
+
+    io:format(user, "----TEST--~p:test_manage_account_permissions~n", [?MODULE]),
+    ?assertEqual(ok, dderl_role:grant_permission(no_credentials, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [role_grant_test_role_delete_tests]), 
+    ?assertEqual(ok, dderl_role:grant_permission(no_credentials, test_role, fake_tests)),
+    io:format(user, "success ~p~n", [role_grant_test_role_fake_tests]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, AccountId, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, AccountId, fake_tests)),
+    io:format(user, "success ~p~n", [role_has_fake_tests_permission]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, admin, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, admin, fake_tests)),
+    io:format(user, "success ~p~n", [role_has_fake_tests_permission]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(true, dderl_role:has_permission(no_credentials, test_role, fake_tests)),
+    io:format(user, "success ~p~n", [role_has_fake_tests_permission]), 
+    ?assertEqual(ok, dderl_role:revoke_permission(no_credentials, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [role_revoke_test_role_delete_tests]), 
+    ?assertEqual(false, dderl_role:has_permission(no_credentials, AccountId, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(false, dderl_role:has_permission(no_credentials, admin, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(false, dderl_role:has_permission(no_credentials, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [role_has_delete_tests_permission]), 
+    ?assertEqual(ok, dderl_role:revoke_permission(no_credentials, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [role_revoket_test_role_delete_tests]), 
 
 
-    ?assertEqual({atomic,ok}, dderl_role:delete_table(no_credentials)),
-    io:format(user, "success ~p~n", [delete_role_table]), 
-    ?assertEqual({atomic,ok}, dderl_account:delete_table(no_credentials)),
-    io:format(user, "success ~p~n", [delete_account_table]), 
-
+    %% Cleanup only if we arrive at this point
+    dderl_role:delete_table(no_credentials),
+    dderl_account:delete_table(no_credentials),
     ok.
 

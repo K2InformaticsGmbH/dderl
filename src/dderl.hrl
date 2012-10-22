@@ -54,19 +54,28 @@
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::binary()          %% ddAccount.id
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
-                  , conns                   ::[ddEntityId()]     %% can be used for this list of dbConn references
-                  , command                 ::[ddEntityId()]     %% erlang term depending on adapter (e.g. SQL text)
+                  , conns                   ::[ddEntityId()]    %% can be used for this list of dbConn references
+                  , command                 ::string()          %% erlang term depending on adapter (e.g. SQL text)
                   , opts                    ::any()             %% command options ()
                   }
        ).
 
--record(dbView,                             %% user representation of a db command including rendering parameters
+-record(ddView,                             %% user representation of a db command including rendering parameters
                   { id                      ::ddEntityId()
-                  , name                    ::binary()          %% should default to command name
-                  , owner                   ::ddEntityId()      %% dbAccount.id
-                  , dbCmdId                 ::ddEntityId()      %% db command id
                   , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , owner                   ::ddEntityId()      %% dbAccount.id
+                  , name                    ::binary()          %% should default to command name
+                  , dbCmdId                 ::ddEntityId()      %% db command id
                   , viewState               ::any()             %% transparent viewstate (managed by client application)
+                  }
+       ).
+
+-record(ddDash,                             %% user representation of a dashboard (collection of views)
+                  { id                      ::ddEntityId()
+                  , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , owner                   ::ddEntityId()      %% dbAccount.id
+                  , name                    ::binary()          %% should default to command name
+                  , ddViews                 ::[ddEntityId()]    %% ddView.ids
                   }
        ).
 
