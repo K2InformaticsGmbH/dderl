@@ -30,223 +30,223 @@
 
 %% --Interface functions  (calling imem_if for now) ----------------------------------
 
-if_create_table(_RequestorCredentials) ->
+if_create_table(_SeCo) ->
     imem_if:build_table(ddRole, record_info(fields, ddRole)).
 
-if_delete_table(_RequestorCredentials) -> 
+if_delete_table(_SeCo) -> 
     imem_if:delete_table(ddRole).
 
-if_write(_RequestorCredentials, #ddRole{}=Role) -> 
+if_write(_SeCo, #ddRole{}=Role) -> 
     imem_if:write(ddRole, Role).
 
-if_read(_RequestorCredentials, RoleId) -> 
+if_read(_SeCo, RoleId) -> 
     imem_if:read(ddRole, RoleId).
 
-% if_select(_RequestorCredentials, MatchSpec) ->
+% if_select(_SeCo, MatchSpec) ->
 %    imem_if:select_rows(ddRole, MatchSpec). 
 
-if_delete(_RequestorCredentials, RoleId) ->
+if_delete(_SeCo, RoleId) ->
     imem_if:delete(ddRole, RoleId).
 
 %% --Implementation ------------------------------------------------------------------
 
-create_table(RequestorCredentials) ->
-    if_create_table(RequestorCredentials).
+create_table(SeCo) ->
+    if_create_table(SeCo).
 
-delete_table(RequestorCredentials) -> 
-    if_delete_table(RequestorCredentials).
+delete_table(SeCo) -> 
+    if_delete_table(SeCo).
 
-create(RequestorCredentials, #ddRole{id=RoleId}=Role) -> 
-    case if_read(RequestorCredentials, RoleId) of
+create(SeCo, #ddRole{id=RoleId}=Role) -> 
+    case if_read(SeCo, RoleId) of
         [] ->   %% ToDo: Check if roles contained in Role are all defined $$$$$$$$$$$$$$
-                if_write(RequestorCredentials, Role);
+                if_write(SeCo, Role);
         [_] -> {error, {"Role already exists",RoleId}}
     end;
-create(RequestorCredentials, RoleId) -> 
-    case if_read(RequestorCredentials, RoleId) of
-        [] ->   if_write(RequestorCredentials, #ddRole{id=RoleId});
+create(SeCo, RoleId) -> 
+    case if_read(SeCo, RoleId) of
+        [] ->   if_write(SeCo, #ddRole{id=RoleId});
         [_] -> {error, {"Role already exists",RoleId}}
     end.
 
 
-get(RequestorCredentials, RoleId) -> 
-    case if_read(RequestorCredentials, RoleId) of
+get(SeCo, RoleId) -> 
+    case if_read(SeCo, RoleId) of
         [] -> {error, {"Role does not exist", RoleId}};
         [Role] -> Role
     end.
 
-update(RequestorCredentials, #ddRole{id=RoleId}=Role, RoleNew) -> 
-    case if_read(RequestorCredentials, RoleId) of
+update(SeCo, #ddRole{id=RoleId}=Role, RoleNew) -> 
+    case if_read(SeCo, RoleId) of
         [] -> {error, {"Role does not exist", RoleId}};
-        [Role] -> if_write(RequestorCredentials, RoleNew);
+        [Role] -> if_write(SeCo, RoleNew);
         [_] -> {error, {"Role is modified by someone else", RoleId}}
     end.
 
-delete(RequestorCredentials, #ddRole{id=RoleId}=Role) ->
-    case if_read(RequestorCredentials, RoleId) of
+delete(SeCo, #ddRole{id=RoleId}=Role) ->
+    case if_read(SeCo, RoleId) of
         [] -> {error, {"Role does not exist", RoleId}};
-        [Role] -> delete(RequestorCredentials, RoleId);
+        [Role] -> delete(SeCo, RoleId);
         [_] -> {error, {"Role is modified by someone else", RoleId}}
     end;
-delete(RequestorCredentials, RoleId) -> 
-    if_delete(RequestorCredentials, RoleId).
+delete(SeCo, RoleId) -> 
+    if_delete(SeCo, RoleId).
 
-exists(RequestorCredentials, #ddRole{id=RoleId}=Role) ->    %% exists unchanged
-    case if_read(RequestorCredentials, RoleId) of
+exists(SeCo, #ddRole{id=RoleId}=Role) ->    %% exists unchanged
+    case if_read(SeCo, RoleId) of
         [] -> false;
         [Role] -> true;
         [_] -> false
     end;
-exists(RequestorCredentials, RoleId) ->                     %% exists, maybe in changed form
-    case if_read(RequestorCredentials, RoleId) of
+exists(SeCo, RoleId) ->                     %% exists, maybe in changed form
+    case if_read(SeCo, RoleId) of
         [] -> false;
         [_] -> true
     end.
 
-grant_role(RequestorCredentials, #ddRole{id=ToRoleId}=ToRole, RoleId) -> 
-    case if_read(RequestorCredentials, ToRoleId) of
+grant_role(SeCo, #ddRole{id=ToRoleId}=ToRole, RoleId) -> 
+    case if_read(SeCo, ToRoleId) of
         [] -> {error, {"Role does not exist", ToRoleId}};
-        [ToRole] -> grant_role(RequestorCredentials, ToRoleId, RoleId);
+        [ToRole] -> grant_role(SeCo, ToRoleId, RoleId);
         [_] -> {error, {"Role is modified by someone else", ToRoleId}}
     end;
-grant_role(RequestorCredentials, ToRoleId, RoleId) ->
-    case exists(RequestorCredentials, RoleId) of
+grant_role(SeCo, ToRoleId, RoleId) ->
+    case exists(SeCo, RoleId) of
         false ->  
             {error, {"Role does not exist", RoleId}};
         true ->   
-            case get(RequestorCredentials, ToRoleId) of
+            case get(SeCo, ToRoleId) of
                 #ddRole{roles=Roles}=ToRole ->   
                     NewRoles = case lists:member(RoleId, Roles) of
                         true ->     Roles;
                         false ->    lists:append(Roles, [RoleId])       %% append because newer = seldom used
                     end,
-                    update(RequestorCredentials,ToRole,ToRole#ddRole{roles=NewRoles});   
+                    update(SeCo,ToRole,ToRole#ddRole{roles=NewRoles});   
                 Error ->    Error    
             end
     end.
 
-revoke_role(RequestorCredentials, #ddRole{id=FromRoleId}=FromRole, RoleId) -> 
-    case if_read(RequestorCredentials, FromRoleId) of
+revoke_role(SeCo, #ddRole{id=FromRoleId}=FromRole, RoleId) -> 
+    case if_read(SeCo, FromRoleId) of
         [] -> {error, {"Role does not exist", FromRoleId}};
-        [FromRole] -> revoke_role(RequestorCredentials, FromRoleId, RoleId);
+        [FromRole] -> revoke_role(SeCo, FromRoleId, RoleId);
         [_] -> {error, {"Role is modified by someone else", FromRoleId}}
     end;
-revoke_role(RequestorCredentials, FromRoleId, RoleId) -> 
-    case get(RequestorCredentials, FromRoleId) of
+revoke_role(SeCo, FromRoleId, RoleId) -> 
+    case get(SeCo, FromRoleId) of
         #ddRole{roles=Roles}=FromRole ->   
-            update(RequestorCredentials,FromRole,FromRole#ddRole{roles=lists:delete(RoleId, Roles)});   
+            update(SeCo,FromRole,FromRole#ddRole{roles=lists:delete(RoleId, Roles)});   
         Error ->    Error    
     end.
 
-grant_permission(RequestorCredentials, #ddRole{id=ToRoleId}=ToRole, PermissionId) -> 
-    case if_read(RequestorCredentials, ToRoleId) of
+grant_permission(SeCo, #ddRole{id=ToRoleId}=ToRole, PermissionId) -> 
+    case if_read(SeCo, ToRoleId) of
         [] -> {error, {"Role does not exist", ToRoleId}};
-        [ToRole] -> grant_permission(RequestorCredentials, ToRoleId, PermissionId);
+        [ToRole] -> grant_permission(SeCo, ToRoleId, PermissionId);
         [_] -> {error, {"Role is modified by someone else", ToRoleId}}
     end;
-grant_permission(RequestorCredentials, ToRoleId, PermissionId) ->
-    case get(RequestorCredentials, ToRoleId) of
+grant_permission(SeCo, ToRoleId, PermissionId) ->
+    case get(SeCo, ToRoleId) of
         #ddRole{permissions=Permissions}=ToRole ->   
             NewPermissions = case lists:member(PermissionId, Permissions) of
                 true ->     Permissions;
                 false ->    lists:append(Permissions, [PermissionId])   %% append because newer = seldom used
             end,
-            update(RequestorCredentials,ToRole,ToRole#ddRole{permissions=NewPermissions});   
+            update(SeCo,ToRole,ToRole#ddRole{permissions=NewPermissions});   
         Error ->    Error    
     end.
 
-revoke_permission(RequestorCredentials, #ddRole{id=FromRoleId}=FromRole, PermissionId) -> 
-    case if_read(RequestorCredentials, FromRoleId) of
+revoke_permission(SeCo, #ddRole{id=FromRoleId}=FromRole, PermissionId) -> 
+    case if_read(SeCo, FromRoleId) of
         [] -> {error, {"Role does not exist", FromRoleId}};
-        [FromRole] -> revoke_permission(RequestorCredentials, FromRoleId, PermissionId);
+        [FromRole] -> revoke_permission(SeCo, FromRoleId, PermissionId);
         [_] -> {error, {"Role is modified by someone else", FromRoleId}}
     end;
-revoke_permission(RequestorCredentials, FromRoleId, PermissionId) -> 
-    case get(RequestorCredentials, FromRoleId) of
+revoke_permission(SeCo, FromRoleId, PermissionId) -> 
+    case get(SeCo, FromRoleId) of
         #ddRole{permissions=Permissions}=FromRole ->   
-            update(RequestorCredentials,FromRole,FromRole#ddRole{permissions=lists:delete(PermissionId, Permissions)});   
+            update(SeCo,FromRole,FromRole#ddRole{permissions=lists:delete(PermissionId, Permissions)});   
         Error ->    Error    
     end.
 
-grant_connection(RequestorCredentials, #ddRole{id=ToRoleId}=ToRole, ConnectionId) -> 
-    case if_read(RequestorCredentials, ToRoleId) of
+grant_connection(SeCo, #ddRole{id=ToRoleId}=ToRole, ConnectionId) -> 
+    case if_read(SeCo, ToRoleId) of
         [] -> {error, {"Role does not exist", ToRoleId}};
-        [ToRole] -> grant_connection(RequestorCredentials, ToRoleId, ConnectionId);
+        [ToRole] -> grant_connection(SeCo, ToRoleId, ConnectionId);
         [_] -> {error, {"Role is modified by someone else", ToRoleId}}
     end;
-grant_connection(RequestorCredentials, ToRoleId, ConnectionId) ->
-    case get(RequestorCredentials, ToRoleId) of
+grant_connection(SeCo, ToRoleId, ConnectionId) ->
+    case get(SeCo, ToRoleId) of
         #ddRole{dbConns=Connections}=ToRole ->   
             NewConnections = case lists:member(ConnectionId, Connections) of
                 true ->     Connections;
                 false ->    lists:append(Connections, [ConnectionId])   %% append because newer = seldom used
             end,
-            update(RequestorCredentials,ToRole,ToRole#ddRole{dbConns=NewConnections});   
+            update(SeCo,ToRole,ToRole#ddRole{dbConns=NewConnections});   
         Error ->    Error    
     end.
 
-revoke_connection(RequestorCredentials, #ddRole{id=FromRoleId}=FromRole, ConnectionId) -> 
-    case if_read(RequestorCredentials, FromRoleId) of
+revoke_connection(SeCo, #ddRole{id=FromRoleId}=FromRole, ConnectionId) -> 
+    case if_read(SeCo, FromRoleId) of
         [] -> {error, {"Role does not exist", FromRoleId}};
-        [FromRole] -> revoke_connection(RequestorCredentials, FromRoleId, ConnectionId);
+        [FromRole] -> revoke_connection(SeCo, FromRoleId, ConnectionId);
         [_] -> {error, {"Role is modified by someone else", FromRoleId}}
     end;
-revoke_connection(RequestorCredentials, FromRoleId, ConnectionId) -> 
-    case get(RequestorCredentials, FromRoleId) of
+revoke_connection(SeCo, FromRoleId, ConnectionId) -> 
+    case get(SeCo, FromRoleId) of
         #ddRole{dbConns=Connections}=FromRole ->   
-            update(RequestorCredentials,FromRole,FromRole#ddRole{dbConns=lists:delete(ConnectionId, Connections)});   
+            update(SeCo,FromRole,FromRole#ddRole{dbConns=lists:delete(ConnectionId, Connections)});   
         Error ->    Error    
     end.
 
-grant_command(RequestorCredentials, #ddRole{id=ToRoleId}=ToRole, CommandId) -> 
-    case if_read(RequestorCredentials, ToRoleId) of
+grant_command(SeCo, #ddRole{id=ToRoleId}=ToRole, CommandId) -> 
+    case if_read(SeCo, ToRoleId) of
         [] -> {error, {"Role does not exist", ToRoleId}};
-        [ToRole] -> grant_command(RequestorCredentials, ToRoleId, CommandId);
+        [ToRole] -> grant_command(SeCo, ToRoleId, CommandId);
         [_] -> {error, {"Role is modified by someone else", ToRoleId}}
     end;
-grant_command(RequestorCredentials, ToRoleId, CommandId) ->
-    case get(RequestorCredentials, ToRoleId) of
+grant_command(SeCo, ToRoleId, CommandId) ->
+    case get(SeCo, ToRoleId) of
         #ddRole{dbCmds=Commands}=ToRole ->   
             NewCommands = case lists:member(CommandId, Commands) of
                 true ->     Commands;
                 false ->    lists:append(Commands, [CommandId])   %% append because newer = seldom used
             end,
-            update(RequestorCredentials,ToRole,ToRole#ddRole{dbCmds=NewCommands});   
+            update(SeCo,ToRole,ToRole#ddRole{dbCmds=NewCommands});   
         Error ->    Error    
     end.
 
-revoke_command(RequestorCredentials, #ddRole{id=FromRoleId}=FromRole, CommandId) -> 
-    case if_read(RequestorCredentials, FromRoleId) of
+revoke_command(SeCo, #ddRole{id=FromRoleId}=FromRole, CommandId) -> 
+    case if_read(SeCo, FromRoleId) of
         [] -> {error, {"Role does not exist", FromRoleId}};
-        [FromRole] -> revoke_command(RequestorCredentials, FromRoleId, CommandId);
+        [FromRole] -> revoke_command(SeCo, FromRoleId, CommandId);
         [_] -> {error, {"Role is modified by someone else", FromRoleId}}
     end;
-revoke_command(RequestorCredentials, FromRoleId, CommandId) -> 
-    case get(RequestorCredentials, FromRoleId) of
+revoke_command(SeCo, FromRoleId, CommandId) -> 
+    case get(SeCo, FromRoleId) of
         #ddRole{dbCmds=Commands}=FromRole ->   
-            update(RequestorCredentials,FromRole,FromRole#ddRole{dbCmds=lists:delete(CommandId, Commands)});   
+            update(SeCo,FromRole,FromRole#ddRole{dbCmds=lists:delete(CommandId, Commands)});   
         Error ->    Error    
     end.
 
-has_role(_RequestorCredentials, _RootRoleId, _RootRoleId) ->
+has_role(_SeCo, _RootRoleId, _RootRoleId) ->
     true;
-has_role(RequestorCredentials, RootRoleId, RoleId) ->
-    case get(RequestorCredentials, RootRoleId) of
+has_role(SeCo, RootRoleId, RoleId) ->
+    case get(SeCo, RootRoleId) of
         {error, Error} ->               {error, Error};
         #ddRole{roles=[]} ->            false;
-        #ddRole{roles=ChildRoles} ->    has_child_role(RequestorCredentials,  ChildRoles, RoleId)
+        #ddRole{roles=ChildRoles} ->    has_child_role(SeCo,  ChildRoles, RoleId)
     end.
 
-has_child_role(_RequestorCredentials, [], _RoleId) -> false;
-has_child_role(RequestorCredentials, [RootRoleId|OtherRoles], RoleId) ->
-    case has_role(RequestorCredentials, RootRoleId, RoleId) of
+has_child_role(_SeCo, [], _RoleId) -> false;
+has_child_role(SeCo, [RootRoleId|OtherRoles], RoleId) ->
+    case has_role(SeCo, RootRoleId, RoleId) of
         {error, Error} ->               {error, Error};
         true ->                         true;
-        false ->                        has_child_role(RequestorCredentials, OtherRoles, RoleId)
+        false ->                        has_child_role(SeCo, OtherRoles, RoleId)
     end.
 
-has_permission(RequestorCredentials, RootRoleId, PermissionId) ->
-    case get(RequestorCredentials, RootRoleId) of
+has_permission(SeCo, RootRoleId, PermissionId) ->
+    case get(SeCo, RootRoleId) of
         {error, Error} ->                       
             {error, Error};
         #ddRole{permissions=[],roles=[]} ->     
@@ -256,21 +256,21 @@ has_permission(RequestorCredentials, RootRoleId, PermissionId) ->
         #ddRole{permissions=Permissions, roles=ChildRoles} ->
             case lists:member(PermissionId, Permissions) of
                 true ->     true;
-                false ->    has_child_permission(RequestorCredentials,  ChildRoles, PermissionId)
+                false ->    has_child_permission(SeCo,  ChildRoles, PermissionId)
             end            
     end.
 
-has_child_permission(_RequestorCredentials, [], _PermissionId) -> false;
-has_child_permission(RequestorCredentials, [RootRoleId|OtherRoles], PermissionId) ->
-    case has_permission(RequestorCredentials, RootRoleId, PermissionId) of
+has_child_permission(_SeCo, [], _PermissionId) -> false;
+has_child_permission(SeCo, [RootRoleId|OtherRoles], PermissionId) ->
+    case has_permission(SeCo, RootRoleId, PermissionId) of
         {error, Error} ->               {error, Error};
         true ->                         true;
-        false ->                        has_child_permission(RequestorCredentials, OtherRoles, PermissionId)
+        false ->                        has_child_permission(SeCo, OtherRoles, PermissionId)
     end.
 
 
-has_connection(RequestorCredentials, RootRoleId, ConnectionId) ->
-    case get(RequestorCredentials, RootRoleId) of
+has_connection(SeCo, RootRoleId, ConnectionId) ->
+    case get(SeCo, RootRoleId) of
         {error, Error} ->                       
             {error, Error};
         #ddRole{dbConns=[],roles=[]} ->     
@@ -280,20 +280,20 @@ has_connection(RequestorCredentials, RootRoleId, ConnectionId) ->
         #ddRole{dbConns=Connections, roles=ChildRoles} ->
             case lists:member('any', Connections) orelse lists:member(ConnectionId, Connections) of
                 true ->     true;
-                false ->    has_child_connection(RequestorCredentials,  ChildRoles, ConnectionId)
+                false ->    has_child_connection(SeCo,  ChildRoles, ConnectionId)
             end            
     end.
 
-has_child_connection(_RequestorCredentials, [], _ConnectionId) -> false;
-has_child_connection(RequestorCredentials, [RootRoleId|OtherRoles], ConnectionId) ->
-    case has_connection(RequestorCredentials, RootRoleId, ConnectionId) of
+has_child_connection(_SeCo, [], _ConnectionId) -> false;
+has_child_connection(SeCo, [RootRoleId|OtherRoles], ConnectionId) ->
+    case has_connection(SeCo, RootRoleId, ConnectionId) of
         {error, Error} ->   {error, Error};
         true ->             true;
-        false ->            has_child_connection(RequestorCredentials, OtherRoles, ConnectionId)
+        false ->            has_child_connection(SeCo, OtherRoles, ConnectionId)
     end.
 
-has_command(RequestorCredentials, RootRoleId, CommandId) ->
-    case get(RequestorCredentials, RootRoleId) of
+has_command(SeCo, RootRoleId, CommandId) ->
+    case get(SeCo, RootRoleId) of
         {error, Error} ->                       
             {error, Error};
         #ddRole{dbCmds=[],roles=[]} ->     
@@ -303,16 +303,16 @@ has_command(RequestorCredentials, RootRoleId, CommandId) ->
         #ddRole{dbCmds=Commands, roles=ChildRoles} ->
             case lists:member('any', Commands) orelse lists:member(CommandId, Commands) of
                 true ->     true;
-                false ->    has_child_command(RequestorCredentials,  ChildRoles, CommandId)
+                false ->    has_child_command(SeCo,  ChildRoles, CommandId)
             end            
     end.
 
-has_child_command(_RequestorCredentials, [], _CommandId) -> false;
-has_child_command(RequestorCredentials, [RootRoleId|OtherRoles], CommandId) ->
-    case has_command(RequestorCredentials, RootRoleId, CommandId) of
+has_child_command(_SeCo, [], _CommandId) -> false;
+has_child_command(SeCo, [RootRoleId|OtherRoles], CommandId) ->
+    case has_command(SeCo, RootRoleId, CommandId) of
         {error, Error} ->   {error, Error};
         true ->             true;
-        false ->            has_child_command(RequestorCredentials, OtherRoles, CommandId)
+        false ->            has_child_command(SeCo, OtherRoles, CommandId)
     end.
 
 %% ----- TESTS ---(implemented in dderl_account)------------------------------

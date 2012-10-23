@@ -1,9 +1,13 @@
 
 -type ddTimestamp() :: 'undefined' | {{integer(), integer(), integer()},{integer(), integer(), integer()}}.
 
--type ddCredential() :: {pwdmd5, binary(), binary()}.           %% {pwdmd5, ddAccount.id, md5(password)} for now
-
 -type ddEntityId() :: reference() | atom().                    
+
+-type ddIdentity() :: binary().                                   %% Account name
+-type ddCredential() :: {pwdmd5, binary()}.     %% {pwdmd5, md5(password)} for now
+
+-type ddSessionId() :: integer().                                 %% sessionHash
+-type ddSessionContext() :: {integer(), reference() | atom()}.    %% {sessionHash,AccountId}                    
 
 -record(ddAdapter,                          %% DDerl adapter (connect to databases)              
                   { id                      :: atom()           %% oci | imem | ets | os_text | dfs_text | hdfs_text
