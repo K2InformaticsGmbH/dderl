@@ -15,6 +15,9 @@
         , delete/2
         , exists/2
         , authenticate/3
+        , login/1
+        , change_credentials/3
+        , logout/1
         , authorize/2
         , authorize_all/2
         , authorize_some/2
@@ -37,8 +40,23 @@ if_write(_SeCo, #ddAccount{}=Account) ->
 if_read(_SeCo, AccountId) -> 
     imem_if:read(ddAccount, AccountId).
 
+if_get(SeCo, AccountId) -> 
+    case if_read(SeCo, AccountId) of
+        [] -> {error, {"Account does not exist", AccountId}};
+        [Account] -> Account
+    end.
+
 if_select(_SeCo, MatchSpec) ->
     imem_if:select_rows(ddAccount, MatchSpec). 
+
+if_get_by_name(SeCo, Name) -> 
+    MatchHead = #ddAccount{name='$1', _='_'},
+    Guard = {'==', '$1', Name},
+    Result = '$_',
+    case if_select(SeCo, [{MatchHead, [Guard], [Result]}]) of
+        [] ->           {error, {"Account does not exist", Name}};
+        [Account] ->    Account
+    end.
 
 if_delete(_SeCo, AccountId) ->
     imem_if:delete(ddAccount, AccountId).
@@ -62,56 +80,65 @@ delete_table(SeCo) ->
 %     create(SeCo, #ddAccount{id=AccountId, name=atom_to_list(Name)});
 % create(SeCo, #ddAccount{id=AccountId, name=Name}) when is_list(Name)->
 %     create(SeCo, #ddAccount{id=AccountId, name=list_to_binary(Name)});
-create(SeCo, #ddAccount{id=AccountId, name=Name}=Account) when is_binary(Name) -> 
-    case get(SeCo, AccountId) of
-        {error, {"Account does not exist", AccountId}} ->   
-            case get_by_name(SeCo, Name) of
-                {error, {"Account does not exist", Name}} ->   
-                    ok = if_write(SeCo, Account),
-                    case dderl_role:create(SeCo,AccountId) of
-                        ok  ->      ok;
-                        Error ->    %% simple transaction rollback
-                                    delete(SeCo, Account),
-                                    Error
+create(SeCo, #ddAccount{id=AccountId, name=Name}=Account) when is_binary(Name) ->
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     case if_get(SeCo, AccountId) of
+                        {error, {"Account does not exist", AccountId}} ->   
+                            case if_get_by_name(SeCo, Name) of
+                                {error, {"Account does not exist", Name}} ->   
+                                    ok = if_write(SeCo, Account),
+                                    case dderl_role:create(SeCo,AccountId) of
+                                        ok  ->      ok;
+                                        Error ->    %% simple transaction rollback
+                                                    delete(SeCo, Account),
+                                                    Error
+                                    end;
+                                #ddAccount{} ->     {error, {"Account name already exists for",Name}};
+                                Error ->            Error
+                            end;
+                        #ddAccount{} ->  
+                            {error, {"Account already exists",AccountId}}
                     end;
-                #ddAccount{} ->     {error, {"Account name already exists for",Name}};
-                Error ->            Error
-            end;
-        #ddAccount{} ->  
-            {error, {"Account already exists",AccountId}}
+        false ->    {error, {"Create account unauthorized",SeCo}}
     end.
 
 get(SeCo, AccountId) -> 
-    case if_read(SeCo, AccountId) of
-        [] -> {error, {"Account does not exist", AccountId}};
-        [Account] -> Account
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     if_get(SeCo, AccountId);
+        false ->    {error, {"Get account unauthorized",SeCo}}
     end.
 
 get_by_name(SeCo, Name) -> 
-    MatchHead = #ddAccount{name='$1', _='_'},
-    Guard = {'==', '$1', Name},
-    Result = '$_',
-    case if_select(SeCo, [{MatchHead, [Guard], [Result]}]) of
-        [] ->           {error, {"Account does not exist", Name}};
-        [Account] ->    Account
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     if_get_by_name(SeCo, Name);
+        false ->    {error, {"Get account unauthorized",SeCo}}
     end.
 
 update(SeCo, #ddAccount{id=AccountId}=Account, AccountNew) -> 
-    case if_read(SeCo, AccountId) of
-        [] -> {error, {"Account does not exist", AccountId}};
-        [Account] -> if_write(SeCo, AccountNew);
-        [_] -> {error, {"Account is modified by someone else", AccountId}}
-    end.
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     case if_read(SeCo, AccountId) of
+                        [] -> {error, {"Account does not exist", AccountId}};
+                        [Account] -> if_write(SeCo, AccountNew);
+                        [_] -> {error, {"Account is modified by someone else", AccountId}}
+                    end;
+        false ->    {error, {"Update account unauthorized",SeCo}}
+    end.    
 
 delete(SeCo, #ddAccount{id=AccountId}=Account) ->
-    case if_read(SeCo, AccountId) of
-        [] -> {error, {"Account does not exist", AccountId}};
-        [Account] -> delete(SeCo, AccountId);
-        [_] -> {error, {"Account is modified by someone else", AccountId}}
-    end;
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     case if_read(SeCo, AccountId) of
+                        [] -> {error, {"Account does not exist", AccountId}};
+                        [Account] -> delete(SeCo, AccountId);
+                        [_] -> {error, {"Account is modified by someone else", AccountId}}
+                    end;
+        false ->    {error, {"Delete account unauthorized",SeCo}}
+    end;        
 delete(SeCo, AccountId) -> 
-    if_delete(SeCo, AccountId),
-    dderl_role:delete(SeCo, AccountId).
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     if_delete(SeCo, AccountId),
+                    dderl_role:delete(SeCo, AccountId);
+        false ->    {error, {"Delete account unauthorized",SeCo}}
+    end.        
 
 lock(SeCo, #ddAccount{}=Account) -> 
     update(SeCo, Account, Account#ddAccount{isLocked=true});
@@ -126,23 +153,93 @@ unlock(SeCo, AccountId) ->
     update(SeCo, Account, Account#ddAccount{isLocked=false,lastFailureTime=undefined}).
 
 exists(SeCo, #ddAccount{id=AccountId}=Account) ->   %% exists unchanged
-    case if_read(SeCo, AccountId) of
-        [] -> false;
-        [Account] -> true;
-        [_] -> false
-    end;
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     case if_read(SeCo, AccountId) of
+                        [] -> false;
+                        [Account] -> true;
+                        [_] -> false
+                    end;
+        false ->    {error, {"Exists account unauthorized",SeCo}}
+    end;                    
 exists(SeCo, AccountId) ->                          %% exists, maybe in changed form
-    case if_read(SeCo, AccountId) of
-        [] -> false;
-        [_] -> true
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     case if_read(SeCo, AccountId) of
+                        [] -> false;
+                        [_] -> true
+                    end;
+        false ->    {error, {"Exists account unauthorized",SeCo}}
+    end.            
+
+authenticate(SessionId, Name, Credentials) ->
+    LocalTime = calendar:local_time(),
+    SeCo = #ddSeCo{authenticationTime=erlang:now(), pid=self(), sessionId=SessionId},
+    Result = if_get_by_name(SeCo, Name),
+    case Result of
+        #ddAccount{isLocked='true'} ->
+            {error,{"Account is locked. Contact a system administrator", Name}};
+        #ddAccount{lastFailureTime=LocalTime} ->
+            %% lie a bit, don't show a fast attacker that this attempt might have worked
+            if_write(SeCo, Result#ddAccount{lastFailureTime=calendar:local_time(), isLocked='true'}),
+            {error,{"Invalid account credentials. Please retry", Name}};
+        #ddAccount{id=AccountId, credentials=CredList} -> 
+            case lists:member(Credentials,CredList) of
+                false ->    if_write(SeCo, Result#ddAccount{lastFailureTime=calendar:local_time()}),
+                            {error,{"Invalid account credentials. Please retry", Name}};
+                true ->     if_write(SeCo, Result#ddAccount{lastFailureTime=undefined}),
+                             %% ToDo: Create entry in seco table here value = {authenticated, method}
+                            SeCo#ddSeCo{accountId=AccountId}
+            end;
+        Error -> 
+            Error
     end.
 
-authenticate(SeCo, Name, Credentials) -> 
-    case get_by_name(SeCo, Name) of
-        #ddAccount{id=Id, isLocked='false', lastFailureTime=undefined} -> Id;
-        #ddAccount{isLocked='true'} -> {error,"Account is locked"};
-        #ddAccount{lastFailureTime=LastFailureTime} -> {error,"Account is suspended after login failure, please retry later"}
-    end.
+unauthenticate(_SeCo) ->
+     %% ToDo: Delete entry in seco table if it exists
+     ok.
+
+login(#ddSeCo{pid=Pid, accountId=AccountId} = SeCo) when Pid == self() ->
+    %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
+    LocalTime = calendar:local_time(),
+    AuthenticationMethod = pwdmd5,      %% ToDo: get it from seco table value
+    PwdExpireSecs = calendar:datetime_to_gregorian_seconds(LocalTime),
+    PwdExpireDate = calendar:gregorian_seconds_to_datetime(PwdExpireSecs-24*3600*?PASSWORD_VALIDITY),
+    case {Result=if_get(SeCo, AccountId), AuthenticationMethod} of
+        {#ddAccount{lastPasswordChangeTime=undefined}, pwdmd5} -> 
+            unauthenticate(SeCo),
+            {error,{"Password expired. Please change it", AccountId}};
+        {#ddAccount{lastPasswordChangeTime=LastChange}, pwdmd5} when LastChange < PwdExpireDate -> 
+            unauthenticate(SeCo),
+            {error,{"Password expired. Please change it", AccountId}};
+        {#ddAccount{}, _} ->
+            if_write(SeCo, Result#ddAccount{lastLoginTime=calendar:local_time()}),
+            SeCo;            
+        {Error, _} ->                    
+            unauthenticate(SeCo),
+            Error
+    end;
+login(#ddSeCo{} = SeCo) ->
+    {error,{"Unauthorized session context", SeCo}}.
+
+
+change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {pwdmd5,_}=OldCred, {pwdmd5,_}=NewCred) when Pid == self() ->
+    %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
+    LocalTime = calendar:local_time(),
+    #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
+    if_write(SeCo, Account#ddAccount{lastPasswordChangeTime=LocalTime, credentials=[NewCred|lists:delete(OldCred,CredList)]}),
+    SeCo;
+change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {CredType,_}=OldCred, {CredType,_}=NewCred) when Pid == self() ->
+    %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
+    #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
+    if_write(SeCo, Account#ddAccount{credentials=[NewCred|lists:delete(OldCred,CredList)]}),
+    SeCo.
+
+logout(#ddSeCo{pid=Pid} = SeCo) when Pid == self() ->
+    %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
+    unauthenticate(SeCo),
+    %% ToDo: Delete entry in cache tables here (ddPerm ...)
+    ok;
+logout(#ddSeCo{} = SeCo) ->
+    {error,{"Unauthorized session context", SeCo}}.
 
 authorize(_SeCo, _Permission) -> ok.
 
@@ -185,25 +282,59 @@ test(_) ->
     io:format(user, "success ~p~n", [create_role_table_already_exists]), 
 
     UserId = make_ref(),
+    UserName= <<"test_admin">>,
     UserCred={pwdmd5, erlang:md5(<<"t1e2s3t4_5a6d7m8i9n">>)},
-    User = #ddAccount{id=UserId,name= <<"test_admin">>,credentials=UserCred,fullName= <<"TestAdmin">>},
+    UserCredNew={pwdmd5, erlang:md5(<<"test_5a6d7m8i9n">>)},
+    User = #ddAccount{id=UserId,name=UserName,credentials=[UserCred],fullName= <<"TestAdmin">>},
 
     ?assertEqual(ok, if_write(User)),
     io:format(user, "success ~p~n", [create_test_admin]), 
     ?assertEqual(ok, if_write(#ddRole{id=UserId,roles=[],permissions=[manage_accounts, manage_roles]})),
-    io:format(user, "success ~p~n", [create_test_admin_role]), 
-     
+    io:format(user, "success ~p~n", [create_test_admin_role]),
+    ?assertEqual([User], if_read(#ddSeCo{}, UserId)),
+    io:format(user, "success ~p~n", [if_read]),
+    ?assertEqual(User, if_get(#ddSeCo{}, UserId)),
+    io:format(user, "success ~p~n", [if_get]),
+    ?assertEqual(User, if_get_by_name(#ddSeCo{}, UserName)),
+    io:format(user, "success ~p~n", [if_get_by_name]),
+ 
+    io:format(user, "----TEST--~p:test_authentification~n", [?MODULE]),
+
+    SeCo0=authenticate(someSessionId, UserName, UserCred),
+    ?assertMatch(UserId, SeCo0#ddSeCo.accountId),
+    ?assertEqual(self(), SeCo0#ddSeCo.pid),
+    ?assertEqual(someSessionId, SeCo0#ddSeCo.sessionId),
+    io:format(user, "success ~p~n", [test_admin_authentification]), 
+    ?assertEqual({error,{"Password expired. Please change it", UserId}}, login(SeCo0)),
+    io:format(user, "success ~p~n", [new_password]),
+    SeCo1=authenticate(someSessionId, UserName, UserCred), 
+    ?assertMatch(#ddSeCo{}, SeCo1),
+    io:format(user, "success ~p~n", [test_admin_authentification]), 
+    ?assertEqual(SeCo1, change_credentials(SeCo1, UserCred, UserCredNew)),
+    io:format(user, "success ~p~n", [password_changed]), 
+    ?assertEqual(ok, logout(SeCo1)),
+    io:format(user, "success ~p~n", [logout]), 
+    SeCo2=authenticate(someSessionId, UserName, UserCredNew),
+    ?assertMatch(UserId, SeCo2#ddSeCo.accountId),
+    ?assertEqual(self(), SeCo2#ddSeCo.pid),
+    ?assertEqual(someSessionId, SeCo2#ddSeCo.sessionId),
+    io:format(user, "success ~p~n", [test_admin_reauthentification]),
+    ?assertEqual(true, dderl_role:have_permission(SeCo2, manage_accounts)), 
+    ?assertEqual(true, dderl_role:have_permission(SeCo2, manage_roles)), 
+    ?assertEqual(false, dderl_role:have_permission(SeCo2, manage_bananas)), 
+    io:format(user, "success ~p~n", [have_permission]),
+
     io:format(user, "----TEST--~p:test_manage_accounts~n", [?MODULE]),
 
     AccountId = make_ref(),
     AccountCred={pwdmd5, erlang:md5(<<"TestPwd">>)},
-    Account = #ddAccount{id=AccountId,name= <<"test">>,credentials=AccountCred,fullName= <<"FullName">>},
+    Account = #ddAccount{id=AccountId,name= <<"test">>,credentials=[AccountCred],fullName= <<"FullName">>},
     AccountId0 = make_ref(),
-    Account0 = #ddAccount{id=AccountId0,name= <<"test">>,credentials=AccountCred,fullName= <<"AnotherName">>},
+    Account0 = #ddAccount{id=AccountId0,name= <<"test">>,credentials=[AccountCred],fullName= <<"AnotherName">>},
     Account1 = Account#ddAccount{credentials=new_credentials,fullName= <<"NewFullName">>,isLocked='true'},
     Account2 = Account#ddAccount{credentials=new_credentials,fullName= <<"OldFullName">>},
 
-    SeCo = {erlang:phash2({dderl_session, self()}), UserId},    %% Session Context (SessionId, UserId)
+    SeCo = SeCo2,
 
     ?assertEqual(ok, dderl_account:create(SeCo, Account)),
     io:format(user, "success ~p~n", [account_create]),

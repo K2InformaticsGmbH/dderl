@@ -1,35 +1,44 @@
 
--type ddTimestamp() :: 'undefined' | {{integer(), integer(), integer()},{integer(), integer(), integer()}}.
-
+-type ddTimestamp() :: 'undefined' | {integer(), integer(), integer()}.
+-type ddDatetime() :: 'undefined' | {{integer(), integer(), integer()},{integer(), integer(), integer()}}.
 -type ddEntityId() :: reference() | atom().                    
-
 -type ddIdentity() :: binary().                                   %% Account name
 -type ddCredential() :: {pwdmd5, binary()}.     %% {pwdmd5, md5(password)} for now
 
--type ddSessionId() :: integer().                                 %% sessionHash
--type ddSessionContext() :: {integer(), reference() | atom()}.    %% {sessionHash,AccountId}                    
+-record(ddSeCo,                             %% DDerl session context              
+                  { authenticationTime      :: ddTimestamp()      %% authentication timestamp erlang:now()
+                  , pid                     :: pid()              %% caller pid
+                  , accountId               :: ddEntityId()
+                  , sessionId               :: integer()          %% erlang:phash2({dderl_session, self()})
+                  }
+       ). 
+
+-record(ddPerm,                             %% DDerl acquired permission cache              
+                  {key                      :: {#ddSeCo{},atom()} %% {Session Context, Permission}
+                  }
+       ). 
 
 -record(ddAdapter,                          %% DDerl adapter (connect to databases)              
-                  { id                      :: atom()           %% oci | imem | ets | os_text | dfs_text | hdfs_text
-                  , fullName                :: string()         %% displayed in drop down box
+                  { id                      :: atom()             %% oci | imem | ets | os_text | dfs_text | hdfs_text
+                  , fullName                :: string()           %% displayed in drop down box
                   }
        ). 
 
 -record(ddInterface,                        %% DDerl client interface (connect to ui / applications)               
-                  { id                      :: atom()           %% ddjson
-                  , fullName                :: string()         %% displayed in drop down box
+                  { id                      :: atom()             %% ddjson
+                  , fullName                :: string()           %% displayed in drop down box
                   }
        ).
 
 -record(ddAccount,                          %% DDerl account  (as opposed to database accounts)
                   { id                      ::ddEntityId() 
-                  , name                    ::binary()          %% unique login id (mutable)
-                  , type='user'             ::atom()            %% user | driver | deamon | application 
+                  , name                    ::ddIdentity()        %% unique login id (mutable)
+                  , type='user'             ::atom()              %% user | driver | deamon | application 
                   , credentials             ::[ddCredential()]  
                   , fullName                ::binary()                    
-                  , lastLoginTime           ::ddTimestamp()     %% erlang time of last login success
-                  , lastFailureTime         ::ddTimestamp()     %% erlang time of last login failure (for existing account name)
-                  , lastPasswordChangeTime  ::ddTimestamp()     %% change time (undefined or too old  => must change it now and reconnect)
+                  , lastLoginTime           ::ddDatetime()        %% erlang time of last login success
+                  , lastFailureTime         ::ddDatetime()        %% erlang time of last login failure (for existing account name)
+                  , lastPasswordChangeTime  ::ddDatetime()        %% change time (undefined or too old  => must change it now and reconnect)
                   , isLocked='false'        ::'true' | 'false'
                   }
        ).
@@ -86,8 +95,8 @@
 -record(ddSession,                          %% user representation of a db command including rendering parameters
                   { id                      ::integer()
                   , pointer                 ::{atom(),pid()}    %% for parameterized access to session process
-                  , connectTime             ::ddTimestamp()     %% first http request time
-                  , loginTime               ::ddTimestamp()     
+                  , connectTime             ::ddDatetime()     %% first http request time
+                  , loginTime               ::ddDatetime()     
                   , accountId               ::ddEntityId()      
                   }
        ).
@@ -127,6 +136,7 @@
        ).
 
 -define(DEFAULT_ROW_SIZE, 100).
+-define(PASSWORD_VALIDITY, 60).              %% days
 
 %% rr("src/dderl.hrl").
 %% F = fun(User) ->
