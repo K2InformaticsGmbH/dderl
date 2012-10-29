@@ -2,8 +2,8 @@
 
 -include("dderl.hrl").
 
--export([ create_table/1
-        , delete_table/1
+-export([ create_tables/1
+        , delete_tables/1
         ]).
 
 -export([ create/2
@@ -25,16 +25,17 @@
         , has_permission/3
         , has_connection/3
         , has_command/3
+        , have_role/2
         , have_permission/2
         ]).
 
 
 %% --Interface functions  (calling imem_if for now) ----------------------------------
 
-if_create_table(_SeCo) ->
+if_create_tables(_SeCo) ->
     imem_if:build_table(ddRole, record_info(fields, ddRole)).
 
-if_delete_table(_SeCo) -> 
+if_delete_tables(_SeCo) -> 
     imem_if:delete_table(ddRole).
 
 if_write(_SeCo, #ddRole{}=Role) -> 
@@ -55,13 +56,57 @@ if_get(SeCo, RoleId) ->
 if_delete(_SeCo, RoleId) ->
     imem_if:delete(ddRole, RoleId).
 
+if_has_role(_SeCo, _RootRoleId, _RootRoleId) ->
+    true;
+if_has_role(SeCo, RootRoleId, RoleId) ->
+    case if_get(SeCo, RootRoleId) of
+        {error, Error} ->               {error, Error};
+        #ddRole{roles=[]} ->            false;
+        #ddRole{roles=ChildRoles} ->    if_has_child_role(SeCo,  ChildRoles, RoleId)
+    end.
+
+if_has_child_role(_SeCo, [], _RoleId) -> false;
+if_has_child_role(SeCo, [RootRoleId|OtherRoles], RoleId) ->
+    case if_has_role(SeCo, RootRoleId, RoleId) of
+        {error, Error} ->               {error, Error};
+        true ->                         true;
+        false ->                        if_has_child_role(SeCo, OtherRoles, RoleId)
+    end.
+
+if_has_permission(SeCo, RootRoleId, PermissionId) ->
+    case if_get(SeCo, RootRoleId) of
+        {error, Error} ->                       
+            {error, Error};
+        #ddRole{permissions=[],roles=[]} ->     
+            false;
+        #ddRole{permissions=Permissions, roles=[]} -> 
+            lists:member(PermissionId, Permissions);
+        #ddRole{permissions=Permissions, roles=ChildRoles} ->
+            case lists:member(PermissionId, Permissions) of
+                true ->     true;
+                false ->    if_has_child_permission(SeCo,  ChildRoles, PermissionId)
+            end            
+    end.
+
+if_has_child_permission(_SeCo, [], _PermissionId) -> false;
+if_has_child_permission(SeCo, [RootRoleId|OtherRoles], PermissionId) ->
+    case if_has_permission(SeCo, RootRoleId, PermissionId) of
+        {error, Error} ->               {error, Error};
+        true ->                         true;
+        false ->                        if_has_child_permission(SeCo, OtherRoles, PermissionId)
+    end.
+
+
 %% --Implementation ------------------------------------------------------------------
 
-create_table(SeCo) ->
-    if_create_table(SeCo).
+create_tables(SeCo) ->
+    if_create_tables(SeCo).
 
-delete_table(SeCo) -> 
-    if_delete_table(SeCo).
+delete_tables(SeCo) -> 
+    case have_permission(SeCo, manage_accounts) of
+        true ->     if_delete_tables(SeCo);
+        false ->    {error, {"Delete role tables unauthorized",SeCo}}
+    end.
 
 create(SeCo, #ddRole{id=RoleId}=Role) -> 
     case have_permission(SeCo, manage_accounts) of
@@ -297,49 +342,23 @@ revoke_command(SeCo, FromRoleId, CommandId) ->
         false ->    {error, {"Revoke command unauthorized",SeCo}}
     end.
 
-has_role(_SeCo, _RootRoleId, _RootRoleId) ->
-    true;
-has_role(SeCo, RootRoleId, RoleId) ->
-    case if_get(SeCo, RootRoleId) of
-        {error, Error} ->               {error, Error};
-        #ddRole{roles=[]} ->            false;
-        #ddRole{roles=ChildRoles} ->    has_child_role(SeCo,  ChildRoles, RoleId)
-    end.
+have_role(SeCo, RoleId) ->
+    if_has_role(SeCo, SeCo#ddSeCo.accountId, RoleId).
 
-has_child_role(_SeCo, [], _RoleId) -> false;
-has_child_role(SeCo, [RootRoleId|OtherRoles], RoleId) ->
-    case has_role(SeCo, RootRoleId, RoleId) of
-        {error, Error} ->               {error, Error};
-        true ->                         true;
-        false ->                        has_child_role(SeCo, OtherRoles, RoleId)
+has_role(SeCo, RootRoleId, RoleId) ->
+    case have_permission(SeCo, manage_accounts) of
+        true ->     if_has_role(SeCo, RootRoleId, RoleId); 
+        false ->    {error, {"Has role unauthorized",SeCo}}
     end.
 
 have_permission(SeCo, PermissionId) ->
-    has_permission(SeCo, SeCo#ddSeCo.accountId, PermissionId).
+    if_has_permission(SeCo, SeCo#ddSeCo.accountId, PermissionId).
 
 has_permission(SeCo, RootRoleId, PermissionId) ->
-    case if_get(SeCo, RootRoleId) of
-        {error, Error} ->                       
-            {error, Error};
-        #ddRole{permissions=[],roles=[]} ->     
-            false;
-        #ddRole{permissions=Permissions, roles=[]} -> 
-            lists:member(PermissionId, Permissions);
-        #ddRole{permissions=Permissions, roles=ChildRoles} ->
-            case lists:member(PermissionId, Permissions) of
-                true ->     true;
-                false ->    has_child_permission(SeCo,  ChildRoles, PermissionId)
-            end            
+    case have_permission(SeCo, manage_accounts) of
+        true ->     if_has_permission(SeCo, RootRoleId, PermissionId); 
+        false ->    {error, {"Has permission unauthorized",SeCo}}
     end.
-
-has_child_permission(_SeCo, [], _PermissionId) -> false;
-has_child_permission(SeCo, [RootRoleId|OtherRoles], PermissionId) ->
-    case has_permission(SeCo, RootRoleId, PermissionId) of
-        {error, Error} ->               {error, Error};
-        true ->                         true;
-        false ->                        has_child_permission(SeCo, OtherRoles, PermissionId)
-    end.
-
 
 has_connection(SeCo, RootRoleId, ConnectionId) ->
     case if_get(SeCo, RootRoleId) of

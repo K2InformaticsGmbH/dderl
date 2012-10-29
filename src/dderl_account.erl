@@ -4,8 +4,8 @@
 
 -include("dderl.hrl").
 
--export([ create_table/1
-        , delete_table/1
+-export([ create_tables/1
+        , delete_tables/1
         ]).
 
 -export([ create/2
@@ -28,10 +28,10 @@
 
 %% --Interface functions  (calling imem_if for now, not exported) -------------------
 
-if_create_table(_SeCo) ->
+if_create_tables(_SeCo) ->
     imem_if:build_table(ddAccount, record_info(fields, ddAccount)).
 
-if_delete_table(_SeCo) -> 
+if_delete_tables(_SeCo) -> 
     imem_if:delete_table(ddAccount).
 
 if_write(_SeCo, #ddAccount{}=Account) -> 
@@ -70,16 +70,15 @@ if_write(#ddRole{}=Role) ->
 
 %% --Implementation ------------------------------------------------------------------
 
-create_table(SeCo) ->
-    if_create_table(SeCo).
+create_tables(SeCo) ->
+    if_create_tables(SeCo).
 
-delete_table(SeCo) -> 
-    if_delete_table(SeCo).
+delete_tables(SeCo) -> 
+    case dderl_role:have_permission(SeCo, manage_accounts) of
+        true ->     if_delete_tables(SeCo);
+        false ->    {error, {"Delete account tables unauthorized",SeCo}}
+    end.
 
-% create(SeCo, #ddAccount{id=AccountId, name=Name}) when is_atom(Name)->
-%     create(SeCo, #ddAccount{id=AccountId, name=atom_to_list(Name)});
-% create(SeCo, #ddAccount{id=AccountId, name=Name}) when is_list(Name)->
-%     create(SeCo, #ddAccount{id=AccountId, name=list_to_binary(Name)});
 create(SeCo, #ddAccount{id=AccountId, name=Name}=Account) when is_binary(Name) ->
     case dderl_role:have_permission(SeCo, manage_accounts) of
         true ->     case if_get(SeCo, AccountId) of
@@ -226,12 +225,12 @@ change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {pwdmd5,_}=OldCre
     LocalTime = calendar:local_time(),
     #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
     if_write(SeCo, Account#ddAccount{lastPasswordChangeTime=LocalTime, credentials=[NewCred|lists:delete(OldCred,CredList)]}),
-    SeCo;
+    login(SeCo);
 change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {CredType,_}=OldCred, {CredType,_}=NewCred) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
     #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
     if_write(SeCo, Account#ddAccount{credentials=[NewCred|lists:delete(OldCred,CredList)]}),
-    SeCo.
+    login(SeCo).
 
 logout(#ddSeCo{pid=Pid} = SeCo) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
@@ -269,16 +268,16 @@ account_test_() ->
 test(_) ->
     io:format(user, "----TEST--~p:test_create_account_table~n", [?MODULE]),
 
-    ?assertEqual({atomic,ok}, dderl_account:create_table(none)),
-    io:format(user, "success ~p~n", [create_account_table]),
-    ?assertMatch({aborted,{already_exists,ddAccount}}, dderl_account:create_table(none)),
+    ?assertEqual({atomic,ok}, dderl_account:create_tables(none)),
+    io:format(user, "success ~p~n", [create_account_tables]),
+    ?assertMatch({aborted,{already_exists,ddAccount}}, dderl_account:create_tables(none)),
     io:format(user, "success ~p~n", [create_account_table_already_exists]),
 
     io:format(user, "----TEST--~p:test_create_role_table~n", [?MODULE]),
 
-    ?assertEqual({atomic,ok}, dderl_role:create_table(none)),
-    io:format(user, "success ~p~n", [create_role_table]),
-    ?assertMatch({aborted,{already_exists,ddRole}}, dderl_role:create_table(none)),
+    ?assertEqual({atomic,ok}, dderl_role:create_tables(none)),
+    io:format(user, "success ~p~n", [create_role_tables]),
+    ?assertMatch({aborted,{already_exists,ddRole}}, dderl_role:create_tables(none)),
     io:format(user, "success ~p~n", [create_role_table_already_exists]), 
 
     UserId = make_ref(),
@@ -289,7 +288,7 @@ test(_) ->
 
     ?assertEqual(ok, if_write(User)),
     io:format(user, "success ~p~n", [create_test_admin]), 
-    ?assertEqual(ok, if_write(#ddRole{id=UserId,roles=[],permissions=[manage_accounts, manage_roles]})),
+    ?assertEqual(ok, if_write(#ddRole{id=UserId,roles=[],permissions=[manage_accounts]})),
     io:format(user, "success ~p~n", [create_test_admin_role]),
     ?assertEqual([User], if_read(#ddSeCo{}, UserId)),
     io:format(user, "success ~p~n", [if_read]),
@@ -301,7 +300,8 @@ test(_) ->
     io:format(user, "----TEST--~p:test_authentification~n", [?MODULE]),
 
     SeCo0=authenticate(someSessionId, UserName, UserCred),
-    ?assertMatch(UserId, SeCo0#ddSeCo.accountId),
+    ?assertMatch(#ddSeCo{}, SeCo0),
+    ?assertEqual(UserId, SeCo0#ddSeCo.accountId),
     ?assertEqual(self(), SeCo0#ddSeCo.pid),
     ?assertEqual(someSessionId, SeCo0#ddSeCo.sessionId),
     io:format(user, "success ~p~n", [test_admin_authentification]), 
@@ -315,12 +315,11 @@ test(_) ->
     ?assertEqual(ok, logout(SeCo1)),
     io:format(user, "success ~p~n", [logout]), 
     SeCo2=authenticate(someSessionId, UserName, UserCredNew),
-    ?assertMatch(UserId, SeCo2#ddSeCo.accountId),
+    ?assertEqual(UserId, SeCo2#ddSeCo.accountId),
     ?assertEqual(self(), SeCo2#ddSeCo.pid),
     ?assertEqual(someSessionId, SeCo2#ddSeCo.sessionId),
     io:format(user, "success ~p~n", [test_admin_reauthentification]),
     ?assertEqual(true, dderl_role:have_permission(SeCo2, manage_accounts)), 
-    ?assertEqual(true, dderl_role:have_permission(SeCo2, manage_roles)), 
     ?assertEqual(false, dderl_role:have_permission(SeCo2, manage_bananas)), 
     io:format(user, "success ~p~n", [have_permission]),
 
@@ -328,13 +327,15 @@ test(_) ->
 
     AccountId = make_ref(),
     AccountCred={pwdmd5, erlang:md5(<<"TestPwd">>)},
-    Account = #ddAccount{id=AccountId,name= <<"test">>,credentials=[AccountCred],fullName= <<"FullName">>},
+    AccountCredNew={pwdmd5, erlang:md5(<<"TestPwd1">>)},
+    AccountName= <<"test">>,
+    Account = #ddAccount{id=AccountId,name=AccountName,credentials=[AccountCred],fullName= <<"FullName">>},
     AccountId0 = make_ref(),
-    Account0 = #ddAccount{id=AccountId0,name= <<"test">>,credentials=[AccountCred],fullName= <<"AnotherName">>},
-    Account1 = Account#ddAccount{credentials=new_credentials,fullName= <<"NewFullName">>,isLocked='true'},
-    Account2 = Account#ddAccount{credentials=new_credentials,fullName= <<"OldFullName">>},
+    Account0 = #ddAccount{id=AccountId0,name=AccountName,credentials=[AccountCred],fullName= <<"AnotherName">>},
+    Account1 = Account#ddAccount{credentials=[AccountCredNew],fullName= <<"NewFullName">>,isLocked='true'},
+    Account2 = Account#ddAccount{credentials=[AccountCredNew],fullName= <<"OldFullName">>},
 
-    SeCo = SeCo2,
+    SeCo = SeCo2, %% belonging to user <<"test_admin">>
 
     ?assertEqual(ok, dderl_account:create(SeCo, Account)),
     io:format(user, "success ~p~n", [account_create]),
@@ -380,6 +381,51 @@ test(_) ->
     io:format(user, "success ~p~n", [update_account_reject]), 
     ?assertEqual(Account1, dderl_account:get(SeCo, AccountId)),
     io:format(user, "success ~p~n", [account_get_unchanged]), 
+    ?assertEqual(false, dderl_role:has_permission(SeCo, AccountId, manage_accounts)), 
+    ?assertEqual(false, dderl_role:has_permission(SeCo, AccountId, manage_bananas)), 
+    io:format(user, "success ~p~n", [has_permission]),
+
+    ?assertEqual({error,{"Account is locked. Contact a system administrator",<<"test">>}},authenticate(someSessionId, AccountName, AccountCredNew)), 
+    io:format(user, "success ~p~n", [is_locked]),
+    ?assertEqual(ok, dderl_account:unlock(SeCo, AccountId)),
+    io:format(user, "success ~p~n", [unlock]),
+    SeCo3=authenticate(someSessionId, AccountName, AccountCredNew),
+    ?assertMatch(#ddSeCo{}, SeCo3),
+    ?assertEqual(AccountId, SeCo3#ddSeCo.accountId),
+    ?assertEqual(self(), SeCo3#ddSeCo.pid),
+    ?assertEqual(someSessionId, SeCo3#ddSeCo.sessionId),
+    io:format(user, "success ~p~n", [test_authentification]),
+    ?assertEqual({error,{"Password expired. Please change it", AccountId}}, login(SeCo3)),
+    io:format(user, "success ~p~n", [new_password]),
+    SeCo4=authenticate(someSessionId, AccountName, AccountCredNew), 
+    ?assertMatch(#ddSeCo{}, SeCo4),
+    io:format(user, "success ~p~n", [test_authentification]), 
+    ?assertEqual(SeCo4, change_credentials(SeCo4, AccountCredNew, AccountCred)),
+    io:format(user, "success ~p~n", [password_changed]), 
+    ?assertEqual(true, dderl_role:have_role(SeCo4, AccountId)), 
+    ?assertEqual(false, dderl_role:have_role(SeCo4, some_unknown_role)), 
+    ?assertEqual(false, dderl_role:have_permission(SeCo4, manage_accounts)), 
+    ?assertEqual(false, dderl_role:have_permission(SeCo4, manage_bananas)), 
+    io:format(user, "success ~p~n", [have_permission]),
+
+    io:format(user, "----TEST--~p:test_manage_account_rejectss~n", [?MODULE]),
+
+    ?assertEqual({error, {"Delete role tables unauthorized",SeCo4}}, dderl_role:delete_tables(SeCo4)),
+    io:format(user, "success ~p~n", [delete_role_tables_rejected]), 
+    ?assertEqual({error, {"Delete account tables unauthorized",SeCo4}}, dderl_account:delete_tables(SeCo4)),
+    io:format(user, "success ~p~n", [delete_account_tables_rejected]), 
+    ?assertEqual({error, {"Create account unauthorized",SeCo4}}, dderl_account:create(SeCo4, Account)),
+    ?assertEqual({error, {"Create account unauthorized",SeCo4}}, dderl_account:create(SeCo4, Account0)),
+    ?assertEqual({error, {"Get account unauthorized",SeCo4}}, dderl_account:get(SeCo4, AccountId)),
+    ?assertEqual({error, {"Delete account unauthorized",SeCo4}}, dderl_account:delete(SeCo4, AccountId)),
+    ?assertEqual({error, {"Delete account unauthorized",SeCo4}}, dderl_account:delete(SeCo4, Account)),
+    ?assertEqual({error, {"Exists account unauthorized",SeCo4}}, dderl_account:exists(SeCo4, AccountId)),
+    ?assertEqual({error, {"Get role unauthorized",SeCo4}}, dderl_role:get(SeCo4, AccountId)),
+    ?assertEqual({error, {"Delete account unauthorized",SeCo4}}, dderl_account:delete(SeCo4, Account1)),
+    ?assertEqual({error, {"Update account unauthorized",SeCo4}}, dderl_account:update(SeCo4, Account, Account1)),
+    ?assertEqual({error, {"Update account unauthorized",SeCo4}}, dderl_account:update(SeCo4, Account, Account2)),
+    io:format(user, "success ~p~n", [manage_accounts_rejected]),
+
 
     io:format(user, "----TEST--~p:test_manage_account_roles~n", [?MODULE]),
 
@@ -428,7 +474,21 @@ test(_) ->
     ?assertEqual(true, dderl_role:has_permission(SeCo, AccountId, perform_tests)),
     io:format(user, "success ~p~n", [role_has_test_permission]), 
 
+    io:format(user, "----TEST--~p:test_manage_account_role rejects~n", [?MODULE]),
+
+    ?assertEqual({error, {"Create role unauthorized",SeCo4}}, dderl_role:create(SeCo4, #ddRole{id=test_role,roles=[],permissions=[perform_tests]})),
+    ?assertEqual({error, {"Create role unauthorized",SeCo4}}, dderl_role:create(SeCo4, admin)),
+    ?assertEqual({error, {"Get role unauthorized",SeCo4}}, dderl_role:get(SeCo4, AccountId)),
+    ?assertEqual({error, {"Grant role unauthorized",SeCo4}}, dderl_role:grant_role(SeCo4, AccountId, admin)),
+    ?assertEqual({error, {"Grant role unauthorized",SeCo4}}, dderl_role:grant_role(SeCo4, AccountId, some_unknown_role)),
+    ?assertEqual({error, {"Grant role unauthorized",SeCo4}}, dderl_role:grant_role(SeCo4, admin, test_role)),
+    ?assertEqual({error, {"Has role unauthorized",SeCo4}}, dderl_role:has_role(SeCo4, AccountId, AccountId)),
+    ?assertEqual({error, {"Has role unauthorized",SeCo4}}, dderl_role:has_role(SeCo4, AccountId, admin)),
+    ?assertEqual({error, {"Revoke role unauthorized",SeCo4}}, dderl_role:revoke_role(SeCo4, AccountId, admin)),
+    io:format(user, "success ~p~n", [manage_account_roles_rejects]), 
+
     io:format(user, "----TEST--~p:test_manage_account_permissions~n", [?MODULE]),
+
     ?assertEqual(ok, dderl_role:grant_permission(SeCo, test_role, delete_tests)),
     io:format(user, "success ~p~n", [role_grant_test_role_delete_tests]), 
     ?assertEqual(ok, dderl_role:grant_permission(SeCo, test_role, fake_tests)),
@@ -456,15 +516,23 @@ test(_) ->
     ?assertEqual(ok, dderl_role:revoke_permission(SeCo, test_role, delete_tests)),
     io:format(user, "success ~p~n", [role_revoket_test_role_delete_tests]), 
 
+    io:format(user, "----TEST--~p:test_manage_account_permission_rejects~n", [?MODULE]),
+
+    ?assertEqual({error, {"Has permission unauthorized",SeCo4}}, dderl_role:has_permission(SeCo4, UserId, manage_accounts)), 
+    ?assertEqual({error, {"Has permission unauthorized",SeCo4}}, dderl_role:has_permission(SeCo4, AccountId, perform_tests)),
+    ?assertEqual({error, {"Grant permission unauthorized",SeCo4}}, dderl_role:grant_permission(SeCo4, test_role, delete_tests)),
+    ?assertEqual({error, {"Revoke permission unauthorized",SeCo4}}, dderl_role:revoke_permission(SeCo4, test_role, delete_tests)),
+    io:format(user, "success ~p~n", [test_manage_account_permission_rejects]), 
+
 
     %% Cleanup only if we arrive at this point
-    ?assertEqual({atomic,ok}, dderl_role:delete_table(SeCo)),
-    io:format(user, "success ~p~n", [delete_role_table]), 
-    ?assertEqual({aborted,{no_exists,ddRole}}, dderl_role:delete_table(SeCo)),
-    io:format(user, "success ~p~n", [delete_role_table_no_exists]), 
-    ?assertEqual({atomic,ok}, dderl_account:delete_table(SeCo)),
-    io:format(user, "success ~p~n", [delete_account_table]), 
-    ?assertEqual({aborted,{no_exists,ddAccount}}, dderl_account:delete_table(SeCo)),
-    io:format(user, "success ~p~n", [delete_account_table_no_exists]), 
+    ?assertEqual({atomic,ok}, dderl_role:delete_tables(SeCo)),
+    io:format(user, "success ~p~n", [delete_role_tables]), 
+    %% ?assertEqual({aborted,{no_exists,ddRole}}, dderl_role:delete_tables(SeCo)),
+    %% io:format(user, "success ~p~n", [delete_role_tables_no_exists]), 
+    ?assertEqual({atomic,ok}, if_delete_tables(SeCo)),
+    io:format(user, "success ~p~n", [delete_account_tables]), 
+    ?assertEqual({aborted,{no_exists,ddAccount}}, if_delete_tables(SeCo)),
+    io:format(user, "success ~p~n", [delete_account_tables_no_exists]), 
     ok.
 
