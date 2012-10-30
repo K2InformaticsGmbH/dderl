@@ -1,0 +1,37 @@
+	, account_create/2
+        , account_get/2
+        , account_get_by_name/2
+        , account_update/3
+        , account_lock/2
+        , account_unlock/2
+        , account_delete/2
+        , account_exists/2
+
+        , authenticate/3
+        , login/1
+        , change_credentials/3
+        , logout/1
+        
+	, role_create/2
+        , role_get/2
+        , role_update/3
+        , role_delete/2
+        , role_exists/2
+        , role_grant/3
+        , role_revoke/3
+        , grant_permission/3
+        , revoke_permission/3
+
+        , grant_connection/3
+        , revoke_connection/3
+        , grant_command/3
+        , revoke_command/3
+
+	, has_role/3
+        , has_permission/3
+        , has_connection/3
+        , has_command/3
+        , have_role/2
+        , have_permission/2
+        
+
