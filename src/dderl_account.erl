@@ -5,7 +5,7 @@
 -include("dderl.hrl").
 
 -export([ create_tables/1
-        , delete_tables/1
+        , drop_tables/1
         ]).
 
 -export([ create/2
@@ -18,21 +18,22 @@
         , login/1
         , change_credentials/3
         , logout/1
-        , authorize/2
-        , authorize_all/2
-        , authorize_some/2
         , lock/2
         , unlock/2
         ]).
 
-
+ 
 %% --Interface functions  (calling imem_if for now, not exported) -------------------
 
-if_create_tables(_SeCo) ->
-    imem_if:build_table(ddAccount, record_info(fields, ddAccount)).
+schema() ->
+    [Schema|_]=re:split(filename:basename(mnesia:system_info(directory)),"[.]",[{return,list}]),
+    Schema.
 
-if_delete_tables(_SeCo) -> 
-    imem_if:delete_table(ddAccount).
+if_create_tables(_SeCo) ->
+    imem_if:create_cluster_table(ddAccount, record_info(fields, ddAccount),[]).
+
+if_drop_tables(_SeCo) -> 
+    imem_if:drop_table(ddAccount).
 
 if_write(_SeCo, #ddAccount{}=Account) -> 
     imem_if:write(ddAccount, Account).
@@ -47,7 +48,7 @@ if_get(SeCo, AccountId) ->
     end.
 
 if_select(_SeCo, MatchSpec) ->
-    imem_if:select_rows(ddAccount, MatchSpec). 
+    imem_if:select(ddAccount, MatchSpec). 
 
 if_get_by_name(SeCo, Name) -> 
     MatchHead = #ddAccount{name='$1', _='_'},
@@ -73,10 +74,10 @@ if_write(#ddRole{}=Role) ->
 create_tables(SeCo) ->
     if_create_tables(SeCo).
 
-delete_tables(SeCo) -> 
+drop_tables(SeCo) -> 
     case dderl_role:have_permission(SeCo, manage_accounts) of
-        true ->     if_delete_tables(SeCo);
-        false ->    {error, {"Delete account tables unauthorized",SeCo}}
+        true ->     if_drop_tables(SeCo);
+        false ->    {error, {"Drop account tables unauthorized",SeCo}}
     end.
 
 create(SeCo, #ddAccount{id=AccountId, name=Name}=Account) when is_binary(Name) ->
@@ -171,7 +172,7 @@ exists(SeCo, AccountId) ->                          %% exists, maybe in changed 
 
 authenticate(SessionId, Name, Credentials) ->
     LocalTime = calendar:local_time(),
-    SeCo = #ddSeCo{authenticationTime=erlang:now(), pid=self(), sessionId=SessionId},
+    SeCo = #ddSeCo{authenticationTime=erlang:now(), phid=self(), sessionId=SessionId},
     Result = if_get_by_name(SeCo, Name),
     case Result of
         #ddAccount{isLocked='true'} ->
@@ -196,7 +197,7 @@ unauthenticate(_SeCo) ->
      %% ToDo: Delete entry in seco table if it exists
      ok.
 
-login(#ddSeCo{pid=Pid, accountId=AccountId} = SeCo) when Pid == self() ->
+login(#ddSeCo{phid=Pid, accountId=AccountId} = SeCo) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
     LocalTime = calendar:local_time(),
     AuthenticationMethod = pwdmd5,      %% ToDo: get it from seco table value
@@ -220,19 +221,19 @@ login(#ddSeCo{} = SeCo) ->
     {error,{"Unauthorized session context", SeCo}}.
 
 
-change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {pwdmd5,_}=OldCred, {pwdmd5,_}=NewCred) when Pid == self() ->
+change_credentials(#ddSeCo{phid=Pid, accountId=AccountId}=SeCo, {pwdmd5,_}=OldCred, {pwdmd5,_}=NewCred) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
     LocalTime = calendar:local_time(),
     #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
     if_write(SeCo, Account#ddAccount{lastPasswordChangeTime=LocalTime, credentials=[NewCred|lists:delete(OldCred,CredList)]}),
     login(SeCo);
-change_credentials(#ddSeCo{pid=Pid, accountId=AccountId}=SeCo, {CredType,_}=OldCred, {CredType,_}=NewCred) when Pid == self() ->
+change_credentials(#ddSeCo{phid=Pid, accountId=AccountId}=SeCo, {CredType,_}=OldCred, {CredType,_}=NewCred) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
     #ddAccount{credentials=CredList} = Account = if_get(SeCo, AccountId),
     if_write(SeCo, Account#ddAccount{credentials=[NewCred|lists:delete(OldCred,CredList)]}),
     login(SeCo).
 
-logout(#ddSeCo{pid=Pid} = SeCo) when Pid == self() ->
+logout(#ddSeCo{phid=Pid} = SeCo) when Pid == self() ->
     %% ToDo: Check for entry in seco table here , must exist and be recent, otherwise reject
     unauthenticate(SeCo),
     %% ToDo: Delete entry in cache tables here (ddPerm ...)
@@ -240,11 +241,6 @@ logout(#ddSeCo{pid=Pid} = SeCo) when Pid == self() ->
 logout(#ddSeCo{} = SeCo) ->
     {error,{"Unauthorized session context", SeCo}}.
 
-authorize(_SeCo, _Permission) -> ok.
-
-authorize_all(_SeCo, _Permissions) -> ok.
-
-authorize_some(_SeCo, _Permissions) -> ok.
 
 %% ----- TESTS ------------------------------------------------
 
@@ -266,6 +262,11 @@ account_test_() ->
 
     
 test(_) ->
+    io:format(user, "----TEST--~p:test_mnesia~n", [?MODULE]),
+
+    ?assertEqual("Mnesia", schema()),
+    io:format(user, "success ~p~n", [schema]),
+
     io:format(user, "----TEST--~p:test_create_account_table~n", [?MODULE]),
 
     ?assertEqual({atomic,ok}, dderl_account:create_tables(none)),
@@ -302,7 +303,7 @@ test(_) ->
     SeCo0=authenticate(someSessionId, UserName, UserCred),
     ?assertMatch(#ddSeCo{}, SeCo0),
     ?assertEqual(UserId, SeCo0#ddSeCo.accountId),
-    ?assertEqual(self(), SeCo0#ddSeCo.pid),
+    ?assertEqual(self(), SeCo0#ddSeCo.phid),
     ?assertEqual(someSessionId, SeCo0#ddSeCo.sessionId),
     io:format(user, "success ~p~n", [test_admin_authentification]), 
     ?assertEqual({error,{"Password expired. Please change it", UserId}}, login(SeCo0)),
@@ -316,7 +317,7 @@ test(_) ->
     io:format(user, "success ~p~n", [logout]), 
     SeCo2=authenticate(someSessionId, UserName, UserCredNew),
     ?assertEqual(UserId, SeCo2#ddSeCo.accountId),
-    ?assertEqual(self(), SeCo2#ddSeCo.pid),
+    ?assertEqual(self(), SeCo2#ddSeCo.phid),
     ?assertEqual(someSessionId, SeCo2#ddSeCo.sessionId),
     io:format(user, "success ~p~n", [test_admin_reauthentification]),
     ?assertEqual(true, dderl_role:have_permission(SeCo2, manage_accounts)), 
@@ -392,7 +393,7 @@ test(_) ->
     SeCo3=authenticate(someSessionId, AccountName, AccountCredNew),
     ?assertMatch(#ddSeCo{}, SeCo3),
     ?assertEqual(AccountId, SeCo3#ddSeCo.accountId),
-    ?assertEqual(self(), SeCo3#ddSeCo.pid),
+    ?assertEqual(self(), SeCo3#ddSeCo.phid),
     ?assertEqual(someSessionId, SeCo3#ddSeCo.sessionId),
     io:format(user, "success ~p~n", [test_authentification]),
     ?assertEqual({error,{"Password expired. Please change it", AccountId}}, login(SeCo3)),
@@ -410,9 +411,9 @@ test(_) ->
 
     io:format(user, "----TEST--~p:test_manage_account_rejectss~n", [?MODULE]),
 
-    ?assertEqual({error, {"Delete role tables unauthorized",SeCo4}}, dderl_role:delete_tables(SeCo4)),
+    ?assertEqual({error, {"Drop role tables unauthorized",SeCo4}}, dderl_role:drop_tables(SeCo4)),
     io:format(user, "success ~p~n", [delete_role_tables_rejected]), 
-    ?assertEqual({error, {"Delete account tables unauthorized",SeCo4}}, dderl_account:delete_tables(SeCo4)),
+    ?assertEqual({error, {"Drop account tables unauthorized",SeCo4}}, dderl_account:drop_tables(SeCo4)),
     io:format(user, "success ~p~n", [delete_account_tables_rejected]), 
     ?assertEqual({error, {"Create account unauthorized",SeCo4}}, dderl_account:create(SeCo4, Account)),
     ?assertEqual({error, {"Create account unauthorized",SeCo4}}, dderl_account:create(SeCo4, Account0)),
@@ -526,13 +527,13 @@ test(_) ->
 
 
     %% Cleanup only if we arrive at this point
-    ?assertEqual({atomic,ok}, dderl_role:delete_tables(SeCo)),
+    ?assertEqual({atomic,ok}, dderl_role:drop_tables(SeCo)),
     io:format(user, "success ~p~n", [delete_role_tables]), 
     %% ?assertEqual({aborted,{no_exists,ddRole}}, dderl_role:delete_tables(SeCo)),
     %% io:format(user, "success ~p~n", [delete_role_tables_no_exists]), 
-    ?assertEqual({atomic,ok}, if_delete_tables(SeCo)),
-    io:format(user, "success ~p~n", [delete_account_tables]), 
-    ?assertEqual({aborted,{no_exists,ddAccount}}, if_delete_tables(SeCo)),
-    io:format(user, "success ~p~n", [delete_account_tables_no_exists]), 
+    ?assertEqual({atomic,ok}, if_drop_tables(SeCo)),
+    io:format(user, "success ~p~n", [drop_account_tables]), 
+    ?assertEqual({aborted,{no_exists,ddAccount}}, if_drop_tables(SeCo)),
+    io:format(user, "success ~p~n", [drop_account_tables_no_exists]), 
     ok.
 

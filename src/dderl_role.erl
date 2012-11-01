@@ -3,7 +3,7 @@
 -include("dderl.hrl").
 
 -export([ create_tables/1
-        , delete_tables/1
+        , drop_tables/1
         ]).
 
 -export([ create/2
@@ -15,28 +15,25 @@
         , revoke_role/3
         , grant_permission/3
         , revoke_permission/3
-        , grant_connection/3
-        , revoke_connection/3
-        , grant_command/3
-        , revoke_command/3
+        , grant_quota/4
+        , revoke_quota/3
         ]).
 
 -export([ has_role/3
         , has_permission/3
-        , has_connection/3
-        , has_command/3
         , have_role/2
         , have_permission/2
+%%        , my_quota/2
         ]).
 
 
 %% --Interface functions  (calling imem_if for now) ----------------------------------
 
 if_create_tables(_SeCo) ->
-    imem_if:build_table(ddRole, record_info(fields, ddRole)).
+    imem_if:create_cluster_table(ddRole, record_info(fields, ddRole),[]).
 
-if_delete_tables(_SeCo) -> 
-    imem_if:delete_table(ddRole).
+if_drop_tables(_SeCo) -> 
+    imem_if:drop_table(ddRole).
 
 if_write(_SeCo, #ddRole{}=Role) -> 
     imem_if:write(ddRole, Role).
@@ -102,10 +99,10 @@ if_has_child_permission(SeCo, [RootRoleId|OtherRoles], PermissionId) ->
 create_tables(SeCo) ->
     if_create_tables(SeCo).
 
-delete_tables(SeCo) -> 
+drop_tables(SeCo) -> 
     case have_permission(SeCo, manage_accounts) of
-        true ->     if_delete_tables(SeCo);
-        false ->    {error, {"Delete role tables unauthorized",SeCo}}
+        true ->     if_drop_tables(SeCo);
+        false ->    {error, {"Drop role tables unauthorized",SeCo}}
     end.
 
 create(SeCo, #ddRole{id=RoleId}=Role) -> 
@@ -258,92 +255,49 @@ revoke_permission(SeCo, FromRoleId, PermissionId) ->
         false ->    {error, {"Revoke permission unauthorized",SeCo}}
     end.
 
-grant_connection(SeCo, #ddRole{id=ToRoleId}=ToRole, ConnectionId) -> 
+grant_quota(SeCo, #ddRole{id=ToRoleId}=ToRole, QuotaId, Value) -> 
    case have_permission(SeCo, manage_accounts) of
         true ->     case if_read(SeCo, ToRoleId) of
                         [] -> {error, {"Role does not exist", ToRoleId}};
-                        [ToRole] -> grant_connection(SeCo, ToRoleId, ConnectionId);
+                        [ToRole] -> grant_quota(SeCo, ToRoleId, QuotaId, Value);
                         [_] -> {error, {"Role is modified by someone else", ToRoleId}}
                     end;
-        false ->    {error, {"Grant connection unauthorized",SeCo}}
+        false ->    {error, {"Grant quota unauthorized",SeCo}}
     end;
-grant_connection(SeCo, ToRoleId, ConnectionId) ->
+grant_quota(SeCo, ToRoleId, QuotaId, Value) ->
    case have_permission(SeCo, manage_accounts) of
         true ->     case get(SeCo, ToRoleId) of
-                        #ddRole{dbConns=Connections}=ToRole ->   
-                            NewConnections = case lists:member(ConnectionId, Connections) of
-                                true ->     Connections;
-                                false ->    lists:append(Connections, [ConnectionId])   %% append because newer = seldom used
-                            end,
-                            update(SeCo,ToRole,ToRole#ddRole{dbConns=NewConnections});   
+                        #ddRole{quotas=Quotas}=ToRole ->   
+                            OtherQuotas = lists:key_delete(QuotaId, 1, Quotas),
+                            update(SeCo,ToRole,ToRole#ddRole{quotas=lists:append(OtherQuotas, [{QuotaId,Value}])});   
                         Error ->    Error    
                     end;
-        false ->    {error, {"Grant connection unauthorized",SeCo}}
+        false ->    {error, {"Grant quota unauthorized",SeCo}}
     end.
 
-revoke_connection(SeCo, #ddRole{id=FromRoleId}=FromRole, ConnectionId) -> 
+revoke_quota(SeCo, #ddRole{id=FromRoleId}=FromRole, QuotaId) -> 
    case have_permission(SeCo, manage_accounts) of
         true ->     case if_read(SeCo, FromRoleId) of
                         [] -> {error, {"Role does not exist", FromRoleId}};
-                        [FromRole] -> revoke_connection(SeCo, FromRoleId, ConnectionId);
+                        [FromRole] -> revoke_quota(SeCo, FromRoleId, QuotaId);
                         [_] -> {error, {"Role is modified by someone else", FromRoleId}}
                     end;
-        false ->    {error, {"Revoke connection unauthorized",SeCo}}
+        false ->    {error, {"Revoke quota unauthorized",SeCo}}
     end;        
-revoke_connection(SeCo, FromRoleId, ConnectionId) -> 
+revoke_quota(SeCo, FromRoleId, QuotaId) -> 
     case have_permission(SeCo, manage_accounts) of
         true ->     case get(SeCo, FromRoleId) of
-                        #ddRole{dbConns=Connections}=FromRole ->   
-                            update(SeCo,FromRole,FromRole#ddRole{dbConns=lists:delete(ConnectionId, Connections)});   
-                            Error ->    Error    
-                    end;
-        false ->    {error, {"Revoke connection unauthorized",SeCo}}
-    end.
-
-grant_command(SeCo, #ddRole{id=ToRoleId}=ToRole, CommandId) -> 
-    case have_permission(SeCo, manage_accounts) of
-        true ->     case if_read(SeCo, ToRoleId) of
-                        [] -> {error, {"Role does not exist", ToRoleId}};
-                        [ToRole] -> grant_command(SeCo, ToRoleId, CommandId);
-                        [_] -> {error, {"Role is modified by someone else", ToRoleId}}
-                    end;
-        false ->    {error, {"Grant command unauthorized",SeCo}}
-    end;        
-grant_command(SeCo, ToRoleId, CommandId) ->
-    case have_permission(SeCo, manage_accounts) of
-        true ->     case get(SeCo, ToRoleId) of
-                        #ddRole{dbCmds=Commands}=ToRole ->   
-                            NewCommands = case lists:member(CommandId, Commands) of
-                                true ->     Commands;
-                                false ->    lists:append(Commands, [CommandId])   %% append because newer = seldom used
-                            end,
-                            update(SeCo,ToRole,ToRole#ddRole{dbCmds=NewCommands});   
+                        #ddRole{quotas=Quotas}=FromRole ->   
+                            update(SeCo,FromRole,FromRole#ddRole{quotas=lists:key_delete(QuotaId, 1, Quotas)});   
                         Error ->    Error    
                     end;
-        false ->    {error, {"Grant command unauthorized",SeCo}}
+        false ->    {error, {"Revoke quota unauthorized",SeCo}}
     end.
 
-revoke_command(SeCo, #ddRole{id=FromRoleId}=FromRole, CommandId) -> 
-    case have_permission(SeCo, manage_accounts) of
-        true ->     case if_read(SeCo, FromRoleId) of
-                        [] -> {error, {"Role does not exist", FromRoleId}};
-                        [FromRole] -> revoke_command(SeCo, FromRoleId, CommandId);
-                        [_] -> {error, {"Role is modified by someone else", FromRoleId}}
-                    end;
-        false ->    {error, {"Revoke command unauthorized",SeCo}}
-    end;
-revoke_command(SeCo, FromRoleId, CommandId) -> 
-    case have_permission(SeCo, manage_accounts) of
-        true ->     case get(SeCo, FromRoleId) of
-                        #ddRole{dbCmds=Commands}=FromRole ->   
-                            update(SeCo,FromRole,FromRole#ddRole{dbCmds=lists:delete(CommandId, Commands)});   
-                        Error ->    Error    
-                    end;
-        false ->    {error, {"Revoke command unauthorized",SeCo}}
-    end.
 
-have_role(SeCo, RoleId) ->
-    if_has_role(SeCo, SeCo#ddSeCo.accountId, RoleId).
+have_role(#ddSeCo{phid=Pid} = SeCo, RoleId) when Pid == self()->
+    if_has_role(SeCo, SeCo#ddSeCo.accountId, RoleId);
+have_role(#ddSeCo{}, _) -> false.
 
 has_role(SeCo, RootRoleId, RoleId) ->
     case have_permission(SeCo, manage_accounts) of
@@ -351,8 +305,10 @@ has_role(SeCo, RootRoleId, RoleId) ->
         false ->    {error, {"Has role unauthorized",SeCo}}
     end.
 
-have_permission(SeCo, PermissionId) ->
-    if_has_permission(SeCo, SeCo#ddSeCo.accountId, PermissionId).
+have_permission(#ddSeCo{phid=Pid} = SeCo, PermissionId)  when Pid == self()  ->
+    if_has_permission(SeCo, SeCo#ddSeCo.accountId, PermissionId);
+have_permission(#ddSeCo{}, _)   -> false.
+
 
 has_permission(SeCo, RootRoleId, PermissionId) ->
     case have_permission(SeCo, manage_accounts) of
@@ -360,50 +316,28 @@ has_permission(SeCo, RootRoleId, PermissionId) ->
         false ->    {error, {"Has permission unauthorized",SeCo}}
     end.
 
-has_connection(SeCo, RootRoleId, ConnectionId) ->
-    case if_get(SeCo, RootRoleId) of
-        {error, Error} ->                       
-            {error, Error};
-        #ddRole{dbConns=[],roles=[]} ->     
-            false;
-        #ddRole{dbConns=Connections, roles=[]} -> 
-             lists:member('any', Connections) orelse lists:member(ConnectionId, Connections);
-        #ddRole{dbConns=Connections, roles=ChildRoles} ->
-            case lists:member('any', Connections) orelse lists:member(ConnectionId, Connections) of
-                true ->     true;
-                false ->    has_child_connection(SeCo,  ChildRoles, ConnectionId)
-            end            
-    end.
+% has_connection(SeCo, RootRoleId, ConnectionId) ->
+%     case if_get(SeCo, RootRoleId) of
+%         {error, Error} ->                       
+%             {error, Error};
+%         #ddRole{dbConns=[],roles=[]} ->     
+%             false;
+%         #ddRole{dbConns=Connections, roles=[]} -> 
+%              lists:member('any', Connections) orelse lists:member(ConnectionId, Connections);
+%         #ddRole{dbConns=Connections, roles=ChildRoles} ->
+%             case lists:member('any', Connections) orelse lists:member(ConnectionId, Connections) of
+%                 true ->     true;
+%                 false ->    has_child_connection(SeCo,  ChildRoles, ConnectionId)
+%             end            
+%     end.
 
-has_child_connection(_SeCo, [], _ConnectionId) -> false;
-has_child_connection(SeCo, [RootRoleId|OtherRoles], ConnectionId) ->
-    case has_connection(SeCo, RootRoleId, ConnectionId) of
-        {error, Error} ->   {error, Error};
-        true ->             true;
-        false ->            has_child_connection(SeCo, OtherRoles, ConnectionId)
-    end.
+% has_child_connection(_SeCo, [], _ConnectionId) -> false;
+% has_child_connection(SeCo, [RootRoleId|OtherRoles], ConnectionId) ->
+%     case has_connection(SeCo, RootRoleId, ConnectionId) of
+%         {error, Error} ->   {error, Error};
+%         true ->             true;
+%         false ->            has_child_connection(SeCo, OtherRoles, ConnectionId)
+%     end.
 
-has_command(SeCo, RootRoleId, CommandId) ->
-    case if_get(SeCo, RootRoleId) of
-        {error, Error} ->                       
-            {error, Error};
-        #ddRole{dbCmds=[],roles=[]} ->     
-            false;
-        #ddRole{dbCmds=Commands, roles=[]} -> 
-             lists:member('any', Commands) orelse lists:member(CommandId, Commands);
-        #ddRole{dbCmds=Commands, roles=ChildRoles} ->
-            case lists:member('any', Commands) orelse lists:member(CommandId, Commands) of
-                true ->     true;
-                false ->    has_child_command(SeCo,  ChildRoles, CommandId)
-            end            
-    end.
-
-has_child_command(_SeCo, [], _CommandId) -> false;
-has_child_command(SeCo, [RootRoleId|OtherRoles], CommandId) ->
-    case has_command(SeCo, RootRoleId, CommandId) of
-        {error, Error} ->   {error, Error};
-        true ->             true;
-        false ->            has_child_command(SeCo, OtherRoles, CommandId)
-    end.
 
 %% ----- TESTS ---(implemented in dderl_account)------------------------------

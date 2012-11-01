@@ -4,12 +4,14 @@
 -type ddEntityId() :: reference() | atom().                    
 -type ddIdentity() :: binary().                                   %% Account name
 -type ddCredential() :: {pwdmd5, binary()}.     %% {pwdmd5, md5(password)} for now
+-type ddPermission() :: atom() | tuple().       %% e.g. manage_accounts, {table,ddSeCo,select}
+-type ddQuota() :: tuple().                     %% e.g. {max_memory, 1000000000}
 
 -record(ddSeCo,                             %% DDerl session context              
                   { authenticationTime      :: ddTimestamp()      %% authentication timestamp erlang:now()
-                  , pid                     :: pid()              %% caller pid
-                  , accountId               :: ddEntityId()
+                  , phid                    :: any()              %% caller physical id
                   , sessionId               :: integer()          %% erlang:phash2({dderl_session, self()})
+                  , accountId               :: ddEntityId()
                   }
        ). 
 
@@ -46,9 +48,8 @@
 -record(ddRole,                             %% DDerl hierarchy of roles with permissions and access privileges to connections and commands  
                   { id                      ::ddEntityId()            %% lookup starts with ddAccount.id, other roles are atoms
                   , roles=[]                ::[atom()]                %% granted roles
-                  , permissions=[]          ::[atom()]                %% granted permissions
-                  , dbConns=[]              ::'all' | [ddEntityId()]  %% granted db connections
-                  , dbCmds=[]               ::'all' | [ddEntityId()]  %% granted db commands
+                  , permissions=[]          ::[ddPermission()]        %% granted permissions
+                  , quotas=[]               ::[ddQuota()]             %% granted quotas
                   }
        ). 
 

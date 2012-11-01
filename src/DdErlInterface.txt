@@ -1,3 +1,8 @@
+        , authenticate/3
+        , login/1
+        , change_credentials/3
+        , logout/1
+        
 	, account_create/2
         , account_get/2
         , account_get_by_name/2
@@ -7,11 +12,6 @@
         , account_delete/2
         , account_exists/2
 
-        , authenticate/3
-        , login/1
-        , change_credentials/3
-        , logout/1
-        
 	, role_create/2
         , role_get/2
         , role_update/3
