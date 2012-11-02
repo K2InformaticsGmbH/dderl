@@ -320,6 +320,15 @@ function loadTable(table, columns)
 
     table.data("grid", grid)
          .data("columns", columns);
+
+    grid.onCellChange.subscribe(function(e, args){
+        var modifiedRow = grid.getData()[args.row];
+        var cols = grid.getColumns();
+        var modRow = new Array();
+        for (var i=0; i < cols.length; ++i)
+            modRow[modRow.length] = modifiedRow[cols[i].field];        
+        alert(modRow);
+    });
 }
 
 function add_context_menu(cm_id, options)

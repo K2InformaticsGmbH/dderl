@@ -17,11 +17,16 @@
 (function( $, undefined ) {
 
 $.widget( "ui.combobox", {
+// default options
+	options: {
+		strict: false
+	},
 	_create: function() {
 		var self = this,
 			select = this.element.hide(),
 			selected = select.children( ":selected" ),
-			value = selected.val() ? selected.text() : "";
+			value = selected.val() ? selected.text() : "",
+			strict = this.options.strict;
 		var input = this.input = $( "<input>" )
 			.insertAfter( select )
 			.val( value )
@@ -50,6 +55,11 @@ $.widget( "ui.combobox", {
 					self._trigger( "selected", event, {
 						item: ui.item.option
 					});
+					select.trigger("change");
+				},
+				autocomplete : function(value) {
+					this.element.val(value);
+					this.input.val(value);
 				},
 				change: function( event, ui ) {
 					if ( !ui.item ) {
@@ -63,9 +73,11 @@ $.widget( "ui.combobox", {
 						});
 						if ( !valid ) {
 							// remove invalid value, as it didn't match anything
-							$( this ).val( "" );
-							select.val( "" );
-							input.data( "autocomplete" ).term = "";
+							if ( strict ) {
+							    $( this ).val( "" );
+							    select.val( "" );
+							    //input.data( "autocomplete" ).term = "";
+							}
 							return false;
 						}
 					}
