@@ -1,3 +1,21 @@
+-record(accounts, { user
+                  , password
+                  , db_connections
+                  , db_files
+                  }
+       ).
+
+-record(db_connection, { name = ""
+                       , adapter
+                       , ip
+                       , port
+                       , service
+                       , type
+                       , user
+                       , password
+                       , tns
+                       }
+       ).
 
 -record(common,   { adapter
                   , db_files
