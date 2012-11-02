@@ -2,6 +2,7 @@
 ## Eclipse
 #################
 
+deps
 *.pydevproject
 .project
 .metadata
@@ -21,8 +22,6 @@ priv/log/
 *.zip
 *.DCD
 *.DAT
-deps
-deps
 ebin/*
 *.DCL
 
