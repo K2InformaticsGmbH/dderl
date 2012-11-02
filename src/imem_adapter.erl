@@ -1,14 +1,31 @@
 -module(imem_adapter).
 
+-include("dderl.hrl").
+
 -export([ process_cmd/3
+        , init/0
         , iprocess/2
         ]).
 
-process_cmd({"connect", BodyJson}, _SrvPid, _) ->
+init() ->
+    imem_if:insert_into_table(common, {?MODULE, [
+                #file{name="Nodes.sql",
+                      content="imem_nodes",
+                      posX=0, posY=25, width=200, height=500}
+              , #file{name="Tables.sql",
+                      content="tables",
+                      posX=0, posY=25, width=200, height=500}
+              , #file{name="Views.sql",
+                      content="views",
+                      posX=0, posY=25, width=200, height=500}
+            ]}).
+
+
+process_cmd({"connect", BodyJson}, SrvPid, _) ->
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
     Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
-    %dderl_session:log(Srv, "Params ~p~n", [{Ip, Port}]),
     MPort = iprocess({connect,IpAddr,Port},[]),
+    dderl_session:log(SrvPid, "Connected to Params ~p~n", [{IpAddr, Port}]),
     {MPort, "{\"connect\":\"ok\"}"};
 process_cmd({"users", _BodyJson}, SrvPid, MPort) ->
     dderl_session:log(SrvPid, "users ~p~n", [MPort]),

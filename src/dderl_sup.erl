@@ -104,7 +104,7 @@ build_cluster([N|Nodes]) ->
 
 init_tables([]) -> ok;
 init_tables([{T,C}|Tables]) ->
-    case imem_if:build_table(T, C) of
+    case imem_if:create_table(T, C, []) of
         {atomic, ok} -> ok;
         {aborted, R} -> io:format(user, "mnesia:create_table aborted ~p~n", [R])
     end,    
