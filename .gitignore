@@ -2,7 +2,9 @@
 ## Eclipse
 #################
 
-deps
+deps/erlimem/
+deps/imem/
+deps/sqlparse/
 *.pydevproject
 .project
 .metadata
