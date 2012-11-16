@@ -4,21 +4,30 @@
 
 -export([ process_cmd/3
         , init/0
-        , import_sql/2
+    %    , import_sql/2
         ]).
 
 init() ->
-    imem_if:insert_into_table(common, {?MODULE, [
-                #file{name="Users.sql",
-                      content="SELECT USERNAME FROM ALL_USERS",
-                      posX=0, posY=25, width=200, height=500}
-              , #file{name="Tables.sql",
-                      content="SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME",
-                      posX=0, posY=25, width=200, height=500}
-              , #file{name="Views.sql",
-                      content="SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME",
-                      posX=0, posY=25, width=200, height=500}
-            ]}).
+    dderl_dal:add_adapter(oci, "Oracle/OCI"),
+    dderl_dal:add_command(oci, "Users.sql"
+        , "SELECT USERNAME FROM ALL_USERS", []),
+    dderl_dal:add_command(oci, "Tables.sql"
+        , "SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME", []),
+    dderl_dal:add_command(oci, "Views.sql"
+        , "SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME", []).
+
+%% - init() ->
+%% -     imem_if:insert_into_table(common, {?MODULE, [
+%% -                 #file{name="Users.sql",
+%% -                       content="SELECT USERNAME FROM ALL_USERS",
+%% -                       posX=0, posY=25, width=200, height=500}
+%% -               , #file{name="Tables.sql",
+%% -                       content="SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME",
+%% -                       posX=0, posY=25, width=200, height=500}
+%% -               , #file{name="Views.sql",
+%% -                       content="SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME",
+%% -                       posX=0, posY=25, width=200, height=500}
+%% -             ]}).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
@@ -43,11 +52,12 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
             {{undefined,Pool,[]}, "{\"connect\":false, \"msg\":\""++re:replace(Error, "(\\n)", "", [global, {return, list}])++"\"}"};
         Session -> {{Session,Pool,[]}, "{\"connect\":true}"}
     end;
-process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
-    Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
-    Query = "SELECT * FROM " ++ Table,
-    dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
-    {{Session,Pool,Statements}, "{\"qry\":"++dderl_session:create_files_json([#file{name=Table, content=Query}])++"}"};
+% TODO - change the file record ()
+%% - process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
+%% -     Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
+%% -     Query = "SELECT * FROM " ++ Table,
+%% -     dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
+%% -     {{Session,Pool,Statements}, "{\"qry\":"++dderl_session:create_files_json([#file{name=Table, content=Query}])++"}"};
 process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     %{ok, Tokens, _} = sql_lex:string(Query++";"),
@@ -112,12 +122,12 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
 
-
-%% Import sqls
-import_sql(User, Path) ->
-    [Acc|_]=imem_if:read(accounts, User),
-    Files = [#file{name=Fn, content=binary_to_list(Fc)}
-            ||{Fn,{ok,Fc}}<-[{filename:basename(F),file:read_file(F)}
-                            ||F<-filelib:wildcard(Path++"/*.sql")]],
-    NewAcc = Acc#accounts{db_files = Files},
-    imem_if:insert_into_table(accounts, NewAcc).
+% TODO change the file record (use dal for access)
+%% - %% Import sqls
+%% - import_sql(User, Path) ->
+%% -     [Acc|_]=imem_if:read(accounts, User),
+%% -     Files = [#file{name=Fn, content=binary_to_list(Fc)}
+%% -             ||{Fn,{ok,Fc}}<-[{filename:basename(F),file:read_file(F)}
+%% -                             ||F<-filelib:wildcard(Path++"/*.sql")]],
+%% -     NewAcc = Acc#accounts{db_files = Files},
+%% -     imem_if:insert_into_table(accounts, NewAcc).

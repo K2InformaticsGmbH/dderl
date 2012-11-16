@@ -1,7 +1,11 @@
 -module(gen_adapter).
 
 -export([ process_cmd/3
-        , prepare_json_rows/5]).
+        , prepare_json_rows/5
+        , init/0
+        ]).
+
+init() -> ok.
 
 process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),

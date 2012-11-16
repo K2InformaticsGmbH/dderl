@@ -18,6 +18,9 @@
 %% ===================================================================
 
 start_link() ->
+    application:load(imem),
+    application:set_env(imem, mnesia_node_type, disc),
+    imem:start(),
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================
@@ -76,36 +79,10 @@ init([]) ->
              permanent, 5000, worker, dynamic}
         || Wc <- WebConfigs
         ]
-    end,
+    end
+    ++
+    [?CHILD(dderl_dal, worker)],
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
 
-    Nodes = case application:get_env(dderlnodes) of
-        {ok, Ns} -> Ns;
-        _ -> []
-    end,
-    io:format(user, "building imem cluster with ~p~n", [Nodes]),
-    build_cluster(Nodes),
-    dderl:ensure_started(imem),
-    init_tables([
-              ?TBL_SPEC(accounts)
-            , ?TBL_SPEC(common)
-        ]),
     {ok, { {one_for_one, 10, 10}, Processes} }.
-
-build_cluster([]) ->
-    io:format(user, "imem cluster build up done~n", []);
-build_cluster([N|Nodes]) ->
-    case net_adm:ping(N) of
-        pong -> io:format(user, "found clustering node ~p~n", [N]);
-        pang -> io:format(user, "clustering node ~p not found~n", [N])
-    end,
-    build_cluster(Nodes).
-
-init_tables([]) -> ok;
-init_tables([{T,C}|Tables]) ->
-    case imem_if:create_table(T, C, []) of
-        {atomic, ok} -> ok;
-        {aborted, R} -> io:format(user, "mnesia:create_table aborted ~p~n", [R])
-    end,    
-    init_tables(Tables).

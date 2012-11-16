@@ -23,7 +23,5 @@
                 {port, 80},
                 {log_dir, "priv/log"}]
             ]}
-        , {dderlnodes, [ 'dderl@ZHHAPMOP-SBSM01.it.bwns.ch'
-                       , 'dderl@OLTAPMOP-SBSM01.it.bwns.ch']}
   ]}
  ]}.
