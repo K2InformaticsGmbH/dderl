@@ -11,7 +11,7 @@
 -export([init/1, upgrade/0]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, Args), {I, {I, start_link, Args}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -20,8 +20,10 @@
 start_link() ->
     application:load(imem),
     application:set_env(imem, mnesia_node_type, disc),
+    {ok, SchemaName} = application:get_env(imem_name),
+    application:set_env(imem, mnesia_schema_name, SchemaName),
     imem:start(),
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]).
 
 %% ===================================================================
 %% Supervisor callbacks
@@ -50,7 +52,7 @@ upgrade() ->
 
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
-init([]) ->
+init([SchemaName]) ->
 %    Ip = case os:getenv("WEBMACHINE_IP") of false -> "0.0.0.0"; Any -> Any end,
     {ok, Dispatch} = file:consult(filename:join(
                          [filename:dirname(code:which(?MODULE)),
@@ -81,7 +83,7 @@ init([]) ->
         ]
     end
     ++
-    [?CHILD(dderl_dal, worker)],
+    [?CHILD(dderl_dal, worker, [SchemaName])],
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
 

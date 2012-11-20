@@ -23,5 +23,6 @@
                 {port, 80},
                 {log_dir, "priv/log"}]
             ]}
+        , {imem_name, "DDErl"}
   ]}
  ]}.

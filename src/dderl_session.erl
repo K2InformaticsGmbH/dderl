@@ -34,7 +34,7 @@
         , session
         , statements = []
         , tref
-        , user = []
+        , user = <<>>
         , file
         , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
         , adapter = gen_adapter
@@ -98,17 +98,17 @@ handle_call({SessKey, Typ, WReq, Parent}, _From, #state{tref=TRef, key=Key, file
 
 process_call({"login", ReqData}, _From, #state{key=Key, logdir=Dir} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
-    User     = binary_to_list(proplists:get_value(<<"user">>, BodyJson, <<>>)),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     {Y,M,D} = date(),
-    File     = filename:join([Dir, User ++ "_" ++ io_lib:format("~p~p~p", [Y,M,D]) ++ ".log"]),
+    File     = filename:join([Dir, binary_to_list(User) ++ "_" ++ io_lib:format("~p~p~p", [Y,M,D]) ++ ".log"]),
     logi(?GENLOG, "Logfile ~p~n", [File]),
     logi(File, "[~p] login ~p~n", [Key, {User, Password}]),
     case dderl_dal:verify_password(User, Password) of
         true ->  
             {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User,file=File}};
-        false ->
-            {reply, "{\"login\": \"invalid user or password\"}", State}
+        {error, Msg} ->
+            {reply, "{\"login\": \""++Msg++"\"}", State}
     end;
 % - process_call({"files", _}, _From, #state{adapter=AdaptMod, user=User} = State) ->
 % -     CmnFs = case imem_if:read(common, AdaptMod) of
@@ -182,38 +182,43 @@ process_call({"delete_log", ReqData}, _From, #state{key=Key,logdir=Dir,file=File
 % -         {atomic, ok} ->  {reply, "{\"change_pswd\": \"ok\"}", State};
 % -         abort ->  {reply, "{\"change_pswd\": \"unable to change password\"}", State}
 % -     end;
-% - process_call({"save", ReqData}, _From, #state{key=Key, user=User,file=File} = State) ->
-% -     case User of
-% -         [] -> {reply, "{\"save\": \"not logged in\"}", State};
-% -         _ ->
-% -             Data = binary_to_list(wrq:req_body(ReqData)),
-% -             {struct, ConsList} = mochijson:decode(Data),
-% -             NewConsList = [#db_connection {
-% -                     name       = N
-% -                     , adapter  = proplists:get_value("adapter", P, "")
-% -                     , ip       = proplists:get_value("ip", P, "")
-% -                     , port     = list_to_integer(proplists:get_value("port", P, "0"))
-% -                     , service  = proplists:get_value("service", P, "")
-% -                     , type     = proplists:get_value("type", P, "")
-% -                     , user     = proplists:get_value("user", P, "")
-% -                     , password = proplists:get_value("password", P, "")
-% -                     , tns      = proplists:get_value("tnsstring", P, "")
-% -                 } || {N, {struct, P}} <- ConsList],
-% -             logi(File, "Saving...~p~n", [NewConsList]),
-% -             case update_account(User, {cons, NewConsList}) of
-% -                 abort ->  {reply, "{\"save\": \"unable to save config\"}", State};
-% -                 ok ->
-% -                     logi(File, "[~p] config updated for user ~p~n", [Key, User]),
-% -                     {reply, "{\"save\": \"ok\"}", State}
-% -             end
-% -     end;
-% - process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
-% -     case db_dal:get_connects(User) of
-% -         {ok, []} -> {reply, "{}", State};
-% -         {ok, undefined} ->  {reply, "{}", State};
-% -         {ok, Connections} -> {reply, conns_json(Connections), State#state{user=User}};
-% -         {error, Reason} -> {reply, "{\"get_connects\": \"invalid user -- " ++ Reason ++ "\"}", State}
-% -     end;
+process_call({"save", ReqData}, _From, #state{key=_Key, user=User,file=_File} = State) ->
+    case User of
+        [] -> {reply, "{\"save\": \"not logged in\"}", State};
+        _ ->
+            Data = binary_to_list(wrq:req_body(ReqData)),
+            {struct, SaveCon} = mochijson:decode(Data),
+
+            Service = proplists:get_value("service", SaveCon, ""),
+            Con = #ddConn { id       = erlang:phash2(make_ref())
+                          , name     = proplists:get_value("name", SaveCon, "")
+                          , owner    = User
+                          , adapter  = list_to_existing_atom(proplists:get_value("adapter", SaveCon, ""))
+                          , access   = [ {ip,        proplists:get_value("ip", SaveCon, "")}
+                                       , {port,      proplists:get_value("port", SaveCon, "0")}
+                                       , {service,   Service}
+                                       , {type,      proplists:get_value("type", SaveCon, "")}
+                                       , {user,      proplists:get_value("user", SaveCon, "")}
+                                       , {password,  proplists:get_value("password", SaveCon, "")}
+                                       , {tnsstring, proplists:get_value("tnsstring", SaveCon, "")}
+                                       ]
+                          , schema   = Service
+                          },
+            io:format(user, "Service ~p~n", [Con]),
+%            logi(File, "Saving...~p~n", [NewConsList]),
+            %case update_account(User, {cons, NewConsList}) of
+            %    abort ->  {reply, "{\"save\": \"unable to save config\"}", State};
+            %    ok ->
+            %        logi(File, "[~p] config updated for user ~p~n", [Key, User]),
+            %        {reply, "{\"save\": \"ok\"}", State}
+            %end
+            {reply, "{\"save\": \""++integer_to_list(erlang:phash2(Con#ddConn.id))++"\"}", State}
+    end;
+process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
+    case dderl_dal:get_connects(User) of
+        []          -> {reply, "{}", State};
+        Connections -> {reply, conns_json(Connections), State#state{user=User}}
+    end;
 process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod,resps=Responces} = State) ->
     BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
         {struct, [{_, {struct, B}}]} ->  B;
@@ -247,18 +252,22 @@ format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% - conns_json(Connections) ->
-% -     "{"++string:join([""++jsq(C#db_connection.name)++":{"
-% -                 ++"\"adapter\":"++jsq(C#db_connection.adapter)
-% -                 ++", \"ip\":"++jsq(C#db_connection.ip)
-% -                 ++", \"port\":\""++integer_to_list(C#db_connection.port)++"\""
-% -                 ++", \"service\":"++jsq(C#db_connection.service)
-% -                 ++", \"type\":"++jsq(C#db_connection.type)
-% -                 ++", \"user\":"++jsq(C#db_connection.user)
-% -                 ++", \"password\":"++jsq(C#db_connection.password)
-% -                 ++", \"tnsstring\":"++jsq(C#db_connection.tns)
-% -                 ++"}"
-% -                 ||C<-Connections], ",")++"}".
+conns_json(Connections) ->
+    ConsJson = "{" ++
+    string:join(lists:foldl(fun(C, Acc) ->
+        Access = lists:flatten([", \""++atom_to_list(N)++"\":\""++jsq(V)++"\"" || {N,V} <- C#ddConn.access]),
+        io:format(user, "Access ~p~n", [Access]),
+        [lists:flatten("\""++jsq(C#ddConn.id)++"\":{"
+            ++"\"name\":"++jsq(C#ddConn.name)
+            ++", \"adapter\":\""++jsq(C#ddConn.adapter)++"\""
+            ++", \"service\":"++jsq(C#ddConn.schema)
+            ++Access
+            ++"}") | Acc]
+    end,
+    [],
+    Connections), ",") ++ "}",
+    io:format(user, "ConsJson ~p~n", [ConsJson]),
+    ConsJson.
 
 % - create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
 % - create_files_json([], Json) -> Json;
@@ -273,7 +282,7 @@ format_status(_Opt, [_PDict, State]) -> State.
 % -          ++"}"
 % -          |Json]).
 
-% - jsq(Str) -> io_lib:format("~p", [Str]).
+jsq(Str) -> io_lib:format("~p", [Str]).
 
 logi(Filename, Format, Content) ->
     FormatWithDate = "[" ++ io_lib:format("~p ~p", [date(), time()]) ++ "] " ++ Format,

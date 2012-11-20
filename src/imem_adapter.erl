@@ -7,7 +7,12 @@
         ]).
 
 init() ->    
-    dderl_dal:add_adapter(imem, "IMEM DB").
+    dderl_dal:add_adapter(imem, "IMEM DB"),
+    dderl_dal:add_connect(#ddConn{ id = erlang:phash2(make_ref())
+                                 , name = "local imem"
+                                 , adapter = imem
+                                 , access = [{local, undefined}]
+                                 }).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     IpAddr   = inet:getaddr(binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)), inet),

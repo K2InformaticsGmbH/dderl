@@ -93,20 +93,21 @@ function connect_dlg()
                 $(this).dialog("close");
             },
             "Save": function() {
-                name = $("#config_list").parent().children()[1].value;
-                saveSettings = {adapter  :$('#adapter_list option:checked').val(),
-                                ip       :$("#ip").val(),
-                                port     :$("#port").val(),
-                                service  :$("#service").val(),
-                                type     :$('input:radio[name=db_type]:checked').val(),
-                                user     :$("#user").val().toUpperCase(),
-                                password :$("#password").val(),
-                                tnsstring :$("#tnsstring").val()};
+                name = $("#config_list").parent().children()[0].value;
+                saveSettings = {adapter   :$('#adapter_list option:checked').val(),
+                                name      :name,
+                                ip        :$('#ip').val(),
+                                port      :$('#port').val(),
+                                service   :$('#service').val(),
+                                type      :$('input:radio[name=db_type]:checked').val(),
+                                user      :$('#user').val().toUpperCase(),
+                                password  :$('#password').val(),
+                                tnsstring :$('#tnsstring').val()};
                 logins[name] = saveSettings;
                 $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
                 load_login_form(name);
 
-                ajax_post('/app/save', logins, null, null, function(data) {
+                ajax_post('/app/save', saveSettings, null, null, function(data) {
                     alert(data.save);
                 });
             },
@@ -167,11 +168,15 @@ function load_login_form(name) {
     $('#password').val(logins[name].password);
     $('#tnsstring').val(logins[name].tnsstring);
     $('input:radio[name=db_type][value='+logins[name].type+']').click();
-    if(logins[name].type.toUpperCase() == 'TNS') {
-        $('#con_tns').show();
-        $('#con_othrs').hide();
+    var conName = '';
+    if(logins[name].hasOwnProperty('type')) {
+        conName = logins[name].type.toUpperCase();
+        if(conName == 'TNS') {
+            $('#con_tns').show();
+            $('#con_othrs').hide();
+        }
     }
-    $('#con_name').html(logins[name].type.toUpperCase() + "&nbsp;");
+    $('#con_name').html(conName + "&nbsp;");
     $('#adapter_list option[value="'+logins[name].adapter+'"]').attr("selected","selected"); 
     $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
 }

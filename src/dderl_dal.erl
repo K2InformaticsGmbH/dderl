@@ -14,7 +14,6 @@
         ,format_status/2
         ]).
 
--define(SCHEMA, "Imem").
 -define(USER, <<"admin">>).
 -define(PASSWORD, erlang:md5(<<"change_on_install">>)).
 
@@ -22,21 +21,31 @@ verify_password(User, Password) -> gen_server:call(?MODULE, {verify_password, Us
 
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 add_command(Adapter, Name, Cmd, Opts)   -> gen_server:cast(?MODULE, {add_command, Adapter, Name, Cmd, Opts}).
+add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect, Connection}).
 
 get_adapters(User)              -> gen_server:call(?MODULE, {get_adapters, User}).
+get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
 
--record(state, {sess}).
+-record(state, { schema
+               , sess
+    }).
 
-start_link() ->
+hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
+hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
+hexstr_to_bin([X,Y|T], Acc) ->
+    {ok, [V], []} = io_lib:fread("~16u", [X,Y]),
+    hexstr_to_bin(T, [V | Acc]).
+
+start_link(SchemaName) ->
     io:format(user, "~p starting...~n", [?MODULE]),
-    Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [], []),
+    Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
     io:format(user, "~p started!~n~p", [?MODULE, Result]),
     Result.
 
-init(_Args) ->
+init([SchemaName]) ->
     erlimem:start(),
     Cred = {?USER, ?PASSWORD},
-    Sess = erlimem_session:open(rpc, {node(), ?SCHEMA}, Cred),
+    Sess = erlimem_session:open(rpc, {node(), SchemaName}, Cred),
     Sess:run_cmd(create_table, [ddAdapter, record_info(fields, ddAdapter), []]),
     Sess:run_cmd(create_table, [ddInterface, record_info(fields, ddInterface), []]),
     Sess:run_cmd(create_table, [ddConn, record_info(fields, ddConn), []]),
@@ -47,13 +56,50 @@ init(_Args) ->
     Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
     io:format(user, "~p initializing ~p~n", [?MODULE, Adapters]),
     [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
-    {ok, #state{sess=Sess}}.
+    {ok, #state{sess=Sess, schema=SchemaName}}.
 
-handle_call({verify_password, _User, _Password},_From,State) -> {reply, true, State};
-handle_call(_Req,_From,State)           -> {reply, ok, State}.
+handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
+    {Cons, true} = Sess:run_cmd(select, [ddConn
+                                        , [{{ddConn,'_','_','$1','_','_','_'}
+                                          , [{'=:=','$1',User}]
+                                          , ['$_']}]]),
+    {reply, Cons, State};
+handle_call({verify_password, User, Password}, _From, #state{sess=Sess} = State) ->
+    BinPswd = hexstr_to_bin(Password),
+    case Sess:run_cmd(authenticate, [adminSessionId, User, {pwdmd5, BinPswd}]) of
+        {error, {_Exception, {Msg, _Extra}}} ->
+            io:format(user, "authenticate exception ~p~n", [Msg]),
+            {reply, {error, Msg}, State};
+        _SeCo ->
+            case Sess:run_cmd(login, []) of
+                {error, {_Exception, {Msg, _Extra}}} ->
+                    io:format(user, "login exception ~p~n", [Msg]),
+                    {reply, {error, Msg}, State};
+                _NewSeCo -> {reply, true, State}
+            end
+    end;
+handle_call(_Req,_From,State) -> {reply, ok, State}.
 
+handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName} = State) ->
+    NewCon0 = case Con#ddConn.owner of
+        undefined -> Con#ddConn{owner = ?USER};
+        _ -> Con
+    end,
+    NewCon1 = case NewCon0#ddConn.schema of
+        undefined -> NewCon0#ddConn{schema = SchemaName};
+        _ -> NewCon0
+    end,
+    NewCon = case Sess:run_cmd(select, [ddConn
+                                       , [{{ddConn,'_','$1','_','_','_','_'}
+                                         , [{'=:=','$1',Con#ddConn.name}]
+                                         , ['$_']}]]) of
+        {[#ddConn{id=Id}|_], true} -> NewCon1#ddConn{id=Id};
+        _ -> NewCon1
+    end,
+    Sess:run_cmd(insert, [ddConn, NewCon]),
+    {noreply, State};
 handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) ->
-    Sess:run_cmd(insert, [ddCmd, #ddCmd { id=erlang:make_ref()
+    Sess:run_cmd(insert, [ddCmd, #ddCmd { id=erlang:phash2(make_ref())
                                         , name = Name
                                         , owner = ?USER
                                         , adapters = [Adapter]
