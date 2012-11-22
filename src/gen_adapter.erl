@@ -15,12 +15,19 @@ process_cmd({"parse_stmt", BodyJson}, SrvPid, MPort) ->
             {MPort, "{\"error\":\"ERROR: check log for details\"}"};
         Json -> {MPort, Json}
     end;
+process_cmd({"get_query", BodyJson}, SrvPid, MPort) ->
+    Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
+    Query = "SELECT * FROM " ++ Table,
+    dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
+    {MPort, "{\"qry\":{\"name\":\""++Table++"\",\"content\":\""++Query++"\"}}"};
 process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {MPort, "{\"rows\":[]}"}.
 
-process_data(Rows, more, CacheSize) -> "{\"done\":false, \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}";
-process_data(Rows, _, CacheSize)    -> "{\"done\":true,  \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}".
+process_data(Rows, more, CacheSize) ->
+    "{\"done\":false, \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}";
+process_data(Rows, _, CacheSize) ->
+    "{\"done\":true,  \"rows\":"++dderl_session:convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}".
 
 %prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid) ->
 %    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
@@ -41,4 +48,4 @@ prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid) ->
 prepare_json_rows(Statement, RowNum, Fun, StmtKey, SrvPid) ->
     {Rows, Status, CacheSize} = apply(Statement, Fun, []),
     if length(Rows) > 0 -> dderl_session:log(SrvPid, "[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]); true -> ok end,
-    process_data(Rows, Status, CacheSize).
+    process_data(lists:reverse(Rows), Status, CacheSize).

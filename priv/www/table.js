@@ -26,7 +26,7 @@ function renderTable(ctx) {
     var countFun = ctx.countFun;
     var rowFun = ctx.rowFun;
 
-    var tableName = tabName.replace(/[\.]/, '_');
+    var tableName = tabName.replace(/[ \.]/g, '_');
 
     var width=500, height=500, position='center';
         if (ctx != null || ctx != undefined) {
@@ -389,16 +389,16 @@ function loadRows(table, rowNum, ops, rowObj)
 
     var vBMin = (d.length > 0    ? parseInt(d[0].id) : 0);
     var vBMax = (d.length > 0    ? parseInt(d[d.length-1].id) : 0);
-    var dBMin = (rows.length > 0 ? parseInt(rows[0][c.length-1]) : 0);
-    var dBMax = (rows.length > 0 ? parseInt(rows[rows.length-1][c.length-1]) : 0);
+    var dBMin = (rows.length > 0 ? parseInt(rows[0][0]) : 0);
+    var dBMax = (rows.length > 0 ? parseInt(rows[rows.length-1][0]) : 0);
 
     console.log('Data Buf ('+ dBMin + ', ' + dBMax + ')');
 
     for (var i = 0; i < rows.length; i++) {
         var row = {};
         for(var j=1;j<c.length;++j)
-            row[c[j].field] = rows[i][j-1];
-        row['id'] = rows[i][j-1];
+            row[c[j].field] = rows[i][j];
+        row['id'] = rows[i][0];
         var k = 0;
         for(k=0;k<d.length;++k)
             if(d[k].id == row.id) {

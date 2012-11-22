@@ -25,6 +25,7 @@ add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect
 
 get_adapters(User)              -> gen_server:call(?MODULE, {get_adapters, User}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
+get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
 
 -record(state, { schema
                , sess
@@ -58,6 +59,13 @@ init([SchemaName]) ->
     [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
     {ok, #state{sess=Sess, schema=SchemaName}}.
 
+handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
+    {Cmds, true} = Sess:run_cmd(select, [ddCmd
+                                        , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
+                                        , [{'and', {'=:=','$3',User}, {'=:=', '$4', [Adapter]}}]
+                                          %, [['$1','$2', '$5']]}]]),
+                                          , ['$_']}]]),
+    {reply, Cmds, State};
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
     {Cons, true} = Sess:run_cmd(select, [ddConn
                                         , [{{ddConn,'_','_','$1','_','_','_'}
@@ -99,12 +107,19 @@ handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName}
     Sess:run_cmd(insert, [ddConn, NewCon]),
     {noreply, State};
 handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) ->
-    Sess:run_cmd(insert, [ddCmd, #ddCmd { id=erlang:phash2(make_ref())
-                                        , name = Name
-                                        , owner = ?USER
-                                        , adapters = [Adapter]
-                                        , command = Cmd
-                                        , opts = Opts}]),
+    Id = case Sess:run_cmd(select, [ddCmd
+                                       , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
+                                         , [{'and', {'=:=','$2',Name}, {'=:=', '$4', [Adapter]}}]
+                                         , ['$_']}]]) of
+        {[#ddCmd{id=Id0}|_], true} -> Id0;
+        _ -> erlang:phash2(make_ref())
+    end,
+    Sess:run_cmd(insert, [ddCmd, #ddCmd { id        = Id
+                                        , name      = Name
+                                        , owner     = ?USER
+                                        , adapters  = [Adapter]
+                                        , command   = Cmd
+                                        , opts      = Opts}]),
     {noreply, State};
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Sess:run_cmd(insert, [ddAdapter, #ddAdapter{id=Id,fullName=FullName}]),

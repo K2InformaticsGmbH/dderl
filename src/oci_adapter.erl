@@ -52,12 +52,6 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
             {{undefined,Pool,[]}, "{\"connect\":false, \"msg\":\""++re:replace(Error, "(\\n)", "", [global, {return, list}])++"\"}"};
         Session -> {{Session,Pool,[]}, "{\"connect\":true}"}
     end;
-% TODO - change the file record ()
-%% - process_cmd({"get_query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
-%% -     Table = binary_to_list(proplists:get_value(<<"table">>, BodyJson, <<>>)),
-%% -     Query = "SELECT * FROM " ++ Table,
-%% -     dderl_session:log(SrvPid, "[~p] get query ~p~n", [SrvPid, Query]),
-%% -     {{Session,Pool,Statements}, "{\"qry\":"++dderl_session:create_files_json([#file{name=Table, content=Query}])++"}"};
 process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     %{ok, Tokens, _} = sql_lex:string(Query++";"),

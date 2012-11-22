@@ -95,7 +95,6 @@ function connect_dlg()
             "Save": function() {
                 name = $("#config_list").parent().children()[0].value;
                 saveSettings = {adapter   :$('#adapter_list option:checked').val(),
-                                name      :name,
                                 ip        :$('#ip').val(),
                                 port      :$('#port').val(),
                                 service   :$('#service').val(),

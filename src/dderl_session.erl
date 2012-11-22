@@ -110,6 +110,11 @@ process_call({"login", ReqData}, _From, #state{key=Key, logdir=Dir} = State) ->
         {error, Msg} ->
             {reply, "{\"login\": \""++Msg++"\"}", State}
     end;
+process_call({"files", _}, _From, #state{user=User} = State) ->
+    CommandFiles = dderl_dal:get_commands(User, imem),
+    Files = create_files_json(CommandFiles),
+    {reply, "{\"files\": ["++Files++"]}", State};
+
 % - process_call({"files", _}, _From, #state{adapter=AdaptMod, user=User} = State) ->
 % -     CmnFs = case imem_if:read(common, AdaptMod) of
 % -         [] -> [];
@@ -189,30 +194,21 @@ process_call({"save", ReqData}, _From, #state{key=_Key, user=User,file=_File} = 
             Data = binary_to_list(wrq:req_body(ReqData)),
             {struct, SaveCon} = mochijson:decode(Data),
 
-            Service = proplists:get_value("service", SaveCon, ""),
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = proplists:get_value("name", SaveCon, "")
                           , owner    = User
                           , adapter  = list_to_existing_atom(proplists:get_value("adapter", SaveCon, ""))
                           , access   = [ {ip,        proplists:get_value("ip", SaveCon, "")}
                                        , {port,      proplists:get_value("port", SaveCon, "0")}
-                                       , {service,   Service}
                                        , {type,      proplists:get_value("type", SaveCon, "")}
                                        , {user,      proplists:get_value("user", SaveCon, "")}
                                        , {password,  proplists:get_value("password", SaveCon, "")}
                                        , {tnsstring, proplists:get_value("tnsstring", SaveCon, "")}
                                        ]
-                          , schema   = Service
+                          , schema   = proplists:get_value("service", SaveCon, "")
                           },
-            io:format(user, "Service ~p~n", [Con]),
-%            logi(File, "Saving...~p~n", [NewConsList]),
-            %case update_account(User, {cons, NewConsList}) of
-            %    abort ->  {reply, "{\"save\": \"unable to save config\"}", State};
-            %    ok ->
-            %        logi(File, "[~p] config updated for user ~p~n", [Key, User]),
-            %        {reply, "{\"save\": \"ok\"}", State}
-            %end
-            {reply, "{\"save\": \""++integer_to_list(erlang:phash2(Con#ddConn.id))++"\"}", State}
+            dderl_dal:add_connect(Con),
+            {reply, "{\"save\": \"success\"}", State}
     end;
 process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
     case dderl_dal:get_connects(User) of
@@ -255,32 +251,33 @@ format_status(_Opt, [_PDict, State]) -> State.
 conns_json(Connections) ->
     ConsJson = "{" ++
     string:join(lists:foldl(fun(C, Acc) ->
-        Access = lists:flatten([", \""++atom_to_list(N)++"\":\""++jsq(V)++"\"" || {N,V} <- C#ddConn.access]),
-        io:format(user, "Access ~p~n", [Access]),
-        [lists:flatten("\""++jsq(C#ddConn.id)++"\":{"
-            ++"\"name\":"++jsq(C#ddConn.name)
-            ++", \"adapter\":\""++jsq(C#ddConn.adapter)++"\""
+        Access = lists:flatten([", \""++atom_to_list(N)++"\":"++jsq(V) || {N,V} <- C#ddConn.access]),
+        [lists:flatten(jsq(C#ddConn.name)++":{"
+            ++"\"adapter\":\""++jsq(C#ddConn.adapter)++"\""
             ++", \"service\":"++jsq(C#ddConn.schema)
             ++Access
             ++"}") | Acc]
     end,
     [],
     Connections), ",") ++ "}",
-    io:format(user, "ConsJson ~p~n", [ConsJson]),
     ConsJson.
 
-% - create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
-% - create_files_json([], Json) -> Json;
-% - create_files_json([F|Files], Json) ->
-% -     create_files_json(Files, [
-% -             "{\"name\":"++jsq(F#file.name)
-% -          ++", \"content\":"++jsq(F#file.content)
-% -          ++", \"posX\":"++integer_to_list(F#file.posX)
-% -          ++", \"posY\":"++integer_to_list(F#file.posY)
-% -          ++", \"width\":"++integer_to_list(F#file.width)
-% -          ++", \"height\":"++integer_to_list(F#file.height)
-% -          ++"}"
-% -          |Json]).
+create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
+create_files_json([], Json) -> Json;
+create_files_json([F|Files], Json) ->
+    create_files_json(Files, [
+            "{\"name\":"++jsq(F#ddCmd.name)
+         ++", \"content\":"++jsq(F#ddCmd.command)
+         ++", \"posX\":0"
+         ++", \"posY\":25"
+         ++", \"width\":200"
+         ++", \"height\":500"
+%% -         ++", \"posX\":"++integer_to_list(F#ddCmd.posX)
+%% -         ++", \"posY\":"++integer_to_list(F#ddCmd.posY)
+%% -         ++", \"width\":"++integer_to_list(F#ddCmd.width)
+%% -         ++", \"height\":"++integer_to_list(F#ddCmd.height)
+         ++"}"
+         |Json]).
 
 jsq(Str) -> io_lib:format("~p", [Str]).
 
@@ -291,6 +288,17 @@ logi(Filename, Format, Content) ->
         _         -> file:write_file(Filename, list_to_binary(io_lib:format(FormatWithDate, Content)), [append])
     end.
 
+string_list_to_json(Strings) ->
+    NewStrings =
+        lists:foldl(fun
+           (S, Acc) when is_atom(S)  -> [atom_to_list(S)|Acc];
+           (S, Acc) when is_tuple(S) -> [lists:nth(1, io_lib:format("~p", S))|Acc];
+           (S, Acc)                  -> [S|Acc]
+           
+        end,
+        [],
+        Strings),
+    string_list_to_json(NewStrings, "").
 string_list_to_json([], []) -> "[]";
 string_list_to_json([], Json) -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
 string_list_to_json([S|Strings], Json) ->
@@ -303,7 +311,7 @@ string_list_to_json([S|Strings], Json) ->
 convert_rows_to_json(Rows) -> convert_rows_to_json(Rows, "").
 convert_rows_to_json([], Json) when length(Json) > 0 -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
 convert_rows_to_json([], _)                          -> "[]";
-convert_rows_to_json([Row|Rows], Json)               -> convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row), []) ++ ",").
+convert_rows_to_json([Row|Rows], Json)               -> convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row)) ++ ",").
 
 
 convert_row_to_string([]) -> [];
