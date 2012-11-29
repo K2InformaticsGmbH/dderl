@@ -26,6 +26,7 @@ add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect
 get_adapters(User)              -> gen_server:call(?MODULE, {get_adapters, User}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
+get_command(Id)                 -> gen_server:call(?MODULE, {get_command, Id}).
 
 -record(state, { schema
                , sess
@@ -59,6 +60,13 @@ init([SchemaName]) ->
     [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
     {ok, #state{sess=Sess, schema=SchemaName}}.
 
+handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->
+    {Cmds, true} = Sess:run_cmd(select, [ddCmd
+                                           , [{{ddCmd,'$1','_','_','_','_','_','_'}
+                                           , [{'=:=','$1',Id}]
+                                          , ['$_']}]]),
+    Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
+    {reply, Cmd, State};
 handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
     {Cmds, true} = Sess:run_cmd(select, [ddCmd
                                         , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
@@ -66,12 +74,14 @@ handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
                                           %, [['$1','$2', '$5']]}]]),
                                           , ['$_']}]]),
     {reply, Cmds, State};
+
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
     {Cons, true} = Sess:run_cmd(select, [ddConn
                                         , [{{ddConn,'_','_','$1','_','_','_'}
                                           , [{'=:=','$1',User}]
                                           , ['$_']}]]),
     {reply, Cons, State};
+
 handle_call({verify_password, User, Password}, _From, #state{sess=Sess} = State) ->
     BinPswd = hexstr_to_bin(Password),
     case Sess:run_cmd(authenticate, [adminSessionId, User, {pwdmd5, BinPswd}]) of

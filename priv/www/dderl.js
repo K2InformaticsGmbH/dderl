@@ -111,7 +111,7 @@ function load_table(context)
 {
     var query = context.content;
     var tableName = context.name;
-    ajax_post('/app/query', {query: {qstr: query}}, null, null, function(table) {
+    ajax_post('/app/query', {query: {qstr: query, id:context.id}}, null, null, function(table) {
         var statement = table.statement;
 
         context.columns = table.headers;

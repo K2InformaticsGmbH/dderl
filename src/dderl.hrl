@@ -1,4 +1,4 @@
--include("deps/imem/include/imem_meta.hrl").
+-include_lib("imem/include/imem_meta.hrl").
 
 -define(DEFAULT_ROW_SIZE, 100).
 

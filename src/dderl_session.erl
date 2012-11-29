@@ -9,10 +9,6 @@
         , set_adapter/2
         , get_state/1
         , log/3
-        , string_list_to_json/2
-        , convert_rows_to_json/1
-        , convert_row_to_string/1
-        , convert_rows_to_string/1
 %        , create_files_json/1
         ]).
 
@@ -165,7 +161,7 @@ process_call({"files", _}, _From, #state{user=User} = State) ->
 % -     end;
 process_call({"logs", _ReqData}, _From, #state{user=User,logdir=Dir} = State) ->
     Files = filelib:fold_files(Dir, User ++ "_.*\.log", false, fun(F, A) -> [filename:join(["logs", filename:basename(F)])|A] end, []),
-    {reply, "{\"logs\": "++string_list_to_json(Files, [])++"}", State};
+    {reply, "{\"logs\": "++gen_adapter:string_list_to_json(Files, [])++"}", State};
 process_call({"delete_log", ReqData}, _From, #state{key=Key,logdir=Dir,file=File} = State) ->
     {struct, [{<<"log">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     LogFileName = filename:basename(binary_to_list(proplists:get_value(<<"file">>, BodyJson, <<>>))),
@@ -267,6 +263,7 @@ create_files_json([], Json) -> Json;
 create_files_json([F|Files], Json) ->
     create_files_json(Files, [
             "{\"name\":"++jsq(F#ddCmd.name)
+         ++", \"id\":"++jsq(F#ddCmd.id)
          ++", \"content\":"++jsq(F#ddCmd.command)
          ++", \"posX\":0"
          ++", \"posY\":25"
@@ -287,35 +284,3 @@ logi(Filename, Format, Content) ->
         undefined -> file:write_file(?GENLOG, list_to_binary(io_lib:format(FormatWithDate, Content)), [append]);
         _         -> file:write_file(Filename, list_to_binary(io_lib:format(FormatWithDate, Content)), [append])
     end.
-
-string_list_to_json(Strings) ->
-    NewStrings =
-        lists:foldl(fun
-           (S, Acc) when is_atom(S)  -> [atom_to_list(S)|Acc];
-           (S, Acc) when is_tuple(S) -> [lists:nth(1, io_lib:format("~p", S))|Acc];
-           (S, Acc)                  -> [S|Acc]
-           
-        end,
-        [],
-        Strings),
-    string_list_to_json(NewStrings, "").
-string_list_to_json([], []) -> "[]";
-string_list_to_json([], Json) -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
-string_list_to_json([S|Strings], Json) ->
-    string_list_to_json(Strings, Json ++ "\"" ++ lists:flatten([if X > 127 -> "&#" ++ integer_to_list(X) ++ ";";
-                                                                   (X == 10) or (X == 13) -> "";
-                                                                   (X == $") -> "";
-                                                                   true -> X
-                                                               end || X <- S]) ++ "\",").
-
-convert_rows_to_json(Rows) -> convert_rows_to_json(Rows, "").
-convert_rows_to_json([], Json) when length(Json) > 0 -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
-convert_rows_to_json([], _)                          -> "[]";
-convert_rows_to_json([Row|Rows], Json)               -> convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row)) ++ ",").
-
-
-convert_row_to_string([]) -> [];
-convert_row_to_string(Row) -> [lists:flatten(io_lib:format("~p", [R])) || R <- Row].
-
-convert_rows_to_string([]) -> [];
-convert_rows_to_string(Rows) -> [lists:reverse([lists:flatten(io_lib:format("~p", [R])) || R <- Row]) || Row <- Rows].

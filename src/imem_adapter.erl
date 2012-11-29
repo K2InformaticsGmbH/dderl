@@ -13,7 +13,9 @@ init() ->
                                  , adapter = imem
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
-    dderl_dal:add_command(imem, "All Tables", "select qname from all_tables", []).
+    dderl_dal:add_command(imem, "All Tables", "select qname from all_tables", [{rowfun, fun([I,{_,F}|R]) ->
+                                                                                            [integer_to_list(I),atom_to_list(F)|R] end
+                                                                              }]).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
@@ -41,16 +43,22 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
     {{Session, Statements}, "{\"connect\":\"ok\"}"};
 process_cmd({"query", BodyJson}, SrvPid, {Session,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
+    Id = proplists:get_value(<<"id">>, BodyJson, <<>>),
+    Cmd = dderl_dal:get_command(Id),
+    Fun = case lists:keyfind(rowfun,1,Cmd#ddCmd.opts) of
+        {_, F} when is_function(F) -> F;
+        _ -> undefined
+    end,
     ParseTree = [],
     io:format(user, "query ~p~n", [Query]),
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
-    case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
+    case Session:exec(Query, ?DEFAULT_ROW_SIZE, Fun) of
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
-            io:format(user, "Clms ~p~n", Clms),
-            Columns = [binary_to_list(C)||C<-Clms],
+            io:format(user, "Clms ~p~n", [Clms]),
+            Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
             Statement:start_async_read(),
-            Resp = "{\"headers\":"++dderl_session:string_list_to_json(Columns, [])++
+            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns, [])++
             ",\"statement\":"++integer_to_list(StmtHndl)++"}",
             {{Session,[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
         {error, Error} ->
