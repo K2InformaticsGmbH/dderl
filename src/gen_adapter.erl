@@ -4,7 +4,6 @@
         , prepare_json_rows/5
         , init/0
         , string_list_to_json/2
-%        , convert_rows_to_json/1
 %        , convert_row_to_string/1
 %        , convert_rows_to_string/1
         ]).
@@ -29,11 +28,9 @@ process_cmd({Cmd, _BodyJson}, _SrvPid, MPort) ->
     {MPort, "{\"rows\":[]}"}.
 
 process_data(Rows, more, CacheSize) ->
-    io:format(user, "got rows ~p~n", [Rows]),
-    "{\"done\":false, \"rows\":"++convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}";
+    "{\"done\":false, \"rows\":"++rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}";
 process_data(Rows, _, CacheSize) ->
-    io:format(user, "got rows ~p~n", [Rows]),
-    "{\"done\":true,  \"rows\":"++convert_rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}".
+    "{\"done\":true,  \"rows\":"++rows_to_json(Rows)++", \"cache_max\":"++integer_to_list(CacheSize)++"}".
 
 %prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid) ->
 %    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
@@ -76,11 +73,15 @@ string_list_to_json([S|Strings], Json) ->
                                                                    true -> X
                                                                end || X <- S]) ++ "\",").
 
-convert_rows_to_json(Rows) -> convert_rows_to_json(Rows, "").
-convert_rows_to_json([], Json) when length(Json) > 0 -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
-convert_rows_to_json([], _)                          -> "[]";
-convert_rows_to_json([Row|Rows], Json)               -> convert_rows_to_json(Rows, Json ++ string_list_to_json(lists:reverse(Row)) ++ ",").
+rows_to_json(Rows) -> rows_to_json(Rows, "").
+rows_to_json([], Json) when length(Json) > 0 -> "[" ++ string:substr(Json,1,length(Json)-1) ++ "]";
+rows_to_json([], _)                          -> "[]";
+rows_to_json([Row|Rows], Json)               ->
+    rows_to_json(Rows, Json ++ string_list_to_json(row_to_json_str(Row)) ++ ",").
 
+row_to_json_str(Row)                -> row_to_json_str(Row, []).
+row_to_json_str([], NewRow)         -> NewRow;
+row_to_json_str([R|Row], NewRow)    -> row_to_json_str(Row, [lists:flatten(io_lib:format("~p", [R]))|NewRow]).
 
 % - convert_row_to_string([]) -> [];
 % - convert_row_to_string(Row) -> [lists:flatten(io_lib:format("~p", [R])) || R <- Row].

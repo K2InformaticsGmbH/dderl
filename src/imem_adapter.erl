@@ -14,8 +14,8 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     dderl_dal:add_command(imem, "All Tables", "select qname from all_tables", [{rowfun, fun([I,{_,F}|R]) ->
-                                                                                            [integer_to_list(I),atom_to_list(F)|R] end
-                                                                              }]).
+                                                                                            [I,F|R]
+                                                                                        end}]).
 
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
