@@ -18,11 +18,8 @@
 %% ===================================================================
 
 start_link() ->
-    application:load(imem),
-    application:set_env(imem, mnesia_node_type, disc),
-    {ok, SchemaName} = application:get_env(imem_name),
-    application:set_env(imem, mnesia_schema_name, SchemaName),
     imem:start(),
+    {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
     supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]).
 
 %% ===================================================================
