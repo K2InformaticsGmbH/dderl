@@ -57,6 +57,9 @@ process_cmd({"query", BodyJson}, SrvPid, #priv{sess=Session, stmts=Statements} =
     io:format(user, "query ~p~n", [Query]),
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
+        ok ->
+            io:format(user, "Qry ~p~n", [Query]),
+            {Priv, "{\"headers\":[],\"statement\":1234}"};
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
             io:format(user, "Clms ~p~n", [Clms]),
@@ -108,9 +111,33 @@ process_cmd({"get_buffer_max", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv
             {Priv, "-1"};
         {Statement, _, _} ->
             {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p Fînished ~p~n", [SrvPid, StmtKey, CacheSize, Finished]),
+            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p finished ~p~n", [SrvPid, StmtKey, CacheSize, Finished]),
             {Priv, "{\"count\":"++integer_to_list(CacheSize)++", \"finished\":"++atom_to_list(Finished)++"}"}
     end;
+process_cmd({"update_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
+    CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
+    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"update_data\":\"invalid statement\"}"};
+        {Statement, _, _} ->
+            Statement:update_row(RowId, CellId, Value),
+            {Priv, "{\"update_data\":\"ok\"}"}
+    end;
+process_cmd({"commit_rows", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"commit_rows\":\"invalid statement\"}"};
+        {Statement, _, _} ->
+            Statement:commit_modified(),
+            {Priv, "{\"commit_rows\":\"ok\"}"}
+    end;
+
 process_cmd({"get_query", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, SrvPid, Priv);
 process_cmd({"parse_stmt", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, Priv);
 process_cmd({Cmd, _BodyJson}, _SrvPid, Priv) ->

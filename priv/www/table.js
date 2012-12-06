@@ -20,6 +20,7 @@ if(Object.hasOwnProperty('freeze')) {
 
 function renderTable(ctx) {
     var tabName = ctx.name;
+    var statement = ctx.statement;
     var columns = ctx.columns;
     var initFun = ctx.initFun;
     var destroyFun = ctx.destroyFun;
@@ -99,9 +100,9 @@ function renderTable(ctx) {
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, tabName, table, countFun, rowFun);
+    addFooter(dlg, tabName, statement, table, countFun, rowFun);
 
-    loadTable(table, prepareColumns(columns));
+    loadTable(table, statement, prepareColumns(columns));
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
@@ -132,7 +133,7 @@ function renderTable(ctx) {
     });
 }
 
-function addFooter(dlg, tableName, table, countFun, rowFun)
+function addFooter(dlg, tableName, statement, table, countFun, rowFun)
 {
     var parent_node = dlg.parent();
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
@@ -208,6 +209,29 @@ function addFooter(dlg, tableName, table, countFun, rowFun)
                 return false;
             })
            )
+    .append($('<button>Commit changes</button>')  // Commit
+            .button({icons: {primary: "ui-icon-check"}, text: false})
+            .click(function()
+            {
+                var commitJson = {commit_rows: {statement : statement}};
+                ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
+                            if(data.commit_rows == "ok") {
+                                alert('commit success!');
+                            }
+                            else {
+                                alert('commit failed');
+                            }
+                        });
+                return false;
+            })
+           )
+    .append($('<button>Discard changes</button>')  // Discard
+            .button({icons: {primary: "ui-icon-close"}, text: false})
+            .click(function()
+            {
+                return false;
+            })
+           )
     .appendTo(parent_node)
     .width() + 60;
     table.data("finished", RowJumpTextBox);
@@ -241,7 +265,7 @@ function prepareColumns(headers) {
     return header;
 }
 
-function loadTable(table, columns)
+function loadTable(table, statement, columns)
 {
     var options = {editable: true,
                enableAddRow: false,
@@ -324,10 +348,27 @@ function loadTable(table, columns)
     grid.onCellChange.subscribe(function(e, args){
         var modifiedRow = grid.getData()[args.row];
         var cols = grid.getColumns();
-        var modRow = new Array();
-        for (var i=0; i < cols.length; ++i)
-            modRow[modRow.length] = modifiedRow[cols[i].field];        
-        alert(modRow);
+        var updateJson = {update_data: {statement   : statement,
+                                        rowid       : parseInt(modifiedRow.id),
+                                        cellid      : args.cell,
+                                        value       : modifiedRow[cols[args.cell].field]}};
+        ajax_post('/app/update_data', updateJson, null, null, function(data) {
+                    if(data.update_data == "ok") {
+                        alert('update success ');
+                    }
+                    else {
+                        alert('Update failed ---------------------------------------------\n' +
+                              'RowId :   '+ parseInt(modifiedRow.id) +
+                              '\nCell :  '+ args.cell +
+                              '\nValue : '+ modifiedRow[cols[args.cell].field] +
+                              '\nRow :   '+ modifiedRow +
+                              '\n---------------------------------------------------------');
+                    }
+                });
+//        var modRow = new Array();
+//        for (var i=0; i < cols.length; ++i)
+//            modRow[modRow.length] = modifiedRow[cols[i].field];        
+//        alert(modifiedRow);
     });
 }
 

@@ -250,7 +250,7 @@ conns_json(Connections) ->
         Access = lists:flatten([", \""++atom_to_list(N)++"\":"++jsq(V) || {N,V} <- C#ddConn.access]),
         [lists:flatten(jsq(C#ddConn.name)++":{"
             ++"\"adapter\":\""++jsq(C#ddConn.adapter)++"\""
-            ++", \"service\":"++jsq(C#ddConn.schema)
+            ++", \"service\":"++jsq(atom_to_list(C#ddConn.schema))
             ++Access
             ++"}") | Acc]
     end,

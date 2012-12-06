@@ -70,7 +70,7 @@ function show_qry_files()
             $('<div id="dialog-show-files" title="Query Files" style="display:none"></div>')
             .append($('<select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
                     .dblclick(function() {
-                        load_table($('#files_list option:selected').data("context"));
+                        srv_load_table($('#files_list option:selected').data("context"));
                     })
                    )
             .appendTo(tab);
@@ -103,11 +103,11 @@ function show_qry_files()
 function load_new_table(tableName)
 {
     ajax_post('/app/get_query', {get_query: {table: tableName}}, null, null, function(data) {
-        load_table(data.qry);
+        srv_load_table(data.qry);
     });
 }
 
-function load_table(context)
+function srv_load_table(context)
 {
     var query = context.content;
     var tableName = context.name;
@@ -115,6 +115,7 @@ function load_table(context)
         var statement = table.statement;
 
         context.columns = table.headers;
+        context.statement = statement;
         context.initFun = function(tblDlg) {
             tblDlg.bind('requery', function(e, sqlObj) {
                 ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
@@ -122,7 +123,7 @@ function load_table(context)
                 tblDlg.dialog('destroy');
                 tblDlg.remove();
                 context.content = sqlObj;
-                load_table(context);
+                srv_load_table(context);
             });
         };        
         context.destroyFun = function() {
