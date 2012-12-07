@@ -21,6 +21,13 @@ init() ->
               , row_fun
        }).
 
+int(C) when $0 =< C, C =< $9 -> C - $0;
+int(C) when $A =< C, C =< $F -> C - $A + 10;
+int(C) when $a =< C, C =< $f -> C - $a + 10.
+
+hexstr_to_list([]) -> [];
+hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
+
 process_cmd({"connect", BodyJson}, SrvPid, _) ->
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -36,10 +43,10 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
             Opts    = {list_to_existing_atom(Port), Schema};
         Ip ->    
             Type    = tcp,
-            Opts    = {inet:getaddr(Ip, inet), list_to_integer(Port), Schema}
+            Opts    = {Ip, list_to_integer(Port), Schema}
     end,
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
+    Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     Session = erlimem_session:open(Type, Opts, {User, Password}),
     io:format(user, "Session ~p~n", [Session]),
     dderl_session:log(SrvPid, "Connected to Params ~p~n", [{Type, Opts}]),

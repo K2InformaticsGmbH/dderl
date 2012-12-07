@@ -189,7 +189,6 @@ process_call({"save", ReqData}, _From, #state{key=_Key, user=User,file=_File} = 
         _ ->
             Data = binary_to_list(wrq:req_body(ReqData)),
             {struct, SaveCon} = mochijson:decode(Data),
-
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = proplists:get_value("name", SaveCon, "")
                           , owner    = User
@@ -201,8 +200,9 @@ process_call({"save", ReqData}, _From, #state{key=_Key, user=User,file=_File} = 
                                        , {password,  proplists:get_value("password", SaveCon, "")}
                                        , {tnsstring, proplists:get_value("tnsstring", SaveCon, "")}
                                        ]
-                          , schema   = proplists:get_value("service", SaveCon, "")
+                          , schema   = list_to_atom(proplists:get_value("service", SaveCon, ""))
                           },
+            io:format(user, "saving Con ~p~n", [Con]),
             dderl_dal:add_connect(Con),
             {reply, "{\"save\": \"success\"}", State}
     end;

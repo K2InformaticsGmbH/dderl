@@ -55,12 +55,14 @@ function connect_dlg()
         buttons: {
             "Login": function() {
                 adapter = $('#adapter_list option:checked').val();
+                Password = $("#password").val();
+                Password = is_MD5(Password) ? Password : MD5(Password);
                 var connectJson = {connect: {ip        :$("#ip").val(),
                                              port      :$("#port").val(),
                                              service   :$("#service").val(),
                                              type      :$('input:radio[name=db_type]:checked').val(),
                                              user      :$("#user").val(),
-                                             password  :$("#password").val(),
+                                             password  :Password,
                                              tnsstring :$("#tnsstring").val()}};
                 owner = $("#user").val();
                 var name = $('#config_list option:checked').val();
@@ -94,13 +96,14 @@ function connect_dlg()
             },
             "Save": function() {
                 name = $("#config_list").parent().children()[0].value;
-                saveSettings = {adapter   :$('#adapter_list option:checked').val(),
+                saveSettings = {name      :name,
+                                adapter   :$('#adapter_list option:checked').val(),
                                 ip        :$('#ip').val(),
                                 port      :$('#port').val(),
                                 service   :$('#service').val(),
                                 type      :$('input:radio[name=db_type]:checked').val(),
-                                user      :$('#user').val().toUpperCase(),
-                                password  :$('#password').val(),
+                                user      :$('#user').val(),
+                                password  :MD5($('#password').val()),
                                 tnsstring :$('#tnsstring').val()};
                 logins[name] = saveSettings;
                 $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
@@ -147,7 +150,7 @@ function connect_dlg()
             load_login_form(name);
             break;
         }
-        $('#config_list').combobox();
+        $('#config_list').jec();
     });
     $('#config_list').change(function() {
         var selectedName = $("#config_list").val();
@@ -157,25 +160,25 @@ function connect_dlg()
 }
 
 function load_login_form(name) {
-    //$('#name').val(name);
-    //$('#config_list').val(name);
-    $('#ip').val(logins[name].ip);
-    $('#port').val(logins[name].port);
-    $('#service').val(logins[name].service);
-    $('#sid').val(logins[name].sid);
-    $('#user').val(logins[name].user);
-    $('#password').val(logins[name].password);
-    $('#tnsstring').val(logins[name].tnsstring);
-    $('input:radio[name=db_type][value='+logins[name].type+']').click();
-    var conName = '';
-    if(logins[name].hasOwnProperty('type')) {
-        conName = logins[name].type.toUpperCase();
-        if(conName == 'TNS') {
-            $('#con_tns').show();
-            $('#con_othrs').hide();
+    if(logins.hasOwnProperty(name)) {
+        $('#ip').val(logins[name].ip);
+        $('#port').val(logins[name].port);
+        $('#service').val(logins[name].service);
+        $('#sid').val(logins[name].sid);
+        $('#user').val(logins[name].user);
+        $('#password').val(logins[name].password);
+        $('#tnsstring').val(logins[name].tnsstring);
+        $('input:radio[name=db_type][value='+logins[name].type+']').click();
+        var conName = '';
+        if(logins[name].hasOwnProperty('type')) {
+            conName = logins[name].type.toUpperCase();
+            if(conName == 'TNS') {
+                $('#con_tns').show();
+                $('#con_othrs').hide();
+            }
         }
+        $('#con_name').html(conName + "&nbsp;");
+        $('#adapter_list option[value="'+logins[name].adapter+'"]').attr("selected","selected"); 
+        $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
     }
-    $('#con_name').html(conName + "&nbsp;");
-    $('#adapter_list option[value="'+logins[name].adapter+'"]').attr("selected","selected"); 
-    $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
 }

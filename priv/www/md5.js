@@ -5,6 +5,10 @@
 *
 **/
  
+function is_MD5(string) {
+    return (string.match("[a-fA-F0-9]{32}") == null ? false : true);
+}
+
 var MD5 = function (string) {
  
 	function RotateLeft(lValue, iShiftBits) {
