@@ -134,6 +134,17 @@ process_cmd({"update_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) -
             Statement:update_row(RowId, CellId, Value),
             {Priv, "{\"update_data\":\"ok\"}"}
     end;
+process_cmd({"delete_row", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"delete_row\":\"invalid statement\"}"};
+        {Statement, _, _} ->
+            Statement:delete_row(RowId),
+            {Priv, "{\"delete_row\":\"ok\"}"}
+    end;
 process_cmd({"commit_rows", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of

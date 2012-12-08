@@ -131,6 +131,25 @@ function renderTable(ctx) {
         else
             table.data("shouldScroll", true);
     });
+
+    table.data("grid").onKeyDown.subscribe(function(e, args) {
+        if(e.keyCode == 46) { // Delete
+            // Delete args.row
+            var deleteJson = {delete_row: {statement : statement,
+                                          rowid      : args.row + 1}};
+            ajax_post('/app/delete_row', deleteJson, null, null, function(data) {
+                if(data.delete_row == "ok") {
+                    grid_data = args.grid.getData();
+                    grid_data.splice(args.row, 1);
+                    args.grid.setData(grid_data);
+                    args.grid.render();
+                }
+                else {
+                    alert('delete failed');
+                }
+            });
+        }
+    });
 }
 
 function addFooter(dlg, tableName, statement, table, countFun, rowFun)
