@@ -64,13 +64,10 @@ process_cmd({"query", BodyJson}, SrvPid, #priv{sess=Session, stmts=Statements} =
     io:format(user, "query ~p~n", [Query]),
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
-        ok ->
-            io:format(user, "Qry ~p~n", [Query]),
-            {Priv, "{\"headers\":[],\"statement\":1234}"};
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
-            io:format(user, "Clms ~p~n", [Clms]),
             Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
+            io:format(user, "Clms ~p~n", [Columns]),
             Statement:start_async_read(),
             Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns, [])++
             ",\"statement\":"++integer_to_list(StmtHndl)++"}",
@@ -79,7 +76,10 @@ process_cmd({"query", BodyJson}, SrvPid, #priv{sess=Session, stmts=Statements} =
             io:format(user, "query error ~p~n", [Error]),
             dderl_session:log(SrvPid, "[~p] Query Error ~p~n", [SrvPid, Error]),
             Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Error++"\"}",
-            {Priv, Resp}
+            {Priv, Resp};
+        Res ->
+            io:format(user, "Qry ~p~nResult ~p~n", [Query, Res]),
+            {Priv, "{\"headers\":[],\"statement\":1234}"}
     end;
 process_cmd({"row_prev", BodyJson}, SrvPid, #priv{stmts=Statements, row_fun=Fun} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -131,8 +131,8 @@ process_cmd({"update_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) -
             dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"update_data\":\"invalid statement\"}"};
         {Statement, _, _} ->
-            Statement:update_row(RowId, CellId, Value),
-            {Priv, "{\"update_data\":\"ok\"}"}
+            Result = format_return(Statement:update_row(RowId, CellId, Value)),
+            {Priv, "{\"update_data\":"++Result++"}"}
     end;
 process_cmd({"delete_row", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -142,8 +142,20 @@ process_cmd({"delete_row", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
             dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"delete_row\":\"invalid statement\"}"};
         {Statement, _, _} ->
-            Statement:delete_row(RowId),
-            {Priv, "{\"delete_row\":\"ok\"}"}
+            Result = format_return(Statement:delete_row(RowId)),
+            {Priv, "{\"delete_row\":"++Result++"}"}
+    end;
+process_cmd({"insert_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
+    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"insert_data\":\"invalid statement\"}"};
+        {Statement, _, _} ->
+            Result = format_return(Statement:insert_row(ClmName, Value)),
+            {Priv, "{\"insert_data\":"++Result++"}"}
     end;
 process_cmd({"commit_rows", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -152,8 +164,8 @@ process_cmd({"commit_rows", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) -
             dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"commit_rows\":\"invalid statement\"}"};
         {Statement, _, _} ->
-            Statement:commit_modified(),
-            {Priv, "{\"commit_rows\":\"ok\"}"}
+            Result = format_return(Statement:commit_modified()),
+            {Priv, "{\"commit_rows\":"++Result++"}"}
     end;
 
 process_cmd({"get_query", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, SrvPid, Priv);
@@ -161,3 +173,6 @@ process_cmd({"parse_stmt", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({
 process_cmd({Cmd, _BodyJson}, _SrvPid, Priv) ->
     io:format(user, "Cmd ~p~n", [Cmd]),
     {Priv, "{\"rows\":[]}"}.
+
+format_return({error, {E,{R,_}}}) ->  "\""++atom_to_list(E)++": "++R++"\"";
+format_return(Result) -> lists:flatten(io_lib:format("~p", [Result])).

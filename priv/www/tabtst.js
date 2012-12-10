@@ -102,7 +102,7 @@ function render_table(tableNameList, query, owner)
 
     var gDiv = $('<div id=qr'+tableName+' style="width: 100%; border: 1px solid rgb(128, 128, 128);"></div>').appendTo($('#'+dialogueId));
     var options = {editable: true,
-               enableAddRow: false,
+               enableAddRow: true,
         enableColumnReorder: true,
        enableCellNavigation: true,
          asyncEditorLoading: false,

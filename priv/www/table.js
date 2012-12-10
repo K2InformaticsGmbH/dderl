@@ -238,7 +238,7 @@ function addFooter(dlg, tableName, statement, table, countFun, rowFun)
                                 alert('commit success!');
                             }
                             else {
-                                alert('commit failed');
+                                alert('commit failed!\n' + data.commit_rows);
                             }
                         });
                 return false;
@@ -287,7 +287,7 @@ function prepareColumns(headers) {
 function loadTable(table, statement, columns)
 {
     var options = {editable: true,
-               enableAddRow: false,
+               enableAddRow: true,
         enableColumnReorder: true,
        enableCellNavigation: true,
          asyncEditorLoading: false,
@@ -364,6 +364,29 @@ function loadTable(table, statement, columns)
     table.data("grid", grid)
          .data("columns", columns);
 
+    grid.onAddNewRow.subscribe(function (e, args) {
+      var insertJson = {insert_data: {statement   : statement,
+                                      col         : args.column.id,
+                                      value       : args.item[args.column.id]}};
+      ajax_post('/app/insert_data', insertJson, null, null, function(data) {
+          if(isNaN(parseInt(data.insert_data))) {
+              alert('Insert failed ---------------------------------------------\n' +
+                    'Row :   '+ args.item +
+                    '\n---------------------------------------------------------');
+          }
+          else {
+              var id = parseInt(data.insert_data);
+              var item = args.item;
+              var data = grid.getData();
+              item['id'] = id;
+              grid.invalidateRow(data.length);
+              data.push(item);
+              grid.updateRowCount();
+              grid.render();
+          }
+      });
+    });
+    
     grid.onCellChange.subscribe(function(e, args){
         var modifiedRow = grid.getData()[args.row];
         var cols = grid.getColumns();
