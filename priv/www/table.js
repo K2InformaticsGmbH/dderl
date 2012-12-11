@@ -461,11 +461,14 @@ function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
     rowFun(opts, rowNum, loadRows, [table, rowNum, loadFunOpts]);
 }
 
+var MAX_ROW_WIDTH = 600;
 function loadRows(table, rowNum, ops, rowObj)
 {
-    var d = table.data("grid").getData();
-    var c = table.data("columns");
+    var g = table.data("grid");
+    var d = g.getData();
+    var c = g.getColumns();
     var rows = rowObj.rows;
+    var first = (d.length == 0);
 
     if(ops == OpsBufEnum.REPLACE)
         d = new Array();
@@ -479,8 +482,17 @@ function loadRows(table, rowNum, ops, rowObj)
 
     for (var i = 0; i < rows.length; i++) {
         var row = {};
-        for(var j=1;j<c.length;++j)
+        for(var j=1;j<c.length;++j) {
             row[c[j].field] = rows[i][j];
+            if((c[j].width < 8 * rows[i][j].length) && first) {
+                c[j].width = 8 * rows[i][j].length;
+                if (c[j].width > MAX_ROW_WIDTH)
+                    c[j].width = MAX_ROW_WIDTH;
+            }
+        }
+        if (first)
+            g.setColumns(c);
+
         row['id'] = rows[i][0];
         var k = 0;
         for(k=0;k<d.length;++k)
@@ -512,15 +524,15 @@ function loadRows(table, rowNum, ops, rowObj)
         else                            d.splice(-(d.length - BUFFER_SIZE), d.length - BUFFER_SIZE);
     }
 
-    table.data("grid").setData(d);
-    table.data("grid").updateRowCount();
-    table.data("grid").render();
+    g.setData(d);
+    g.updateRowCount();
+    g.render();
     var scrollIdx = 0;
     for(k=0;k<d.length;++k)
         if(parseInt(d[k].id) == rowNum) { scrollIdx = k; break; }
     if(scrollIdx == 0 && k >= d.length) scrollIdx = d.length - 1;
     table.data("shouldScroll", false);
-    table.data("grid").scrollRowIntoView(scrollIdx);
+    g.scrollRowIntoView(scrollIdx);
     
     if(rowObj.done)
         table.data("finished")

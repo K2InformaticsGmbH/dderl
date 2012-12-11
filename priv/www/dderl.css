@@ -10,10 +10,18 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .validateTips { border: 1px solid transparent; padding: 0.3em; }
 .cell-title { font-weight: bold; }
 .cell-effort-driven { text-align: center; }
+
+.ui-widget { font-family:Courier New; }
+
+.ui-widget input,
+.ui-widget select,
+.ui-widget textarea,
+.ui-widget button { font-family:Courier New; }
+
 button.menubutton
 {
     font-size:13px;
-    font-family:Verdana,sans-serif;
+    font-family:Courier;
     color:#FFFFFF;
     height:20px;
     background-color:#00005F;
@@ -119,14 +127,14 @@ button.menubutton
     width:900px;
     height:20px;
     overflow:hidden;
-    font-family:courier;
+    font-family:Courier;
     font-size:10pt;
     vertical-align: top;
 }
 
 .context_menu {
   font-size:10px;
-  font-family:Verdana,sans-serif;
+  font-family:Courier;
   background: #E0E0E0;
   border: 1px solid gray;
   padding: 0px;
