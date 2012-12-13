@@ -13,7 +13,7 @@ init() ->
                                  , adapter = imem
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
-    dderl_dal:add_command(imem, "All Tables", "select qname from all_tables", []),
+    dderl_dal:add_command(imem, "All Tables", "select name(qname) from all_tables", []),
     dderl_dal:add_command(imem, "All Files", "select name, command from ddCmd where adapters = '[imem]'", []).
 
 -record(priv, { sess
