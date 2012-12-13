@@ -11,17 +11,17 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .cell-title { font-weight: bold; }
 .cell-effort-driven { text-align: center; }
 
-.ui-widget { font-family:Courier New; }
+.ui-widget { font-family: 'Droid Sans Mono', sans-serif; }
 
 .ui-widget input,
 .ui-widget select,
 .ui-widget textarea,
-.ui-widget button { font-family:Courier New; }
+.ui-widget button { font-family: 'Droid Sans Mono', sans-serif; }
 
 button.menubutton
 {
     font-size:13px;
-    font-family:Courier;
+    font-family: 'Droid Sans Mono', sans-serif;
     color:#FFFFFF;
     height:20px;
     background-color:#00005F;
@@ -104,7 +104,7 @@ button.menubutton
 }
 
 /* .ui-button { margin-left: -1px; } */
-.ui-button-icon-only .ui-button-text { padding: 0.35em; } 
+.ui-button-icon-only .ui-button-text { padding: 0.35em; }
 .ui-autocomplete-input { margin: 0; padding: 0.48em 0 0.47em 0.45em; }
 #sql-div {
     background-color: rgb(0,255,255);
@@ -127,14 +127,14 @@ button.menubutton
     width:900px;
     height:20px;
     overflow:hidden;
-    font-family:Courier;
+    font-family: 'Droid Sans Mono', sans-serif;
     font-size:10pt;
     vertical-align: top;
 }
 
 .context_menu {
   font-size:10px;
-  font-family:Courier;
+  font-family: 'Droid Sans Mono', sans-serif;
   background: #E0E0E0;
   border: 1px solid gray;
   padding: 0px;
