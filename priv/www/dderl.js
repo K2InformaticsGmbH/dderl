@@ -118,11 +118,11 @@ function load_table(context)
                 context.content = sqlObj;
                 load_table(context);
             });
-        };        
+        };
         context.destroyFun = function() {
             ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
         };
-       
+
         context.countFun = function(countUpdateFun) {
             ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: statement}},
                       null, null, countUpdateFun);
