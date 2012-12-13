@@ -102,11 +102,11 @@ function renderTable(ctx) {
 
     addFooter(dlg, ctx, statement, table, countFun, rowFun);
 
-    loadTable(table, statement, prepareColumns(columns));
     table.data("finished")
         .removeClass("download_incomplete")
         .removeClass("download_complete")
         .addClass("downloading");
+    loadTable(table, statement, prepareColumns(columns));
     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.APPEND);
 
     table.data("grid").onScroll.subscribe(function(e, args) {
@@ -293,7 +293,7 @@ function loadTable(table, statement, columns)
          asyncEditorLoading: false,
                    autoEdit: false,
                      zIndex: 1300,
-                  rowHeight: 15};
+                  rowHeight: 16};
 
     var node_id = '#' + table.attr('id');
     var grid = new Slick.Grid(node_id, [], columns, options);
@@ -461,7 +461,8 @@ function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
     function statusCheckFun() {
         if(jQuery.isFunction(countFun)) {
             countFun(function(resp) {
-                table.data("finished").val(''+resp.count);
+                if(table.data("finished") != undefined)
+                    table.data("finished").val(''+resp.count);
                 if(!resp.finished)
                     setTimeout(statusCheckFun, rowStatusCheckInterval);
             });
