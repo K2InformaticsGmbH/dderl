@@ -39,9 +39,9 @@ hexstr_to_bin([X,Y|T], Acc) ->
     hexstr_to_bin(T, [V | Acc]).
 
 start_link(SchemaName) ->
-    io:format(user, "~p starting...~n", [?MODULE]),
+    lager:debug("~p starting...~n", [?MODULE]),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
-    io:format(user, "~p started!~n~p", [?MODULE, Result]),
+    lager:debug("~p started!~n~p", [?MODULE, Result]),
     Result.
 
 init([SchemaName]) ->
@@ -56,11 +56,12 @@ init([SchemaName]) ->
     Sess:run_cmd(create_table, [ddDash, record_info(fields, ddDash), []]),
     Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
     Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
-    io:format(user, "~p initializing ~p~n", [?MODULE, Adapters]),
+    lager:info("~p initializing ~p", [?MODULE, Adapters]),
     [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
     {ok, #state{sess=Sess, schema=SchemaName}}.
 
 handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p get_commands for id ~p", [?MODULE, Id]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd
                                            , [{{ddCmd,'$1','_','_','_','_','_','_'}
                                            , [{'=:=','$1',Id}]
@@ -68,6 +69,7 @@ handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->
     Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
     {reply, Cmd, State};
 handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p get_commands user ~p adapter ~p", [?MODULE, User, Adapter]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd
                                         , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
                                         , [{'and', {'=:=','$3',User}, {'=:=', '$4', [Adapter]}}]
@@ -76,6 +78,7 @@ handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
     {reply, Cmds, State};
 
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p get_connects for id ~p", [?MODULE, User]),
     {Cons, true} = Sess:run_cmd(select, [ddConn
                                         , [{{ddConn,'_','_','$1','_','_','_'}
                                           , [{'=:=','$1',User}]
@@ -83,20 +86,25 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
     {reply, Cons, State};
 
 handle_call({verify_password, User, Password}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p verify_password for user ~p pass ~p", [?MODULE, User, Password]),
     BinPswd = hexstr_to_bin(Password),
     case Sess:run_cmd(authenticate, [adminSessionId, User, {pwdmd5, BinPswd}]) of
         {error, {_Exception, {Msg, _Extra}}} ->
-            io:format(user, "authenticate exception ~p~n", [Msg]),
+            lager:error("authenticate exception ~p~n", [Msg]),
             {reply, {error, Msg}, State};
         _SeCo ->
             case Sess:run_cmd(login, []) of
                 {error, {_Exception, {Msg, _Extra}}} ->
-                    io:format(user, "login exception ~p~n", [Msg]),
+                    lager:error("login exception ~p~n", [Msg]),
                     {reply, {error, Msg}, State};
-                _NewSeCo -> {reply, true, State}
+                _NewSeCo ->
+                    lager:debug("~p verify_password accepted user ~p", [?MODULE, User]),
+                    {reply, true, State}
             end
     end;
-handle_call(_Req,_From,State) -> {reply, ok, State}.
+handle_call(Req,From,State) ->
+    lager:info("unknown call req ~p from ~p~n", [Req, From]),
+    {reply, ok, State}.
 
 handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName} = State) ->
     NewCon0 = case Con#ddConn.owner of
@@ -107,16 +115,21 @@ handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName}
         undefined -> NewCon0#ddConn{schema = SchemaName};
         _ -> NewCon0
     end,
+    lager:debug("~p add_connect ~p", [?MODULE, NewCon1]),
     NewCon = case Sess:run_cmd(select, [ddConn
                                        , [{{ddConn,'_','$1','_','_','_','_'}
                                          , [{'=:=','$1',Con#ddConn.name}]
                                          , ['$_']}]]) of
-        {[#ddConn{id=Id}|_], true} -> NewCon1#ddConn{id=Id};
+        {[#ddConn{id=Id}|_], true} ->
+            lager:debug("~p add_connect replacing id ~p", [?MODULE, Id]),
+            NewCon1#ddConn{id=Id};
         _ -> NewCon1
     end,
     Sess:run_cmd(insert, [ddConn, NewCon]),
+    lager:debug("~p add_connect inserted ~p", [?MODULE, NewCon]),
     {noreply, State};
 handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) ->
+    lager:debug("~p add_command ~p", [?MODULE, {Adapter, Name, Cmd, Opts}]),
     Id = case Sess:run_cmd(select, [ddCmd
                                        , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
                                          , [{'and', {'=:=','$2',Name}, {'=:=', '$4', [Adapter]}}]
@@ -124,77 +137,34 @@ handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) 
         {[#ddCmd{id=Id0}|_], true} -> Id0;
         _ -> erlang:phash2(make_ref())
     end,
-    Sess:run_cmd(insert, [ddCmd, #ddCmd { id        = Id
-                                        , name      = Name
-                                        , owner     = ?USER
-                                        , adapters  = [Adapter]
-                                        , command   = Cmd
-                                        , opts      = Opts}]),
+    lager:debug("~p add_command inserting id ~p", [?MODULE, Id]),
+    NewCmd = #ddCmd { id        = Id
+                 , name      = Name
+                 , owner     = ?USER
+                 , adapters  = [Adapter]
+                 , command   = Cmd
+                 , opts      = Opts},
+    Sess:run_cmd(insert, [ddCmd, NewCmd]),
+    lager:debug("~p add_connect inserted ~p", [?MODULE, NewCmd]),
     {noreply, State};
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
-    Sess:run_cmd(insert, [ddAdapter, #ddAdapter{id=Id,fullName=FullName}]),
+    Adp = #ddAdapter{id=Id,fullName=FullName},
+    Sess:run_cmd(insert, [ddAdapter, Adp]),
+    lager:debug("~p add_adapter inserted ~p", [?MODULE, Adp]),
     {noreply, State};
 handle_cast({init_adapter, Adapter}, State) ->
     Adapter:init(),
+    lager:debug("~p init_adapter ~p", [?MODULE, Adapter]),
     {noreply, State};
-handle_cast(_Req,State)                 -> {noreply, State}.
+handle_cast(Req,State) ->
+    lager:debug("~p unknown cast ~p", [?MODULE, Req]),
+    {noreply, State}.
 
-handle_info(_Req,State)                 -> {noreply, State}.
-terminate(_Reason, _State)              -> ok.
+handle_info(Req,State) ->
+    lager:debug("~p unknown info ~p", [?MODULE, Req]),
+    {noreply, State}.
+terminate(Reason, _State)              ->
+    lager:debug("~p terminating, reason ~p", [?MODULE, Reason]),
+    ok.
 code_change(_OldVsn, State, _Extra)     -> {ok, State}.
 format_status(_Opt, [_PDict, _State])   -> ok.
-
-%% -     imem_if:insert_into_table(common, {?MODULE, [
-%% -                 #file{name="Nodes.sql",
-%% -                       content="imem_nodes",
-%% -                       posX=0, posY=25, width=200, height=500}
-%% -               , #file{name="Tables.sql",
-%% -                       content="tables",
-%% -                       posX=0, posY=25, width=200, height=500}
-%% -               , #file{name="Views.sql",
-%% -                       content="views",
-%% -                       posX=0, posY=25, width=200, height=500}
-%% -             ]}).
-
-
-%% -    erlimem:stop().
-%% - 
-%% - setup() -> 
-%% -     Schema = "Imem",
-%% -     User = <<"admin">>,
-%% -     Password = erlang:md5(<<"change_on_install">>),
-%% -     Cred = {User, Password},
-%% -     erlimem:start(),
-%% -     erlimem_session:open(tcp, {localhost, 8124, Schema}, Cred).
-%% - 
-%% - db_test_() ->
-%% -     {timeout, 1000000, {
-%% -         setup,
-%% -         fun setup/0,
-%% -         fun teardown/1,
-%% -         {with, [
-%% -             fun tcp_table_test/1
-%% -         ]}
-%% -         }
-%% -     }.
-%% - 
-%% - tcp_table_test(Sess) ->
-%% -     Res = Sess:exec("create table def (col1 int, col2 char);"),
-%% -     io:format(user, "Create ~p~n", [Res]),
-%% -     Res0 = insert_range(Sess, 210, "def"),
-%% -     io:format(user, "insert ~p~n", [Res0]),
-%% -     {ok, Clms, Statement} = Sess:exec("select * from def;", 100),
-%% -     io:format(user, "select ~p~n", [{Clms, Statement}]),
-%% -     Statement:start_async_read(),
-%% -     timer:sleep(1000),
-%% -     io:format(user, "receiving...~n", []),
-%% -     Rows = Statement:get_next(100, [{},{}]),
-%% -     io:format(user, "received ~p~n", [length(Rows)]),
-%% -     ok = Sess:exec("drop table def;"),
-%% -     Statement:close(),
-%% -     io:format(user, "drop table~n", []).
-%% - 
-%% - insert_range(_Sess, 0, _TableName) -> ok;
-%% - insert_range(Sess, N, TableName) when is_integer(N), N > 0 ->
-%% -     Sess:exec("insert into " ++ TableName ++ " values (" ++ integer_to_list(N) ++ ", '" ++ integer_to_list(N) ++ "');"),
-%% -     insert_range(Sess, N-1, TableName).

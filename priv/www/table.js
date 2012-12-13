@@ -30,7 +30,7 @@ function renderTable(ctx) {
     var tableName = tabName.replace(/[ \.]/g, '_');
 
     var width=500, height=500, position='center';
-        if (ctx != null || ctx != undefined) {
+    if (ctx != null || ctx != undefined) {
         if (ctx.hasOwnProperty('width') && ctx.width > 0) width = ctx.width;
         if (ctx.hasOwnProperty('height') && ctx.width > 0) height = ctx.height;
         if (ctx.hasOwnProperty('posX') && ctx.hasOwnProperty('posY') && ctx.posX >= 0 && ctx.posY >= 0)
@@ -45,7 +45,7 @@ function renderTable(ctx) {
 
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
     var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
-                .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:grey"></div>')
+                .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:white"></div>')
                 .appendTo(dlg));
     var title = $('<span>'+tabName+'</span>');
   
@@ -100,7 +100,7 @@ function renderTable(ctx) {
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, tabName, statement, table, countFun, rowFun);
+    addFooter(dlg, ctx, statement, table, countFun, rowFun);
 
     loadTable(table, statement, prepareColumns(columns));
     table.data("finished")
@@ -152,7 +152,7 @@ function renderTable(ctx) {
     });
 }
 
-function addFooter(dlg, tableName, statement, table, countFun, rowFun)
+function addFooter(dlg, context, statement, table, countFun, rowFun)
 {
     var parent_node = dlg.parent();
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
@@ -164,7 +164,7 @@ function addFooter(dlg, tableName, statement, table, countFun, rowFun)
             .click(function()
             {
                 dlg.dialog("close");
-                load_new_table(tableName);
+                load_table(context);
                 return false;
             })
            )
@@ -252,7 +252,7 @@ function addFooter(dlg, tableName, statement, table, countFun, rowFun)
             })
            )
     .appendTo(parent_node)
-    .width() + 60;
+    .width() + 130;
     table.data("finished", RowJumpTextBox);
     dlg.dialog( "option", "minWidth", dlgMinWidth);
 }
@@ -304,7 +304,17 @@ function loadTable(table, statement, columns)
     var header_cm_id = table.attr('id') + '_header_context';
 
     add_context_menu(row_cm_id, {
-        'Browse Data'       : {evt: function(data) { load_new_table(data); } },
+        'Browse Data'       : {evt: function(data) {
+                ajax_post('/app/get_query', {get_query: {table: data}}, null, null, function(ret) {
+                    load_table(ret.qry);
+                });
+            }
+        },
+        'Browse File'       : {evt: function(data) {
+                var context = {content: data, id: 0, name: "File"};
+                load_table(context);
+            }
+        },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
     });
     grid.onContextMenu.subscribe(function(e, args){
@@ -464,11 +474,12 @@ function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
 var MAX_ROW_WIDTH = 600;
 function loadRows(table, rowNum, ops, rowObj)
 {
-    var g = table.data("grid");
-    var d = g.getData();
-    var c = g.getColumns();
-    var rows = rowObj.rows;
-    var first = (d.length == 0);
+    var g       = table.data("grid");
+    var dlg     = table.data("dlg");
+    var d       = g.getData();
+    var c       = g.getColumns();
+    var rows    = rowObj.rows;
+    var first   = (d.length == 0);
 
     if(ops == OpsBufEnum.REPLACE)
         d = new Array();
@@ -534,6 +545,14 @@ function loadRows(table, rowNum, ops, rowObj)
     table.data("shouldScroll", false);
     g.scrollRowIntoView(scrollIdx);
     
+    if (first) {
+        var rh = g.getOptions().rowHeight;
+        var totHeight = (d.length + 5) * rh;
+        dlg.height(totHeight + 4);
+        table.height(dlg.height()-27);
+        g.resizeCanvas();
+    }
+
     if(rowObj.done)
         table.data("finished")
             .removeClass("downloading")

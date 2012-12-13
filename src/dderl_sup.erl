@@ -18,9 +18,11 @@
 %% ===================================================================
 
 start_link() ->
-    imem:start(),
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]).
+    lager:debug("~p starting...", [?MODULE]),
+    R = supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]),
+    lager:debug("~p started ~p", [?MODULE, R]),
+    R.
 
 %% ===================================================================
 %% Supervisor callbacks
@@ -84,4 +86,5 @@ init([SchemaName]) ->
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
 
+    lager:debug("~p child specs ~p", [?MODULE, Processes]),
     {ok, { {one_for_one, 10, 10}, Processes} }.

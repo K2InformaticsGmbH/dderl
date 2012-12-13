@@ -212,7 +212,7 @@ function sql_editor(tblDlg, tree, pos, qry) {
                 if(tblDlg != null && tblDlg != undefined)
                     tblDlg.trigger('requery', qStr);
                 else {
-                    srv_load_table({name: undefinedTable + undefinedTableIdx + ".sql", content : qStr});
+                    load_table({name: undefinedTable + undefinedTableIdx + ".sql", content : qStr});
                     ++undefinedTableIdx;
                 }
             }

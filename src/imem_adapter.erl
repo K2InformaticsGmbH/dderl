@@ -3,7 +3,7 @@
 -include("dderl.hrl").
 
 -export([ init/0
-        , process_cmd/3
+        , process_cmd/2
         ]).
 
 init() ->    
@@ -13,12 +13,11 @@ init() ->
                                  , adapter = imem
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
-    dderl_dal:add_command(imem, "All Tables", "select qname from all_tables"
-                                            , [{rowfun, fun([I,{_,F}|R]) -> [I,F|R] end}]).
+    dderl_dal:add_command(imem, "All Tables", "select qname from all_tables", []),
+    dderl_dal:add_command(imem, "All Files", "select name, command from ddCmd where adapters = '[imem]'", []).
 
 -record(priv, { sess
               , stmts
-              , row_fun
        }).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
@@ -28,7 +27,7 @@ int(C) when $a =< C, C =< $f -> C - $a + 10.
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
-process_cmd({"connect", BodyJson}, SrvPid, _) ->
+process_cmd({"connect", BodyJson}, _) ->
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
     case binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)) of
@@ -49,129 +48,121 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     Session = erlimem_session:open(Type, Opts, {User, Password}),
     io:format(user, "Session ~p~n", [Session]),
-    dderl_session:log(SrvPid, "Connected to Params ~p~n", [{Type, Opts}]),
+    lager:debug("connected to params ~p", [{Type, Opts}]),
     Statements = [],
     {#priv{sess=Session, stmts=Statements}, "{\"connect\":\"ok\"}"};
-process_cmd({"query", BodyJson}, SrvPid, #priv{sess=Session, stmts=Statements} = Priv) ->
+process_cmd({"query", BodyJson}, #priv{sess=Session, stmts=Statements} = Priv) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    Id = proplists:get_value(<<"id">>, BodyJson, <<>>),
-    Cmd = dderl_dal:get_command(Id),
-    Fun = case lists:keyfind(rowfun,1,Cmd#ddCmd.opts) of
-        {_, F} when is_function(F) -> F;
-        _ -> undefined
-    end,
     ParseTree = [],
-    io:format(user, "query ~p~n", [Query]),
-    dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
+    lager:debug([{session, Session}], "query ~p", [{Session, Query}]),
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
             Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
-            io:format(user, "Clms ~p~n", [Columns]),
+            lager:debug([{session, Session}], "columns ~p", [Columns]),
             Statement:start_async_read(),
-            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns, [])++
+            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns)++
             ",\"statement\":"++integer_to_list(StmtHndl)++"}",
-            {Priv#priv{stmts=[{StmtHndl, {Statement, Query, ParseTree}}|Statements], row_fun=Fun}, Resp};
+            {Priv#priv{stmts=[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
         {error, Error} ->
-            io:format(user, "query error ~p~n", [Error]),
-            dderl_session:log(SrvPid, "[~p] Query Error ~p~n", [SrvPid, Error]),
+            lager:error([{session, Session}], "query error ~p", [Error]),
             Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Error++"\"}",
             {Priv, Resp};
         Res ->
             io:format(user, "Qry ~p~nResult ~p~n", [Query, Res]),
             {Priv, "{\"headers\":[],\"statement\":1234}"}
     end;
-process_cmd({"row_prev", BodyJson}, SrvPid, #priv{stmts=Statements, row_fun=Fun} = Priv) ->
+process_cmd({"row_prev", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p, ~p] Statements ~p~n", [SrvPid, StmtKey, Statements]),
+            lager:debug("[~p] statements ~p", [StmtKey, Statements]),
             {Priv, "{\"rows\":[]}"};
-        {Statement, _, _} -> {Priv, gen_adapter:prepare_json_rows(prev, -1, Statement, StmtKey, SrvPid, Fun)}
+        {Statement, _, _} -> {Priv, gen_adapter:prepare_json_rows(prev, -1, Statement, StmtKey)}
     end;
-process_cmd({"row_next", BodyJson}, SrvPid, #priv{stmts=Statements, row_fun=Fun} = Priv) ->
+process_cmd({"row_next", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p, ~p] Statements ~p~n", [SrvPid, StmtKey, Statements]),
+            lager:debug("[~p] statements ~p", [StmtKey, Statements]),
             {Priv, "{\"rows\":[]}"};
-        {Statement, _, _} -> {Priv, gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtKey, SrvPid, Fun)}
+        {Statement, _, _} -> {Priv, gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtKey)}
     end;
-process_cmd({"stmt_close", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"stmt_close", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"rows\":[]}"};
         {Statement, _, _} ->
-            dderl_session:log(SrvPid, "[~p, ~p] Remove statement ~p~n", [SrvPid, StmtKey, Statement]),
+            lager:debug("[~p] remove statement ~p", [StmtKey, Statement]),
             Statement:close(),
             {_,NewStatements} = proplists:split(Statements, [StmtKey]),
             {Priv#priv{stmts=NewStatements}, "{\"rows\":[]}"}
     end;
-process_cmd({"get_buffer_max", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"get_buffer_max", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "-1"};
         {Statement, _, _} ->
             {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-            dderl_session:log(SrvPid, "[~p, ~p] get_buffer_max ~p finished ~p~n", [SrvPid, StmtKey, CacheSize, Finished]),
+            lager:debug("[~p] get_buffer_max ~p finished ~p", [StmtKey, CacheSize, Finished]),
             {Priv, "{\"count\":"++integer_to_list(CacheSize)++", \"finished\":"++atom_to_list(Finished)++"}"}
     end;
-process_cmd({"update_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"update_data", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"update_data\":\"invalid statement\"}"};
         {Statement, _, _} ->
             Result = format_return(Statement:update_row(RowId, CellId, Value)),
             {Priv, "{\"update_data\":"++Result++"}"}
     end;
-process_cmd({"delete_row", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"delete_row", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"delete_row\":\"invalid statement\"}"};
         {Statement, _, _} ->
             Result = format_return(Statement:delete_row(RowId)),
             {Priv, "{\"delete_row\":"++Result++"}"}
     end;
-process_cmd({"insert_data", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"insert_data", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. Statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"insert_data\":\"invalid statement\"}"};
         {Statement, _, _} ->
             Result = format_return(Statement:insert_row(ClmName, Value)),
             {Priv, "{\"insert_data\":"++Result++"}"}
     end;
-process_cmd({"commit_rows", BodyJson}, SrvPid, #priv{stmts=Statements} = Priv) ->
+process_cmd({"commit_rows", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
-            dderl_session:log(SrvPid, "[~p] Statement ~p not found. Statements ~p~n", [SrvPid, StmtKey, proplists:get_keys(Statements)]),
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"commit_rows\":\"invalid statement\"}"};
         {Statement, _, _} ->
             Result = format_return(Statement:commit_modified()),
             {Priv, "{\"commit_rows\":"++Result++"}"}
     end;
 
-process_cmd({"get_query", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, SrvPid, Priv);
-process_cmd({"parse_stmt", BodyJson}, SrvPid, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, SrvPid, Priv);
-process_cmd({Cmd, _BodyJson}, _SrvPid, Priv) ->
-    io:format(user, "Cmd ~p~n", [Cmd]),
+process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
+process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
+process_cmd({Cmd, BodyJson}, Priv) ->
+    lager:error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, "{\"rows\":[]}"}.
 
 format_return({error, {E,{R,_}}}) ->  "\""++atom_to_list(E)++": "++R++"\"";
