@@ -17,11 +17,11 @@
 -define(VERSION, "1.0").
 
 init([]) ->
-    lager:info("~p starting...", [?MODULE]),
+    lager:debug("~p starting...", [?MODULE]),
     {{trace, "./priv/log"}, undefined}.
-    
+
 allowed_methods(ReqData, Context) ->
-    lager:info("allowed_methods ~p", [['HEAD', 'POST']]),
+    lager:debug("allowed_methods ~p", [['HEAD', 'POST']]),
     {['HEAD', 'POST'], ReqData, Context}.
 
 process_post(ReqData, Context) ->
@@ -38,10 +38,11 @@ process_post(ReqData, Context) ->
 %     ], ReqData, Context}.
 
 malformed_request(ReqData, Context) ->
-    lager:error("received malformed request"),
-    lager:debug("malformed request ~p", [ReqData]),
     case wrq:req_body(ReqData) of
-        undefined -> {halt, 401};
+        undefined ->
+            lager:error("received malformed request ~p", [wrq:disp_path(ReqData)]),
+            lager:debug("malformed request ~p", [ReqData]),
+            {halt, 401};
         _ -> {false, ReqData, Context}
     end.
 
@@ -57,16 +58,13 @@ to_html(ReqData) ->
 create_new_session([]) -> create_new_session(undefined);
 create_new_session(undefined) ->
     {Key, DderlSess} = dderl_session:start(),
-    lager:info([{session, Key}], "new dderl_sess ~p", [{Key, DderlSess}]),
+    lager:info([{session, Key}], "new dderl session ~p", [{Key, DderlSess}]),
     R = ets:insert(dderl_req_sessions, {Key, DderlSess}),
     lager:debug([{session, Key}], "session inserted to ETS ~p", [R]),
     {Key, DderlSess};
 create_new_session(Session) ->
     case ets:lookup(dderl_req_sessions, list_to_integer(Session)) of
-        [] ->
-            {Key, DderlSess} = create_new_session(undefined),
-            lager:debug([{session, Key}], "created session ~p", [{Key, DderlSess}]),
-            {Key, DderlSess};
+        [] -> create_new_session(undefined);
         [{Key, DderlSess}|_] ->
             lager:debug([{session, Key}], "using session ~p", [{Key, DderlSess}]),
             {Key, DderlSess}
@@ -74,7 +72,7 @@ create_new_session(Session) ->
 
 is_authorized(ReqData, Context) ->
     case wrq:disp_path(ReqData) of
-        "authdemo" -> 
+        "authdemo" ->
             case wrq:get_req_header("authorization", ReqData) of
                 "Basic "++Base64 ->
                     Str = base64:mime_decode_to_string(Base64),

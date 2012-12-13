@@ -8,8 +8,6 @@
         , process_request/3
         , set_adapter/2
         , get_state/1
-%        , log/3
-%        , create_files_json/1
         ]).
 
 -export([init/1
@@ -19,7 +17,6 @@
         , terminate/2
         , code_change/3
         , format_status/2
-%        , update_account/2
         ]).
 
 -define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
@@ -30,10 +27,7 @@
         , statements = []
         , tref
         , user = <<>>
-%        , file
-%        , logdir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "www", "logs"])
         , adapter = gen_adapter
-        , resps = []
     }).
 
 start() ->
@@ -41,28 +35,13 @@ start() ->
     Key = erlang:phash2({dderl_session, Pid}),
     {Key, {dderl_session, Pid}}.
 
-% log(Pid, Format, Content) ->
-%     gen_server:cast(Pid, {log, Format, Content}).
-
 get_state({?MODULE, Pid}) ->
     gen_server:call(Pid, get_state, infinity).
 
 process_request(SessKey, WReq, {?MODULE, Pid}) ->
     lager:debug([{session, SessKey}], "request received ~p", [WReq]),
-    Parent = self(),
     Type = wrq:disp_path(WReq),
-    case gen_server:call(Pid, {SessKey, Type, WReq, Parent}, infinity) of
-        deferred -> get_resp(Pid, Parent);
-        Resp -> Resp
-    end.
-
-get_resp(Pid, Parent) ->
-    case gen_server:call(Pid, {get_resp, Parent}, infinity) of
-        undefined ->
-            timer:sleep(10),
-            get_resp(Pid, Parent);
-        Resp -> Resp
-    end.
+    gen_server:call(Pid, {process, SessKey, Type, WReq}, infinity).
 
 set_adapter(Adapter, {?MODULE, Pid}) ->
     AdaptMod  = list_to_existing_atom(Adapter++"_adapter"),
@@ -82,31 +61,27 @@ handle_call({adapter, Adapter}, _From, #state{key=Key}=State) ->
 handle_call(get_state, _From, #state{key=Key} = State) ->
     lager:debug([{session, Key}], "get_state!", []),
     {reply, State, State};
-handle_call({get_resp, Parent}, _From, #state{resps=Responces,key=Key} = State) ->
-    {NewResponces, Resp} = case lists:keytake(Parent, 1, Responces) of
-        {value, {_, R}, NRs} ->
-            lager:debug([{session, Key}], "removed resp ~p", [R]),
-            {NRs, R};
-        false ->
-            lager:error([{session, Key}], "resp not found ~p", [Responces]),
-            {Responces, undefined}
-    end,
-    {reply, Resp, State#state{resps=NewResponces}};
-handle_call({SessKey, Typ, WReq, Parent}, _From, #state{tref=TRef, key=Key} = State) ->
+handle_call({process, SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = State) ->
     timer:cancel(TRef),
     NewKey = if SessKey =/= Key -> SessKey; true -> Key end,
     lager:debug([{session, Key}], "processing request ~p", [{Typ, WReq}]),
-    {Rep, Resp, NewState} = process_call({Typ, WReq}, Parent, State#state{key=NewKey}),
-    lager:debug([{session, Key}], "generated resp ~p", [{Typ, Rep, Resp}]),
+    R = process_call({Typ, WReq}, From, State#state{key=NewKey}),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}}.
+    case R of
+        {Rep, Resp, NewState} ->
+            lager:debug([{session, Key}], "generated resp ~p", [{Typ, Resp}]),
+            {Rep, Resp, NewState#state{tref=NewTRef,key=NewKey}};
+        {Rep, NewState} ->
+            lager:debug([{session, Key}], "response deferred ~p", [Typ]),
+            {Rep, NewState#state{tref=NewTRef,key=NewKey}}
+    end.
 
 process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:verify_password(User, Password) of
-        true ->  
+        true ->
             lager:info([{session, Key}], "login successful for ~p", [User]),
             {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
         {error, Msg} ->
@@ -217,7 +192,7 @@ process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
         []          -> {reply, "{}", State};
         Connections -> {reply, conns_json(Connections), State#state{user=User}}
     end;
-process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod,resps=Responces, key=Key, user=User} = State) ->
+process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod, key=Key, user=User} = State) ->
     BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
         {struct, [{_, {struct, B}}]} ->  B;
         _ -> []
@@ -230,15 +205,15 @@ process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptM
             lager:debug([{session, Key}, {user, User}], "~p response ~p", [AdaptMod, {Cmd,Resp}]),
             gen_server:cast(Self, {resp, {NewSessionHandle, Resp, Parent}})
     end),
-    {reply, deferred, State#state{resps=lists:keystore(Parent, 1, Responces, {Parent, undefined})}}.
+    {noreply, State}.
 
 %handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
 %    %logi(File, "[~p] " ++ Format, [Key|Content]),
 %    {noreply, State};
-handle_cast({resp, {NewSessionHandle, Resp, Parent}}, #state{resps=Responces,key=Key,user=User}=State) ->
-    lager:info([{session, Key}, {user, User}], "~p received response ~p for ~p", [?MODULE, Resp, Parent]),
-    NewResponces = lists:keystore(Parent, 1, Responces, {Parent, Resp}),
-    {noreply, State#state{session=NewSessionHandle, resps=NewResponces}};
+handle_cast({resp, {NewSessionHandle, Resp, Parent}}, #state{key=Key,user=User}=State) ->
+    lager:debug([{session, Key}, {user, User}], "~p received response ~p for ~p", [?MODULE, Resp, Parent]),
+    gen_server:reply(Parent, Resp),
+    {noreply, State#state{session=NewSessionHandle}};
 handle_cast(Request, #state{key=Key,user=User}=State) ->
     lager:error([{session, Key}, {user, User}], "~p received unknown cast ~p for ~p", [?MODULE, Request, User]),
     {noreply, State}.
@@ -272,29 +247,4 @@ conns_json(Connections) ->
     Connections), ",") ++ "}",
     ConsJson.
 
-% -- create_files_json(Files)    -> string:join(lists:reverse(create_files_json(Files, [])), ",").
-% -- create_files_json([], Json) -> Json;
-% -- create_files_json([F|Files], Json) ->
-% --     create_files_json(Files, [
-% --             "{\"name\":"++jsq(F#ddCmd.name)
-% --          ++", \"id\":"++jsq(F#ddCmd.id)
-% --          ++", \"content\":"++jsq(F#ddCmd.command)
-% --          ++", \"posX\":0"
-% --          ++", \"posY\":25"
-% --          ++", \"width\":200"
-% --          ++", \"height\":500"
-% -- %% -         ++", \"posX\":"++integer_to_list(F#ddCmd.posX)
-% -- %% -         ++", \"posY\":"++integer_to_list(F#ddCmd.posY)
-% -- %% -         ++", \"width\":"++integer_to_list(F#ddCmd.width)
-% -- %% -         ++", \"height\":"++integer_to_list(F#ddCmd.height)
-% --          ++"}"
-% --          |Json]).
-
 jsq(Str) -> io_lib:format("~p", [Str]).
-
-%% logi(Filename, Format, Content) ->
-%%     FormatWithDate = "[" ++ io_lib:format("~p ~p", [date(), time()]) ++ "] " ++ Format,
-%%     case Filename of
-%%         undefined -> file:write_file(?GENLOG, list_to_binary(io_lib:format(FormatWithDate, Content)), [append]);
-%%         _         -> file:write_file(Filename, list_to_binary(io_lib:format(FormatWithDate, Content)), [append])
-%%     end.

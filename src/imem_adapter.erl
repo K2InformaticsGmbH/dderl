@@ -6,7 +6,7 @@
         , process_cmd/2
         ]).
 
-init() ->    
+init() ->
     dderl_dal:add_adapter(imem, "IMEM DB"),
     dderl_dal:add_connect(#ddConn{ id = erlang:phash2(make_ref())
                                  , name = "local imem"
@@ -40,14 +40,14 @@ process_cmd({"connect", BodyJson}, _) ->
         Ip when Ip =:= "rpc" ->
             Type    = rpc,
             Opts    = {list_to_existing_atom(Port), Schema};
-        Ip ->    
+        Ip ->
             Type    = tcp,
             Opts    = {Ip, list_to_integer(Port), Schema}
     end,
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     Session = erlimem_session:open(Type, Opts, {User, Password}),
-    io:format(user, "Session ~p~n", [Session]),
+    lager:debug("session ~p", [Session]),
     lager:debug("connected to params ~p", [{Type, Opts}]),
     Statements = [],
     {#priv{sess=Session, stmts=Statements}, "{\"connect\":\"ok\"}"};
@@ -69,7 +69,7 @@ process_cmd({"query", BodyJson}, #priv{sess=Session, stmts=Statements} = Priv) -
             Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Error++"\"}",
             {Priv, Resp};
         Res ->
-            io:format(user, "Qry ~p~nResult ~p~n", [Query, Res]),
+            lager:debug("qry ~p~nResult ~p", [Query, Res]),
             {Priv, "{\"headers\":[],\"statement\":1234}"}
     end;
 process_cmd({"row_prev", BodyJson}, #priv{stmts=Statements} = Priv) ->
