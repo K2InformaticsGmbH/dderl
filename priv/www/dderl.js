@@ -68,35 +68,6 @@ function show_qry_files()
     if(tab != null || tab != undefined) {
         ajax_post('/app/files', {}, null, null, function(context) {
             load_table(context.files);
-            //$('<div id="dialog-show-files" title="Query Files" style="display:none"></div>')
-            //.append($('<select id="files_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
-            //        .dblclick(function() {
-            //            load_table($('#files_list option:selected').data("context"));
-            //        })
-            //       )
-            //.appendTo(tab);
-            //for(var i=0;i<data.files.length; ++i)
-            //    $('<option value="'+data.files[i].content+'">'+data.files[i].name+'</option>')
-            //    .appendTo($('#files_list'))
-            //    .data("context", data.files[i]);
-            //$("#dialog-show-files").dialog({
-            //    autoOpen: false,
-            //    height: 300,
-            //    width: 200,
-            //    resizable: false,
-            //    modal: false,
-            //    close: function() {
-            //        $(this).dialog('destroy');
-            //        $(this).remove();
-            //    },
-            //    buttons: {
-            //        "Delete": function() {
-            //            var selFile = $('#files_list option:selected');
-            //            ajax_post('/app/del_file', {del: {file_name: selFile.text()}}, null, null, function(data) {selFile.remove();});
-            //        }
-            //    }
-            //})
-            //.dialog("open");
         });
     }
 }
@@ -105,8 +76,11 @@ function load_table(context)
 {
     var query = context.content;
     ajax_post('/app/query', {query: {qstr: query, id: context.id}}, null, null, function(table) {
+        if(table.hasOwnProperty('error')) {
+            alert(table.error);
+            return;
+        }
         var statement = table.statement;
-
         context.columns = table.headers;
         context.statement = statement;
         context.initFun = function(tblDlg) {

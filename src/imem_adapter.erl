@@ -64,9 +64,10 @@ process_cmd({"query", BodyJson}, #priv{sess=Session, stmts=Statements} = Priv) -
             Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns)++
             ",\"statement\":"++integer_to_list(StmtHndl)++"}",
             {Priv#priv{stmts=[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
-        {error, Error} ->
-            lager:error([{session, Session}], "query error ~p", [Error]),
-            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Error++"\"}",
+        {error, {Ex,M}} ->
+            lager:error([{session, Session}], "query error ~p", [{Ex,M}]),
+            Err = atom_to_list(Ex) ++ ": " ++ element(1, M),
+            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Err++"\"}",
             {Priv, Resp};
         Res ->
             lager:debug("qry ~p~nResult ~p", [Query, Res]),

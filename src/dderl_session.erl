@@ -84,9 +84,10 @@ process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
         true ->
             lager:info([{session, Key}], "login successful for ~p", [User]),
             {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
-        {error, Msg} ->
-            lager:error([{session, Key}], "login failed for ~p, reason ~p", [User, Msg]),
-            {reply, "{\"login\": \""++Msg++"\"}", State}
+        {error, {Exception, M}} ->
+            lager:error([{session, Key}], "login failed for ~p, reason ~p", [User, {Exception, M}]),
+            Err = atom_to_list(Exception) ++ ": "++ element(1, M),
+            {reply, "{\"login\": \""++Err++"\"}", State}
     end;
 process_call({"files", _}, _From, #state{user=User} = State) ->
     [F|_] = [C || C <- dderl_dal:get_commands(User, imem), C#ddCmd.name == "All Files"],

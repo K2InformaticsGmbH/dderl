@@ -14,9 +14,6 @@
         ,format_status/2
         ]).
 
--define(USER, <<"admin">>).
--define(PASSWORD, erlang:md5(<<"change_on_install">>)).
-
 verify_password(User, Password) -> gen_server:call(?MODULE, {verify_password, User, Password}).
 
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
@@ -46,8 +43,8 @@ start_link(SchemaName) ->
 
 init([SchemaName]) ->
     erlimem:start(),
-    Cred = {?USER, ?PASSWORD},
-    Sess = erlimem_session:open(rpc, {node(), SchemaName}, Cred),
+    Cred = {<<>>, <<>>},
+    Sess = erlimem_session:open(local, {SchemaName}, Cred),
     Sess:run_cmd(create_table, [ddAdapter, record_info(fields, ddAdapter), []]),
     Sess:run_cmd(create_table, [ddInterface, record_info(fields, ddInterface), []]),
     Sess:run_cmd(create_table, [ddConn, record_info(fields, ddConn), []]),
@@ -85,32 +82,23 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
                                           , ['$_']}]]),
     {reply, Cons, State};
 
-handle_call({verify_password, User, Password}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p verify_password for user ~p pass ~p", [?MODULE, User, Password]),
+handle_call({verify_password, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
-    case Sess:run_cmd(authenticate, [adminSessionId, User, {pwdmd5, BinPswd}]) of
-        {error, {_Exception, {Msg, _Extra}}} ->
-            lager:error("authenticate exception ~p~n", [Msg]),
-            {reply, {error, Msg}, State};
-        _SeCo ->
-            case Sess:run_cmd(login, []) of
-                {error, {_Exception, {Msg, _Extra}}} ->
-                    lager:error("login exception ~p~n", [Msg]),
-                    {reply, {error, Msg}, State};
-                _NewSeCo ->
-                    lager:debug("~p verify_password accepted user ~p", [?MODULE, User]),
-                    {reply, true, State}
-            end
+    lager:debug("~p verify_password for user ~p pass ~p", [?MODULE, User, BinPswd]),
+    case erlimem_session:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
+        {error, Error} ->
+            lager:error("login exception ~p~n", [Error]),
+            {reply, {error, Error}, State};
+        _NewSeCo ->
+            lager:debug("~p verify_password accepted user ~p", [?MODULE, User]),
+            {reply, true, State}
     end;
 handle_call(Req,From,State) ->
     lager:info("unknown call req ~p from ~p~n", [Req, From]),
     {reply, ok, State}.
 
 handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName} = State) ->
-    NewCon0 = case Con#ddConn.owner of
-        undefined -> Con#ddConn{owner = ?USER};
-        _ -> Con
-    end,
+    NewCon0 = Con#ddConn{owner = <<"admin">>},
     NewCon1 = case NewCon0#ddConn.schema of
         undefined -> NewCon0#ddConn{schema = SchemaName};
         _ -> NewCon0
@@ -140,7 +128,7 @@ handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) 
     lager:debug("~p add_command inserting id ~p", [?MODULE, Id]),
     NewCmd = #ddCmd { id        = Id
                  , name      = Name
-                 , owner     = ?USER
+                 , owner     = <<"admin">>
                  , adapters  = [Adapter]
                  , command   = Cmd
                  , opts      = Opts},
