@@ -27,6 +27,7 @@ priv/log/
 *.DAT
 ebin/*
 *.DCL
+*.dump
 
 # External tool builders
 .externalToolBuilders/
