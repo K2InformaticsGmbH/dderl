@@ -308,7 +308,8 @@ function loadTable(table, statement, columns)
                 ajax_post('/app/browse_data', {browse_data: { statement : statement,
                                                                     row : data.row,
                                                                     col : data.cell}}, null, null, function(ret) {
-                    load_table(ret.browse_data);
+                    prepare_table(ret.browse_data);
+                    //load_table(ret.browse_data);
                 });
             }
         },

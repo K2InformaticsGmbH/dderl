@@ -67,9 +67,62 @@ function show_qry_files()
     var tab = $('#main-content-tabs').data('curtab');
     if(tab != null || tab != undefined) {
         ajax_post('/app/views', {}, null, null, function(context) {
-            load_table(context.views);
+            prepare_table(context.views);
         });
     }
+}
+
+function prepare_table(context)
+{
+    if(context.hasOwnProperty('error')) {
+        alert(table.error);
+        return;
+    }
+    context.initFun = function(tblDlg) {
+        tblDlg.bind('requery', function(e, sqlObj) {
+            ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
+                      null, null, null);
+            tblDlg.dialog('destroy');
+            tblDlg.remove();
+            context.content = sqlObj;
+            load_table(context.content);
+        });
+    };
+    context.destroyFun = function() {
+        ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}}, null, null, null);
+    };
+
+    context.countFun = function(countUpdateFun) {
+        ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: context.statement}},
+                  null, null, countUpdateFun);
+    };
+
+    context.rowFun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
+        var Cmd = '/app/row';
+        switch(opsfetch) {
+            case OpsFetchEnum.NEXT:
+                Cmd += '_next';
+                break;
+            case OpsFetchEnum.PREVIOUS:
+                Cmd += '_prev';
+                break;
+            case OpsFetchEnum.TOEND:
+                Cmd += '_next';
+                rowNum = 10000000; // 10 mil for end of table for most table
+                break;
+            default:
+                Cmd += '_next';
+                break;
+        }
+        if(rowNum == null)
+            rowNum = -1;
+        ajax_post(Cmd, {row: {statement: context.statement, row_num: rowNum}}, null, null,
+        function(data) {
+            renderFunArgs[renderFunArgs.length] = data;
+            renderFun.apply(this, renderFunArgs);
+        });
+    };
+    renderTable(context);
 }
 
 function load_table(context)
@@ -81,53 +134,9 @@ function load_table(context)
             return;
         }
         var statement = table.statement;
-        context.columns = table.headers;
+        context.columns = table.columns;
         context.statement = statement;
-        context.initFun = function(tblDlg) {
-            tblDlg.bind('requery', function(e, sqlObj) {
-                ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
-                          null, null, null);
-                tblDlg.dialog('destroy');
-                tblDlg.remove();
-                context.content = sqlObj;
-                load_table(context);
-            });
-        };
-        context.destroyFun = function() {
-            ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}}, null, null, null);
-        };
-
-        context.countFun = function(countUpdateFun) {
-            ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: statement}},
-                      null, null, countUpdateFun);
-        };
-
-        context.rowFun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
-            var Cmd = '/app/row';
-            switch(opsfetch) {
-                case OpsFetchEnum.NEXT:
-                    Cmd += '_next';
-                    break;
-                case OpsFetchEnum.PREVIOUS:
-                    Cmd += '_prev';
-                    break;
-                case OpsFetchEnum.TOEND:
-                    Cmd += '_next';
-                    rowNum = 10000000; // 10 mil for end of table for most table
-                    break;
-                default:
-                    Cmd += '_next';
-                    break;
-            }
-            if(rowNum == null)
-                rowNum = -1;
-            ajax_post(Cmd, {row: {statement: statement, row_num: rowNum}}, null, null,
-            function(data) {
-                renderFunArgs[renderFunArgs.length] = data;
-                renderFun.apply(this, renderFunArgs);
-            });
-        };
-        renderTable(context);
+        prepare_table(context);
     });
 }
 

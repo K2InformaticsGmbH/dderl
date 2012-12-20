@@ -75,7 +75,8 @@ process_cmd({"connect", BodyJson}, _) ->
 process_cmd({"query", BodyJson}, #priv{sess=Session} = Priv) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     lager:debug([{session, Session}], "query ~p", [{Session, Query}]),
-    process_query(Query, Priv);
+    {NewPriv, R} = process_query(Query, Priv),
+    {NewPriv, "{" ++ R ++ "}"};
 
 process_cmd({"row_prev", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -164,21 +165,36 @@ process_cmd({"commit_rows", BodyJson}, #priv{stmts=Statements} = Priv) ->
             {Priv, "{\"commit_rows\":"++Result++"}"}
     end;
 
+process_cmd({"browse_data", BodyJson}, #priv{sess=_Session, stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
+    Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"browse_data\":{\"error\":\"invalid statement\"}}"};
+        {Statement, _, _} ->
+            Tabs = Statement:tables(),
+            IsView = lists:any(fun(E) -> E =:= ddCmd end, Tabs),
+            lager:info("browse_data ~p - ~p", [Tabs, {Row, Col}]),
+            {[R|_], _, _} = Statement:rows_from(Row+1),
+            if IsView ->
+                Name = lists:nth(2,R),
+                Query = lists:nth(4,R),
+                {NewPriv, Resp} = process_query(Query, Priv),
+                {NewPriv, "{\"browse_data\":{\"content\":\""++Query++"\", \"name\":\""++Name++"\", "++Resp++"}}"};
+            true ->                
+                [_,Name|_] = R,
+                Query = "SELECT * FROM " ++ Name,
+                {NewPriv, Resp} = process_query(Query, Priv),
+                {NewPriv, "{\"browse_data\":{\"content\":\""++Query++"\", \"name\":\""++Name++"\", "++Resp++"}}"}
+            end
+    end;
+
 process_cmd({"views", _}, Priv) ->
     [F|_] = [C || C <- dderl_dal:get_commands(system, imem), C#ddCmd.name == "All Views"],
-%% -     Files = "{\"name\":"++jsq(F#ddCmd.name)
-%% -          ++", \"id\":"++jsq(F#ddCmd.id)
-%% -          ++", \"content\":"++jsq(F#ddCmd.command)
-%% -          ++", \"posX\":0"
-%% -          ++", \"posY\":25"
-%% -          ++", \"width\":200"
-%% -          ++", \"height\":500"
-%% - %% -         ++", \"posX\":"++integer_to_list(F#ddCmd.posX)
-%% - %% -         ++", \"posY\":"++integer_to_list(F#ddCmd.posY)
-%% - %% -         ++", \"width\":"++integer_to_list(F#ddCmd.width)
-%% - %% -         ++", \"height\":"++integer_to_list(F#ddCmd.height)
-%% -          ++"}",
-    {Priv, "{\"views\":{\"content\":\""++F#ddCmd.command++"\", \"name\":\"All Views\"}}"};
+    {NewPriv, Resp} = process_query(F#ddCmd.command, Priv),
+    {NewPriv, "{\"views\":{\"content\":\""++F#ddCmd.command++"\", \"name\":\"All Views\", "++Resp++"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
@@ -192,17 +208,17 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
             Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
             lager:debug([{session, Session}], "columns ~p", [Columns]),
             Statement:start_async_read(),
-            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns)++
-            ",\"statement\":"++integer_to_list(StmtHndl)++"}",
+            Resp = "\"columns\":"++gen_adapter:string_list_to_json(Columns)++
+            ",\"statement\":"++integer_to_list(StmtHndl),
             {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}, Resp};
         {error, {Ex,M}} ->
             lager:error([{session, Session}], "query error ~p", [{Ex,M}]),
             Err = atom_to_list(Ex) ++ ": " ++ element(1, M),
-            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Err++"\"}",
+            Resp = "\"columns\":[],\"statement\":0,\"error\":\""++Err++"\"",
             {Priv, Resp};
         Res ->
             lager:debug("qry ~p~nResult ~p", [Query, Res]),
-            {Priv, "{\"headers\":[],\"statement\":1234}"}
+            {Priv, "\"columns\":[],\"statement\":1234"}
     end.
 
 format_return({error, {E,{R,_}}}) ->  "\""++atom_to_list(E)++": "++R++"\"";

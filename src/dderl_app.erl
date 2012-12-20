@@ -10,6 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+    {ok, ImemPwd} = application:get_env(imem_default_admin_pswd),
     imem:start(),
     application:load(lager),
     application:set_env(lager, handlers, [{lager_console_backend, info},
@@ -17,7 +18,7 @@ start(_StartType, _StartArgs) ->
                                                         {table, dderlLogs},
                                                         {level, info},
                                                         {user, <<"admin">>},
-                                                        {password, <<"change_on_install">>}]},
+                                                        {password, ImemPwd}]},
                                           {lager_file_backend,
                                            [{"error.log", error, 10485760, "$D0", 5},
                                             {"console.log", info, 10485760, "$D0", 5}]}]),
