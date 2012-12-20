@@ -80,7 +80,7 @@ process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
     {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    case dderl_dal:verify_password(User, Password) of
+    case dderl_dal:login(User, Password) of
         true ->
             lager:info([{session, Key}], "login successful for ~p", [User]),
             {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
@@ -89,21 +89,13 @@ process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
             Err = atom_to_list(Exception) ++ ": "++ element(1, M),
             {reply, "{\"login\": \""++Err++"\"}", State}
     end;
-process_call({"files", _}, _From, #state{user=User} = State) ->
-    [F|_] = [C || C <- dderl_dal:get_commands(User, imem), C#ddCmd.name == "All Files"],
-    Files = "{\"name\":"++jsq(F#ddCmd.name)
-         ++", \"id\":"++jsq(F#ddCmd.id)
-         ++", \"content\":"++jsq(F#ddCmd.command)
-         ++", \"posX\":0"
-         ++", \"posY\":25"
-         ++", \"width\":200"
-         ++", \"height\":500"
-%% -         ++", \"posX\":"++integer_to_list(F#ddCmd.posX)
-%% -         ++", \"posY\":"++integer_to_list(F#ddCmd.posY)
-%% -         ++", \"width\":"++integer_to_list(F#ddCmd.width)
-%% -         ++", \"height\":"++integer_to_list(F#ddCmd.height)
-         ++"}",
-    {reply, "{\"files\": "++Files++"}", State};
+process_call({"adapters", _ReqData}, _From, #state{key=Key, user=User} = State) ->
+    JsonAdaptersList = "[" ++ lists:flatten(
+        string:join(["{\"id\":\""++atom_to_list(A#ddAdapter.id)++"\", \"fullName\":\""++A#ddAdapter.fullName++"\"}"
+                    || A <- dderl_dal:get_adapters()], ","))
+    ++ "]",
+    lager:debug([{kex, Key}, {user, User}], "Adapters ~p", [JsonAdaptersList]),
+    {reply, "{\"adapters\": "++JsonAdaptersList++"}", State};
 
 % - process_call({"save_file", ReqData}, _From, #state{key=Key,user=User,file=File} = State) ->
 % -     {struct, [{<<"save">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
@@ -165,33 +157,12 @@ process_call({"files", _}, _From, #state{user=User} = State) ->
 % -         {atomic, ok} ->  {reply, "{\"change_pswd\": \"ok\"}", State};
 % -         abort ->  {reply, "{\"change_pswd\": \"unable to change password\"}", State}
 % -     end;
-process_call({"save", ReqData}, _From, #state{key=Key, user=User} = State) ->
-    case User of
-        [] -> {reply, "{\"save\": \"not logged in\"}", State};
-        _ ->
-            Data = binary_to_list(wrq:req_body(ReqData)),
-            {struct, SaveCon} = mochijson:decode(Data),
-            Con = #ddConn { id       = erlang:phash2(make_ref())
-                          , name     = proplists:get_value("name", SaveCon, "")
-                          , owner    = User
-                          , adapter  = list_to_existing_atom(proplists:get_value("adapter", SaveCon, ""))
-                          , access   = [ {ip,        proplists:get_value("ip", SaveCon, "")}
-                                       , {port,      proplists:get_value("port", SaveCon, "0")}
-                                       , {type,      proplists:get_value("type", SaveCon, "")}
-                                       , {user,      proplists:get_value("user", SaveCon, "")}
-                                       , {password,  proplists:get_value("password", SaveCon, "")}
-                                       , {tnsstring, proplists:get_value("tnsstring", SaveCon, "")}
-                                       ]
-                          , schema   = list_to_atom(proplists:get_value("service", SaveCon, ""))
-                          },
-            lager:debug([{session, Key}, {user, User}], "saving new connection ~p", [Con]),
-            dderl_dal:add_connect(Con),
-            {reply, "{\"save\": \"success\"}", State}
-    end;
-process_call({"get_connects", _ReqData}, _From, #state{user=User} = State) ->
+process_call({"connects", _ReqData}, _From, #state{user=User, key=Key} = State) ->
     case dderl_dal:get_connects(User) of
-        []          -> {reply, "{}", State};
-        Connections -> {reply, conns_json(Connections), State#state{user=User}}
+        []          -> {reply, "{\"connects\":[]}", State};
+        Connections ->
+            lager:debug([{session, Key}, {user, User}], "conections ~p", [Connections]),
+            {reply, "{\"connects\":"++conns_json(Connections)++"}", State#state{user=User}}
     end;
 process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod, key=Key, user=User} = State) ->
     BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
@@ -208,9 +179,6 @@ process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptM
     end),
     {noreply, State}.
 
-%handle_cast({log, Format, Content}, #state{key=Key, file=File} = State) ->
-%    %logi(File, "[~p] " ++ Format, [Key|Content]),
-%    {noreply, State};
 handle_cast({resp, {NewSessionHandle, Resp, Parent}}, #state{key=Key,user=User}=State) ->
     lager:debug([{session, Key}, {user, User}], "~p received response ~p for ~p", [?MODULE, Resp, Parent]),
     gen_server:reply(Parent, Resp),
@@ -239,8 +207,9 @@ conns_json(Connections) ->
     string:join(lists:foldl(fun(C, Acc) ->
         Access = lists:flatten([", \""++atom_to_list(N)++"\":"++jsq(V) || {N,V} <- C#ddConn.access]),
         [lists:flatten(jsq(C#ddConn.name)++":{"
-            ++"\"adapter\":\""++jsq(C#ddConn.adapter)++"\""
-            ++", \"service\":"++jsq(atom_to_list(C#ddConn.schema))
+            ++"\"adapter\":"++jsq(C#ddConn.adapter)
+            ++", \"service\":"++jsq(C#ddConn.schema)
+            ++", \"owner\":"++jsq(C#ddConn.owner)
             ++Access
             ++"}") | Acc]
     end,
@@ -248,4 +217,6 @@ conns_json(Connections) ->
     Connections), ",") ++ "}",
     ConsJson.
 
+jsq(Bin) when is_binary(Bin) -> io_lib:format("~p", [binary_to_list(Bin)]);
+jsq(Atom) when is_atom(Atom) -> io_lib:format("~p", [atom_to_list(Atom)]);
 jsq(Str) -> io_lib:format("~p", [Str]).

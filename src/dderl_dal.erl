@@ -1,11 +1,10 @@
 -module(dderl_dal).
 -include("dderl.hrl").
 
--compile(export_all).
-
 -behavior(gen_server).
 
 -export([init/1
+        ,start_link/1
         ,handle_call/3
         ,handle_cast/2
         ,handle_info/2
@@ -14,13 +13,23 @@
         ,format_status/2
         ]).
 
-verify_password(User, Password) -> gen_server:call(?MODULE, {verify_password, User, Password}).
+-export([get_adapters/0
+        ,login/2
+        ,add_adapter/2
+        ,add_command/4
+        ,add_connect/1
+        ,get_connects/1
+        ,get_commands/2
+        ,get_command/1
+        ]).
+
+login(User, Password)                   -> gen_server:call(?MODULE, {login, User, Password}).
 
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 add_command(Adapter, Name, Cmd, Opts)   -> gen_server:cast(?MODULE, {add_command, Adapter, Name, Cmd, Opts}).
 add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect, Connection}).
 
-get_adapters(User)              -> gen_server:call(?MODULE, {get_adapters, User}).
+get_adapters()                  -> gen_server:call(?MODULE, {get_adapters}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
 get_command(Id)                 -> gen_server:call(?MODULE, {get_command, Id}).
@@ -58,7 +67,7 @@ init([SchemaName]) ->
     {ok, #state{sess=Sess, schema=SchemaName}}.
 
 handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_commands for id ~p", [?MODULE, Id]),
+    lager:debug("~p get_command for id ~p", [?MODULE, Id]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd
                                            , [{{ddCmd,'$1','_','_','_','_','_','_'}
                                            , [{'=:=','$1',Id}]
@@ -69,29 +78,46 @@ handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
     lager:debug("~p get_commands user ~p adapter ~p", [?MODULE, User, Adapter]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd
                                         , [{{ddCmd,'$1','$2','$3','$4','_','$5','_'}
-                                        , [{'and', {'=:=','$3',User}, {'=:=', '$4', [Adapter]}}]
+                                        , [{'or', {'=:=', '$3', system}, {'=:=','$3',User}}]
                                           %, [['$1','$2', '$5']]}]]),
-                                          , ['$_']}]]),
-    {reply, Cmds, State};
+                                        , ['$_']}]]),
+    NewCmds = [C || C <- Cmds, lists:any(fun(E) -> E =:= Adapter end, C#ddCmd.adapters)],
+    lager:debug("~p get_commands user ~p adapter ~p cmds ~p", [?MODULE, User, Adapter, NewCmds]),
+    {reply, NewCmds, State};
 
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_connects for id ~p", [?MODULE, User]),
-    {Cons, true} = Sess:run_cmd(select, [ddConn
-                                        , [{{ddConn,'_','_','$1','_','_','_'}
-                                          , [{'=:=','$1',User}]
-                                          , ['$_']}]]),
-    {reply, Cons, State};
+    {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
+    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
+    NewCons =
+        if HasAll -> Cons;
+        true ->
+            lists:foldl(fun(C,Acc) ->        
+                HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
+                if (HavePerm == true)   -> [C|Acc];
+                   true                 -> Acc
+                end
+            end,
+            [],
+            Cons)
+    end,
+    lager:debug("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
+    {reply, NewCons, State};
 
-handle_call({verify_password, User, Password}, _From, #state{schema=SchemaName} = State) ->
+handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p get_adapters", [?MODULE]),
+    {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
+    {reply, Adapters, State};
+
+handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
-    lager:debug("~p verify_password for user ~p pass ~p", [?MODULE, User, BinPswd]),
+    lager:debug("~p login for user ~p pass ~p", [?MODULE, User, BinPswd]),
     case erlimem_session:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
             lager:error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
-        _NewSeCo ->
-            lager:debug("~p verify_password accepted user ~p", [?MODULE, User]),
-            {reply, true, State}
+        Sess ->
+            lager:debug("~p login accepted user ~p", [?MODULE, User]),
+            {reply, true, State#state{sess=Sess}}
     end;
 handle_call(Req,From,State) ->
     lager:info("unknown call req ~p from ~p~n", [Req, From]),
@@ -126,9 +152,9 @@ handle_cast({add_command, Adapter, Name, Cmd, Opts}, #state{sess=Sess} = State) 
         _ -> erlang:phash2(make_ref())
     end,
     lager:debug("~p add_command inserting id ~p", [?MODULE, Id]),
-    NewCmd = #ddCmd { id        = Id
+    NewCmd = #ddCmd { id     = Id
                  , name      = Name
-                 , owner     = <<"admin">>
+                 , owner     = system
                  , adapters  = [Adapter]
                  , command   = Cmd
                  , opts      = Opts},

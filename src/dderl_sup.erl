@@ -74,12 +74,14 @@ init([SchemaName]) ->
                     ]},
                 permanent, 5000, worker, dynamic}
         ];
-        {ok, WebConfigs} ->  [
-            {proplists:get_value(name, Wc, default),
-            {webmachine_mochiweb, start, [Wc++[{dispatch, Dispatch}]]},
-             permanent, 5000, worker, dynamic}
-        || Wc <- WebConfigs
-        ]
+        {ok, WebConfigs} ->
+            [lager:info("~p listening at "++proplists:get_value(ip, W)++":~p"
+                       , [ proplists:get_value(name, W)
+                       , proplists:get_value(port, W)]) || W <- WebConfigs],
+            [{proplists:get_value(name, Wc, default),
+                {webmachine_mochiweb, start, [Wc++[{dispatch, Dispatch}]]},
+                 permanent, 5000, worker, dynamic}
+            || Wc <- WebConfigs]
     end
     ++
     [?CHILD(dderl_dal, worker, [SchemaName])],

@@ -66,8 +66,8 @@ function show_qry_files()
 {
     var tab = $('#main-content-tabs').data('curtab');
     if(tab != null || tab != undefined) {
-        ajax_post('/app/files', {}, null, null, function(context) {
-            load_table(context.files);
+        ajax_post('/app/views', {}, null, null, function(context) {
+            load_table(context.views);
         });
     }
 }

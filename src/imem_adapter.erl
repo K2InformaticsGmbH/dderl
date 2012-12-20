@@ -14,7 +14,7 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     dderl_dal:add_command(imem, "All Tables", "select name(qname) from all_tables", []),
-    dderl_dal:add_command(imem, "All Files", "select name, command from ddCmd where adapters = '[imem]'", []).
+    dderl_dal:add_command(imem, "All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)", []).
 
 -record(priv, { sess
               , stmts
@@ -30,7 +30,8 @@ hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 process_cmd({"connect", BodyJson}, _) ->
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
-    case binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)) of
+    Ip     = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
+    case Ip of
         Ip when Ip =:= "local_sec" ->
             Type    = local_sec,
             Opts    = {Schema};
@@ -46,33 +47,36 @@ process_cmd({"connect", BodyJson}, _) ->
     end,
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    Session = erlimem_session:open(Type, Opts, {User, Password}),
-    lager:debug("session ~p", [Session]),
-    lager:debug("connected to params ~p", [{Type, Opts}]),
-    Statements = [],
-    {#priv{sess=Session, stmts=Statements}, "{\"connect\":\"ok\"}"};
-process_cmd({"query", BodyJson}, #priv{sess=Session, stmts=Statements} = Priv) ->
-    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    ParseTree = [],
-    lager:debug([{session, Session}], "query ~p", [{Session, Query}]),
-    case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
-        {ok, Clms, Statement} ->
-            StmtHndl = erlang:phash2(Statement),
-            Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
-            lager:debug([{session, Session}], "columns ~p", [Columns]),
-            Statement:start_async_read(),
-            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns)++
-            ",\"statement\":"++integer_to_list(StmtHndl)++"}",
-            {Priv#priv{stmts=[{StmtHndl, {Statement, Query, ParseTree}}|Statements]}, Resp};
+    lager:debug("session:open ~p", [{ype, Opts, {User, Password}}]),
+    case erlimem_session:open(Type, Opts, {User, Password}) of
         {error, {Ex,M}} ->
-            lager:error([{session, Session}], "query error ~p", [{Ex,M}]),
+            lager:error("DB connect error ~p", [{Ex,M}]),
             Err = atom_to_list(Ex) ++ ": " ++ element(1, M),
-            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Err++"\"}",
-            {Priv, Resp};
-        Res ->
-            lager:debug("qry ~p~nResult ~p", [Query, Res]),
-            {Priv, "{\"headers\":[],\"statement\":1234}"}
+            {#priv{}, "{\"connect\":\""++Err++"\"}"};
+        Session ->
+            lager:debug("session ~p", [Session]),
+            lager:debug("connected to params ~p", [{Type, Opts}]),
+            Statements = [],
+            Con = #ddConn { id       = erlang:phash2(make_ref())
+                          , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , owner    = binary_to_list(User)
+                          , adapter  = imem
+                          , access   = [ {ip,        Ip}
+                                       , {port,      Port}
+                                       , {type,      Type}
+                                       , {user,      User}
+                                       ]
+                          , schema   = list_to_atom(Schema)
+                          },
+            lager:debug([{user, User}], "saving new connection ~p", [Con]),
+            dderl_dal:add_connect(Con),
+            {#priv{sess=Session, stmts=Statements}, "{\"connect\":\"ok\"}"}
     end;
+process_cmd({"query", BodyJson}, #priv{sess=Session} = Priv) ->
+    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
+    lager:debug([{session, Session}], "query ~p", [{Session, Query}]),
+    process_query(Query, Priv);
+
 process_cmd({"row_prev", BodyJson}, #priv{stmts=Statements} = Priv) ->
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
@@ -160,11 +164,46 @@ process_cmd({"commit_rows", BodyJson}, #priv{stmts=Statements} = Priv) ->
             {Priv, "{\"commit_rows\":"++Result++"}"}
     end;
 
+process_cmd({"views", _}, Priv) ->
+    [F|_] = [C || C <- dderl_dal:get_commands(system, imem), C#ddCmd.name == "All Views"],
+%% -     Files = "{\"name\":"++jsq(F#ddCmd.name)
+%% -          ++", \"id\":"++jsq(F#ddCmd.id)
+%% -          ++", \"content\":"++jsq(F#ddCmd.command)
+%% -          ++", \"posX\":0"
+%% -          ++", \"posY\":25"
+%% -          ++", \"width\":200"
+%% -          ++", \"height\":500"
+%% - %% -         ++", \"posX\":"++integer_to_list(F#ddCmd.posX)
+%% - %% -         ++", \"posY\":"++integer_to_list(F#ddCmd.posY)
+%% - %% -         ++", \"width\":"++integer_to_list(F#ddCmd.width)
+%% - %% -         ++", \"height\":"++integer_to_list(F#ddCmd.height)
+%% -          ++"}",
+    {Priv, "{\"views\":{\"content\":\""++F#ddCmd.command++"\", \"name\":\"All Views\"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
     lager:error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, "{\"rows\":[]}"}.
+
+process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
+    case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
+        {ok, Clms, Statement} ->
+            StmtHndl = erlang:phash2(Statement),
+            Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
+            lager:debug([{session, Session}], "columns ~p", [Columns]),
+            Statement:start_async_read(),
+            Resp = "{\"headers\":"++gen_adapter:string_list_to_json(Columns)++
+            ",\"statement\":"++integer_to_list(StmtHndl)++"}",
+            {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}, Resp};
+        {error, {Ex,M}} ->
+            lager:error([{session, Session}], "query error ~p", [{Ex,M}]),
+            Err = atom_to_list(Ex) ++ ": " ++ element(1, M),
+            Resp = "{\"headers\":[],\"statement\":0,\"error\":\""++Err++"\"}",
+            {Priv, Resp};
+        Res ->
+            lager:debug("qry ~p~nResult ~p", [Query, Res]),
+            {Priv, "{\"headers\":[],\"statement\":1234}"}
+    end.
 
 format_return({error, {E,{R,_}}}) ->  "\""++atom_to_list(E)++": "++R++"\"";
 format_return(Result) -> lists:flatten(io_lib:format("~p", [Result])).

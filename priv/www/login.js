@@ -1,6 +1,3 @@
-var logins = null;
-var db_types = [{type: "oci", desc: "Oracle"}
-               ,{type: "imem", desc: "Mnesia Cluster"}];
 var adapter = null;
 function display_login()
 {
@@ -103,15 +100,6 @@ function change_password()
             }
         }
     }).dialog("open");
-}
-
-function get_db_types_html()
-{
-    var html = '<select id="adapter_list" class="ui-widget-content ui-corner-all">';
-    for(var i=0; i<db_types.length; ++i)
-        html += '<option value='+db_types[i].type+'>'+db_types[i].desc+'</option>';
-    html += '</option>';
-    return html;
 }
 
 function load_nodes(elm)

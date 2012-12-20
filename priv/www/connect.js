@@ -1,18 +1,100 @@
 var tabIdx=0;
+var connects = null;
+
+function load_connections()
+{
+    ajax_post('/app/adapters', {}, null, null, function(data) {
+        var adapters = data.adapters;
+        for(var i=0; i<adapters.length; ++i)
+            $('#adapter_list').append($('<option>', {
+                value: adapters[i].id,
+                text : adapters[i].fullName 
+            }));
+    });
+
+    ajax_post('/app/connects', null, null, null, function(data) {
+        connects = data.connects;
+        $('#connection_list').html('');
+        for(var name in connects)
+            $('#connection_list').append($('<option>', {
+                value: name,
+                text : name 
+            }));
+        set_owner_list($("#adapter_list").val());
+    });
+
+    $('#adapter_list').change(function() {
+        set_owner_list($("#adapter_list").val());
+    });
+
+    $('#owners_list').change(function() {
+        set_conns_list($("#adapter_list").val(), $("#owners_list").val());
+    });
+
+    $('#connection_list').change(function() {
+        var selectedName = $("#connection_list").val();
+        document.title = pageTitlePrefix + selectedName;
+        load_login_form(selectedName);
+    });
+}
+
+function set_owner_list(adapter)
+{
+    var owners = new Object();
+
+    $('#owners_list').empty();
+    $('#owners_list').jecKill();
+    set_conns_list(adapter, '');
+    for(var name in connects)
+        if(connects[name].adapter == adapter)
+            owners[connects[name].owner] = true;
+    for(var owner in owners)
+        $('#owners_list').append($('<option>', {
+            value: owner,
+            text : owner 
+        }));
+    for(var name in connects)
+        if(connects[name].adapter == adapter) {
+            $('#owners_list option[value="'+connects[name].owner+'"]').attr("selected","selected"); 
+            set_conns_list(adapter, connects[name].owner);
+            break;
+        }
+    $('#owners_list').jec();
+}
+
+function set_conns_list(adapter, owner)
+{
+    $('#connection_list').empty();
+    $('#connection_list').jecKill();
+    for(var name in connects)
+        if(connects[name].adapter == adapter && connects[name].owner == owner)
+            $('#connection_list').append($('<option>', {
+                value: name,
+                text : name
+            }));
+    for(var name in connects)
+        if(connects[name].adapter == adapter && connects[name].owner == owner) {
+            $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
+            load_login_form(name);
+            break;
+        } else if (owner.length == 0) {
+            load_login_form('');
+            break;
+        }
+    $('#connection_list').jec();
+}
+
 function connect_dlg()
 {
     $('<div id="dialog-db-login" title="Connect to Database">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-//      '      <tr><td align=right valign=center>Connections&nbsp;</td>' +
-//      '          <td valign=center><select id="config_list" class="ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>DB Type&nbsp;</td>' +
-      '          <td valign=bottom>'+get_db_types_html()+'</td></tr>' +
-      '      <tr><td colspan=2><hr></td></tr>' +
+      '          <td valign=bottom><select id="adapter_list" class="ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>Ownership&nbsp;</td>' +
+      '          <td valign=bottom><select id="owners_list" class="ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>Connection Name&nbsp;</td>' +
-      '          <td valign=bottom>'+
-      '<select id="config_list" class="ui-widget-content ui-corner-all"/>'+
-      //'<input type="text" id="name" class="text ui-widget-content ui-corner-all"/>'+
-      '</td></tr>' +
+      '          <td valign=bottom><select id="connection_list" class="ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td colspan=2><hr></td></tr>' +
       '      <tr><td align=right valign=center>Connect Method&nbsp;</td>' +
       '          <td valign=center>'+
       '             <table border=0 cellpadding=0 cellspacing=0>' +
@@ -52,12 +134,18 @@ function connect_dlg()
             $(this).dialog('destroy');
             $(this).remove();
         },
+        open: function(evt, ui) {
+            $('#adapter_list').width(200);
+            $('#owners_list').width(200);
+            $('#connection_list').width(200);
+        },
         buttons: {
-            "Login": function() {
+            "Login / Save": function() {
                 adapter = $('#adapter_list option:checked').val();
                 Password = $("#password").val();
-                Password = is_MD5(Password) ? Password : MD5(Password);
-                var connectJson = {connect: {ip        :$("#ip").val(),
+                Password = (adapter == "imem" ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
+                var connectJson = {connect: {name      :$("#connection_list").parent().children()[0].value,
+                                             ip        :$("#ip").val(),
                                              port      :$("#port").val(),
                                              service   :$("#service").val(),
                                              type      :$('input:radio[name=db_type]:checked').val(),
@@ -65,9 +153,10 @@ function connect_dlg()
                                              password  :Password,
                                              tnsstring :$("#tnsstring").val()}};
                 owner = $("#user").val();
-                var name = $('#config_list option:checked').val();
+                var name = $('#connection_list option:checked').val();
+                var Dlg = $(this);
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
-                    if(data.connect) {
+                    if(data.connect == "ok") {
                         document.title = name;
                         var nm = name.replace(/\s/, '_');
                         if($('#main-content-tabs #page_'+nm).length < 1) {
@@ -86,42 +175,42 @@ function connect_dlg()
                             .tabs('add', '#page_'+nm+tabIdx, name);
                         }
                         $('#main-content-tabs').data('curtab', $('#main-content-tabs').tabs('select', 0));
+                        Dlg.dialog("close");
                         show_qry_files();
                     }
                     else {
-                        alert(data.msg);
+                        alert(data.connect);
                     }
                 });
-                $(this).dialog("close");
             },
-            "Save": function() {
-                name = $("#config_list").parent().children()[0].value;
-                saveSettings = {name      :name,
-                                adapter   :$('#adapter_list option:checked').val(),
-                                ip        :$('#ip').val(),
-                                port      :$('#port').val(),
-                                service   :$('#service').val(),
-                                type      :$('input:radio[name=db_type]:checked').val(),
-                                user      :$('#user').val(),
-                                password  :MD5($('#password').val()),
-                                tnsstring :$('#tnsstring').val()};
-                logins[name] = saveSettings;
-                $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
-                load_login_form(name);
+            // "Save": function() {
+            //     name = $("#connection_list").parent().children()[0].value;
+            //     saveSettings = {name      :name,
+            //                     adapter   :$('#adapter_list option:checked').val(),
+            //                     ip        :$('#ip').val(),
+            //                     port      :$('#port').val(),
+            //                     service   :$('#service').val(),
+            //                     type      :$('input:radio[name=db_type]:checked').val(),
+            //                     user      :$('#user').val(),
+            //                     password  :MD5($('#password').val()),
+            //                     tnsstring :$('#tnsstring').val()};
+            //     connects[name] = saveSettings;
+            //     $('<option value="'+name+'">'+name+'</option>').appendTo($('#connection_list'));
+            //     load_login_form(name);
 
-                ajax_post('/app/save', saveSettings, null, null, function(data) {
-                    alert(data.save);
-                });
-            },
+            //     ajax_post('/app/save', saveSettings, null, null, function(data) {
+            //         alert(data.save);
+            //     });
+            // },
             "Delete": function() {
                 delByName = $("#name").val();
-                delete logins[delByName];
-                $('#config_list option[value="'+delByName+'"]').remove();
+                delete connects[delByName];
+                $('#connection_list option[value="'+delByName+'"]').remove();
                 var name = null;
-                for(name in logins);
+                for(name in connects);
                 if(null != name) load_login_form(name);
 
-                ajax_post('/app/save', logins, null, null, function(data) {
+                ajax_post('/app/save', connects, null, null, function(data) {
                     alert(data.result);
                 });
             }
@@ -131,6 +220,9 @@ function connect_dlg()
     $('#con_tns').hide();
     $('#con_othrs').show();
 
+    load_connections();
+
+    // Changes between Service / SID / TNS
     $("input[name='db_type']").change( function() {
       $('#con_tns').hide();
       $('#con_othrs').show();
@@ -140,45 +232,37 @@ function connect_dlg()
       }
       $('#con_name').html($(this).val().toUpperCase() + "&nbsp;");
     });
-    
-    $('#config_list').html('');
-    ajax_post('/app/get_connects', null, null, null, function(data) {
-        logins = data;
-        for(var name in logins)
-            $('<option value="'+name+'">'+name+'</option>').appendTo($('#config_list'));
-        for(var name in logins) {
-            load_login_form(name);
-            break;
-        }
-        $('#config_list').jec();
-    });
-    $('#config_list').change(function() {
-        var selectedName = $("#config_list").val();
-        document.title = pageTitlePrefix + selectedName;
-        load_login_form(selectedName);
-    });
 }
 
 function load_login_form(name) {
-    if(logins.hasOwnProperty(name)) {
-        $('#ip').val(logins[name].ip);
-        $('#port').val(logins[name].port);
-        $('#service').val(logins[name].service);
-        $('#sid').val(logins[name].sid);
-        $('#user').val(logins[name].user);
-        $('#password').val(logins[name].password);
-        $('#tnsstring').val(logins[name].tnsstring);
-        $('input:radio[name=db_type][value='+logins[name].type+']').click();
+    if(connects.hasOwnProperty(name)) {
+        $('#ip').val(connects[name].ip);
+        $('#port').val(connects[name].port);
+        $('#service').val(connects[name].service);
+        $('#sid').val(connects[name].sid);
+        $('#user').val(connects[name].user);
+//        $('#password').val(connects[name].password);
+        $('#tnsstring').val(connects[name].tnsstring);
+        $('input:radio[name=db_type][value='+connects[name].type+']').click();
         var conName = '';
-        if(logins[name].hasOwnProperty('type')) {
-            conName = logins[name].type.toUpperCase();
+        if(connects[name].hasOwnProperty('type')) {
+            conName = connects[name].type.toUpperCase();
             if(conName == 'TNS') {
                 $('#con_tns').show();
                 $('#con_othrs').hide();
             }
         }
         $('#con_name').html(conName + "&nbsp;");
-        $('#adapter_list option[value="'+logins[name].adapter+'"]').attr("selected","selected"); 
-        $('#config_list option[value="'+name+'"]').attr("selected","selected"); 
+        $('#adapter_list option[value="'+connects[name].adapter+'"]').attr("selected","selected"); 
+        $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
+    }
+    else {
+        $('#ip').val('');
+        $('#port').val('');
+        $('#service').val('');
+        $('#sid').val('');
+        $('#user').val('');
+        $('#password').val('');
+        $('#tnsstring').val('');
     }
 }

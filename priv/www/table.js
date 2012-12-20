@@ -305,14 +305,11 @@ function loadTable(table, statement, columns)
 
     add_context_menu(row_cm_id, {
         'Browse Data'       : {evt: function(data) {
-                ajax_post('/app/get_query', {get_query: {table: data}}, null, null, function(ret) {
-                    load_table(ret.qry);
+                ajax_post('/app/browse_data', {browse_data: { statement : statement,
+                                                                    row : data.row,
+                                                                    col : data.cell}}, null, null, function(ret) {
+                    load_table(ret.browse_data);
                 });
-            }
-        },
-        'Browse File'       : {evt: function(data) {
-                var context = {content: data, id: 0, name: "File"};
-                load_table(context);
             }
         },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
@@ -334,7 +331,7 @@ function loadTable(table, statement, columns)
         var dlgPos = table.data("dlg").dialog('widget').position();
         if(off != null) {
             $('#'+row_cm_id)
-                .data("data", data)
+                .data("data", cell)
                 .css("top", off.top)
                 .css("left", off.left + 15)
                 .show(); 
@@ -342,7 +339,7 @@ function loadTable(table, statement, columns)
     });
 
     add_context_menu(header_cm_id, {
-        'Browse Data'       : {evt: function() { alert('Quick condition'); } },
+        'Browse Data'       : {evt: function() { alert('Browse Data'); } },
         'Quick condition'   : {evt: function() { alert('Quick condition'); } },
         'Hide Column'       : {evt: function(data) {
             var cols = data.grid.getColumns();
