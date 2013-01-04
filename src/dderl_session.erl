@@ -84,8 +84,8 @@ process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
         true ->
             lager:info([{session, Key}], "login successful for ~p", [User]),
             {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
-        {error, {Exception, M}} ->
-            lager:error([{session, Key}], "login failed for ~p, reason ~p", [User, {Exception, M}]),
+        {_, {error, {Exception, M}}} ->
+            lager:error([{session, Key}], "login failed for ~p, result ~p", [User, {Exception, M}]),
             Err = atom_to_list(Exception) ++ ": "++ element(1, M),
             {reply, "{\"login\": \""++Err++"\"}", State}
     end;

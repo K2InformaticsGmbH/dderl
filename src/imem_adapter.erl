@@ -6,6 +6,10 @@
         , process_cmd/2
         ]).
 
+-record(priv, { sess
+              , stmts
+       }).
+
 init() ->
     dderl_dal:add_adapter(imem, "IMEM DB"),
     dderl_dal:add_connect(#ddConn{ id = erlang:phash2(make_ref())
@@ -13,12 +17,11 @@ init() ->
                                  , adapter = imem
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
-    dderl_dal:add_command(imem, "All Tables", "select name(qname) from all_tables", []),
-    dderl_dal:add_command(imem, "All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)", []).
-
--record(priv, { sess
-              , stmts
-       }).
+    gen_adapter:add_cmds_views(imem, [
+        {"All Tables", "select name(qname) from all_tables"},
+        %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
+        {"All Views", "select v.name from ddView as v, ddCmd as c where c.adapters = '[imem]' and (c.owner = user or c.owner = system)"}
+    ]).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
 int(C) when $A =< C, C =< $F -> C - $A + 10;
@@ -61,10 +64,10 @@ process_cmd({"connect", BodyJson}, _) ->
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
                           , owner    = binary_to_list(User)
                           , adapter  = imem
-                          , access   = [ {ip,        Ip}
-                                       , {port,      Port}
-                                       , {type,      Type}
-                                       , {user,      User}
+                          , access   = [ {ip,   Ip}
+                                       , {port, Port}
+                                       , {type, Type}
+                                       , {user, User}
                                        ]
                           , schema   = list_to_atom(Schema)
                           },
@@ -192,7 +195,7 @@ process_cmd({"browse_data", BodyJson}, #priv{sess=_Session, stmts=Statements} = 
     end;
 
 process_cmd({"views", _}, Priv) ->
-    [F|_] = [C || C <- dderl_dal:get_commands(system, imem), C#ddCmd.name == "All Views"],
+    [F|_] = dderl_dal:get_view("All Views"),
     {NewPriv, Resp} = process_query(F#ddCmd.command, Priv),
     {NewPriv, "{\"views\":{\"content\":\""++F#ddCmd.command++"\", \"name\":\"All Views\", "++Resp++"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
@@ -205,7 +208,7 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
-            Columns = [atom_to_list(C#ddColMap.name)||C<-Clms],
+            Columns = lists:reverse([atom_to_list(C#ddColMap.name)||C<-Clms]),
             lager:debug([{session, Session}], "columns ~p", [Columns]),
             Statement:start_async_read(),
             Resp = "\"columns\":"++gen_adapter:string_list_to_json(Columns)++

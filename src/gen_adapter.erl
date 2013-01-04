@@ -1,13 +1,22 @@
 -module(gen_adapter).
 
+-include("dderl.hrl").
+
 -export([ process_cmd/2
         , prepare_json_rows/4
         , init/0
         , string_list_to_json/1
         , rows_to_json/1
+        , add_cmds_views/2
         ]).
 
 init() -> ok.
+
+add_cmds_views(_, []) -> ok;
+add_cmds_views(A, [{N,C}|Rest]) ->
+    Id = dderl_dal:add_command(A, N, C, []),
+    dderl_dal:add_view(N, Id, #viewstate{}),
+    add_cmds_views(A, Rest).
 
 process_cmd({"parse_stmt", BodyJson}, Priv) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
