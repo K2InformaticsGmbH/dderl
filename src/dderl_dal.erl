@@ -124,9 +124,9 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess} = Stat
     lager:debug("~p add_view inserted ~p", [?MODULE, NewView]),
     {reply, Id, State};
 handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_view ~p", [?MODULE, Name]),
-    {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name}, [], ['$_']}]]),
-    lager:debug("~p view ~p", [?MODULE, Views]),
+    lager:info("~p get_view ~p", [?MODULE, Name]),
+    {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
+    lager:info("~p view ~p", [?MODULE, Views]),
     {reply, Views, State};
 
 handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->

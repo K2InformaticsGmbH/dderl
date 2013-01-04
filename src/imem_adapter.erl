@@ -20,7 +20,7 @@ init() ->
     gen_adapter:add_cmds_views(imem, [
         {"All Tables", "select name(qname) from all_tables"},
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
-        {"All Views", "select v.name from ddView as v, ddCmd as c where c.adapters = '[imem]' and (c.owner = user or c.owner = system)"}
+        {"All Views", "select v.name from ddView as v, ddCmd as c where c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}
     ]).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
@@ -196,8 +196,9 @@ process_cmd({"browse_data", BodyJson}, #priv{sess=_Session, stmts=Statements} = 
 
 process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
-    {NewPriv, Resp} = process_query(F#ddCmd.command, Priv),
-    {NewPriv, "{\"views\":{\"content\":\""++F#ddCmd.command++"\", \"name\":\"All Views\", "++Resp++"}}"};
+    C = dderl_dal:get_command(F#ddView.cmd),
+    {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),    
+    {NewPriv, "{\"views\":{\"content\":\""++re:replace(C#ddCmd.command, "\"", "\\\\\"", [global, {return, list}])++"\", \"name\":\"All Views\", "++Resp++"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
