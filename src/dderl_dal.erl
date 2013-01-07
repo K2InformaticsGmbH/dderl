@@ -36,7 +36,7 @@ add_view(Name, CmdId, ViewsState)       -> gen_server:call(?MODULE, {add_view, N
 get_adapters()                  -> gen_server:call(?MODULE, {get_adapters}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
-get_command(Id)                 -> gen_server:call(?MODULE, {get_command, Id}).
+get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrName}).
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
 
 -record(state, { schema
@@ -129,9 +129,12 @@ handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
     lager:info("~p view ~p", [?MODULE, Views]),
     {reply, Views, State};
 
-handle_call({get_command, Id}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_command for id ~p", [?MODULE, Id]),
-    {Cmds, true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]),
+handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
+    lager:debug("~p get_command for id ~p", [?MODULE, IdOrName]),
+    {Cmds, true} = case IdOrName of
+        Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
+        Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
+    end,
     Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
     {reply, Cmd, State};
 handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->

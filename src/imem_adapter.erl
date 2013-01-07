@@ -20,7 +20,7 @@ init() ->
     gen_adapter:add_cmds_views(imem, [
         {"All Tables", "select name(qname) from all_tables"},
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
-        {"All Views", "select v.name from ddView as v, ddCmd as c where c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}
+        {"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}
     ]).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
@@ -177,17 +177,17 @@ process_cmd({"browse_data", BodyJson}, #priv{sess=_Session, stmts=Statements} = 
             lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, "{\"browse_data\":{\"error\":\"invalid statement\"}}"};
         {Statement, _, _} ->
-            Tabs = Statement:tables(),
-            IsView = lists:any(fun(E) -> E =:= ddCmd end, Tabs),
-            lager:info("browse_data ~p - ~p", [Tabs, {Row, Col}]),
-            {[R|_], _, _} = Statement:rows_from(Row+1),
+            R = Statement:row_with_key(Row+1),
+            Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
+            IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
+            lager:debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
             if IsView ->
-                Name = lists:nth(2,R),
-                Query = lists:nth(4,R),
-                {NewPriv, Resp} = process_query(Query, Priv),
-                {NewPriv, "{\"browse_data\":{\"content\":\""++Query++"\", \"name\":\""++Name++"\", "++Resp++"}}"};
+            {_,_,{_,C,_},Name} = R,
+                lager:debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
+                {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),
+                {NewPriv, "{\"browse_data\":{\"content\":\""++str_json_quotes(C#ddCmd.command)++"\", \"name\":\""++Name++"\", "++Resp++"}}"};
             true ->                
-                [_,Name|_] = R,
+                Name = lists:last(tuple_to_list(R)),
                 Query = "SELECT * FROM " ++ Name,
                 {NewPriv, Resp} = process_query(Query, Priv),
                 {NewPriv, "{\"browse_data\":{\"content\":\""++Query++"\", \"name\":\""++Name++"\", "++Resp++"}}"}
@@ -198,12 +198,14 @@ process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
     {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),    
-    {NewPriv, "{\"views\":{\"content\":\""++re:replace(C#ddCmd.command, "\"", "\\\\\"", [global, {return, list}])++"\", \"name\":\"All Views\", "++Resp++"}}"};
+    {NewPriv, "{\"views\":{\"content\":\""++str_json_quotes(C#ddCmd.command)++"\", \"name\":\"All Views\", "++Resp++"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
     lager:error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, "{\"rows\":[]}"}.
+
+str_json_quotes(Str) -> re:replace(Str, "\"", "\\\\\"", [global, {return, list}]).
 
 process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
