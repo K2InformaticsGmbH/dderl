@@ -194,6 +194,22 @@ process_cmd({"browse_data", BodyJson}, #priv{sess=_Session, stmts=Statements} = 
             end
     end;
 
+process_cmd({"tail", BodyJson}, #priv{sess=_Session, stmts=Statements} = Priv) ->
+    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    Start = proplists:get_value(<<"start">>, BodyJson, <<>>),
+    io:format(user, ">>>>>>>> tail ~p~n", [Start]),
+    case proplists:get_value(StmtKey, Statements) of
+        undefined ->
+            lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
+            {Priv, "{\"browse_data\":{\"error\":\"invalid statement\"}}"};
+        {Statement, _, _} ->
+            if Start =:= true ->
+                Statement:start_async_read([{tail_mode,Start}]);
+                true -> Statement:fetch_close()
+            end,
+            {Priv, "{\"tail\":"++atom_to_list(Start)++"}"}
+    end;
+
 process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),

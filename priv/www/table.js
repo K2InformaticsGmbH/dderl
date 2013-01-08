@@ -27,7 +27,7 @@ function renderTable(ctx) {
     var countFun = ctx.countFun;
     var rowFun = ctx.rowFun;
 
-    var tableName = tabName.replace(/[ \.]/g, '_');
+    var tableName = tabName.replace(/[ \.@]/g, '_');
 
     var width=500, height=500, position='center';
     if (ctx != null || ctx != undefined) {
@@ -112,21 +112,27 @@ function renderTable(ctx) {
     table.data("grid").onScroll.subscribe(function(e, args) {
         if(table.data("shouldScroll")) {
             var gcP = args.grid.getCanvasNode().parentNode;
-            //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
-            if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
-                console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
-                var d = table.data("grid").getData();
-                var rownum = table.data("grid").getViewport().bottom;
-                rownum = (d.length > rownum ? parseInt(d[rownum].id) + 1 : parseInt(d[d.length - 1].id) + 1);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+            clearInterval(table.data('tail'));
+            if(table.data('scrollTop') != undefined && table.data('scrollTop') != gcP.scrollTop) {
+//console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
+                if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
+                    console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
+                    var d = table.data("grid").getData();
+                    var rownum = table.data("grid").getViewport().bottom;
+                    rownum = (d.length > rownum ? parseInt(d[rownum].id) + 1 : parseInt(d[d.length - 1].id) + 1);
+                    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                }
+                else if (gcP.scrollTop == 0) {
+                    console.log('top_event '+ gcP.scrollTop);
+                    var d = table.data("grid").getData();
+                    var rownum = table.data("grid").getViewport().top;
+                    rownum = (d.length > rownum ? parseInt(d[rownum].id) - 1 : parseInt(d[d.length - 1].id) - 1);
+                    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.PREVIOUS, (rownum < 1 ? 1 : rownum),
+                                  OpsBufEnum.PREPEND);
+                }
             }
-            else if (gcP.scrollTop == 0) {
-                console.log('top_event '+ gcP.scrollTop);
-                var d = table.data("grid").getData();
-                var rownum = table.data("grid").getViewport().top;
-                rownum = (d.length > rownum ? parseInt(d[rownum].id) - 1 : parseInt(d[d.length - 1].id) - 1);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.PREVIOUS, (rownum < 1 ? 1 : rownum), OpsBufEnum.PREPEND);
-            }
+            else
+                table.data('scrollTop', gcP.scrollTop);
         }
         else
             table.data("shouldScroll", true);
@@ -224,7 +230,23 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: {primary: "ui-icon-seek-end" }, text: false})
             .click(function()
             {
+                ajax_post('/app/tail', {tail: {statement : statement, start: true}}, null, null, function(data) {});
+                table.data("grid").setData([]),
                 rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.TOEND, null, OpsBufEnum.REPLACE);
+                clearInterval(table.data('tail'));
+                table.data('tail', setInterval(function() {
+                    if (undefined != table && undefined != table.data("grid")) {
+                        var d = table.data("grid").getData();
+                        var rownum = table.data("grid").getViewport().top;
+                        rownum = (d.length > rownum && rownum >= 0
+                                  ? parseInt(d[rownum].id) + 1
+                                  : (d.length > 0
+                                     ? parseInt(d[d.length - 1].id) + 1
+                                     : 0)
+                                  );
+                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                    }
+                }, 1000));
                 return false;
             })
            )
@@ -547,6 +569,8 @@ function loadRows(table, rowNum, ops, rowObj)
     if (first) {
         var rh = g.getOptions().rowHeight;
         var totHeight = (d.length + 5) * rh;
+        var dlgTop = + dlg.offset().top;
+        totHeight = (totHeight > $(window).height() - dlgTop - 10 ? $(window).height() - dlgTop - 10 : totHeight);
         dlg.height(totHeight + 4);
         table.height(dlg.height()-27);
         g.resizeCanvas();
