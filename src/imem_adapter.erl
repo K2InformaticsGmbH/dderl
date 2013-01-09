@@ -51,7 +51,7 @@ process_cmd({"connect", BodyJson}, _) ->
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     lager:debug("session:open ~p", [{ype, Opts, {User, Password}}]),
-    case erlimem_session:open(Type, Opts, {User, Password}) of
+    case erlimem:open(Type, Opts, {User, Password}) of
         {error, {Ex,M}} ->
             lager:error("DB connect error ~p", [{Ex,M}]),
             Err = atom_to_list(Ex) ++ ": " ++ element(1, M),

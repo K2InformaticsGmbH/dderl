@@ -58,7 +58,7 @@ start_link(SchemaName) ->
 init([SchemaName]) ->
     erlimem:start(),
     Cred = {<<>>, <<>>},
-    Sess = erlimem_session:open(local, {SchemaName}, Cred),
+    Sess = erlimem:open(local, {SchemaName}, Cred),
     %lager:set_loglevel(lager_console_backend, debug),
     build_tables_on_boot(Sess, [
           {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
@@ -172,7 +172,7 @@ handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
     lager:debug("~p login for user ~p pass ~p", [?MODULE, User, BinPswd]),
-    case erlimem_session:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
+    case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
             lager:error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};

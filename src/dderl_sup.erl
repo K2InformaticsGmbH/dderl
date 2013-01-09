@@ -21,7 +21,7 @@ start_link() ->
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
     lager:debug("~p starting...", [?MODULE]),
     R = supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]),
-    lager:debug("~p started ~p", [?MODULE, R]),
+    lager:info("~p started ~p", [?MODULE, R]),
     R.
 
 %% ===================================================================

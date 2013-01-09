@@ -241,7 +241,6 @@ function load_login_form(name) {
         $('#service').val(connects[name].service);
         $('#sid').val(connects[name].sid);
         $('#user').val(connects[name].user);
-//        $('#password').val(connects[name].password);
         $('#tnsstring').val(connects[name].tnsstring);
         $('input:radio[name=db_type][value='+connects[name].type+']').click();
         var conName = '';
@@ -255,6 +254,8 @@ function load_login_form(name) {
         $('#con_name').html(conName + "&nbsp;");
         $('#adapter_list option[value="'+connects[name].adapter+'"]').attr("selected","selected"); 
         $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
+        $('#password').val("change_on_install"); // TODO remove after test
+        $('#password').focus();
     }
     else {
         $('#ip').val('');
