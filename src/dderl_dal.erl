@@ -23,6 +23,7 @@
         ,get_commands/2
         ,get_command/1
         ,get_view/1
+        ,get_session/0
         ]).
 
 login(User, Password)                   -> gen_server:call(?MODULE, {login, User, Password}).
@@ -38,7 +39,8 @@ get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
 get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrName}).
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
-
+get_session()                   -> gen_server:call(?MODULE, {get_session}).
+            
 -record(state, { schema
                , sess
     }).
@@ -128,6 +130,9 @@ handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
     {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
     lager:info("~p view ~p", [?MODULE, Views]),
     {reply, Views, State};
+handle_call({get_session}, _From, #state{sess=Sess} = State) ->
+    lager:info("~p get_session ~p", [?MODULE, Sess]),
+    {reply, Sess, State};
 
 handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
     lager:debug("~p get_command for id ~p", [?MODULE, IdOrName]),

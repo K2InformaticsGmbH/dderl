@@ -213,8 +213,10 @@ process_cmd({"tail", BodyJson}, #priv{sess=_Session, stmts=Statements} = Priv) -
 process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
-    {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),    
-    {NewPriv, "{\"views\":{\"content\":\""++str_json_quotes(C#ddCmd.command)++"\", \"name\":\"All Views\", "++Resp++"}}"};
+    #priv{sess=ClientSess} = Priv,
+    AdminSession = dderl_dal:get_session(),
+    {NewPriv, Resp} = process_query(C#ddCmd.command, Priv#priv{sess=AdminSession}),
+    {NewPriv#priv{sess=ClientSess}, "{\"views\":{\"content\":\""++str_json_quotes(C#ddCmd.command)++"\", \"name\":\"All Views\", "++Resp++"}}"};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
