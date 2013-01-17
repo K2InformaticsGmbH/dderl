@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Touch</title>
+   	<link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+</head>
+
+<body>
+    <script src="http://code.jquery.com/jquery.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.min.js"></script>
+    <script src="https://raw.github.com/furf/jquery-ui-touch-punch/master/jquery.ui.touch-punch.min.js"></script>
+    <script>
+        function display_dlg(id)
+        {
+            var dlg = $('<div id="'+id+'" title="Login to DDerl" style="diaply:none">'
+             +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
+             +'      <tr><td align=right valign=center>User&nbsp;</td>'
+             +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
+             +'      <tr><td align=right valign=center>Password&nbsp;</td>'
+             +'          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
+             +'  </table>'
+             +'</div>')
+            .appendTo(document.body);
+        
+            dlg.dialog({
+                autoOpen: false,
+                minHeight: 100,
+                height: 'auto',
+                width: 'auto',
+                resizable: true,
+                modal: false,
+                closeOnEscape: false,
+                dialogClass: 'no-close',
+                close: function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                }
+            })
+            .draggable()
+            .dialog("open");
+        }
+
+        $(document).ready(function() {
+            alert(    "App : " + navigator.appName
+                 +"\n\nVer : " + navigator.appVersion
+                 +"\n\nOs  : " + navigator.platform
+                 +"\n\nUA  : " + navigator.userAgent
+                 +"\n\nVnd : " + navigator.vendor
+                 );
+            display_dlg('dialog-login');
+            display_dlg('dialog-login1');
+        });
+    </script>
+</body>
+</html>

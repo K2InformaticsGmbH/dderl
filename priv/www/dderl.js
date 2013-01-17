@@ -81,7 +81,7 @@ function prepare_table(context)
     context.initFun = function(tblDlg) {
         tblDlg.bind('requery', function(e, sqlObj) {
             ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
-                      null, null, null);
+                      null, null, function(data) {if (data.hasOwnProperty('error')) alert(data.error); });
             tblDlg.dialog('destroy');
             tblDlg.remove();
             context.content = sqlObj;
@@ -89,12 +89,13 @@ function prepare_table(context)
         });
     };
     context.destroyFun = function() {
-        ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}}, null, null, null);
+        ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
+                      null, null, function(data) {if (data.hasOwnProperty('error')) alert(data.error); });
     };
 
     context.countFun = function(countUpdateFun) {
         ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: context.statement}},
-                  null, null, countUpdateFun);
+                  null, null, function(data) { countUpdateFun(data.get_buffer_max); } );
     };
 
     context.rowFun = function(opsfetch, rowNum, renderFun, renderFunArgs) {

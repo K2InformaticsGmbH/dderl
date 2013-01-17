@@ -77,26 +77,61 @@ handle_call({process, SessKey, Typ, WReq}, From, #state{tref=TRef, key=Key} = St
     end.
 
 process_call({"login", ReqData}, _From, #state{key=Key} = State) ->
-    {struct, [{<<"login">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
+    [{<<"login">>, BodyJson}] = jsx:decode(wrq:req_body(ReqData)),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:login(User, Password) of
         true ->
             lager:info([{session, Key}], "login successful for ~p", [User]),
-            {reply, "{\"login\": \"ok\", \"session\":" ++ integer_to_list(Key) ++ "}", State#state{user=User}};
+            Res = jsx:encode([{<<"login">>,<<"ok">>},{<<"session">>,list_to_binary(integer_to_list(Key))}]),
+            {reply, binary_to_list(Res), State#state{user=User}};
         {_, {error, {Exception, M}}} ->
             lager:error([{session, Key}], "login failed for ~p, result ~p", [User, {Exception, M}]),
-            Err = atom_to_list(Exception) ++ ": "++ element(1, M),
-            {reply, "{\"login\": \""++Err++"\"}", State}
+            Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
+            Res = jsx:encode([{<<"login">>,Err}]),
+            {reply, binary_to_list(Res), State}
     end;
 process_call({"adapters", _ReqData}, _From, #state{key=Key, user=User} = State) ->
-    JsonAdaptersList = "[" ++ lists:flatten(
-        string:join(["{\"id\":\""++atom_to_list(A#ddAdapter.id)++"\", \"fullName\":\""++A#ddAdapter.fullName++"\"}"
-                    || A <- dderl_dal:get_adapters()], ","))
-    ++ "]",
-    lager:debug([{kex, Key}, {user, User}], "Adapters ~p", [JsonAdaptersList]),
-    {reply, "{\"adapters\": "++JsonAdaptersList++"}", State};
+    Res = jsx:encode([{<<"adapters">>,
+            [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
+              ,{<<"fullName">>,list_to_binary(A#ddAdapter.fullName)}]
+            || A <- dderl_dal:get_adapters()]}]),
+    lager:debug([{key, Key}, {user, User}], "adapters " ++ jsx:prettify(Res)),
+    {reply, binary_to_list(Res), State};
 
+process_call({"connects", _ReqData}, _From, #state{user=User, key=Key} = State) ->
+    case dderl_dal:get_connects(User) of
+        []          ->
+            %{reply, "{\"connects\":[]}", State};
+            {reply, binary_to_list(jsx:encode([{<<"connects">>,[]}])), State};
+        Connections ->
+            lager:debug([{session, Key}, {user, User}], "conections ~p", [Connections]),
+            Res = jsx:encode([{<<"connects">>,
+                lists:foldl(fun(C, Acc) ->
+                    [{jsq(C#ddConn.name), [
+                            {<<"adapter">>,jsq(C#ddConn.adapter)}
+                          , {<<"service">>, jsq(C#ddConn.schema)}
+                          , {<<"owner">>, jsq(C#ddConn.owner)}] ++
+                          [{list_to_binary(atom_to_list(N)), jsq(V)} || {N,V} <- C#ddConn.access]
+                     } | Acc]
+                end,
+                [],
+                Connections)
+            }]),
+            lager:debug([{key, Key}, {user, User}], "adapters " ++ jsx:prettify(Res)),
+            {reply, binary_to_list(Res), State#state{user=User}}
+    end;
+process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod, key=Key, user=User} = State) ->
+    BodyJson = jsx:decode(wrq:req_body(ReqData)),
+    Self = self(),
+    spawn(fun() ->
+            lager:debug([{session, Key}, {user, User}], "~p processing ~p", [AdaptMod, {Cmd,BodyJson}]),
+            {NewSessionHandle, Resp} =
+                AdaptMod:process_cmd({Cmd, BodyJson}, SessionHandle),
+            lager:debug([{session, Key}, {user, User}], "~p response ~p", [AdaptMod, {Cmd,Resp}]),
+            gen_server:cast(Self, {resp, {NewSessionHandle, Resp, Parent}})
+    end),
+    {noreply, State}.
 % - process_call({"save_file", ReqData}, _From, #state{key=Key,user=User,file=File} = State) ->
 % -     {struct, [{<<"save">>, {struct, BodyJson}}]} = mochijson2:decode(wrq:req_body(ReqData)),
 % -     FileName     = binary_to_list(proplists:get_value(<<"file_name">>, BodyJson, <<>>)),
@@ -157,27 +192,6 @@ process_call({"adapters", _ReqData}, _From, #state{key=Key, user=User} = State) 
 % -         {atomic, ok} ->  {reply, "{\"change_pswd\": \"ok\"}", State};
 % -         abort ->  {reply, "{\"change_pswd\": \"unable to change password\"}", State}
 % -     end;
-process_call({"connects", _ReqData}, _From, #state{user=User, key=Key} = State) ->
-    case dderl_dal:get_connects(User) of
-        []          -> {reply, "{\"connects\":[]}", State};
-        Connections ->
-            lager:debug([{session, Key}, {user, User}], "conections ~p", [Connections]),
-            {reply, "{\"connects\":"++conns_json(Connections)++"}", State#state{user=User}}
-    end;
-process_call({Cmd, ReqData}, Parent, #state{session=SessionHandle,adapter=AdaptMod, key=Key, user=User} = State) ->
-    BodyJson = case mochijson2:decode(wrq:req_body(ReqData)) of
-        {struct, [{_, {struct, B}}]} ->  B;
-        _ -> []
-    end,
-    Self = self(),
-    spawn(fun() ->
-            lager:debug([{session, Key}, {user, User}], "~p processing ~p", [AdaptMod, {Cmd,BodyJson}]),
-            {NewSessionHandle, Resp} =
-                AdaptMod:process_cmd({Cmd, BodyJson}, SessionHandle),
-            lager:debug([{session, Key}, {user, User}], "~p response ~p", [AdaptMod, {Cmd,Resp}]),
-            gen_server:cast(Self, {resp, {NewSessionHandle, Resp, Parent}})
-    end),
-    {noreply, State}.
 
 handle_cast({resp, {NewSessionHandle, Resp, Parent}}, #state{key=Key,user=User}=State) ->
     lager:debug([{session, Key}, {user, User}], "~p received response ~p for ~p", [?MODULE, Resp, Parent]),
@@ -201,22 +215,6 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-conns_json(Connections) ->
-    ConsJson = "{" ++
-    string:join(lists:foldl(fun(C, Acc) ->
-        Access = lists:flatten([", \""++atom_to_list(N)++"\":"++jsq(V) || {N,V} <- C#ddConn.access]),
-        [lists:flatten(jsq(C#ddConn.name)++":{"
-            ++"\"adapter\":"++jsq(C#ddConn.adapter)
-            ++", \"service\":"++jsq(C#ddConn.schema)
-            ++", \"owner\":"++jsq(C#ddConn.owner)
-            ++Access
-            ++"}") | Acc]
-    end,
-    [],
-    Connections), ",") ++ "}",
-    ConsJson.
-
-jsq(Bin) when is_binary(Bin) -> io_lib:format("~p", [binary_to_list(Bin)]);
-jsq(Atom) when is_atom(Atom) -> io_lib:format("~p", [atom_to_list(Atom)]);
-jsq(Str) -> io_lib:format("~p", [Str]).
+jsq(Bin) when is_binary(Bin) -> Bin;
+jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));
+jsq(Str)                     -> list_to_binary(Str).
