@@ -10,18 +10,20 @@ function load_connections()
                 value: adapters[i].id,
                 text : adapters[i].fullName 
             }));
+        setTimeout(function() {
+            ajax_post('/app/connects', null, null, null, function(data) {
+                connects = data.connects;
+                $('#connection_list').html('');
+                for(var name in connects)
+                    $('#connection_list').append($('<option>', {
+                        value: name,
+                        text : name 
+                    }));
+                set_owner_list($("#adapter_list").val());
+            });
+        }, 1);
     });
 
-    ajax_post('/app/connects', null, null, null, function(data) {
-        connects = data.connects;
-        $('#connection_list').html('');
-        for(var name in connects)
-            $('#connection_list').append($('<option>', {
-                value: name,
-                text : name 
-            }));
-        set_owner_list($("#adapter_list").val());
-    });
 
     $('#adapter_list').change(function() {
         set_owner_list($("#adapter_list").val());
@@ -44,7 +46,7 @@ function set_owner_list(adapter)
 
     $('#owners_list').empty();
     $('#owners_list').jecKill();
-    set_conns_list(adapter, '');
+    //set_conns_list(adapter, '');
     for(var name in connects)
         if(connects[name].adapter == adapter)
             owners[connects[name].owner] = true;
