@@ -228,7 +228,7 @@ process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
             {Priv, binary_to_list(jsx:encode([{<<"tail">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
             if Start =:= true ->
-io:format(user, ">>>>>>>> ~p tail ~p~n", [{?MODULE,?LINE}, Start]),
+lager:info(">>>>>>>> ~p tail ~p~n", [{?MODULE,?LINE}, Start]),
 %                Statement:fetch_close(),
                 Statement:start_async_read([{tail_mode,Start}]);
                 true -> Statement:fetch_close()
