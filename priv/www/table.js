@@ -78,7 +78,7 @@ function renderTable(ctx) {
             $('#'+tableName+'_grid_title_context').remove();
 
             console.log('dlg close cancel tail timer ' + dlg.data('tail'));
-            clearInterval(dlg.data('tail'));
+            clearTimer(dlg);
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyFun != null || destroyFun != undefined)
@@ -118,7 +118,7 @@ function renderTable(ctx) {
 //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
                 if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
                     console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
-                    clearInterval(table.data("dlg").data('tail'));
+                    clearTimer(table.data("dlg"));
                     console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().bottom;
@@ -127,7 +127,7 @@ function renderTable(ctx) {
                 }
                 else if (gcP.scrollTop == 0) {
                     console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
-                    clearInterval(table.data("dlg").data('tail'));
+                    clearTimer(table.data("dlg"));
                     console.log('top_event '+ gcP.scrollTop);
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().top;
@@ -163,6 +163,12 @@ function renderTable(ctx) {
     });
 }
 
+function clearTimer(dlg)
+{
+    clearInterval(dlg.data('tail'));
+    dlg.data('tail', undefined);
+}
+
 function addFooter(dlg, context, statement, table, countFun, rowFun)
 {
     var parent_node = dlg.parent();
@@ -174,6 +180,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: {primary: "ui-icon-arrowrefresh-1-e"}, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 dlg.dialog("close");
                 load_table(context);
                 return false;
@@ -183,6 +190,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: { primary: "ui-icon-seek-first" }, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
                 return false;
             })
@@ -191,6 +199,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: { primary: "ui-icon-seek-prev" }, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
@@ -201,6 +210,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
     .append(RowJumpTextBox
             .keypress(function(evt)
             {
+                clearTimer(dlg);
                 if(evt.which == 13) {
                     var rownum = parseInt($(this).val());
                     if(rownum != NaN)
@@ -213,6 +223,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: { primary: "ui-icon-play" }, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
@@ -224,6 +235,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: {primary: "ui-icon-seek-next" }, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
@@ -240,27 +252,20 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 table.data("grid").updateRowCount();
                 table.data("grid").render();
                 rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
-                console.log('tail cancel tail timer ' + table.data("dlg").data('tail'));
-                clearInterval(table.data("dlg").data('tail'));
+                console.log('tail cancel tail timer ' + dlg.data('tail'));
+                clearTimer(dlg);
                 var timerRefresh = setInterval(function() {
                     console.log('tail row');
                     if (undefined != table && undefined != table.data("grid")) {
                         var d = table.data("grid").getData();
-                        // var rownum = table.data("grid").getViewport().top;
-                        // rownum = (d.length > rownum && rownum >= 0
-                        //           ? parseInt(d[rownum].id) + 1
-                        //           : (d.length > 0
-                        //              ? parseInt(d[d.length - 1].id) + 1
-                        //              : 0)
-                        //           );
                         var rownum = (d.length > 0
                                      ? parseInt(d[d.length - 1].id) + 1
                                      : 1);
                         rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                     }
                 }, 1000);
-                table.data("dlg").data('tail', timerRefresh);
-                console.log('tail register timer ' + table.data("dlg").data('tail'));
+                dlg.data('tail', timerRefresh);
+                console.log('tail register timer ' + dlg.data('tail'));
                 return false;
             })
            )
@@ -268,6 +273,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: {primary: "ui-icon-check"}, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 var commitJson = {commit_rows: {statement : statement}};
                 ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
                             if(data.commit_rows == "ok") {
@@ -284,6 +290,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .button({icons: {primary: "ui-icon-close"}, text: false})
             .click(function()
             {
+                clearTimer(dlg);
                 return false;
             })
            )
@@ -345,7 +352,6 @@ function loadTable(table, statement, columns)
                                                                     row : data.row,
                                                                     col : data.cell}}, null, null, function(ret) {
                     prepare_table(ret.browse_data);
-                    //load_table(ret.browse_data);
                 });
             }
         },
@@ -451,10 +457,6 @@ function loadTable(table, statement, columns)
                               '\n---------------------------------------------------------');
                     }
                 });
-//        var modRow = new Array();
-//        for (var i=0; i < cols.length; ++i)
-//            modRow[modRow.length] = modifiedRow[cols[i].field];        
-//        alert(modifiedRow);
     });
 }
 
@@ -514,7 +516,7 @@ function loadRows(table, rowNum, ops, rowObj)
     var d       = g.getData();
     var c       = g.getColumns();
     var rows    = rowObj.rows;
-    var first   = (d.length == 0);
+    var first   = (0 == d.length && undefined == dlg.data('tail'));
 
     if(ops == OpsBufEnum.REPLACE)
         d = new Array();
@@ -572,7 +574,7 @@ function loadRows(table, rowNum, ops, rowObj)
 
     g.setData(d);
     g.updateRowCount();
-//    g.render();
+    g.render();
     var scrollIdx = 0;
     for(k=0;k<d.length;++k)
         if(parseInt(d[k].id) == rowNum) { scrollIdx = k; break; }
@@ -586,10 +588,6 @@ function loadRows(table, rowNum, ops, rowObj)
         var dlgTop = + dlg.offset().top;
         totHeight = (totHeight > $(window).height() - dlgTop - 10 ? $(window).height() - dlgTop - 10 : totHeight);
         dlg.height(totHeight + 4);
-        table.height(dlg.height()-27);
-        g.resizeCanvas();
-    }
-    else {
         table.height(dlg.height()-27);
         g.resizeCanvas();
     }
