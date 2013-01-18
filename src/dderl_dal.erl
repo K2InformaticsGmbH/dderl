@@ -60,22 +60,26 @@ start_link(SchemaName) ->
 init([SchemaName]) ->
     erlimem:start(),
     Cred = {<<>>, <<>>},
-    Sess = erlimem:open(local, {SchemaName}, Cred),
-    %lager:set_loglevel(lager_console_backend, debug),
-    build_tables_on_boot(Sess, [
-          {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
-        , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
-        , {ddConn, record_info(fields, ddConn), ?ddConn, #ddConn{}}
-        , {ddCmd, record_info(fields, ddCmd), ?ddCmd, #ddCmd{}}
-        , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
-        , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
-    ]),
-    lager:info("~p tables ~p created", [?MODULE, [ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
-    Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
-    Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
-    lager:info("~p initializing ~p", [?MODULE, Adapters]),
-    [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
-    {ok, #state{sess=Sess, schema=SchemaName}}.
+    case erlimem:open(local, {SchemaName}, Cred) of
+    {ok, Sess} ->
+        %lager:set_loglevel(lager_console_backend, debug),
+        build_tables_on_boot(Sess, [
+              {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
+            , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
+            , {ddConn, record_info(fields, ddConn), ?ddConn, #ddConn{}}
+            , {ddCmd, record_info(fields, ddCmd), ?ddCmd, #ddCmd{}}
+            , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
+            , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
+        ]),
+        lager:info("~p tables ~p created", [?MODULE, [ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
+        Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
+        Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
+        lager:info("~p initializing ~p", [?MODULE, Adapters]),
+        [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
+        {ok, #state{sess=Sess, schema=SchemaName}};
+    {error, Reason} ->
+        {stop, Reason}
+    end.
 
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
@@ -181,7 +185,7 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
         {error, Error} ->
             lager:error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
-        Sess ->
+        {ok, Sess} ->
             lager:debug("~p login accepted user ~p", [?MODULE, User]),
             {reply, true, State#state{sess=Sess}}
     end;

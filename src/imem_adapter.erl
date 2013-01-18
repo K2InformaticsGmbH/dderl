@@ -57,7 +57,7 @@ process_cmd({"connect", ReqBody}, _) ->
             lager:error("DB connect error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
             {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,Err}]))};
-        Session ->
+        {ok, Session} ->
             lager:debug("session ~p", [Session]),
             lager:debug("connected to params ~p", [{Type, Opts}]),
             Statements = [],
@@ -225,14 +225,15 @@ process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
             lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, list_to_binary(jsx:encode([{<<"tail">>, [{<<"error">>, <<"invalid statement">>}]}]))};
+            {Priv, binary_to_list(jsx:encode([{<<"tail">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
             if Start =:= true ->
 io:format(user, ">>>>>>>> ~p tail ~p~n", [{?MODULE,?LINE}, Start]),
+%                Statement:fetch_close(),
                 Statement:start_async_read([{tail_mode,Start}]);
                 true -> Statement:fetch_close()
             end,
-            {Priv, list_to_binary(jsx:encode([{<<"tail">>, Start}]))}
+            {Priv, binary_to_list(jsx:encode([{<<"tail">>, Start}]))}
     end;
 
 process_cmd({"views", _}, Priv) ->
@@ -246,13 +247,13 @@ process_cmd({"views", _}, Priv) ->
     ,{<<"name">>, <<"All Views">>}]
     ++ Resp
     }]),
-    io:format(user, "views ~p~n", [RespJson]),
+%io:format(user, "views ~p~n", [RespJson]),
     {NewPriv#priv{sess=ClientSess}, binary_to_list(RespJson)};
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
     lager:error("unsupported command ~p content ~p", [Cmd, BodyJson]),
-    {Priv, "{\"rows\":[]}"}.
+    {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
 process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
@@ -260,7 +261,7 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
             StmtHndl = erlang:phash2(Statement),
             Columns = lists:reverse([atom_to_list(C#ddColMap.name)||C<-Clms]),
             lager:debug([{session, Session}], "columns ~p", [Columns]),
-            Statement:start_async_read(),
+            Statement:start_async_read([]),
             {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}
             , [{<<"columns">>, gen_adapter:strs2bins(Columns)}
               ,{<<"statement">>,StmtHndl}]};
