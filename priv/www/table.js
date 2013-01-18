@@ -77,9 +77,10 @@ function renderTable(ctx) {
             $('#'+tableName+'_grid_header_context').remove();
             $('#'+tableName+'_grid_title_context').remove();
 
+            console.log('dlg close cancel tail timer ' + dlg.data('tail'));
+            clearInterval(dlg.data('tail'));
             dlg.dialog('destroy');
             dlg.remove();
-            clearInterval(dlg.data('tail'));
             if(destroyFun != null || destroyFun != undefined)
                 destroyFun();
             var tbls = 0;
@@ -113,10 +114,11 @@ function renderTable(ctx) {
     table.data("grid").onScroll.subscribe(function(e, args) {
         if(table.data("shouldScroll")) {
             var gcP = args.grid.getCanvasNode().parentNode;
-            clearInterval(table.data("dlg").data('tail'));
             if(table.data('scrollTop') != undefined && table.data('scrollTop') != gcP.scrollTop) {
 //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
                 if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
+                    console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
+                    clearInterval(table.data("dlg").data('tail'));
                     console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().bottom;
@@ -124,6 +126,8 @@ function renderTable(ctx) {
                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                 }
                 else if (gcP.scrollTop == 0) {
+                    console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
+                    clearInterval(table.data("dlg").data('tail'));
                     console.log('top_event '+ gcP.scrollTop);
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().top;
@@ -236,21 +240,27 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 table.data("grid").updateRowCount();
                 table.data("grid").render();
                 rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                console.log('tail cancel tail timer ' + table.data("dlg").data('tail'));
                 clearInterval(table.data("dlg").data('tail'));
                 var timerRefresh = setInterval(function() {
+                    console.log('tail row');
                     if (undefined != table && undefined != table.data("grid")) {
                         var d = table.data("grid").getData();
-                        var rownum = table.data("grid").getViewport().top;
-                        rownum = (d.length > rownum && rownum >= 0
-                                  ? parseInt(d[rownum].id) + 1
-                                  : (d.length > 0
+                        // var rownum = table.data("grid").getViewport().top;
+                        // rownum = (d.length > rownum && rownum >= 0
+                        //           ? parseInt(d[rownum].id) + 1
+                        //           : (d.length > 0
+                        //              ? parseInt(d[d.length - 1].id) + 1
+                        //              : 0)
+                        //           );
+                        var rownum = (d.length > 0
                                      ? parseInt(d[d.length - 1].id) + 1
-                                     : 0)
-                                  );
+                                     : 1);
                         rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                     }
                 }, 1000);
                 table.data("dlg").data('tail', timerRefresh);
+                console.log('tail register timer ' + table.data("dlg").data('tail'));
                 return false;
             })
            )
@@ -562,7 +572,7 @@ function loadRows(table, rowNum, ops, rowObj)
 
     g.setData(d);
     g.updateRowCount();
-    g.render();
+//    g.render();
     var scrollIdx = 0;
     for(k=0;k<d.length;++k)
         if(parseInt(d[k].id) == rowNum) { scrollIdx = k; break; }
@@ -576,6 +586,10 @@ function loadRows(table, rowNum, ops, rowObj)
         var dlgTop = + dlg.offset().top;
         totHeight = (totHeight > $(window).height() - dlgTop - 10 ? $(window).height() - dlgTop - 10 : totHeight);
         dlg.height(totHeight + 4);
+        table.height(dlg.height()-27);
+        g.resizeCanvas();
+    }
+    else {
         table.height(dlg.height()-27);
         g.resizeCanvas();
     }
