@@ -277,7 +277,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 var commitJson = {commit_rows: {statement : statement}};
                 ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
                             if(data.commit_rows == "ok") {
-                                alert('commit success!');
+                                console.log('commit success!');
                             }
                             else {
                                 alert('commit failed!\n' + data.commit_rows);
@@ -445,16 +445,16 @@ function loadTable(table, statement, columns)
                                         cellid      : args.cell,
                                         value       : modifiedRow[cols[args.cell].field]}};
         ajax_post('/app/update_data', updateJson, null, null, function(data) {
-                    if(data.update_data == "ok") {
-                        alert('update success ');
-                    }
-                    else {
+                    if(data.update_data != "ok") {
                         alert('Update failed ---------------------------------------------\n' +
                               'RowId :   '+ parseInt(modifiedRow.id) +
                               '\nCell :  '+ args.cell +
                               '\nValue : '+ modifiedRow[cols[args.cell].field] +
                               '\nRow :   '+ modifiedRow +
                               '\n---------------------------------------------------------');
+                    }
+                    else {
+                        console.log('update success ');
                     }
                 });
     });
