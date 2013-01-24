@@ -1,41 +1,41 @@
-function get_text(tree, txt)
+function get_text(box, txt)
 {
-    txt = (tree.name + ' ');
-    for(var i=0; i < tree.children.length; ++i) {
-        txt += get_text(tree.children[i], txt) + ' ';
+    txt = (box.name + ' ');
+    for(var i=0; i < box.children.length; ++i) {
+        txt += get_text(box.children[i].box, txt) + ' ';
     }
     return txt.trim();
 }
 
-function prep_tree(tree)
+function prep_box(box)
 {
-    tree['summary'] = get_text(tree, '');
-    tree['issummary'] = true;
-    if(!tree.hasOwnProperty('height')) tree['height'] = 0;
-    if(tree.name.length > 0)
-        tree.height = def_height;
-    for (var i=0; i < tree.children.length ; ++i) {
-        tree.children[i]['height'] = 0;
-        prep_tree(tree.children[i]);
-        tree.height += tree.children[i].height; 
+    box['summary'] = get_text(box, '');
+    box['issummary'] = true;
+    if(!box.hasOwnProperty('height')) box['height'] = 0;
+    if(box.name.length > 0)
+        box.height = def_height;
+    for (var i=0; i < box.children.length ; ++i) {
+        box.children[i]['height'] = 0;
+        prep_box(box.children[i].box);
+        box.height += box.children[i].height; 
     }
 }
 
 var def_height = 20;
 var tab_len    = 10;
-function build_boxes_r(root_node, tree, last_parent_node, depth) {
-    var id_siffix = tree.name+'_'+depth;
+function build_boxes_r(root_node, box, last_parent_node, depth) {
+    var id_siffix = box.name+'_'+depth;
 
     var bgcol = (255 - 10 * depth);
     //var col = (30 * depth);
 
     // '(' or ')' collapses the parent
-    if(tree.name == "(" || tree.name == ")")
-        tree.collapsed = false;
+    if(box.name == "(" || box.name == ")")
+        box.collapsed = false;
 
-    var content = $(('<span>'+tree.name+'</span>'));
+    var content = $(('<span>'+box.name+'</span>'));
 
-    var node = (tree.name.length > 0
+    var node = (box.name.length > 0
                 ? $('<div id="'+id_siffix+'d"></div>').append(content)
                                                       .data("content", content)
                 : $('<div></div>'));
@@ -47,7 +47,7 @@ function build_boxes_r(root_node, tree, last_parent_node, depth) {
         .css("font-family","courier")
         .css("font-size","10pt")
         .hide()
-        .text(tree.summary);
+        .text(box.summary);
 
     var txtarea = $('<textarea></textarea>')
         .appendTo(node)
@@ -56,78 +56,78 @@ function build_boxes_r(root_node, tree, last_parent_node, depth) {
         .css("font-family","courier")
         .css("font-size","10pt")
         .hide()
-        .text(tree.summary);
+        .text(box.summary);
 
     node.dblclick(function(evt) {
             evt.stopPropagation();
-            var parent_tree = last_parent_node.data("tree");
-            tree.collapsed = !tree.collapsed;
-            if(tree.name == "(" || tree.name == ")") {
-                parent_tree.collapsed = tree.collapsed;
-                for (var i =0; i < tree.children.length; ++i)
-                    tree.children[i].collapsed = tree.collapsed
+            var parent_box = last_parent_node.data("box");
+            box.collapsed = !box.collapsed;
+            if(box.name == "(" || box.name == ")") {
+                parent_box.collapsed = box.collapsed;
+                for (var i =0; i < box.children.length; ++i)
+                    box.children[i].collapsed = box.collapsed
             }
-            if(tree.children.length == 0)
-                parent_tree.collapsed = !parent_tree.collapsed;
-            build_boxes(root_node, root_node.data('treeroot'));
+            if(box.children.length == 0)
+                parent_box.collapsed = !parent_box.collapsed;
+            build_boxes(root_node, root_node.data('boxroot'));
         })
         .click(function(evt) {
             evt.stopPropagation();
-            var parent_tree = last_parent_node.data("tree");
-            tree.collapsed = !tree.collapsed;
-            if(tree.name == "(" || tree.name == ")") {
-                parent_tree.collapsed = tree.collapsed;
-                for (var i =0; i < tree.children.length; ++i)
-                    tree.children[i].collapsed = tree.collapsed
+            var parent_box = last_parent_node.data("box");
+            box.collapsed = !box.collapsed;
+            if(box.name == "(" || box.name == ")") {
+                parent_box.collapsed = box.collapsed;
+                for (var i =0; i < box.children.length; ++i)
+                    box.children[i].collapsed = box.collapsed
             }
-            if(tree.children.length == 0)
-                parent_tree.collapsed = !parent_tree.collapsed;
-            build_boxes(root_node, root_node.data('treeroot'));
+            if(box.children.length == 0)
+                parent_box.collapsed = !parent_box.collapsed;
+            build_boxes(root_node, root_node.data('boxroot'));
         })
         .addClass('inner_div')
         .addClass('context-menu-one')
         .css('background-color', 'rgb('+bgcol+','+bgcol+','+bgcol+')')
         //.css('color', 'rgb('+col+','+col+','+col+')')
-        .data("tree", tree)
+        .data("box", box)
         .css('top', 0)
         .css('left', (depth > 0 ? tab_len : 0));
 
     last_parent_node.append(node);
 
     var child_hide = false;
-    for (var i=0; i < tree.children.length ; ++i) {
-        if(tree.collapsed) {
+    for (var i=0; i < box.children.length ; ++i) {
+        if(box.collapsed) {
             if(!child_hide)
                 child_hide = true;
         } else
-            build_boxes_r(root_node, tree.children[i], node, depth + 1);
+            build_boxes_r(root_node, box.children[i].box, node, depth + 1);
     }
 
     if(child_hide) node.height(editbx.height());
-    else           node.height(tree.height);
+    else           node.height(box.height);
 
-    if(tree.collapsed && tree.issummary) {
+    if(box.collapsed && box.issummary) {
         //txtarea.show();
         editbx.show();
         content.hide();
     }
 }
 
-function get_tree_height(tree)
+function get_box_height(box)
 {
     var height = def_height;
-    if(!tree.collapsed) {
-        for(var i=0; i < tree.children; ++i)
-            height += get_tree_height(tree.children[i]);
+    if(!box.collapsed) {
+        for(var i=0; i < box.children; ++i)
+            height += get_box_height(box.children[i]);
     }
     return height;
 }
 
-function build_boxes(div, tree)
+function build_boxes(div, box)
 {
     div.text('');
-    div.data('treeroot', tree);
-    build_boxes_r(div, tree, div, 0);
+    div.data('boxroot', box);
+    build_boxes_r(div, box, div, 0);
 }
 
 function parse_and_update(root_node, qry) {
@@ -135,7 +135,7 @@ function parse_and_update(root_node, qry) {
         if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
             alert(pTree.error);
         } else {
-            prep_tree(pTree);
+            prep_box(pTree.box);
             build_boxes(root_node, pTree);
         }
     });
@@ -151,15 +151,15 @@ function edit_sql(tblDlg, qry) {
         if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
             alert(pTree.error);
         } else {
-            prep_tree(pTree);
-            sql_editor(tblDlg, pTree, null, qry);
+            prep_box(pTree.box);
+            sql_editor(tblDlg, pTree.box, null, qry);
         }
     });
 }
 
 var undefinedTable = "Query";
 var undefinedTableIdx = 0;
-function sql_editor(tblDlg, tree, pos, qry) {
+function sql_editor(tblDlg, box, pos, qry) {
     var share        = 80; // percent
     var boxHeight    = 500;
     var boxWidth     = 500;
@@ -198,8 +198,8 @@ function sql_editor(tblDlg, tree, pos, qry) {
             $(this).remove();
         },
         open: function(event, ui) {
-            if(tree != null)
-                build_boxes($(this).children('div'), tree);
+            if(box != null)
+                build_boxes($(this).children('div'), box);
         },
         buttons: {
             "Re-Draw": function() {

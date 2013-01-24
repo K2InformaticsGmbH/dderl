@@ -1,6 +1,7 @@
 -module(gen_adapter).
 
 -include("dderl.hrl").
+-include_lib("sqlparse/src/sql_box.hrl").
 
 -export([ process_cmd/2
         , prepare_json_rows/4
@@ -17,14 +18,52 @@ add_cmds_views(A, [{N,C}|Rest]) ->
     dderl_dal:add_view(N, Id, #viewstate{}),
     add_cmds_views(A, Rest).
 
+box_to_json(Box) ->
+[
+    {<<"box">>, [
+        {<<"ind">>, Box#box.ind}
+        , {<<"idx">>, Box#box.idx}
+        , {<<"name">>, any_to_bin(Box#box.name)}
+        , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
+        %, {<<"collapsed">>, Box#box.collapsed}
+        , {<<"collapsed">>, false}
+        , {<<"error">>, Box#box.error}
+        , {<<"color">>, Box#box.color}
+        , {<<"pick">>, Box#box.pick}
+    ]}
+].
+
+any_to_bin(C) when is_list(C) -> list_to_binary(C);
+any_to_bin(C) when is_binary(C) -> C;
+any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
+    
 process_cmd({"parse_stmt", ReqBody}, Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
-    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    case sql_walk:to_json(Query) of
-        {error, Error} ->
-            lager:debug("parsing Error ~p~n", [{Query, Error}]),
-            {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))};
-        Json -> {Priv, Json}
+    Query = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
+    Sql = case string:substr(Query, length(Query), 1) of
+    ";" -> Query;
+    _ -> Query ++ ";"
+    end,
+    case sql_lex:string(Sql) of
+    {ok, Tokens, _} ->
+        case sql_parse:parse(Tokens) of
+        {ok, [ParseTree|_]} -> 
+            case sql_box:box_tree(ParseTree) of
+            {error, Error} ->
+                lager:error("box generator ~p~n", [{Sql, ParseTree, Error}]),
+                {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))};
+            Box ->
+                BoxJson = jsx:encode(box_to_json(Box)),
+                lager:debug("box ~p~n", [BoxJson]),
+                {Priv, binary_to_list(BoxJson)}
+            end;
+        Error -> 
+            lager:error("parser ~p~n", [{Sql, Tokens, Error}]),
+            {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
+        end;
+    Error ->
+        lager:error("lexer ~p~n", [{Sql, Error}]),
+        {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
     end;
 process_cmd({"get_query", ReqBody}, Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,

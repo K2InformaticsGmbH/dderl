@@ -18,6 +18,7 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     gen_adapter:add_cmds_views(imem, [
+        %{"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
         {"All Tables", "select name(qname) from all_tables"},
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
         {"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}

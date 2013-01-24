@@ -80,12 +80,12 @@ function prepare_table(context)
     }
     context.initFun = function(tblDlg) {
         tblDlg.bind('requery', function(e, sqlObj) {
-            ajax_post('/app/stmt_close', {stmt_close: {statement: statement, row_num: -1}},
+            ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
                       null, null, function(data) {if (data.hasOwnProperty('error')) alert(data.error); });
             tblDlg.dialog('destroy');
             tblDlg.remove();
             context.content = sqlObj;
-            load_table(context.content);
+            load_table(context);
         });
     };
     context.destroyFun = function() {
