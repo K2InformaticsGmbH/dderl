@@ -30,11 +30,12 @@ function renderTable(ctx) {
     var tableName = tabName.replace(/[ \.@]/g, '_');
 
     var width=500, height=500, position='center';
-    if (ctx != null || ctx != undefined) {
-        if (ctx.hasOwnProperty('width') && ctx.width > 0) width = ctx.width;
-        if (ctx.hasOwnProperty('height') && ctx.width > 0) height = ctx.height;
-        if (ctx.hasOwnProperty('posX') && ctx.hasOwnProperty('posY') && ctx.posX >= 0 && ctx.posY >= 0)
-            position = [ctx.posX, ctx.posY];
+    if (ctx != null && ctx != undefined && ctx.hasOwnProperty('table_layout')) {
+        var tablayout = ctx.table_layout;
+        if (tablayout.hasOwnProperty('width') && tablayout.width > 0) width = tablayout.width;
+        if (tablayout.hasOwnProperty('height') && tablayout.height > 0) height = tablayout.height;
+        if (tablayout.hasOwnProperty('x') && tablayout.hasOwnProperty('y') && tablayout.x >= 0 && tablayout.y >= 0)
+            position = [tablayout.x, tablayout.y];
     }
 
     // Initial cleanup -- can't open two instances of the same table
@@ -53,6 +54,7 @@ function renderTable(ctx) {
         autoOpen: false,
         height: height,
         width: width,
+        minHeight: 200,
         resizable: true,
         modal: false,
         title: title,
@@ -68,6 +70,7 @@ function renderTable(ctx) {
         },
         focus: function(e,ui) {
             ctx.tblDlg = dlg;
+            ctx.grid = table.data('grid');
             $('#tbl-opts').data('data', ctx);
             $('#tbl-opts').text(tabName + ' Options');
             $('#tbl-opts').show();
@@ -175,7 +178,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
     RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
         .click(function() { $(this).select(); });
     var dlgMinWidth = 
-    $('<div style="position:absolute;bottom:0;width:96%;height:27px;"></div>')
+    $('<div style="position:absolute;bottom:0;width:300px;height:27px"></div>')
     .append($('<button>Reload</button>')  // Refresh
             .button({icons: {primary: "ui-icon-arrowrefresh-1-e"}, text: false})
             .click(function()
@@ -295,7 +298,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             })
            )
     .appendTo(parent_node)
-    .width() + 130;
+    .width() + 20;
     table.data("finished", RowJumpTextBox);
     dlg.dialog( "option", "minWidth", dlgMinWidth);
 }
@@ -413,6 +416,10 @@ function loadTable(table, statement, columns)
 
     table.data("grid", grid)
          .data("columns", columns);
+
+    ctx = $('#tbl-opts').data('data');
+    ctx.grid = grid;
+    $('#tbl-opts').data('data', ctx);
 
     grid.onAddNewRow.subscribe(function (e, args) {
       var insertJson = {insert_data: {statement   : statement,

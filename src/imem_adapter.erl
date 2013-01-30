@@ -52,7 +52,7 @@ process_cmd({"connect", ReqBody}, _) ->
     end,
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    lager:debug("session:open ~p", [{ype, Opts, {User, Password}}]),
+    lager:info("session:open ~p", [{Type, Opts, {User, Password}}]),
     case erlimem:open(Type, Opts, {User, Password}) of
         {error, {Ex,M}} ->
             lager:error("DB connect error ~p", [{Ex,M}]),
@@ -64,7 +64,6 @@ process_cmd({"connect", ReqBody}, _) ->
             Statements = [],
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
-                          , owner    = binary_to_list(User)
                           , adapter  = imem
                           , access   = [ {ip,   Ip}
                                        , {port, Port}
@@ -73,7 +72,7 @@ process_cmd({"connect", ReqBody}, _) ->
                                        ]
                           , schema   = list_to_atom(Schema)
                           },
-            lager:debug([{user, User}], "saving new connection ~p", [Con]),
+            lager:info([{user, User}], "saving new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
             {#priv{sess=Session, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,<<"ok">>}]))}
     end;
@@ -178,7 +177,14 @@ process_cmd({"commit_rows", ReqBody}, #priv{stmts=Statements} = Priv) ->
             lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
-            Result = format_return(Statement:commit_modified()),
+            Ret = try
+                ok = Statement:prepare_update(),
+                ok = Statement:execute_update(),
+                ok = Statement:fetch_close()
+            catch
+                _:Reason -> {error, Reason}
+            end,
+            Result = format_return(Ret),
             {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, Result}]))}
     end;
 
@@ -197,14 +203,17 @@ process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = P
             IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
             lager:debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
             if IsView ->
-            {_,_,{_,C,_},Name} = R,
+            {_,_,{#ddView{}=V,#ddCmd{}=C,_},Name} = R,
                 lager:debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
                 {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),
                 RespJson = jsx:encode([{<<"browse_data">>,
                     [{<<"content">>, list_to_binary(C#ddCmd.command)}
-                    ,{<<"name">>, list_to_binary(Name)}] ++
+                    ,{<<"name">>, list_to_binary(Name)}
+                    ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                    ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
                     Resp
                 }]),
+                lager:info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
                 {NewPriv, binary_to_list(RespJson)};
             true ->                
                 Name = lists:last(tuple_to_list(R)),
@@ -243,13 +252,17 @@ process_cmd({"views", _}, Priv) ->
     #priv{sess=ClientSess} = Priv,
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, Priv#priv{sess=AdminSession}),
+io:format(user, "View ~p~n", [F]),
     RespJson = jsx:encode([{<<"views">>,
-    [{<<"content">>, list_to_binary(C#ddCmd.command)}
-    ,{<<"name">>, <<"All Views">>}]
-    ++ Resp
+        [{<<"content">>, list_to_binary(C#ddCmd.command)}
+        ,{<<"name">>, <<"All Views">>}
+        ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
+        ++ Resp
     }]),
 %io:format(user, "views ~p~n", [RespJson]),
     {NewPriv#priv{sess=ClientSess}, binary_to_list(RespJson)};
+process_cmd({"save_view", BodyJson}, Priv) -> gen_adapter:process_cmd({"save_view", BodyJson}, Priv);
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
@@ -260,7 +273,7 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
     case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, Clms, Statement} ->
             StmtHndl = erlang:phash2(Statement),
-            Columns = lists:reverse([atom_to_list(C#ddColMap.name)||C<-Clms]),
+            Columns = lists:reverse([binary_to_list(C#stmtCol.alias)||C<-Clms]),
             lager:debug([{session, Session}], "columns ~p", [Columns]),
             Statement:start_async_read([]),
             {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}

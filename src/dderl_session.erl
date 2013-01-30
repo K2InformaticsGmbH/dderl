@@ -55,7 +55,6 @@ init(_Args) ->
     {ok, #state{key=Key,tref=TRef}}.
 
 handle_call({adapter, Adapter}, _From, #state{key=Key}=State) ->
-    Adapter:init(),
     lager:debug([{session, Key}], "adapter ~p initialized!", [Adapter]),
     {reply, ok, State#state{adapter=Adapter}};
 handle_call(get_state, _From, #state{key=Key} = State) ->
@@ -111,7 +110,7 @@ process_call({"connects", _ReqData}, _From, #state{user=User, key=Key} = State) 
                     [{jsq(C#ddConn.name), [
                             {<<"adapter">>,jsq(C#ddConn.adapter)}
                           , {<<"service">>, jsq(C#ddConn.schema)}
-                          , {<<"owner">>, jsq(C#ddConn.owner)}] ++
+                          , {<<"owner">>, jsq(User)}] ++
                           [{list_to_binary(atom_to_list(N)), jsq(V)} || {N,V} <- C#ddConn.access]
                      } | Acc]
                 end,

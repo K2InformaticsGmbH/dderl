@@ -151,8 +151,30 @@ function save_table()
 {
     context = $('#tbl-opts').data('data');
     qStr = context.content.replace(/(\r\n|\n|\r)/gm," ");
-    undefinedTableIdx = 0;
-    ajax_post("/app/save_file", {save: {file_name:context.name, file_content:qStr}}, null, null, null);
+    var colnamesizes = new Array();
+    var cols = context.grid.getColumns();
+    // Column names and width
+    for(var idx = 0; idx < cols.length; ++idx)
+        if(cols[idx].name.length > 0)
+            colnamesizes[colnamesizes.length] = {name: cols[idx].name, width: cols[idx].width};
+    // Table width/height/position
+    var w = context.tblDlg.width();
+    var h = context.tblDlg.height();
+    var x = context.tblDlg.dialog('widget').position().left;
+    var y = context.tblDlg.dialog('widget').position().top;
+    var saveView = {save_view : {table_layout : {width : w,
+                                                height : h,
+                                                     y : y,
+                                                     x : x},
+                                column_layout : colnamesizes,
+                                         name : context.name,
+                                      content : qStr}
+                   };
+    ajax_post("/app/save_view", saveView, null, null, function(data) {
+        if (data.save_view != "ok") {
+            alert(data.save_view);
+        }
+    });
 }
 
 function save_as_table()

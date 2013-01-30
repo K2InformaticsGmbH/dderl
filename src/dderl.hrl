@@ -1,10 +1,9 @@
 -include_lib("imem/include/imem_meta.hrl").
+-include_lib("imem/include/imem_sql.hrl").
 
 -define(DEFAULT_ROW_SIZE, 100).
--record(viewstate, { posX   = 5
-                   , posY   = 5
-                   , width  = 100
-                   , height = 100
+-record(viewstate, { table_layout = []
+                   , column_layout = []
        }).
 
 -record(ddAdapter,                          %% DDerl adapter (connect to databases)              

@@ -16,6 +16,10 @@ add_cmds_views(_, []) -> ok;
 add_cmds_views(A, [{N,C}|Rest]) ->
     Id = dderl_dal:add_command(A, N, C, []),
     dderl_dal:add_view(N, Id, #viewstate{}),
+    add_cmds_views(A, Rest);
+add_cmds_views(A, [{N,C,#viewstate{}=V}|Rest]) ->
+    Id = dderl_dal:add_command(A, N, C, []),
+    dderl_dal:add_view(N, Id, V),
     add_cmds_views(A, Rest).
 
 box_to_json(Box) ->
@@ -71,6 +75,16 @@ process_cmd({"get_query", ReqBody}, Priv) ->
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     lager:debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
+    {Priv, binary_to_list(Res)};
+process_cmd({"save_view", ReqBody}, Priv) ->
+    [{<<"save_view">>,BodyJson}] = ReqBody,
+    Name = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
+    Query = binary_to_list(proplists:get_value(<<"content">>, BodyJson, <<>>)),
+    TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
+    ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
+    lager:info("save_view for ~p layout ~p", [Name, TableLay]),
+    gen_adapter:add_cmds_views(imem, [{Name, Query, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
+    Res = jsx:encode([{<<"save_view">>,<<"Not Implemented, work in progress">>}]),
     {Priv, binary_to_list(Res)};
 process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),

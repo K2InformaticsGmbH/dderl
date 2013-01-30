@@ -26,6 +26,11 @@
         ,get_session/0
         ]).
 
+-record(state, { schema
+               , sess
+               , owner = system
+    }).
+
 login(User, Password)                   -> gen_server:call(?MODULE, {login, User, Password}).
 
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
@@ -41,10 +46,6 @@ get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrNa
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
 get_session()                   -> gen_server:call(?MODULE, {get_session}).
             
--record(state, { schema
-               , sess
-    }).
-
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
 hexstr_to_bin([X,Y|T], Acc) ->
@@ -59,8 +60,8 @@ start_link(SchemaName) ->
 
 init([SchemaName]) ->
     erlimem:start(),
-    Cred = {<<>>, <<>>},
-    case erlimem:open(local, {SchemaName}, Cred) of
+    Cred = {<<"admin">>, <<"change_on_install">>},
+    case erlimem:open(local_sec, {SchemaName}, Cred) of
     {ok, Sess} ->
         %lager:set_loglevel(lager_console_backend, debug),
         build_tables_on_boot(Sess, [
@@ -87,43 +88,43 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
-handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess} = State) ->
-    Id = case Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, id='$1', adapters='$2', _='_'}
+handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
+    Id = case Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, id='$1', adapters='$2', owner=Owner, _='_'}
                                            , [{'=:=', '$2', [Adapter]}]
                                            , ['$1']}]]) of
         {[Id0|_], true} ->
-            lager:debug("~p add_command replacing id ~p", [?MODULE, Id0]),
+            lager:debug("~p add_command ~p replacing id ~p", [?MODULE, Name, Id0]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            lager:debug("~p add_command new id ~p", [?MODULE, Id1]),
+            lager:debug("~p add_command ~p new id ~p", [?MODULE, Name, Id1]),
             Id1
     end,
     NewCmd = #ddCmd { id     = Id
                  , name      = Name
-                 , owner     = system
+                 , owner     = Owner
                  , adapters  = [Adapter]
                  , command   = Cmd
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
-    lager:debug("~p add_connect inserted ~p", [?MODULE, NewCmd]),
+    lager:debug("~p add_command inserted ~p", [?MODULE, NewCmd]),
     {reply, Id, State};
 
-handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess} = State) ->
-    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, id='$1', _='_'}
+handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=Owner} = State) ->
+    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, id='$1', owner=Owner, _='_'}
                                             , []
                                             , ['$1']}]]) of
         {[Id0|_], true} ->
-            lager:debug("~p add_view replacing id ~p", [?MODULE, Id0]),
+            lager:debug("~p add_view ~p replacing id ~p ~p~n", [?MODULE, Name, Id0, Owner]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            lager:debug("~p add_view new id ~p", [?MODULE, Id1]),
+            lager:debug("~p add_view ~p new id ~p", [?MODULE, Name, Id1]),
             Id1
     end,
-    NewView = #ddView { id       = Id
+    NewView = #ddView { id      = Id
                      , name     = Name
-                     , owner    = system
+                     , owner    = Owner
                      , cmd      = CmdId
                      , state    = ViewsState},
     Sess:run_cmd(insert, [ddView, NewView]),
@@ -186,16 +187,17 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
             lager:error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
-            lager:debug("~p login accepted user ~p", [?MODULE, User]),
-            {reply, true, State#state{sess=Sess}}
+            UserId = element(2, Sess:run_cmd(admin_exec, [imem_account, get_by_name, [User]])),
+            lager:info("~p login accepted user ~p with id = ~p", [?MODULE, User, UserId]),
+            {reply, true, State#state{sess=Sess, owner=UserId}}
     end;
 
 handle_call(Req,From,State) ->
     lager:info("unknown call req ~p from ~p~n", [Req, From]),
     {reply, ok, State}.
 
-handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName} = State) ->
-    NewCon0 = Con#ddConn{owner = <<"admin">>},
+handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName, owner=UserId} = State) ->
+    NewCon0 = Con#ddConn{owner = UserId},
     NewCon1 = case NewCon0#ddConn.schema of
         undefined -> NewCon0#ddConn{schema = SchemaName};
         _ -> NewCon0
