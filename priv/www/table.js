@@ -317,16 +317,20 @@ function prepareColumns(headers) {
                         resizable: true,
                          sortable: false,
                        selectable: false};
-    for (i=0;i<headers.length;++i)
-        header[header.length] = {  id: headers[i].toLowerCase(),
+    for (i=0;i<headers.length;++i) {
+        var fldid = headers[i];
+        if(fldid == fldid.toLowerCase() && fldid == 'id')
+            fldid = ('_'+fldid.toLowerCase());
+        header[header.length] = {  id: fldid,
                                  name: headers[i],
-                                field: headers[i].toLowerCase(),
+                                field: fldid,
                                editor: Slick.Editors.Text,
                              minWidth: 20,
                                 width: 10 * headers[i].length,
                             resizable: true,
                              sortable: false,
                            selectable: true};
+    }
     return header;
 }
 
