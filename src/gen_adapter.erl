@@ -90,15 +90,6 @@ process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"error">>, <<"unknown command">>}]))}.
 
-process_data(Rows, more, CacheSize) ->
-    RespJson = jsx:encode([{<<"done">>, false}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
-    %io:format(user, "rows " ++jsx:prettify(RespJson) ++ "~n", []),
-    binary_to_list(RespJson);
-process_data(Rows, _, CacheSize) ->
-    RespJson = jsx:encode([{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
-    %io:format(user, jsx:prettify(RespJson), []),
-    binary_to_list(RespJson).
-
 %prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid, Fun) ->
 %    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
 %    case Status of
@@ -121,6 +112,14 @@ prepare_json_rows(Statement, RowNum, Fun, StmtKey) ->
     if length(Rows) > 0 -> lager:debug("[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]); true -> ok end,
     process_data(lists:reverse(Rows), Status, CacheSize).
 
+process_data(Rows, more, CacheSize) ->
+    RespJson = jsx:encode([{<<"done">>, false}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
+    %io:format(user, "rows " ++jsx:prettify(RespJson) ++ "~n", []),
+    binary_to_list(RespJson);
+process_data(Rows, _, CacheSize) ->
+    RespJson = jsx:encode([{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
+    %io:format(user, jsx:prettify(RespJson), []),
+    binary_to_list(RespJson).
 
 strs2bins(Strings) ->
     lists:foldl(fun

@@ -288,5 +288,8 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
             {Priv, [{<<"columns">>,[]},{<<"statement">>,0}]}
     end.
 
-format_return({error, {E,{R,_Ext}}}) -> list_to_binary(atom_to_list(E)++": "++R++"\n"++lists:nth(1,io_lib:format("~p", [_Ext])));
+format_return({error, {_,{error, _}=Error}}) -> format_return(Error);
+format_return({error, {E,{R,_Ext}} = Excp}) ->
+    lager:debug("exception ~p", [Excp]),
+    list_to_binary([atom_to_list(E),": ",R,"\n",lists:nth(1,io_lib:format("~p", [_Ext]))]);
 format_return(Result)             -> list_to_binary(io_lib:format("~p", [Result])).
