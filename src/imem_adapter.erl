@@ -126,7 +126,7 @@ process_cmd({"get_buffer_max", ReqBody}, #priv{stmts=Statements} = Priv) ->
             {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
             {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-            lager:info("[~p] get_buffer_max ~p finished ~p ~p", [StmtKey, CacheSize, Finished, self()]),
+            lager:debug("[~p] get_buffer_max ~p finished ~p ~p", [StmtKey, CacheSize, Finished, self()]),
             {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
                                                 [{<<"count">>, CacheSize}
                                                 ,{<<"finished">>, Finished}]}]))}
