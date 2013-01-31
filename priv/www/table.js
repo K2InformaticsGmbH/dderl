@@ -112,7 +112,7 @@ function renderTable(ctx) {
         .removeClass("download_complete")
         .addClass("downloading");
     loadTable(table, statement, prepareColumns(columns));
-    rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.APPEND);
+    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.APPEND);
 
     table.data("grid").onScroll.subscribe(function(e, args) {
         if(table.data("shouldScroll")) {
@@ -126,7 +126,7 @@ function renderTable(ctx) {
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().bottom;
                     rownum = (d.length > rownum ? parseInt(d[rownum].id) + 1 : parseInt(d[d.length - 1].id) + 1);
-                    rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                 }
                 else if (gcP.scrollTop == 0) {
                     console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
@@ -135,7 +135,7 @@ function renderTable(ctx) {
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().top;
                     rownum = (d.length > rownum ? parseInt(d[rownum].id) - 1 : parseInt(d[d.length - 1].id) - 1);
-                    rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.PREVIOUS, (rownum < 1 ? 1 : rownum),
+                    rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.PREVIOUS, (rownum < 1 ? 1 : rownum),
                                   OpsBufEnum.PREPEND);
                 }
             }
@@ -169,8 +169,8 @@ function renderTable(ctx) {
 
 function clearTimer(dlg)
 {
-    clearInterval(dlg.data('tail'));
-    dlg.data('tail', undefined);
+    //clearInterval(dlg.data('tail'));
+    dlg.data('tail', false);
 }
 
 function addFooter(dlg, context, statement, table, countFun, rowFun)
@@ -195,7 +195,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
             .click(function()
             {
                 clearTimer(dlg);
-                rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -207,7 +207,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
-                rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -218,7 +218,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 if(evt.which == 13) {
                     var rownum = parseInt($(this).val());
                     if(rownum != NaN)
-                        rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
+                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
                 }
                 return true;
             })
@@ -231,7 +231,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
-                rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
                 return false;
             })
            )
@@ -243,7 +243,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 var d = table.data("grid").getData();
                 var rownum = table.data("grid").getViewport().top;
                 rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
-                rowFunWrapper(false, countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.REPLACE);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.REPLACE);
                 return false;
             })
            )
@@ -255,7 +255,8 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                 table.data("grid").setData([]);
                 table.data("grid").updateRowCount();
                 table.data("grid").render();
-                rowFunWrapper(true, countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                dlg.data('tail', true);
+                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
                 // console.log('tail cancel tail timer ' + dlg.data('tail'));
                 // clearTimer(dlg);
                 // var timerRefresh = setInterval(function() {
@@ -506,7 +507,7 @@ function add_context_menu(cm_id, options)
 }
 
 var rowStatusCheckInterval = 500;
-function rowFunWrapper(isTail, countFun, rowFun, table, opts, rowNum, loadFunOpts)
+function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
 {
     table.data("finished")
         .removeClass("download_incomplete")
@@ -514,9 +515,10 @@ function rowFunWrapper(isTail, countFun, rowFun, table, opts, rowNum, loadFunOpt
         .addClass("downloading");
 
     function statusCheckFun() {
-        console.log('status check tail '+isTail);
+        console.log('status check tail '+(table.data('dlg') != undefined ? table.data('dlg').data('tail') : false));
         if(jQuery.isFunction(countFun)) {
             countFun(function(resp) {
+                var isTail = (table.data('dlg') != undefined ? table.data('dlg').data('tail') : false);
                 if(table.data("finished") != undefined)
                     table.data("finished").val(''+resp.count);
                 if(isTail && table.data("grid") != undefined) {
@@ -535,6 +537,7 @@ function rowFunWrapper(isTail, countFun, rowFun, table, opts, rowNum, loadFunOpt
         }
     };
     setTimeout(statusCheckFun, rowStatusCheckInterval);
+    var isTail = (table.data('dlg') != undefined ? table.data('dlg').data('tail') : false);
     if(!isTail)
         rowFun(opts, rowNum, loadRows, [table, rowNum, loadFunOpts]);
 }
@@ -547,7 +550,7 @@ function loadRows(table, rowNum, ops, rowObj)
     var d       = g.getData();
     var c       = g.getColumns();
     var rows    = rowObj.rows;
-    var first   = (0 == d.length && undefined == dlg.data('tail'));
+    var first   = (0 == d.length && false == dlg.data('tail'));
 
     if(ops == OpsBufEnum.REPLACE)
         d = new Array();
@@ -616,7 +619,7 @@ function loadRows(table, rowNum, ops, rowObj)
     if (first) {
         var rh = g.getOptions().rowHeight;
         var totHeight = (d.length + 5) * rh;
-        var dlgTop = + dlg.offset().top;
+        var dlgTop = dlg.dialog('widget').position().top;
         totHeight = (totHeight > $(window).height() - dlgTop - 10 ? $(window).height() - dlgTop - 10 : totHeight);
         dlg.height(totHeight + 4);
         table.height(dlg.height()-27);
