@@ -76,12 +76,13 @@ function prepare_table(context)
 {
     if(context.hasOwnProperty('error')) {
         alert(table.error);
+        console.log(table.error);
         return;
     }
     context.initFun = function(tblDlg) {
         tblDlg.bind('requery', function(e, sqlObj) {
             ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) alert(data.error); });
+                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert(data.error); console.log(data.error); } });
             tblDlg.dialog('destroy');
             tblDlg.remove();
             context.content = sqlObj;
@@ -90,7 +91,7 @@ function prepare_table(context)
     };
     context.destroyFun = function() {
         ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) alert(data.error); });
+                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert(data.error); console.log(data.error); } });
     };
 
     context.countFun = function(countUpdateFun) {
@@ -132,6 +133,7 @@ function load_table(context)
     ajax_post('/app/query', {query: {qstr: query, id: context.id}}, null, null, function(table) {
         if(table.hasOwnProperty('error')) {
             alert(table.error);
+            console.log(table.error);
             return;
         }
         var statement = table.statement;
@@ -173,6 +175,7 @@ function save_table()
     ajax_post("/app/save_view", saveView, null, null, function(data) {
         if (data.save_view != "ok") {
             alert(data.save_view);
+            console.log(data.save_view);
         }
     });
 }
@@ -237,5 +240,6 @@ $(document).ready(function() {
     } else {
         $('#main-menu-bar').hide();
         alert("Dinosours are extinct. Upgrade!");
+        console.log("Dinosours are extinct. Upgrade!");
     }
 });

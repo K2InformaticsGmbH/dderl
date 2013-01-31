@@ -160,6 +160,7 @@ function renderTable(ctx) {
                 }
                 else {
                     alert('delete failed');
+                    console.log('delete failed');
                 }
             });
         }
@@ -284,6 +285,7 @@ function addFooter(dlg, context, statement, table, countFun, rowFun)
                             }
                             else {
                                 alert('commit failed!\n' + data.commit_rows);
+                                console.log('commit failed!\n' + data.commit_rows);
                             }
                         });
                 return false;
@@ -358,6 +360,8 @@ function loadTable(table, statement, columns)
                 ajax_post('/app/browse_data', {browse_data: { statement : statement,
                                                                     row : data.row,
                                                                     col : data.cell}}, null, null, function(ret) {
+                    var x = table.dialog('widget').position().left;
+                    var y = table.dialog('widget').position().top;
                     prepare_table(ret.browse_data);
                 });
             }
@@ -431,9 +435,11 @@ function loadTable(table, statement, columns)
                                       value       : args.item[args.column.id]}};
       ajax_post('/app/insert_data', insertJson, null, null, function(data) {
           if(isNaN(parseInt(data.insert_data))) {
-              alert('Insert failed ---------------------------------------------\n' +
-                    'Row :   '+ args.item +
-                    '\n---------------------------------------------------------');
+              var msg = 'Insert failed ---------------------------------------------\n' +
+                        'Row :   '+ args.item +
+                        '\n---------------------------------------------------------';
+              alert(msg);
+              console.log(msg);
           }
           else {
               var id = parseInt(data.insert_data);
@@ -457,12 +463,14 @@ function loadTable(table, statement, columns)
                                         value       : modifiedRow[cols[args.cell].field]}};
         ajax_post('/app/update_data', updateJson, null, null, function(data) {
                     if(data.update_data != "ok") {
-                        alert('Update failed ---------------------------------------------\n' +
-                              'RowId :   '+ parseInt(modifiedRow.id) +
-                              '\nCell :  '+ args.cell +
-                              '\nValue : '+ modifiedRow[cols[args.cell].field] +
-                              '\nRow :   '+ modifiedRow +
-                              '\n---------------------------------------------------------');
+                        var msg = 'Update failed ---------------------------------------------\n' +
+                                  'RowId :   '+ parseInt(modifiedRow.id) +
+                                  '\nCell :  '+ args.cell +
+                                  '\nValue : '+ modifiedRow[cols[args.cell].field] +
+                                  '\nRow :   '+ modifiedRow +
+                                  '\n---------------------------------------------------------';
+                        alert(msg);
+                        console.log(msg);
                     }
                     else {
                         console.log('update success ');
