@@ -244,7 +244,7 @@ process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
             if Start =:= true ->
 lager:info(">>>>>>>> ~p tail ~p~n", [{?MODULE,?LINE}, Start]),
 %                Statement:fetch_close(),
-                Statement:start_async_read([{tail_mode,Start}]);
+                Statement:start_async_read([{fetch_mode,push},{tail_mode,Start}]);
                 true -> Statement:fetch_close()
             end,
             {Priv, binary_to_list(jsx:encode([{<<"tail">>, Start}]))}
