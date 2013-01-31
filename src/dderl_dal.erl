@@ -23,6 +23,7 @@
         ,get_commands/2
         ,get_command/1
         ,get_view/1
+        ,get_view/2
         ,get_session/0
         ]).
 
@@ -44,6 +45,7 @@ get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
 get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrName}).
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
+get_view(Name, Owner)           -> gen_server:call(?MODULE, {get_view, Name, Owner}).
 get_session()                   -> gen_server:call(?MODULE, {get_session}).
             
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
@@ -130,6 +132,11 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
     Sess:run_cmd(insert, [ddView, NewView]),
     lager:debug("~p add_view inserted ~p", [?MODULE, NewView]),
     {reply, Id, State};
+handle_call({get_view, Name, Owner}, _From, #state{sess=Sess} = State) ->
+    lager:info("~p get_view ~p", [?MODULE, Name]),
+    {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
+    lager:info("~p view ~p", [?MODULE, View]),
+    {reply, View, State};
 handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
     lager:info("~p get_view ~p", [?MODULE, Name]),
     {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
@@ -187,7 +194,7 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
             lager:error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
-            UserId = element(2, Sess:run_cmd(admin_exec, [imem_account, get_by_name, [User]])),
+            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
             lager:info("~p login accepted user ~p with id = ~p", [?MODULE, User, UserId]),
             {reply, true, State#state{sess=Sess, owner=UserId}}
     end;

@@ -18,10 +18,11 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     gen_adapter:add_cmds_views(imem, [
-        %{"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
-        {"All Tables", "select name(qname) from all_tables"},
-        %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
+        {"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
         {"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}
+        %{"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)"}
+        %{"All Tables", "select name(qname) from all_tables"},
+        %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
     ]).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
@@ -203,8 +204,9 @@ process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = P
             IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
             lager:debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
             if IsView ->
-            {_,_,{#ddView{}=V,#ddCmd{}=C,_},Name} = R,
-                lager:debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
+            {_,_,{#ddView{name=Name,owner=Owner},#ddCmd{}=C,_},Name} = R,
+                V = dderl_dal:get_view(Name, Owner),
+                lager:info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
                 {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),
                 RespJson = jsx:encode([{<<"browse_data">>,
                     [{<<"content">>, list_to_binary(C#ddCmd.command)}

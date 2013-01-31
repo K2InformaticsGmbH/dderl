@@ -84,7 +84,7 @@ process_cmd({"save_view", ReqBody}, Priv) ->
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
     lager:info("save_view for ~p layout ~p", [Name, TableLay]),
     gen_adapter:add_cmds_views(imem, [{Name, Query, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
-    Res = jsx:encode([{<<"save_view">>,<<"Not Implemented, work in progress">>}]),
+    Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
     {Priv, binary_to_list(Res)};
 process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
