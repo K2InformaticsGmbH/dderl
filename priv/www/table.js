@@ -519,16 +519,18 @@ function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
                         rowFun(OpsFetchEnum.NEXT, rowNum, loadRows, [table, rowNum, OpsBufEnum.APPEND]);
                     }
                 }
-                if(isTail)
-                    table.data("finished")
-                        .removeClass("download_incomplete")
-                        .removeClass("download_complete")
-                        .addClass("downloading");
-                else if(!resp.finished)
-                    table.data("finished")
-                        .removeClass("downloading")
-                        .removeClass("download_complete")
-                        .addClass("download_incomplete");
+                if(undefined != table.data("finished")) {
+                    if(isTail)
+                        table.data("finished")
+                            .removeClass("download_incomplete")
+                            .removeClass("download_complete")
+                            .addClass("downloading");
+                    else if(!resp.finished)
+                        table.data("finished")
+                            .removeClass("downloading")
+                            .removeClass("download_complete")
+                            .addClass("download_incomplete");
+                }
 
                 console.log('get_buffer_max finished '+resp.finished+' tail '+isTail);
                 if(isTail)
@@ -629,21 +631,23 @@ function loadRows(table, rowNum, ops, rowObj)
         g.resizeCanvas();
     }
 
-    if(rowObj.done)
-        table.data("finished")
-            .removeClass("downloading")
-            .removeClass("download_incomplete")
-            .addClass("download_complete");
-    else
-        table.data("finished")
-            .removeClass("downloading")
-            .removeClass("download_complete")
-            .addClass("download_incomplete");
+    if(undefined != table.data("finished")) {
+        if(rowObj.done)
+            table.data("finished")
+                .removeClass("downloading")
+                .removeClass("download_incomplete")
+                .addClass("download_complete");
+        else
+            table.data("finished")
+                .removeClass("downloading")
+                .removeClass("download_complete")
+                .addClass("download_incomplete");
+
+        table.data("finished").val(rowObj.cache_max);
+    }
 
 //    if(d.length > 0)
 //        console.log('View Buf ('+ parseInt(d[0].id) + ', ' + parseInt(d[d.length-1].id) + ')');
-
-    table.data("finished").val(rowObj.cache_max);
 }
 
 ///////////////////////// SAMPLE-TEST ///////////////////////////////////////
