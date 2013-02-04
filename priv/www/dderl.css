@@ -18,6 +18,11 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .ui-widget textarea,
 .ui-widget button { font-family: 'Droid Sans Mono', sans-serif; }
 
+.ui-dialog .ui-dialog-titlebar {
+	padding: .1em 1em;
+	position: relative;
+}
+
 button.menubutton
 {
     font-size:13px;

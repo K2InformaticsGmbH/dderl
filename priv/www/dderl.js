@@ -64,12 +64,12 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 function show_qry_files()
 {
-    var tab = $('#main-content-tabs').data('curtab');
-    if(tab != null || tab != undefined) {
+//    var tab = $('#main-content-tabs').data('curtab');
+//    if(tab != null || tab != undefined) {
         ajax_post('/app/views', {}, null, null, function(context) {
             prepare_table(context.views);
         });
-    }
+//    }
 }
 
 function prepare_table(context)
@@ -208,10 +208,6 @@ function save_as_table()
     }).dialog("open");
 }
 
-$(window).resize(function() {
-    $('#db-tables-views').height($(window).height() - $('#menubar').height() - 2);
-});
-
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 
 var pageTitlePrefix = null;
@@ -243,3 +239,45 @@ $(document).ready(function() {
         console.log("Dinosours are extinct. Upgrade!");
     }
 });
+
+//////////////////////////////
+function show_dlg() {
+    var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
+    var table = $(
+ '<table style="width:100%;height:100%" cellpadding=0 cellspacing=0>'
++   '<tr>'
++       '<td>'
++           '<div id="inner" style="background:lightblue; width:100%; height:100%">hi</div>'
++       '</td>'
++   '</tr>'
++   '<tr>'
++       '<td style="height:27px;">'
++           '<div id="inner" style="background:lightgreen; width:100%; height:100%">lo</div>'
++       '</td>'
++   '</tr>'
++'</table>'
+)
+.appendTo(dlg);
+  
+    dlg.dialog({
+        autoOpen: false,
+        height: 100,
+        width: 100,
+        minHeight: 200,
+        resizable: true,
+        modal: false,
+        title: "Sample Dialog",
+        canMinimize:true,
+        canMaximize:true,
+        closeOnEscape: false,
+        open: function(e,ui) {},
+        focus: function(e,ui) {},
+        close: function() {
+            dlg.dialog('destroy');
+            dlg.remove();
+        }
+    })
+    .bind("dialogresize", function(event, ui) {})
+    .dialog("open");
+}
+//////////////////////////////

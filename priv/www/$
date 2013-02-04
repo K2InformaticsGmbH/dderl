@@ -1,0 +1,147 @@
+<html>
+<head>
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>SlickGrid in Dialog</title>
+
+    <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Droid+Sans+Mono' type='text/css'>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css">
+	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/slickgrid/slick.grid.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/slickgrid/controls/slick.pager.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/slickgrid/controls/slick.columnpicker.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
+    <link rel="stylesheet" href="dderl.css" type="text/css"/>
+</head>
+
+<body>
+    <div id="body" style="background:lightred; width:100%; height:100%"></div>
+
+    <script src="http://code.jquery.com/jquery-1.8.0.min.js"></script>
+    <script src="../static/jquery.event.drag-2.0.min.js"></script>
+	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.min.js"></script>
+
+    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="../static/slickgrid/slick.core.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrangeselector.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.rowselectionmodel.js"></script>
+    <script src="../static/slickgrid/slick.formatters.js"></script>
+    <script src="../static/slickgrid/slick.editors.js"></script>
+    <script src="../static/slickgrid/slick.grid.js"></script>
+    <script src="../static/slickgrid/slick.dataview.js"></script>
+    <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
+
+    <script language="javascript">
+        $(document).ready(function()
+        {
+            show_dlg();
+            var columns = prepareColumns(["column1", "column2"]);
+            loadTable($('#body'), columns);
+        });
+
+        function show_dlg() {
+            var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
+            var table = $(
+             '<table style="width:100%;height:100%" cellpadding=0 cellspacing=0>'
+            +   '<tr>'
+            +       '<td>'
+            +           '<div style="background:lightblue; width:100%; height:100%; overflow:auto">'
+            +               '<div id="body" style="background:lightred; width:100%; height:100%"></div>'
+            +           '</div>'
+            +       '</td>'
+            +   '</tr>'
+            +   '<tr>'
+            +       '<td style="height:27px;">'
+            +           '<div id="footer" style="background:lightgreen; width:100%; height:100%">lo</div>'
+            +       '</td>'
+            +   '</tr>'
+            +'</table>'
+            )
+            .appendTo(dlg);
+              
+            dlg.dialog({
+                autoOpen: false,
+                height: 100,
+                width: 100,
+                minHeight: 200,
+                resizable: true,
+                modal: false,
+                title: "Sample Dialog",
+                canMinimize:true,
+                canMaximize:true,
+                closeOnEscape: false,
+                open: function(e,ui) {},
+                focus: function(e,ui) {},
+                close: function() {
+                    dlg.dialog('destroy');
+                    dlg.remove();
+                }
+            })
+            .bind("dialogresize", function(event, ui) {})
+            .dialog("open");
+        }
+
+        function loadTable(node, columns)
+        {
+            var node_id = '#' + node.attr('id');
+            var options = {editable: true,
+                       enableAddRow: true,
+                enableColumnReorder: true,
+               enableCellNavigation: true,
+                 asyncEditorLoading: false,
+                           autoEdit: false,
+                             zIndex: 1300,
+                          rowHeight: 16};
+        
+            var grid = new Slick.Grid(node_id, [], columns, options);
+            grid.setSelectionModel(new Slick.CellRowColSelectionModel());
+
+            var data = new Array();
+            for(var i=0; i < 1000; ++i) {
+                data[data.length] = new Array(i,i+10);
+            }
+
+            grid.setData(data);
+            grid.updateRowCount();
+            grid.render();
+        }
+
+        function prepareColumns(headers) {
+            // Column Data
+            var header = new Array();
+            header[header.length] = {  id: "sel",
+                                     name: "",
+                                    field: "id",
+                                 behavior: "select",
+                                 cssClass: "cell-selection",
+                                 minWidth: 35,
+                                    width: 35,
+                      cannotTriggerInsert: true,
+                                resizable: true,
+                                 sortable: false,
+                               selectable: false};
+            for (i=0;i<headers.length;++i) {
+                var fldid = headers[i];
+                if(fldid == fldid.toLowerCase() && fldid == 'id')
+                    fldid = ('_'+fldid.toLowerCase());
+                header[header.length] = {  id: fldid,
+                                         name: headers[i],
+                                        field: fldid,
+                                       editor: Slick.Editors.Text,
+                                     minWidth: 20,
+                                        width: 10 * headers[i].length,
+                                    resizable: true,
+                                     sortable: false,
+                                   selectable: true};
+            }
+            return header;
+        }
+
+    </script>
+</body>
+
+</html>
+

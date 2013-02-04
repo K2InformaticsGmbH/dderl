@@ -1,4 +1,5 @@
 var BUFFER_SIZE = 200;
+var TOOLBAR_HEIGHT = 25;
 var OpsBufEnum = { APPEND  : 1
                  , PREPEND : 2
                  , REPLACE : 3
@@ -45,11 +46,29 @@ function renderTable(ctx) {
     $('#'+tableName+'_dlg').remove();
 
     var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
-    var table = $('<div id="'+tableName+'_grid" style="width:100%; height:'+(height-47)+'px;"></div>')
-                .appendTo($('<div style="border: 1px solid rgb(128, 128, 128); background:white"></div>')
-                .appendTo(dlg));
-    var title = $('<span>'+tabName+'</span>');
-  
+
+    var table = $('<div id="'+tableName+'_grid"></div>')
+    .css('position', 'absolute')
+    .css('top', '0')
+    .css('left', '0')
+    .css('right', '0')
+    .css('bottom', TOOLBAR_HEIGHT+'px')
+    .css('overflow', 'auto')
+    .css('border-style', 'solid')
+    .css('border-width', '1px')
+    .css('border-color', 'lightblue')
+    .appendTo(dlg);
+
+    var footer = $('<div></div>')
+    .css('height', TOOLBAR_HEIGHT+'px')
+    .css('position', 'absolute')
+    //.css('top', 'auto')
+    .css('left', '0')
+    .css('right', '0')
+    .css('bottom', '0')
+    .css('overflow', 'hidden')
+    .appendTo(dlg);
+
     dlg.dialog({
         autoOpen: false,
         height: height,
@@ -57,17 +76,11 @@ function renderTable(ctx) {
         minHeight: 200,
         resizable: true,
         modal: false,
-        title: title,
+        title: tabName,
         position: position,
         canMinimize:true,
         canMaximize:true,
         closeOnEscape: false,
-        open: function(e,ui) {
-            var tbls = 0;
-            if($('#tbl-opts').data('tbls') != undefined)
-                tbls = $('#tbl-opts').data('tbls');
-            $('#tbl-opts').data('tbls', ++tbls);
-        },
         focus: function(e,ui) {
             ctx.tblDlg = dlg;
             ctx.grid = table.data('grid');
@@ -86,26 +99,122 @@ function renderTable(ctx) {
             dlg.remove();
             if(destroyFun != null || destroyFun != undefined)
                 destroyFun();
-            var tbls = 0;
-            if($('#tbl-opts').data('tbls') != undefined)
-                tbls = $('#tbl-opts').data('tbls');
-            --tbls;
-            if(tbls <= 0)
-                $('#tbl-opts').hide();
-            $('#tbl-opts').data('tbls', (tbls < 0 ? 0 : tbls));
         }
     }).bind("dialogresize", function(event, ui) {
-        table.height(dlg.height()-27)
-             .width(dlg.width()-2)
-             .data("grid").resizeCanvas();
+        table.width(dlg.width()-2);
+        table.height(dlg.height()-TOOLBAR_HEIGHT-2);
+        //footer.css('top', dlg.height()-TOOLBAR_HEIGHT-10);
+        if(undefined != table.data('grid')) {
+            var grid = table.data('grid');
+            var data = grid.getData();
+            grid.setData(data);
+            grid.updateRowCount();
+            grid.render();
+            grid.resizeCanvas();
+        }
     }).dialog("open");
-
+  
     if(initFun != null || initFun != undefined)
         initFun(dlg);
 
     table.data("dlg", dlg);
 
-    addFooter(dlg, ctx, statement, table, countFun, rowFun);
+    append_to_footer(footer, gen_btn_elm({ txt : 'Reload'                           // Refresh
+                                         , icn : 'ui-icon-arrowrefresh-1-e'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     dlg.dialog("close");
+                                                     load_table(ctx);
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Move to first'                    // |<
+                                         , icn : 'ui-icon-seek-first'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Jump to previous page'            // <<
+                                         , icn : 'ui-icon-seek-prev'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     var d = table.data("grid").getData();
+                                                     var rownum = table.data("grid").getViewport().top;
+                                                     rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
+                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
+                                                     return false;
+                                                 }}));
+    var RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
+        .keypress(function(evt)
+            {
+                clearTimer(dlg);
+                if(evt.which == 13) {
+                    var rownum = parseInt($(this).val());
+                    if(rownum != NaN)
+                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
+                }
+                return true;
+            });
+    table.data("finished", RowJumpTextBox);
+    append_to_footer(footer, { elm : RowJumpTextBox                                 // RowJumpTextBox
+                             , icn : null
+                             , clk : function() { $(this).select(); }});
+    append_to_footer(footer, gen_btn_elm({ txt : 'Next page'                        // >
+                                         , icn : 'ui-icon-play'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     var d = table.data("grid").getData();
+                                                     var rownum = table.data("grid").getViewport().top;
+                                                     rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
+                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Jump to next page'                // >>
+                                         , icn : 'ui-icon-seek-next'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     var d = table.data("grid").getData();
+                                                     var rownum = table.data("grid").getViewport().top;
+                                                     rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
+                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.APPEND);
+                                                     table.data("grid").scrollRowIntoView(d.length);
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Move to end'                      // >|
+                                         , icn : 'ui-icon-seek-end'
+                                         , clk : function() {
+                                                     ajax_post('/app/tail', {tail: {statement : statement, start: true}}, null, null, function(data) {});
+                                                     table.data("grid").setData([]);
+                                                     table.data("grid").updateRowCount();
+                                                     table.data("grid").render();
+                                                     dlg.data('tail', true);
+                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                                     console.log('tail register timer ' + dlg.data('tail'));
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Commit changes'                   // Commit
+                                         , icn : 'ui-icon-check'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     var commitJson = {commit_rows: {statement : statement}};
+                                                     ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
+                                                                 if(data.commit_rows == "ok") {
+                                                                     console.log('commit success!');
+                                                                 }
+                                                                 else {
+                                                                     alert('commit failed!\n' + data.commit_rows);
+                                                                     console.log('commit failed!\n' + data.commit_rows);
+                                                                 }
+                                                             });
+                                                     return false;
+                                                 }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Discard changes'                  // Discard
+                                         , icn : 'ui-icon-close'
+                                         , clk : function() {
+                                                     clearTimer(dlg);
+                                                     return false;
+                                                 }}));
+
 
     table.data("finished")
         .removeClass("download_incomplete")
@@ -173,137 +282,15 @@ function clearTimer(dlg)
     dlg.data('tail', false);
 }
 
-function addFooter(dlg, context, statement, table, countFun, rowFun)
-{
-    var parent_node = dlg.parent();
-    RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
-        .click(function() { $(this).select(); });
-    var dlgMinWidth = 
-    $('<div style="position:absolute;bottom:0;width:300px;height:27px"></div>')
-    .append($('<button>Reload</button>')  // Refresh
-            .button({icons: {primary: "ui-icon-arrowrefresh-1-e"}, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                dlg.dialog("close");
-                load_table(context);
-                return false;
-            })
-           )
-    .append($('<button>Move to first</button>')  // |<
-            .button({icons: { primary: "ui-icon-seek-first" }, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
-                return false;
-            })
-           )
-    .append($('<button>Jump to previous page</button>')   // <<
-            .button({icons: { primary: "ui-icon-seek-prev" }, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                var d = table.data("grid").getData();
-                var rownum = table.data("grid").getViewport().top;
-                rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
-                return false;
-            })
-           )
-    .append(RowJumpTextBox
-            .keypress(function(evt)
-            {
-                clearTimer(dlg);
-                if(evt.which == 13) {
-                    var rownum = parseInt($(this).val());
-                    if(rownum != NaN)
-                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
-                }
-                return true;
-            })
-           )
-    .append($('<button>Next page</button>') // >
-            .button({icons: { primary: "ui-icon-play" }, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                var d = table.data("grid").getData();
-                var rownum = table.data("grid").getViewport().top;
-                rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
-                return false;
-            })
-           )
-    .append($('<button>Jump to next page</button>') // >>
-            .button({icons: {primary: "ui-icon-seek-next" }, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                var d = table.data("grid").getData();
-                var rownum = table.data("grid").getViewport().top;
-                rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.REPLACE);
-                return false;
-            })
-           )
-    .append($('<button>Move to end</button>') // >|
-            .button({icons: {primary: "ui-icon-seek-end" }, text: false})
-            .click(function()
-            {
-                ajax_post('/app/tail', {tail: {statement : statement, start: true}}, null, null, function(data) {});
-                table.data("grid").setData([]);
-                table.data("grid").updateRowCount();
-                table.data("grid").render();
-                dlg.data('tail', true);
-                rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
-                // console.log('tail cancel tail timer ' + dlg.data('tail'));
-                // clearTimer(dlg);
-                // var timerRefresh = setInterval(function() {
-                //     console.log('tail row');
-                //     if (undefined != table && undefined != table.data("grid")) {
-                //         var d = table.data("grid").getData();
-                //         var rownum = (d.length > 0
-                //                      ? parseInt(d[d.length - 1].id) + 1
-                //                      : 1);
-                //         rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
-                //     }
-                // }, 1000);
-                // dlg.data('tail', timerRefresh);
-                console.log('tail register timer ' + dlg.data('tail'));
-                return false;
-            })
-           )
-    .append($('<button>Commit changes</button>')  // Commit
-            .button({icons: {primary: "ui-icon-check"}, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                var commitJson = {commit_rows: {statement : statement}};
-                ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
-                            if(data.commit_rows == "ok") {
-                                console.log('commit success!');
-                            }
-                            else {
-                                alert('commit failed!\n' + data.commit_rows);
-                                console.log('commit failed!\n' + data.commit_rows);
-                            }
-                        });
-                return false;
-            })
-           )
-    .append($('<button>Discard changes</button>')  // Discard
-            .button({icons: {primary: "ui-icon-close"}, text: false})
-            .click(function()
-            {
-                clearTimer(dlg);
-                return false;
-            })
-           )
-    .appendTo(parent_node)
-    .width() + 20;
-    table.data("finished", RowJumpTextBox);
-    dlg.dialog( "option", "minWidth", dlgMinWidth);
+function gen_btn_elm(itm) {
+    itm['elm'] = $('<button>'+itm.txt+'</button>')
+        .button({icons: {primary: itm.icn}, text: false})
+        .click(itm.clk);
+    return itm;
+}
+
+function append_to_footer(footer, itm) {
+    footer.append(itm.elm);
 }
 
 function prepareColumns(headers) {
@@ -361,8 +348,8 @@ function loadTable(table, statement, columns)
                 ajax_post('/app/browse_data', {browse_data: { statement : statement,
                                                                     row : data.row,
                                                                     col : data.cell}}, null, null, function(ret) {
-                    var x = table.dialog('widget').position().left;
-                    var y = table.dialog('widget').position().top;
+//                    var x = table.dialog('widget').position().left;
+//                    var y = table.dialog('widget').position().top;
                     prepare_table(ret.browse_data);
                 });
             }
@@ -506,19 +493,20 @@ function add_context_menu(cm_id, options)
       });
 }
 
-var rowStatusCheckInterval = 500;
+var rowStatusCheckInterval = 1000;
 function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
 {
-    table.data("finished")
-        .removeClass("download_incomplete")
-        .removeClass("download_complete")
-        .addClass("downloading");
-
     function statusCheckFun() {
         console.log('status check tail '+(table.data('dlg') != undefined ? table.data('dlg').data('tail') : false));
+        if(table.data("finished") != undefined)
+            table.data("finished")
+                .removeClass("downloading")
+                .removeClass("download_incomplete")
+                .addClass("download_complete");
         if(jQuery.isFunction(countFun)) {
             countFun(function(resp) {
                 var isTail = (table.data('dlg') != undefined ? table.data('dlg').data('tail') : false);
+                if(isTail == undefined) isTail = false;
                 if(table.data("finished") != undefined)
                     table.data("finished").val(''+resp.count);
                 if(isTail && table.data("grid") != undefined) {
@@ -531,13 +519,26 @@ function rowFunWrapper(countFun, rowFun, table, opts, rowNum, loadFunOpts)
                         rowFun(OpsFetchEnum.NEXT, rowNum, loadRows, [table, rowNum, OpsBufEnum.APPEND]);
                     }
                 }
-                if((!resp.finished || isTail) && table.data("grid") != undefined)
+                if(isTail)
+                    table.data("finished")
+                        .removeClass("download_incomplete")
+                        .removeClass("download_complete")
+                        .addClass("downloading");
+                else if(!resp.finished)
+                    table.data("finished")
+                        .removeClass("downloading")
+                        .removeClass("download_complete")
+                        .addClass("download_incomplete");
+
+                console.log('get_buffer_max finished '+resp.finished+' tail '+isTail);
+                if(isTail)
                     setTimeout(statusCheckFun, rowStatusCheckInterval);
             });
         }
     };
     setTimeout(statusCheckFun, rowStatusCheckInterval);
     var isTail = (table.data('dlg') != undefined ? table.data('dlg').data('tail') : false);
+    if(isTail == undefined) isTail = false;
     if(!isTail)
         rowFun(opts, rowNum, loadRows, [table, rowNum, loadFunOpts]);
 }
@@ -566,13 +567,15 @@ function loadRows(table, rowNum, ops, rowObj)
         var row = {};
         for(var j=1;j<c.length;++j) {
             row[c[j].field] = rows[i][j];
-            if((c[j].width < 8 * rows[i][j].length) && first) {
-                c[j].width = 8 * rows[i][j].length;
+            var str = rows[i][j];
+            var fieldWidth = $('#txtlen').text(str).width()+30;
+            if(0 == d.length && c[j].width < fieldWidth) {
+                c[j].width = fieldWidth;
                 if (c[j].width > MAX_ROW_WIDTH)
                     c[j].width = MAX_ROW_WIDTH;
             }
         }
-        if (first)
+        if (0 == d.length)
             g.setColumns(c);
 
         row['id'] = rows[i][0];
@@ -622,7 +625,7 @@ function loadRows(table, rowNum, ops, rowObj)
         var dlgTop = dlg.dialog('widget').position().top;
         totHeight = (totHeight > $(window).height() - dlgTop - 10 ? $(window).height() - dlgTop - 10 : totHeight);
         dlg.height(totHeight + 4);
-        table.height(dlg.height()-27);
+        table.height(dlg.height() - TOOLBAR_HEIGHT);
         g.resizeCanvas();
     }
 

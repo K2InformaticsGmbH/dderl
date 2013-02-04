@@ -54,7 +54,6 @@ function render_table(tableNameList, query, owner)
     }
 
     $('<div id=' + dialogueId + '/>').appendTo(document.body);
-    if(dlgX == 0) dlgX = $('#db-tables-views').width();
     if(dlgY == 0) dlgY = $('#menubar').height();
     var qLink = $('<img id=state_'+tableName+' class="download_incomplete"/>&nbsp;'+
             '&nbsp;<a href="javascript:void(0)">'+owner+'.'+origTableName+'</a>'); //'@'+$(ip).val()+

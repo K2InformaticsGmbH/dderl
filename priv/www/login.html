@@ -5,14 +5,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>DDerl 1.0</title>
 
-    <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Droid+Sans+Mono' type='text/css'>
-	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
-	<link rel="stylesheet" href="../static/themes/base/jquery.ui.all.css">
+    <link rel='stylesheet' href='//fonts.googleapis.com/css?family=Droid+Sans+Mono' type='text/css'>
+    <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.0/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="//raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/slick.grid.css" type="text/css"/>
-    <link rel="stylesheet" href="../static/slickgrid/controls/slick.pager.css" type="text/css"/>
-    <link rel="stylesheet" href="../static/slickgrid/css/smoothness/jquery-ui-1.8.16.custom.css" type="text/css"/>
     <link rel="stylesheet" href="../static/slickgrid/controls/slick.columnpicker.css" type="text/css"/>
-    <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
+	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
     <link rel="stylesheet" href="dderl.css" type="text/css"/>
     <style>
 	#main-content-tabs { height: 97%; width: 99%; position:absolute; top: 25px; left:1px; }
@@ -23,10 +21,10 @@
 	.tabs-bottom .ui-tabs-nav li { margin-top: -2px !important; margin-bottom: 1px !important; border-top: none; border-bottom-width: 1px; }
 	.ui-tabs-selected { margin-top: -3px !important; }
 	</style>
-
 </head>
 
 <body>
+    <span id='txtlen' style='display:none;'></span>
     <div id="main-menu-bar">
         <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
         	<li><a href="#">File</a>
@@ -34,6 +32,7 @@
         			 <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Query Files</a></li>
         			 <li><a id="change-pswd-button" href="#" onclick='change_password()'>Change Password</a></li>
         			 <li><a id="show-logs-button" href="#" onclick='show_logs()'>Logs</a></li>
+        			 <li><a id="show-test-dlg-button" href="#" onclick='show_dlg()'>Test Dlg</a></li>
         		</ul>
         	</li>
         	<li><a id="connect-button" href="#" onclick='connect_dlg()'>New Connection</a></li>
@@ -51,45 +50,26 @@
             <a id="login-button" href="#" onclick='display_login()'></a>
         </div>
 	</div>
-    <div id="main-content-tabs" style="width:100%; height:95%">
-        <ul></ul>
-	</div>
 
-    <div id='db-tables-views' style="width: 100px; height: 100%; position: absolute; top: 30px; left: 0px; bottom: 0px; display: none; overflow: auto;">
-    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.0/jquery-ui.min.js"></script>
+    <script src="//raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.js"></script>
 
-	<script src="../static/jquery-1.7.2.min.js"></script>
-	<script src="../static/external/jquery.bgiframe-2.1.2.js"></script>
-	<script src="../static/ui/jquery.ui.core.js"></script>
-	<script src="../static/ui/jquery.ui.widget.js"></script>
-	<script src="../static/ui/jquery.ui.mouse.js"></script>
-	<script src="../static/ui/jquery.ui.button.js"></script>
-	<script src="../static/ui/jquery.ui.draggable.js"></script>
-	<script src="../static/ui/jquery.ui.position.js"></script>
-	<script src="../static/ui/jquery.ui.resizable.js"></script>
-	<script src="../static/ui/jquery.ui.dialog.js"></script>
-	<script src="../static/ui/jquery.ui.sortable.js"></script>
-    <script src="../static/ui/jquery.ui.autocomplete.js"></script>
-    <script src="../static/ui/jquery.ui.combobox.js"></script>
-	<script src="../static/ui/jquery.ui.tabs.js"></script>
-	<script src="../static/ui/jquery.effects.core.js"></script>
-    <script src="../static/jquery.event.drag-2.0.min.js"></script>
-    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
-    <script src="../static/firebugx.js"></script>
-    <script src="../static/slickgrid/slick.core.js"></script>
-    <script src="../static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
-    <script src="../static/slickgrid/plugins/slick.cellrangeselector.js"></script>
-    <script src="../static/slickgrid/plugins/slick.cellselectionmodel.js"></script>
-    <script src="../static/slickgrid/plugins/slick.rowselectionmodel.js"></script>
-    <script src="../static/slickgrid/slick.formatters.js"></script>
-    <script src="../static/slickgrid/slick.editors.js"></script>
-    <script src="../static/slickgrid/slick.grid.js"></script>
-    <script src="../static/slickgrid/slick.dataview.js"></script>
-    <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
-    <script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script>
-    <script src="../static/jquery.contextMenu-1.01/jquery.contextMenu.js"></script>
-	<script src="../static/dropdown/jquery.dropdownPlain.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/lib/jquery.event.drag-2.0.min.js"></script>
 	<script src="../static/jquery.jec.js"></script>
+
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.core.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.grid.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.formatters.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.editors.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.dataview.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellcopymanager.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangedecorator.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangeselector.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellselectionmodel.js"></script>
+    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.rowselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
 
 	<script src="md5.js"></script>
 	<script src="dderl.js"></script>

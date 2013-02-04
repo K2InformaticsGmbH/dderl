@@ -1,0 +1,242 @@
+<html>
+<head>
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>SlickGrid in Dialog</title>
+
+    <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Droid+Sans+Mono' type='text/css'>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.css" type="text/css"/>
+    <link rel="stylesheet" href="https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.pager.css" type="text/css"/>
+    <link rel="stylesheet" href="https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.css" type="text/css"/>
+	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/jquery.contextMenu-1.01/jquery.contextMenu.css" type="text/css"/>
+    <link rel="stylesheet" href="dderl.css" type="text/css"/>
+</head>
+
+<body>
+    <span id='txtlen' style='display:none;'></span>
+    <script src="http://code.jquery.com/jquery-1.8.0.min.js"></script>
+    <script src="../static/jquery.event.drag-2.0.min.js"></script>
+	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.min.js"></script>
+
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.core.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.formatters.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.editors.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.dataview.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellcopymanager.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangedecorator.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangeselector.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellselectionmodel.js"></script>
+    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.rowselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.columnpicker.js"></script>
+
+    <script language="javascript">
+        $(document).ready(function()
+        {
+            show_dlg();
+            var columns = new Array();
+            for(var cl = 10; cl > 0; --cl)
+               columns[columns.length] = ("col" + cl);
+            columns = prepareColumns(columns);
+            loadTable($('#body'), columns);
+        });
+
+        function show_dlg() {
+            var TOOLBAR_HEIGHT = 26;
+            var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
+            var table = $('<div id="body"></div>')
+            .css('position', 'absolute')
+            .css('top', '0')
+            .css('left', '0')
+            .css('right', '0')
+            .css('bottom', TOOLBAR_HEIGHT+'px')
+            .css('overflow', 'auto')
+            .css('border-style', 'solid')
+            .css('border-width', '1px')
+            .css('border-color', 'lightblue')
+            .appendTo(dlg);
+            var footer = $('<div></div>')
+            .css('height', TOOLBAR_HEIGHT+'px')
+            .css('position', 'absolute')
+            //.css('top', 'auto')
+            .css('left', '0')
+            .css('right', '0')
+            .css('bottom', '0')
+            .css('overflow', 'hidden')
+            .appendTo(dlg);
+
+            dlg.dialog({
+                autoOpen: false,
+                height: 200,
+                width: 200,
+                minHeight: 200,
+                resizable: true,
+                modal: false,
+                title: "Sample Dialog",
+                canMinimize:true,
+                canMaximize:true,
+                closeOnEscape: false,
+                open: function(e,ui) {},
+                focus: function(e,ui) {},
+                close: function() {
+                    dlg.dialog('destroy');
+                    dlg.remove();
+                }
+            })
+            .bind("dialogresize", function(event, ui) 
+            {
+                table.width(dlg.width()-2);
+                table.height(dlg.height()-TOOLBAR_HEIGHT-2);
+                //footer.css('top', dlg.height()-TOOLBAR_HEIGHT-10);
+                if(undefined != table.data('grid')) {
+                    var grid = table.data('grid');
+                    var data = grid.getData();
+                    grid.setData(data);
+                    grid.updateRowCount();
+                    grid.render();
+                    grid.resizeCanvas();
+                }
+            })
+            .dialog("open");
+
+            append_to_footer(footer, gen_btn_elm({ txt : 'Reload'                           // Refresh
+                                                 , icn : 'ui-icon-arrowrefresh-1-e'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Move to first'                    // |<
+                                                 , icn : 'ui-icon-seek-first'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Jump to previous page'            // <<
+                                                 , icn : 'ui-icon-seek-prev'
+                                                 , clk : function() {} }));
+            RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">');
+            append_to_footer(footer, { elm : RowJumpTextBox                                 // RowJumpTextBox
+                                     , icn : null
+                                     , clk : function() { $(this).select(); }});
+            append_to_footer(footer, gen_btn_elm({ txt : 'Next page'                        // >
+                                                 , icn : 'ui-icon-play'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Jump to next page'                // >>
+                                                 , icn : 'ui-icon-seek-next'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Move to end'                      // >|
+                                                 , icn : 'ui-icon-seek-end'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Commit changes'                   // Commit
+                                                 , icn : 'ui-icon-check'
+                                                 , clk : function() {} }));
+            append_to_footer(footer, gen_btn_elm({ txt : 'Discard changes'                  // Discard
+                                                 , icn : 'ui-icon-close'
+                                                 , clk : function() {} }));
+
+        }
+
+        function gen_btn_elm(itm) {
+            itm['elm'] = $('<button>'+itm.txt+'</button>')
+                .button({icons: {primary: itm.icn}, text: false})
+                .click(itm.clk);
+            return itm;
+        }
+
+        function append_to_footer(footer, itm) {
+            footer.append(itm.elm);
+        }
+
+        var MAX_ROW_WIDTH = 1000;
+        function loadTable(node, columns)
+        {
+            var node_id = '#' + node.attr('id');
+            var options = {editable: true,
+                       enableAddRow: true,
+                enableColumnReorder: true,
+               enableCellNavigation: true,
+                 asyncEditorLoading: false,
+                           autoEdit: false,
+                             zIndex: 1300,
+                          rowHeight: 20};
+        
+            var grid = new Slick.Grid(node_id, [], columns, options);
+            grid.setSelectionModel(new Slick.CellRowColSelectionModel());
+
+            var fntFamily = $(node_id).find("*").css('font-family');
+            var fntSize   = $(node_id).find("*").css('font-size');
+            $('#txtlen')
+                .css('font-family', fntFamily)
+                .css('font-size', fntSize);
+
+            var data = new Array();
+            var c = grid.getColumns();
+            for(var i=0; i < 300; ++i) {
+                var row = {};
+                row['id'] = i;
+                for(var j=1; j < columns.length; ++j) {
+                    var str = randomString(j*5);
+                    var fieldWidth = $('#txtlen').text(str).width()+25;
+                    if(c[j].width < fieldWidth) {
+                        c[j].width = fieldWidth;
+                        if (c[j].width > MAX_ROW_WIDTH)
+                            c[j].width = MAX_ROW_WIDTH;
+                    }
+                    //console.log(' - ' + fieldWidth);
+                    row[columns[j].field] = str;
+                }
+                data[data.length] = row;
+            }
+
+            grid.setColumns(c);
+            grid.setData(data);
+            grid.updateRowCount();
+            grid.render();
+
+            node.data('grid',grid);
+        }
+
+        function randomString(idx) {
+        	var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz";
+        	var string_length = 8;
+        	var randomstring = '';
+        	for (var i=0; i<Math.floor((Math.random()*idx)+1); i++) {
+        		var rnum = Math.floor(Math.random() * chars.length);
+        		randomstring += chars.substring(rnum,rnum+1);
+        	}
+        	return randomstring;
+        }
+        
+        function prepareColumns(headers) {
+            // Column Data
+            var header = new Array();
+            header[header.length] = {  id: "sel",
+                                     name: "",
+                                    field: "id",
+                                 behavior: "select",
+                                 cssClass: "cell-selection",
+                                 minWidth: 35,
+                                    width: 35,
+                      cannotTriggerInsert: true,
+                                resizable: true,
+                                 sortable: false,
+                               selectable: false};
+            for (i=0;i<headers.length;++i) {
+                var fldid = headers[i];
+                if(fldid == fldid.toLowerCase() && fldid == 'id')
+                    fldid = ('_'+fldid.toLowerCase());
+                header[header.length] = {  id: fldid,
+                                         name: headers[i],
+                                        field: fldid,
+                                       editor: Slick.Editors.Text,
+                                     minWidth: 20,
+                                        width: 10 * headers[i].length,
+                                    resizable: true,
+                                     sortable: false,
+                                   selectable: true};
+            }
+            return header;
+        }
+
+    </script>
+</body>
+
+</html>
+

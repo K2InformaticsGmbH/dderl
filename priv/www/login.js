@@ -3,7 +3,6 @@ function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
         $('#login-button').html('');
-        $("#db-tables-views").html('');
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
     }

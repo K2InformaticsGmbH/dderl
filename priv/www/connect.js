@@ -161,22 +161,22 @@ function connect_dlg()
                     if(data.connect == "ok") {
                         document.title = name;
                         var nm = name.replace(/\s/, '_');
-                        if($('#main-content-tabs #page_'+nm).length < 1) {
-                            $('#main-content-tabs')
-                            .append($('<div id="page_'+nm+'"></div>').addClass('sub-tabs'))
-                            .tabs('add', '#page_'+nm, name);
-                            tabIdx = 0;
-                        } else if($('#main-content-tabs #page_'+nm+tabIdx).length < 1) {
-                            $('#main-content-tabs')
-                            .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
-                            .tabs('add', '#page_'+nm+tabIdx, name);
-                        } else {
-                            ++tabIdx;
-                            $('#main-content-tabs')
-                            .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
-                            .tabs('add', '#page_'+nm+tabIdx, name);
-                        }
-                        $('#main-content-tabs').data('curtab', $('#main-content-tabs').tabs('select', 0));
+                        //if($('#main-content-tabs #page_'+nm).length < 1) {
+                        //    $('#main-content-tabs')
+                        //    .append($('<div id="page_'+nm+'"></div>').addClass('sub-tabs'))
+                        //    .tabs('add', '#page_'+nm, name);
+                        //    tabIdx = 0;
+                        //} else if($('#main-content-tabs #page_'+nm+tabIdx).length < 1) {
+                        //    $('#main-content-tabs')
+                        //    .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
+                        //    .tabs('add', '#page_'+nm+tabIdx, name);
+                        //} else {
+                        //    ++tabIdx;
+                        //    $('#main-content-tabs')
+                        //    .append($('<div id="page_'+nm+tabIdx+'"></div>').addClass('sub-tabs'))
+                        //    .tabs('add', '#page_'+nm+tabIdx, name);
+                        //}
+                        //$('#main-content-tabs').data('curtab', $('#main-content-tabs').tabs('select', 0));
                         Dlg.dialog("close");
                         show_qry_files();
                     }
