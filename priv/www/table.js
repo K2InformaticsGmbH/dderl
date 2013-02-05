@@ -1,5 +1,5 @@
 var BUFFER_SIZE = 200;
-var TOOLBAR_HEIGHT = 25;
+var TOOLBAR_HEIGHT = 27;
 var OpsBufEnum = { APPEND  : 1
                  , PREPEND : 2
                  , REPLACE : 3
@@ -45,7 +45,8 @@ function renderTable(ctx) {
     $('#'+tableName+'_grid_title_context').remove();
     $('#'+tableName+'_dlg').remove();
 
-    var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>').appendTo(document.body);
+    var dlg = $('<div id="'+tableName+'_dlg" style="margin:0; padding:0;"></div>')
+        .appendTo(document.body);
 
     var table = $('<div id="'+tableName+'_grid"></div>')
     .css('position', 'absolute')
@@ -62,6 +63,7 @@ function renderTable(ctx) {
     var footer = $('<div></div>')
     .css('height', TOOLBAR_HEIGHT+'px')
     .css('position', 'absolute')
+    .css('background-color', 'transparent')
     //.css('top', 'auto')
     .css('left', '0')
     .css('right', '0')
@@ -215,6 +217,7 @@ function renderTable(ctx) {
                                                      return false;
                                                  }}));
 
+    footer.buttonset();
 
     table.data("finished")
         .removeClass("download_incomplete")
