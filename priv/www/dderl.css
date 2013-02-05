@@ -92,6 +92,9 @@ button.menubutton
     background-color:#AFFFAF;
 }
 
+/* 
+ * SlickGrid style extensions and overrides
+ */
 .slick-row.selected .cell-selection {
   background-color: transparent; /* show default selected row background */
 }
@@ -118,16 +121,11 @@ button.menubutton
     padding-bottom: 2px;
 }
 
-/*
-.slick-header-columns, .slick-headerrow-columns {
-  width: 999999px;
-}
-
 .slick-cell, .slick-headerrow-column {
   border: none;
   border-right: none;
 }
-*/
+/*********************************************/
 
 /* .ui-button { margin-left: -1px; } */
 .ui-button-icon-only .ui-button-text { padding: 0.35em; }
