@@ -1,12 +1,13 @@
 @import url('https://fonts.googleapis.com/css?family=Droid+Sans+Mono');
 @import url('https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.0/themes/base/jquery-ui.css');
-@import url('https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.css');
-@import url('https://raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.css');
-/*
-@import url('https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.css');
-*/
-@import url('../static/slick.grid.css');
-@import url('../static/dropdown/dropdown.css');
+/*@import url('https://raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.css');*/
+@import url('jquery.contextMenu.css');
+/* @import url('https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.css'); */
+@import url('slick.grid.css');
+/* @import url('https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.css'); */
+@import url('slick.columnpicker.css');
+
+@import url('../dropdown/dropdown.css');
 
 body { font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }
@@ -161,27 +162,27 @@ button.menubutton
 
 .ui-icon,
 .ui-widget-content .ui-icon {
-	background-image: url(../static/images/ui-icons_222222_256x240.png);
+	background-image: url(../images/ui-icons_222222_256x240.png);
 }
 .ui-widget-header .ui-icon {
-	background-image: url(../static/images/ui-icons_222222_256x240.png);
+	background-image: url(../images/ui-icons_222222_256x240.png);
 }
 .ui-state-default .ui-icon {
-	background-image: url(../static/images/ui-icons_888888_256x240.png);
+	background-image: url(../images/ui-icons_888888_256x240.png);
 }
 .ui-state-hover .ui-icon,
 .ui-state-focus .ui-icon {
-	background-image: url(../static/images/ui-icons_454545_256x240.png);
+	background-image: url(../images/ui-icons_454545_256x240.png);
 }
 .ui-state-active .ui-icon {
-	background-image: url(../static/images/ui-icons_454545_256x240.png);
+	background-image: url(../images/ui-icons_454545_256x240.png);
 }
 .ui-state-highlight .ui-icon {
-	background-image: url(../static/images/ui-icons_2e83ff_256x240.png);
+	background-image: url(../images/ui-icons_2e83ff_256x240.png);
 }
 .ui-state-error .ui-icon,
 .ui-state-error-text .ui-icon {
-	background-image: url(../static/images/ui-icons_cd0a0a_256x240.png);
+	background-image: url(../images/ui-icons_cd0a0a_256x240.png);
 }
 
 /* positioning */
