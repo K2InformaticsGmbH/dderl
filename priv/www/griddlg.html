@@ -35,6 +35,7 @@
     <script src="https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.js"></script>
 
     <script language="javascript">
+        var TOOLBAR_HEIGHT = 23;
         $(document).ready(function()
         {
             show_dlg();
@@ -46,7 +47,6 @@
         });
 
         function show_dlg() {
-            var TOOLBAR_HEIGHT = 27;
             var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
             var table = $('<div id="body"></div>')
             .css('position', 'absolute')
@@ -59,6 +59,7 @@
             .css('border-width', '1px')
             .css('border-color', 'lightblue')
             .appendTo(dlg);
+
             var footer = $('<div></div>')
             .css('height', TOOLBAR_HEIGHT+'px')
             .css('position', 'absolute')
@@ -103,56 +104,68 @@
             })
             .dialog("open");
 
-            append_to_footer(footer, gen_btn_elm({ txt : 'Reload'                           // Refresh
-                                                 , icn : 'ui-icon-arrowrefresh-1-e'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Move to first'                    // |<
-                                                 , icn : 'ui-icon-seek-first'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Jump to previous page'            // <<
-                                                 , icn : 'ui-icon-seek-prev'
-                                                 , clk : function() {} }));
-            RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">');
-            append_to_footer(footer, { elm : RowJumpTextBox                                 // RowJumpTextBox
-                                     , icn : null
-                                     , clk : function() { $(this).select(); }});
-            append_to_footer(footer, { elm : $(
-                                          '<div>'
-                                        + '    <button id="rerun" picon="ui-icon-arrowthickstop-1-e">Run last action</button>'
-                                        + '    <div style="display:none">'
-                                        + '        <button picon="ui-icon-seek-end">Prev</button>'
-                                        + '        <button picon="ui-icon-seek-previous">Test</button>'
-                                        + '        <button picon="ui-icon-seek-first">First</button>'
-                                        + '    </div>'
-                                        + '</div>'
-                                    )
-                                }
-            );
-            $('#rerun').extend_btn();
 
-            append_to_footer(footer, gen_btn_elm({ txt : 'Next page'                        // >
-                                                 , icn : 'ui-icon-play'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Jump to next page'                // >>
-                                                 , icn : 'ui-icon-seek-next'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Move to end'                      // >|
-                                                 , icn : 'ui-icon-seek-end'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Commit changes'                   // Commit
-                                                 , icn : 'ui-icon-check'
-                                                 , clk : function() {} }));
-            append_to_footer(footer, gen_btn_elm({ txt : 'Discard changes'                  // Discard
-                                                 , icn : 'ui-icon-close'
-                                                 , clk : function() {} }));
 
-            footer.buttonset();
+            var rld = gen_btn_elm({ txt : 'Reload'                                              // Refresh
+                                  , icn : 'ui-icon-arrowrefresh-1-e'
+                                  , clk : function() {} });
+            var m2f = gen_btn_elm({ txt : 'Move to first'                                       // |<
+                                  , icn : 'ui-icon-seek-first'
+                                  , clk : function() {} });
+            var j2p = gen_btn_elm({ txt : 'Jump to previous page'                               // <<
+                                  , icn : 'ui-icon-seek-prev'
+                                  , clk : function() {} });
+                                                                                                // RowJumpTextBox
+            var rjtb = { elm : $('<input type="text" size=10 class="download_incomplete">')
+                             .css('margin-bottom', '0')
+                       , icn : null
+                       , clk : function() { $(this).select(); }};
+            var m2np = gen_btn_elm({ txt : 'Next page', icn : 'ui-icon-play'                    // >
+                                   , clk : function() {} })
+            var m2e = gen_btn_elm({ txt : 'Move to end', icn : 'ui-icon-seek-end'               // >|
+                                  , clk : function() {} });
+            var m2et = gen_btn_elm({ txt : 'Move to end then Tail', icn : 'ui-icon-fetch-tail'  // Move to end then Tail
+                                   , clk : function() {} });
+            var s2et = gen_btn_elm({ txt : 'Skip to end and Tail', icn : 'ui-icon-fetch-only'   // Skip to end and Tail
+                                   , clk : function() {} });
+            var cmt = gen_btn_elm({ txt : 'Commit changes', icn : 'ui-icon-check'              // Commit
+                                  , clk : function() {} });
+            var dis = gen_btn_elm({ txt : 'Discard changes', icn : 'ui-icon-close'             // Discard
+                                  , clk : function() {} });
+                     
+            var j2np = gen_btn_elm({ txt : 'Jump to next page', icn : 'ui-icon-seek-next'      // >>
+                                   , clk : function() {
+                                        cmt.elm.toggle();
+                                        dis.elm.toggle();
+                                        m2e.elm.toggle();
+                                        m2et.elm.toggle();
+                                        s2et.elm.toggle();
+                                    }
+                                   });
 
+            append_to_footer(footer, rld);
+            append_to_footer(footer, m2f);
+            append_to_footer(footer, j2p);
+            append_to_footer(footer, rjtb);
+            append_to_footer(footer, m2np);
+            append_to_footer(footer, j2np);
+            append_to_footer(footer, m2e);
+            append_to_footer(footer, m2et);
+            append_to_footer(footer, s2et);
+            append_to_footer(footer, cmt);
+            append_to_footer(footer, dis);
+
+            footer.buttonset().css('height', TOOLBAR_HEIGHT+'px');
+
+            cmt.elm.hide();
+            dis.elm.hide();
         }
 
         function gen_btn_elm(itm) {
-            itm['elm'] = $('<button>'+itm.txt+'</button>')
+        itm['elm'] =
+                $('<button>'+itm.txt+'</button>')
                 .button({icons: {primary: itm.icn}, text: false})
+                .css('height', (TOOLBAR_HEIGHT - 4) +'px')
                 .click(itm.clk);
             return itm;
         }

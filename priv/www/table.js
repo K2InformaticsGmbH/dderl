@@ -1,5 +1,5 @@
 var BUFFER_SIZE = 200;
-var TOOLBAR_HEIGHT = 27;
+var TOOLBAR_HEIGHT = 23;
 var OpsBufEnum = { APPEND  : 1
                  , PREPEND : 2
                  , REPLACE : 3
@@ -147,6 +147,7 @@ function renderTable(ctx) {
                                                      return false;
                                                  }}));
     var RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
+        .css('float','bottom')
         .keypress(function(evt)
             {
                 clearTimer(dlg);
@@ -194,6 +195,12 @@ function renderTable(ctx) {
                                                      console.log('tail register timer ' + dlg.data('tail'));
                                                      return false;
                                                  }}));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Move to end then Tail'            // Move to end then Tail
+                                         , icn : 'ui-icon-fetch-tail'
+                                         , clk : function() {} }));
+    append_to_footer(footer, gen_btn_elm({ txt : 'Skip to end and Tail'             // Skip to end and Tail
+                                         , icn : 'ui-icon-fetch-only'
+                                         , clk : function() {} }));
     append_to_footer(footer, gen_btn_elm({ txt : 'Commit changes'                   // Commit
                                          , icn : 'ui-icon-check'
                                          , clk : function() {
@@ -217,7 +224,7 @@ function renderTable(ctx) {
                                                      return false;
                                                  }}));
 
-    footer.buttonset();
+    footer.buttonset().css('height', TOOLBAR_HEIGHT+'px');
 
     table.data("finished")
         .removeClass("download_incomplete")
@@ -288,6 +295,7 @@ function clearTimer(dlg)
 function gen_btn_elm(itm) {
     itm['elm'] = $('<button>'+itm.txt+'</button>')
         .button({icons: {primary: itm.icn}, text: false})
+        .css('height', (TOOLBAR_HEIGHT - 4) +'px')
         .click(itm.clk);
     return itm;
 }
