@@ -150,7 +150,35 @@
                 if (typeof data.column.id != "undefined") {
                     var selection = rangesToRows(_ranges);
                     var col = _grid.getColumnIndex(data.column.id);
-                    setSelectedRanges([new Slick.Range(0, col, _grid.getDataLength() - 1, col)]);
+                    var maxRow = _grid.getDataLength() - 1;
+
+                    if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
+                        setSelectedRanges([new Slick.Range(0, col, maxRow, col)]);
+                    } else {
+                        if(col === 0) {
+                        } else {
+                            var matches = $.grep(_ranges, function(o,i) {
+                                return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
+                            });
+                            if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
+                                _ranges.push(new Slick.Range(0, col, maxRow, col));
+                            } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
+                                _ranges = $.grep(_ranges, function (o, i) {
+                                    return !(col === _ranges[i].fromCell || col === _ranges[i].toCell);
+                                });
+                            } else if (e.shiftKey) {
+                                if(_ranges.length === 1) {
+                                    var frmRow = _ranges[0].fromRow;
+                                    var frmCell = _ranges[0].fromCell;
+                                    _ranges[0] = new Slick.Range(frmRow, frmCell, maxRow, col);
+                                } else {
+                                    _ranges = [];
+                                    _ranges.push(new Slick.Range(0, col, maxRow, col));
+                                }
+                            }
+                            setSelectedRanges(_ranges);
+                        }
+                    }
                 }
             }
         }
@@ -198,18 +226,16 @@
                 return false;
             }
             else if (_grid.getOptions().multiSelect) {
-                var selection = rangesToRows(_ranges);
-                var idx = $.inArray(cell.row, selection);
-
                 if(cell.cell === 0) {
+                    var selection = rangesToRows(_ranges);
+                    var idx = $.inArray(cell.row, selection);
+
                     if (idx === -1 && (e.ctrlKey || e.metaKey)) {
                         selection.push(cell.row);
-                        _grid.setActiveCell(cell.row, cell.cell);
                     } else if (idx !== -1 && (e.ctrlKey || e.metaKey)) {
                         selection = $.grep(selection, function (o, i) {
                             return (o !== cell.row);
                         });
-                        _grid.setActiveCell(cell.row, cell.cell);
                     } else if (selection.length && e.shiftKey) {
                         var last = selection.pop();
                         var from = Math.min(cell.row, last);
@@ -221,14 +247,40 @@
                             }
                         }
                         selection.push(last);
+                    }
+                    _ranges = rowsToRanges(selection);
+                } else {
+                    var matches = $.grep(_ranges, function(o,i) {
+                        return ((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell)
+                                ||
+                                (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
+                    });
+                    if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
+                        _ranges.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
+                    } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
+                        _ranges = $.grep(_ranges, function (o, i) {
+                            return !((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell)
+                                     ||
+                                     (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
+                        });
+                    } else if (e.shiftKey) {
+                        if(_ranges.length === 1) {
+                            var frmRow = _ranges[0].fromRow;
+                            var frmCell = _ranges[0].fromCell;
+                            _ranges[0] = new Slick.Range(frmRow, frmCell, cell.row, cell.cell);
+                        } else {
+                            _ranges = [];
+                            _ranges.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
+                        }
+                        selection.push(last);
                         _grid.setActiveCell(cell.row, cell.cell);
                     }
                 }
 
-                _ranges = rowsToRanges(selection);
+                _grid.setActiveCell(cell.row, cell.cell);
                 setSelectedRanges(_ranges);
-                e.stopImmediatePropagation();
 
+                e.stopImmediatePropagation();
                 return true;
             }
         }
