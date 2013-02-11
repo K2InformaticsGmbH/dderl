@@ -6,12 +6,6 @@
 
 @import url('../dropdown/dropdown.css');
 
-/* @import url('https://fonts.googleapis.com/css?family=Droid+Sans+Mono'); */
-/*@import url('https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.0/themes/base/jquery-ui.css');*/
-/*@import url('https://raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.css');*/
-/* @import url('https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.css'); */
-/* @import url('https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.css'); */
-
 body { font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }
 fieldset { padding:0; border:0; margin-top:25px; }
