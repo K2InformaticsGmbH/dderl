@@ -1,5 +1,5 @@
 var BUFFER_SIZE = 200;
-var TOOLBAR_HEIGHT = 23;
+var TOOLBAR_HEIGHT = 20;
 var OpsBufEnum = { APPEND  : 1
                  , PREPEND : 2
                  , REPLACE : 3
@@ -19,7 +19,8 @@ if(Object.hasOwnProperty('freeze')) {
     Object.freeze(OpsFetchEnum);
 }
 
-function renderTable(ctx) {
+function renderTable(ctx)
+{
     var tabName = ctx.name;
     var statement = ctx.statement;
     var columns = ctx.columns;
@@ -96,7 +97,7 @@ function renderTable(ctx) {
             $('#'+tableName+'_grid_title_context').remove();
 
             console.log('dlg close cancel tail timer ' + dlg.data('tail'));
-            clearTimer(dlg);
+            clearTimer(table);
             dlg.dialog('destroy');
             dlg.remove();
             if(destroyFun != null || destroyFun != undefined)
@@ -121,110 +122,165 @@ function renderTable(ctx) {
 
     table.data("dlg", dlg);
 
-    append_to_footer(footer, gen_btn_elm({ txt : 'Reload'                           // Refresh
-                                         , icn : 'ui-icon-arrowrefresh-1-e'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     dlg.dialog("close");
-                                                     load_table(ctx);
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Move to first'                    // |<
-                                         , icn : 'ui-icon-seek-first'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Jump to previous page'            // <<
-                                         , icn : 'ui-icon-seek-prev'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     var d = table.data("grid").getData();
-                                                     var rownum = table.data("grid").getViewport().top;
-                                                     rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
-                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
-                                                     return false;
-                                                 }}));
-    var RowJumpTextBox = $('<input type="text" size=10 class="download_incomplete">')
-        .css('float','bottom')
-        .keypress(function(evt)
-            {
-                clearTimer(dlg);
-                if(evt.which == 13) {
-                    var rownum = parseInt($(this).val());
-                    if(rownum != NaN)
-                        rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
-                }
-                return true;
-            });
-    table.data("finished", RowJumpTextBox);
-    append_to_footer(footer, { elm : RowJumpTextBox                                 // RowJumpTextBox
-                             , icn : null
-                             , clk : function() { $(this).select(); }});
-    append_to_footer(footer, gen_btn_elm({ txt : 'Next page'                        // >
-                                         , icn : 'ui-icon-play'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     var d = table.data("grid").getData();
-                                                     var rownum = table.data("grid").getViewport().top;
-                                                     rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
-                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Jump to next page'                // >>
-                                         , icn : 'ui-icon-seek-next'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     var d = table.data("grid").getData();
-                                                     var rownum = table.data("grid").getViewport().top;
-                                                     rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
-                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.APPEND);
-                                                     table.data("grid").scrollRowIntoView(d.length);
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Move to end'                      // >|
-                                         , icn : 'ui-icon-seek-end'
-                                         , clk : function() {
-                                                     ajax_post('/app/tail', {tail: {statement : statement, start: true}}, null, null, function(data) {});
-                                                     table.data("grid").setData([]);
-                                                     table.data("grid").updateRowCount();
-                                                     table.data("grid").render();
-                                                     dlg.data('tail', true);
-                                                     rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
-                                                     console.log('tail register timer ' + dlg.data('tail'));
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Move to end then Tail'            // Move to end then Tail
-                                         , icn : 'ui-icon-fetch-tail'
-                                         , clk : function() {} }));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Skip to end and Tail'             // Skip to end and Tail
-                                         , icn : 'ui-icon-fetch-only'
-                                         , clk : function() {} }));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Commit changes'                   // Commit
-                                         , icn : 'ui-icon-check'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     var commitJson = {commit_rows: {statement : statement}};
-                                                     ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
-                                                                 if(data.commit_rows == "ok") {
-                                                                     console.log('commit success!');
-                                                                 }
-                                                                 else {
-                                                                     alert('commit failed!\n' + data.commit_rows);
-                                                                     console.log('commit failed!\n' + data.commit_rows);
-                                                                 }
-                                                             });
-                                                     return false;
-                                                 }}));
-    append_to_footer(footer, gen_btn_elm({ txt : 'Discard changes'                  // Discard
-                                         , icn : 'ui-icon-close'
-                                         , clk : function() {
-                                                     clearTimer(dlg);
-                                                     return false;
-                                                 }}));
+    var rld = gen_btn_elm({ txt : 'Reload'                                              // Refresh
+                          , icn : 'ui-icon-arrowrefresh-1-e'
+                          , clk : function() {
+                                      clearTimer(table);
+                                      dlg.dialog("close");
+                                      load_table(ctx);
+                                      return false;
+                                  } });
+    var m2f = gen_btn_elm({ txt : 'Move to first'                                       // |<
+                          , icn : 'ui-icon-seek-first'
+                          , clk : function() {
+                                      clearTimer(table);
+                                      rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                      return false;
+                                  } });
+    var j2p = gen_btn_elm({ txt : 'Jump to previous page'                               // <<
+                          , icn : 'ui-icon-seek-prev'
+                          , clk : function() {
+                                      clearTimer(table);
+                                      var d = table.data("grid").getData();
+                                      var rownum = table.data("grid").getViewport().top;
+                                      rownum = (d.length > rownum ? Math.floor(parseInt(d[rownum].id) / 2) : null);
+                                      rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 100 ? 1 : rownum), OpsBufEnum.REPLACE);
+                                      return false;
+                                  } });
+    var rjtb = { elm : $('<input type="text" size=10 class="download_incomplete">')
+                     .css('margin-bottom', '0px')
+                     .css('height', (TOOLBAR_HEIGHT-5)+'px')
+                     .keypress(function(evt)
+                                 {
+                                     clearTimer(table);
+                                     if(evt.which == 13) {
+                                         var rownum = parseInt($(this).val());
+                                         if(rownum != NaN)
+                                             rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.REPLACE);
+                                     }
+                                     return true;
+                                 })
+               , icn : null
+               , clk : function() { $(this).select(); }};
+    table.data("finished", rjtb.elm);
+    var m2np = gen_btn_elm({ txt : 'Next page', icn : 'ui-icon-play'                    // >
+                           , clk : function() {
+                                       clearTimer(table);
+                                       var d = table.data("grid").getData();
+                                       var rownum = table.data("grid").getViewport().top;
+                                       rownum = (d.length > rownum ? parseInt(d[rownum].id) + 100 : null);
+                                       rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, rownum, OpsBufEnum.APPEND);
+                                       return false;
+                                   } })
+    var j2np = gen_btn_elm({ txt : 'Jump to next page', icn : 'ui-icon-seek-next'      // >>
+                           , clk : function() {
+                                       clearTimer(table);
+                                       var d = table.data("grid").getData();
+                                       var rownum = table.data("grid").getViewport().top;
+                                       rownum = (d.length > rownum ? 2 * parseInt(d[rownum].id) : null);
+                                       rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, (rownum < 200 ? 200 : rownum), OpsBufEnum.APPEND);
+                                       table.data("grid").scrollRowIntoView(d.length);
+                                       return false;
+                                   }
+                           });
+    var m2e = gen_btn_elm({ txt : 'Move to end', icn : 'ui-icon-seek-end'               // >|
+                          , clk : function() {
+                                      ajax_post('/app/tail', {tail :
+                                                                { statement : statement,
+                                                                  push: true,
+                                                                  tail: false
+                                                                }
+                                                             }, null, null, function(data) {});
+                                      table.data("grid").setData([]);
+                                      table.data("grid").updateRowCount();
+                                      table.data("grid").render();
+                                      //dlg.data('tail', true);
+                                      rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                      console.log('tail register timer ' + dlg.data('tail'));
+                                      return false;
+                                  } });
+    var m2et = gen_btn_elm({ txt : 'Move to end then Tail', icn : 'ui-icon-fetch-tail'  // Move to end then Tail
+                           , clk : function() {
+                                      ajax_post('/app/tail', {tail :
+                                                                { statement : statement,
+                                                                  push: true,
+                                                                  tail: true
+                                                                }
+                                                             }, null, null, function(data) {});
+                                      table.data("grid").setData([]);
+                                      table.data("grid").updateRowCount();
+                                      table.data("grid").render();
+                                      clearTimer(table);
+                                      dlg.data('tail', true);
+                                      rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                      console.log('tail register timer ' + dlg.data('tail'));
+                                      return false;
+                                  } });
+    var s2et = gen_btn_elm({ txt : 'Skip to end and Tail', icn : 'ui-icon-fetch-only'   // Skip to end and Tail
+                           , clk : function() {
+                                      ajax_post('/app/tail', {tail :
+                                                                { statement : statement,
+                                                                  push: false,
+                                                                  tail: true
+                                                                }
+                                                             }, null, null, function(data) {});
+                                      clearTimer(table);
+                                      dlg.data('tail', true);
+                                      rowFunWrapper(countFun, rowFun, table, OpsFetchEnum.NEXT, 1, OpsBufEnum.REPLACE);
+                                      console.log('tail register timer ' + dlg.data('tail'));
+                                      return false;
+                                  } });
+    var cmt = gen_btn_elm({ txt : 'Commit changes', icn : 'ui-icon-check'              // Commit
+                          , clk : function() {
+                                      clearTimer(table);
+                                      var commitJson = {commit_rows: {statement : statement}};
+                                      ajax_post('/app/commit_rows', commitJson, null, null, function(data) {
+                                                  if(data.commit_rows == "ok") {
+                                                      console.log('commit success!');
+                                                  }
+                                                  else {
+                                                      alert_jq('commit failed!\n' + data.commit_rows);
+                                                  }
+                                              });
+                                      return false;
+                                  } });
+    var dis = gen_btn_elm({ txt : 'Discard changes', icn : 'ui-icon-close'             // Discard
+                          , clk : function() {
+                                      clearTimer(table);
+                                      return false;
+                                  } });
 
-    footer.buttonset().css('height', TOOLBAR_HEIGHT+'px');
+    append_to_footer(footer, rld);
+    append_to_footer(footer, m2f);
+    append_to_footer(footer, j2p);
+    append_to_footer(footer, rjtb);
+    append_to_footer(footer, m2np);
+    append_to_footer(footer, j2np);
+    append_to_footer(footer, m2e);
+    append_to_footer(footer, m2et);
+    append_to_footer(footer, s2et);
+    append_to_footer(footer, cmt);
+    append_to_footer(footer, dis);
+
+    footer.buttonset().css('height', (TOOLBAR_HEIGHT+2)+'px');
+
+    // cmt.elm.hide();
+    // dis.elm.hide();
+    // table.data('btnshowcommit', function(flag) {
+    //     if(flag) {
+    //         cmt.elm.show();
+    //         dis.elm.show();
+    //         m2e.elm.hide();
+    //         m2et.elm.hide();
+    //         s2et.elm.hide();
+    //     } else {
+    //         cmt.elm.hide();
+    //         dis.elm.hide();
+    //         m2e.elm.show();
+    //         m2et.elm.show();
+    //         s2et.elm.show();
+    //     }
+    // });
 
     table.data("finished")
         .removeClass("download_incomplete")
@@ -240,7 +296,7 @@ function renderTable(ctx) {
 //console.log('scrollHeight '+gcP.scrollHeight + ' offsetHeight ' + gcP.offsetHeight + ' gcP.scrollTop ' + gcP.scrollTop);
                 if (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop) <= 0) {
                     console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
-                    clearTimer(table.data("dlg"));
+                    clearTimer(table);
                     console.log('bottom_event '+ (gcP.scrollHeight - (gcP.offsetHeight + gcP.scrollTop)));
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().bottom;
@@ -249,7 +305,7 @@ function renderTable(ctx) {
                 }
                 else if (gcP.scrollTop == 0) {
                     console.log('bottom_event cancel tail timer ' + table.data("dlg").data('tail'));
-                    clearTimer(table.data("dlg"));
+                    clearTimer(table);
                     console.log('top_event '+ gcP.scrollTop);
                     var d = args.grid.getData();
                     var rownum = args.grid.getViewport().top;
@@ -278,7 +334,7 @@ function renderTable(ctx) {
                     args.grid.render();
                 }
                 else {
-                    alert('delete failed');
+                    alert_jq('delete failed');
                     console.log('delete failed');
                 }
             });
@@ -286,16 +342,18 @@ function renderTable(ctx) {
     });
 }
 
-function clearTimer(dlg)
+function clearTimer(table)
 {
-    //clearInterval(dlg.data('tail'));
-    dlg.data('tail', false);
+    table.data('dlg').data('tail', false);
+    var fn = table.data('btnshowcommit');
+    if(jQuery.isFunction(fn))
+        fn(true);
 }
 
 function gen_btn_elm(itm) {
     itm['elm'] = $('<button>'+itm.txt+'</button>')
         .button({icons: {primary: itm.icn}, text: false})
-        .css('height', (TOOLBAR_HEIGHT - 4) +'px')
+        .css('height', TOOLBAR_HEIGHT +'px')
         .click(itm.clk);
     return itm;
 }
@@ -359,13 +417,18 @@ function loadTable(table, statement, columns)
                 ajax_post('/app/browse_data', {browse_data: { statement : statement,
                                                                     row : data.row,
                                                                     col : data.cell}}, null, null, function(ret) {
-//                    var x = table.dialog('widget').position().left;
-//                    var y = table.dialog('widget').position().top;
-                    prepare_table(ret.browse_data);
+                    var ctx = ret.browse_data;
+                    if(!ctx.hasOwnProperty('table_layout') || !ctx.table_layout.hasOwnProperty('x')) {
+                        var dlg = table.data('dlg').dialog('widget');
+                        var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
+                        ctx['table_layout'] = { x : dlg.position().left + titleBarHeight + 10,
+                                                y : dlg.position().top + titleBarHeight + 10}
+                    }
+                    prepare_table(ctx);
                 });
             }
         },
-        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
+        'Quick condition'   : {evt: function() { alert_jq('1 -- Quick condition'); } },
     });
     grid.onContextMenu.subscribe(function(e, args){
         e.preventDefault();
@@ -392,8 +455,8 @@ function loadTable(table, statement, columns)
     });
 
     add_context_menu(header_cm_id, {
-        'Browse Data'       : {evt: function() { alert('Browse Data'); } },
-        'Quick condition'   : {evt: function() { alert('Quick condition'); } },
+        'Browse Data'       : {evt: function() { alert_jq('Column "Browse Data" not implemented in this version!'); } },
+        'Quick condition'   : {evt: function() { alert_jq('2 -- Quick condition'); } },
         'Hide Column'       : {evt: function(data) {
             var cols = data.grid.getColumns();
             cols.splice(cols.indexOf(data.column),1);
@@ -437,8 +500,7 @@ function loadTable(table, statement, columns)
               var msg = 'Insert failed ---------------------------------------------\n' +
                         'Row :   '+ args.item +
                         '\n---------------------------------------------------------';
-              alert(msg);
-              console.log(msg);
+              alert_jq(msg);
           }
           else {
               var id = parseInt(data.insert_data);
@@ -468,8 +530,7 @@ function loadTable(table, statement, columns)
                                   '\nValue : '+ modifiedRow[cols[args.cell].field] +
                                   '\nRow :   '+ modifiedRow +
                                   '\n---------------------------------------------------------';
-                        alert(msg);
-                        console.log(msg);
+                        alert_jq(msg);
                     }
                     else {
                         console.log('update success ');

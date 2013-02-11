@@ -235,19 +235,22 @@ process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = P
 process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
     [{<<"tail">>,BodyJson}] = ReqBody,
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-    Start = proplists:get_value(<<"start">>, BodyJson, <<>>),
+    Push = proplists:get_value(<<"push">>, BodyJson, <<>>),
+    Tail = proplists:get_value(<<"tail">>, BodyJson, <<>>),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
             lager:debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, binary_to_list(jsx:encode([{<<"tail">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
-            if Start =:= true ->
-lager:info(">>>>>>>> ~p tail ~p~n", [{?MODULE,?LINE}, Start]),
-%                Statement:fetch_close(),
-                Statement:start_async_read([{fetch_mode,push},{tail_mode,Start}]);
-                true -> Statement:fetch_close()
+            Opts = case {Push, Tail} of
+                        {true, true}    -> [{fetch_mode,push},{tail_mode, true}];
+                        {true, false}   -> [{fetch_mode,push},{tail_mode,false}];
+                        {false, true}   -> [{fetch_mode,skip},{tail_mode, true}];
+                        {false, false}  -> [{fetch_mode,skip},{tail_mode,false}]
             end,
-            {Priv, binary_to_list(jsx:encode([{<<"tail">>, Start}]))}
+            lager:info(">>>>>>>> ~p tail Opts ~p~n", [{?MODULE,?LINE}, Opts]),
+            Statement:start_async_read(Opts),
+            {Priv, binary_to_list(jsx:encode([{<<"tail">>, <<"ok">>}]))}
     end;
 
 process_cmd({"views", _}, Priv) ->

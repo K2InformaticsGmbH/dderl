@@ -77,29 +77,29 @@ button.menubutton
 }
 
 .downloading {
-    margin-left:5px;
-    margin-right:1px;
+    margin-left:3px;
+    margin-right:0px;
     border: 1px solid #999;
     color:#000000;
     background-color:#AFAFFF;
 }
 .download_error {
-    margin-left:5px;
-    margin-right:1px;
+    margin-left:3px;
+    margin-right:0px;
     border: 1px solid #999;
     color:#000000;
     background-color:#FF7F7F;
 }
 .download_incomplete {
-    margin-left:5px;
-    margin-right:1px;
+    margin-left:3px;
+    margin-right:0px;
     border: 1px solid #999;
     color:#000000;
     background-color:#FFFF7F;
 }
 .download_complete {
-    margin-left:5px;
-    margin-right:1px;
+    margin-left:3px;
+    margin-right:0px;
     border: 1px solid #999;
     color:#000000;
     background-color:#AFFFAF;

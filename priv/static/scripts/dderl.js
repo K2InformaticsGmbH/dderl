@@ -64,25 +64,41 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 function show_qry_files()
 {
-//    var tab = $('#main-content-tabs').data('curtab');
-//    if(tab != null || tab != undefined) {
-        ajax_post('/app/views', {}, null, null, function(context) {
-            prepare_table(context.views);
-        });
-//    }
+    ajax_post('/app/views', {}, null, null, function(context) {
+        prepare_table(context.views);
+    });
+}
+
+function alert_jq(string)
+{
+    if($('#dialog-message').length == 0)
+        var dlgDiv = $('<div id="dialog-message" title="DDerl message"></div>').appendTo(document.body);
+
+    $('#dialog-message').html();
+    $('#dialog-message')
+        .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>');
+
+    $( "#dialog-message" ).dialog({
+      modal: true,
+      buttons: {
+        Ok: function() {
+          $( this ).dialog( "close" );
+        }
+      }
+    });
 }
 
 function prepare_table(context)
 {
     if(context.hasOwnProperty('error')) {
-        alert(table.error);
+        alert_jq(table.error);
         console.log(table.error);
         return;
     }
     context.initFun = function(tblDlg) {
         tblDlg.bind('requery', function(e, sqlObj) {
             ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert(data.error); console.log(data.error); } });
+                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert_jq(data.error); } });
             tblDlg.dialog('destroy');
             tblDlg.remove();
             context.content = sqlObj;
@@ -91,7 +107,7 @@ function prepare_table(context)
     };
     context.destroyFun = function() {
         ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert(data.error); console.log(data.error); } });
+                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert_jq(data.error); } });
     };
 
     context.countFun = function(countUpdateFun) {
@@ -132,8 +148,7 @@ function load_table(context)
     var query = context.content;
     ajax_post('/app/query', {query: {qstr: query, id: context.id}}, null, null, function(table) {
         if(table.hasOwnProperty('error')) {
-            alert(table.error);
-            console.log(table.error);
+            alert_jq(table.error);
             return;
         }
         var statement = table.statement;
@@ -174,8 +189,7 @@ function save_table()
                    };
     ajax_post("/app/save_view", saveView, null, null, function(data) {
         if (data.save_view != "ok") {
-            alert(data.save_view);
-            console.log(data.save_view);
+            alert_jq(data.save_view);
         }
     });
 }
@@ -235,8 +249,7 @@ $(document).ready(function() {
         }
     } else {
         $('#main-menu-bar').hide();
-        alert("Dinosours are extinct. Upgrade!");
-        console.log("Dinosours are extinct. Upgrade!");
+        alert_jq("Dinosours are extinct. Upgrade!");
     }
 });
 

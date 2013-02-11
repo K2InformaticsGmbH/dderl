@@ -8,8 +8,7 @@
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css">
     <link rel="stylesheet" href="https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.css" type="text/css"/>
     <link rel="stylesheet" href="https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.css" type="text/css"/>
-	<link rel="stylesheet" href="../static/dropdown/dropdown.css" type="text/css"/>
-    <link rel="stylesheet" href="dderl.css" type="text/css"/>
+    <link rel="stylesheet" href="../static/styles/dderl.css" type="text/css"/>
 </head>
 
 <body>
@@ -17,25 +16,23 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.0/jquery-ui.min.js"></script>
-	<script src="../static/jquery.extndbtn.js"></script>
-    
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/lib/jquery.event.drag-2.0.min.js"></script>
 
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.core.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.grid.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.formatters.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.editors.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/slick.dataview.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellcopymanager.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangedecorator.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangeselector.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellselectionmodel.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.rowselectionmodel.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrowcolselectionmodel.js"></script>
-    <script src="https://raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.js"></script>
+    <script src="../static/slickgrid/lib/jquery.event.drag-2.0.min.js"></script>
+    <script src="../static/slickgrid/slick.core.js"></script>
+    <script src="../static/slickgrid/slick.grid.js"></script>
+    <script src="../static/slickgrid/slick.formatters.js"></script>
+    <script src="../static/slickgrid/slick.editors.js"></script>
+    <script src="../static/slickgrid/slick.dataview.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
+    <script src="../static/slickgrid/plugins/slick.cellrangeselector.js"></script>
+    <!-- script src="../static/slickgrid/plugins/slick.cellselectionmodel.js"></script>
+    <script src="../static/slickgrid/plugins/slick.rowselectionmodel.js"></script -->
+    <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="../static/slickgrid/controls/slick.columnpicker.js"></script>
+    <!-- script src="../static/slickgrid/plugins/slick.cellcopymanager.js"></script -->
 
     <script language="javascript">
-        var TOOLBAR_HEIGHT = 23;
+        var TOOLBAR_HEIGHT = 20;
         $(document).ready(function()
         {
             show_dlg();
@@ -48,6 +45,7 @@
 
         function show_dlg() {
             var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
+
             var table = $('<div id="body"></div>')
             .css('position', 'absolute')
             .css('top', '0')
@@ -115,9 +113,9 @@
             var j2p = gen_btn_elm({ txt : 'Jump to previous page'                               // <<
                                   , icn : 'ui-icon-seek-prev'
                                   , clk : function() {} });
-                                                                                                // RowJumpTextBox
-            var rjtb = { elm : $('<input type="text" size=10 class="download_incomplete">')
-                             .css('margin-bottom', '0')
+            var rjtb = { elm : $('<input type="text" size=10 class="download_incomplete">')     // RowJumpTextBox
+                             .css('margin-bottom', '0px')
+                             .css('height', (TOOLBAR_HEIGHT-5)+'px')
                        , icn : null
                        , clk : function() { $(this).select(); }};
             var m2np = gen_btn_elm({ txt : 'Next page', icn : 'ui-icon-play'                    // >
@@ -132,7 +130,6 @@
                                   , clk : function() {} });
             var dis = gen_btn_elm({ txt : 'Discard changes', icn : 'ui-icon-close'             // Discard
                                   , clk : function() {} });
-                     
             var j2np = gen_btn_elm({ txt : 'Jump to next page', icn : 'ui-icon-seek-next'      // >>
                                    , clk : function() {
                                         cmt.elm.toggle();
@@ -165,7 +162,7 @@
         itm['elm'] =
                 $('<button>'+itm.txt+'</button>')
                 .button({icons: {primary: itm.icn}, text: false})
-                .css('height', (TOOLBAR_HEIGHT - 4) +'px')
+                .css('height', (TOOLBAR_HEIGHT) +'px')
                 .click(itm.clk);
             return itm;
         }
