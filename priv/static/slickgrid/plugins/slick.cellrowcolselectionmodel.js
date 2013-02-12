@@ -155,8 +155,7 @@
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                         setSelectedRanges([new Slick.Range(0, col, maxRow, col)]);
                     } else {
-                        if(col === 0) {
-                        } else {
+                        if(col !== 0) {
                             var matches = $.grep(_ranges, function(o,i) {
                                 return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
                             });
@@ -167,14 +166,11 @@
                                     return !(col === _ranges[i].fromCell || col === _ranges[i].toCell);
                                 });
                             } else if (e.shiftKey) {
-                                if(_ranges.length === 1) {
-                                    var frmRow = _ranges[0].fromRow;
-                                    var frmCell = _ranges[0].fromCell;
-                                    _ranges[0] = new Slick.Range(frmRow, frmCell, maxRow, col);
-                                } else {
-                                    _ranges = [];
-                                    _ranges.push(new Slick.Range(0, col, maxRow, col));
-                                }
+                                var from = Math.min(_ranges[0].fromCell, col);
+                                var to = Math.max(_ranges[0].fromCell, col);
+                                _ranges = [];
+                                for(var i=from; i <= to; ++i)
+                                    _ranges.push(new Slick.Range(0, i, maxRow, i));
                             }
                             setSelectedRanges(_ranges);
                         }
@@ -272,8 +268,6 @@
                             _ranges = [];
                             _ranges.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
                         }
-                        selection.push(last);
-                        _grid.setActiveCell(cell.row, cell.cell);
                     }
                 }
 
