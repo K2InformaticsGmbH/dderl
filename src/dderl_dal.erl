@@ -55,9 +55,9 @@ hexstr_to_bin([X,Y|T], Acc) ->
     hexstr_to_bin(T, [V | Acc]).
 
 start_link(SchemaName) ->
-    lager:debug("~p starting...~n", [?MODULE]),
+    ?Debug("~p starting...~n", [?MODULE]),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
-    lager:debug("~p started!~n~p", [?MODULE, Result]),
+    ?Debug("~p started!~n~p", [?MODULE, Result]),
     Result.
 
 init([SchemaName]) ->
@@ -74,10 +74,10 @@ init([SchemaName]) ->
             , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
             , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
         ]),
-        lager:info("~p tables ~p created", [?MODULE, [ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
+        ?Info("~p tables ~p created", [?MODULE, [ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
         Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
         Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
-        lager:info("~p initializing ~p", [?MODULE, Adapters]),
+        ?Info("~p initializing ~p", [?MODULE, Adapters]),
         [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
         {ok, #state{sess=Sess, schema=SchemaName}};
     {error, Reason} ->
@@ -86,7 +86,7 @@ init([SchemaName]) ->
 
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
-    lager:info("~p creating table ~p", [?MODULE, [N]]),
+    ?Info("~p creating table ~p", [?MODULE, [N]]),
     Sess:run_cmd(create_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
@@ -95,11 +95,11 @@ handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, ow
                                            , [{'=:=', '$2', [Adapter]}]
                                            , ['$1']}]]) of
         {[Id0|_], true} ->
-            lager:debug("~p add_command ~p replacing id ~p", [?MODULE, Name, Id0]),
+            ?Debug("~p add_command ~p replacing id ~p", [?MODULE, Name, Id0]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            lager:debug("~p add_command ~p new id ~p", [?MODULE, Name, Id1]),
+            ?Debug("~p add_command ~p new id ~p", [?MODULE, Name, Id1]),
             Id1
     end,
     NewCmd = #ddCmd { id     = Id
@@ -109,7 +109,7 @@ handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, ow
                  , command   = Cmd
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
-    lager:debug("~p add_command inserted ~p", [?MODULE, NewCmd]),
+    ?Debug("~p add_command inserted ~p", [?MODULE, NewCmd]),
     {reply, Id, State};
 
 handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=Owner} = State) ->
@@ -117,11 +117,11 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
                                             , []
                                             , ['$1']}]]) of
         {[Id0|_], true} ->
-            lager:debug("~p add_view ~p replacing id ~p ~p~n", [?MODULE, Name, Id0, Owner]),
+            ?Debug("~p add_view ~p replacing id ~p ~p~n", [?MODULE, Name, Id0, Owner]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            lager:debug("~p add_view ~p new id ~p", [?MODULE, Name, Id1]),
+            ?Debug("~p add_view ~p new id ~p", [?MODULE, Name, Id1]),
             Id1
     end,
     NewView = #ddView { id      = Id
@@ -130,24 +130,24 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
                      , cmd      = CmdId
                      , state    = ViewsState},
     Sess:run_cmd(insert, [ddView, NewView]),
-    lager:debug("~p add_view inserted ~p", [?MODULE, NewView]),
+    ?Debug("~p add_view inserted ~p", [?MODULE, NewView]),
     {reply, Id, State};
 handle_call({get_view, Name, Owner}, _From, #state{sess=Sess} = State) ->
-    lager:info("~p get_view ~p", [?MODULE, Name]),
+    ?Info("~p get_view ~p", [?MODULE, Name]),
     {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    lager:info("~p view ~p", [?MODULE, View]),
+    ?Info("~p view ~p", [?MODULE, View]),
     {reply, View, State};
 handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
-    lager:info("~p get_view ~p", [?MODULE, Name]),
+    ?Info("~p get_view ~p", [?MODULE, Name]),
     {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
-    lager:info("~p view ~p", [?MODULE, Views]),
+    ?Info("~p view ~p", [?MODULE, Views]),
     {reply, Views, State};
 handle_call({get_session}, _From, #state{sess=Sess} = State) ->
-    lager:info("~p get_session ~p", [?MODULE, Sess]),
+    ?Info("~p get_session ~p", [?MODULE, Sess]),
     {reply, Sess, State};
 
 handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_command for id ~p", [?MODULE, IdOrName]),
+    ?Debug("~p get_command for id ~p", [?MODULE, IdOrName]),
     {Cmds, true} = case IdOrName of
         Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
         Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
@@ -155,12 +155,12 @@ handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
     Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
     {reply, Cmd, State};
 handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_commands user ~p adapter ~p", [?MODULE, User, Adapter]),
+    ?Debug("~p get_commands user ~p adapter ~p", [?MODULE, User, Adapter]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{owner='$1', _='_'}
                                                 , [{'or', {'=:=', '$1', system}
                                                 , {'=:=','$1',User}}], ['$_']}]]),
     NewCmds = [C || C <- Cmds, lists:any(fun(E) -> E =:= Adapter end, C#ddCmd.adapters)],
-    lager:debug("~p get_commands user ~p adapter ~p cmds ~p", [?MODULE, User, Adapter, NewCmds]),
+    ?Debug("~p get_commands user ~p adapter ~p cmds ~p", [?MODULE, User, Adapter, NewCmds]),
     {reply, NewCmds, State};
 
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
@@ -178,29 +178,29 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
             [],
             Cons)
     end,
-    lager:debug("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
+    ?Debug("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
     {reply, NewCons, State};
 
 handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->
-    lager:debug("~p get_adapters", [?MODULE]),
+    ?Debug("~p get_adapters", [?MODULE]),
     {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
     {reply, Adapters, State};
 
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
-    lager:debug("~p login for user ~p pass ~p", [?MODULE, User, BinPswd]),
+    ?Debug("~p login for user ~p pass ~p", [?MODULE, User, BinPswd]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
-            lager:error("login exception ~p~n", [Error]),
+            ?Error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
-            lager:info("~p login accepted user ~p with id = ~p", [?MODULE, User, UserId]),
+            ?Info("~p login accepted user ~p with id = ~p", [?MODULE, User, UserId]),
             {reply, true, State#state{sess=Sess, owner=UserId}}
     end;
 
 handle_call(Req,From,State) ->
-    lager:info("unknown call req ~p from ~p~n", [Req, From]),
+    ?Info("unknown call req ~p from ~p~n", [Req, From]),
     {reply, ok, State}.
 
 handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName, owner=UserId} = State) ->
@@ -213,35 +213,35 @@ handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName,
                                                 , [{'=:=','$1',Con#ddConn.name}]
                                                 , ['$2']}]]) of
         {[Id|_], true} ->
-            lager:debug("~p add_connect replacing id ~p", [?MODULE, Id]),
+            ?Debug("~p add_connect replacing id ~p", [?MODULE, Id]),
             NewCon1#ddConn{id=Id};
         _ ->
-            lager:debug("~p add_connect adding new ~p", [?MODULE, NewCon1#ddConn.id]),
+            ?Debug("~p add_connect adding new ~p", [?MODULE, NewCon1#ddConn.id]),
             NewCon1
     end,
     Sess:run_cmd(insert, [ddConn, NewCon]),
-    lager:debug("~p add_connect inserted ~p", [?MODULE, NewCon]),
+    ?Debug("~p add_connect inserted ~p", [?MODULE, NewCon]),
     {noreply, State};
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Adp = #ddAdapter{id=Id,fullName=FullName},
     Sess:run_cmd(insert, [ddAdapter, Adp]),
-    lager:debug("~p add_adapter inserted ~p", [?MODULE, Adp]),
+    ?Debug("~p add_adapter inserted ~p", [?MODULE, Adp]),
     {noreply, State};
 handle_cast({init_adapter, Adapter}, State) ->
     spawn(fun() ->
         Adapter:init(),
-        lager:debug("~p init_adapter ~p", [?MODULE, Adapter])
+        ?Debug("~p init_adapter ~p", [?MODULE, Adapter])
     end),
     {noreply, State};
 handle_cast(Req,State) ->
-    lager:debug("~p unknown cast ~p", [?MODULE, Req]),
+    ?Debug("~p unknown cast ~p", [?MODULE, Req]),
     {noreply, State}.
 
 handle_info(Req,State) ->
-    lager:debug("~p unknown info ~p", [?MODULE, Req]),
+    ?Debug("~p unknown info ~p", [?MODULE, Req]),
     {noreply, State}.
 terminate(Reason, _State)              ->
-    lager:debug("~p terminating, reason ~p", [?MODULE, Reason]),
+    ?Debug("~p terminating, reason ~p", [?MODULE, Reason]),
     ok.
 code_change(_OldVsn, State, _Extra)     -> {ok, State}.
 format_status(_Opt, [_PDict, _State])   -> ok.

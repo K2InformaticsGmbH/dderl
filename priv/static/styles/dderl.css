@@ -3,6 +3,7 @@
 @import url('jquery.contextMenu.css');
 @import url('slick.grid.css');
 @import url('slick.columnpicker.css');
+@import url('jquery.jscrollpane.css');
 
 @import url('../dropdown/dropdown.css');
 
@@ -78,28 +79,28 @@ button.menubutton
     margin-right:0px;
     border: 1px solid #999;
     color:#000000;
-    background-color:#AFAFFF;
+    background:#AFAFFF !important;
 }
 .download_error {
     margin-left:3px;
     margin-right:0px;
     border: 1px solid #999;
     color:#000000;
-    background-color:#FF7F7F;
+    background:#FF7F7F !important;
 }
 .download_incomplete {
     margin-left:3px;
     margin-right:0px;
     border: 1px solid #999;
     color:#000000;
-    background-color:#FFFF7F;
+    background:#FFFF7F !important;
 }
 .download_complete {
     margin-left:3px;
     margin-right:0px;
     border: 1px solid #999;
     color:#000000;
-    background-color:#AFFFAF;
+    background:#AFFFAF !important;
 }
 
 /* 
@@ -241,4 +242,19 @@ input.editor-text {
   border: 0;
   background: white;
   padding: 1px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-button {
+    background: #ccc;
+    display: none;
+}
+::-webkit-scrollbar-track-piece {
+    background: #efefef
+}
+::-webkit-scrollbar-thumb {
+    background: #888
 }

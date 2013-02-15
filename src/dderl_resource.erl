@@ -5,7 +5,7 @@
 -module(dderl_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 -export([init/1,
-        %content_types_provided/2,
+        content_types_provided/2,
         is_authorized/2,
         generate_etag/2,
         expires/2,
@@ -26,16 +26,16 @@ allowed_methods(ReqData, Context) ->
 
 process_post(ReqData, Context) ->
     Body = to_html(ReqData),
-    %io:format(user, "POST Response ~p~n", [Body]),
+    lager:debug("process_post - POST Response ~p~n", [Body]),
     ReqData1 = wrq:set_resp_body(Body, ReqData),
     lager:debug("received request ~p", [ReqData]),
     {true, ReqData1, Context}.
 
-%content_types_provided(ReqData, Context) ->
-%    io:format(user, "Got so far...~n", []),
-%    {[{"text/html", to_html},
-%      {"application/json", do_req}
-%     ], ReqData, Context}.
+content_types_provided(ReqData, Context) ->
+    lager:debug("content_types_provided ...~n"),
+    {[{"text/html", to_html},
+      {"application/json", to_html}
+     ], ReqData, Context}.
 
 malformed_request(ReqData, Context) ->
     case wrq:req_body(ReqData) of

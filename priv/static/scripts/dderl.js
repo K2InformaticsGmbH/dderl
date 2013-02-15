@@ -1,3 +1,9 @@
+function getUniqueTime() {
+  var time = new Date().getTime();
+  while (time == new Date().getTime());
+  return new Date().getTime();
+}
+
 function show_logs()
 {
     ajax_post('/app/logs', {}, null, null, function(data) {
@@ -64,9 +70,15 @@ function ajax_post(url, dataJson, headers, context, successFun) {
 
 function show_qry_files()
 {
-    ajax_post('/app/views', {}, null, null, function(context) {
-        prepare_table(context.views);
-    });
+    $('<div>')
+    .appendTo(document.body)
+    .table({
+        autoOpen    : false,
+        dderlSession: session,
+        dderlAdapter: adapter,
+    })
+    .table('loadViews')
+    .table('open');
 }
 
 function alert_jq(string)
@@ -223,74 +235,3 @@ function save_as_table()
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
-
-var pageTitlePrefix = null;
-$(document).ready(function() {
-    if(Object.hasOwnProperty('freeze')) {
-        $('#main-content-tabs')
-        .tabs()
-        .bind('tabsselect', function(event, ui) {
-         ui.options // options used to intialize this widget
-         ui.tab // anchor element of the selected (clicked) tab
-         ui.panel // element, that contains the contents of the selected (clicked) tab
-         ui.index // zero-based index of the selected (clicked) tab
-         $('#main-content-tabs').data('curtab', ui.panel);
-        })
-        .hide();
-
-        $( ".tabs-bottom .ui-tabs-nav, .tabs-bottom .ui-tabs-nav > *" )
-	    		.removeClass( "ui-corner-all ui-corner-top" )
-	    		.addClass( "ui-corner-bottom" );
-        if(session == null) {
-            if(null == pageTitlePrefix)
-                pageTitlePrefix = document.title + " "; // IE can't trim()
-                //pageTitlePrefix = document.title.trim() + " ";
-            display_login();
-        }
-    } else {
-        $('#main-menu-bar').hide();
-        alert_jq("Dinosours are extinct. Upgrade!");
-    }
-});
-
-//////////////////////////////
-function show_dlg() {
-    var dlg = $('<div id="sample" style="margin:0; padding:0;"></div>').appendTo(document.body);
-    var table = $(
- '<table style="width:100%;height:100%" cellpadding=0 cellspacing=0>'
-+   '<tr>'
-+       '<td>'
-+           '<div id="inner" style="background:lightblue; width:100%; height:100%">hi</div>'
-+       '</td>'
-+   '</tr>'
-+   '<tr>'
-+       '<td style="height:27px;">'
-+           '<div id="inner" style="background:lightgreen; width:100%; height:100%">lo</div>'
-+       '</td>'
-+   '</tr>'
-+'</table>'
-)
-.appendTo(dlg);
-  
-    dlg.dialog({
-        autoOpen: false,
-        height: 100,
-        width: 100,
-        minHeight: 200,
-        resizable: true,
-        modal: false,
-        title: "Sample Dialog",
-        canMinimize:true,
-        canMaximize:true,
-        closeOnEscape: false,
-        open: function(e,ui) {},
-        focus: function(e,ui) {},
-        close: function() {
-            dlg.dialog('destroy');
-            dlg.remove();
-        }
-    })
-    .bind("dialogresize", function(event, ui) {})
-    .dialog("open");
-}
-//////////////////////////////

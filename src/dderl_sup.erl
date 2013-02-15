@@ -19,9 +19,9 @@
 
 start_link() ->
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
-    lager:debug("~p starting...", [?MODULE]),
+    ?Debug("starting..."),
     R = supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]),
-    lager:info("~p started ~p", [?MODULE, R]),
+    ?Info("started"),
     R.
 
 %% ===================================================================
@@ -75,7 +75,7 @@ init([SchemaName]) ->
                 permanent, 5000, worker, dynamic}
         ];
         {ok, WebConfigs} ->
-            [lager:info("~p listening at "++proplists:get_value(ip, W)++":~p"
+            [?Info("~p listening at "++proplists:get_value(ip, W)++":~p"
                        , [ proplists:get_value(name, W)
                        , proplists:get_value(port, W)]) || W <- WebConfigs],
             [{proplists:get_value(name, Wc, default),
@@ -88,5 +88,5 @@ init([SchemaName]) ->
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
 
-    lager:debug("~p child specs ~p", [?MODULE, Processes]),
+    ?Debug("child specs ~p", [Processes]),
     {ok, { {one_for_one, 10, 10}, Processes} }.

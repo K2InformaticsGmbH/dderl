@@ -63,3 +63,16 @@
                   }
        ).
 -define(ddDash, [integer, atom, userid, string, list]).
+
+% LOGGING wrapper
+-define(Debug(__M,__F,__A), lager:debug(__M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F,__A),     lager:debug(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F),         lager:debug(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+
+-define(Info(__M,__F,__A),  lager:info(__M,  "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F,__A),      lager:info(      "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F),          lager:info(      "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+
+-define(Error(__M,__F,__A), lager:error(__M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F,__A),     lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F),         lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).

@@ -148,7 +148,6 @@
         function handleOnHeaderClick(e, data) {
             if (data.column) {
                 if (typeof data.column.id != "undefined") {
-                    var selection = rangesToRows(_ranges);
                     var col = _grid.getColumnIndex(data.column.id);
                     var maxRow = _grid.getDataLength() - 1;
 

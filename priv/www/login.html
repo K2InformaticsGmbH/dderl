@@ -55,27 +55,23 @@
     <script src="../static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
     <script src="../static/slickgrid/controls/slick.columnpicker.js"></script>
 
-    <!-- script src="//raw.github.com/k2informatics/jQuery-contextMenu/master/src/jquery.contextMenu.js"></script>
-
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/lib/jquery.event.drag-2.0.min.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.core.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.grid.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.formatters.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.editors.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/slick.dataview.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellcopymanager.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangedecorator.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrangeselector.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellselectionmodel.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.rowselectionmodel.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/plugins/slick.cellrowcolselectionmodel.js"></script>
-    <script src="//raw.github.com/k2informatics/SlickGrid/master/controls/slick.columnpicker.js"></script -->
-
 	<script src="../static/scripts/md5.js"></script>
 	<script src="../static/scripts/login.js"></script>
 	<script src="../static/scripts/dderl.js"></script>
 	<script src="../static/scripts/connect.js"></script>
 	<script src="../static/scripts/sqleditor.js"></script>
-    <script src="../static/scripts/table.js"></script>
+    <!-- script src="../static/scripts/table.js"></script -->
+    <script src="../static/scripts/dderl.table.js"></script>
+
+    <script language='javascript'>
+        $(document).ready(function() {
+            if(Object.hasOwnProperty('freeze')) {
+                display_login();
+            } else {
+                $('#main-menu-bar').hide();
+                alert_jq("Dinosours are extinct. Upgrade!");
+            }
+        });
+    </script>
 </body>
 </html>
