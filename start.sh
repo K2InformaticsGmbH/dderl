@@ -1,6 +1,8 @@
 #!/bin/sh
-# cd `dirname $0`
-# HOST=`hostname`
-#werl.exe -pa $PWD/ebin -pa $PWD/deps/*/ebin -name dderl@$HOST.it.bwns.ch -setcookie imem -s reloader -s dderl
-#werl.exe -pa $PWD/ebin -pa $PWD/deps/*/ebin -name dderl@127.0.0.1 -setcookie imem -s reloader -s dderl -imem erl_cluster_mgr \'CM@127.0.0.1\'
-werl.exe -pa $PWD/ebin -pa $PWD/deps/*/ebin -name dderl@127.0.0.1 -setcookie imem -s reloader -s dderl -imem mnesia_node_type disc
+unamestr=`uname`
+exename=werl.exe
+if [[ "$unamestr" == 'Linux' ]]; then
+     exename=erl
+fi
+echo "exe $exename unamestr $unamestr"
+$exename -pa $PWD/ebin -pa $PWD/deps/*/ebin -name dderl@127.0.0.1 -setcookie imem -s reloader -s dderl -imem mnesia_node_type disc
