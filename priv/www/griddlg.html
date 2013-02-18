@@ -25,12 +25,13 @@
     <script src="../static/scripts/dderl.js"></script>
     <script src="../static/scripts/dderl.table.js"></script>
 
+    <!-- iframe id='body' style='width:100px; height:100px'></iframe -->
     <script language="javascript">
         $(document).ready(function()
         {
             var dlg = show_dlg();
             var columns = new Array();
-            for(var cl = 10; cl > 0; --cl)
+            for(var cl = 30; cl > 0; --cl)
                columns[columns.length] = ("col" + cl);
             dlg.table("setColumns", columns);
 
@@ -40,14 +41,15 @@
         function asyncRowBuilder(dlg, columns, count) {
             if(count < 0) return;
 
-            var row = new Array();
-            for(var j=0;j<columns.length; ++j) {
-                row[j] = randomString(j*5);
-            }
             var rows = new Array();
-            rows[rows.length] = row;
+            //for (var i=5;i>0; --i) {
+                var row = new Array();
+                for(var j=0;j<columns.length; ++j) {
+                    row[j] = randomString(j*5);
+                }
+                rows[rows.length] = row;
+            //}
             dlg.table("appendRows", rows);
-
             setTimeout(function() {
                 asyncRowBuilder(dlg, columns, count-1);
             }, 1);

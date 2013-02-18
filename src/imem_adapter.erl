@@ -82,7 +82,7 @@ process_cmd({"query", ReqBody}, #priv{sess=Session} = Priv) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     ?Debug([{session, Session}], "query ~p", [{Session, Query}]),
     {NewPriv, R} = process_query(Query, Priv),
-    {NewPriv, binary_to_list(jsx:encode(R))};
+    {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
 process_cmd({"row_prev", ReqBody}, #priv{stmts=Statements} = Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,

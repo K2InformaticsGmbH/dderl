@@ -21,8 +21,9 @@
   $.widget( "dderl.table", $.ui.dialog, {
 
     _dlg            : null,
-    _table          : null,
-    _footer         : null,
+    _tableDiv       : null,
+    _footerDiv      : null,
+    _footerWidth    : 0,
     _grid           : null,
     _gdata          : [],
     _txtlen         : null,
@@ -54,28 +55,37 @@
                         browseData  : function(e, _table) {
                             var self = e.data; 
                             self._checkTable(_table);
+                            self._renderNewTable(_table);
+                        },
+                        queryResult : function(e, _table) {
+                            var self = e.data; 
+                            self._checkTable(_table);
                             self._renderTable(_table);
                         }
                       },
 
-    _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e',   clk : $.noop },
-                       'Move to first'         : { typ : 'btn', icn : 'seek-first',         clk : $.noop },
-                       'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',          clk : $.noop },
+    _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e',   clk : '_toolBarReload' },
+                       'Move to first'         : { typ : 'btn', icn : 'seek-first',         clk : '_toolBarSeekFirst' },
+                       'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',          clk : '_toolBarJumpPrev' },
                        ''                      : { typ : 'txt', clk : function() { $(this).select(); } },
-                       'Next page'             : { typ : 'btn', icn : 'play',               clk : $.noop },
-                       'Move to end'           : { typ : 'btn', icn : 'seek-end',           clk : $.noop },
-                       'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',         clk : $.noop },
-                       'Skip to end and Tail'  : { typ : 'btn', icn : 'fetch-only',         clk : $.noop },
-                       'Commit changes'        : { typ : 'btn', icn : 'check',              clk : $.noop },
-                       'Discard changes'       : { typ : 'btn', icn : 'close',              clk : $.noop },
-                       'Jump to next page'     : { typ : 'btn', icn : 'seek-next',          clk : $.noop }},
+                       'Next page'             : { typ : 'btn', icn : 'play',               clk : '_toolBarNext' },
+                       'Jump to next page'     : { typ : 'btn', icn : 'seek-next',          clk : '_toolBarJumpNext' },
+                       'Move to end'           : { typ : 'btn', icn : 'seek-end',           clk : '_toolBarSeekEnd' },
+                       'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',         clk : '_toolBarSeekEndTail' },
+                       'Skip to end and Tail'  : { typ : 'btn', icn : 'fetch-only',         clk : '_toolBarSkeepEndTail' },
+                       'Commit changes'        : { typ : 'btn', icn : 'check',              clk : '_toolCommit' },
+                       'Discard changes'       : { typ : 'btn', icn : 'close',              clk : '_toolDiscard' }},
+
+    // dialog context menus
+    _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
+                       'Save View'      : '_saveView',
+                       'Save View As'   : '_saveViewAs'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Browse Data'    : '_browseHeaderData',
                        'Sort Ascending' : '_sortHeaderAsc',
                        'Sort Decending' : '_sortHeaderDesc',
                        'Sort Clear'     : '_sortHeaderClear'},
-
     _slkCellCnxtMnu : {'Browse Data'    : '_browseCellData',
                        'AND filter'     : '_filterAnd',
                        'OR filter'      : '_filterOr',
@@ -87,7 +97,11 @@
         toolBarHeight     : 20,
         height            : 500,
         width             : 500,
-        minHeight         : 200,
+        minHeight         : 50,
+        minWidth          : 100,
+        position          : { at        : 'left top',
+                              my        : 'left top+21',
+                              collision : 'flipfit' },
         resizable         : true,
         modal             : false,
         title             : "_Set TITLE here_",
@@ -111,7 +125,7 @@
                               asyncEditorLoading: false,
                               autoEdit: false,
                               zIndex: 1300,
-                              rowHeight: 20},
+                              rowHeight: 20 },
 
         // dderl options
         dderlAdapter      : null,
@@ -154,17 +168,18 @@
         }
 
         // slickgrid container
-        self._table =
+        self._tableDiv =
             $('<div id="id_for_slickgrid_'+getUniqueTime()+'">') // dummy id (required by slickgrid) not used anywere else
             .appendTo(self.element);
 
         // toolbar container
-        self._footer = $('<div>').appendTo(self.element);
+        self._footerDiv = $('<div>').appendTo(self.element);
 
+        // need the max footer with to set as dlg minWidth
+        self._createDlgFooter();
         self._createDlg();
 
         self._createSlickGrid();
-        self._createDlgFooter();
         self._createContextMenus();
 
         // setting up the event handlers last to aid debugging
@@ -179,12 +194,12 @@
             self._dlg.dialog("open");
     },
 
-
     _createContextMenus: function() {
         var self = this;
 
         self._cnxtMenu('_slkCellCnxtMnu'); // cell context menu
         self._cnxtMenu('_slkHdrCnxtMnu');  // header context menu
+        self._cnxtMenu('_dlgTtlCnxtMnu');  // header context menu
     },
                     
     // create the context menu and add them to document.body
@@ -200,11 +215,13 @@
             for(var m in this[_menu])
                 $('<li>')
                     .attr("action", m)
-                    .click(this, function(e) {
-                        var self = e.data;
-                        self[_menu].dom.hide();
-                        var gSelMdl = self._grid.getSelectionModel();
-                        self._cnxtMenuAction(_menu, $(this).attr("action"), gSelMdl.getSelectedRanges());
+                    .click(function(e) {
+                        var self = $('#'+_menu).data('cnxt');
+                        if(undefined != self) {
+                            self[_menu].dom.hide();
+                            console.log('self title _cnxtMenu '+self.options.title);
+                            self._cnxtMenuAction(_menu, $(this).attr("action"));
+                        }
                     })
                     .text(m)
                     .appendTo(mnu);
@@ -213,23 +230,39 @@
     },
 
     // delegate actions of context menu
-    _cnxtMenuAction: function(_menu, _action, _ranges) {
+    _cnxtMenuAction: function(_menu, _action) {
         var funName = this[_menu][_action];
         var fun = $.proxy(this[funName], this);
-
+        var data = null;
         if($.isFunction(fun)) {
-            console.log('applying fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+_ranges.length+' slick range(s)');
-            fun(_ranges);
+            switch(_menu) {
+                case '_slkHdrCnxtMnu':
+                case '_slkCellCnxtMnu':
+                    data = this._grid.getSelectionModel().getSelectedRanges();
+                break;
+                case '_dlgTtlCnxtMnu':
+                    console.log('title action '+this.options.title);
+                    data = this._cmd;
+                break;
+            }
+            //console.log('applying fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+data);
+            fun(data);
         }
         else
-            throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+_ranges.length+' slick range(s)');
+            throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu);
+    },
+
+    _editCmd: function(cmd) {
+        console.log('EDIT '+this.options.title);
+        //console.log('EDIT '+cmd);
+        edit_sql(this._dlg, cmd);
     },
 
     // browse_data actions
     _browseCellData: function(_ranges) {
         var self = this;
         
-        // console.log('_browseCellData for '+_ranges.length+' slick range(s)');
+        console.log('_browseCellData for '+_ranges.length+' slick range(s)');
 
         // test the range and throw unsupported exceptions
         if(_ranges.length >= 2 && (!(
@@ -256,7 +289,7 @@
     _checkTable: function(_table) {
         // TODO sanity check the data _THROW_ if ERROR
     },
-    _renderTable: function(_table) {
+    _renderNewTable: function(_table) {
         var pos = [];
         if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
             var dlg = this._dlg.dialog('widget');
@@ -289,7 +322,7 @@
         var self = this;
 
         // the slickgrid table
-        self._table
+        self._tableDiv
             .css('position', 'absolute')
             .css('top', '0')
             .css('left', '0')
@@ -300,7 +333,7 @@
             .css('border-color', 'lightblue');
 
         // building slickgrid
-        self._grid = new Slick.Grid('#'+self._table.attr('id'), [], [], self.options.slickopts);
+        self._grid = new Slick.Grid('#'+self._tableDiv.attr('id'), [], [], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
@@ -319,17 +352,15 @@
     _setupEventHandlers: function() {
         // make this as context to private event handler functions
         // and register for named events
-        for(var fun in this._handlers) {
-//            this._handlers[fun] = $.proxy(this._handlers[fun], this);
+        for(var fun in this._handlers)
             this.element.on(fun, null, this, this._handlers[fun]);
-        }
     },
 
     _createDlgFooter: function() {
         var self = this;
 
         // footer for the toolbar
-        self._footer
+        self._footerDiv
             .css('height', self.options.toolBarHeight+'px')
             .css('position', 'absolute')
             .css('left', '0')
@@ -341,6 +372,17 @@
         for(btnTxt in self._toolbarButtons) {
             var elm = self._toolbarButtons[btnTxt];
 
+            var toolElmFn = function(e) {
+                var self = e.data;
+                var _btnTxt = $(this).text();
+                var fName = self._toolbarButtons[_btnTxt].clk;
+                var f = $.proxy(self[fName], self);
+                if($.isFunction(f))
+                    f();
+                else
+                    throw('['+self.options.title+'] toolbar '+_btnTxt+' has unimplimented cb '+fName);
+            };
+
             var inph = self.options.toolBarHeight;
             if($.browser.msie) inph -= 2;
 
@@ -349,8 +391,8 @@
                     .text(btnTxt)
                     .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
-                    .click(elm.clk)
-                    .appendTo(self._footer);
+                    .click(self, toolElmFn)
+                    .appendTo(self._footerDiv);
             else if(elm.typ === 'txt')
                 $('<input>')
                     .attr('type', 'text')
@@ -362,14 +404,76 @@
                     .css('padding', '0')
                     .css('margin', '0')
                     .css('margin-left', '3')
-                    .click(elm.clk)
-                    .appendTo(self._footer);
+                    .click(self, toolElmFn)
+                    .appendTo(self._footerDiv);
         }
-        self._footer.buttonset().css('height', (self.options.toolBarHeight)+'px');
+        self._footerDiv
+            .buttonset()
+            .css('height', (self.options.toolBarHeight)+'px');
+
+        // footer total width
+        var childs = self._footerDiv.children();
+        var totWidth = 0;
+        for(var i=0; i<childs.length; ++i)
+            totWidth += $(childs[i]).width();
+
+        self._footerWidth = totWidth;
     },
+
+    /*
+     * Toolbar callbak functions
+     */
+    _toolBarReload: function() {
+        this._ajaxCall('/app/query', {query: {qstr : this._cmd}}, 'query', 'queryResult');
+    },
+    _renderTable: function(_table) {
+        this._stmt   = _table.statement;
+        if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
+            this._clmlay = _table.column_layout;
+        }
+        if(_table.hasOwnProperty('table_layout')  && _table.table_layout.length  > 0) {
+            this._tbllay = _table.table_layout;
+        }
+        this.setColumns(_table.columns);
+        this._grid.setData([]);
+        this._gdata = this._grid.getData();
+        this.fetchRows(OpsFetchEnum.NEXT, 0);
+    },
+
+    _toolBarSeekFirst: function() {
+        console.log('['+this.options.title+'] cb _toolBarSeekFirst');
+    },
+    _toolBarJumpPrev: function() {
+        console.log('['+this.options.title+'] cb _toolBarJumpPrev');
+    },
+    _toolBarNext: function() {
+        console.log('['+this.options.title+'] cb _toolBarNext');
+    },
+    _toolBarJumpNext: function() {
+        console.log('['+this.options.title+'] cb _toolBarJumpNext');
+    },
+    _toolBarSeekEnd: function() {
+        console.log('['+this.options.title+'] cb _toolBarSeekEnd');
+    },
+    _toolBarSeekEndTail: function() {
+        console.log('['+this.options.title+'] cb _toolBarSeekEndTail');
+    },
+    _toolBarSkeepEndTail: function() {
+        console.log('['+this.options.title+'] cb _toolBarSkeepEndTail');
+    },
+    _toolCommit: function() {
+        console.log('['+this.options.title+'] cb _toolCommit');
+    },
+    _toolDiscard: function() {
+        console.log('['+this.options.title+'] cb _toolDiscard');
+    },
+    ////////////////////////////
 
     _createDlg: function() {
         var self = this;                    
+
+        // dlg width can't be less than footer width
+        self.options.minWidth = self._footerWidth;
         self._dlg = self.element
             .dialog(self.options)
             .bind("dialogresize", function(event, ui) 
@@ -384,6 +488,14 @@
         // for dialog title as html DOM / jQuery Obj
         self._dlg.data( "uiDialog" )._title = function(title) {
             title.html('');
+            this.options.title
+                .click(function(e) {
+                    self._dlgTtlCnxtMnu.dom
+                        .css("top", e.clientY - 10)
+                        .css("left", e.clientX)
+                        .data('cnxt', self)
+                        .show();
+                });
             title.append( this.options.title );
         };
 
@@ -469,13 +581,16 @@
         // console.log('cnxtmnu @ cell -> cell ('+cell.cell+', '+row+') value '+data+' column '+column.field);
         // console.log('cnxtmnu @ cell -> ('+e.clientX+', '+e.clientY+')');
 
-        this._slkHdrCnxtMnu.dom.hide();
+        this._slkHdrCnxtMnu.dom
+            .removeData('cnxt')
+            .hide();
         this._slkCellCnxtMnu.dom
             .css("top", e.clientY - 10)
             .css("left", e.clientX)
+            .data('cnxt', this)
             .show();
     },
-    _gridHeaderContextMenu: function(e, args){
+    _gridHeaderContextMenu: function(e, args) {
         e.preventDefault();
 
         var g           = args.grid;
@@ -489,10 +604,13 @@
         // console.log('cnxtmnu @ header -> (name, id, field) = ('+args.column.name+', '+args.column.id+', '+args.column.field+')');
         // console.log('cnxtmnu @ header -> ('+e.clientX+', '+e.clientY+')');
 
-        this._slkCellCnxtMnu.dom.hide();
+        this._slkCellCnxtMnu.dom
+            .removeData('cnxt')
+            .hide();
         this._slkHdrCnxtMnu.dom
             .css("top", e.clientY - 10)
             .css("left", e.clientX)
+            .data('cnxt', this)
             .show();
     },
 
@@ -593,6 +711,7 @@
 
     setColumns: function(_cols) {
         var self = this;
+        var dlg = this._dlg.dialog('widget');
 
         // Column Data
         var columns = new Array();
@@ -601,8 +720,8 @@
                                 field: "id",
                              behavior: "select",
                              cssClass: "cell-selection",
-                             minWidth: 35,
-                                width: 35,
+                             minWidth: 2,
+                                width: 10,
                   cannotTriggerInsert: true,
                             resizable: false,
                              sortable: false,
@@ -615,13 +734,27 @@
                                      name: _cols[i],
                                     field: fldid,
                                    editor: Slick.Editors.Text,
-                                 minWidth: 20,
-                                    width: self._txtlen.text(_cols[i]).width()+25,
+                                 minWidth: self._txtlen.text(_cols[i]).width()+25,
                                 resizable: true,
                                  sortable: false,
                                selectable: true};
         }
         self._grid.setColumns(columns);
+
+        dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()));
+        //console.log('grid width '+self._getGridWidth()+' dlg width '+dlg.width());
+    },
+
+    _getGridWidth: function() {
+        var columns = this._grid.getColumns();
+        var gWidth = 0;
+        for(var i=0;i<columns.length;++i)
+            gWidth += (1+columns[i].width);
+        return gWidth;
+    },
+    _getGridHeight: function() {
+        var rows = this._grid.getData().length + 2;
+        return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
     },
 
     replaceRows: function(_rows) {
@@ -633,11 +766,16 @@
         }
     },
 
+    // public function for loading rows
+    // used by _ajaxCall but can also be used directly
     appendRows: function(_rows) {
         if($.isArray(_rows) && _rows.length > 0) {
-            var self = this;
-            var c = self._grid.getColumns();
+            var c = this._grid.getColumns();
+            // only if first of the rows are atleast arrays and
+            // they are not greater than number of columns including the index column
             if($.isArray(_rows[0]) && _rows[0].length <= c.length) {
+                var self = this;
+                var dlg = this._dlg.dialog('widget');
                 var isIdMissing = (_rows[0].length === c.length ? false : true);
                 for(var i=0;i<_rows.length;++i) {
                     if(isIdMissing) // add the missing id field
@@ -645,7 +783,8 @@
                     var row = {};
                     for(var j=0;j<c.length;++j) {
                         var str = _rows[i][j];
-                        var fieldWidth = self._txtlen.text(str).width()+25;
+                        var fieldWidth = self._txtlen.text(str).width();
+                        fieldWidth = fieldWidth + 0.5 * fieldWidth;
                         if(c[j].width < fieldWidth) {
                             c[j].width = fieldWidth;
                             if (c[j].width > self._MAX_ROW_WIDTH)
@@ -660,6 +799,19 @@
                     self._grid.render();
                     self._grid.scrollRowIntoView(self._gdata.length-1)
                 }
+
+                var gWidth = self._getGridWidth();
+                dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width() - 10));
+                // adjusting the column to fill the rest of the window
+                // in case if gWidth is less than _footerWidth (set as minWidth of dlg)
+                if(gWidth < dlg.width()) {
+                    c[c.length - 1].width += (dlg.width() - gWidth);
+                    self._grid.setColumns(c);
+                }
+
+                // dlg height to display max number of rows
+                var gHeight = self._getGridHeight();
+                this._dlg.height(Math.min(Math.min(dlg.height(), gHeight), $(window).height()-64));
             }
         }
     }
