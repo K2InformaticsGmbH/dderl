@@ -1,8 +1,5 @@
 (function( $ ) {
-  if(Object.hasOwnProperty('freeze')) {
-      Object.freeze(OpsBufEnum);
-      Object.freeze(OpsFetchEnum);
-  }
+  var SLICK_BUFFER_SIZE = 200;
 
   $.widget( "dderl.table", $.ui.dialog, {
 
@@ -790,6 +787,12 @@
     // used by _ajaxCall but can also be used directly
     appendRows: function(_rows) {
         if($.isArray(_rows) && _rows.length > 0) {
+
+            // var vBMin = (self._gdata.length > 0    ? parseInt(self._gdata[0].id) : 0);
+            // var vBMax = (self._gdata.length > 0    ? parseInt(self._gdata[d.length-1].id) : 0);
+            // var dBMin = parseInt(_rows[0][0]);
+            // var dBMax = parseInt(_rows[_rows.length-1][0]);
+
             var c = this._grid.getColumns();
             // only if first of the rows are atleast arrays and
             // they are not greater than number of columns including the index column

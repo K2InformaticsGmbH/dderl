@@ -11,6 +11,12 @@ var OpsFetchEnum = { NEXT     :1
                    , TOBEGIN  :6
                    , RELOAD   :7
                    };
+
+if(Object.hasOwnProperty('freeze')) {
+    Object.freeze(OpsBufEnum);
+    Object.freeze(OpsFetchEnum);
+}
+
 String.prototype.visualLength = function()
 {
     var ruler = $('#txtlen');
