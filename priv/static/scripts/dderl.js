@@ -1,3 +1,23 @@
+var OpsBufEnum = { APPEND  : 1
+                 , PREPEND : 2
+                 , REPLACE : 3
+                 };
+
+var OpsFetchEnum = { NEXT     :1
+                   , PREVIOUS :2
+                   , JUMPNEXT :3
+                   , JUMPPREV :4
+                   , TOEND    :5
+                   , TOBEGIN  :6
+                   , RELOAD   :7
+                   };
+String.prototype.visualLength = function()
+{
+    var ruler = $('#txtlen');
+    ruler.html(''+this);
+    return ruler.width();
+}
+
 function getUniqueTime() {
   var time = new Date().getTime();
   while (time == new Date().getTime());
@@ -83,21 +103,24 @@ function show_qry_files()
 
 function alert_jq(string)
 {
-    if($('#dialog-message').length == 0)
-        var dlgDiv = $('<div id="dialog-message" title="DDerl message"></div>').appendTo(document.body);
-
-    $('#dialog-message').html();
-    $('#dialog-message')
-        .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>');
-
-    $( "#dialog-message" ).dialog({
-      modal: true,
-      buttons: {
-        Ok: function() {
-          $( this ).dialog( "close" );
-        }
-      }
-    });
+    var dlgDiv =
+        $('<div id="dialog-message" title="DDerl message"></div>')
+        .appendTo(document.body)
+        .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>')
+        .dialog({
+            modal: true,
+            width: 300,
+            height: 300,
+            buttons: {
+              Ok: function() {
+                $( this ).dialog( "close" );
+              }
+            },
+            close: function() {
+                $(this).dialog('destroy');
+                $(this).remove();
+            }
+        });
 }
 
 function prepare_table(context)

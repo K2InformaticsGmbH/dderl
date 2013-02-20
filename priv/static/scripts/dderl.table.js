@@ -1,18 +1,4 @@
 (function( $ ) {
-  var OpsBufEnum = { APPEND  : 1
-                   , PREPEND : 2
-                   , REPLACE : 3
-                   };
-  
-  var OpsFetchEnum = { NEXT     :1
-                     , PREVIOUS :2
-                     , JUMPNEXT :3
-                     , JUMPPREV :4
-                     , TOEND    :5
-                     , TOBEGIN  :6
-                     , RELOAD   :7
-                     };
-  
   if(Object.hasOwnProperty('freeze')) {
       Object.freeze(OpsBufEnum);
       Object.freeze(OpsFetchEnum);
@@ -64,17 +50,17 @@
                         }
                       },
 
-    _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e',   clk : '_toolBarReload' },
-                       'Move to first'         : { typ : 'btn', icn : 'seek-first',         clk : '_toolBarSeekFirst' },
-                       'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',          clk : '_toolBarJumpPrev' },
-                       ''                      : { typ : 'txt', clk : function() { $(this).select(); } },
-                       'Next page'             : { typ : 'btn', icn : 'play',               clk : '_toolBarNext' },
-                       'Jump to next page'     : { typ : 'btn', icn : 'seek-next',          clk : '_toolBarJumpNext' },
-                       'Move to end'           : { typ : 'btn', icn : 'seek-end',           clk : '_toolBarSeekEnd' },
-                       'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',         clk : '_toolBarSeekEndTail' },
-                       'Skip to end and Tail'  : { typ : 'btn', icn : 'fetch-only',         clk : '_toolBarSkeepEndTail' },
-                       'Commit changes'        : { typ : 'btn', icn : 'check',              clk : '_toolCommit' },
-                       'Discard changes'       : { typ : 'btn', icn : 'close',              clk : '_toolDiscard' }},
+    _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
+                       'Move to first'         : { typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
+                       'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
+                       ''                      : { typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
+                       'Next page'             : { typ : 'btn', icn : 'play',             clk : '_toolBarGoNex',    dom: '_tbGoNext' },
+                       'Jump to next page'     : { typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
+                       'Move to end'           : { typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
+                       'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
+                       'Skip to end and Tail'  : { typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
+                       'Commit changes'        : { typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
+                       'Discard changes'       : { typ : 'btn', icn : 'close',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
@@ -140,8 +126,8 @@
     _create: function() {
         var self = this;
 
-        self._fnt = self.element.find("*").css('font-family');
-        self._fntSz = self.element.find("*").css('font-size');
+        self._fnt = $(document.body).css('font-family');
+        self._fntSz = $(document.body).css('font-size');
 
         // preserve some options
         if(self.options.dderlAdapter    !== self._adapter)  self._adapter   = self.options.dderlAdapter;
@@ -159,12 +145,15 @@
             self._txtlen =
                 $('<span>')
                 .attr('id', 'txtlen')
-                .css('display', 'none')
+                .css('visibility', 'hidden')
                 .css('font-family', self._fnt)
                 .css('font-size', self._fntSz)
                 .appendTo(document.body);
         } else {
-            self._txtlen = $('#txtlen')
+            self._txtlen =
+                $('#txtlen')
+                .css('font-family', self._fnt)
+                .css('font-size', self._fntSz)
         }
 
         // slickgrid container
@@ -253,10 +242,25 @@
     },
 
     _editCmd: function(cmd) {
-        console.log('EDIT '+this.options.title);
-        //console.log('EDIT '+cmd);
-        edit_sql(this._dlg, cmd);
+        $('<div>')
+        .appendTo(document.body)
+        .sql({autoOpen  : false,
+              title     : this.options.title,
+              cmdOwner  : this
+             })
+        .sql('open')
+        .sql("showCmd", this._cmd);
     },
+    cmdReload: function(cmd) {
+        if(this._cmd === cmd)
+            console.log('command unchanged ['+cmd+']');
+        else {
+            console.log('command reloading ['+cmd+']');
+            this._cmd = cmd;
+            this._ajaxCall('/app/query', {query: {qstr : this._cmd}}, 'query', 'queryResult');
+        }
+    },
+
 
     // browse_data actions
     _browseCellData: function(_ranges) {
@@ -376,9 +380,10 @@
                 var self = e.data;
                 var _btnTxt = $(this).text();
                 var fName = self._toolbarButtons[_btnTxt].clk;
-                var f = $.proxy(self[fName], self);
+                //var f = $.proxy(self[fName], self);
+                var f = self[fName];
                 if($.isFunction(f))
-                    f();
+                    f(self);
                 else
                     throw('['+self.options.title+'] toolbar '+_btnTxt+' has unimplimented cb '+fName);
             };
@@ -387,13 +392,15 @@
             if($.browser.msie) inph -= 2;
 
             if(elm.typ === 'btn')
-                $('<button>')
+                self[elm.dom] =
+                    $('<button>')
                     .text(btnTxt)
                     .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
             else if(elm.typ === 'txt')
+                self[elm.dom] =
                 $('<input>')
                     .attr('type', 'text')
                     .attr('size', 10)
@@ -423,9 +430,47 @@
     /*
      * Toolbar callbak functions
      */
-    _toolBarReload: function() {
-        this._ajaxCall('/app/query', {query: {qstr : this._cmd}}, 'query', 'queryResult');
+    // NOTE: self is 'this' and 'this' is dom ;)
+    _toolBarReload: function(self) {
+        self._ajaxCall('/app/query', {query: {qstr : self._cmd}}, 'query', 'queryResult');
     },
+
+    _toolBarSkFrst: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarSkFrst');
+    },
+    _toolBarJmPrev: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarJmPrev');
+    },
+    _toolBarTxtBox: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarTxtBox');
+    },
+    _toolBarGoNex: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarGoNex fetching from '+self._gdata[self._gdata.length-1].id);
+        self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
+    },
+    _toolBarJmNext: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarJmNext');
+    },
+    _toolBarSekEnd: function(self) {
+        console.log('['+this.options.title+'] cb _toolBarSekEnd');
+    },
+    _toolBarSkTail: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarSkTail');
+    },
+    _toolBarSkipTl: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarSkipTl');
+    },
+    _toolBarCommit: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarCommit');
+    },
+    _toolBarDiscrd: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarDiscrd');
+    },
+    ////////////////////////////
+    
+    /*
+     * _ajaxCall success callbacks
+     */
     _renderTable: function(_table) {
         this._stmt   = _table.statement;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
@@ -438,34 +483,6 @@
         this._grid.setData([]);
         this._gdata = this._grid.getData();
         this.fetchRows(OpsFetchEnum.NEXT, 0);
-    },
-
-    _toolBarSeekFirst: function() {
-        console.log('['+this.options.title+'] cb _toolBarSeekFirst');
-    },
-    _toolBarJumpPrev: function() {
-        console.log('['+this.options.title+'] cb _toolBarJumpPrev');
-    },
-    _toolBarNext: function() {
-        console.log('['+this.options.title+'] cb _toolBarNext');
-    },
-    _toolBarJumpNext: function() {
-        console.log('['+this.options.title+'] cb _toolBarJumpNext');
-    },
-    _toolBarSeekEnd: function() {
-        console.log('['+this.options.title+'] cb _toolBarSeekEnd');
-    },
-    _toolBarSeekEndTail: function() {
-        console.log('['+this.options.title+'] cb _toolBarSeekEndTail');
-    },
-    _toolBarSkeepEndTail: function() {
-        console.log('['+this.options.title+'] cb _toolBarSkeepEndTail');
-    },
-    _toolCommit: function() {
-        console.log('['+this.options.title+'] cb _toolCommit');
-    },
-    _toolDiscard: function() {
-        console.log('['+this.options.title+'] cb _toolDiscard');
     },
     ////////////////////////////
 
@@ -659,6 +676,7 @@
     _checkRows: function(_rows) {         
         // TODO throw exception if any error
         this._rows_cache_max = _rows.cache_max;
+        this._tbTxtBox.val(this._rows_cache_max);
         this._fetch_status = _rows.done;
     },
     _renderRows: function(_rows) {
@@ -705,6 +723,19 @@
     /*
      * SlickGrid interface
      */
+    _getGridWidth: function() {
+        var columns = this._grid.getColumns();
+        var gWidth = 0;
+        for(var i=0;i<columns.length;++i)
+            gWidth += (1+columns[i].width);
+        return gWidth;
+    },
+
+    _getGridHeight: function() {
+        var rows = this._grid.getData().length + 2;
+        return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
+    },
+
     setSlickOpts: function(_opts) {
         this.options.slickopts = _opts;
     },
@@ -735,26 +766,15 @@
                                     field: fldid,
                                    editor: Slick.Editors.Text,
                                  minWidth: self._txtlen.text(_cols[i]).width()+25,
+                                 //minWidth: _cols[i].visualLength(),
                                 resizable: true,
                                  sortable: false,
                                selectable: true};
         }
         self._grid.setColumns(columns);
 
-        dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()));
-        //console.log('grid width '+self._getGridWidth()+' dlg width '+dlg.width());
-    },
-
-    _getGridWidth: function() {
-        var columns = this._grid.getColumns();
-        var gWidth = 0;
-        for(var i=0;i<columns.length;++i)
-            gWidth += (1+columns[i].width);
-        return gWidth;
-    },
-    _getGridHeight: function() {
-        var rows = this._grid.getData().length + 2;
-        return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
+        dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-5));
+        console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
     },
 
     replaceRows: function(_rows) {
@@ -784,7 +804,8 @@
                     for(var j=0;j<c.length;++j) {
                         var str = _rows[i][j];
                         var fieldWidth = self._txtlen.text(str).width();
-                        fieldWidth = fieldWidth + 0.5 * fieldWidth;
+                        //var fieldWidth = str.visualLength();
+                        fieldWidth = fieldWidth + 0.4 * fieldWidth;
                         if(c[j].width < fieldWidth) {
                             c[j].width = fieldWidth;
                             if (c[j].width > self._MAX_ROW_WIDTH)
@@ -801,7 +822,7 @@
                 }
 
                 var gWidth = self._getGridWidth();
-                dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width() - 10));
+                dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width()-dlg.offset().left-10));
                 // adjusting the column to fill the rest of the window
                 // in case if gWidth is less than _footerWidth (set as minWidth of dlg)
                 if(gWidth < dlg.width()) {
@@ -811,7 +832,10 @@
 
                 // dlg height to display max number of rows
                 var gHeight = self._getGridHeight();
-                this._dlg.height(Math.min(Math.min(dlg.height(), gHeight), $(window).height()-64));
+                this._dlg.height(Math.min(Math.min(dlg.height(), gHeight)+10, $(window).height()-dlg.offset().top));
+
+                self._grid.resizeCanvas();
+                console.log('rw dlg pos '+dlg.offset().left+','+dlg.offset().top);
             }
         }
     }

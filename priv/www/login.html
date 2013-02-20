@@ -8,7 +8,7 @@
 </head>
 
 <body>
-    <span id='txtlen' style='display:none;'></span>
+    <span id='txtlen' style='visibility: hidden; white-space: nowrap;'></span>
     <div id="main-menu-bar">
         <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
         	<li><a href="#">File</a>
@@ -62,6 +62,7 @@
 	<script src="../static/scripts/sqleditor.js"></script>
     <!-- script src="../static/scripts/table.js"></script -->
     <script src="../static/scripts/dderl.table.js"></script>
+    <script src="../static/scripts/dderl.sql.js"></script>
 
     <script language='javascript'>
         $(document).ready(function() {
@@ -70,7 +71,7 @@
             } else {
                 $('#main-menu-bar').hide();
                 alert_jq("Dinosours are extinct. Upgrade!");
-            }
+            }            
         });
     </script>
 </body>

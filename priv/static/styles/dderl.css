@@ -7,7 +7,9 @@
 
 @import url('../dropdown/dropdown.css');
 
-body { font-size: 62.5%; }
+@import url('dderl.sql.css');
+
+body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }
 fieldset { padding:0; border:0; margin-top:25px; }
 h1 { font-size: 1.2em; margin: .6em 0; }

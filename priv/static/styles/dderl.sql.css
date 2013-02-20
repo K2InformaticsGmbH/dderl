@@ -1,0 +1,48 @@
+#tabs {
+    position: absolute;
+    overflow:hidden;
+    top:0;
+    left:0;
+    right:0;
+    bottom:21px;
+}
+
+#tabflat, #tabpretty, #tabbox {
+    position: absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    border:none;
+}
+
+#tabbox { overflow:auto; }
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-button {
+    background: #ccc;
+    display: none;
+}
+::-webkit-scrollbar-track-piece {
+    background: #efefef
+}
+::-webkit-scrollbar-thumb {
+    background: #888
+}
+
+.ui-tabs .ui-tabs-nav li {
+    margin: 0 0 0 0;
+}
+
+.ui-tabs .ui-tabs-nav li a {
+    padding: 0.25em 0.25em 0.25em 0.25em;
+}
+
+.ui-tabs .ui-tabs-nav { padding:0; }
+.ui-tabs { padding:0; }
+.ui-tabs .ui-tabs-panel { padding: 0 }
+
+.ui-tabs-nav { background: none;} 

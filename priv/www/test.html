@@ -1,26 +1,41 @@
 <html>
 	<head>
 	</head>
-    <script language="javascript" src="http://code.jquery.com/jquery.min.js"></script>
+    <script language="javascript" src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script language="javascript" src="http://code.jquery.com/ui/1.8.24/jquery-ui.min.js"></script>
 	<body>
-        <div style="background-color:red; display:block; position:absolute;left:10px;top:10px;height:250px;width:250px"
-             ondblclick="this.style.height = 100;">
-            haha
-            <div style="background-color:blue; display:block; position:absolute;left:20px;top:20px;height:100px;width:100px"
-                 ondblclick="this.style.height = 50;">
-                hihi
-            </div>
-            <div style="background-color:green; display:block; position:absolute;left:20px;top:120px;height:100px;width:100px"
-                 ondblclick="this.style.height = 50;">
-                hoho
-            </div>
-            hehe
-        </div>
         <script>
-            $(document).ready(function() {
-                $('div').dblclick(function() {
-                  alert('Handler for .dblclick() called.');
+            (function( $ ) {
+                $.widget( "nmk.progressbar", $.ui.dialog, {
+                //$.widget( "nmk.progressbar", {
+                	options: {
+                		title: ""
+                	},
+                	_create: function() {
+                		this.element.addClass( "progressbar" );
+                		this._update();
+                	},
+                	_setOption: function( key, value ) {
+                        $.ui.dialog.prototype._setOption.call(this, key, value)
+                		this.options[ key ] = value;
+                		this._update();
+                
+                        //this._super('_setOption', key, value);
+                        //$.Widget.prototype._setOption.apply(this, arguments);
+                	},
+                	_update: function() {
+                		var progress = this.options.title + "%";
+                		this.element.text( progress );
+                	}
                 });
+            } ( jQuery ) );
+            $(document).ready(function() {
+                $('<div>')
+                    .appendTo(document.body)
+                    .progressbar({
+                        title       : "0"
+                    })
+                    //.progressbar('option', 'title', "100");
             });
         </script>
 	</body>

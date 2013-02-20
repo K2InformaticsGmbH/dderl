@@ -26,7 +26,7 @@ box_to_json(Box) ->
 [
     {<<"box">>, [
         {<<"ind">>, Box#box.ind}
-        , {<<"idx">>, Box#box.idx}
+        %, {<<"idx">>, Box#box.idx}
         , {<<"name">>, any_to_bin(Box#box.name)}
         , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
         %, {<<"collapsed">>, Box#box.collapsed}
@@ -43,32 +43,56 @@ any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
     
 process_cmd({"parse_stmt", ReqBody}, Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
-    Query = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
-    Sql = case string:substr(Query, length(Query), 1) of
-    ";" -> Query;
-    _ -> Query ++ ";"
-    end,
-    case sql_lex:string(Sql) of
-    {ok, Tokens, _} ->
-        case sql_parse:parse(Tokens) of
-        {ok, [ParseTree|_]} -> 
-            case sql_box:box_tree(ParseTree) of
-            {error, Error} ->
-                ?Error("box generator ~p~n", [{Sql, ParseTree, Error}]),
-                {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))};
+    Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
+    ?Info("parsing ~p", [Sql]),
+    %% Sql = case string:substr(Query, length(Query), 1) of
+    %% ";" -> Query;
+    %% _ -> Query ++ ";"
+    %% end,
+    case (catch jsx:encode([{<<"parse_stmt">>, [
+        case (catch sql_box:boxed(Sql)) of
+            {'EXIT', ErrorBox} -> {<<"boxerror">>, ErrorBox};
             Box ->
-                BoxJson = jsx:encode(box_to_json(Box)),
-                ?Debug("box ~p~n", [BoxJson]),
-                {Priv, binary_to_list(BoxJson)}
-            end;
-        Error -> 
-            ?Error("parser ~p~n", [{Sql, Tokens, Error}]),
-            {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
-        end;
-    Error ->
-        ?Error("lexer ~p~n", [{Sql, Error}]),
-        {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
+                BoxJson = box_to_json(Box),
+                ?Debug("--- Box --- ~n~p~n--- Json ---~n~p~n", [Box, BoxJson]),
+                {<<"box">>, BoxJson}
+        end,
+        case (catch sql_box:pretty(Sql)) of
+            {'EXIT', ErrorPretty} -> {<<"prettyerror">>, ErrorPretty};
+            Pretty -> {<<"pretty">>, list_to_binary(Pretty)}
+        end,
+        case (catch sql_box:flat(Sql)) of
+            {'EXIT', ErrorFlat} -> {<<"flaterror">>, ErrorFlat};
+            Flat -> {<<"flat">>, list_to_binary(Flat)}
+        end
+    ]}])) of
+        ParseStmt when is_binary(ParseStmt) -> {Priv, binary_to_list(ParseStmt)};
+        Error ->
+            ?Error("parse_stmt error ~p~n", [Error]),
+            ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}]))}
     end;
+    %% case sql_lex:string(Sql) of
+    %% {ok, Tokens, _} ->
+    %%     case sql_parse:parse(Tokens) of
+    %%     {ok, [ParseTree|_]} -> 
+    %%         case sql_box:box_tree(ParseTree) of
+    %%         {error, Error} ->
+    %%             ?Error("box generator ~p~n", [{Sql, ParseTree, Error}]),
+    %%             {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))};
+    %%         Box ->
+    %%             BoxJson = jsx:encode(box_to_json(Box)),
+    %%             ?Debug("box ~p~n", [BoxJson]),
+    %%             {Priv, binary_to_list(BoxJson)}
+    %%         end;
+    %%     Error -> 
+    %%         ?Error("parser ~p~n", [{Sql, Tokens, Error}]),
+    %%         {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
+    %%     end;
+    %% Error ->
+    %%     ?Error("lexer ~p~n", [{Sql, Error}]),
+    %%     {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
+    %% end;
 process_cmd({"get_query", ReqBody}, Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
