@@ -26,7 +26,6 @@ box_to_json(Box) ->
 [
     {<<"box">>, [
         {<<"ind">>, Box#box.ind}
-        %, {<<"idx">>, Box#box.idx}
         , {<<"name">>, any_to_bin(Box#box.name)}
         , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
         %, {<<"collapsed">>, Box#box.collapsed}
