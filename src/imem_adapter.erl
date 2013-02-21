@@ -58,7 +58,11 @@ process_cmd({"connect", ReqBody}, _) ->
         {error, {Ex,M}} ->
             ?Error("DB connect error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
-            {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,Err}]))};
+            {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}]))};
+        {error, Error} ->
+            ?Error("DB connect error ~p", [Error]),
+            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}]))};
         {ok, Session} ->
             ?Debug("session ~p", [Session]),
             ?Debug("connected to params ~p", [{Type, Opts}]),

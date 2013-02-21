@@ -158,14 +158,19 @@ function connect_dlg()
                 var name = $('#connection_list option:checked').val();
                 var Dlg = $(this);
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
-                    if(data.connect == "ok") {
+                    if(data.connect.hasOwnProperty('error')) {
+                        alert_jq(
+                            'Unable to connect<br>'+
+                            'Host : '+$("#ip").val()+'<br>'+
+                            'Port : '+$("#port").val()+'<br>'+
+                            'User : '+$("#user").val()+'<br>'+
+                            'Error: '+data.connect.error
+                        );
+                    } else {
                         document.title = name;
                         var nm = name.replace(/\s/, '_');
                         Dlg.dialog("close");
                         show_qry_files();
-                    }
-                    else {
-                        alert(data.connect);
                     }
                 });
             },
@@ -178,7 +183,7 @@ function connect_dlg()
                 if(null != name) load_login_form(name);
 
                 ajax_post('/app/save', connects, null, null, function(data) {
-                    alert(data.result);
+                    alert_jq(JSON.stringify(data.result));
                 });
             }
         }

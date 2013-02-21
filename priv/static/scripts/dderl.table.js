@@ -27,6 +27,8 @@
     _fetchIsTail    : false,
     _fetchIsPush    : false,
 
+    _dlgResized     : false,
+
     // private event handlers
     _handlers       : { loadViews   : function(e, _views) {
                             var self = e.data;
@@ -604,7 +606,7 @@
         this.fetchRows(OpsFetchEnum.NEXT, 0);
     },
     _renderTable: function(_table) {
-        this._stmt   = _table.statement;
+        this._stmt = _table.statement;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
             if(_table.column_layout.length === 0) this._clmlay = null;
@@ -614,6 +616,7 @@
             if(_table.table_layout.length  === 0) this._tbllay = null;
         }
         this.setColumns(_table.columns);
+        this._dlgResized = true;
         this._grid.setData([]);
         this._gdata = this._grid.getData();
         this.fetchRows(OpsFetchEnum.NEXT, 0);
@@ -694,6 +697,7 @@
                 self._grid.updateRowCount();
                 self._grid.render();
                 self._grid.resizeCanvas();
+                self._dlgResized = true;
             });
 
         // for dialog title as html DOM / jQuery Obj
@@ -1047,29 +1051,32 @@
                     //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
                 }
 
+                self._grid.resizeCanvas();
+
                 // only if the dialog don't have a predefined height/width
                 if(self._tbllay === null && self._clmlay === null) {
                     // since columns' width doesn't change after the first block we can skip this
-                    if (firstChunk) {
+                    if (firstChunk || self._dlgResized) {
                         var gWidth = self._getGridWidth();
                         dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width()-dlg.offset().left-10));
                         // adjusting the column to fill the rest of the window
                         // in case if gWidth is less than _footerWidth (set as minWidth of dlg)
                         if(gWidth < dlg.width()) {
-                            c[c.length - 1].width += (dlg.width() - gWidth);
+                            c[c.length - 1].width += (dlg.width()-gWidth-10);
                             self._grid.setColumns(c);
                         }
+                        self._dlgResized = false;
                     }
 
                     // console.log('column width adjusted in ' + ((new Date()).getTime() - start) + 'ms');
                     // start = (new Date()).getTime();
 
+                    self._grid.resizeCanvas();
+
                     // dlg height to display max number of rows
                     var gHeight = self._getGridHeight();
                     this._dlg.height(Math.min(Math.min(dlg.height(), gHeight)+10, $(window).height()-dlg.offset().top-2*self.options.toolBarHeight));
                 }
-
-                self._grid.resizeCanvas();
 
                 // 
                 // loading of rows is the costiliest of the operations
