@@ -135,16 +135,11 @@ prepare_json_rows(Statement, RowNum, Fun, StmtKey) ->
     if length(Rows) > 0 -> ?Debug("[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]); true -> ok end,
     process_data(lists:reverse(Rows), Status, CacheSize).
 
-process_data(Rows, more, CacheSize) ->
-    [{<<"done">>, false}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}];
-    % - RespJson = jsx:encode([{<<"done">>, false}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
-    % - %io:format(user, "rows " ++jsx:prettify(RespJson) ++ "~n", []),
-    % - binary_to_list(RespJson);
-process_data(Rows, _, CacheSize) ->
-    [{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].
-    % - RespJson = jsx:encode([{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}]),
-    % - %io:format(user, jsx:prettify(RespJson), []),
-    % - binary_to_list(RespJson).
+process_data(Rows, Status, CacheSize) ->
+    [{<<"done">>, Status}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].
+%% ;
+%% process_data(Rows, _, CacheSize) ->
+%%     [{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].
 
 strs2bins(Strings) ->
     lists:foldl(fun

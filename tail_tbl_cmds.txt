@@ -5,5 +5,5 @@ imem_meta:insert(temp, [2,2,1]).
 imem_meta:insert(temp, [3,3,1]).
 imem_meta:insert(temp, [4,2,1]).
 imem_meta:insert(temp, [5,2,1]).
-[imem_meta:dirty_write(temp, {temp,X,0,0}) || X <- lists:seq(1, 500)].
+[imem_meta:dirty_write(temp, {temp,0,0,0}) || X <- lists:seq(1, 500)].
 

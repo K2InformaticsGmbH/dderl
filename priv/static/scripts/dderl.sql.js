@@ -1,5 +1,15 @@
-(function( $ ) {
+function StartSqlEditor() {
+$('<div>')
+    .appendTo(document.body)
+    .sql({autoOpen  : false,
+    title     : null,
+    cmdOwner  : null
+    })
+    .sql('open');
+}
 
+(function( $ ) {
+  var DEFAULT_COUNTER = 0;
   $.widget( "dderl.sql", $.ui.dialog, {
 
     _cmdOwner       : null,
@@ -69,10 +79,18 @@
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
 
+        // preserve some options
         if(self.options.cmdOwner    !== self._dlg) self._cmdOwner   = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._dlg) self._cmdFlat    = self.options.cmdFlat;
         if(self.options.cmdPretty   !== self._dlg) self._cmdPretty  = self.options.cmdPretty;
-        
+        if(self.options.title       !== self._title) {
+            if(self.options.title === null) {
+                self.options.title = 'Query'+DEFAULT_COUNTER+'.sql';
+                ++DEFAULT_COUNTER;
+            }
+            self._title = self.options.title;
+        }
+
         // dialog elements
 
         // field for text width measurement in pixels
@@ -276,7 +294,19 @@
         this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
     },
     _toolBarTblReload: function() {
-        this._cmdOwner.cmdReload(this._modCmd);
+        if(null === this._cmdOwner) {
+            $('<div>')
+            .appendTo(document.body)
+            .table({
+                title       : this._title,
+                autoOpen    : false,
+                dderlSession: session,
+                dderlAdapter: adapter,
+            })
+            .table('cmdReload', this._modCmd)
+            .table('open');
+        } else
+            this._cmdOwner.cmdReload(this._modCmd);
     },
     _toolBarTblRefetch: function() {
         throw('unimplimented');
@@ -313,10 +343,10 @@
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
-            .dialog(self.options)
-            .bind("dialogresize", function(event, ui) 
-            {
-            });
+            .dialog(self.options);
+//            .bind("dialogresize", function(event, ui) 
+//            {
+//            });
 
         // // for dialog title as html DOM / jQuery Obj
         // self._dlg.data( "uiDialog" )._title = function(title) {
@@ -409,6 +439,9 @@
  
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
+        --DEFAULT_COUNTER;
+        if(DEFAULT_COUNTER < 0)
+            DEFAULT_COUNTER=0;
     },
 
   });

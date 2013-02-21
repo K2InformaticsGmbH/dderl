@@ -101,14 +101,14 @@ process_cmd({"row_next", ReqBody}, #priv{stmts=Statements} = Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
-    ?Info("row_next ~p", [RowNum]),
+    ?Info("row_next from ~p", [RowNum]),
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
             ?Error("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"rows">>, [{<<"error">>, <<"invalid statement">>}]}]))};
+            {Priv, binary_to_list(jsx:encode([{<<"row_next">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
             Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtKey),
-            ?Info("row_next ~p rows ~p", [self(), length(Rows)]),
+            ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
             {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))}
     end;
 process_cmd({"stmt_close", ReqBody}, #priv{stmts=Statements} = Priv) ->
@@ -175,6 +175,7 @@ process_cmd({"insert_data", ReqBody}, #priv{stmts=Statements} = Priv) ->
             {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
             Result = format_return(Statement:insert_row(ClmName, Value)),
+            ?Info("inserted ~p", [Result]),
             {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))}
     end;
 process_cmd({"commit_rows", ReqBody}, #priv{stmts=Statements} = Priv) ->

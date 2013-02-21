@@ -21,8 +21,11 @@
     _cmd            : null,
     _clmlay         : null,
     _tbllay         : null,
+
     _rows_cache_max : null,
-    _fetch_status   : null,
+    _fetchIsDone    : false,
+    _fetchIsTail    : false,
+    _fetchIsPush    : false,
 
     // private event handlers
     _handlers       : { loadViews   : function(e, _views) {
@@ -44,6 +47,31 @@
                             var self = e.data; 
                             self._checkTable(_table);
                             self._renderTable(_table);
+                        },
+                        tailResult : function(e, _tail) {
+                            var self = e.data;
+                            self._checkTailResult(_tail);
+                        },
+                        updateData : function(e, _update) {
+                            var self = e.data;
+                            self._checkUpdateResult(_update);
+                        },
+                        insertData : function(e, _insert) {
+                            var self = e.data;
+                            self._checkInsertResult(_insert);
+                            self._insertResult(_insert);
+                        },
+                        commitResult : function(e, _commit) {
+                            var self = e.data;
+                            self._checkCommitResult(_commit);
+                        },
+                        stmtCloseResult : function(e, _stmtclose) {
+                            var self = e.data;
+                            self._checkStmtCloseResult(_stmtclose);
+                        },
+                        saveViewResult  : function(e, _saveView) {
+                            var self = e.data;
+                            self._checkSaveViewResult(_saveView);
                         }
                       },
 
@@ -173,11 +201,9 @@
     },
 
     _init: function() {
-        var self = this;
-
         // default dialog open behavior
-    	if ( self.options.autoOpen )
-            self._dlg.dialog("open");
+    	if ( this.options.autoOpen )
+            this._dlg.dialog("open");
     },
 
     _createContextMenus: function() {
@@ -248,6 +274,43 @@
         .sql('open')
         .sql("showCmd", this._cmd);
     },
+
+    /*
+     * Saving a table
+     */
+    _saveView: function() {
+        this._saveViewWithName(this.options.title);
+    },
+    _saveViewAs: function() {
+        var viewName = prompt("View name",this.options.title);
+        if (null !== viewName)
+            this._saveViewWithName(viewName);
+    },
+    _saveViewWithName: function(_viewName) {
+        //qStr = this._cmd.content.replace(/(\r\n|\n|\r)/gm," ");
+        var colnamesizes = new Array();
+        var cols = this._grid.getColumns();
+        // Column names and width
+        for(var idx = 0; idx < cols.length; ++idx)
+            if(cols[idx].name.length > 0)
+                colnamesizes[colnamesizes.length] = {name: cols[idx].name, width: cols[idx].width};
+        // Table width/height/position
+        var w = this._dlg.width();
+        var h = this._dlg.height();
+        var x = this._dlg.dialog('widget').position().left;
+        var y = this._dlg.dialog('widget').position().top;
+        var saveView = {save_view : {table_layout : {width : w,
+                                                    height : h,
+                                                         y : y,
+                                                         x : x},
+                                    column_layout : colnamesizes,
+                                             name : _viewName,
+                                          content : this._cmd}
+                       };
+        console.log('saving view '+JSON.stringify(saveView));
+        this._ajaxCall('/app/save_view', saveView, 'save_view', 'saveViewResult');
+    },
+
     cmdReload: function(cmd) {
         if(this._cmd === cmd)
             console.log('command unchanged ['+cmd+']');
@@ -287,37 +350,6 @@
                            'browse_data', 'browseData');
         }
     },
-    _checkTable: function(_table) {
-        // TODO sanity check the data _THROW_ if ERROR
-    },
-    _renderNewTable: function(_table) {
-        var pos = [];
-        if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
-            var dlg = this._dlg.dialog('widget');
-            var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
-            pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
-        } else {
-            pos = [_table.table_layout.x, _table.table_layout.y];
-        }
-
-        $('<div>')
-        .appendTo(document.body)
-        .table({
-            autoOpen        : false,
-            title           : _table.name,
-            position        : pos,
-
-            dderlAdapter    : this._adapter,
-            dderlSession    : this._session,
-            dderlStatement  : _table.statement,
-            dderlCmd        : _table.content,
-            dderlClmlay     : _table.column_layout,
-            dderlTbllay     : _table.table_layout
-        })
-        .table('setColumns', _table.columns)
-        .table('fetchRows', OpsFetchEnum.NEXT, 0)
-        .table('open');
-    },
 
     _createSlickGrid: function() {
         var self = this;
@@ -339,6 +371,8 @@
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
+        self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
+        self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
 
             //self._table
             //    .jScrollPane()
@@ -429,14 +463,19 @@
      */
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
+        console.log('['+self.options.title+']'+' reloading '+self._cmd);
         self._ajaxCall('/app/query', {query: {qstr : self._cmd}}, 'query', 'queryResult');
     },
 
     _toolBarSkFrst: function(self) {
-        console.log('['+self.options.title+'] cb _toolBarSkFrst');
+        self._grid.scrollRowIntoView(0);
+        //console.log('['+self.options.title+'] cb _toolBarSkFrst');
     },
     _toolBarJmPrev: function(self) {
-        console.log('['+self.options.title+'] cb _toolBarJmPrev');
+        var row = Math.floor(self._grid.getViewport().top / 2);
+        if (row < 1) row = 0;
+        self._grid.scrollRowIntoView(row);
+        console.log('['+self.options.title+'] cb _toolBarJmPrev vp top '+row);
     },
     _toolBarTxtBox: function(self) {
         console.log('['+self.options.title+'] cb _toolBarTxtBox');
@@ -446,19 +485,34 @@
         self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
     },
     _toolBarJmNext: function(self) {
-        console.log('['+self.options.title+'] cb _toolBarJmNext');
+        var row = self._grid.getViewport().bottom * 2;
+        if (row <= self._gdata.length) {
+            self._grid.scrollRowIntoView(row);
+            console.log('['+self.options.title+'] cb _toolBarJmNext vp bottom '+row);
+        } else
+            self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
     },
     _toolBarSekEnd: function(self) {
-        console.log('['+this.options.title+'] cb _toolBarSekEnd');
+        console.log('['+self.options.title+'] cb _toolBarSekEnd');
+        self._fetchIsTail = false;
+        self._fetchIsPush = true;
+        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarSkTail: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkTail');
+        self._fetchIsTail = true;
+        self._fetchIsPush = true;
+        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarSkipTl: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkipTl');
+        self._fetchIsTail = true;
+        self._fetchIsPush = false;
+        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarCommit: function(self) {
         console.log('['+self.options.title+'] cb _toolBarCommit');
+        self._ajaxCall('/app/commit_rows',  {commit_rows: {statement: self._stmt}}, 'commit_rows', 'commitResult');
     },
     _toolBarDiscrd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarDiscrd');
@@ -468,23 +522,166 @@
     /*
      * _ajaxCall success callbacks
      */
+    _checkTable: function(_table) {
+        // TODO sanity check the data _THROW_ if ERROR
+    },
+    _checkRows: function(_rows) {         
+        // TODO throw exception if any error
+        this._rows_cache_max = _rows.cache_max;
+        this._tbTxtBox.val(this._rows_cache_max);
+        this._fetchIsDone = _rows.done;
+        console.log('[AJAX] ets buffer count : '+this._rows_cache_max+', fetch status : '+this._fetchIsDone);
+    },
+    _checkRespViews: function(_views) {
+        // TODO throw exception if any error
+        this._cmd    = _views.content;
+        this._stmt   = _views.statement;
+        if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
+            this._clmlay = _views.column_layout;
+            if(_views.column_layout.length === 0) this._clmlay = null;
+        }
+        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.length  > 0) {
+            this._tbllay = _views.table_layout;
+            if(_views.table_layout.length  === 0) this._tbllay = null;
+        }
+    },
+    _checkTailResult: function(_tail) {
+        console.log('[AJAX] tail resp '+JSON.stringify(_tail));
+        if(_tail === 'ok') {
+            this.fetchRows(OpsFetchEnum.NEXT, parseInt(this._gdata[this._gdata.length-1].id)+1);
+        }
+    },
+    _checkUpdateResult: function(_update) {
+        console.log('[AJAX] update_data resp '+JSON.stringify(_update));
+        if(_update === 'ok') {
+            console.log('update success');
+        } else {
+            if(_update.hasOwnProperty('error'))
+                alert_jq('update failed!\n'+_update.error);
+        }
+    },
+    _checkInsertResult: function(_insert) {
+        if(isNaN(parseInt(_insert)) || !this.hasOwnProperty('__insertingRow')) {
+            if(_insert.hasOwnProperty('error'))
+                alert_jq('insert failed!\n'+_insert.error);
+        } else {
+            console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
+        }
+    },
+    _checkCommitResult: function(_commit) {
+        if(_commit === "ok")
+            console.log('[AJAX] commit success!');
+        else if(_commit.hasOwnProperty('error'))
+            alert_jq('commit failed!\n'+_commit.error);
+    },
+    _checkStmtCloseResult: function(_stmtclose) {
+        if(_stmtclose === "ok")
+            console.log('[AJAX] statement_closed!');
+        else if(_stmtclose.hasOwnProperty('error'))
+            alert_jq('failed to close statement!\n'+_stmtclose.error);
+    },
+    _checkSaveViewResult: function(_saveView) {
+        if(_saveView === "ok")
+            console.log('[AJAX] view saved!');
+        else if(_saveView.hasOwnProperty('error'))
+            alert_jq('failed to save view!\n'+_saveView.error);
+    },
+    _insertResult: function(_insert) {
+        if(!isNaN(parseInt(_insert)) && this.hasOwnProperty('__insertingRow')) {
+            var item = this.__insertingRow;
+            item['id'] = parseInt(_insert);
+            this._grid.invalidateRow(this._gdata.length);
+            this._gdata.push(item);
+            this._grid.updateRowCount();
+            this._grid.render();
+            console.log('[AJAX] inserted data '+JSON.stringify(item));
+        }
+    },
+    _renderViews: function(_views) {
+        this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
+        this.options.title = _views.name;
+        this.setColumns(_views.columns);
+        this.fetchRows(OpsFetchEnum.NEXT, 0);
+    },
     _renderTable: function(_table) {
         this._stmt   = _table.statement;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
+            if(_table.column_layout.length === 0) this._clmlay = null;
         }
         if(_table.hasOwnProperty('table_layout')  && _table.table_layout.length  > 0) {
             this._tbllay = _table.table_layout;
+            if(_table.table_layout.length  === 0) this._tbllay = null;
         }
         this.setColumns(_table.columns);
         this._grid.setData([]);
         this._gdata = this._grid.getData();
         this.fetchRows(OpsFetchEnum.NEXT, 0);
     },
+    _renderNewTable: function(_table) {
+        var pos = [];
+        if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
+            var dlg = this._dlg.dialog('widget');
+            var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
+            pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
+        } else {
+            pos = [_table.table_layout.x, _table.layout.y];
+        }
+
+        var cl = null;
+        if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0)
+            cl = _table.column_layout.length;
+        var tl = null;
+        if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
+            tl = _table.table_layout.length;
+        $('<div>')
+        .appendTo(document.body)
+        .table({
+            autoOpen        : false,
+            title           : _table.name,
+            position        : pos,
+
+            dderlAdapter    : this._adapter,
+            dderlSession    : this._session,
+            dderlStatement  : _table.statement,
+            dderlCmd        : _table.content,
+            dderlClmlay     : cl,
+            dderlTbllay     : tl
+        })
+        .table('setColumns', _table.columns)
+        .table('fetchRows', OpsFetchEnum.NEXT, 0)
+        .table('open');
+    },
+    _renderRows: function(_rows) {
+        var self = this;
+        
+        //console.log('rows '+ JSON.stringify(_rows.rows));
+        console.log('[AJAX] rendering '+ _rows.rows.length+' rows');
+        this.appendRows(_rows.rows);
+
+        // fetch till end and then stop
+        if(!this._fetchIsDone && (this._fetchIsPush || this._fetchIsTail)) {
+            this.fetchRows(OpsFetchEnum.NEXT, parseInt(this._gdata[this._gdata.length-1].id)+1);
+        }
+
+        // fetch till end and then continue tail
+        else if(this._fetchIsDone && this._fetchIsTail) {
+            this._tailTimer = setTimeout(function() {
+                console.log('tailing...');
+                self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
+            }, 1000);
+        }
+    },
     ////////////////////////////
 
     _createDlg: function() {
         var self = this;                    
+
+        if(self._tbllay !== null) {
+            self.options['width'] = self._tbllay.width;
+            self.options['height'] = self._tbllay.height;
+            self.options['position'] = [self._tbllay.x, self._tbllay.y];
+        }
 
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
@@ -534,6 +731,8 @@
                 throw(ex);
             }
 
+        console.log('[AJAX] TX '+_url);
+
         $.ajax({
             type: 'POST',
             url: _url,
@@ -545,13 +744,13 @@
                      },
             context: self,
             success: function(_data) {
-                console.log('received '+ JSON.stringify(_data));
 
                 // save the new session - legacy maybe removed TODO
                 if(_data.hasOwnProperty('session'))
                     this.options.dderlSession = self._session = _data.session;
 
                 if(_data.hasOwnProperty(_resphead)) {
+                    console.log('[AJAX] RX '+_resphead);
                     if(this._handlers.hasOwnProperty(_successevt))
                         this.element.trigger(_successevt, _data[_resphead]);
                     else
@@ -627,26 +826,33 @@
             .data('cnxt', this)
             .show();
     },
+    _gridCellChange: function(e, args) {
+        e.stopPropagation();
+
+        var g           = args.grid;
+        var modifiedRow = g.getData()[args.row];
+        var cols        = g.getColumns();
+        var updateJson  = {update_data: {statement   : this._stmt,
+                                         rowid       : parseInt(modifiedRow.id),
+                                         cellid      : args.cell,
+                                         value       : modifiedRow[cols[args.cell].field]}};
+        console.log('changed '+JSON.stringify(updateJson));
+
+        this._ajaxCall('/app/update_data', updateJson, 'update_data', 'updateData');
+    },
+    _gridAddNewRow: function(e, args) {
+        e.stopPropagation();
+
+        var insertJson = {insert_data: {statement   : this._stmt,
+                                        col         : args.column.id,
+                                        value       : args.item[args.column.id]}};
+        //console.log('inserting '+JSON.stringify(args.item));
+        this['__insertingRow'] = args.item;
+        this._ajaxCall('/app/insert_data', insertJson, 'insert_data', 'insertData');
+    },
 
     // loading the view table
     loadViews: function() { this._ajaxCall('/app/views', null, 'views', 'loadViews'); },
-    _checkRespViews: function(_views) {
-        // TODO throw exception if any error
-        this._cmd    = _views.content;
-        this._stmt   = _views.statement;
-        if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
-            this._clmlay = _views.column_layout;
-        }
-        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.length  > 0) {
-            this._tbllay = _views.table_layout;
-        }
-    },
-    _renderViews: function(_views) {
-        this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
-        this.options.title = _views.name;
-        this.setColumns(_views.columns);
-        this.fetchRows(OpsFetchEnum.NEXT, 0);
-    },
 
     // loading rows
     fetchRows: function(_fetchop, _rwnum) {
@@ -669,15 +875,6 @@
         if(_rwnum == null)
             _rwnum = -1;
         this._ajaxCall('/app/'+cmd, {row: {statement: this._stmt, row_num: _rwnum}}, cmd, 'loadRows');
-    },
-    _checkRows: function(_rows) {         
-        // TODO throw exception if any error
-        this._rows_cache_max = _rows.cache_max;
-        this._tbTxtBox.val(this._rows_cache_max);
-        this._fetch_status = _rows.done;
-    },
-    _renderRows: function(_rows) {
-        this.appendRows(_rows.rows);
     },
 
     // Use the _setOption method to respond to changes to options
@@ -715,6 +912,8 @@
  
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
+        console.log('destroying...');
+        this._ajaxCall('/app/stmt_close', {stmt_close: {statement: this._stmt}}, 'stmt_close', 'stmtCloseResult');
     },
 
     /*
@@ -748,30 +947,43 @@
                                 field: "id",
                              behavior: "select",
                              cssClass: "cell-selection",
+                                width: 30,
                              minWidth: 2,
-                                width: 10,
                   cannotTriggerInsert: true,
-                            resizable: false,
+                            resizable: true,
                              sortable: false,
                            selectable: false};
         for (i=0;i<_cols.length;++i) {
             var fldid = _cols[i];
+            var fldWidth = self._txtlen.text(_cols[i]).width()+25;
             if(fldid == fldid.toLowerCase() && fldid == 'id')
                 fldid = ('_'+fldid.toLowerCase());
             columns[columns.length] = {id: fldid,
                                      name: _cols[i],
                                     field: fldid,
                                    editor: Slick.Editors.Text,
-                                 minWidth: self._txtlen.text(_cols[i]).width()+25,
+                                 minWidth: fldWidth,
+                                    width: fldWidth,
                                  //minWidth: _cols[i].visualLength(),
                                 resizable: true,
                                  sortable: false,
                                selectable: true};
         }
+
+        // load the column layout if its was saved
+        if(self._clmlay !== null)
+            for(var i=0;i<self._clmlay.length;++i) {
+                for(var j=0;j<self._clmlay.length;++j) {
+                    if(columns[i].name === self._clmlay[j].name)
+                        columns[i].width = self._clmlay[j].width
+                }
+            }
         self._grid.setColumns(columns);
 
-        dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-5));
-        console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
+        if(self._tbllay === null)
+            dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-5));
+
+        //console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
     },
 
     replaceRows: function(_rows) {
@@ -788,57 +1000,84 @@
     appendRows: function(_rows) {
         if($.isArray(_rows) && _rows.length > 0) {
 
-            // var vBMin = (self._gdata.length > 0    ? parseInt(self._gdata[0].id) : 0);
-            // var vBMax = (self._gdata.length > 0    ? parseInt(self._gdata[d.length-1].id) : 0);
-            // var dBMin = parseInt(_rows[0][0]);
-            // var dBMax = parseInt(_rows[_rows.length-1][0]);
-
             var c = this._grid.getColumns();
+            var firstChunk = (this._gdata.length === 0);
             // only if first of the rows are atleast arrays and
             // they are not greater than number of columns including the index column
             if($.isArray(_rows[0]) && _rows[0].length <= c.length) {
                 var self = this;
                 var dlg = this._dlg.dialog('widget');
                 var isIdMissing = (_rows[0].length === c.length ? false : true);
+
+                var start = (new Date()).getTime();
+                console.log('rows loading to slick...');
+
                 for(var i=0;i<_rows.length;++i) {
+                    var starRowLoad = (new Date()).getTime();
+
                     if(isIdMissing) // add the missing id field
                         _rows[i].splice(0,0,self._gdata.length+1);
                     var row = {};
                     for(var j=0;j<c.length;++j) {
-                        var str = _rows[i][j];
-                        var fieldWidth = self._txtlen.text(str).width();
-                        //var fieldWidth = str.visualLength();
-                        fieldWidth = fieldWidth + 0.4 * fieldWidth;
-                        if(c[j].width < fieldWidth) {
-                            c[j].width = fieldWidth;
-                            if (c[j].width > self._MAX_ROW_WIDTH)
-                                c[j].width = self._MAX_ROW_WIDTH;
+                        // adjust columns only the first time
+                        if (firstChunk) {
+                            var str = _rows[i][j];
+                            var fieldWidth = self._txtlen.text(str).width();
+                            //var fieldWidth = str.visualLength();
+                            fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                            if(c[j].width < fieldWidth) {
+                                c[j].width = fieldWidth;
+                                if (c[j].width > self._MAX_ROW_WIDTH)
+                                    c[j].width = self._MAX_ROW_WIDTH;
+                            }
                         }
                         row[c[j].field] = _rows[i][j];
                     }
-                    self._grid.setColumns(c);
+                    firstChunk && self._grid.setColumns(c);
                     self._gdata.push(row);
                     self._grid.updateRowCount();
                     self._grid.invalidateRow(self._gdata.length-1);
+
+                    // -- // rendering is an expensive operation so done intermittently
+                    // -- if (i % 10 === 0) {
                     self._grid.render();
-                    self._grid.scrollRowIntoView(self._gdata.length-1)
+                    self._grid.scrollRowIntoView(self._gdata.length-1);
+                    // -- }
+
+                    //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
                 }
 
-                var gWidth = self._getGridWidth();
-                dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width()-dlg.offset().left-10));
-                // adjusting the column to fill the rest of the window
-                // in case if gWidth is less than _footerWidth (set as minWidth of dlg)
-                if(gWidth < dlg.width()) {
-                    c[c.length - 1].width += (dlg.width() - gWidth);
-                    self._grid.setColumns(c);
-                }
+                // only if the dialog don't have a predefined height/width
+                if(self._tbllay === null && self._clmlay === null) {
+                    // since columns' width doesn't change after the first block we can skip this
+                    if (firstChunk) {
+                        var gWidth = self._getGridWidth();
+                        dlg.width(Math.min(Math.max(self._footerWidth, gWidth), $(window).width()-dlg.offset().left-10));
+                        // adjusting the column to fill the rest of the window
+                        // in case if gWidth is less than _footerWidth (set as minWidth of dlg)
+                        if(gWidth < dlg.width()) {
+                            c[c.length - 1].width += (dlg.width() - gWidth);
+                            self._grid.setColumns(c);
+                        }
+                    }
 
-                // dlg height to display max number of rows
-                var gHeight = self._getGridHeight();
-                this._dlg.height(Math.min(Math.min(dlg.height(), gHeight)+10, $(window).height()-dlg.offset().top));
+                    // console.log('column width adjusted in ' + ((new Date()).getTime() - start) + 'ms');
+                    // start = (new Date()).getTime();
+
+                    // dlg height to display max number of rows
+                    var gHeight = self._getGridHeight();
+                    this._dlg.height(Math.min(Math.min(dlg.height(), gHeight)+10, $(window).height()-dlg.offset().top-2*self.options.toolBarHeight));
+                }
 
                 self._grid.resizeCanvas();
-                console.log('rw dlg pos '+dlg.offset().left+','+dlg.offset().top);
+
+                // 
+                // loading of rows is the costiliest of the operations
+                // compared to computing and adjusting the table width/height
+                // (so for now total time of function entry/exit is appromately equal to only row loading)
+                //
+                //console.log('dlg height adjusted in ' + ((new Date()).getTime() - start) + 'ms');
+                console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
             }
         }
     }
