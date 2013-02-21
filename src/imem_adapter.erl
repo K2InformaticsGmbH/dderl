@@ -186,15 +186,15 @@ process_cmd({"commit_rows", ReqBody}, #priv{stmts=Statements} = Priv) ->
             ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
             {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, <<"invalid statement">>}]}]))};
         {Statement, _, _} ->
-            Ret = try
+            try
                 ok = Statement:prepare_update(),
                 ok = Statement:execute_update(),
-                ok = Statement:fetch_close()
+                Ret = Statement:fetch_close(),
+                {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, format_return(Ret)}]))}
             catch
-                _:Reason -> {error, Reason}
-            end,
-            Result = format_return(Ret),
-            {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, Result}]))}
+                _:Reason ->
+                    {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
+            end
     end;
 
 process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
