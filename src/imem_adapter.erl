@@ -301,11 +301,23 @@ process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
         {error, {Ex,M}} ->
             ?Error([{session, Session}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
-            {Priv, [{<<"columns">>,[]},{<<"statement">>,0},{<<"error">>, Err}]};
-        Res ->
-            ?Debug("qry ~p~nResult ~p", [Query, Res]),
-            {Priv, [{<<"columns">>,[]},{<<"statement">>,0}]}
+            {Priv, [{<<"error">>, Err}]}
     end.
+
+%% stmt_add(Statement, Query, Conn, #priv{sessions=Sessions} = Priv) ->
+%%     StmtHndl = erlang:phash2(Statement),
+%%     NewStmt = #statement{
+%%         stmt = Statement,
+%%         qry = Query
+%%     },
+%%     #conn{statements = Stmts} = Con = proplists:get_value(Conn, Sessions, #conn{}),
+%%     {Priv#priv{
+%%         sessions = lists:keystore(Conn, 1,
+%%                                  {Conn, lists:keystore(StmtHndl, 1,
+%%                                                       {StmtHndl, NewStmt}
+%%                                                       , Stmts)}
+%%                                  , Sessions)}
+%%     , StmtHndl}.
 
 format_return({error, {_,{error, _}=Error}}) -> format_return(Error);
 format_return({error, {E,{R,_Ext}} = Excp}) ->
