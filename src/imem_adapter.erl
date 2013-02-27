@@ -277,10 +277,8 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
         {ok, Clms, {_,StmtPid,ConPid}=Statement} ->
             ?Info([{session, Connection}], "Cols ~p", [Clms]),
             Columns = build_column_json(lists:reverse(Clms), []),
-            ?Info("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
-            %Columns = lists:reverse([binary_to_list(C#stmtCol.alias)||C<-Clms]),
+            ?Debug("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
             Statement:start_async_read([]),
-            %{Priv, [{<<"columns">>, gen_adapter:strs2bins(Columns)}
             {Priv, [{<<"columns">>, Columns}
                    ,{<<"statement">>, list_to_binary(?EncryptPid(StmtPid))}
                    ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};

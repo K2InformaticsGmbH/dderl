@@ -1057,38 +1057,25 @@
                 self._grid.setColumns(c);
             }
 
-            // TODO hack for the time being
-            _rows = _rows.rows;
-            
             // only if first of the rows are atleast arrays and
             // they are not greater than number of columns including the index column
-            if($.isArray(_rows[0]) && _rows[0].length <= c.length) {
+            var rows = _rows.rows;
+            
+            if($.isArray(rows[0]) && rows[0].length <= c.length) {
                 var dlg = this._dlg.dialog('widget');
-                var isIdMissing = (_rows[0].length === c.length ? false : true);
+                var isIdMissing = (rows[0].length === c.length ? false : true);
 
                 var start = (new Date()).getTime();
                 console.log('rows loading to slick...');
 
-                for(var i=0;i<_rows.length;++i) {
+                for(var i=0;i<rows.length;++i) {
                     var starRowLoad = (new Date()).getTime();
 
                     if(isIdMissing) // add the missing id field
-                        _rows[i].splice(0,0,self._gdata.length+1);
+                        rows[i].splice(0,0,self._gdata.length+1);
                     var row = {};
                     for(var j=0;j<c.length;++j) {
-                        // // adjust columns only the first time
-                        // if (firstChunk) {
-                        //     var str = _rows[i][j];
-                        //     var fieldWidth = self._txtlen.text(str).width();
-                        //     //var fieldWidth = str.visualLength();
-                        //     fieldWidth = fieldWidth + 0.4 * fieldWidth;
-                        //     if(c[j].width < fieldWidth) {
-                        //         c[j].width = fieldWidth;
-                        //         if (c[j].width > self._MAX_ROW_WIDTH)
-                        //             c[j].width = self._MAX_ROW_WIDTH;
-                        //     }
-                        // }
-                        row[c[j].field] = _rows[i][j];
+                        row[c[j].field] = rows[i][j];
                     }
                     self._gdata.push(row);
                     self._grid.updateRowCount();

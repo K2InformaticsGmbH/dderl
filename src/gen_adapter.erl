@@ -44,10 +44,6 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
-    %% Sql = case string:substr(Query, length(Query), 1) of
-    %% ";" -> Query;
-    %% _ -> Query ++ ";"
-    %% end,
     case (catch jsx:encode([{<<"parse_stmt">>, [
         case (catch sql_box:boxed(Sql)) of
             {'EXIT', ErrorBox} -> {<<"boxerror">>, ErrorBox};
@@ -71,27 +67,6 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}]))}
     end;
-    %% case sql_lex:string(Sql) of
-    %% {ok, Tokens, _} ->
-    %%     case sql_parse:parse(Tokens) of
-    %%     {ok, [ParseTree|_]} -> 
-    %%         case sql_box:box_tree(ParseTree) of
-    %%         {error, Error} ->
-    %%             ?Error("box generator ~p~n", [{Sql, ParseTree, Error}]),
-    %%             {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))};
-    %%         Box ->
-    %%             BoxJson = jsx:encode(box_to_json(Box)),
-    %%             ?Debug("box ~p~n", [BoxJson]),
-    %%             {Priv, binary_to_list(BoxJson)}
-    %%         end;
-    %%     Error -> 
-    %%         ?Error("parser ~p~n", [{Sql, Tokens, Error}]),
-    %%         {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
-    %%     end;
-    %% Error ->
-    %%     ?Error("lexer ~p~n", [{Sql, Error}]),
-    %%     {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"ERROR: check log for details">>}]}]))}
-    %% end;
 process_cmd({"get_query", ReqBody}, Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
@@ -129,14 +104,16 @@ prepare_json_rows(Statement, RowNum, Fun, StmtKey) ->
 
 process_data(Rows, Status, CacheSize) ->
     V = widest_cell_per_clm(Rows),
-    ?Info("the maxes ~p", [V]),
+    ?Debug("the maxes ~p", [V]),
     [ {<<"done">>, Status}
     , {<<"max_width_vec">>, V}
     , {<<"cache_max">>, CacheSize}
     , {<<"rows">>, rows_to_json1(Rows)}
     ].
 
+widest_cell_per_clm([]) -> [];
 widest_cell_per_clm(Rows) -> widest_cell_per_clm(Rows, lists:duplicate(length(lists:nth(1,Rows)), "")).
+
 widest_cell_per_clm([],V) -> [list_to_binary(Ve) || Ve <- V];
 widest_cell_per_clm([R|Rows],V) ->
     NewV = 
