@@ -4,6 +4,7 @@
 
 -module(dderl_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
+
 -export([init/1,
         content_types_provided/2,
         is_authorized/2,
@@ -13,8 +14,8 @@
         allowed_methods/2,
         malformed_request/2]).
 
+-include_lib("dderl.hrl").
 -include_lib("webmachine/include/webmachine.hrl").
--define(VERSION, "1.0").
 
 init([]) ->
     lager:debug("~p starting...", [?MODULE]),
@@ -25,11 +26,12 @@ allowed_methods(ReqData, Context) ->
     {['HEAD', 'POST'], ReqData, Context}.
 
 process_post(ReqData, Context) ->
-    Body = to_html(ReqData),
+    {DDerlSessPid, Body} = to_html(ReqData),
     lager:debug("process_post - POST Response ~p~n", [Body]),
     ReqData1 = wrq:set_resp_body(Body, ReqData),
+    ReqData2 = wrq:set_resp_header("dderl_sess", ?EncryptPid(DDerlSessPid), ReqData1),
     lager:debug("received request ~p", [ReqData]),
-    {true, ReqData1, Context}.
+    {true, ReqData2, Context}.
 
 content_types_provided(ReqData, Context) ->
     lager:debug("content_types_provided ...~n"),
@@ -48,27 +50,19 @@ malformed_request(ReqData, Context) ->
 
 to_html(ReqData) ->
     Session = wrq:get_req_header("dderl_sess",ReqData),
-    {SessKey, DderlSess} = create_new_session(Session),
+    {_,DDerlSessPid} = DderlSess = create_new_session(Session),
     case wrq:get_req_header("adapter",ReqData) of
         undefined -> ok;
         Adapter   -> DderlSess:set_adapter(Adapter)
     end,
-    DderlSess:process_request(SessKey, ReqData).
+    {DDerlSessPid, DderlSess:process_request(ReqData)}.
 
 create_new_session([]) -> create_new_session(undefined);
 create_new_session(undefined) ->
-    {Key, DderlSess} = dderl_session:start(),
-    lager:info([{session, Key}], "new dderl session ~p", [{Key, DderlSess}]),
-    R = ets:insert(dderl_req_sessions, {Key, DderlSess}),
-    lager:debug([{session, Key}], "session inserted to ETS ~p", [R]),
-    {Key, DderlSess};
-create_new_session(Session) ->
-    case ets:lookup(dderl_req_sessions, list_to_integer(Session)) of
-        [] -> create_new_session(undefined);
-        [{Key, DderlSess}|_] ->
-            lager:debug([{session, Key}], "using session ~p", [{Key, DderlSess}]),
-            {Key, DderlSess}
-    end.
+    DderlSess = dderl_session:start(),
+    lager:info("new dderl session ~p", [{DderlSess}]),
+    DderlSess;
+create_new_session(DDerlSessPid) -> {dderl_session, ?DecryptPid(DDerlSessPid)}.
 
 is_authorized(ReqData, Context) ->
     case wrq:disp_path(ReqData) of

@@ -170,7 +170,7 @@ function connect_dlg()
                         document.title = name;
                         var nm = name.replace(/\s/, '_');
                         Dlg.dialog("close");
-                        show_qry_files();
+                        show_qry_files(data.connect);
                     }
                 });
             },

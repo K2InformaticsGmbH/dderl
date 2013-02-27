@@ -85,21 +85,33 @@ function ajax_post(url, dataJson, headers, context, successFun) {
         contentType: "application/json; charset=utf-8",
         headers: headers,
         context: context,
-        success: function(_data) {
-            if(_data.hasOwnProperty('session'))
-                session = _data.session;
+        success: function(_data, textStatus, request)
+        {            
+            console.log('dderl session '+JSON.stringify(request.getResponseHeader('dderl_sess')));
+            //if(_data.hasOwnProperty('session'))
+            //    session = _data.session;
+            var s = request.getResponseHeader('dderl_sess');
+            if(s != null)
+                session = s;
             if(successFun != null)
                 successFun.call(context, _data);
         }
+//        success: function(_data) {
+//            if(_data.hasOwnProperty('session'))
+//                session = _data.session;
+//            if(successFun != null)
+//                successFun.call(context, _data);
+//        }
     });
 }
 
-function show_qry_files()
+function show_qry_files(conn)
 {
     $('<div>')
     .appendTo(document.body)
     .table({
         autoOpen    : false,
+        dderlConn   : conn,
         dderlSession: session,
         dderlAdapter: adapter,
     })

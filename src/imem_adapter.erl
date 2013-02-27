@@ -1,4 +1,5 @@
 -module(imem_adapter).
+-author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
 -include("dderl.hrl").
 
@@ -63,8 +64,8 @@ process_cmd({"connect", ReqBody}, _) ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}]))};
-        {ok, Session} ->
-            ?Debug("session ~p", [Session]),
+        {ok, {_,ConPid} = Connection} ->
+            ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, Opts}]),
             Statements = [],
             Con = #ddConn { id       = erlang:phash2(make_ref())
@@ -79,13 +80,14 @@ process_cmd({"connect", ReqBody}, _) ->
                           },
             ?Info([{user, User}], "saving new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
-            {#priv{sess=Session, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,<<"ok">>}]))}
+            {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
     end;
 process_cmd({"query", ReqBody}, #priv{sess=Session} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    ?Debug([{session, Session}], "query ~p", [{Session, Query}]),
-    {NewPriv, R} = process_query(Query, Priv),
+    Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
+    ?Info("query ~p", [{Connection, Query}]),
+    {NewPriv, R} = process_query(Query, Connection, Priv),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
 process_cmd({"row_prev", ReqBody}, #priv{stmts=Statements} = Priv) ->
@@ -103,18 +105,14 @@ process_cmd({"row_prev", ReqBody}, #priv{stmts=Statements} = Priv) ->
     end;
 process_cmd({"row_next", ReqBody}, #priv{stmts=Statements} = Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
     ?Info("row_next from ~p", [RowNum]),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Error("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"row_next">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtKey),
-            ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
-            {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))}
-    end;
+    Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtPid),
+    ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
+    {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))};
 process_cmd({"stmt_close", ReqBody}, #priv{stmts=Statements} = Priv) ->
     [{<<"stmt_close">>,BodyJson}] = ReqBody,
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
@@ -201,11 +199,12 @@ process_cmd({"commit_rows", ReqBody}, #priv{stmts=Statements} = Priv) ->
             end
     end;
 
-process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
+process_cmd({"browse_data", ReqBody}, #priv{sess=Session, stmts=Statements} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
+    Connection = {dderl_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
     case proplists:get_value(StmtKey, Statements) of
         undefined ->
             ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
@@ -221,7 +220,8 @@ process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = P
                 Name = element(5, R),
                 V = dderl_dal:get_view(Name, Owner),
                 ?Info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
-                {NewPriv, Resp} = process_query(C#ddCmd.command, Priv),
+                AdminConn = dderl_dal:get_session(),
+                {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
                 RespJson = jsx:encode([{<<"browse_data">>,
                     [{<<"content">>, list_to_binary(C#ddCmd.command)}
                     ,{<<"name">>, list_to_binary(Name)}
@@ -234,7 +234,7 @@ process_cmd({"browse_data", ReqBody}, #priv{sess=_Session, stmts=Statements} = P
             true ->                
                 Name = lists:last(tuple_to_list(R)),
                 Query = "SELECT * FROM " ++ Name,
-                {NewPriv, Resp} = process_query(Query, Priv),
+                {NewPriv, Resp} = process_query(Query, Connection, Priv),
                 RespJson = jsx:encode([{<<"browse_data">>,
                     [{<<"content">>, list_to_binary(Query)}
                     ,{<<"name">>, list_to_binary(Name)}] ++
@@ -268,9 +268,8 @@ process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
 process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
-    #priv{sess=ClientSess} = Priv,
     AdminSession = dderl_dal:get_session(),
-    {NewPriv, Resp} = process_query(C#ddCmd.command, Priv#priv{sess=AdminSession}),
+    {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
 io:format(user, "View ~p~n", [F]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, list_to_binary(C#ddCmd.command)}
@@ -280,7 +279,7 @@ io:format(user, "View ~p~n", [F]),
         ++ Resp
     }]),
 %io:format(user, "views ~p~n", [RespJson]),
-    {NewPriv#priv{sess=ClientSess}, binary_to_list(RespJson)};
+    {NewPriv, binary_to_list(RespJson)};
 process_cmd({"save_view", BodyJson}, Priv) -> gen_adapter:process_cmd({"save_view", BodyJson}, Priv);
 process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
 process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
@@ -288,36 +287,23 @@ process_cmd({Cmd, BodyJson}, Priv) ->
     ?Error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
-process_query(Query, #priv{sess=Session, stmts=Statements} = Priv) ->
-    case Session:exec(Query, ?DEFAULT_ROW_SIZE) of
-        {ok, Clms, Statement} ->
+process_query(Query, {_,ConPid}=Connection, #priv{stmts=Statements} = Priv) ->
+    case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
+        {ok, Clms, {_,StmtPid,ConPid}=Statement} ->
             StmtHndl = erlang:phash2(Statement),
             Columns = lists:reverse([binary_to_list(C#stmtCol.alias)||C<-Clms]),
-            ?Debug([{session, Session}], "columns ~p", [Columns]),
+            ?Debug([{session, Connection}], "columns ~p", [Columns]),
             Statement:start_async_read([]),
             {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}
             , [{<<"columns">>, gen_adapter:strs2bins(Columns)}
-              ,{<<"statement">>,StmtHndl}]};
+%%              ,{<<"statement">>,StmtHndl}]};
+              ,{<<"statement">>, list_to_binary(?EncryptPid(StmtPid))}
+              ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};
         {error, {Ex,M}} ->
-            ?Error([{session, Session}], "query error ~p", [{Ex,M}]),
+            ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
             {Priv, [{<<"error">>, Err}]}
     end.
-
-%% stmt_add(Statement, Query, Conn, #priv{sessions=Sessions} = Priv) ->
-%%     StmtHndl = erlang:phash2(Statement),
-%%     NewStmt = #statement{
-%%         stmt = Statement,
-%%         qry = Query
-%%     },
-%%     #conn{statements = Stmts} = Con = proplists:get_value(Conn, Sessions, #conn{}),
-%%     {Priv#priv{
-%%         sessions = lists:keystore(Conn, 1,
-%%                                  {Conn, lists:keystore(StmtHndl, 1,
-%%                                                       {StmtHndl, NewStmt}
-%%                                                       , Stmts)}
-%%                                  , Sessions)}
-%%     , StmtHndl}.
 
 format_return({error, {_,{error, _}=Error}}) -> format_return(Error);
 format_return({error, {E,{R,_Ext}} = Excp}) ->

@@ -28,7 +28,7 @@ box_to_json(Box) ->
         {<<"ind">>, Box#box.ind}
         , {<<"name">>, any_to_bin(Box#box.name)}
         , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
-        %, {<<"collapsed">>, Box#box.collapsed}
+        , {<<"collapsed">>, Box#box.collapsed}
         , {<<"collapsed">>, false}
         , {<<"error">>, Box#box.error}
         , {<<"color">>, Box#box.color}
@@ -113,14 +113,6 @@ process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"error">>, <<"unknown command">>}]))}.
 
-%prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid, Fun) ->
-%    {Rows, Status, CacheSize} = apply(Statement, next_rows, []),
-%    case Status of
-%        more -> prepare_json_rows(Cmd, -2, Statement, StmtKey, SrvPid, Fun);
-%        _ ->
-%            if length(Rows) > 0 -> ?Debug("[~p] next_rows end table ~p~n", [StmtKey, length(Rows)]); true -> ok end,
-%            process_data(Rows, Status, CacheSize)
-%    end;
 prepare_json_rows(C, RowNum, Statement, StmtKey) when RowNum >= 0, is_atom(C) ->
     {Rows, Status, CacheSize} = apply(Statement, rows_from, [RowNum]),
     if length(Rows) > 0 -> ?Debug("[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]);

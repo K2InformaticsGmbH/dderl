@@ -113,16 +113,16 @@ function build_boxes_r(root_node, box, last_parent_node, depth) {
     }
 }
 
-function get_box_height(box)
-{
-    var height = def_height;
-    if(!box.collapsed) {
-        for(var i=0; i < box.children; ++i)
-            height += get_box_height(box.children[i]);
-    }
-    return height;
-}
-
+//function get_box_height(box)
+//{
+//    var height = def_height;
+//    if(!box.collapsed) {
+//        for(var i=0; i < box.children; ++i)
+//            height += get_box_height(box.children[i]);
+//    }
+//    return height;
+//}
+//
 function build_boxes(div, box)
 {
     div.text('');
@@ -130,102 +130,102 @@ function build_boxes(div, box)
     build_boxes_r(div, box, div, 0);
 }
 
-function parse_and_update(root_node, qry) {
-    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
-        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
-            alert(pTree.error);
-        } else {
-            prep_box(pTree.box);
-            build_boxes(root_node, pTree);
-        }
-    });
-}
-
-function edit_sql(tblDlg, qry) {
-    if(qry == null || qry.length == 0) {
-        sql_editor(tblDlg, null, null, "");
-        return;
-    }
-
-    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
-        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
-            alert(pTree.error);
-        } else {
-            prep_box(pTree.box);
-            sql_editor(tblDlg, pTree.box, null, qry);
-        }
-    });
-}
-
-var undefinedTable = "Query";
-var undefinedTableIdx = 0;
-function sql_editor(tblDlg, box, pos, qry) {
-    var share        = 80; // percent
-    var boxHeight    = 500;
-    var boxWidth     = 500;
-    var visHeight    = Math.round(boxHeight * share / 100);
-    var sqlTxtHeight = boxHeight - visHeight;
-
-    var titleStr = "Sql Visualizer";
-    if(tblDlg != null && tblDlg != undefined)
-        titleStr = tblDlg.dialog("option", "title").text();
-
-    var X = 115, Y = 115;
-    if(pos != null) {X = pos.docX; Y = pos.docY;}
-
-    $('<div style="width:100%"></div>')
-    .appendTo(document.body)
-    .bind("dialogresize", function (event, ui) {
-        var dh = $(this).height() - 10;
-        var dw = $(this).width() - 8;
-        var seh = Math.round(dh * share / 100);
-        var sth = dh - seh;
-        $(this).children('div').width(dw)
-                               .height(seh);
-        $(this).children('textarea').width(dw - 4)
-                                    .height(sth);
-    })
-    .dialog({
-        autoOpen: false,
-        height: 'auto',
-        width: 'auto',
-        modal: false,
-        position: [X, Y],
-        resizable: true,
-        title: titleStr,
-        close: function() {
-            $(this).dialog('destroy');
-            $(this).remove();
-        },
-        open: function(event, ui) {
-            if(box != null)
-                build_boxes($(this).children('div'), box);
-        },
-        buttons: {
-            "Re-Draw": function() {
-                qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
-                parse_and_update($(this).children('div'), qStr);
-            },
-            "Ok": function() {
-                qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
-                $(this).dialog('close');
-                if(tblDlg != null && tblDlg != undefined)
-                    tblDlg.trigger('requery', qStr);
-                else {
-                    load_table({name: undefinedTable + undefinedTableIdx + ".sql", content : qStr});
-                    ++undefinedTableIdx;
-                }
-            }
-        }
-    })
-    .append($('<div></div>') // For holding the box
-            .width(boxWidth)
-            .height(visHeight)
-            //.css('background-color', 'rgb(255,255,0)')
-            .addClass("ui-widget-content")
-            .css("overflow", "auto"))
-    .append($('<textarea>'+qry+'</textarea>')
-            .width(boxWidth - 4)
-            .height(sqlTxtHeight))
-    .dialog("open");
-}
+//function parse_and_update(root_node, qry) {
+//    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
+//        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
+//            alert(pTree.error);
+//        } else {
+//            prep_box(pTree.box);
+//            build_boxes(root_node, pTree);
+//        }
+//    });
+//}
+//
+//function edit_sql(tblDlg, qry) {
+//    if(qry == null || qry.length == 0) {
+//        sql_editor(tblDlg, null, null, "");
+//        return;
+//    }
+//
+//    ajax_post("/app/parse_stmt", {parse_stmt: {qstr:qry}}, null, null, function(pTree) {
+//        if (pTree.hasOwnProperty('error') && pTree.error.length > 0) {
+//            alert(pTree.error);
+//        } else {
+//            prep_box(pTree.box);
+//            sql_editor(tblDlg, pTree.box, null, qry);
+//        }
+//    });
+//}
+//
+// var undefinedTable = "Query";
+// var undefinedTableIdx = 0;
+// function sql_editor(tblDlg, box, pos, qry) {
+//     var share        = 80; // percent
+//     var boxHeight    = 500;
+//     var boxWidth     = 500;
+//     var visHeight    = Math.round(boxHeight * share / 100);
+//     var sqlTxtHeight = boxHeight - visHeight;
+// 
+//     var titleStr = "Sql Visualizer";
+//     if(tblDlg != null && tblDlg != undefined)
+//         titleStr = tblDlg.dialog("option", "title").text();
+// 
+//     var X = 115, Y = 115;
+//     if(pos != null) {X = pos.docX; Y = pos.docY;}
+// 
+//     $('<div style="width:100%"></div>')
+//     .appendTo(document.body)
+//     .bind("dialogresize", function (event, ui) {
+//         var dh = $(this).height() - 10;
+//         var dw = $(this).width() - 8;
+//         var seh = Math.round(dh * share / 100);
+//         var sth = dh - seh;
+//         $(this).children('div').width(dw)
+//                                .height(seh);
+//         $(this).children('textarea').width(dw - 4)
+//                                     .height(sth);
+//     })
+//     .dialog({
+//         autoOpen: false,
+//         height: 'auto',
+//         width: 'auto',
+//         modal: false,
+//         position: [X, Y],
+//         resizable: true,
+//         title: titleStr,
+//         close: function() {
+//             $(this).dialog('destroy');
+//             $(this).remove();
+//         },
+//         open: function(event, ui) {
+//             if(box != null)
+//                 build_boxes($(this).children('div'), box);
+//         },
+//         buttons: {
+//             "Re-Draw": function() {
+//                 qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
+//                 parse_and_update($(this).children('div'), qStr);
+//             },
+//             "Ok": function() {
+//                 qStr = $(this).children('textarea').val().replace(/(\r\n|\n|\r)/gm," ");
+//                 $(this).dialog('close');
+//                 if(tblDlg != null && tblDlg != undefined)
+//                     tblDlg.trigger('requery', qStr);
+//                 else {
+//                     load_table({name: undefinedTable + undefinedTableIdx + ".sql", content : qStr});
+//                     ++undefinedTableIdx;
+//                 }
+//             }
+//         }
+//     })
+//     .append($('<div></div>') // For holding the box
+//             .width(boxWidth)
+//             .height(visHeight)
+//             //.css('background-color', 'rgb(255,255,0)')
+//             .addClass("ui-widget-content")
+//             .css("overflow", "auto"))
+//     .append($('<textarea>'+qry+'</textarea>')
+//             .width(boxWidth - 4)
+//             .height(sqlTxtHeight))
+//     .dialog("open");
+// }

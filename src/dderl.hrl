@@ -1,6 +1,8 @@
 -include_lib("imem/include/imem_meta.hrl").
 -include_lib("imem/include/imem_sql.hrl").
 
+-define(VERSION, "1.0").
+
 -define(DEFAULT_ROW_SIZE, 100).
 -record(viewstate, { table_layout = []
                    , column_layout = []
@@ -76,3 +78,7 @@
 -define(Error(__M,__F,__A), lager:error(__M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Error(__F,__A),     lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Error(__F),         lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+
+% Function shortcuts
+-define(EncryptPid(__P), dderl:encrypt_pid(__P)).
+-define(DecryptPid(__P), dderl:decrypt_pid(__P)).

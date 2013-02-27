@@ -16,6 +16,7 @@
 
     _url            : null,
     _stmt           : null,
+    _conn           : null,
     _session        : null,
     _adapter        : null,
     _cmd            : null,
@@ -141,6 +142,7 @@
                               rowHeight: 20 },
 
         // dderl options
+        dderlConn         : null,
         dderlAdapter      : null,
         dderlSession      : null,
         dderlStatement    : null,
@@ -157,6 +159,7 @@
         self._fntSz = $(document.body).css('font-size');
 
         // preserve some options
+        if(self.options.dderlConn       !== self._conn)     self._conn      = self.options.dderlConn;
         if(self.options.dderlAdapter    !== self._adapter)  self._adapter   = self.options.dderlAdapter;
         if(self.options.dderlSession    !== self._session)  self._session   = self.options.dderlSession;
         if(self.options.dderlStatement  !== self._stmt)     self._stmt      = self.options.dderlStatement;
@@ -319,10 +322,9 @@
         else {
             console.log('command reloading ['+cmd+']');
             this._cmd = cmd;
-            this._ajaxCall('/app/query', {query: {qstr : this._cmd}}, 'query', 'queryResult');
+            this._ajaxCall('/app/query', {query: {qstr : this._cmd, connection: this._conn}}, 'query', 'queryResult');
         }
     },
-
 
     // browse_data actions
     _browseCellData: function(_ranges) {
@@ -348,6 +350,7 @@
             this._ajaxCall('/app/browse_data',
                            { browse_data: { statement : this._stmt,
                                             row : cell.fromRow,
+                                     connection : this._conn,
                                             col : cell.fromCell}},
                            'browse_data', 'browseData');
         }
@@ -466,7 +469,7 @@
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
-        self._ajaxCall('/app/query', {query: {qstr : self._cmd}}, 'query', 'queryResult');
+        self._ajaxCall('/app/query', {query: {qstr : self._cmd, connection: self._conn}}, 'query', 'queryResult');
     },
 
     _toolBarSkFrst: function(self) {
@@ -538,6 +541,7 @@
         // TODO throw exception if any error
         this._cmd    = _views.content;
         this._stmt   = _views.statement;
+        this._conn   = _views.connection;
         if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
             this._clmlay = _views.column_layout;
             if(_views.column_layout.length === 0) this._clmlay = null;
@@ -604,6 +608,7 @@
         this.options.title = _views.name;
         this.setColumns(_views.columns);
         this.fetchRows(OpsFetchEnum.NEXT, 0);
+        console.log('>>>>> table '+_views.name+' '+_views.connection);
     },
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('error')) {
@@ -617,6 +622,7 @@
             return;
         }
         this._stmt = _table.statement;
+        this._conn = _table.connection;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
             if(_table.column_layout.length === 0) this._clmlay = null;
@@ -636,6 +642,7 @@
             alert_jq('missing columns');
             return;
         }
+        console.log('>>>>> table '+_table.name+' '+_table.connection);
     },
     _renderNewTable: function(_table) {
         var pos = [];
@@ -653,6 +660,7 @@
         var tl = null;
         if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
             tl = _table.table_layout.length;
+
         $('<div>')
         .appendTo(document.body)
         .table({
@@ -662,6 +670,7 @@
 
             dderlAdapter    : this._adapter,
             dderlSession    : this._session,
+            dderlConn       : this._conn,
             dderlStatement  : _table.statement,
             dderlCmd        : _table.content,
             dderlClmlay     : cl,
@@ -768,6 +777,14 @@
                      ,adapter: self._adapter
                      },
             context: self,
+
+            // success: function(data, textStatus, request){
+            //     alert(request.getResponseHeader('some_header'));
+            // }
+            // error: function (request, textStatus, errorThrown) {
+            //     alert(request.getResponseHeader('some_header'));
+            // }
+
             success: function(_data) {
 
                 // save the new session - legacy maybe removed TODO
@@ -899,7 +916,7 @@
         }
         if(_rwnum == null)
             _rwnum = -1;
-        this._ajaxCall('/app/'+cmd, {row: {statement: this._stmt, row_num: _rwnum}}, cmd, 'loadRows');
+        this._ajaxCall('/app/'+cmd, {row: {connection: this._conn, statement: this._stmt, row_num: _rwnum}}, cmd, 'loadRows');
     },
 
     // Use the _setOption method to respond to changes to options

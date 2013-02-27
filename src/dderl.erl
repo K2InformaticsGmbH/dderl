@@ -1,6 +1,13 @@
 -module(dderl).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
--export([start/0, start_link/0, stop/0, ensure_started/1]).
+
+-export([ start/0
+        , start_link/0
+        , stop/0
+        , ensure_started/1
+        , encrypt_pid/1
+        , decrypt_pid/1
+        ]).
 
 ensure_started(App) ->
     case application:start(App) of
@@ -44,3 +51,8 @@ stop() ->
     application:stop(erloci),
     application:stop(imem),
     Res.
+
+% encrypt_pid(Pid)    when is_pid(Pid)        -> base64:encode_to_string(pid_to_list(Pid)).
+% decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(base64:decode_to_string(PidStr)).
+encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
+decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).
