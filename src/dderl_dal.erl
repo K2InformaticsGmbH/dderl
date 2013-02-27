@@ -87,7 +87,7 @@ init([SchemaName]) ->
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     ?Info("~p creating table ~p", [?MODULE, [N]]),
-    Sess:run_cmd(create_table, [N, {Cols, Types, Default}, []]),
+    Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
 handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->

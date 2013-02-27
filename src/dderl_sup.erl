@@ -18,6 +18,7 @@
 %% ===================================================================
 
 start_link() ->
+%    application:start(sasl),
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
     ?Debug("starting..."),
     R = supervisor:start_link({local, ?MODULE}, ?MODULE, [SchemaName]),
@@ -88,5 +89,5 @@ init([SchemaName]) ->
 
     ets:new(dderl_req_sessions, [set, public, named_table]),
 
-    ?Debug("child specs ~p", [Processes]),
+    [?Debug("children ~p", [P]) || P <- Processes],
     {ok, { {one_for_one, 10, 10}, Processes} }.
