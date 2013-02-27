@@ -26,6 +26,29 @@ init() ->
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
     ]).
 
+build_column_json([], JCols) ->
+    [[{<<"id">>, <<"sel">>},
+      {<<"name">>, <<"">>},
+      {<<"field">>, <<"id">>},
+      {<<"behavior">>, <<"select">>},
+      {<<"cssClass">>, <<"cell-selection">>},
+      {<<"width">>, 30},
+      {<<"minWidth">>, 2},
+      {<<"cannotTriggerInsert">>, true},
+      {<<"resizable">>, true},
+      {<<"sortable">>, false},
+      {<<"selectable">>, false}] | JCols];
+build_column_json([C|Cols], JCols) ->
+    Nm = C#stmtCol.alias,
+    JC = [{<<"id">>, << "_", Nm/binary >>},
+          {<<"name">>, Nm},
+          {<<"field">>, Nm},
+          {<<"resizable">>, true},
+          {<<"sortable">>, false},
+          {<<"selectable">>, true}],
+    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
+    build_column_json(Cols, [JCol | JCols]).
+
 int(C) when $0 =< C, C =< $9 -> C - $0;
 int(C) when $A =< C, C =< $F -> C - $A + 10;
 int(C) when $a =< C, C =< $f -> C - $a + 10.
@@ -82,7 +105,7 @@ process_cmd({"connect", ReqBody}, _) ->
             dderl_dal:add_connect(Con),
             {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
     end;
-process_cmd({"query", ReqBody}, #priv{sess=Session} = Priv) ->
+process_cmd({"query", ReqBody}, Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
@@ -90,20 +113,16 @@ process_cmd({"query", ReqBody}, #priv{sess=Session} = Priv) ->
     {NewPriv, R} = process_query(Query, Connection, Priv),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
-process_cmd({"row_prev", ReqBody}, #priv{stmts=Statements} = Priv) ->
+process_cmd({"row_prev", ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     ?Debug("row_prev ~p", [self()]),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Error("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"rows">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, StmtKey),
-            ?Info("row_prev ~p rows ~p", [self(), length(Rows)]),
-            {Priv, binary_to_list(jsx:encode([{<<"row_prev">>, Rows}]))}
-    end;
-process_cmd({"row_next", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, StmtPid),
+    ?Info("row_prev ~p rows ~p", [self(), length(Rows)]),
+    {Priv, binary_to_list(jsx:encode([{<<"row_prev">>, Rows}]))};
+process_cmd({"row_next", ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
     StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
@@ -113,157 +132,123 @@ process_cmd({"row_next", ReqBody}, #priv{stmts=Statements} = Priv) ->
     Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtPid),
     ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
     {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))};
-process_cmd({"stmt_close", ReqBody}, #priv{stmts=Statements} = Priv) ->
+process_cmd({"stmt_close", ReqBody}, Priv) ->
     [{<<"stmt_close">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Info("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            ?Debug("[~p] remove statement ~p", [StmtKey, Statement]),
-            Statement:close(),
-            {_,NewStatements} = proplists:split(Statements, [StmtKey]),
-            {Priv#priv{stmts=NewStatements}, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))}
-    end;
-process_cmd({"get_buffer_max", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
+    ?Debug("remove statement ~p", [Statement]),
+    Statement:close(),
+    {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))};
+process_cmd({"get_buffer_max", ReqBody}, Priv) ->
     [{<<"get_buffer_max">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-            ?Debug("[~p] get_buffer_max ~p finished ~p ~p", [StmtKey, CacheSize, Finished, self()]),
-            {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
-                                                [{<<"count">>, CacheSize}
-                                                ,{<<"finished">>, Finished}]}]))}
-    end;
-process_cmd({"update_data", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
+    {ok, Finished, CacheSize} = Statement:get_buffer_max(),
+    ?Debug("[~p] get_buffer_max ~p finished ~p ~p", [StmtPid, CacheSize, Finished, self()]),
+    {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
+                                        [{<<"count">>, CacheSize}
+                                        ,{<<"finished">>, Finished}]}]))};
+process_cmd({"update_data", ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"update_data">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Result = format_return(Statement:update_row(RowId, CellId, Value)),
-            {Priv, binary_to_list(jsx:encode([{<<"update_data">>, Result}]))}
-    end;
-process_cmd({"delete_row", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    Result = format_return(Statement:update_row(RowId, CellId, Value)),
+    {Priv, binary_to_list(jsx:encode([{<<"update_data">>, Result}]))};
+process_cmd({"delete_row", ReqBody}, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Result = format_return(Statement:delete_row(RowId)),
-            {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, Result}]))}
-    end;
-process_cmd({"insert_data", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    Result = format_return(Statement:delete_row(RowId)),
+    {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, Result}]))};
+process_cmd({"insert_data", ReqBody}, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. Statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Result = format_return(Statement:insert_row(ClmName, Value)),
-            ?Info("inserted ~p", [Result]),
-            {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))}
-    end;
-process_cmd({"commit_rows", ReqBody}, #priv{stmts=Statements} = Priv) ->
+    Result = format_return(Statement:insert_row(ClmName, Value)),
+    ?Info("inserted ~p", [Result]),
+    {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))};
+process_cmd({"commit_rows", ReqBody}, Priv) ->
     [{<<"commit_rows">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            try
-                ok = Statement:prepare_update(),
-                ok = Statement:execute_update(),
-                Ret = Statement:fetch_close(),
-                {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, format_return(Ret)}]))}
-            catch
-                _:Reason ->
-                    {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
-            end
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
+    try
+        ok = Statement:prepare_update(),
+        ok = Statement:execute_update(),
+        Ret = Statement:fetch_close(),
+        {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, format_return(Ret)}]))}
+    catch
+        _:Reason ->
+            {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
     end;
 
-process_cmd({"browse_data", ReqBody}, #priv{sess=Session, stmts=Statements} = Priv) ->
+process_cmd({"browse_data", ReqBody}, Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
+    Connection = {erlimem_session, ConnPid},
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
-    Connection = {dderl_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"browse_data">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            R = Statement:row_with_key(Row+1),
-            Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
-            IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-            ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
-            if IsView ->
-                %{_,_,{#ddView{name=Name,owner=Owner},#ddCmd{}=C,_},_,Name,...}
-                {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
-                Name = element(5, R),
-                V = dderl_dal:get_view(Name, Owner),
-                ?Info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
-                AdminConn = dderl_dal:get_session(),
-                {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
-                RespJson = jsx:encode([{<<"browse_data">>,
-                    [{<<"content">>, list_to_binary(C#ddCmd.command)}
-                    ,{<<"name">>, list_to_binary(Name)}
-                    ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-                    ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
-                    Resp
-                }]),
-                ?Info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
-                {NewPriv, binary_to_list(RespJson)};
-            true ->                
-                Name = lists:last(tuple_to_list(R)),
-                Query = "SELECT * FROM " ++ Name,
-                {NewPriv, Resp} = process_query(Query, Connection, Priv),
-                RespJson = jsx:encode([{<<"browse_data">>,
-                    [{<<"content">>, list_to_binary(Query)}
-                    ,{<<"name">>, list_to_binary(Name)}] ++
-                    Resp
-                }]),
-                {NewPriv, binary_to_list(RespJson)}
-            end
+    R = Statement:row_with_key(Row+1),
+    Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
+    IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
+    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    if IsView ->
+        {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
+        Name = element(5, R),
+        V = dderl_dal:get_view(Name, Owner),
+        ?Info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
+        AdminConn = dderl_dal:get_session(),
+        {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
+        RespJson = jsx:encode([{<<"browse_data">>,
+            [{<<"content">>, list_to_binary(C#ddCmd.command)}
+            ,{<<"name">>, list_to_binary(Name)}
+            ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+            ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
+            Resp
+        }]),
+        ?Info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
+        {NewPriv, binary_to_list(RespJson)};
+    true ->                
+        Name = lists:last(tuple_to_list(R)),
+        Query = "SELECT * FROM " ++ Name,
+        {NewPriv, Resp} = process_query(Query, Connection, Priv),
+        RespJson = jsx:encode([{<<"browse_data">>,
+            [{<<"content">>, list_to_binary(Query)}
+            ,{<<"name">>, list_to_binary(Name)}] ++
+            Resp
+        }]),
+        {NewPriv, binary_to_list(RespJson)}
     end;
 
-process_cmd({"tail", ReqBody}, #priv{sess=_Session, stmts=Statements} = Priv) ->
+process_cmd({"tail", ReqBody}, Priv) ->
     [{<<"tail">>,BodyJson}] = ReqBody,
-    StmtKey = proplists:get_value(<<"statement">>, BodyJson, <<>>),
+    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Statement = {erlimem_session, StmtPid, ConnPid},
     Push = proplists:get_value(<<"push">>, BodyJson, <<>>),
     Tail = proplists:get_value(<<"tail">>, BodyJson, <<>>),
-    case proplists:get_value(StmtKey, Statements) of
-        undefined ->
-            ?Debug("statement ~p not found. statements ~p", [StmtKey, proplists:get_keys(Statements)]),
-            {Priv, binary_to_list(jsx:encode([{<<"tail">>, [{<<"error">>, <<"invalid statement">>}]}]))};
-        {Statement, _, _} ->
-            Opts = case {Push, Tail} of
-                        {true, true}    -> [{fetch_mode,push},{tail_mode, true}];
-                        {true, false}   -> [{fetch_mode,push},{tail_mode,false}];
-                        {false, true}   -> [{fetch_mode,skip},{tail_mode, true}];
-                        {false, false}  -> [{fetch_mode,skip},{tail_mode,false}]
-            end,
-            ?Info(">>>>>>>> ~p tail Opts ~p~n", [{?MODULE,?LINE}, Opts]),
-            Statement:start_async_read(Opts),
-            {Priv, binary_to_list(jsx:encode([{<<"tail">>, <<"ok">>}]))}
-    end;
+    Opts = case {Push, Tail} of
+                {true, true}    -> [{fetch_mode,push},{tail_mode, true}];
+                {true, false}   -> [{fetch_mode,push},{tail_mode,false}];
+                {false, true}   -> [{fetch_mode,skip},{tail_mode, true}];
+                {false, false}  -> [{fetch_mode,skip},{tail_mode,false}]
+    end,
+    ?Info(">>>>>>>> ~p tail Opts ~p~n", [{?MODULE,?LINE}, Opts]),
+    Statement:start_async_read(Opts),
+    {Priv, binary_to_list(jsx:encode([{<<"tail">>, <<"ok">>}]))};
 
 process_cmd({"views", _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
@@ -287,18 +272,18 @@ process_cmd({Cmd, BodyJson}, Priv) ->
     ?Error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
-process_query(Query, {_,ConPid}=Connection, #priv{stmts=Statements} = Priv) ->
+process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, Clms, {_,StmtPid,ConPid}=Statement} ->
-            StmtHndl = erlang:phash2(Statement),
-            Columns = lists:reverse([binary_to_list(C#stmtCol.alias)||C<-Clms]),
-            ?Debug([{session, Connection}], "columns ~p", [Columns]),
+            ?Info([{session, Connection}], "Cols ~p", [Clms]),
+            Columns = build_column_json(lists:reverse(Clms), []),
+            ?Info("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
+            %Columns = lists:reverse([binary_to_list(C#stmtCol.alias)||C<-Clms]),
             Statement:start_async_read([]),
-            {Priv#priv{stmts=[{StmtHndl, {Statement, Query, []}}|Statements]}
-            , [{<<"columns">>, gen_adapter:strs2bins(Columns)}
-%%              ,{<<"statement">>,StmtHndl}]};
-              ,{<<"statement">>, list_to_binary(?EncryptPid(StmtPid))}
-              ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};
+            %{Priv, [{<<"columns">>, gen_adapter:strs2bins(Columns)}
+            {Priv, [{<<"columns">>, Columns}
+                   ,{<<"statement">>, list_to_binary(?EncryptPid(StmtPid))}
+                   ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),

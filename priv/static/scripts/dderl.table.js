@@ -322,7 +322,7 @@
         else {
             console.log('command reloading ['+cmd+']');
             this._cmd = cmd;
-            this._ajaxCall('/app/query', {query: {qstr : this._cmd, connection: this._conn}}, 'query', 'queryResult');
+            this._ajaxCall('/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
         }
     },
 
@@ -348,10 +348,10 @@
             var data    = self._grid.getData()[cell.fromRow][column.field];
             // console.log('browse_data @ '+column.name+' val '+data);
             this._ajaxCall('/app/browse_data',
-                           { browse_data: { statement : this._stmt,
-                                            row : cell.fromRow,
-                                     connection : this._conn,
-                                            col : cell.fromCell}},
+                           { browse_data: {connection : this._conn,
+                                            statement : this._stmt,
+                                                  row : cell.fromRow,
+                                                  col : cell.fromCell}},
                            'browse_data', 'browseData');
         }
     },
@@ -469,7 +469,7 @@
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
-        self._ajaxCall('/app/query', {query: {qstr : self._cmd, connection: self._conn}}, 'query', 'queryResult');
+        self._ajaxCall('/app/query', {query: {connection: self._conn, qstr : self._cmd}}, 'query', 'queryResult');
     },
 
     _toolBarSkFrst: function(self) {
@@ -501,23 +501,33 @@
         console.log('['+self.options.title+'] cb _toolBarSekEnd');
         self._fetchIsTail = false;
         self._fetchIsPush = true;
-        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
+                                            , statement: self._stmt
+                                            , push: self._fetchIsPush
+                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarSkTail: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkTail');
         self._fetchIsTail = true;
         self._fetchIsPush = true;
-        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
+                                            , statement: self._stmt
+                                            , push: self._fetchIsPush
+                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarSkipTl: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkipTl');
         self._fetchIsTail = true;
         self._fetchIsPush = false;
-        self._ajaxCall('/app/tail',  {tail: {statement: self._stmt, push: self._fetchIsPush, tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
+                                            , statement: self._stmt
+                                            , push: self._fetchIsPush
+                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
     },
     _toolBarCommit: function(self) {
         console.log('['+self.options.title+'] cb _toolBarCommit');
-        self._ajaxCall('/app/commit_rows',  {commit_rows: {statement: self._stmt}}, 'commit_rows', 'commitResult');
+        self._ajaxCall('/app/commit_rows',  {commit_rows: { connection: self._conn
+                                                          , statement: self._stmt}}, 'commit_rows', 'commitResult');
     },
     _toolBarDiscrd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarDiscrd');
@@ -645,6 +655,10 @@
         console.log('>>>>> table '+_table.name+' '+_table.connection);
     },
     _renderNewTable: function(_table) {
+        if(_table.hasOwnProperty('error')) {
+            alert_jq(_table.error);
+            return;
+        }
         var pos = [];
         if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
             var dlg = this._dlg.dialog('widget');
@@ -686,7 +700,7 @@
         if(_rows.hasOwnProperty('rows')) {
             //console.log('rows '+ JSON.stringify(_rows.rows));
             console.log('[AJAX] rendering '+ _rows.rows.length+' rows');
-            this.appendRows(_rows.rows);
+            this.appendRows(_rows);
 
             // fetch till end and then stop
             if(!this._fetchIsDone && (this._fetchIsPush || this._fetchIsTail)) {
@@ -874,7 +888,8 @@
         var g           = args.grid;
         var modifiedRow = g.getData()[args.row];
         var cols        = g.getColumns();
-        var updateJson  = {update_data: {statement   : this._stmt,
+        var updateJson  = {update_data: {connection  : this._conn,
+                                         statement   : this._stmt,
                                          rowid       : parseInt(modifiedRow.id),
                                          cellid      : args.cell,
                                          value       : modifiedRow[cols[args.cell].field]}};
@@ -885,7 +900,8 @@
     _gridAddNewRow: function(e, args) {
         e.stopPropagation();
 
-        var insertJson = {insert_data: {statement   : this._stmt,
+        var insertJson = {insert_data: {connection  : this._conn,
+                                        statement   : this._stmt,
                                         col         : args.column.id,
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
@@ -916,7 +932,9 @@
         }
         if(_rwnum == null)
             _rwnum = -1;
-        this._ajaxCall('/app/'+cmd, {row: {connection: this._conn, statement: this._stmt, row_num: _rwnum}}, cmd, 'loadRows');
+        this._ajaxCall('/app/'+cmd, {row: { connection: this._conn
+                                          , statement: this._stmt
+                                          , row_num: _rwnum}}, cmd, 'loadRows');
     },
 
     // Use the _setOption method to respond to changes to options
@@ -955,7 +973,8 @@
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
         console.log('destroying...');
-        this._ajaxCall('/app/stmt_close', {stmt_close: {statement: this._stmt}}, 'stmt_close', 'stmtCloseResult');
+        this._ajaxCall('/app/stmt_close', {stmt_close: { connection: this._conn
+                                                       , statement: this._stmt}}, 'stmt_close', 'stmtCloseResult');
     },
 
     /*
@@ -983,33 +1002,14 @@
         var dlg = this._dlg.dialog('widget');
 
         // Column Data
-        var columns = new Array();
-        columns[columns.length] = {id: "sel",
-                                 name: "",
-                                field: "id",
-                             behavior: "select",
-                             cssClass: "cell-selection",
-                                width: 30,
-                             minWidth: 2,
-                  cannotTriggerInsert: true,
-                            resizable: true,
-                             sortable: false,
-                           selectable: false};
-        for (i=0;i<_cols.length;++i) {
-            var fldid = _cols[i];
-            var fldWidth = self._txtlen.text(_cols[i]).width()+25;
-            if(fldid == fldid.toLowerCase() && fldid == 'id')
-                fldid = ('_'+fldid.toLowerCase());
-            columns[columns.length] = {id: fldid,
-                                     name: _cols[i],
-                                    field: fldid,
-                                   editor: Slick.Editors.Text,
-                                 minWidth: fldWidth,
-                                    width: fldWidth,
-                                 //minWidth: _cols[i].visualLength(),
-                                resizable: true,
-                                 sortable: false,
-                               selectable: true};
+        var columns = _cols;
+        var fldWidth = 0;
+        for (i=1;i<columns.length;++i) {
+            fldWidth = self._txtlen.text(_cols[i].name).width()+25;
+            if(columns[i].hasOwnProperty('editor'))
+                columns[i].editor   = Slick.Editors.Text;
+                columns[i].minWidth = fldWidth;
+                columns[i].width    = fldWidth;
         }
 
         // load the column layout if its was saved
@@ -1038,15 +1038,31 @@
 
     // public function for loading rows
     // used by _ajaxCall but can also be used directly
-    appendRows: function(_rows) {
-        if($.isArray(_rows) && _rows.length > 0) {
-
+    appendRows: function(_rows) {        
+        if($.isArray(_rows.rows) && _rows.rows.length > 0) {
+            var self = this;
             var c = this._grid.getColumns();
             var firstChunk = (this._gdata.length === 0);
+            if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
+                var fieldWidth = 0;
+                for(var i=0;i<_rows.max_width_vec.length; ++i) {
+                    fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
+                    fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                    if(c[i].width < fieldWidth) {
+                        c[i].width = fieldWidth;
+                        if (c[i].width > self._MAX_ROW_WIDTH)
+                            c[i].width = self._MAX_ROW_WIDTH;
+                    }
+                }
+                self._grid.setColumns(c);
+            }
+
+            // TODO hack for the time being
+            _rows = _rows.rows;
+            
             // only if first of the rows are atleast arrays and
             // they are not greater than number of columns including the index column
             if($.isArray(_rows[0]) && _rows[0].length <= c.length) {
-                var self = this;
                 var dlg = this._dlg.dialog('widget');
                 var isIdMissing = (_rows[0].length === c.length ? false : true);
 
@@ -1060,30 +1076,24 @@
                         _rows[i].splice(0,0,self._gdata.length+1);
                     var row = {};
                     for(var j=0;j<c.length;++j) {
-                        // adjust columns only the first time
-                        if (firstChunk) {
-                            var str = _rows[i][j];
-                            var fieldWidth = self._txtlen.text(str).width();
-                            //var fieldWidth = str.visualLength();
-                            fieldWidth = fieldWidth + 0.4 * fieldWidth;
-                            if(c[j].width < fieldWidth) {
-                                c[j].width = fieldWidth;
-                                if (c[j].width > self._MAX_ROW_WIDTH)
-                                    c[j].width = self._MAX_ROW_WIDTH;
-                            }
-                        }
+                        // // adjust columns only the first time
+                        // if (firstChunk) {
+                        //     var str = _rows[i][j];
+                        //     var fieldWidth = self._txtlen.text(str).width();
+                        //     //var fieldWidth = str.visualLength();
+                        //     fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                        //     if(c[j].width < fieldWidth) {
+                        //         c[j].width = fieldWidth;
+                        //         if (c[j].width > self._MAX_ROW_WIDTH)
+                        //             c[j].width = self._MAX_ROW_WIDTH;
+                        //     }
+                        // }
                         row[c[j].field] = _rows[i][j];
                     }
-                    firstChunk && self._grid.setColumns(c);
                     self._gdata.push(row);
                     self._grid.updateRowCount();
-                    self._grid.invalidateRow(self._gdata.length-1);
-
-                    // -- // rendering is an expensive operation so done intermittently
-                    // -- if (i % 10 === 0) {
-                    self._grid.render();
+                    //self._grid.invalidateRow(self._gdata.length-1);
                     self._grid.scrollRowIntoView(self._gdata.length-1);
-                    // -- }
 
                     //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
                 }
@@ -1126,6 +1136,7 @@
                         }
                     }
                 }
+                self._grid.invalidate();
 
                 // 
                 // loading of rows is the costiliest of the operations

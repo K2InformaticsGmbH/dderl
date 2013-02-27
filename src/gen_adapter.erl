@@ -128,7 +128,27 @@ prepare_json_rows(Statement, RowNum, Fun, StmtKey) ->
     process_data(lists:reverse(Rows), Status, CacheSize).
 
 process_data(Rows, Status, CacheSize) ->
-    [{<<"done">>, Status}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].
+    V = widest_cell_per_clm(Rows),
+    ?Info("the maxes ~p", [V]),
+    [ {<<"done">>, Status}
+    , {<<"max_width_vec">>, V}
+    , {<<"cache_max">>, CacheSize}
+    , {<<"rows">>, rows_to_json1(Rows)}
+    ].
+
+widest_cell_per_clm(Rows) -> widest_cell_per_clm(Rows, lists:duplicate(length(lists:nth(1,Rows)), "")).
+widest_cell_per_clm([],V) -> [list_to_binary(Ve) || Ve <- V];
+widest_cell_per_clm([R|Rows],V) ->
+    NewV = 
+    [case {Re, Ve} of
+        {Re, Ve} ->
+            ReL = length(Re),
+            VeL = length(Ve),
+            if ReL > VeL -> Re; true -> Ve end
+     end
+    || {Re, Ve} <- lists:zip(R,V)],
+    widest_cell_per_clm(Rows,NewV).
+
 %% ;
 %% process_data(Rows, _, CacheSize) ->
 %%     [{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].

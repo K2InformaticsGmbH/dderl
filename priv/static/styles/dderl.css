@@ -31,11 +31,23 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 
 .ui-dialog {
 	padding: 0;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-top-left-radius: 0px;
 }
 
 .ui-dialog .ui-dialog-titlebar {
 	padding: .1em 1em;
 	position: relative;
+}
+
+.ui-dialog-titlebar {
+    border: none;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-top-left-radius: 0px;
 }
 
 button.menubutton
