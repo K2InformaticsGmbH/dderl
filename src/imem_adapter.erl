@@ -109,10 +109,10 @@ process_cmd({"connect", ReqBody}, _) ->
             dderl_dal:add_connect(Con),
             {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
     end;
-process_cmd({"query", ReqBody}, Priv) ->
+process_cmd({"query", ReqBody}, #priv{sess=Connection}=Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
+    %Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
     ?Info("query ~p", [{Connection, Query}]),
     {NewPriv, R} = process_query(Query, Connection, Priv),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
