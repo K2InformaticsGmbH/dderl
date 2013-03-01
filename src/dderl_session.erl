@@ -107,7 +107,8 @@ process_call({"connects", _ReqData}, _From, #state{user=User} = State) ->
                     [{jsq(C#ddConn.name), [
                             {<<"adapter">>,jsq(C#ddConn.adapter)}
                           , {<<"service">>, jsq(C#ddConn.schema)}
-                          , {<<"owner">>, jsq(User)}] ++
+                          , {<<"owner">>, jsq(C#ddConn.owner)}] ++
+                          %, {<<"owner">>, jsq(User)}] ++
                           [{list_to_binary(atom_to_list(N)), jsq(V)} || {N,V} <- C#ddConn.access]
                      } | Acc]
                 end,

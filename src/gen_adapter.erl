@@ -13,12 +13,12 @@
 init() -> ok.
 
 add_cmds_views(_, []) -> ok;
-add_cmds_views(A, [{N,C}|Rest]) ->
-    Id = dderl_dal:add_command(A, N, C, []),
+add_cmds_views(A, [{N,C,Con}|Rest]) ->
+    Id = dderl_dal:add_command(A, N, C, Con, []),
     dderl_dal:add_view(N, Id, #viewstate{}),
     add_cmds_views(A, Rest);
-add_cmds_views(A, [{N,C,#viewstate{}=V}|Rest]) ->
-    Id = dderl_dal:add_command(A, N, C, []),
+add_cmds_views(A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
+    Id = dderl_dal:add_command(A, N, C, Con, []),
     dderl_dal:add_view(N, Id, V),
     add_cmds_views(A, Rest).
 

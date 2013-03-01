@@ -11,9 +11,9 @@ init() ->
     dderl_dal:add_adapter(oci, "Oracle/OCI"),
 
     gen_adapter:add_cmds_views(oci, [
-        {"Users.sql", "SELECT USERNAME FROM ALL_USERS"},
-        {"Tables.sql", "SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME"},
-        {"Views.sql", "SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME"}
+        {"Users.sql", "SELECT USERNAME FROM ALL_USERS", remote},
+        {"Tables.sql", "SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME", remote},
+        {"Views.sql", "SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME", remote}
     ]).
 
 %% - init() ->

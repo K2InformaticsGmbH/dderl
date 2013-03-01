@@ -16,7 +16,7 @@
 -export([get_adapters/0
         ,login/2
         ,add_adapter/2
-        ,add_command/4
+        ,add_command/5
         ,add_view/3
         ,add_connect/1
         ,get_connects/1
@@ -37,8 +37,8 @@ login(User, Password)                   -> gen_server:call(?MODULE, {login, User
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect, Connection}).
 
-add_command(Adapter, Name, Cmd, Opts)   -> gen_server:call(?MODULE, {add_command, Adapter, Name, Cmd, Opts}).
-add_view(Name, CmdId, ViewsState)       -> gen_server:call(?MODULE, {add_view, Name, CmdId, ViewsState}).
+add_command(Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Adapter, Name, Cmd, Conn, Opts}).
+add_view(Name, CmdId, ViewsState)           -> gen_server:call(?MODULE, {add_view, Name, CmdId, ViewsState}).
 
 get_adapters()                  -> gen_server:call(?MODULE, {get_adapters}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
@@ -90,7 +90,7 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
-handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
+handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
     Id = case Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, id='$1', adapters='$2', owner=Owner, _='_'}
                                            , [{'=:=', '$2', [Adapter]}]
                                            , ['$1']}]]) of
@@ -107,6 +107,7 @@ handle_call({add_command, Adapter, Name, Cmd, Opts}, _From, #state{sess=Sess, ow
                  , owner     = Owner
                  , adapters  = [Adapter]
                  , command   = Cmd
+                 , conns     = Conn
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
     ?Debug("~p add_command inserted ~p", [?MODULE, NewCmd]),
@@ -167,18 +168,22 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
     {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
     HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
     NewCons =
-        if HasAll -> Cons;
+        if HasAll ->
+            [C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])}
+            || C <- Cons];
         true ->
             lists:foldl(fun(C,Acc) ->        
                 HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
-                if (HavePerm == true)   -> [C|Acc];
-                   true                 -> Acc
+                if (HavePerm == true)   ->
+                        UserName = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]]),
+                        [C#ddConn{owner = UserName}|Acc];
+                   true -> Acc
                 end
             end,
             [],
             Cons)
     end,
-    ?Debug("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
+    ?Info("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
     {reply, NewCons, State};
 
 handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->

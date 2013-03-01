@@ -19,9 +19,13 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     gen_adapter:add_cmds_views(imem, [
-        {"All Tables", "select name(qname) from all_tables"},
+        { "All Tables"
+        , "select name(qname) from all_tables"
+        , remote},
         %{"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
-        {"All Views", "select c.owner, v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"}
+        { "All Views"
+        , "select c.owner, v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"
+        , local}
         %{"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)"}
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
     ]).
@@ -115,46 +119,36 @@ process_cmd({"query", ReqBody}, Priv) ->
 
 process_cmd({"row_prev", ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ?Debug("row_prev ~p", [self()]),
-    Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, StmtPid),
+    Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, Statement),
     ?Info("row_prev ~p rows ~p", [self(), length(Rows)]),
     {Priv, binary_to_list(jsx:encode([{<<"row_prev">>, Rows}]))};
 process_cmd({"row_next", ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
     ?Info("row_next from ~p", [RowNum]),
-    Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, StmtPid),
+    Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, Statement),
     ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
     {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))};
 process_cmd({"stmt_close", ReqBody}, Priv) ->
     [{<<"stmt_close">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ?Debug("remove statement ~p", [Statement]),
     Statement:close(),
     {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))};
 process_cmd({"get_buffer_max", ReqBody}, Priv) ->
     [{<<"get_buffer_max">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-    ?Debug("[~p] get_buffer_max ~p finished ~p ~p", [StmtPid, CacheSize, Finished, self()]),
+    ?Debug("[~p] get_buffer_max ~p finished ~p ~p", [Statement, CacheSize, Finished, self()]),
     {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
                                         [{<<"count">>, CacheSize}
                                         ,{<<"finished">>, Finished}]}]))};
 process_cmd({"update_data", ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
@@ -162,17 +156,13 @@ process_cmd({"update_data", ReqBody}, Priv) ->
     {Priv, binary_to_list(jsx:encode([{<<"update_data">>, Result}]))};
 process_cmd({"delete_row", ReqBody}, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     Result = format_return(Statement:delete_row(RowId)),
     {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, Result}]))};
 process_cmd({"insert_data", ReqBody}, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
     Result = format_return(Statement:insert_row(ClmName, Value)),
@@ -180,9 +170,7 @@ process_cmd({"insert_data", ReqBody}, Priv) ->
     {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))};
 process_cmd({"commit_rows", ReqBody}, Priv) ->
     [{<<"commit_rows">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     try
         ok = Statement:prepare_update(),
         ok = Statement:execute_update(),
@@ -193,24 +181,26 @@ process_cmd({"commit_rows", ReqBody}, Priv) ->
             {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
     end;
 
-process_cmd({"browse_data", ReqBody}, Priv) ->
+process_cmd({"browse_data", ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
     R = Statement:row_with_key(Row+1),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    ?Info("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
     if IsView ->
         {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
         Name = element(5, R),
         V = dderl_dal:get_view(Name, Owner),
         ?Info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
-        AdminConn = dderl_dal:get_session(),
+        AdminConn =
+            case C#ddCmd.conns of
+            'local' -> dderl_dal:get_session();
+            _ -> Connection
+        end,
         {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
         RespJson = jsx:encode([{<<"browse_data">>,
             [{<<"content">>, list_to_binary(C#ddCmd.command)}
@@ -235,9 +225,7 @@ process_cmd({"browse_data", ReqBody}, Priv) ->
 
 process_cmd({"tail", ReqBody}, Priv) ->
     [{<<"tail">>,BodyJson}] = ReqBody,
-    StmtPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    Statement = {erlimem_session, StmtPid, ConnPid},
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Push = proplists:get_value(<<"push">>, BodyJson, <<>>),
     Tail = proplists:get_value(<<"tail">>, BodyJson, <<>>),
     Opts = case {Push, Tail} of
@@ -255,7 +243,7 @@ process_cmd({"views", _}, Priv) ->
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
-io:format(user, "View ~p~n", [F]),
+    ?Info("View ~p~n", [F]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, list_to_binary(C#ddCmd.command)}
         ,{<<"name">>, <<"All Views">>}
@@ -274,13 +262,14 @@ process_cmd({Cmd, BodyJson}, Priv) ->
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
-        {ok, Clms, {_,StmtPid,ConPid}=Statement} ->
+        {ok, Clms, {_,_,ConPid}=Statement} ->
             ?Info([{session, Connection}], "Cols ~p", [Clms]),
             Columns = build_column_json(lists:reverse(Clms), []),
             ?Debug("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
             Statement:start_async_read([]),
+            ?Info("process_query created statement ~p for ~p", [Statement, Query]),
             {Priv, [{<<"columns">>, Columns}
-                   ,{<<"statement">>, list_to_binary(?EncryptPid(StmtPid))}
+                   ,{<<"statement">>, base64:encode(term_to_binary(Statement))}
                    ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
