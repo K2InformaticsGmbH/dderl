@@ -188,6 +188,21 @@ $('<div>')
             .css('right', '0')
             .css('bottom', self.options.toolBarHeight+'px')
             .tabs()
+            .on("tabsactivate", function(event, ui) {
+                var shouldReparse = false;                
+                     if(ui.oldPanel.attr('id') === 'tabpretty'
+                        && (ui.newPanel.attr('id') === 'tabflat' || ui.newPanel.attr('id') === 'tabbox'))
+                        shouldReparse = true;
+                else if(ui.oldPanel.attr('id') === 'tabflat'
+                        && (ui.newPanel.attr('id') === 'tabpretty' || ui.newPanel.attr('id') === 'tabbox'))
+                        shouldReparse = true;
+                else if(ui.oldPanel.attr('id') === 'tabbox'
+                        && (ui.newPanel.attr('id') === 'tabflat' || ui.newPanel.attr('id') === 'tabpretty'))
+                        shouldReparse = false;
+
+                if(shouldReparse)
+                    self._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
+            })
             .removeClass('ui-corner-all')
             .appendTo(self.element);
 
@@ -218,8 +233,11 @@ $('<div>')
         var self = this;
 
         // default dialog open behavior
-    	if ( self.options.autoOpen )
+    	if (self.options.autoOpen)
             self._dlg.dialog("open");
+
+        if (undefined != self._cmdFlat && self._cmdFlat.length > 0)
+            this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}},'parse_stmt','parsedCmd');
     },
 
     _setupEventHandlers: function() {
@@ -322,20 +340,26 @@ $('<div>')
      */
     _checkParsed: function(_parsed) {
         var error = ''
-        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - \n'+_parsed.boxerror+'\n';
-        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Box Error - \n'+_parsed.prettyerror+'\n';
-        if(_parsed.hasOwnProperty('flaterror'))     error += 'Box Error - \n'+_parsed.flaterror+'\n';
+        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>'+_parsed.boxerror+'<br>';
+        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>'+_parsed.prettyerror+'<br>';
+        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>'+_parsed.flaterror+'<br>';
 
         if (error.length > 0)
             alert_jq(error);
     },
     _renderParsed: function(_parsed) {
         if(_parsed.hasOwnProperty('sqlbox')) {
-            console.log('____________' + JSON.stringify(_parsed.sqlbox));
-            build_boxes(this._boxDiv, _parsed.sqlbox.box);
+            this._boxJson = _parsed.sqlbox.box;
+            build_boxes(this._boxDiv, this._boxJson);
         }
-        if(_parsed.hasOwnProperty('pretty'))   this._prettyTb.text(_parsed.pretty);
-        if(_parsed.hasOwnProperty('flat'))     this._flatTb.text(_parsed.flat);
+        if(_parsed.hasOwnProperty('pretty')) {
+            this._prettyTb.text(_parsed.pretty);
+            this._cmdPretty = this._prettyTb.val();
+        }
+        if(_parsed.hasOwnProperty('flat')) {
+            this._flatTb.text(_parsed.flat);
+            this._cmdFlat = this._flatTb.val();
+        }
     },
 
     _createDlg: function() {
@@ -374,9 +398,10 @@ $('<div>')
 
     showCmd: function(cmd) {
         var self = this;
-        self._cmdFlat = cmd;
         self._modCmd = cmd;
-        self._flatTb.text(self._cmdFlat);
+        self._flatTb.text(cmd);
+        self._cmdFlat = self._flatTb.val();
+        this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
 
     // generic dderlserver call interface

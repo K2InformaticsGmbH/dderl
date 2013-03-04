@@ -44,19 +44,24 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
     case (catch jsx:encode([{<<"parse_stmt">>, [
-        case (catch sql_box:boxed(Sql)) of
-            {'EXIT', ErrorBox} -> {<<"boxerror">>, ErrorBox};
-            Box ->
-                ?Info("--- Box --- ~n~p", [Box]),
-                {<<"sqlbox">>, box_to_json(Box)}
+        try
+            Box = sql_box:boxed(Sql),
+            ?Info("--- Box --- ~n~p", [Box]),
+            {<<"sqlbox">>, box_to_json(Box)}
+        catch
+            _:ErrorBox -> {<<"boxerror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorBox])))}
         end,
-        case (catch sql_box:pretty(Sql)) of
-            {'EXIT', ErrorPretty} -> {<<"prettyerror">>, ErrorPretty};
-            Pretty -> {<<"pretty">>, list_to_binary(Pretty)}
+        try
+            Pretty = sql_box:pretty(Sql),
+            {<<"pretty">>, list_to_binary(Pretty)}
+        catch
+            _:ErrorPretty -> {<<"prettyerror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorPretty])))}
         end,
-        case (catch sql_box:flat(Sql)) of
-            {'EXIT', ErrorFlat} -> {<<"flaterror">>, ErrorFlat};
-            Flat -> {<<"flat">>, list_to_binary(Flat)}
+        try
+            Flat = sql_box:flat(Sql),
+            {<<"flat">>, list_to_binary(Flat)}
+        catch
+            _:ErrorFlat -> {<<"flaterror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorFlat])))}
         end
     ]}])) of
         ParseStmt when is_binary(ParseStmt) ->
