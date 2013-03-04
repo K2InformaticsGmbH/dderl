@@ -229,3 +229,17 @@ function build_boxes(div, box)
 //             .height(sqlTxtHeight))
 //     .dialog("open");
 // }
+//
+//
+
+var BOX_EXAMPLE =
+{box:{ind:0,name:"select",children:[{box:{ind:1,name:"",children:[{box:{ind:2,name:"c.owner",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:",",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"v.name",children:[],collapsed:false,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:1,name:"from",children:[{box:{ind:2,name:"ddView as v",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:",",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"ddCmd as c",children:[],collapsed:false,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:1,name:"where",children:[{box:{ind:2,name:"",children:[{box:{ind:3,name:"c.id",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:"=",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:"v.cmd",children:[],collapsed:true,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"and",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"",children:[{box:{ind:3,name:"c.adapters",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:"=",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:"\"[imem]\"",children:[],collapsed:true,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"and",children:[],collapsed:false,error:"",color:"black",pick:""}},{box:{ind:2,name:"",children:[{box:{ind:3,name:"(",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:"",children:[{box:{ind:4,name:"",children:[{box:{ind:5,name:"c.owner",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:5,name:"=",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:5,name:"user",children:[],collapsed:true,error:"",color:"black",pick:""}}],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:4,name:"or",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:4,name:"",children:[{box:{ind:5,name:"c.owner",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:5,name:"=",children:[],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:5,name:"system",children:[],collapsed:true,error:"",color:"black",pick:""}}],collapsed:true,error:"",color:"black",pick:""}}],collapsed:true,error:"",color:"black",pick:""}},{box:{ind:3,name:")",children:[],collapsed:true,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}}],collapsed:false,error:"",color:"black",pick:""}};
+
+function build_sample_box() {
+    var sqlDiv = $('<div>')
+        .width(500)
+        .height(500)
+        .css('background-color', 'lightblue')
+        .appendTo(document.body);
+    build_boxes(sqlDiv, BOX_EXAMPLE.box);
+}

@@ -29,7 +29,6 @@ box_to_json(Box) ->
         , {<<"name">>, any_to_bin(Box#box.name)}
         , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
         , {<<"collapsed">>, Box#box.collapsed}
-        , {<<"collapsed">>, false}
         , {<<"error">>, Box#box.error}
         , {<<"color">>, Box#box.color}
         , {<<"pick">>, Box#box.pick}
@@ -48,9 +47,8 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
         case (catch sql_box:boxed(Sql)) of
             {'EXIT', ErrorBox} -> {<<"boxerror">>, ErrorBox};
             Box ->
-                BoxJson = box_to_json(Box),
-                ?Debug("--- Box --- ~n~p~n--- Json ---~n~p~n", [Box, BoxJson]),
-                {<<"box">>, BoxJson}
+                ?Info("--- Box --- ~n~p", [Box]),
+                {<<"sqlbox">>, box_to_json(Box)}
         end,
         case (catch sql_box:pretty(Sql)) of
             {'EXIT', ErrorPretty} -> {<<"prettyerror">>, ErrorPretty};
@@ -61,7 +59,9 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
             Flat -> {<<"flat">>, list_to_binary(Flat)}
         end
     ]}])) of
-        ParseStmt when is_binary(ParseStmt) -> {Priv, binary_to_list(ParseStmt)};
+        ParseStmt when is_binary(ParseStmt) ->
+            ?Info("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
+            {Priv, binary_to_list(ParseStmt)};
         Error ->
             ?Error("parse_stmt error ~p~n", [Error]),
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),

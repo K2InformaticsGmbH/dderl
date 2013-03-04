@@ -152,8 +152,6 @@ $('<div>')
 
         self._boxDiv =
             $('<div>')
-            .width(1000)
-            .height(1000)
             .css('font-family', self._fnt)
             .css('font-size', self._fntSz)
             .css('margin', 0)
@@ -332,7 +330,10 @@ $('<div>')
             alert_jq(error);
     },
     _renderParsed: function(_parsed) {
-        if(_parsed.hasOwnProperty('box'))      build_boxes(this._boxDiv, _parsed.box.box);
+        if(_parsed.hasOwnProperty('sqlbox')) {
+            console.log('____________' + JSON.stringify(_parsed.sqlbox));
+            build_boxes(this._boxDiv, _parsed.sqlbox.box);
+        }
         if(_parsed.hasOwnProperty('pretty'))   this._prettyTb.text(_parsed.pretty);
         if(_parsed.hasOwnProperty('flat'))     this._flatTb.text(_parsed.flat);
     },
