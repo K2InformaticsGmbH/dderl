@@ -86,7 +86,7 @@ process_cmd({"save_view", ReqBody}, Priv) ->
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
-    gen_adapter:add_cmds_views(imem, [{Name, Query, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
+    add_cmds_views(imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
     {Priv, binary_to_list(Res)};
 process_cmd({Cmd, _BodyJson}, Priv) ->

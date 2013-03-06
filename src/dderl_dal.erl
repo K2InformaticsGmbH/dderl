@@ -93,6 +93,40 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     build_tables_on_boot(Sess, R).
 
 handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
+    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn, ddCmd, ddView, ddDash]],
+    NewConn =
+        if Conn =:= undefined ->
+            case sql_parse:string(Cmd) of
+                {ok, {select, QOpts}} ->
+                    case lists:keyfind(from, 1, QOpts) of
+                        {from, Tables} ->
+                            ?Info("Query tables ~p", [Tables]),
+                            case 
+                                lists:foldl(fun(T,A) ->
+                                                Tab = case T of
+                                                    {_,T1,_} when is_binary(T1) -> T1;
+                                                    T when is_binary(T) -> T
+                                                end,
+                                                HasSysTab = lists:member(Tab, SysTabs),
+                                                if HasSysTab -> found; true -> A end
+                                            end,
+                                            [],
+                                            Tables) of
+                            [] ->
+                                ?Info("No system table in query ~p tables ~p", [Cmd, Tables]),
+                                remote;
+                            _ -> local
+                            end;
+                        false ->
+                            ?Info("no tables in ~p opts ~p", [Cmd, Opts]),
+                            remote
+                    end;
+                _ ->
+                    ?Info("non select query ~p", [Cmd]),
+                    remote
+            end;
+        true -> Conn
+    end,
     Id = case Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, id='$1', adapters='$2', owner=Owner, _='_'}
                                            , [{'=:=', '$2', [Adapter]}]
                                            , ['$1']}]]) of
@@ -109,7 +143,7 @@ handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Se
                  , owner     = Owner
                  , adapters  = [Adapter]
                  , command   = Cmd
-                 , conns     = Conn
+                 , conns     = NewConn
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
     ?Debug("add_command inserted ~p", [NewCmd]),
