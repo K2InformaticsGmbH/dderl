@@ -26,12 +26,18 @@ allowed_methods(ReqData, Context) ->
     {['HEAD', 'POST'], ReqData, Context}.
 
 process_post(ReqData, Context) ->
-    {DDerlSessPid, Body} = to_html(ReqData),
-    lager:debug("process_post - POST Response ~p~n", [Body]),
-    ReqData1 = wrq:set_resp_body(Body, ReqData),
-    ReqData2 = wrq:set_resp_header("dderl_sess", ?EncryptPid(DDerlSessPid), ReqData1),
-    lager:debug("received request ~p", [ReqData]),
-    {true, ReqData2, Context}.
+    case to_html(ReqData) of
+        {error, Reason} ->
+            Body = jsx:encode([{<<"error">>,list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}]),
+            ReqData1 = wrq:set_resp_body(binary_to_list(Body), ReqData),
+            {true, ReqData1, Context};
+        {DDerlSessPid, Body} ->
+            lager:debug("process_post - POST Response ~p~n", [Body]),
+            ReqData1 = wrq:set_resp_body(Body, ReqData),
+            ReqData2 = wrq:set_resp_header("dderl_sess", ?EncryptPid(DDerlSessPid), ReqData1),
+            lager:debug("received request ~p", [ReqData]),
+            {true, ReqData2, Context}
+    end.
 
 content_types_provided(ReqData, Context) ->
     lager:debug("content_types_provided ...~n"),
@@ -50,19 +56,29 @@ malformed_request(ReqData, Context) ->
 
 to_html(ReqData) ->
     Session = wrq:get_req_header("dderl_sess",ReqData),
-    {_,DDerlSessPid} = DderlSess = create_new_session(Session),
-    case wrq:get_req_header("adapter",ReqData) of
-        undefined -> ok;
-        Adapter   -> DderlSess:set_adapter(Adapter)
-    end,
-    {DDerlSessPid, DderlSess:process_request(ReqData)}.
+    case create_new_session(Session) of
+        {ok, {_,DDerlSessPid} = DderlSess} ->
+            case wrq:get_req_header("adapter",ReqData) of
+                undefined -> ok;
+                Adapter   -> DderlSess:set_adapter(Adapter)
+            end,
+            {DDerlSessPid, DderlSess:process_request(ReqData)};
+        {error, Reason} ->
+            ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
+            {error, session_timeout}
+    end.
 
 create_new_session([]) -> create_new_session(undefined);
 create_new_session(undefined) ->
     DderlSess = dderl_session:start(),
     lager:info("new dderl session ~p", [{DderlSess}]),
-    DderlSess;
-create_new_session(DDerlSessPid) -> {dderl_session, ?DecryptPid(DDerlSessPid)}.
+    {ok, DderlSess};
+create_new_session(DDerlSessPid) ->
+    Pid = ?DecryptPid(DDerlSessPid),
+    case erlang:process_info(Pid) of
+        undefined -> {error, "process not found"};
+        _ -> {ok, {dderl_session, Pid}}
+    end.
 
 is_authorized(ReqData, Context) ->
     case wrq:disp_path(ReqData) of

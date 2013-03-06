@@ -14,10 +14,10 @@ function load_connections()
             ajax_post('/app/connects', null, null, null, function(data) {
                 connects = data.connects;
                 $('#connection_list').html('');
-                for(var name in connects)
+                for(var id in connects)
                     $('#connection_list').append($('<option>', {
-                        value: name,
-                        text : name 
+                        value: id,
+                        text : connects[id].name
                     }));
                 set_owner_list($("#adapter_list").val());
             });
@@ -34,9 +34,8 @@ function load_connections()
     });
 
     $('#connection_list').change(function() {
-        var selectedName = $("#connection_list").val();
-        document.title = selectedName;
-        load_login_form(selectedName);
+        var selectedId = $("#connection_list").val();
+        load_login_form(selectedId);
     });
 }
 
@@ -47,18 +46,18 @@ function set_owner_list(adapter)
     $('#owners_list').empty();
     $('#owners_list').jecKill();
     //set_conns_list(adapter, '');
-    for(var name in connects)
-        if(connects[name].adapter == adapter)
-            owners[connects[name].owner] = true;
+    for(var id in connects)
+        if(connects[id].adapter == adapter)
+            owners[connects[id].owner] = true;
     for(var owner in owners)
         $('#owners_list').append($('<option>', {
             value: owner,
             text : owner 
         }));
-    for(var name in connects)
-        if(connects[name].adapter == adapter) {
-            $('#owners_list option[value="'+connects[name].owner+'"]').attr("selected","selected"); 
-            set_conns_list(adapter, connects[name].owner);
+    for(var id in connects)
+        if(connects[id].adapter == adapter) {
+            $('#owners_list option[value="'+connects[id].owner+'"]').attr("selected","selected"); 
+            set_conns_list(adapter, connects[id].owner);
             break;
         }
     $('#owners_list').jec();
@@ -68,16 +67,16 @@ function set_conns_list(adapter, owner)
 {
     $('#connection_list').empty();
     $('#connection_list').jecKill();
-    for(var name in connects)
-        if(connects[name].adapter == adapter && connects[name].owner == owner)
+    for(var id in connects)
+        if(connects[id].adapter == adapter && connects[id].owner == owner)
             $('#connection_list').append($('<option>', {
-                value: name,
-                text : name
+                value: id,
+                text : connects[id].name
             }));
-    for(var name in connects)
-        if(connects[name].adapter == adapter && connects[name].owner == owner) {
+    for(var id in connects)
+        if(connects[id].adapter == adapter && connects[id].owner == owner) {
             $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
-            load_login_form(name);
+            load_login_form(id);
             break;
         } else if (owner.length == 0) {
             load_login_form('');
@@ -142,20 +141,27 @@ function connect_dlg()
             $('#connection_list').width(200);
         },
         buttons: {
-            "Login / Save": function() {
+            'Login / Save': function() {
+                var newName = $('#connection_list').jecValue();
+                var selName = $('#connection_list option[selected]').text();
+                if (newName.length === 0 && selName.length === 0) {
+                    alert_jq('Please provide a connection name for the new connection, or select an existing one');
+                    return;
+                }
+
                 adapter = $('#adapter_list option:checked').val();
-                Password = $("#password").val();
-                Password = (adapter == "imem" ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
-                var connectJson = {connect: {name      :$("#connection_list").parent().children()[0].value,
-                                             ip        :$("#ip").val(),
-                                             port      :$("#port").val(),
-                                             service   :$("#service").val(),
+                Password = $('#password').val();
+                Password = (adapter == 'imem' ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
+                var conname = (newName.length === 0 ? selName : newName);
+                var connectJson = {connect: {name      :conname,
+                                             ip        :$('#ip').val(),
+                                             port      :$('#port').val(),
+                                             service   :$('#service').val(),
                                              type      :$('input:radio[name=db_type]:checked').val(),
-                                             user      :$("#user").val(),
+                                             user      :$('#user').val(),
                                              password  :Password,
-                                             tnsstring :$("#tnsstring").val()}};
-                owner = $("#user").val();
-                var name = $('#connection_list option:checked').val();
+                                             tnsstring :$('#tnsstring').val()}};
+                owner = $('#user').val();
                 var Dlg = $(this);
                 ajax_post('/app/connect', connectJson, null, null, function(data) {
                     if(data.connect.hasOwnProperty('error')) {
@@ -167,75 +173,85 @@ function connect_dlg()
                             'Error: '+data.connect.error
                         );
                     } else {
-                        document.title = name;
-                        var nm = name.replace(/\s/, '_');
                         Dlg.dialog("close");
                         show_qry_files(data.connect);
                     }
                 });
             },
-            "Delete": function() {
-                delByName = $("#name").val();
-                delete connects[delByName];
-                $('#connection_list option[value="'+delByName+'"]').remove();
-                var name = null;
-                for(name in connects);
-                if(null != name) load_login_form(name);
-
-                ajax_post('/app/save', connects, null, null, function(data) {
-                    alert_jq(JSON.stringify(data.result));
-                });
+            'Delete': function() {
+                delByName = $('#name').val();
+                var selectedId = $('#connection_list').val();
+                if (null !== selectedId && selectedId.length > 0) {
+                    // delete in server
+                    ajax_post('/app/del_con', {del_con: {conid: parseInt(selectedId)}}, null, null, function(data) {
+                        if(data.del_con.hasOwnProperty('error')) {
+                            alert_jq(JSON.stringify(data.del_con.error));
+                        } else {
+                            // update list on success
+                            $('#connection_list option[value="'+selectedId+'"]').remove();
+                            delete connects[selectedId];
+                            var id = null;
+                            for(id in connects);
+                            if(null != id) load_login_form(id);
+                        }
+                    });
+                }
             }
         }
     })
-    .dialog("open");
+    .dialog('open');
     $('#con_tns').hide();
     $('#con_othrs').show();
 
     load_connections();
 
     // Changes between Service / SID / TNS
-    $("input[name='db_type']").change( function() {
+    $('input[name="db_type"]').change( function() {
       $('#con_tns').hide();
       $('#con_othrs').show();
       if($(this).val().toUpperCase() == 'TNS') {
         $('#con_tns').show();
         $('#con_othrs').hide();
       }
-      $('#con_name').html($(this).val().toUpperCase() + "&nbsp;");
+      $('#con_name').html($(this).val().toUpperCase() + '&nbsp;');
     });
 }
 
-function load_login_form(name) {
-    if(connects.hasOwnProperty(name)) {
-        $('#ip').val(connects[name].ip);
-        $('#port').val(connects[name].port);
-        $('#service').val(connects[name].service);
-        $('#sid').val(connects[name].sid);
-        $('#user').val(connects[name].user);
-        $('#tnsstring').val(connects[name].tnsstring);
-        $('input:radio[name=db_type][value='+connects[name].type+']').click();
+function load_login_form(id) {
+    if(connects.hasOwnProperty(id)) {
+        document.title = connects[id].name;
+        $('#ip').val(connects[id].ip);
+        $('#port').val(connects[id].port);
+        $('#service').val(connects[id].service);
+        $('#sid').val(connects[id].sid);
+        $('#user').val(connects[id].user);
+        $('#tnsstring').val(connects[id].tnsstring);
+        $('input:radio[name=db_type][value='+connects[id].type+']').click();
         var conName = '';
-        if(connects[name].hasOwnProperty('type')) {
-            conName = connects[name].type.toUpperCase();
+        if(connects[id].hasOwnProperty('type')) {
+            conName = connects[id].type.toUpperCase();
             if(conName == 'TNS') {
                 $('#con_tns').show();
                 $('#con_othrs').hide();
             }
         }
         $('#con_name').html(conName + "&nbsp;");
-        $('#adapter_list option[value="'+connects[name].adapter+'"]').attr("selected","selected"); 
-        $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
+        $('#adapter_list option[value="'+connects[id].adapter+'"]').attr("selected","selected"); 
+        $('#connection_list option[selected]').removeAttr('selected');
+        $('#connection_list option[value="'+id+'"]').attr("selected","selected"); 
         $('#password').val("change_on_install"); // TODO remove after test
         $('#password').focus();
+        $('#dialog-db-login').data(id);
+        console.log('loaded connection id '+connects[id].name);
     }
     else {
-        $('#ip').val('');
-        $('#port').val('');
-        $('#service').val('');
-        $('#sid').val('');
-        $('#user').val('');
-        $('#password').val('');
-        $('#tnsstring').val('');
+        $('#connection_list option[selected]').removeAttr('selected');
+    //    $('#ip').val('');
+    //    $('#port').val('');
+    //    $('#service').val('');
+    //    $('#sid').val('');
+    //    $('#user').val('');
+    //    $('#password').val('');
+    //    $('#tnsstring').val('');
     }
 }

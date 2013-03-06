@@ -21,6 +21,7 @@
         ]).
 
 -define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
+%%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
 -record(state, {
         adapt_priv
@@ -104,11 +105,12 @@ process_call({"connects", _ReqData}, _From, #state{user=User} = State) ->
             lager:debug([{user, User}], "conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
                 lists:foldl(fun(C, Acc) ->
-                    [{jsq(C#ddConn.name), [
-                            {<<"adapter">>,jsq(C#ddConn.adapter)}
+                    [{list_to_binary(integer_to_list(C#ddConn.id)), [
+                            {<<"name">>,jsq(C#ddConn.name)}
+                          , {<<"adapter">>,jsq(C#ddConn.adapter)}
                           , {<<"service">>, jsq(C#ddConn.schema)}
-                          , {<<"owner">>, jsq(C#ddConn.owner)}] ++
-                          %, {<<"owner">>, jsq(User)}] ++
+                          , {<<"owner">>, jsq(C#ddConn.owner)}
+                          ] ++
                           [{list_to_binary(atom_to_list(N)), jsq(V)} || {N,V} <- C#ddConn.access]
                      } | Acc]
                 end,
@@ -118,6 +120,17 @@ process_call({"connects", _ReqData}, _From, #state{user=User} = State) ->
             lager:debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
             {reply, binary_to_list(Res), State#state{user=User}}
     end;
+
+process_call({"del_con", ReqData}, _From, #state{user=User} = State) ->
+    [{<<"del_con">>, BodyJson}] = jsx:decode(wrq:req_body(ReqData)),
+    ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
+    ?Info("connection to delete ~p", [ConId]),
+    Resp = case dderl_dal:del_conn(ConId) of
+        ok -> <<"success">>;
+        Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
+    end,
+    {reply, binary_to_list(jsx:encode([{<<"del_con">>, Resp}])), State#state{user=User}};
+
 process_call({Cmd, ReqData}, Parent, #state{adapt_priv=AdaptPriv,adapter=AdaptMod, user=User} = State) ->
     BodyJson = jsx:decode(wrq:req_body(ReqData)),
     Self = self(),
@@ -144,7 +157,7 @@ handle_info(Info, #state{user=User}=State) ->
     {noreply, State}.
 
 terminate(Reason, #state{user=User}) ->
-    lager:info([{user, User}], "~p terminating session ~p", [?MODULE, Reason, {self(), User}]).
+    lager:info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 

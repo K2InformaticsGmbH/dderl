@@ -87,21 +87,27 @@ function ajax_post(url, dataJson, headers, context, successFun) {
         context: context,
         success: function(_data, textStatus, request)
         {            
+            if(_data.hasOwnProperty('error')) {
+                alert_jq(
+                    (_data.error === 'session_timeout'
+                              ? 'DDerl session timed out. Please login again.'
+                              : _data.error)
+                );
+                return;
+            }
             console.log('dderl session '+JSON.stringify(request.getResponseHeader('dderl_sess')));
-            //if(_data.hasOwnProperty('session'))
-            //    session = _data.session;
             var s = request.getResponseHeader('dderl_sess');
             if(s != null)
                 session = s;
             if(successFun != null)
                 successFun.call(context, _data);
+        },
+
+        error: function (request, textStatus, errorThrown) {
+             alert_jq('HTTP '+ url +
+                   (textStatus.length > 0 ? ' '+textStatus:'')+
+                   (errorThrown.length > 0 ? ' details '+errorThrown:''));
         }
-//        success: function(_data) {
-//            if(_data.hasOwnProperty('session'))
-//                session = _data.session;
-//            if(successFun != null)
-//                successFun.call(context, _data);
-//        }
     });
 }
 

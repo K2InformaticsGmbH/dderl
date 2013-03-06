@@ -131,10 +131,6 @@ widest_cell_per_clm([R|Rows],V) ->
     || {Re, Ve} <- lists:zip(R,V)],
     widest_cell_per_clm(Rows,NewV).
 
-%% ;
-%% process_data(Rows, _, CacheSize) ->
-%%     [{<<"done">>, true}, {<<"rows">>, rows_to_json1(Rows)}, {<<"cache_max">>, CacheSize}].
-
 strs2bins(Strings) ->
     lists:foldl(fun
         (S, Acc) when is_atom(S)  -> [list_to_binary(atom_to_list(S))|Acc];

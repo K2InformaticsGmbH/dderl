@@ -83,10 +83,6 @@ process_cmd({"connect", ReqBody}, _) ->
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     ?Info("session:open ~p", [{Type, Opts, {User, Password}}]),
     case erlimem:open(Type, Opts, {User, Password}) of
-        {error, {Ex,M}} ->
-            ?Error("DB connect error ~p", [{Ex,M}]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
-            {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}]))};
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
@@ -105,7 +101,7 @@ process_cmd({"connect", ReqBody}, _) ->
                                        ]
                           , schema   = list_to_atom(Schema)
                           },
-            ?Info([{user, User}], "saving new connection ~p", [Con]),
+            ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
             {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
     end;

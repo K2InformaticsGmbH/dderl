@@ -20,6 +20,7 @@
         ,add_view/3
         ,add_connect/1
         ,get_connects/1
+        ,del_conn/1
         ,get_commands/2
         ,get_command/1
         ,get_view/1
@@ -42,6 +43,7 @@ add_view(Name, CmdId, ViewsState)           -> gen_server:call(?MODULE, {add_vie
 
 get_adapters()                  -> gen_server:call(?MODULE, {get_adapters}).
 get_connects(User)              -> gen_server:call(?MODULE, {get_connects, User}).
+del_conn(ConId)                 -> gen_server:call(?MODULE, {del_conn, ConId}).
 get_commands(User, Adapter)     -> gen_server:call(?MODULE, {get_commands, User, Adapter}).
 get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrName}).
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
@@ -55,9 +57,9 @@ hexstr_to_bin([X,Y|T], Acc) ->
     hexstr_to_bin(T, [V | Acc]).
 
 start_link(SchemaName) ->
-    ?Debug("~p starting...~n", [?MODULE]),
+    ?Debug("starting...~n"),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
-    ?Debug("~p started!~n~p", [?MODULE, Result]),
+    ?Debug("started!~n~p", [Result]),
     Result.
 
 init([SchemaName]) ->
@@ -74,10 +76,10 @@ init([SchemaName]) ->
             , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
             , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
         ]),
-        ?Info("~p tables ~p created", [?MODULE, [ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
+        ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
         Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
         Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
-        ?Info("~p initializing ~p", [?MODULE, Adapters]),
+        ?Info("initializing ~p", [Adapters]),
         [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
         {ok, #state{sess=Sess, schema=SchemaName}};
     {error, Reason} ->
@@ -86,7 +88,7 @@ init([SchemaName]) ->
 
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
-    ?Info("~p creating table ~p", [?MODULE, [N]]),
+    ?Info("creating table ~p", [N]),
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
@@ -95,11 +97,11 @@ handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Se
                                            , [{'=:=', '$2', [Adapter]}]
                                            , ['$1']}]]) of
         {[Id0|_], true} ->
-            ?Debug("~p add_command ~p replacing id ~p", [?MODULE, Name, Id0]),
+            ?Debug("add_command ~p replacing id ~p", [Name, Id0]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            ?Debug("~p add_command ~p new id ~p", [?MODULE, Name, Id1]),
+            ?Debug("add_command ~p new id ~p", [Name, Id1]),
             Id1
     end,
     NewCmd = #ddCmd { id     = Id
@@ -110,7 +112,7 @@ handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Se
                  , conns     = Conn
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
-    ?Debug("~p add_command inserted ~p", [?MODULE, NewCmd]),
+    ?Debug("add_command inserted ~p", [NewCmd]),
     {reply, Id, State};
 
 handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=Owner} = State) ->
@@ -118,11 +120,11 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
                                             , []
                                             , ['$1']}]]) of
         {[Id0|_], true} ->
-            ?Debug("~p add_view ~p replacing id ~p ~p~n", [?MODULE, Name, Id0, Owner]),
+            ?Debug("add_view ~p replacing id ~p ~p~n", [Name, Id0, Owner]),
             Id0;
         _ ->
             Id1 = erlang:phash2(make_ref()),
-            ?Debug("~p add_view ~p new id ~p", [?MODULE, Name, Id1]),
+            ?Debug("add_view ~p new id ~p", [Name, Id1]),
             Id1
     end,
     NewView = #ddView { id      = Id
@@ -131,24 +133,24 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
                      , cmd      = CmdId
                      , state    = ViewsState},
     Sess:run_cmd(insert, [ddView, NewView]),
-    ?Debug("~p add_view inserted ~p", [?MODULE, NewView]),
+    ?Debug("add_view inserted ~p", [NewView]),
     {reply, Id, State};
 handle_call({get_view, Name, Owner}, _From, #state{sess=Sess} = State) ->
-    ?Info("~p get_view ~p", [?MODULE, Name]),
+    ?Info("get_view ~p", [Name]),
     {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    ?Info("~p view ~p", [?MODULE, View]),
+    ?Info("view ~p", [View]),
     {reply, View, State};
 handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
-    ?Info("~p get_view ~p", [?MODULE, Name]),
+    ?Info("get_view ~p", [Name]),
     {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
-    ?Info("~p view ~p", [?MODULE, Views]),
+    ?Info("view ~p", [Views]),
     {reply, Views, State};
 handle_call({get_session}, _From, #state{sess=Sess} = State) ->
-    ?Info("~p get_session ~p", [?MODULE, Sess]),
+    ?Info("get_session ~p", [Sess]),
     {reply, Sess, State};
 
 handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
-    ?Debug("~p get_command for id ~p", [?MODULE, IdOrName]),
+    ?Debug("get_command for id ~p", [IdOrName]),
     {Cmds, true} = case IdOrName of
         Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
         Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
@@ -156,12 +158,12 @@ handle_call({get_command, IdOrName}, _From, #state{sess=Sess} = State) ->
     Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
     {reply, Cmd, State};
 handle_call({get_commands, User, Adapter}, _From, #state{sess=Sess} = State) ->
-    ?Debug("~p get_commands user ~p adapter ~p", [?MODULE, User, Adapter]),
+    ?Debug("get_commands user ~p adapter ~p", [User, Adapter]),
     {Cmds, true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{owner='$1', _='_'}
                                                 , [{'or', {'=:=', '$1', system}
                                                 , {'=:=','$1',User}}], ['$_']}]]),
     NewCmds = [C || C <- Cmds, lists:any(fun(E) -> E =:= Adapter end, C#ddCmd.adapters)],
-    ?Debug("~p get_commands user ~p adapter ~p cmds ~p", [?MODULE, User, Adapter, NewCmds]),
+    ?Debug("get_commands user ~p adapter ~p cmds ~p", [User, Adapter, NewCmds]),
     {reply, NewCmds, State};
 
 handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
@@ -169,38 +171,64 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
     HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
     NewCons =
         if HasAll ->
-            [C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])}
+            [if
+                 is_integer(C#ddConn.owner) ->
+                     C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
+                 true -> C
+             end
             || C <- Cons];
         true ->
             lists:foldl(fun(C,Acc) ->        
                 HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
                 if (HavePerm == true)   ->
-                        UserName = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]]),
-                        [C#ddConn{owner = UserName}|Acc];
+                        [if
+                             is_integer(C#ddConn.owner) ->
+                                 C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
+                             true -> C
+                         end
+                        | Acc];
                    true -> Acc
                 end
             end,
             [],
             Cons)
     end,
-    ?Info("~p get_connects for ~p user -- ~p", [?MODULE, User, NewCons]),
+    ?Info("get_connects for ~p user -- ~p", [User, NewCons]),
     {reply, NewCons, State};
 
+handle_call({del_conn, ConId}, _From, #state{sess=Sess} = State) ->
+    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
+    if HasAll ->
+        ok = Sess:run_cmd(delete, [ddConn, ConId]),
+        ?Info("del_conn connection ~p deleted", [ConId]),
+        {reply, ok, State};
+    true ->
+        case Sess:run_cmd(have_permission, [{ConId, use}]) of
+        true ->
+            ok = Sess:run_cmd(delete, [ddConn, ConId]),
+            ?Info("del_conn connection ~p deleted", [ConId]),
+            {reply, ok, State};
+        _ ->
+             ?Error("del_conn no permission to delete connection ~p", [ConId]),
+             {reply, no_permission, State}
+        end
+    end;
+
 handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->
-    ?Debug("~p get_adapters", [?MODULE]),
+    ?Debug("get_adapters"),
     {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
     {reply, Adapters, State};
 
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
-    ?Debug("~p login for user ~p pass ~p", [?MODULE, User, BinPswd]),
+    ?Debug("login for user ~p pass ~p", [User, BinPswd]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
             ?Error("login exception ~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
-            ?Info("~p login accepted user ~p with id = ~p", [?MODULE, User, UserId]),
+            ?Info("login accepted user ~p with id = ~p", [User, UserId]),
             {reply, true, State#state{sess=Sess, owner=UserId}}
     end;
 
@@ -214,39 +242,39 @@ handle_cast({add_connect, #ddConn{} = Con}, #state{sess=Sess, schema=SchemaName,
         undefined -> NewCon0#ddConn{schema = SchemaName};
         _ -> NewCon0
     end,
-    NewCon = case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', id='$2', _='_'}
-                                                , [{'=:=','$1',Con#ddConn.name}]
-                                                , ['$2']}]]) of
+    NewCon = case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
+                                                , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',UserId}]
+                                                , ['$3']}]]) of
         {[Id|_], true} ->
-            ?Debug("~p add_connect replacing id ~p", [?MODULE, Id]),
+            ?Info("add_connect replacing id ~p", [Id]),
             NewCon1#ddConn{id=Id};
         _ ->
-            ?Debug("~p add_connect adding new ~p", [?MODULE, NewCon1#ddConn.id]),
+            ?Info("add_connect adding new ~p", [NewCon1#ddConn.id]),
             NewCon1
     end,
     Sess:run_cmd(insert, [ddConn, NewCon]),
-    ?Debug("~p add_connect inserted ~p", [?MODULE, NewCon]),
+    ?Debug("add_connect inserted ~p", [NewCon]),
     {noreply, State};
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Adp = #ddAdapter{id=Id,fullName=FullName},
     Sess:run_cmd(insert, [ddAdapter, Adp]),
-    ?Debug("~p add_adapter inserted ~p", [?MODULE, Adp]),
+    ?Debug("add_adapter inserted ~p", [Adp]),
     {noreply, State};
 handle_cast({init_adapter, Adapter}, State) ->
     spawn(fun() ->
         Adapter:init(),
-        ?Debug("~p init_adapter ~p", [?MODULE, Adapter])
+        ?Debug("init_adapter ~p", [Adapter])
     end),
     {noreply, State};
 handle_cast(Req,State) ->
-    ?Debug("~p unknown cast ~p", [?MODULE, Req]),
+    ?Debug("unknown cast ~p", [Req]),
     {noreply, State}.
 
 handle_info(Req,State) ->
-    ?Debug("~p unknown info ~p", [?MODULE, Req]),
+    ?Debug("unknown info ~p", [Req]),
     {noreply, State}.
 terminate(Reason, _State)              ->
-    ?Debug("~p terminating, reason ~p", [?MODULE, Reason]),
+    ?Debug("terminating, reason ~p", [Reason]),
     ok.
 code_change(_OldVsn, State, _Extra)     -> {ok, State}.
 format_status(_Opt, [_PDict, _State])   -> ok.

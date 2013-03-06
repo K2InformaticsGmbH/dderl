@@ -64,6 +64,11 @@
                             self._checkInsertResult(_insert);
                             self._insertResult(_insert);
                         },
+                        deleteData : function(e, _delete) {
+                            var self = e.data;
+                            self._checkDeleteResult(_delete);
+                            self._deleteResult(_delete);
+                        },
                         commitResult : function(e, _commit) {
                             var self = e.data;
                             self._checkCommitResult(_commit);
@@ -378,14 +383,8 @@
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
         self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
+        self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
 
-            //self._table
-            //    .jScrollPane()
-            //    .css('position', 'absolute')
-            //    .css('top', '0')
-            //    .css('left', '0')
-            //    .css('right', '0')
-            //    .css('bottom', self.options.toolBarHeight+'px');
         self._gdata = self._grid.getData();
     },
 
@@ -584,6 +583,15 @@
             console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
         }
     },
+    _checkDeleteResult: function(_delete) {
+        console.log('delete check '+_delete);
+        // if(isNaN(parseInt(_insert)) || !this.hasOwnProperty('__insertingRow')) {
+        //     if(_insert.hasOwnProperty('error'))
+        //         alert_jq('insert failed!\n'+_insert.error);
+        // } else {
+        //     console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
+        // }
+    },
     _checkCommitResult: function(_commit) {
         if(_commit === "ok")
             console.log('[AJAX] commit success!');
@@ -612,6 +620,18 @@
             this._grid.render();
             console.log('[AJAX] inserted data '+JSON.stringify(item));
         }
+    },
+    _deleteResult: function(_delete) {
+        console.log('deleted '+_delete);
+        // if(!isNaN(parseInt(_insert)) && this.hasOwnProperty('__insertingRow')) {
+        //     var item = this.__insertingRow;
+        //     item['id'] = parseInt(_insert);
+        //     this._grid.invalidateRow(this._gdata.length);
+        //     this._gdata.push(item);
+        //     this._grid.updateRowCount();
+        //     this._grid.render();
+        //     console.log('[AJAX] inserted data '+JSON.stringify(item));
+        // }
     },
     _renderViews: function(_views) {
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
@@ -792,13 +812,6 @@
                      },
             context: self,
 
-            // success: function(data, textStatus, request){
-            //     alert(request.getResponseHeader('some_header'));
-            // }
-            // error: function (request, textStatus, errorThrown) {
-            //     alert(request.getResponseHeader('some_header'));
-            // }
-
             success: function(_data) {
 
                 // save the new session - legacy maybe removed TODO
@@ -811,7 +824,17 @@
                         this.element.trigger(_successevt, _data[_resphead]);
                     else
                         throw('unsupported success event '+_successevt+' for '+_url);
-                } else throw('resp '+_resphead+' doesn\'t match the request '+_url);
+                }
+                else if(_data.hasOwnProperty('error')) {
+                    alert_jq('Error : '+_data.error);
+                }
+                else throw('resp '+_resphead+' doesn\'t match the request '+_url);
+            },
+
+            error: function (request, textStatus, errorThrown) {
+                 alert_jq('HTTP Error'+
+                       (textStatus.length > 0 ? ' '+textStatus:'')+
+                       (errorThrown.length > 0 ? ' details '+errorThrown:''));
             }
         });
     },
@@ -908,6 +931,30 @@
         this['__insertingRow'] = args.item;
         this._ajaxCall('/app/insert_data', insertJson, 'insert_data', 'insertData');
     },
+    _delRow: function(e, args) {
+        e.stopPropagation();
+        if(e.keyCode == 46) { // Delete
+            // Delete args.row
+            var deleteJson = {delete_row: {statement : this._stmt,
+                                          rowid      : args.row + 1}};
+            this._ajaxCall('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+        }
+    },
+
+//            console.log('deleted row '+args.row + 1);
+//                ajax_post('/app/delete_row', deleteJson, null, null, function(data) {
+//                if(data.delete_row == "ok") {
+//                    grid_data = args.grid.getData();
+//                    grid_data.splice(args.row, 1);
+//                    args.grid.setData(grid_data);
+//                    args.grid.render();
+//                }
+//                else {
+//                    alert_jq('delete failed');
+//                    console.log('delete failed');
+//                }
+//            });
+
 
     // loading the view table
     loadViews: function() { this._ajaxCall('/app/views', null, 'views', 'loadViews'); },

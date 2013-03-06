@@ -24,8 +24,8 @@ start_link() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
-    application:set_env(webmachine, webmachine_logger_module, 
-                        webmachine_logger),
+%    application:set_env(webmachine, webmachine_logger_module, 
+%                        webmachine_log),
     ensure_started(webmachine),
     webmachine_demo_sup:start_link().
 
@@ -36,8 +36,8 @@ start() ->
     ensure_started(erloci),
     ensure_started(crypto),
     ensure_started(mochiweb),
-    application:set_env(webmachine, webmachine_logger_module, 
-                        webmachine_logger),
+%    application:set_env(webmachine, webmachine_logger_module, 
+%                        webmachine_log),
     ensure_started(webmachine),
     application:start(dderl).
 
