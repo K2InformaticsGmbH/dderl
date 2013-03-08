@@ -60,7 +60,7 @@ int(C) when $a =< C, C =< $f -> C - $a + 10.
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
-process_cmd({"connect", ReqBody}, _) ->
+process_cmd({[<<"connect">>], ReqBody}, _) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -105,7 +105,7 @@ process_cmd({"connect", ReqBody}, _) ->
             dderl_dal:add_connect(Con),
             {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
     end;
-process_cmd({"query", ReqBody}, #priv{sess=Connection}=Priv) ->
+process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     %Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
@@ -113,14 +113,14 @@ process_cmd({"query", ReqBody}, #priv{sess=Connection}=Priv) ->
     {NewPriv, R} = process_query(Query, Connection, Priv),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
-process_cmd({"row_prev", ReqBody}, Priv) ->
+process_cmd({[<<"row_prev">>], ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ?Debug("row_prev ~p", [self()]),
     Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, Statement),
     ?Info("row_prev ~p rows ~p", [self(), length(Rows)]),
     {Priv, binary_to_list(jsx:encode([{<<"row_prev">>, Rows}]))};
-process_cmd({"row_next", ReqBody}, Priv) ->
+process_cmd({[<<"row_next">>], ReqBody}, Priv) ->
     [{<<"row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
@@ -128,13 +128,13 @@ process_cmd({"row_next", ReqBody}, Priv) ->
     Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, Statement),
     ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
     {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))};
-process_cmd({"stmt_close", ReqBody}, Priv) ->
+process_cmd({[<<"stmt_close">>], ReqBody}, Priv) ->
     [{<<"stmt_close">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ?Debug("remove statement ~p", [Statement]),
     Statement:close(),
     {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))};
-process_cmd({"get_buffer_max", ReqBody}, Priv) ->
+process_cmd({[<<"get_buffer_max">>], ReqBody}, Priv) ->
     [{<<"get_buffer_max">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     {ok, Finished, CacheSize} = Statement:get_buffer_max(),
@@ -142,7 +142,7 @@ process_cmd({"get_buffer_max", ReqBody}, Priv) ->
     {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
                                         [{<<"count">>, CacheSize}
                                         ,{<<"finished">>, Finished}]}]))};
-process_cmd({"update_data", ReqBody}, Priv) ->
+process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
@@ -150,13 +150,13 @@ process_cmd({"update_data", ReqBody}, Priv) ->
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
     Result = format_return(Statement:update_row(RowId, CellId, Value)),
     {Priv, binary_to_list(jsx:encode([{<<"update_data">>, Result}]))};
-process_cmd({"delete_row", ReqBody}, Priv) ->
+process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     Result = format_return(Statement:delete_row(RowId)),
     {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, Result}]))};
-process_cmd({"insert_data", ReqBody}, Priv) ->
+process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
@@ -164,7 +164,7 @@ process_cmd({"insert_data", ReqBody}, Priv) ->
     Result = format_return(Statement:insert_row(ClmName, Value)),
     ?Info("inserted ~p", [Result]),
     {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))};
-process_cmd({"commit_rows", ReqBody}, Priv) ->
+process_cmd({[<<"commit_rows">>], ReqBody}, Priv) ->
     [{<<"commit_rows">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     try
@@ -177,7 +177,7 @@ process_cmd({"commit_rows", ReqBody}, Priv) ->
             {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
     end;
 
-process_cmd({"browse_data", ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
+process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
@@ -219,7 +219,7 @@ process_cmd({"browse_data", ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
         {NewPriv, binary_to_list(RespJson)}
     end;
 
-process_cmd({"tail", ReqBody}, Priv) ->
+process_cmd({[<<"tail">>], ReqBody}, Priv) ->
     [{<<"tail">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Push = proplists:get_value(<<"push">>, BodyJson, <<>>),
@@ -234,7 +234,7 @@ process_cmd({"tail", ReqBody}, Priv) ->
     Statement:start_async_read(Opts),
     {Priv, binary_to_list(jsx:encode([{<<"tail">>, <<"ok">>}]))};
 
-process_cmd({"views", _}, Priv) ->
+process_cmd({[<<"views">>], _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
@@ -247,13 +247,13 @@ process_cmd({"views", _}, Priv) ->
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
         ++ Resp
     }]),
-%io:format(user, "views ~p~n", [RespJson]),
+    ?Debug(user, "views ~p~n", [RespJson]),
     {NewPriv, binary_to_list(RespJson)};
-process_cmd({"save_view", BodyJson}, Priv) -> gen_adapter:process_cmd({"save_view", BodyJson}, Priv);
-process_cmd({"get_query", BodyJson}, Priv) -> gen_adapter:process_cmd({"get_query", BodyJson}, Priv);
-process_cmd({"parse_stmt", BodyJson}, Priv) -> gen_adapter:process_cmd({"parse_stmt", BodyJson}, Priv);
-process_cmd({Cmd, BodyJson}, Priv) ->
-    ?Error("unsupported command ~p content ~p", [Cmd, BodyJson]),
+process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
+process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
+process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
+process_cmd({Cmd, Body}, Priv) ->
+    ?Error("unsupported command ~p content ~p", [Cmd, Body]),
     {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->

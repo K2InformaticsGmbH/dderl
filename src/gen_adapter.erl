@@ -39,7 +39,7 @@ any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
     
-process_cmd({"parse_stmt", ReqBody}, Priv) ->
+process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
@@ -72,14 +72,14 @@ process_cmd({"parse_stmt", ReqBody}, Priv) ->
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}]))}
     end;
-process_cmd({"get_query", ReqBody}, Priv) ->
+process_cmd({[<<"get_query">>], ReqBody}, Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     ?Debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
     {Priv, binary_to_list(Res)};
-process_cmd({"save_view", ReqBody}, Priv) ->
+process_cmd({[<<"save_view">>], ReqBody}, Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
     Query = binary_to_list(proplists:get_value(<<"content">>, BodyJson, <<>>)),

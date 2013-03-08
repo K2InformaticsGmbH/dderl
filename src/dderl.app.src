@@ -8,19 +8,10 @@
                   stdlib
                  ]},
   {mod, { dderl_app, []}},
-  {env, [{webconfigs, [
-            [{ip, "0.0.0.0"},
-             {port, 8443},
-             {ssl, true},
-             {ssl_opts, [{certfile, "certs/host.cert"},
-                        %{cacertfile,"tmp/api_server.ca.crt"},
-                         {keyfile, "certs/host.key"}
-             ]},
-             {log_dir, "priv/log"}]
-            %, [{ip, "0.0.0.0"},
-            %   {port, 8080},
-            %   {log_dir, "priv/log"}]
-            ]},
-        {imem_default_admin_pswd, <<"abc">>}
-  ]}
+  {env, [ {interface, "0.0.0.0"}
+        , {port, 8443}
+        , {ssl_certfile, "certs/server.crt"}
+        , {ssl_cacertfile, "certs/cowboy-ca.crt"}
+        , {ssl_keyfile, "certs/server.key"}
+        ]}
  ]}.

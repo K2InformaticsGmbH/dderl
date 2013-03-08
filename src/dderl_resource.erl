@@ -1,103 +1,116 @@
-%% @author Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>
-%% @copyright 2012-2050 K2 Informatics GmbH.  All Rights Reserved.
-%% @doc dderl Resource.
-
+%% @doc POST ajax handler.
 -module(dderl_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
--export([init/1,
-        content_types_provided/2,
-        is_authorized/2,
-        generate_etag/2,
-        expires/2,
-        process_post/2,
-        allowed_methods/2,
-        malformed_request/2]).
+-include("dderl.hrl").
 
--include_lib("dderl.hrl").
--include_lib("webmachine/include/webmachine.hrl").
+-export([init/3]).
+-export([handle/2]).
+-export([terminate/3]).
 
-init([]) ->
-    lager:debug("~p starting...", [?MODULE]),
-    {{trace, "./priv/log"}, undefined}.
+%-define(DISP_REQ, 1).
 
-allowed_methods(ReqData, Context) ->
-    lager:debug("allowed_methods ~p", [['HEAD', 'POST']]),
-    {['HEAD', 'POST'], ReqData, Context}.
+init(_Transport, Req, []) ->    
+	{ok, Req, undefined}.
 
-process_post(ReqData, Context) ->
-    case to_html(ReqData) of
-        {error, Reason} ->
-            Body = jsx:encode([{<<"error">>,list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}]),
-            ReqData1 = wrq:set_resp_body(binary_to_list(Body), ReqData),
-            {true, ReqData1, Context};
-        {DDerlSessPid, Body} ->
-            lager:debug("process_post - POST Response ~p~n", [Body]),
-            ReqData1 = wrq:set_resp_body(Body, ReqData),
-            ReqData2 = wrq:set_resp_header("dderl_sess", ?EncryptPid(DDerlSessPid), ReqData1),
-            lager:debug("received request ~p", [ReqData]),
-            {true, ReqData2, Context}
-    end.
+handle(Req, State) ->
+    ?Info("---- handler ~p", [self()]),
+	{Method, Req2} = cowboy_req:method(Req),
+	process(Method, Req2, State).
 
-content_types_provided(ReqData, Context) ->
-    lager:debug("content_types_provided ...~n"),
-    {[{"text/html", to_html},
-      {"application/json", to_html}
-     ], ReqData, Context}.
+process(<<"POST">>, Req, State) ->
+    display_req(Req),
+    {DDerlSessPid, Body} = case cowboy_req:has_body(Req) of
+        true -> process_request(Req);
+       _     -> <<>>
+    end,
+    ?Debug("Resp ~p", [Body]),
+    {ok, Req1} = reply_200_json(Body, DDerlSessPid, Req),
+    {ok, Req1, State};
+process(_Method, Req, State) ->
+    ?Info("not allowed method ~p with ~p~n", [_Method,Req]),
+	%% Method not allowed.
+	{ok, Req1} = cowboy_req:reply(405, Req),
+    {ok, Req1, State}.
 
-malformed_request(ReqData, Context) ->
-    case wrq:req_body(ReqData) of
-        undefined ->
-            lager:error("received malformed request ~p", [wrq:disp_path(ReqData)]),
-            lager:debug("malformed request ~p", [ReqData]),
-            {halt, 401};
-        _ -> {false, ReqData, Context}
-    end.
+terminate(_Reason, _Req, _State) ->
+	ok.
 
-to_html(ReqData) ->
-    Session = wrq:get_req_header("dderl_sess",ReqData),
+process_request(Req) ->
+    {Session, _} = cowboy_req:header(<<"dderl_sess">>,Req),
+    {Adapter, _} = cowboy_req:header(<<"adapter">>,Req),
+    ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
     case create_new_session(Session) of
         {ok, {_,DDerlSessPid} = DderlSess} ->
-            case wrq:get_req_header("adapter",ReqData) of
-                undefined -> ok;
-                Adapter   -> DderlSess:set_adapter(Adapter)
+            case Adapter of
+                undefined                       -> ok;
+                Adapter when is_binary(Adapter) -> DderlSess:set_adapter(binary_to_list(Adapter))
             end,
-            {DDerlSessPid, DderlSess:process_request(ReqData)};
+            {Typ, _} = cowboy_req:path_info(Req),
+            {ok, Body, _} = cowboy_req:body(Req),
+            {DDerlSessPid, DderlSess:process_request(Typ, Body)};
         {error, Reason} ->
             ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
             {error, session_timeout}
     end.
 
-create_new_session([]) -> create_new_session(undefined);
-create_new_session(undefined) ->
+create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
-    lager:info("new dderl session ~p", [{DderlSess}]),
+    ?Info("new dderl session ~p", [DderlSess]),
     {ok, DderlSess};
-create_new_session(DDerlSessPid) ->
+create_new_session([_,_|_] = DDerlSessPid) ->
+    ?Info("existing session ~p", [DDerlSessPid]),
     Pid = ?DecryptPid(DDerlSessPid),
     case erlang:process_info(Pid) of
         undefined -> {error, "process not found"};
         _ -> {ok, {dderl_session, Pid}}
-    end.
+    end;
+create_new_session(_) -> create_new_session(<<>>).
 
-is_authorized(ReqData, Context) ->
-    case wrq:disp_path(ReqData) of
-        "authdemo" ->
-            case wrq:get_req_header("authorization", ReqData) of
-                "Basic "++Base64 ->
-                    Str = base64:mime_decode_to_string(Base64),
-                    case string:tokens(Str, ":") of
-                        ["authdemo", "demo1"] ->
-                            {true, ReqData, Context};
-                        _ ->
-                            {"Basic realm=k2informatics", ReqData, Context}
-                    end;
-                _ ->
-                    {"Basic realm=k2informatics", ReqData, Context}
-            end;
-        _ -> {true, ReqData, Context}
-    end.
+% Reply templates
+% cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
+% cowboy_req:reply(200, [{<<"content-encoding">>, <<"utf-8">>}], Echo, Req),
+% {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
+% Echo = proplists:get_value(<<"echo">>, PostVals),
+% cowboy_req:reply(400, [], <<"Missing body.">>, Req)
+reply_200_json(Content, DDerlSessPid, Req) ->
+	cowboy_req:reply(200, [
+          {<<"content-encoding">>, <<"utf-8">>}
+        , {<<"content-type">>, <<"application/json">>}
+        , {<<"dderl_sess">>, list_to_binary(?EncryptPid(DDerlSessPid))}
+        ], list_to_binary(Content), Req).
 
-expires(ReqData, Context) -> {{{2021,1,1},{0,0,0}}, ReqData, Context}.
-
-generate_etag(ReqData, Context) -> {wrq:raw_path(ReqData), ReqData, Context}.
+-ifdef(DISP_REQ).
+display_req(Req) ->
+    ?Info("-------------------------------------------------------"),
+    ?Info("method     ~p~n", [element(1,cowboy_req:method(Req))]),
+    ?Info("version    ~p~n", [element(1,cowboy_req:version(Req))]),
+    ?Info("peer       ~p~n", [element(1,cowboy_req:peer(Req))]),
+    ?Info("peer_addr  ~p~n", [element(1,cowboy_req:peer_addr(Req))]),
+    ?Info("host       ~p~n", [element(1,cowboy_req:host(Req))]),
+    ?Info("host_info  ~p~n", [element(1,cowboy_req:host_info(Req))]),
+    ?Info("port       ~p~n", [element(1,cowboy_req:port(Req))]),
+    ?Info("path       ~p~n", [element(1,cowboy_req:path(Req))]),
+    ?Info("path_info  ~p~n", [element(1,cowboy_req:path_info(Req))]),
+    ?Info("qs         ~p~n", [element(1,cowboy_req:qs(Req))]),
+    %?Info("qs_val     ~p~n", [element(1,cowboy_req:qs_val(Req))]),
+    ?Info("qs_vals    ~p~n", [element(1,cowboy_req:qs_vals(Req))]),
+    ?Info("fragment   ~p~n", [element(1,cowboy_req:fragment(Req))]),
+    ?Info("host_url   ~p~n", [element(1,cowboy_req:host_url(Req))]),
+    ?Info("url        ~p~n", [element(1,cowboy_req:url(Req))]),
+    %?Info("binding    ~p~n", [element(1,cowboy_req:binding(Req))]),
+    ?Info("bindings   ~p~n", [element(1,cowboy_req:bindings(Req))]),
+    ?Info("hdr(ddls)  ~p~n", [element(1,cowboy_req:header(<<"dderl_sess">>,Req))]),
+    ?Info("hdr(host)  ~p~n", [element(1,cowboy_req:header(<<"host">>,Req))]),
+    %?Info("headers    ~p~n", [element(1,cowboy_req:headers(Req))]),
+    %?Info("cookie     ~p~n", [element(1,cowboy_req:cookie(Req))]),
+    ?Info("cookies    ~p~n", [element(1,cowboy_req:cookies(Req))]),
+    %?Info("meta       ~p~n", [element(1,cowboy_req:meta(Req))]),
+    ?Info("has_body   ~p~n", [cowboy_req:has_body(Req)]),
+    ?Info("body_len   ~p~n", [element(1,cowboy_req:body_length(Req))]),
+    ?Info("body_qs    ~p~n", [element(2,cowboy_req:body_qs(Req))]),
+    ?Info("body       ~p~n", [element(2,cowboy_req:body(Req))]),
+    ?Info("-------------------------------------------------------").
+-else.
+display_req(_) -> ok.
+-endif.

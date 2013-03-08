@@ -1,56 +1,49 @@
 -module(dderl).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
+%% API.
 -export([ start/0
-        , start_link/0
-        , stop/0
-        , ensure_started/1
+        , init/3
+        , handle/2
+        , terminate/3
         , encrypt_pid/1
         , decrypt_pid/1
         ]).
 
-ensure_started(App) ->
-    case application:start(App) of
-        ok ->
-            ok;
-        {error, {already_started, App}} ->
-            ok
-    end.
+%% API.
 
-%% @spec start_link() -> {ok,Pid::pid()}
-%% @doc Starts the app for inclusion in a supervisor tree
-start_link() ->
-    inets:start(),
-    ensure_started(erloci),
-    ensure_started(crypto),
-    ensure_started(mochiweb),
-%    application:set_env(webmachine, webmachine_logger_module, 
-%                        webmachine_log),
-    ensure_started(webmachine),
-    webmachine_demo_sup:start_link().
-
-%% @spec start() -> ok
-%% @doc Start the webmachine_demo server.
 start() ->
-    inets:start(),
-    ensure_started(erloci),
-    ensure_started(crypto),
-    ensure_started(mochiweb),
-%    application:set_env(webmachine, webmachine_logger_module, 
-%                        webmachine_log),
-    ensure_started(webmachine),
-    application:start(dderl).
+    ok = application:load(lager),
+    ok = application:set_env(lager, handlers, [{lager_console_backend, info},
+                                               {lager_file_backend, [{"error.log", error, 10485760, "$D0", 5},
+                                                                     {"console.log", info, 10485760, "$D0", 5}]}]),
+    ok = application:set_env(lager, error_logger_redirect, false),
+    ok = lager:start(),
+    ok = imem:start(),
+	ok = application:start(crypto),
+	ok = application:start(ranch),
+	ok = application:start(cowboy),
+	ok = application:start(dderl).
 
-%% @spec stop() -> ok
-%% @doc Stop the webmachine_demo server.
-stop() ->
-    Res = application:stop(dderl),
-    application:stop(webmachine),
-    application:stop(mochiweb),
-    application:stop(crypto),
-    application:stop(erloci),
-    application:stop(imem),
-    Res.
+
+init(_Transport, Req, []) ->
+	{ok, Req, undefined}.
+
+handle(Req, State) ->
+	Html = get_html(),
+	{ok, Req2} = cowboy_req:reply(200,
+		[{<<"content-type">>, <<"text/html">>}],
+		Html, Req),
+	{ok, Req2, State}.
+
+terminate(_Reason, _Req, _State) ->
+	ok.
+
+get_html() ->
+	{ok, Cwd} = file:get_cwd(),
+	Filename =filename:join([Cwd, "priv", "login.html"]),
+	{ok, Binary} = file:read_file(Filename),
+	Binary.
 
 % encrypt_pid(Pid)    when is_pid(Pid)        -> base64:encode_to_string(pid_to_list(Pid)).
 % decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(base64:decode_to_string(PidStr)).

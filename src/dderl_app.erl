@@ -1,32 +1,56 @@
+%% @private
 -module(dderl_app).
+-author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
 -behaviour(application).
 
-%% Application callbacks
--export([start/2, stop/1]).
+%% API.
+-export([start/2]).
+-export([stop/1]).
 
-%% ===================================================================
-%% Application callbacks
-%% ===================================================================
+%% API.
 
-start(_StartType, _StartArgs) ->
-    {ok, ImemPwd} = application:get_env(imem_default_admin_pswd),
-    imem:start(),
-    application:load(lager),
-    application:set_env(lager, handlers, [{lager_console_backend, info},
-                                          {lager_imem, [{db, "DDerlLog"},
-                                                        {level, info},
-                                                        {user, <<"admin">>},
-                                                        {password, ImemPwd},
-                                                        {default_table, 'ddLog@'},
-                                                        {default_record, ddLog}]},
-                                          {lager_file_backend,
-                                           [{"error.log", error, 10485760, "$D0", 5},
-                                            {"console.log", info, 10485760, "$D0", 5}]}]),
-    application:set_env(lager, error_logger_redirect, false),
-    lager:start(),
-    %lager:set_loglevel(lager_console_backend, debug),
-    dderl_sup:start_link().
+start(_Type, _Args) ->
+    Dispatch = cowboy_router:compile([
+		{'_', [
+            {"/", dderl, []},
+            {"/ws", weberl_ws, []},
+            {"/app/[...]", dderl_resource, []},
+            {"/[...]", cowboy_static, [
+                {directory, {priv_dir, dderl, []}},
+                {mimetypes, {fun mimetypes:path_to_mimes/2, default}}
+            ]}
+		]}
+	]),
+
+	{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+		{env, [{dispatch, Dispatch}]}
+	]),
+
+    {ok, Interface}     = application:get_env(dderl, interface),
+    {ok, Port}          = application:get_env(dderl, port),
+    {ok, CaCertFile}    = application:get_env(dderl, ssl_cacertfile),
+    {ok, CertFile}      = application:get_env(dderl, ssl_certfile),
+    {ok, KeyFile}       = application:get_env(dderl, ssl_keyfile),
+
+    {ok, _} = cowboy:start_https(https, 100, [
+		{port, Port},
+		{cacertfile, CaCertFile},
+		{certfile, CertFile},
+		{keyfile, KeyFile}
+	], [{env, [{dispatch, Dispatch}]}]),
+
+    case application:get_env(dderl, flash_fallback) of
+        {ok, true} ->
+            %% we serve the flash policy file which MUST be on port 843
+            %% you need root privileges to run this
+            ranch:start_listener(flash_fallback, 100,
+                                 ranch_tcp, [{port, 843}],
+                                 flash_policy, []);
+        _ ->
+            ok
+    end,
+	dderl_sup:start_link().
 
 stop(_State) ->
-    ok.
+	ok.
