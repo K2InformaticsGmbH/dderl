@@ -4,6 +4,8 @@
 
 -behaviour(application).
 
+-include("dderl.hrl").
+
 %% API.
 -export([start/2]).
 -export([stop/1]).
@@ -23,17 +25,23 @@ start(_Type, _Args) ->
 		]}
 	]),
 
-	{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
-		{env, [{dispatch, Dispatch}]}
-	]),
+	%{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+	%	{env, [{dispatch, Dispatch}]}
+	%]),
 
-    {ok, Interface}     = application:get_env(dderl, interface),
+    {ok, Ip}            = application:get_env(dderl, interface),
     {ok, Port}          = application:get_env(dderl, port),
     {ok, CaCertFile}    = application:get_env(dderl, ssl_cacertfile),
     {ok, CertFile}      = application:get_env(dderl, ssl_certfile),
     {ok, KeyFile}       = application:get_env(dderl, ssl_keyfile),
+    
+    ?Info(lists:flatten([ "starting dderl at https://"
+                        , if is_list(Ip) -> Ip; true -> io_lib:format("~p",[Ip]) end
+                        , ":~p"]), [Port]),
 
+    {ok, Interface} = inet:getaddr(Ip, inet),
     {ok, _} = cowboy:start_https(https, 100, [
+        {ip, Interface},
 		{port, Port},
 		{cacertfile, CaCertFile},
 		{certfile, CertFile},
