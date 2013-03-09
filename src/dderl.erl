@@ -1,6 +1,8 @@
 -module(dderl).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
+-include("dderl.hrl").
+
 %% API.
 -export([ start/0
         , init/3
@@ -12,6 +14,7 @@
 
 %% API.
 
+-ifdef(islager).
 start() ->
     ok = application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},
@@ -19,11 +22,21 @@ start() ->
                                                                      {"console.log", info, 10485760, "$D0", 5}]}]),
     ok = application:set_env(lager, error_logger_redirect, false),
     ok = lager:start(),
-    ok = imem:start(),
+    ?Info("lager started...!"),
 	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
+    ok = imem:start(),
 	ok = application:start(dderl).
+-else.
+start() ->
+	ok = application:start(crypto),
+	ok = application:start(ranch),
+	ok = application:start(cowboy),
+    ok = imem:start(),
+    ?Info("lager not started...!"),
+	ok = application:start(dderl).
+-endif.
 
 
 init(_Transport, Req, []) ->
