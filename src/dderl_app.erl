@@ -23,6 +23,10 @@ start(_Type, _Args) ->
 		]}
 	]),
 
+	{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+		{env, [{dispatch, Dispatch}]}
+	]),
+
     {ok, Interface}     = application:get_env(dderl, interface),
     {ok, Port}          = application:get_env(dderl, port),
     {ok, CaCertFile}    = application:get_env(dderl, ssl_cacertfile),
@@ -30,7 +34,6 @@ start(_Type, _Args) ->
     {ok, KeyFile}       = application:get_env(dderl, ssl_keyfile),
 
     {ok, _} = cowboy:start_https(https, 100, [
-        {ip, Interface},
 		{port, Port},
 		{cacertfile, CaCertFile},
 		{certfile, CertFile},

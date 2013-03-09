@@ -247,13 +247,13 @@ process_cmd({[<<"views">>], _}, Priv) ->
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
         ++ Resp
     }]),
-    ?Debug(user, "views ~p~n", [RespJson]),
+%io:format(user, "views ~p~n", [RespJson]),
     {NewPriv, binary_to_list(RespJson)};
 process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
 process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
 process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
-process_cmd({Cmd, Body}, Priv) ->
-    ?Error("unsupported command ~p content ~p", [Cmd, Body]),
+process_cmd({Cmd, BodyJson}, Priv) ->
+    ?Error("unsupported command ~p content ~p", [Cmd, BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->
