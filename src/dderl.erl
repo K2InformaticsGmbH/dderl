@@ -12,6 +12,7 @@
 
 %% API.
 
+-ifdef(LAGER).
 start() ->
     ok = application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},
@@ -24,6 +25,14 @@ start() ->
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
 	ok = application:start(dderl).
+-else.
+start() ->
+	ok = application:start(crypto),
+	ok = application:start(ranch),
+	ok = application:start(cowboy),
+    ok = imem:start(),
+	ok = application:start(dderl).
+-endif.
 
 
 init(_Transport, Req, []) ->
