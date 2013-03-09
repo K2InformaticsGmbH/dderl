@@ -253,7 +253,7 @@ process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<
 process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
 process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
 process_cmd({Cmd, BodyJson}, Priv) ->
-    ?Error("unsupported command ~p content ~p", [Cmd, BodyJson]),
+    ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->

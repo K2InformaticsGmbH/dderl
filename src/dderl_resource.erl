@@ -65,6 +65,7 @@ create_new_session([_,_|_] = DDerlSessPid) ->
         undefined -> {error, "process not found"};
         _ -> {ok, {dderl_session, Pid}}
     end;
+create_new_session(S) when is_binary(S) -> create_new_session(binary_to_list(S));
 create_new_session(_) -> create_new_session(<<>>).
 
 % Reply templates
