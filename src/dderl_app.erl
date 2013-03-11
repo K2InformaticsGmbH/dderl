@@ -16,7 +16,7 @@ start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
-            {"/ws", weberl_ws, []},
+            {"/ws", dderl_ws, []},
             {"/app/[...]", dderl_resource, []},
             {"/[...]", cowboy_static, [
                 {directory, {priv_dir, dderl, []}},
