@@ -135,16 +135,27 @@ function alert_jq(string)
             modal: true,
             width: 300,
             height: 300,
-            buttons: {
-              Ok: function() {
-                $( this ).dialog( "close" );
-              }
-            },
             close: function() {
                 $(this).dialog('destroy');
                 $(this).remove();
             }
         });
+}
+
+function create_ws(url)
+{
+    var ws = new WebSocket(url);
+    ws.onopen = function(){
+        console.log('WebSocket: opened');
+        ws.send(JSON.stringify({time : ""}));
+    };
+    ws.onclose = function(){
+        console.log('WebSocket: closed');
+        create_ws(node, url);
+    };
+    ws.onmessage = function(e) {
+        $('#server-time').text(e.data);
+    };
 }
 
 function prepare_table(context)

@@ -81,7 +81,7 @@ process_cmd({[<<"connect">>], ReqBody}, _) ->
     end,
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    ?Info("session:open ~p", [{Type, Opts, {User, Password}}]),
+    ?Debug("session:open ~p", [{Type, Opts, {User, Password}}]),
     case erlimem:open(Type, Opts, {User, Password}) of
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
@@ -186,7 +186,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     R = Statement:row_with_key(Row+1),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    ?Info("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
     if IsView ->
         {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
         Name = element(5, R),
@@ -239,7 +239,7 @@ process_cmd({[<<"views">>], _}, Priv) ->
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
-    ?Info("View ~p~n", [F]),
+    ?Debug("View ~p~n", [F]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, list_to_binary(C#ddCmd.command)}
         ,{<<"name">>, <<"All Views">>}
@@ -259,7 +259,7 @@ process_cmd({Cmd, BodyJson}, Priv) ->
 process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, Clms, {_,_,ConPid}=Statement} ->
-            ?Info([{session, Connection}], "Cols ~p", [Clms]),
+            ?Debug([{session, Connection}], "Cols ~p", [Clms]),
             Columns = build_column_json(lists:reverse(Clms), []),
             ?Debug("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
             Statement:start_async_read([]),

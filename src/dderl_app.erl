@@ -25,10 +25,6 @@ start(_Type, _Args) ->
 		]}
 	]),
 
-	%{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
-	%	{env, [{dispatch, Dispatch}]}
-	%]),
-
     {ok, Ip}            = application:get_env(dderl, interface),
     {ok, Port}          = application:get_env(dderl, port),
     {ok, CaCertFile}    = application:get_env(dderl, ssl_cacertfile),
@@ -46,7 +42,7 @@ start(_Type, _Args) ->
 		{cacertfile, CaCertFile},
 		{certfile, CertFile},
 		{keyfile, KeyFile}
-	], [{env, [{dispatch, Dispatch}]}]),
+    ], [{env, [{dispatch, Dispatch}, {max_keepalive, 0}]}]),
 
     case application:get_env(dderl, flash_fallback) of
         {ok, true} ->

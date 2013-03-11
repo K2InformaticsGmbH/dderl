@@ -45,6 +45,8 @@ function display_login()
                                       password  :   MD5($('#password_login').val())}};
             ajax_post('/app/login', loginJson, null, null, function(data) {
                 if(data.login == "ok") {
+                    var url = (window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws';
+                    create_ws(url);
                     var user = $('#user_login').val();
                     $('#change-pswd-button').data("logged_in_user", user);
                     $('#login-button').html('Log out ' + user);

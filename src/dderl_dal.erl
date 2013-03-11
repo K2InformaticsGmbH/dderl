@@ -170,14 +170,14 @@ handle_call({add_view, Name, CmdId, ViewsState}, _From, #state{sess=Sess, owner=
     ?Debug("add_view inserted ~p", [NewView]),
     {reply, Id, State};
 handle_call({get_view, Name, Owner}, _From, #state{sess=Sess} = State) ->
-    ?Info("get_view ~p", [Name]),
+    ?Debug("get_view ~p", [Name]),
     {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    ?Info("view ~p", [View]),
+    ?Debug("view ~p", [View]),
     {reply, View, State};
 handle_call({get_view, Name}, _From, #state{sess=Sess} = State) ->
-    ?Info("get_view ~p", [Name]),
+    ?Debug("get_view ~p", [Name]),
     {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
-    ?Info("view ~p", [Views]),
+    ?Debug("view ~p", [Views]),
     {reply, Views, State};
 handle_call({get_session}, _From, #state{sess=Sess} = State) ->
     ?Info("get_session ~p", [Sess]),
@@ -227,7 +227,7 @@ handle_call({get_connects, User}, _From, #state{sess=Sess} = State) ->
             [],
             Cons)
     end,
-    ?Info("get_connects for ~p user -- ~p", [User, NewCons]),
+    ?Debug("get_connects for ~p user -- ~p", [User, NewCons]),
     {reply, NewCons, State};
 
 handle_call({del_conn, ConId}, _From, #state{sess=Sess} = State) ->
