@@ -66,36 +66,38 @@
        ).
 -define(ddDash, [integer, atom, userid, string, list]).
 
+-define(LOG_TAG, "_DDRL_").
+
 % LOGGING wrapper
 -ifdef(islager).
 
--define(Debug(__M,__F,__A), lager:debug(__M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F,__A),     lager:debug(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F),         lager:debug(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Debug(__M,__F,__A), lager:debug(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F,__A),     lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F),         lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
 
--define(Info(__M,__F,__A),  lager:info(__M,  "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F,__A),      lager:info(      "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F),          lager:info(      "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Info(__M,__F,__A),  lager:info(__M,  "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F,__A),      lager:info(      "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F),          lager:info(      "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
 
--define(Error(__M,__F,__A), lager:error(__M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F,__A),     lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F),         lager:error(     "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Error(__M,__F,__A), lager:error(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F,__A),     lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F),         lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
 
 -else.
 
 -include_lib("erlimem/src/log.hrl").
 
--define(Debug(__M,__F,__A), ?LOG(dbg, __M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F,__A),     ?LOG(dbg,  [], "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F),         ?LOG(dbg,  [], "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Debug(__M,__F,__A), ?LOG(?LOG_TAG, dbg, __M, "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F,__A),     ?LOG(?LOG_TAG, dbg,  [], "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Debug(__F),         ?LOG(?LOG_TAG, dbg,  [], "~p "++__F, [{?MODULE,?LINE}])).
 
--define(Info(__M,__F,__A),  ?LOG(nfo, __M,  "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F,__A),      ?LOG(nfo,  [],  "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F),          ?LOG(nfo,  [],  "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Info(__M,__F,__A),  ?LOG(?LOG_TAG, nfo, __M,  "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F,__A),      ?LOG(?LOG_TAG, nfo,  [],  "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Info(__F),          ?LOG(?LOG_TAG, nfo,  [],  "~p "++__F, [{?MODULE,?LINE}])).
 
--define(Error(__M,__F,__A), ?LOG(err, __M, "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F,__A),     ?LOG(err,  [], "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F),         ?LOG(err,  [], "[_DDRL_] ~p "++__F, [{?MODULE,?LINE}])).
+-define(Error(__M,__F,__A), ?LOG(?LOG_TAG, err, __M, "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F,__A),     ?LOG(?LOG_TAG, err,  [], "~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Error(__F),         ?LOG(?LOG_TAG, err,  [], "~p "++__F, [{?MODULE,?LINE}])).
 
 -endif.
 
