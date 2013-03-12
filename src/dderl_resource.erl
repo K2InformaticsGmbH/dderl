@@ -20,13 +20,13 @@ handle(Req, State) ->
 
 process(<<"POST">>, Req, State) ->
     display_req(Req),
-    {DDerlSessPid, Body} = case cowboy_req:has_body(Req) of
+    {DDerlSessPid, Body, Req1} = case cowboy_req:has_body(Req) of
         true -> process_request(Req);
        _     -> <<>>
     end,
     ?Debug("Resp ~p", [Body]),
-    {ok, Req1} = reply_200_json(Body, DDerlSessPid, Req),
-    {ok, Req1, State};
+    {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req1),
+    {ok, Req2, State};
 process(_Method, Req, State) ->
     ?Info("not allowed method ~p with ~p~n", [_Method,Req]),
 	%% Method not allowed.
@@ -37,8 +37,8 @@ terminate(_Reason, _Req, _State) ->
 	ok.
 
 process_request(Req) ->
-    {Session, _} = cowboy_req:header(<<"dderl_sess">>,Req),
-    {Adapter, _} = cowboy_req:header(<<"adapter">>,Req),
+    {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req),
+    {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
     ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
     case create_new_session(Session) of
         {ok, {_,DDerlSessPid} = DderlSess} ->
@@ -46,12 +46,12 @@ process_request(Req) ->
                 undefined                       -> ok;
                 Adapter when is_binary(Adapter) -> DderlSess:set_adapter(binary_to_list(Adapter))
             end,
-            {Typ, _} = cowboy_req:path_info(Req),
-            {ok, Body, _} = cowboy_req:body(Req),
-            {DDerlSessPid, DderlSess:process_request(Typ, Body)};
+            {Typ, Req3} = cowboy_req:path_info(Req2),
+            {ok, Body, Req4} = cowboy_req:body(Req3),
+            {DDerlSessPid, DderlSess:process_request(Typ, Body), Req4};
         {error, Reason} ->
             ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
-            {error, session_timeout}
+            {error, session_timeout, Req2}
     end.
 
 create_new_session(<<>>) ->

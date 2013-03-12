@@ -1,5 +1,5 @@
 #!/bin/sh
-#unamestr=`uname`
+unamestr=`uname`
 exename=werl.exe
 #exename=erl
 if [[ "$unamestr" == 'Linux' ]]; then

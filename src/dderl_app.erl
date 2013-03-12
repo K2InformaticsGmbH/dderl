@@ -42,7 +42,7 @@ start(_Type, _Args) ->
 		{cacertfile, CaCertFile},
 		{certfile, CertFile},
 		{keyfile, KeyFile}
-    ], [{env, [{dispatch, Dispatch}, {max_keepalive, 0}]}]),
+    ], [{env, [{dispatch, Dispatch}]}]),
 
     case application:get_env(dderl, flash_fallback) of
         {ok, true} ->

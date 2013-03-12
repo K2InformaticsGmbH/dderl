@@ -239,7 +239,7 @@ function load_login_form(id) {
         $('#adapter_list option[value="'+connects[id].adapter+'"]').attr("selected","selected"); 
         $('#connection_list option[selected]').removeAttr('selected');
         $('#connection_list option[value="'+id+'"]').attr("selected","selected"); 
-        $('#password').val("change_on_install"); // TODO remove after test
+//        $('#password').val("change_on_install"); // TODO remove after test
         $('#password').focus();
         $('#dialog-db-login').data(id);
         console.log('loaded connection id '+connects[id].name);

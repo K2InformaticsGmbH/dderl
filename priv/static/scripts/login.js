@@ -29,7 +29,7 @@ function display_login()
         open: function(event, ui)
         {
             $('#user_login').val("admin");
-            $('#password_login').val("change_on_install");
+//            $('#password_login').val("change_on_install");
             $('#password_login').focus();
         },
         close: function() {
