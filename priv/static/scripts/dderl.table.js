@@ -106,9 +106,7 @@
                        'Sort Decending' : '_sortHeaderDesc',
                        'Sort Clear'     : '_sortHeaderClear'},
     _slkCellCnxtMnu : {'Browse Data'    : '_browseCellData',
-                       'AND filter'     : '_filterAnd',
-                       'OR filter'      : '_filterOr',
-                       'Filter Clear'   : '_filterClear'},
+                       'Filter'         : '_filter'},
 
     // These options will be used as defaults
     options: {
@@ -358,6 +356,92 @@
                                                   row : cell.fromRow,
                                                   col : cell.fromCell}},
                            'browse_data', 'browseData');
+        }
+    },
+
+    _filter: function(_ranges) {
+        var filters = new Object();
+        var cols = this._grid.getColumns();
+        var fCount = 0;
+        for (var i=0; i<_ranges.length; ++i) {
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
+                if(!filters.hasOwnProperty(cols[c].name)) {
+                    filters[cols[c].name] = {inp : $('<textarea>')
+                                                   .attr('type', "text")
+                                                   //.css('position','absolute')
+                                                   //.css('top', 0)
+                                                   //.css('left', 0)
+                                                   //.css('right', 0)
+                                                   //.css('bottom', 0)
+                                                   .css('margin', 0)
+                                                   .css('white-space','nowrap')
+                                                   .css('overflow','auto')
+                                                   .css('padding', 0),
+                                             vals: new Array(),
+                                             id: c};
+                    fCount++;
+                }
+                for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
+                    filters[cols[c].name].vals.push(this._gdata[r][cols[c].name].replace(/\n/g,'\\n'));
+                }
+            }
+        }
+
+        var fltrDlg =
+            $('<div>')
+            .css('width', 400)
+            .appendTo(document.body);
+
+        var fltrTbl =
+            $('<table>')
+            .css('height', '100%')
+            .css('width', '100%')
+            .attr('border', 0)
+            .attr('cellpadding', 0)
+            .attr('cellspacing', 0)   
+            .appendTo(fltrDlg);
+        for(var c in filters) {
+            filters[c].inp.val(filters[c].vals.join('\n'));
+            $('<tr>')
+                .append($('<td>'))
+                .append('<td>'+c+'</td>')
+                .appendTo(fltrTbl);
+            $('<tr>')
+                .append('<td>in&nbsp;</td>')
+                .append($('<td>').append(filters[c].inp))
+                .appendTo(fltrTbl);
+        }
+
+        fltrDlg
+            .dialog({
+                width: fltrTbl.width()+60,
+                modal: true,
+                title:'Filter',
+                position: { my: "left top", at: "left bottom", of: this._dlg },
+                resize: function(e, ui) {
+                    var dH = $(this).height() / fCount - 30;
+                    var dW = $(this).width() - 30;
+                    for(var c in filters) {
+                        filters[c].inp.width(dW);
+                        filters[c].inp.height(dH);
+                    }
+                },
+                buttons: {
+                  'Apply': function() {
+                    $( this ).dialog( "close" );
+                    //.replace(/\\n/g,'\n')
+                    for(var c in filters) {
+                        filters[c].inp.val();
+                    }
+                  }
+                }
+            });
+
+        var dH = fltrDlg.height() / fCount - 30;
+        var dW = fltrDlg.width() - 30;
+        for(var c in filters) {
+            filters[c].inp.width(dW);
+            filters[c].inp.height(dH);
         }
     },
 
