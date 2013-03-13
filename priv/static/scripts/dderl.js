@@ -293,3 +293,11 @@ function save_as_table()
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
+
+// In some environment, console is defined but console.log or console.error is missing.
+if (window.console && window.console.log && window.console.error) {
+    console.log('console log is defined');
+} else {
+  window['console'] = {log: function(){ }, error: function(){ }};
+  console.log('dummy console is created');
+}

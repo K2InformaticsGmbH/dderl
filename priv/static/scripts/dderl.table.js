@@ -685,7 +685,7 @@
             var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
             pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
         } else {
-            pos = [_table.table_layout.x, _table.layout.y];
+            pos = [_table.table_layout.x, _table.table_layout.y];
         }
 
         var cl = null;
@@ -938,6 +938,9 @@
             var deleteJson = {delete_row: {statement : this._stmt,
                                           rowid      : args.row + 1}};
             this._ajaxCall('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+            this._gdata.splice(args.row, 1);
+            this._grid.setData(this._gdata);
+            this._grid.render();
         }
     },
 
