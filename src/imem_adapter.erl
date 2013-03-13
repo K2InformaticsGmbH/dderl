@@ -44,9 +44,10 @@ build_column_json([], JCols) ->
       {<<"selectable">>, false}] | JCols];
 build_column_json([C|Cols], JCols) ->
     Nm = C#stmtCol.alias,
-    JC = [{<<"id">>, << "_", Nm/binary >>},
+    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
+    JC = [{<<"id">>, Nm1},
           {<<"name">>, Nm},
-          {<<"field">>, Nm},
+          {<<"field">>, Nm1},
           {<<"resizable">>, true},
           {<<"sortable">>, false},
           {<<"selectable">>, true}],
