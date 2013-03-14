@@ -253,9 +253,29 @@ process_cmd({[<<"views">>], _}, Priv) ->
 process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
 process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
 process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
+process_cmd({[<<"sort">>], ReqBody}, Priv) ->
+    [{<<"sort">>,BodyJson}] = ReqBody,    
+    ?Info("sort ~p", [sort_json_to_term(BodyJson)]),
+    {Priv, binary_to_list(jsx:encode([{<<"sort">>,[{<<"error">>, <<"command sort is being implemented">>}]}]))};
+process_cmd({[<<"filter">>], ReqBody}, Priv) ->
+    [{<<"filter">>,BodyJson}] = ReqBody,    
+    ?Info("filter ~p", [filter_json_to_term(BodyJson)]),
+    {Priv, binary_to_list(jsx:encode([{<<"filter">>,[{<<"error">>, <<"command filter is being implemented">>}]}]))};
 process_cmd({Cmd, BodyJson}, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
-    {Priv, binary_to_list(jsx:encode([{<<"rows">>,[]}]))}.
+    CmdBin = lists:last(Cmd),
+    {Priv, binary_to_list(jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}]))}.
+
+sort_json_to_term([]) -> [];
+sort_json_to_term([[{C,T}|_]|Sorts]) ->
+    [{binary_to_integer(C), if T -> 'asc'; true -> 'desc' end}|sort_json_to_term(Sorts)].
+
+filter_json_to_term([{<<"and">>,Filters}]) -> {'and', filter_json_to_term(Filters)};
+filter_json_to_term([{<<"or">>,Filters}]) -> {'or', filter_json_to_term(Filters)};
+filter_json_to_term([]) -> [];
+filter_json_to_term([[{C,Vs}]|Filters]) ->
+    Tail = filter_json_to_term(Filters),
+    [{binary_to_integer(C), [binary_to_list(V) || V <- Vs]} | Tail].
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of

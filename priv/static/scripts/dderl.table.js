@@ -30,6 +30,10 @@
 
     _dlgResized     : false,
 
+    // sort and filter
+    _sorts          : null,
+    _filters        : null,
+
     // private event handlers
     _handlers       : { loadViews   : function(e, _views) {
                             var self = e.data;
@@ -77,9 +81,17 @@
                             var self = e.data;
                             self._checkStmtCloseResult(_stmtclose);
                         },
-                        saveViewResult  : function(e, _saveView) {
+                        saveViewResult : function(e, _saveView) {
                             var self = e.data;
                             self._checkSaveViewResult(_saveView);
+                        },
+                        filterResult : function(e, _filter) {
+                            var self = e.data;
+                            self._filterResult(_filter);
+                        },
+                        sortResult : function(e, _sort) {
+                            var self = e.data;
+                            self._sortResult(_sort);
                         }
                       },
 
@@ -102,9 +114,7 @@
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Browse Data'    : '_browseHeaderData',
-                       'Sort Ascending' : '_sortHeaderAsc',
-                       'Sort Decending' : '_sortHeaderDesc',
-                       'Sort Clear'     : '_sortHeaderClear'},
+                       'Sort'           : '_sort'},
     _slkCellCnxtMnu : {'Browse Data'    : '_browseCellData',
                        'Filter'         : '_filter'},
 
@@ -329,6 +339,318 @@
         }
     },
 
+    // filter and sort actions
+    _sort: function(_ranges) {
+        var self = this;
+        if(self._sorts === null)
+            self._sorts = new Object();
+        var cols = this._grid.getColumns();
+        for (var i=0; i<_ranges.length; ++i)
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
+                if(cols[c].name.length > 0 && !self._sorts.hasOwnProperty(cols[c].name)) {
+                    self._sorts[cols[c].name] =
+                        { id : c,
+                         asc : true
+                        };
+                }
+
+        var data = new Array();
+        for (var s in self._sorts)
+            data.push({select: true, name: s, sort: self._sorts[s].asc, id: self._sorts[s].id});
+
+        var sortDlg =
+            $('<div>')
+            .css('width', 500)
+            .appendTo(document.body);
+
+        var sortDivId = 'sort_'+self._tableDiv.attr('id');
+        $('<div>')
+            .attr('id', sortDivId) // dummy id (required by slickgrid) not used anywere else
+            .css('position', 'absolute')
+            .css('top', 0)
+            .css('left', 0)
+            .css('right', 0)
+            .css('bottom', 0)
+            .css('border-style', 'solid')
+            .css('border-width', '1px')
+            .css('border-color', 'lightblue')
+            .appendTo(sortDlg);
+
+        // building slickgrid
+        var sgrid = new Slick.Grid('#'+sortDivId
+                , data
+                , [ // columns
+                      {
+                        id: "#",
+                        name: "",
+                        width: 40,
+                        behavior: "selectAndMove",
+                        selectable: true,
+                        resizable: false,
+                        cssClass: "cell-reorder dnd"
+                      },
+                      {
+                        id: "select",
+                        name: "",
+                        field: "select",
+                        width: 40,
+                        selectable: true,
+                        formatter: Slick.Formatters.Checkmark,
+                        editor: Slick.Editors.Checkbox
+                      },
+                      {
+                        id: "name",
+                        name: "Column",
+                        field: "name",
+                        width: 150
+                      },
+                      {
+                        id: "sort",
+                        name: "Sort",
+                        field: "sort",
+                        width: 100,
+                        selectable: true,
+                        cannotTriggerInsert: true,
+                        formatter: function defaultFormatter(row, cell, value, columnDef, dataContext) {
+                            if (value == true) {
+                                return "ASC";
+                            } else {
+                                return "DESC";
+                            }
+                        },
+                        editor: Slick.Editors.AscDescSelect
+                      }
+                    ]
+                , {
+                    editable: true,
+                    enableAddRow: false,
+                    enableCellNavigation: true,
+                    autoEdit: false
+                  }
+                );
+
+        sgrid.setSelectionModel(new Slick.RowSelectionModel());
+
+        var moveRowsPlugin = new Slick.RowMoveManager({
+          cancelEditOnDrag: true
+        });
+
+        moveRowsPlugin.onBeforeMoveRows.subscribe(function (e, data) {
+          for (var i = 0; i < data.rows.length; i++) {
+            // no point in moving before or after itself
+            if (data.rows[i] == data.insertBefore || data.rows[i] == data.insertBefore - 1) {
+              e.stopPropagation();
+              return false;
+            }
+          }
+          return true;
+        });
+
+        moveRowsPlugin.onMoveRows.subscribe(function (e, args) {
+          var extractedRows = [], left, right;
+          var rows = args.rows;
+          var insertBefore = args.insertBefore;
+          left = data.slice(0, insertBefore);
+          right = data.slice(insertBefore, data.length);
+
+          rows.sort(function(a,b) { return a-b; });
+
+          for (var i = 0; i < rows.length; i++) {
+            extractedRows.push(data[rows[i]]);
+          }
+
+          rows.reverse();
+
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            if (row < insertBefore) {
+              left.splice(row, 1);
+            } else {
+              right.splice(row - insertBefore, 1);
+            }
+          }
+
+          data = left.concat(extractedRows.concat(right));
+
+          var selectedRows = [];
+          for (var i = 0; i < rows.length; i++)
+            selectedRows.push(left.length + i);
+
+          sgrid.resetActiveCell();
+          sgrid.setData(data);
+          sgrid.setSelectedRows(selectedRows);
+          sgrid.render();
+        });
+
+        sgrid.registerPlugin(moveRowsPlugin);
+
+        sortDlg
+            .dialog({
+                width : 380,
+                modal : true,
+                title : 'Sorts',
+                position : { my: "left top", at: "left bottom", of: this._dlg },
+                close : function() {
+                        $(this).dialog('close');
+                        $(this).remove();
+                    },
+                buttons: {
+                    'Sort' : function() {
+                        var sd = sgrid.getData();
+                        for (var i = 0; i <sd.length; ++i) {
+                            if(sd[i].select === undefined)
+                                delete self._sorts[sd[i].name];
+                            else {
+                                if(sd[i].sort) self._sorts[sd[i].name].asc = true;
+                                else self._sorts[sd[i].name].asc = false;
+                            }
+                        }
+                        var srts = new Array();
+                        for (var s in self._sorts) {
+                            var t = new Object();
+                            t[self._sorts[s].id] = self._sorts[s].asc;
+                            srts.push(t);
+                        }
+
+                        self._ajaxCall('/app/sort', {sort: srts}, 'sort', 'sortResult');
+                        $(this).dialog('close');
+                        $(this).remove();
+                    }                   
+                }
+                /*resize: function(e, ui) {
+                    var dH = $(this).height() / fCount - 30;
+                    var dW = $(this).width() - 30;
+                    for(var c in self._filters) {
+                        self._filters[c].inp.width(dW);
+                        self._filters[c].inp.height(dH);
+                    }
+                }*/
+            });
+
+    },
+
+    _filter: function(_ranges) {
+        var self = this;
+        if(self._filters === null)
+            self._filters = new Object();
+        var cols = this._grid.getColumns();
+        for (var i=0; i<_ranges.length; ++i) {
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
+                if(cols[c].name.length > 0) {
+                    if(!self._filters.hasOwnProperty(cols[c].name)) {
+                        self._filters[cols[c].name] = {inp : $('<textarea>')
+                                                       .attr('type', "text")
+                                                       .css('margin', 0)
+                                                       .css('white-space','nowrap')
+                                                       .css('overflow','auto')
+                                                       .css('padding', 0),
+                                                 vals: new Object(),
+                                                 id: c};
+                    }
+                    for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
+                        self._filters[cols[c].name].vals[this._gdata[r][cols[c].name].replace(/\n/g,'\\n')] = true;
+                    }
+                }
+            }
+        }
+
+        // number of current filters
+        var fCount = 0;
+        for (var c in self._filters)
+            fCount++;
+
+        var fltrDlg =
+            $('<div>')
+            .css('width', 400)
+            .appendTo(document.body);
+
+        var fltrTbl =
+            $('<table>')
+            .css('height', '100%')
+            .css('width', '100%')
+            .attr('border', 0)
+            .attr('cellpadding', 0)
+            .attr('cellspacing', 0)   
+            .appendTo(fltrDlg);
+        for(var c in self._filters) {
+            var strs = [];
+            for(s in self._filters[c].vals) strs.push(s);
+            self._filters[c].inp.val(strs.join('\n'));
+            $('<tr>')
+                .append($('<td>'))
+                .append('<td>'+c+'</td>')
+                .appendTo(fltrTbl);
+            $('<tr>')
+                .append('<td>in&nbsp;</td>')
+                .append($('<td>').append(self._filters[c].inp))
+                .appendTo(fltrTbl);
+        }
+
+        fltrDlg
+            .dialog({
+                width: fltrTbl.width()+60,
+                modal: true,
+                title:'Filter',
+                position: { my: "left top", at: "left bottom", of: this._dlg },
+                close : function() {
+                        $(this).dialog('close');
+                        $(this).remove();
+                    },
+                resize: function(e, ui) {
+                    var dH = $(this).height() / fCount - 30;
+                    var dW = $(this).width() - 30;
+                    for(var c in self._filters) {
+                        self._filters[c].inp.width(dW);
+                        self._filters[c].inp.height(dH);
+                    }
+                }
+            });
+
+        var applyFiltersFn = function(type) {
+            var filter = new Object();
+            filter[type] = new Array();
+            for(var c in self._filters) {
+                var _vStrings = self._filters[c].inp.val().split('\n');
+                if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
+                var vStrings = new Array();
+                self._filters[c].vals = new Object();
+                for (var i=0; i<_vStrings.length; ++i) {
+                    vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
+                    self._filters[c].vals[_vStrings[i]] = true;
+                }
+                var fltr = new Object();
+                fltr[self._filters[c].id] = vStrings;
+                if(vStrings.length > 0) {
+                    filter[type].push(fltr);
+                }
+                else delete self._filters[c];
+            }
+            self._ajaxCall('/app/filter', {filter: filter}, 'filter', 'filterResult');
+            $(this).dialog('close');
+            $(this).remove();
+        };
+
+        var buttons = [];
+        if(fCount > 1) {
+            buttons = [
+                { text: 'Match AND', click: function() { applyFiltersFn.apply(this, ['and']);}},
+                { text: 'Match OR', click: function() { applyFiltersFn.apply(this, ['or']);}}
+            ];
+        } else {
+            buttons = [
+                { text: 'Apply', click: function() { applyFiltersFn.apply(this, ['and']);}}
+            ];
+        }
+        fltrDlg.dialog('option', 'buttons', buttons);
+
+        var dH = fltrDlg.height() / fCount - 30;
+        var dW = fltrDlg.width() - 30;
+        for(var c in self._filters) {
+            self._filters[c].inp.width(dW);
+            self._filters[c].inp.height(dH);
+        }
+    },
+
     // browse_data actions
     _browseCellData: function(_ranges) {
         var self = this;
@@ -356,92 +678,6 @@
                                                   row : cell.fromRow,
                                                   col : cell.fromCell}},
                            'browse_data', 'browseData');
-        }
-    },
-
-    _filter: function(_ranges) {
-        var filters = new Object();
-        var cols = this._grid.getColumns();
-        var fCount = 0;
-        for (var i=0; i<_ranges.length; ++i) {
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
-                if(!filters.hasOwnProperty(cols[c].name)) {
-                    filters[cols[c].name] = {inp : $('<textarea>')
-                                                   .attr('type', "text")
-                                                   //.css('position','absolute')
-                                                   //.css('top', 0)
-                                                   //.css('left', 0)
-                                                   //.css('right', 0)
-                                                   //.css('bottom', 0)
-                                                   .css('margin', 0)
-                                                   .css('white-space','nowrap')
-                                                   .css('overflow','auto')
-                                                   .css('padding', 0),
-                                             vals: new Array(),
-                                             id: c};
-                    fCount++;
-                }
-                for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
-                    filters[cols[c].name].vals.push(this._gdata[r][cols[c].name].replace(/\n/g,'\\n'));
-                }
-            }
-        }
-
-        var fltrDlg =
-            $('<div>')
-            .css('width', 400)
-            .appendTo(document.body);
-
-        var fltrTbl =
-            $('<table>')
-            .css('height', '100%')
-            .css('width', '100%')
-            .attr('border', 0)
-            .attr('cellpadding', 0)
-            .attr('cellspacing', 0)   
-            .appendTo(fltrDlg);
-        for(var c in filters) {
-            filters[c].inp.val(filters[c].vals.join('\n'));
-            $('<tr>')
-                .append($('<td>'))
-                .append('<td>'+c+'</td>')
-                .appendTo(fltrTbl);
-            $('<tr>')
-                .append('<td>in&nbsp;</td>')
-                .append($('<td>').append(filters[c].inp))
-                .appendTo(fltrTbl);
-        }
-
-        fltrDlg
-            .dialog({
-                width: fltrTbl.width()+60,
-                modal: true,
-                title:'Filter',
-                position: { my: "left top", at: "left bottom", of: this._dlg },
-                resize: function(e, ui) {
-                    var dH = $(this).height() / fCount - 30;
-                    var dW = $(this).width() - 30;
-                    for(var c in filters) {
-                        filters[c].inp.width(dW);
-                        filters[c].inp.height(dH);
-                    }
-                },
-                buttons: {
-                  'Apply': function() {
-                    $( this ).dialog( "close" );
-                    //.replace(/\\n/g,'\n')
-                    for(var c in filters) {
-                        filters[c].inp.val();
-                    }
-                  }
-                }
-            });
-
-        var dH = fltrDlg.height() / fCount - 30;
-        var dW = fltrDlg.width() - 30;
-        for(var c in filters) {
-            filters[c].inp.width(dW);
-            filters[c].inp.height(dH);
         }
     },
 
@@ -716,6 +952,16 @@
         //     this._grid.render();
         //     console.log('[AJAX] inserted data '+JSON.stringify(item));
         // }
+    },
+    _filterResult: function(_filter) {
+        if(_filter.hasOwnProperty('error')) {
+            alert_jq(_filter.error);
+        }
+    },
+    _sortResult: function(_sort) {
+        if(_sort.hasOwnProperty('error')) {
+            alert_jq(_sort.error);
+        }
     },
     _renderViews: function(_views) {
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
