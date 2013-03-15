@@ -109,9 +109,11 @@ process_cmd({[<<"connect">>], ReqBody}, _) ->
 process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    %Connection = {erlimem_session, ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>)))},
-    ?Info("query ~p", [{Connection, Query}]),
-    {NewPriv, R} = process_query(Query, Connection, Priv),
+    {NewPriv, R} = case dderl_dal:is_local_query(Query) of
+        true -> process_query(Query, dderl_dal:get_session(), Priv);
+        _ -> process_query(Query, Connection, Priv)
+    end,
+    ?Debug("query ~p~n~p", [Query, R]),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
 process_cmd({[<<"row_prev">>], ReqBody}, Priv) ->
@@ -240,7 +242,7 @@ process_cmd({[<<"views">>], _}, Priv) ->
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
-    ?Debug("View ~p~n", [F]),
+    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, list_to_binary(C#ddCmd.command)}
         ,{<<"name">>, <<"All Views">>}
@@ -248,7 +250,6 @@ process_cmd({[<<"views">>], _}, Priv) ->
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
         ++ Resp
     }]),
-%io:format(user, "views ~p~n", [RespJson]),
     {NewPriv, binary_to_list(RespJson)};
 process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
 process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);

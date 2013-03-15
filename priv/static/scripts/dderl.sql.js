@@ -349,8 +349,9 @@ $('<div>')
     },
     _renderParsed: function(_parsed) {
         if(_parsed.hasOwnProperty('sqlbox')) {
-            this._boxJson = _parsed.sqlbox.box;
-            build_boxes(this._boxDiv, this._boxJson);
+            this._boxJson = _parsed.sqlbox;
+            this._boxDiv.html('');
+            this._boxing(this._boxJson).div.appendTo(this._boxDiv);
         }
         if(_parsed.hasOwnProperty('pretty')) {
             this._prettyTb.text(_parsed.pretty);
@@ -360,6 +361,67 @@ $('<div>')
             this._flatTb.text(_parsed.flat);
             this._cmdFlat = this._flatTb.val();
         }
+    },
+
+    _leaf_box: function (nametxt, alltxt, children) {
+        var edit = $('<textarea>')
+            .addClass('boxEdit')
+            .attr('rows', 1)
+            .val(alltxt);
+    
+        nametxt = (nametxt.length === 0 ? "" : nametxt);
+        var name = $('<span>')
+            .addClass('boxName')
+            .text(nametxt);
+    
+        var childrendiv = $('<div>')
+            .addClass('boxChildren');
+    
+        for(var i = 0; i < children.length; ++i)
+            childrendiv.append(children[i]);
+    
+        edit.click(function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            edit.css('display','none');
+            name.css('display','inline');
+            childrendiv.css('display','inline');
+        });
+    
+        var bx = $('<div>')
+            .addClass('boxParent')
+            .append(edit)
+            .append(name)
+            .append(childrendiv);
+    
+        var dblClkFn = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            edit.css('display','inline');
+            name.css('display','none');
+            childrendiv.css('display','none');
+        };
+    
+        if (nametxt.length === 0)
+            bx.click(dblClkFn);
+        else
+            name.click(dblClkFn);
+    
+        return bx;
+    },
+    
+    _boxing: function(box) {
+        var children = new Array();
+        var alltext = box.name;
+        if(box.children.length > 0)
+            for (var i = 0; i<box.children.length; ++i) {
+                Res = this._boxing(box.children[i]);
+                children.push(Res.div);
+                alltext += (' ' + Res.text);
+            }
+        console.log(alltext);
+        return {div : this._leaf_box(box.name, alltext, children),
+                text: alltext};
     },
 
     _createDlg: function() {
@@ -472,3 +534,51 @@ $('<div>')
 
   });
 }( jQuery ) );
+
+// $(document).ready(function() {    
+//     var BOX =
+//     {"ind":0,"name":"select","children":[
+//         {"ind":1,"name":"","children":[
+//             {"ind":2,"name":"c.owner","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":",","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"v.name","children":[],"collapsed":false,"error":"","color":"black","pick":""}
+//             ],"collapsed":false,"error":"","color":"black","pick":""},
+//         {"ind":1,"name":"from","children":[
+//             {"ind":2,"name":"ddView as v","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":",","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"ddCmd as c","children":[],"collapsed":false,"error":"","color":"black","pick":""}
+//             ],"collapsed":false,"error":"","color":"black","pick":""},
+//         {"ind":1,"name":"where","children":[
+//             {"ind":2,"name":"","children":[
+//                 {"ind":3,"name":"c.id","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":"v.cmd","children":[],"collapsed":true,"error":"","color":"black","pick":""}
+//                 ],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"and","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"","children":[
+//                 {"ind":3,"name":"c.adapters","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":"\"[imem]\"","children":[],"collapsed":true,"error":"","color":"black","pick":""}
+//                 ],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"and","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"","children":[
+//                 {"ind":3,"name":"(","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":"","children":[
+//                     {"ind":4,"name":"","children":[
+//                         {"ind":5,"name":"c.owner","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                         {"ind":5,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                         {"ind":5,"name":"user","children":[],"collapsed":true,"error":"","color":"black","pick":""}
+//                         ],"collapsed":true,"error":"","color":"black","pick":""},
+//                     {"ind":4,"name":"or","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                     {"ind":4,"name":"","children":[
+//                         {"ind":5,"name":"c.owner","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                         {"ind":5,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
+//                         {"ind":5,"name":"system","children":[],"collapsed":true,"error":"","color":"black","pick":""}
+//                         ],"collapsed":true,"error":"","color":"black","pick":""}
+//                     ],"collapsed":true,"error":"","color":"black","pick":""},
+//                 {"ind":3,"name":")","children":[],"collapsed":true,"error":"","color":"black","pick":""}
+//                 ],"collapsed":false,"error":"","color":"black","pick":""}
+//             ],"collapsed":false,"error":"","color":"black","pick":""}
+//         ],"collapsed":false,"error":"","color":"black","pick":""};
+//     boxing(BOX).div.appendTo(document.body);
+// });

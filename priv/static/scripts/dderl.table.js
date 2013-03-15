@@ -1084,6 +1084,10 @@
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
             .dialog(self.options)
+            // .on('dialogfocus', function (event, ui) {
+            //     $(".ui-dialog").find(".ui-dialog-titlebar").removeClass("ui-state-error");
+            //     $(this).parents(".ui-dialog:first").find(".ui-dialog-titlebar").addClass("ui-state-error");
+            // })
             .bind("dialogresize", function(event, ui) 
             {
                 var data = self._grid.getData();

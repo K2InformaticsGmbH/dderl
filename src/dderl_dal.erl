@@ -26,6 +26,7 @@
         ,get_view/1
         ,get_view/2
         ,get_session/0
+        ,is_local_query/1
         ]).
 
 -record(state, { schema
@@ -49,6 +50,7 @@ get_command(IdOrName)           -> gen_server:call(?MODULE, {get_command, IdOrNa
 get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
 get_view(Name, Owner)           -> gen_server:call(?MODULE, {get_view, Name, Owner}).
 get_session()                   -> gen_server:call(?MODULE, {get_session}).
+is_local_query(Qry)             -> gen_server:call(?MODULE, {is_local_query, Qry}).
             
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
@@ -92,8 +94,30 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
+handle_call({is_local_query, Qry}, _From, State) ->
+    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
+    case sql_parse:string(Qry) of
+        {ok, {select, QOpts}} ->
+            case lists:keyfind(from, 1, QOpts) of
+                {from, Tables} ->
+                    {reply, lists:foldl(fun(T,_) ->
+                             Tab = case T of
+                                 {_,T1,_} when is_binary(T1) -> T1;
+                                 T when is_binary(T) -> T
+                             end,
+                             HasSysTab = lists:member(Tab, SysTabs),
+                             if HasSysTab -> true; true -> false end
+                         end,
+                         true,
+                         Tables)
+                    , State};
+                _ -> {reply, false, State}
+            end;
+        _ -> {reply, false, State}
+    end;
+
 handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
-    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn, ddCmd, ddView, ddDash]],
+    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
     NewConn =
         if Conn =:= undefined ->
             case sql_parse:string(Cmd) of

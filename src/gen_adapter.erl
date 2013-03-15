@@ -23,17 +23,13 @@ add_cmds_views(A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     add_cmds_views(A, Rest).
 
 box_to_json(Box) ->
-[
-    {<<"box">>, [
-        {<<"ind">>, Box#box.ind}
-        , {<<"name">>, any_to_bin(Box#box.name)}
-        , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
-        , {<<"collapsed">>, Box#box.collapsed}
-        , {<<"error">>, Box#box.error}
-        , {<<"color">>, Box#box.color}
-        , {<<"pick">>, Box#box.pick}
-    ]}
-].
+    [{<<"ind">>, Box#box.ind}
+    , {<<"name">>, any_to_bin(Box#box.name)}
+    , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
+    , {<<"collapsed">>, Box#box.collapsed}
+    , {<<"error">>, Box#box.error}
+    , {<<"color">>, Box#box.color}
+    , {<<"pick">>, Box#box.pick}].
 
 any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
@@ -46,7 +42,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
     case (catch jsx:encode([{<<"parse_stmt">>, [
         try
             Box = sql_box:boxed(Sql),
-            ?Info("--- Box --- ~n~p", [Box]),
+            ?Debug("--- Box --- ~n~p", [Box]),
             {<<"sqlbox">>, box_to_json(Box)}
         catch
             _:ErrorBox -> {<<"boxerror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorBox])))}
@@ -65,7 +61,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
         end
     ]}])) of
         ParseStmt when is_binary(ParseStmt) ->
-            ?Info("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
+            ?Debug("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
             {Priv, binary_to_list(ParseStmt)};
         Error ->
             ?Error("parse_stmt error ~p~n", [Error]),
