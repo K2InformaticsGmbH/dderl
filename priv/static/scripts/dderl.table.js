@@ -967,7 +967,7 @@
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
         this.options.title = _views.name;
         this.setColumns(_views.columns);
-        this.fetchRows(OpsFetchEnum.NEXT, 0);
+        this.buttonPress(">|");
         console.log('>>>>> table '+_views.name+' '+_views.connection);
     },
     _renderTable: function(_table) {
@@ -1297,28 +1297,10 @@
     loadViews: function() { this._ajaxCall('/app/views', null, 'views', 'loadViews'); },
 
     // loading rows
-    fetchRows: function(_fetchop, _rwnum) {
-        var cmd = 'row';
-        switch(_fetchop) {
-            case OpsFetchEnum.NEXT:
-                cmd += '_next';
-                break;
-            case OpsFetchEnum.PREVIOUS:
-                cmd += '_prev';
-                break;
-            case OpsFetchEnum.TOEND:
-                cmd += '_next';
-                _rwnum = 10000000; // 10 mil for end of table for most table
-                break;
-            default:
-                cmd += '_next';
-                break;
-        }
-        if(_rwnum == null)
-            _rwnum = -1;
-        this._ajaxCall('/app/'+cmd, {row: { connection: this._conn
-                                          , statement: this._stmt
-                                          , row_num: _rwnum}}, cmd, 'loadRows');
+    buttonPress: function(button) {
+        this._ajaxCall('/app/button', {button: { connection: this._conn
+                                               , statement: this._stmt
+                                               , btn: button}}, button, 'loadRows');
     },
 
     // Use the _setOption method to respond to changes to options

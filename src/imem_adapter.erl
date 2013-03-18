@@ -116,35 +116,12 @@ process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     ?Debug("query ~p~n~p", [Query, R]),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
-process_cmd({[<<"row_prev">>], ReqBody}, Priv) ->
-    [{<<"row">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ?Debug("row_prev ~p", [self()]),
-    Rows = gen_adapter:prepare_json_rows(prev, -1, Statement, Statement),
-    ?Info("row_prev ~p rows ~p", [self(), length(Rows)]),
-    {Priv, binary_to_list(jsx:encode([{<<"row_prev">>, Rows}]))};
-process_cmd({[<<"row_next">>], ReqBody}, Priv) ->
-    [{<<"row">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    RowNum = proplists:get_value(<<"row_num">>, BodyJson, -1),
-    ?Info("row_next from ~p", [RowNum]),
-    Rows = gen_adapter:prepare_json_rows(next, RowNum, Statement, Statement),
-    ?Info("row_next sending ~p rows", [length(proplists:get_value(<<"rows">>, Rows, []))]),
-    {Priv, binary_to_list(jsx:encode([{<<"row_next">>, Rows}]))};
 process_cmd({[<<"stmt_close">>], ReqBody}, Priv) ->
     [{<<"stmt_close">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ?Debug("remove statement ~p", [Statement]),
     Statement:close(),
     {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))};
-process_cmd({[<<"get_buffer_max">>], ReqBody}, Priv) ->
-    [{<<"get_buffer_max">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    {ok, Finished, CacheSize} = Statement:get_buffer_max(),
-    ?Debug("[~p] get_buffer_max ~p finished ~p ~p", [Statement, CacheSize, Finished, self()]),
-    {Priv, binary_to_list(jsx:encode([{<<"get_buffer_max">>,
-                                        [{<<"count">>, CacheSize}
-                                        ,{<<"finished">>, Finished}]}]))};
 process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -222,21 +199,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
         {NewPriv, binary_to_list(RespJson)}
     end;
 
-process_cmd({[<<"tail">>], ReqBody}, Priv) ->
-    [{<<"tail">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    Push = proplists:get_value(<<"push">>, BodyJson, <<>>),
-    Tail = proplists:get_value(<<"tail">>, BodyJson, <<>>),
-    Opts = case {Push, Tail} of
-                {true, true}    -> [{fetch_mode,push},{tail_mode, true}];
-                {true, false}   -> [{fetch_mode,push},{tail_mode,false}];
-                {false, true}   -> [{fetch_mode,skip},{tail_mode, true}];
-                {false, false}  -> [{fetch_mode,skip},{tail_mode,false}]
-    end,
-    ?Info(">>>>>>>> ~p tail Opts ~p~n", [{?MODULE,?LINE}, Opts]),
-    Statement:start_async_read(Opts),
-    {Priv, binary_to_list(jsx:encode([{<<"tail">>, <<"ok">>}]))};
-
+% views
 process_cmd({[<<"views">>], _}, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
@@ -252,8 +215,12 @@ process_cmd({[<<"views">>], _}, Priv) ->
     }]),
     {NewPriv, binary_to_list(RespJson)};
 process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
+
+% query
 process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
 process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
+
+% sort and filter
 process_cmd({[<<"sort">>], ReqBody}, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,    
     ?Info("sort ~p", [sort_json_to_term(BodyJson)]),
@@ -262,6 +229,18 @@ process_cmd({[<<"filter">>], ReqBody}, Priv) ->
     [{<<"filter">>,BodyJson}] = ReqBody,    
     ?Info("filter ~p", [filter_json_to_term(BodyJson)]),
     {Priv, binary_to_list(jsx:encode([{<<"filter">>,[{<<"error">>, <<"command filter is being implemented">>}]}]))};
+
+% gui button events
+process_cmd({[<<"button">>], ReqBody}, Priv) ->
+    [{<<"button">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
+    GuiResp = Statement:gui_req(Button),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp),
+    ?Info("Rows ~p", [GuiRespJson]),
+    {Priv, binary_to_list(jsx:encode([{<<"button">>, GuiRespJson}]))};
+
+% unsupported gui actions
 process_cmd({Cmd, BodyJson}, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
@@ -284,7 +263,6 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
             ?Debug([{session, Connection}], "Cols ~p", [Clms]),
             Columns = build_column_json(lists:reverse(Clms), []),
             ?Debug("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
-            Statement:start_async_read([]),
             ?Info("process_query created statement ~p for ~p", [Statement, Query]),
             {Priv, [{<<"columns">>, Columns}
                    ,{<<"statement">>, base64:encode(term_to_binary(Statement))}

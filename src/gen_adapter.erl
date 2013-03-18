@@ -2,12 +2,13 @@
 
 -include("dderl.hrl").
 -include_lib("sqlparse/src/sql_box.hrl").
+-include_lib("erlimem/src/gres.hrl").
 
 -export([ process_cmd/2
-        , prepare_json_rows/4
         , init/0
         , strs2bins/1
         , add_cmds_views/2
+        , gui_resp/1
         ]).
 
 init() -> ok.
@@ -89,28 +90,17 @@ process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"error">>, <<"unknown command">>}]))}.
 
-prepare_json_rows(C, RowNum, Statement, StmtKey) when RowNum >= 0, is_atom(C) ->
-    {Rows, Status, CacheSize} = apply(Statement, rows_from, [RowNum]),
-    if length(Rows) > 0 -> ?Debug("[~p] rows_from rows ~p starting ~p~n", [StmtKey, length(Rows), RowNum]);
-                   true -> ok end,
-    process_data(Rows, Status, CacheSize);
-prepare_json_rows(prev, RowNum, Statement, StmtKey) ->
-    prepare_json_rows(Statement, RowNum, prev_rows, StmtKey);
-prepare_json_rows(next, RowNum, Statement, StmtKey) ->
-    prepare_json_rows(Statement, RowNum, next_rows, StmtKey);
-prepare_json_rows(Statement, RowNum, Fun, StmtKey) ->
-    {Rows, Status, CacheSize} = apply(Statement, Fun, []),
-    if length(Rows) > 0 -> ?Debug("[~p] ~p rows ~p starting ~p~n", [StmtKey, Fun, length(Rows), RowNum]); true -> ok end,
-    process_data(lists:reverse(Rows), Status, CacheSize).
-
-process_data(Rows, Status, CacheSize) ->
-    V = widest_cell_per_clm(Rows),
-    ?Debug("the maxes ~p", [V]),
-    [ {<<"done">>, Status}
-    , {<<"max_width_vec">>, V}
-    , {<<"cache_max">>, CacheSize}
-    , {<<"rows">>, rows_to_json1(Rows)}
-    ].
+gui_resp(#gres{} = Gres) ->
+    ?Info("processing resp ~p", [Gres]),
+    [{<<"op">>,         Gres#gres.operation} %% rep (replace) | app (append) | prp (prepend) | nop | close
+    ,{<<"cnt">>,        Gres#gres.cnt}         %% current buffer size (raw table or index table size)
+    ,{<<"toolTip">>,    Gres#gres.toolTip}     %% current buffer sizes RawCnt/IndCnt plus status information
+    ,{<<"message">>,    Gres#gres.message}     %% error message
+    ,{<<"beep">>,       Gres#gres.beep}        %% alert with a beep if true
+    ,{<<"state">>,      Gres#gres.state}       %% determines color of buffer size indicator
+    ,{<<"loop">>,       Gres#gres.loop}        %% gui should come back with this command
+    ,{<<"rows">>,       r2jsn(Gres#gres.rows)} %% rows .. show (append / prepend / merge)
+    ,{<<"keep">>,       Gres#gres.keep}].      %% row count .. be kept
 
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm(Rows) -> widest_cell_per_clm(Rows, lists:duplicate(length(lists:nth(1,Rows)), "")).
@@ -136,6 +126,6 @@ strs2bins(Strings) ->
     [],
     Strings).
 
-rows_to_json1(Rows) -> rows_to_json1(Rows, []).
-rows_to_json1([], NewRows) -> lists:reverse(NewRows);
-rows_to_json1([Row|Rows], NewRows) -> rows_to_json1(Rows, [strs2bins(lists:reverse(Row))|NewRows]).
+r2jsn(Rows) -> r2jsn(Rows, []).
+r2jsn([], NewRows) -> lists:reverse(NewRows);
+r2jsn([Row|Rows], NewRows) -> r2jsn(Rows, [strs2bins(lists:reverse(Row))|NewRows]).
