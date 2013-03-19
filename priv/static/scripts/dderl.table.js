@@ -862,7 +862,6 @@
         this._rows_cache_max = _rows.cnt;
         this._tbTxtBox.val(this._rows_cache_max);
         var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
-        console.log('textBox class' + tbClass);
         for (var i = 0; i < tbClass.length; ++i)
             this._tbTxtBox.removeClass(tbClass[i]);
         this._tbTxtBox.addClass('tb_'+_rows.state);
@@ -1429,16 +1428,15 @@
                     self._gdata = self._grid.getData();
                     break;
                 case "app": // append
-                    self._gdata = self._gdata.concat(_rows.rows);
+                    for(var i=0; i < _rows.rows.length; ++i)
+                        self._gdata.push(_rows.rows[i])
                     self._gdata.splice(0, self._gdata.length - _rows.keep);
-                    self._grid.setData(self._gdata);
-                    self._gdata = self._grid.getData();
                     break;
                 case "prp": // prepend
-                    self._gdata = _rows.rows.concat(self._gdata);
+                    do {
+                        self._gdata.splice(0, 0, _rows.rows.pop());
+                    } while (_rows.rows.length > 0)
                     self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
-                    self._grid.setData(self._gdata);
-                    self._gdata = self._grid.getData();
                     break;
                 case "nop": // prepend
                     console.log('nop');

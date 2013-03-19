@@ -14,7 +14,7 @@ init(_Transport, Req, []) ->
 	{ok, Req, undefined}.
 
 handle(Req, State) ->
-    ?Info("---- handler ~p", [self()]),
+    ?Debug("---- handler ~p", [self()]),
 	{Method, Req2} = cowboy_req:method(Req),
 	process(Method, Req2, State).
 
@@ -39,7 +39,7 @@ terminate(_Reason, _Req, _State) ->
 process_request(Req) ->
     {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req),
     {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
-    ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
+    ?Debug("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
     case create_new_session(Session) of
         {ok, {_,DDerlSessPid} = DderlSess} ->
             case Adapter of
@@ -59,7 +59,7 @@ create_new_session(<<>>) ->
     ?Info("new dderl session ~p", [DderlSess]),
     {ok, DderlSess};
 create_new_session([_,_|_] = DDerlSessPid) ->
-    ?Info("existing session ~p", [DDerlSessPid]),
+    ?Debug("existing session ~p", [DDerlSessPid]),
     Pid = ?DecryptPid(DDerlSessPid),
     case erlang:process_info(Pid) of
         undefined -> {error, "process not found"};
