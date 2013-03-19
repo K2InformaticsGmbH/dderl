@@ -40,7 +40,7 @@ $('<div>')
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
                        'Execute fetch first block'  : { typ : 'btn', icn : 'play',          clk : '_toolBarTblReload'       },
-                       'Execute fetch to end'       : { typ : 'btn', icn : 'seek-end',      clk : '_toolBarTblRefetch'      },
+                       'Execute fetch to end'       : { typ : 'btn', icn : 'seek-end',      clk : '_toolBarTblFetch2End'    },
                        'Execute fetch tail mode'    : { typ : 'btn', icn : 'fetch-tail',    clk : '_toolBarTblFetchNTail'   },
                        'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only',    clk : '_toolBarTblTailOnly'     }},
 
@@ -310,28 +310,33 @@ $('<div>')
         this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
     },
     _toolBarTblReload: function() {
-        if(null === this._cmdOwner) {
-            $('<div>')
-            .appendTo(document.body)
-            .table({
-                title       : this._title,
-                autoOpen    : false,
-                dderlSession: session,
-                dderlAdapter: adapter,
-            })
-            .table('cmdReload', this._modCmd)
-            .table('open');
-        } else
-            this._cmdOwner.cmdReload(this._modCmd);
+        this._loadTable('>');
     },
-    _toolBarTblRefetch: function() {
-        throw('unimplimented');
+    _toolBarTblFetch2End: function() {
+        this._loadTable('>|');
     },
     _toolBarTblFetchNTail: function() {
-        throw('unimplimented');
+        this._loadTable('>|...');
     },
     _toolBarTblTailOnly: function() {
-        throw('unimplimented');
+        this._loadTable('...');
+    },
+
+    _loadTable: function(button) {
+        if(null === this._cmdOwner) {
+               $('<div>')
+               .appendTo(document.body)
+               .table({
+                   title       : this._title,
+                   autoOpen    : false,
+                   dderlSession: session,
+                   dderlAdapter: adapter,
+                  dderlStartBtn: button
+               })
+               .table('cmdReload', this._modCmd)
+               .table('open');
+        } else
+            this._cmdOwner.cmdReload(this._modCmd);
     },
     ////////////////////////////
 

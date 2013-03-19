@@ -34,6 +34,9 @@
     _sorts          : null,
     _filters        : null,
 
+    // start button
+    _startBtn       : null,
+
     // private event handlers
     _handlers       : { loadViews   : function(e, _views) {
                             var self = e.data;
@@ -161,7 +164,8 @@
         dderlStatement    : null,
         dderlCmd          : null,
         dderlClmlay       : null,
-        dderlTbllay       : null
+        dderlTbllay       : null,
+        dderlStartBtn     : '>'
     },
  
     // Set up the widget
@@ -179,6 +183,7 @@
         if(self.options.dderlCmd        !== self._cmd)      self._cmd       = self.options.dderlCmd;
         if(self.options.dderlClmlay     !== self._clmlay)   self._clmlay    = self.options.dderlClmlay;
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
+        if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
 
         // dialog elements
 
@@ -965,7 +970,7 @@
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
         this.options.title = _views.name;
         this.setColumns(_views.columns);
-        this.buttonPress(">|");
+        this.buttonPress(this._startBtn);
         console.log('>>>>> table '+_views.name+' '+_views.connection);
     },
     _renderTable: function(_table) {
@@ -994,7 +999,7 @@
 //            this._dlgResized = false;
             this._grid.setData([]);
             this._gdata = this._grid.getData();
-            this.buttonPress(">");
+            this.buttonPress(this._startBtn);
         } else {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');

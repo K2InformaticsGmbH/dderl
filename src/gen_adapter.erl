@@ -99,7 +99,7 @@ col2json([C|Cols], JCols) ->
 
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
-    ?Info("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
+    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
     [{<<"op">>,         Gres#gres.operation}                    %% rep (replace) | app (append) | prp (prepend) | nop | close
     ,{<<"cnt">>,        Gres#gres.cnt}                          %% current buffer size (raw table or index table size)
     ,{<<"toolTip">>,    Gres#gres.toolTip}                      %% current buffer sizes RawCnt/IndCnt plus status information
