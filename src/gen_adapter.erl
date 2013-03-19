@@ -99,18 +99,18 @@ col2json([C|Cols], JCols) ->
 
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
-    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
-    [{<<"op">>,         Gres#gres.operation}            %% rep (replace) | app (append) | prp (prepend) | nop | close
-    ,{<<"cnt">>,        Gres#gres.cnt}                  %% current buffer size (raw table or index table size)
-    ,{<<"toolTip">>,    Gres#gres.toolTip}              %% current buffer sizes RawCnt/IndCnt plus status information
-    ,{<<"message">>,    Gres#gres.message}              %% error message
-    ,{<<"beep">>,       Gres#gres.beep}                 %% alert with a beep if true
-    %%,{<<"state">>,      Gres#gres.state}                %% determines color of buffer size indicator
-    ,{<<"loop">>,       Gres#gres.loop}                 %% gui should come back with this command
-    ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}   %% rows .. show (append / prepend / merge)
-    ,{<<"keep">>,       Gres#gres.keep}                 %% row count .. be kept
+    ?Info("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
+    [{<<"op">>,         Gres#gres.operation}                    %% rep (replace) | app (append) | prp (prepend) | nop | close
+    ,{<<"cnt">>,        Gres#gres.cnt}                          %% current buffer size (raw table or index table size)
+    ,{<<"toolTip">>,    Gres#gres.toolTip}                      %% current buffer sizes RawCnt/IndCnt plus status information
+    ,{<<"message">>,    Gres#gres.message}                      %% error message
+    ,{<<"beep">>,       Gres#gres.beep}                         %% alert with a beep if true
+    ,{<<"state">>,      atom_to_binary(Gres#gres.state, utf8)}  %% determines color of buffer size indicator
+    ,{<<"loop">>,       Gres#gres.loop}                         %% gui should come back with this command
+    ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}           %% rows .. show (append / prepend / merge)
+    ,{<<"keep">>,       Gres#gres.keep}                         %% row count .. be kept
     ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
-    ].               
+    ].
 
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->

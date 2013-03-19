@@ -760,7 +760,7 @@
                     .attr('type', 'text')
                     .attr('size', 10)
                     .button()
-                    .addClass('download_incomplete')
+                    .addClass('tb_empty')
                     .css('height', inph+'px')
                     .css('text-align', 'left')
                     .css('padding', '0')
@@ -798,6 +798,7 @@
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
+        self.buttonPress("close");
         self._ajaxCall('/app/query', {query: {connection: self._conn, qstr : self._cmd}}, 'query', 'queryResult');
     },
 
@@ -855,6 +856,11 @@
         // TODO throw exception if any error
         this._rows_cache_max = _rows.cnt;
         this._tbTxtBox.val(this._rows_cache_max);
+        var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
+        console.log('textBox class' + tbClass);
+        for (var i = 0; i < tbClass.length; ++i)
+            this._tbTxtBox.removeClass(tbClass[i]);
+        this._tbTxtBox.addClass('tb_'+_rows.state);
         this._fetchIsDone = _rows.done;
         console.log('[AJAX] ets buffer count : '+this._rows_cache_max+', fetch status : '+this._fetchIsDone);
     },
@@ -1394,7 +1400,6 @@
             if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
                 var fieldWidth = 0;
                 for(var i=0;i<_rows.max_width_vec.length; ++i) {
-                    if(i===1) continue;
                     fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
                     fieldWidth = fieldWidth + 0.4 * fieldWidth;
                     if(c[i].width < fieldWidth) {
@@ -1414,14 +1419,24 @@
             console.log('rows loading to slick...');
 
             switch (_rows.op) {
-                case "rpl":
+                case "rpl": // replace
                     self._grid.setData(_rows.rows);
                     self._gdata = self._grid.getData();
                     break;
-                case "app":
+                case "app": // append
                     self._gdata = self._gdata.concat(_rows.rows);
+                    self._gdata.splice(0, self._gdata.length - _rows.keep);
                     self._grid.setData(self._gdata);
                     self._gdata = self._grid.getData();
+                    break;
+                case "prp": // prepend
+                    self._gdata = _rows.rows.concat(self._gdata);
+                    self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
+                    self._grid.setData(self._gdata);
+                    self._gdata = self._grid.getData();
+                    break;
+                case "nop": // prepend
+                    console.log('nop');
                     break;
                 default:
                     console.log("unknown operation "+_rows.op);

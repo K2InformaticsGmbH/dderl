@@ -96,7 +96,14 @@ button.menubutton
     background:#EFEFEF;
 }
 
-.downloading {
+/* text box background colors */
+.tb_empty          { background:#FFFFFF !important; }
+.tb_filling        { background:#F5BCA9 !important; }
+.tb_autofilling    { background:#A9E2F3 !important; }
+.tb_completed      { background:#CEF6CE !important; }
+.tb_tailing        { background:#FACC2E !important; }
+
+/*.downloading {
     margin-left:3px;
     margin-right:0px;
     border: 1px solid #999;
@@ -123,7 +130,7 @@ button.menubutton
     border: 1px solid #999;
     color:#000000;
     background:#AFFFAF !important;
-}
+}*/
 
 /* 
  * SlickGrid style extensions and overrides
