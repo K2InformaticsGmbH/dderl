@@ -33,6 +33,7 @@
     // sort and filter
     _sorts          : null,
     _filters        : null,
+    _rftchExpBkOff  : 2,
 
     // start button
     _startBtn       : null,
@@ -1052,11 +1053,21 @@
         if(_rows.hasOwnProperty('rows')) {
             //console.log('rows '+ JSON.stringify(_rows.rows));
             console.log('[AJAX] rendering '+ _rows.rows.length+' rows');
+            var rowsCount = _rows.rows.length;
             this.appendRows(_rows);
 
             // fetch till end and then stop
-            if(_rows.loop.length > 0)
-                this.buttonPress(_rows.loop);
+            if(_rows.loop.length > 0) {
+                if (rowsCount > 0) {
+                    console.log(rowsCount+' rows received, retrying '+_rows.loop);
+                    this.buttonPress(_rows.loop);
+                    this._rftchExpBkOff = 2;
+                } else {
+                    this._rftchExpBkOff = (this._rftchExpBkOff * 2);
+                    console.log('no rows received, retrying '+_rows.loop+' after '+this._rftchExpBkOff+' ms');
+                    setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
+                }
+            }
         }
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
