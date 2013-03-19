@@ -99,7 +99,7 @@
                        'Move to first'         : { typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
                        ''                      : { typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
-                       'Next page'             : { typ : 'btn', icn : 'play',             clk : '_toolBarGoNex',    dom: '_tbGoNext' },
+                       'Next page'             : { typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
                        'Jump to next page'     : { typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
                        'Move to end'           : { typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
                        'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
@@ -766,7 +766,17 @@
                     .css('padding', '0')
                     .css('margin', '0')
                     .css('margin-left', '3')
-                    .click(self, toolElmFn)
+                    .keypress(function(evt) {
+                        if(evt.which == 13) {
+                            var rownum = parseInt($(this).val());
+                            if(rownum != NaN) {
+                                self["_toolBarTxtBoxVal"] = rownum;
+                                evt.data = self;
+                                toolElmFn(evt);
+                            }
+                        }
+                        return true;
+                    })
                     .appendTo(self._footerDiv);
         }
         self._footerDiv
@@ -792,64 +802,46 @@
     },
 
     _toolBarSkFrst: function(self) {
-        self._grid.scrollRowIntoView(0);
+        self.buttonPress("|<");
         //console.log('['+self.options.title+'] cb _toolBarSkFrst');
     },
     _toolBarJmPrev: function(self) {
-        var row = Math.floor(self._grid.getViewport().top / 2);
-        if (row < 1) row = 0;
-        self._grid.scrollRowIntoView(row);
-        console.log('['+self.options.title+'] cb _toolBarJmPrev vp top '+row);
+        self.buttonPress("<<");
+        console.log('['+self.options.title+'] cb _toolBarJmPrev');
     },
     _toolBarTxtBox: function(self) {
-        console.log('['+self.options.title+'] cb _toolBarTxtBox');
+        if(self.hasOwnProperty('_toolBarTxtBoxVal')) {
+            console.log('['+self.options.title+'] cb _toolBarTxtBox '+self._toolBarTxtBoxVal);
+            self.buttonPress(self._toolBarTxtBoxVal);
+        }
     },
-    _toolBarGoNex: function(self) {
-        console.log('['+self.options.title+'] cb _toolBarGoNex fetching from '+self._gdata[self._gdata.length-1].id);
-        self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
+    _toolBarGo2Nex: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarGo2Nex');
+        self.buttonPress(">");
     },
     _toolBarJmNext: function(self) {
-        var row = self._grid.getViewport().bottom * 2;
-        if (row <= self._gdata.length) {
-            self._grid.scrollRowIntoView(row);
-            console.log('['+self.options.title+'] cb _toolBarJmNext vp bottom '+row);
-        } else
-            self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
+        self.buttonPress(">>");
+        console.log('['+self.options.title+'] cb _toolBarJmNext');
     },
     _toolBarSekEnd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSekEnd');
-        self._fetchIsTail = false;
-        self._fetchIsPush = true;
-        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
-                                            , statement: self._stmt
-                                            , push: self._fetchIsPush
-                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self.buttonPress(">|");
     },
     _toolBarSkTail: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkTail');
-        self._fetchIsTail = true;
-        self._fetchIsPush = true;
-        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
-                                            , statement: self._stmt
-                                            , push: self._fetchIsPush
-                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self.buttonPress(">|...");
     },
     _toolBarSkipTl: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkipTl');
-        self._fetchIsTail = true;
-        self._fetchIsPush = false;
-        self._ajaxCall('/app/tail',  {tail: { connection: self._conn
-                                            , statement: self._stmt
-                                            , push: self._fetchIsPush
-                                            , tail: self._fetchIsTail}}, 'tail', 'tailResult');
+        self.buttonPress("...");
     },
     _toolBarCommit: function(self) {
         console.log('['+self.options.title+'] cb _toolBarCommit');
-        self._ajaxCall('/app/commit_rows',  {commit_rows: { connection: self._conn
-                                                          , statement: self._stmt}}, 'commit_rows', 'commitResult');
+        self.buttonPress("commit");
     },
     _toolBarDiscrd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarDiscrd');
+        self.buttonPress("rollback");
     },
     ////////////////////////////
     
@@ -861,7 +853,7 @@
     },
     _checkRows: function(_rows) {         
         // TODO throw exception if any error
-        this._rows_cache_max = _rows.cache_max;
+        this._rows_cache_max = _rows.cnt;
         this._tbTxtBox.val(this._rows_cache_max);
         this._fetchIsDone = _rows.done;
         console.log('[AJAX] ets buffer count : '+this._rows_cache_max+', fetch status : '+this._fetchIsDone);
@@ -1053,17 +1045,8 @@
             this.appendRows(_rows);
 
             // fetch till end and then stop
-            if(!this._fetchIsDone && (this._fetchIsPush || this._fetchIsTail)) {
-                this.fetchRows(OpsFetchEnum.NEXT, parseInt(this._gdata[this._gdata.length-1].id)+1);
-            }
-
-            // fetch till end and then continue tail
-            else if(this._fetchIsDone && this._fetchIsTail) {
-                this._tailTimer = setTimeout(function() {
-                    console.log('tailing...');
-                    self.fetchRows(OpsFetchEnum.NEXT, parseInt(self._gdata[self._gdata.length-1].id)+1);
-                }, 1000);
-            }
+            if(_rows.loop.length > 0)
+                this.buttonPress(_rows.loop);
         }
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
