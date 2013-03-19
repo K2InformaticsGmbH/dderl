@@ -116,12 +116,6 @@ process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     ?Debug("query ~p~n~p", [Query, R]),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
 
-process_cmd({[<<"stmt_close">>], ReqBody}, Priv) ->
-    [{<<"stmt_close">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ?Debug("remove statement ~p", [Statement]),
-    Statement:close(),
-    {Priv, binary_to_list(jsx:encode([{<<"stmt_close">>, <<"ok">>}]))};
 process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -164,6 +158,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
     R = Statement:row_with_key(Row+1),
+    ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
@@ -236,8 +231,8 @@ process_cmd({[<<"button">>], ReqBody}, Priv) ->
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
     GuiResp = Statement:gui_req(Button),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp),
-    ?Info("Rows ~p", [GuiRespJson]),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Debug("GUI response ~p", [GuiRespJson]),
     {Priv, binary_to_list(jsx:encode([{<<"button">>, GuiRespJson}]))};
 
 % unsupported gui actions

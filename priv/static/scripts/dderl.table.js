@@ -670,7 +670,7 @@
         else {
             var cell    = _ranges[0];
             var column  = self._grid.getColumns()[cell.fromCell];
-            var data    = self._grid.getData()[cell.fromRow][column.field];
+            var data    = self._gdata[cell.fromRow][column.field];
             // console.log('browse_data @ '+column.name+' val '+data);
             this._ajaxCall('/app/browse_data',
                            { browse_data: {connection : this._conn,
@@ -996,7 +996,7 @@
 //            this._dlgResized = false;
             this._grid.setData([]);
             this._gdata = this._grid.getData();
-            this.fetchRows(OpsFetchEnum.NEXT, 0);
+            this.buttonPress(">");
         } else {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');
@@ -1041,7 +1041,7 @@
             dderlTbllay     : tl
         })
         .table('setColumns', _table.columns)
-        .table('fetchRows', OpsFetchEnum.NEXT, 0)
+        .table('buttonPress', '>')
         .table('open');
     },
     _renderRows: function(_rows) {
@@ -1300,7 +1300,7 @@
     buttonPress: function(button) {
         this._ajaxCall('/app/button', {button: { connection: this._conn
                                                , statement: this._stmt
-                                               , btn: button}}, button, 'loadRows');
+                                               , btn: button}}, 'button', 'loadRows');
     },
 
     // Use the _setOption method to respond to changes to options
@@ -1339,8 +1339,7 @@
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
         console.log('destroying...');
-        this._ajaxCall('/app/stmt_close', {stmt_close: { connection: this._conn
-                                                       , statement: this._stmt}}, 'stmt_close', 'stmtCloseResult');
+        this.buttonPress("close");
     },
 
     /*
@@ -1412,6 +1411,7 @@
             if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
                 var fieldWidth = 0;
                 for(var i=0;i<_rows.max_width_vec.length; ++i) {
+                    if(i===1) continue;
                     fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
                     fieldWidth = fieldWidth + 0.4 * fieldWidth;
                     if(c[i].width < fieldWidth) {
@@ -1423,82 +1423,79 @@
                 self._grid.setColumns(c);
             }
 
-            // only if first of the rows are atleast arrays and
-            // they are not greater than number of columns including the index column
             var rows = _rows.rows;
-            
-            if($.isArray(rows[0]) && rows[0].length <= c.length) {
-                var dlg = this._dlg.dialog('widget');
-                var isIdMissing = (rows[0].length === c.length ? false : true);
+            var dlg = this._dlg.dialog('widget');
+            var isIdMissing = (rows[0].length === c.length ? false : true);
 
-                var start = (new Date()).getTime();
-                console.log('rows loading to slick...');
+            var start = (new Date()).getTime();
+            console.log('rows loading to slick...');
 
-                for(var i=0;i<rows.length;++i) {
-                    var starRowLoad = (new Date()).getTime();
-
-                    if(isIdMissing) // add the missing id field
-                        rows[i].splice(0,0,self._gdata.length+1);
-                    var row = {};
-                    for(var j=0;j<c.length;++j) {
-                        row[c[j].field] = rows[i][j];
-                    }
-                    self._gdata.push(row);
-                    self._grid.updateRowCount();
-                    //self._grid.invalidateRow(self._gdata.length-1);
-                    self._grid.scrollRowIntoView(self._gdata.length-1);
-
-                    //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
-                }
-
-                self._grid.resizeCanvas();
-
-                // only if the dialog don't have a predefined height/width
-                if(self._tbllay === null && self._clmlay === null) {
-                    // since columns' width doesn't change after the first block we can skip this
-                    if (firstChunk) {
-                        if (!self._dlgResized) {
-
-                            var gWidth = self._getGridWidth();
-                            var rWindowWidth = $(window).width()-dlg.offset().left-10; // available width for the window
-                            
-                            // Dialog width adjustment
-                            if (self._footerWidth > gWidth) // table is smaller than the footer
-                                dlg.width(self._footerWidth);
-                            else if (gWidth < rWindowWidth) // table is smaller than the remaining window
-                                dlg.width(gWidth);
-                            else                            // table is bigger then the remaining window
-                                dlg.width(rWindowWidth);
-
-                            var oldDlgHeight = dlg.height();
-                            var gHeight = self._getGridHeight();
-                            var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight; // available height for the window
-                            if (dlg.height() > gHeight)       // if dialog is already bigger than height required by the table
-                                this._dlg.height(gHeight);
-                            else if (gHeight < rWindowHeight) // if table height is less then remaining window height
-                                this._dlg.height(gHeight);
-                            else                              // if table height is still bigger than the remaining window height
-                                this._dlg.height(rWindowHeight);
-                            if (oldDlgHeight != dlg.height())
-                                self._grid.resizeCanvas();
-                        }
-                        // adjusting the column to fill the rest of the window
-                        if(self._getGridWidth() < dlg.width()) {
-                            c[c.length - 1].width += (dlg.width()-self._getGridWidth()-10);
-                            self._grid.setColumns(c);
-                        }
-                    }
-                }
-                self._grid.invalidate();
-
-                // 
-                // loading of rows is the costiliest of the operations
-                // compared to computing and adjusting the table width/height
-                // (so for now total time of function entry/exit is appromately equal to only row loading)
-                //
-                //console.log('dlg height adjusted in ' + ((new Date()).getTime() - start) + 'ms');
-                console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
+            switch (_rows.op) {
+                case "rpl":
+                    self._grid.setData(_rows.rows);
+                    self._gdata = self._grid.getData();
+                    break;
+                case "app":
+                    self._gdata = self._gdata.concat(_rows.rows);
+                    self._grid.setData(self._gdata);
+                    self._gdata = self._grid.getData();
+                    break;
+                default:
+                    console.log("unknown operation "+_rows.op);
+                    break;
             }
+            self._grid.updateRowCount();
+            //self._grid.invalidateRow(self._gdata.length-1);
+            self._grid.scrollRowIntoView(self._gdata.length-1);
+            //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
+
+            self._grid.resizeCanvas();
+
+            // only if the dialog don't have a predefined height/width
+            if(self._tbllay === null && self._clmlay === null) {
+                // since columns' width doesn't change after the first block we can skip this
+                if (firstChunk) {
+                    if (!self._dlgResized) {
+
+                        var gWidth = self._getGridWidth();
+                        var rWindowWidth = $(window).width()-dlg.offset().left-10; // available width for the window
+                        
+                        // Dialog width adjustment
+                        if (self._footerWidth > gWidth) // table is smaller than the footer
+                            dlg.width(self._footerWidth);
+                        else if (gWidth < rWindowWidth) // table is smaller than the remaining window
+                            dlg.width(gWidth);
+                        else                            // table is bigger then the remaining window
+                            dlg.width(rWindowWidth);
+
+                        var oldDlgHeight = dlg.height();
+                        var gHeight = self._getGridHeight();
+                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight; // available height for the window
+                        if (dlg.height() > gHeight)       // if dialog is already bigger than height required by the table
+                            this._dlg.height(gHeight);
+                        else if (gHeight < rWindowHeight) // if table height is less then remaining window height
+                            this._dlg.height(gHeight);
+                        else                              // if table height is still bigger than the remaining window height
+                            this._dlg.height(rWindowHeight);
+                        if (oldDlgHeight != dlg.height())
+                            self._grid.resizeCanvas();
+                    }
+                    // adjusting the column to fill the rest of the window
+                    if(self._getGridWidth() < dlg.width()) {
+                        c[c.length - 1].width += (dlg.width()-self._getGridWidth()-10);
+                        self._grid.setColumns(c);
+                    }
+                }
+            }
+            self._grid.invalidate();
+
+            // 
+            // loading of rows is the costiliest of the operations
+            // compared to computing and adjusting the table width/height
+            // (so for now total time of function entry/exit is appromately equal to only row loading)
+            //
+            //console.log('dlg height adjusted in ' + ((new Date()).getTime() - start) + 'ms');
+            console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
         }
     }
 

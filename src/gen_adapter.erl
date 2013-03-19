@@ -6,9 +6,9 @@
 
 -export([ process_cmd/2
         , init/0
-        , strs2bins/1
+        %, strs2bins/1
         , add_cmds_views/2
-        , gui_resp/1
+        , gui_resp/2
         ]).
 
 init() -> ok.
@@ -90,42 +90,60 @@ process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     {Priv, binary_to_list(jsx:encode([{<<"error">>, <<"unknown command">>}]))}.
 
-gui_resp(#gres{} = Gres) ->
-    ?Info("processing resp ~p", [Gres]),
-    [{<<"op">>,         Gres#gres.operation} %% rep (replace) | app (append) | prp (prepend) | nop | close
-    ,{<<"cnt">>,        Gres#gres.cnt}         %% current buffer size (raw table or index table size)
-    ,{<<"toolTip">>,    Gres#gres.toolTip}     %% current buffer sizes RawCnt/IndCnt plus status information
-    ,{<<"message">>,    Gres#gres.message}     %% error message
-    ,{<<"beep">>,       Gres#gres.beep}        %% alert with a beep if true
-    ,{<<"state">>,      Gres#gres.state}       %% determines color of buffer size indicator
-    ,{<<"loop">>,       Gres#gres.loop}        %% gui should come back with this command
-    ,{<<"rows">>,       r2jsn(Gres#gres.rows)} %% rows .. show (append / prepend / merge)
-    ,{<<"keep">>,       Gres#gres.keep}].      %% row count .. be kept
+col2json(Cols) -> col2json(lists:reverse(Cols), []).
+col2json([], JCols) -> [<<"id">>,<<"op">>|JCols];
+col2json([C|Cols], JCols) ->
+    Nm = C#stmtCol.alias,
+    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
+    col2json(Cols, [Nm1 | JCols]).
+
+gui_resp(#gres{} = Gres, Columns) ->
+    JCols = col2json(Columns),
+    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
+    [{<<"op">>,         Gres#gres.operation}            %% rep (replace) | app (append) | prp (prepend) | nop | close
+    ,{<<"cnt">>,        Gres#gres.cnt}                  %% current buffer size (raw table or index table size)
+    ,{<<"toolTip">>,    Gres#gres.toolTip}              %% current buffer sizes RawCnt/IndCnt plus status information
+    ,{<<"message">>,    Gres#gres.message}              %% error message
+    ,{<<"beep">>,       Gres#gres.beep}                 %% alert with a beep if true
+    %%,{<<"state">>,      Gres#gres.state}                %% determines color of buffer size indicator
+    ,{<<"loop">>,       Gres#gres.loop}                 %% gui should come back with this command
+    ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}   %% rows .. show (append / prepend / merge)
+    ,{<<"keep">>,       Gres#gres.keep}                 %% row count .. be kept
+    ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
+    ].               
 
 widest_cell_per_clm([]) -> [];
-widest_cell_per_clm(Rows) -> widest_cell_per_clm(Rows, lists:duplicate(length(lists:nth(1,Rows)), "")).
-
+widest_cell_per_clm([R|_] = Rows) ->
+    widest_cell_per_clm(Rows, lists:duplicate(length(R)-1, "")).
 widest_cell_per_clm([],V) -> [list_to_binary(Ve) || Ve <- V];
-widest_cell_per_clm([R|Rows],V) ->
+widest_cell_per_clm([[I,_|Rest]|Rows],V) -> % the op field is buffer local
+    R = [I|Rest],
     NewV = 
     [case {Re, Ve} of
         {Re, Ve} ->
-            ReL = length(Re),
+            ReS = if
+                is_atom(Re)     -> atom_to_list(Re);
+                is_integer(Re)  -> integer_to_list(Re);
+                true            -> Re
+            end,
+            ReL = length(ReS),
             VeL = length(Ve),
-            if ReL > VeL -> Re; true -> Ve end
+            if ReL > VeL -> ReS; true -> Ve end
      end
     || {Re, Ve} <- lists:zip(R,V)],
     widest_cell_per_clm(Rows,NewV).
 
-strs2bins(Strings) ->
-    lists:foldl(fun
-        (S, Acc) when is_atom(S)  -> [list_to_binary(atom_to_list(S))|Acc];
-        (S, Acc) when is_tuple(S) -> [list_to_binary(lists:nth(1, io_lib:format("~p", [S])))|Acc];
-        (S, Acc)                  -> [list_to_binary(S)|Acc]
-    end,
-    [],
-    Strings).
-
-r2jsn(Rows) -> r2jsn(Rows, []).
-r2jsn([], NewRows) -> lists:reverse(NewRows);
-r2jsn([Row|Rows], NewRows) -> r2jsn(Rows, [strs2bins(lists:reverse(Row))|NewRows]).
+r2jsn(Rows, JCols) -> r2jsn(Rows, JCols, []).
+r2jsn([], _, NewRows) -> lists:reverse(NewRows);
+r2jsn([Row|Rows], JCols, NewRows) ->
+    ?Debug("converting ~p to ~p", [Row, JCols]),
+    r2jsn(Rows, JCols, [
+        [{C, case R of
+                R when is_integer(R) -> R;
+                R when is_atom(R)    -> list_to_binary(atom_to_list(R));
+                R when is_tuple(R)   -> list_to_binary(lists:nth(1, io_lib:format("~p", [R])));
+                R                    -> list_to_binary(R)
+                end
+         }
+        || {C, R} <- lists:zip(JCols, Row)]
+    | NewRows]).
