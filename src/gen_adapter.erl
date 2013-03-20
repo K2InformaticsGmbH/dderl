@@ -109,6 +109,7 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"loop">>,       Gres#gres.loop}                         %% gui should come back with this command
     ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}           %% rows .. show (append / prepend / merge)
     ,{<<"keep">>,       Gres#gres.keep}                         %% row count .. be kept
+    ,{<<"focus">>,       Gres#gres.focus}                       %% the row to scroll into view (default -1, do not scroll)
     ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
     ].
 

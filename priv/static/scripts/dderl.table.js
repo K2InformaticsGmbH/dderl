@@ -91,11 +91,13 @@
                         },
                         filterResult : function(e, _filter) {
                             var self = e.data;
-                            self._filterResult(_filter);
+                            //self._filterResult(_filter);
+                            self._renderRows(_filter);
                         },
                         sortResult : function(e, _sort) {
                             var self = e.data;
-                            self._sortResult(_sort);
+                            //self._sortResult(_sort);
+                            self._renderRows(_sort);
                         }
                       },
 
@@ -867,6 +869,7 @@
         // TODO throw exception if any error
         this._rows_cache_max = _rows.cnt;
         this._tbTxtBox.val(this._rows_cache_max+' ');
+        this._tbTxtBox.attr('title',_rows.toolTip);
         var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
         for (var i = 0; i < tbClass.length; ++i)
             this._tbTxtBox.removeClass(tbClass[i]);
@@ -1470,7 +1473,11 @@
         if (redraw) {
             self._grid.updateRowCount();
             //self._grid.invalidateRow(self._gdata.length-1);
-            self._grid.scrollRowIntoView(self._gdata.length-1);
+            if(_rows.focus > self._gdata.length || _rows.focus < 0)
+                self._grid.scrollRowIntoView(self._gdata.length-1);
+            else if(_rows.focus >= 0)
+                self._grid.scrollRowIntoView(_rows.focus);
+
             self._grid.resizeCanvas();
 
             // only if the dialog don't have a predefined height/width

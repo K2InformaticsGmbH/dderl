@@ -157,17 +157,16 @@ process_cmd({[<<"sort">>], ReqBody}, Priv) ->
     SortSpec = sort_json_to_term(SrtSpc),
     GuiResp = Statement:gui_req(sort, SortSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Info("sort ~p ~p", [SortSpec, GuiResp]),
+    ?Debug("sort ~p ~p", [SortSpec, GuiResp]),
     {Priv, binary_to_list(jsx:encode([{<<"sort">>,GuiRespJson}]))};
 process_cmd({[<<"filter">>], ReqBody}, Priv) ->
-    ?Info("filter req Body ~p", [ReqBody]),
     [{<<"filter">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
     FilterSpec = filter_json_to_term(FltrSpec),
     GuiResp = Statement:gui_req(filter, FilterSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Info("filter ~p ~p", [FilterSpec, GuiResp]),
+    ?Debug("filter ~p ~p", [FilterSpec, GuiResp]),
     {Priv, binary_to_list(jsx:encode([{<<"filter">>,GuiRespJson}]))};
 
 % gui button events
