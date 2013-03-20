@@ -218,6 +218,8 @@
                     clipTextRows.push(clipTextCells.join("\t"));
                 }
                 clipTextArr.push(clipTextRows.join("\r\n"));
+                if (clipTextRows.length === 1 && ranges.length > 1 && rg < ranges.length - 1)
+                    clipTextArr.push("\r\n");
             }
             var clipText = clipTextArr.join('');
             var ta = _createTextBox(clipText);

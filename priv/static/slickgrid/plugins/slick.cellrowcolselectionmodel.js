@@ -236,12 +236,13 @@
                         var from = Math.min(cell.row, last);
                         var to = Math.max(cell.row, last);
                         selection = [];
+                        if(from === last) selection.push(last);
                         for (var i = from; i <= to; i++) {
                             if (i !== last) {
                                 selection.push(i);
                             }
                         }
-                        selection.push(last);
+                        if(from !== last) selection.push(last);
                     }
                     _ranges = rowsToRanges(selection);
                 } else {
