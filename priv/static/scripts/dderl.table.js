@@ -512,14 +512,15 @@
                                 else self._sorts[sd[i].name].asc = false;
                             }
                         }
-                        var srts = new Array();
+                        var sortspec = new Array();
                         for (var s in self._sorts) {
                             var t = new Object();
                             t[self._sorts[s].id] = self._sorts[s].asc;
-                            srts.push(t);
+                            sortspec.push(t);
                         }
 
-                        self._ajaxCall('/app/sort', {sort: srts}, 'sort', 'sortResult');
+                        self._ajaxCall('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                                               
                         $(this).dialog('close');
                         $(this).remove();
                     }                   
@@ -614,8 +615,8 @@
             });
 
         var applyFiltersFn = function(type) {
-            var filter = new Object();
-            filter[type] = new Array();
+            var filterspec = new Object();
+            filterspec[type] = new Array();
             for(var c in self._filters) {
                 var _vStrings = self._filters[c].inp.val().split('\n');
                 if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
@@ -628,11 +629,11 @@
                 var fltr = new Object();
                 fltr[self._filters[c].id] = vStrings;
                 if(vStrings.length > 0) {
-                    filter[type].push(fltr);
+                    filterspec[type].push(fltr);
                 }
                 else delete self._filters[c];
             }
-            self._ajaxCall('/app/filter', {filter: filter}, 'filter', 'filterResult');
+            self._ajaxCall('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
             $(this).dialog('close');
             $(this).remove();
         };
@@ -804,8 +805,8 @@
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
-        self.buttonPress("close");
-        self._ajaxCall('/app/query', {query: {connection: self._conn, qstr : self._cmd}}, 'query', 'queryResult');
+        self.buttonPress("restart");
+        //self._ajaxCall('/app/query', {query: {connection: self._conn, qstr : self._cmd}}, 'query', 'queryResult');
     },
 
     _toolBarSkFrst: function(self) {
@@ -1060,7 +1061,7 @@
             var rowsCount = _rows.rows.length;
             this.appendRows(_rows);
 
-            // fetch till end and then stop
+            // command back request
             if(_rows.loop.length > 0) {
                 if (rowsCount > 0) {
                     console.log(rowsCount+' rows received, retrying '+_rows.loop);
@@ -1072,6 +1073,7 @@
                     setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
                 }
             }
+            else this._rftchExpBkOff = 2; // end of command looping received
         }
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
@@ -1411,66 +1413,72 @@
 
     // public function for loading rows
     // used by _ajaxCall but can also be used directly
-    appendRows: function(_rows) {        
-        if($.isArray(_rows.rows) && _rows.rows.length > 0) {
-            var self = this;
-            var c = this._grid.getColumns();
-            var firstChunk = (this._gdata.length === 0);
-            if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
-                var fieldWidth = 0;
-                for(var i=0;i<_rows.max_width_vec.length; ++i) {
-                    fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
-                    fieldWidth = fieldWidth + 0.4 * fieldWidth;
-                    if(c[i].width < fieldWidth) {
-                        c[i].width = fieldWidth;
-                        if (c[i].width > self._MAX_ROW_WIDTH)
-                            c[i].width = self._MAX_ROW_WIDTH;
-                    }
+    appendRows: function(_rows) {
+        var self = this;
+        var redraw = false;
+        var c = self._grid.getColumns();
+        var firstChunk = (self._gdata.length === 0);
+        if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
+            var fieldWidth = 0;
+            for(var i=0;i<_rows.max_width_vec.length; ++i) {
+                fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
+                fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                if(c[i].width < fieldWidth) {
+                    c[i].width = fieldWidth;
+                    if (c[i].width > self._MAX_ROW_WIDTH)
+                        c[i].width = self._MAX_ROW_WIDTH;
                 }
-                self._grid.setColumns(c);
             }
+            self._grid.setColumns(c);
+            redraw = true;
+        }
 
-            var rows = _rows.rows;
-            var dlg = this._dlg.dialog('widget');
-            var isIdMissing = (rows[0].length === c.length ? false : true);
+        var start = (new Date()).getTime();
+        console.log('rows loading to slick...');
 
-            var start = (new Date()).getTime();
-            console.log('rows loading to slick...');
-
-            switch (_rows.op) {
-                case "rpl": // replace
-                    self._grid.setData(_rows.rows);
-                    self._gdata = self._grid.getData();
-                    break;
-                case "app": // append
-                    for(var i=0; i < _rows.rows.length; ++i)
-                        self._gdata.push(_rows.rows[i])
-                    self._gdata.splice(0, self._gdata.length - _rows.keep);
-                    break;
-                case "prp": // prepend
-                    do {
-                        self._gdata.splice(0, 0, _rows.rows.pop());
-                    } while (_rows.rows.length > 0)
-                    self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
-                    break;
-                case "nop": // prepend
-                    console.log('nop');
-                    break;
-                default:
-                    console.log("unknown operation "+_rows.op);
-                    break;
-            }
+        switch (_rows.op) {
+            case "rpl": // replace
+                self._grid.setData(_rows.rows);
+                self._gdata = self._grid.getData();
+                redraw = true;
+                break;
+            case "app": // append
+                for(var i=0; i < _rows.rows.length; ++i)
+                    self._gdata.push(_rows.rows[i])
+                self._gdata.splice(0, self._gdata.length - _rows.keep);
+                redraw = true;
+                break;
+            case "prp": // prepend
+                do {
+                    self._gdata.splice(0, 0, _rows.rows.pop());
+                } while (_rows.rows.length > 0)
+                self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
+                redraw = true;
+                break;
+            case "clr": // delete all rows
+                self._gdata.splice(0, self._gdata.length);
+                redraw = true;
+                break;
+            case "nop": // prepend
+                console.log('nop');
+                break;
+            default:
+                console.log("unknown operation "+_rows.op);
+                break;
+        }
+        
+        if (redraw) {
             self._grid.updateRowCount();
             //self._grid.invalidateRow(self._gdata.length-1);
             self._grid.scrollRowIntoView(self._gdata.length-1);
-            //console.log('row '+row.id+' loaded in ' + ((new Date()).getTime() - starRowLoad) + 'ms');
-
             self._grid.resizeCanvas();
 
             // only if the dialog don't have a predefined height/width
             if(self._tbllay === null && self._clmlay === null) {
                 // since columns' width doesn't change after the first block we can skip this
                 if (firstChunk) {
+                    var dlg = this._dlg.dialog('widget');
+
                     if (!self._dlgResized) {
 
                         var gWidth = self._getGridWidth();
@@ -1506,11 +1514,10 @@
             self._grid.invalidate();
 
             // 
-            // loading of rows is the costiliest of the operations
+            // loading of rows is the costliest of the operations
             // compared to computing and adjusting the table width/height
             // (so for now total time of function entry/exit is appromately equal to only row loading)
             //
-            //console.log('dlg height adjusted in ' + ((new Date()).getTime() - start) + 'ms');
             console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
         }
     }

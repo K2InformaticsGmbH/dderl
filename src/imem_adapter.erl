@@ -30,37 +30,6 @@ init() ->
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
     ]).
 
-build_column_json([], JCols) ->
-    [[{<<"id">>, <<"sel">>},
-      {<<"name">>, <<"">>},
-      {<<"field">>, <<"id">>},
-      {<<"behavior">>, <<"select">>},
-      {<<"cssClass">>, <<"cell-selection">>},
-      {<<"width">>, 30},
-      {<<"minWidth">>, 2},
-      {<<"cannotTriggerInsert">>, true},
-      {<<"resizable">>, true},
-      {<<"sortable">>, false},
-      {<<"selectable">>, false}] | JCols];
-build_column_json([C|Cols], JCols) ->
-    Nm = C#stmtCol.alias,
-    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
-    JC = [{<<"id">>, Nm1},
-          {<<"name">>, Nm},
-          {<<"field">>, Nm1},
-          {<<"resizable">>, true},
-          {<<"sortable">>, false},
-          {<<"selectable">>, true}],
-    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
-    build_column_json(Cols, [JCol | JCols]).
-
-int(C) when $0 =< C, C =< $9 -> C - $0;
-int(C) when $A =< C, C =< $F -> C - $A + 10;
-int(C) when $a =< C, C =< $f -> C - $a + 10.
-
-hexstr_to_list([]) -> [];
-hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
-
 process_cmd({[<<"connect">>], ReqBody}, _) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
@@ -115,41 +84,6 @@ process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     end,
     ?Debug("query ~p~n~p", [Query, R]),
     {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
-
-process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
-    [{<<"update_data">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
-    CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
-    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    Result = format_return(Statement:update_row(RowId, CellId, Value)),
-    {Priv, binary_to_list(jsx:encode([{<<"update_data">>, Result}]))};
-process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
-    [{<<"delete_row">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
-    Result = format_return(Statement:delete_row(RowId)),
-    {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, Result}]))};
-process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
-    [{<<"insert_data">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
-    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    Result = format_return(Statement:insert_row(ClmName, Value)),
-    ?Info("inserted ~p", [Result]),
-    {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, Result}]))};
-process_cmd({[<<"commit_rows">>], ReqBody}, Priv) ->
-    [{<<"commit_rows">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    try
-        ok = Statement:prepare_update(),
-        ok = Statement:execute_update(),
-        Ret = Statement:fetch_close(),
-        {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, format_return(Ret)}]))}
-    catch
-        _:Reason ->
-            {Priv, binary_to_list(jsx:encode([{<<"commit_rows">>, [{<<"error">>, format_return({error, Reason})}]}]))}
-    end;
 
 process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
@@ -217,23 +151,61 @@ process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<
 
 % sort and filter
 process_cmd({[<<"sort">>], ReqBody}, Priv) ->
-    [{<<"sort">>,BodyJson}] = ReqBody,    
-    ?Info("sort ~p", [sort_json_to_term(BodyJson)]),
-    {Priv, binary_to_list(jsx:encode([{<<"sort">>,[{<<"error">>, <<"command sort is being implemented">>}]}]))};
+    [{<<"sort">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    SrtSpc = proplists:get_value(<<"spec">>, BodyJson, []),
+    SortSpec = sort_json_to_term(SrtSpc),
+    GuiResp = Statement:gui_req(sort, SortSpec),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Info("sort ~p ~p", [SortSpec, GuiResp]),
+    {Priv, binary_to_list(jsx:encode([{<<"sort">>,GuiRespJson}]))};
 process_cmd({[<<"filter">>], ReqBody}, Priv) ->
-    [{<<"filter">>,BodyJson}] = ReqBody,    
-    ?Info("filter ~p", [filter_json_to_term(BodyJson)]),
-    {Priv, binary_to_list(jsx:encode([{<<"filter">>,[{<<"error">>, <<"command filter is being implemented">>}]}]))};
+    ?Info("filter req Body ~p", [ReqBody]),
+    [{<<"filter">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
+    FilterSpec = filter_json_to_term(FltrSpec),
+    GuiResp = Statement:gui_req(filter, FilterSpec),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Info("filter ~p ~p", [FilterSpec, GuiResp]),
+    {Priv, binary_to_list(jsx:encode([{<<"filter">>,GuiRespJson}]))};
 
 % gui button events
 process_cmd({[<<"button">>], ReqBody}, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
-    GuiResp = Statement:gui_req(Button),
+    GuiResp = Statement:gui_req(button, Button),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("GUI response ~p", [GuiRespJson]),
     {Priv, binary_to_list(jsx:encode([{<<"button">>, GuiRespJson}]))};
+process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
+    [{<<"update_data">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
+    CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
+    Value = binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    GuiResp = Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}]),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Info("updated ~p", [GuiResp]),
+    {Priv, binary_to_list(jsx:encode([{<<"update_data">>, GuiRespJson}]))};
+process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
+    [{<<"delete_row">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
+    GuiResp = Statement:gui_req(update, [{RowId,del,[]}]),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Info("deleted ~p", [GuiResp]),
+    {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, GuiRespJson}]))};
+process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
+    [{<<"insert_data">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
+    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    GuiResp = Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}]),
+    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+    ?Info("inserted ~p", [GuiResp]),
+    {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, GuiRespJson}]))};
 
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, Priv) ->
@@ -277,3 +249,34 @@ format_return({error, {E,{R,_Ext}} = Excp}) ->
     ?Debug("exception ~p", [Excp]),
     list_to_binary([atom_to_list(E),": ",R,"\n",lists:nth(1,io_lib:format("~p", [_Ext]))]);
 format_return(Result)             -> list_to_binary(io_lib:format("~p", [Result])).
+
+build_column_json([], JCols) ->
+    [[{<<"id">>, <<"sel">>},
+      {<<"name">>, <<"">>},
+      {<<"field">>, <<"id">>},
+      {<<"behavior">>, <<"select">>},
+      {<<"cssClass">>, <<"cell-selection">>},
+      {<<"width">>, 30},
+      {<<"minWidth">>, 2},
+      {<<"cannotTriggerInsert">>, true},
+      {<<"resizable">>, true},
+      {<<"sortable">>, false},
+      {<<"selectable">>, false}] | JCols];
+build_column_json([C|Cols], JCols) ->
+    Nm = C#stmtCol.alias,
+    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
+    JC = [{<<"id">>, Nm1},
+          {<<"name">>, Nm},
+          {<<"field">>, Nm1},
+          {<<"resizable">>, true},
+          {<<"sortable">>, false},
+          {<<"selectable">>, true}],
+    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
+    build_column_json(Cols, [JCol | JCols]).
+
+int(C) when $0 =< C, C =< $9 -> C - $0;
+int(C) when $A =< C, C =< $F -> C - $A + 10;
+int(C) when $a =< C, C =< $f -> C - $a + 10.
+
+hexstr_to_list([]) -> [];
+hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
