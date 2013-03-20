@@ -102,6 +102,7 @@
     _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
                        'Move to first'         : { typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
+                       'Previous page'         : { typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
                        ''                      : { typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
                        'Next page'             : { typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
                        'Jump to next page'     : { typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
@@ -757,7 +758,7 @@
                     $('<button>')
                     .text(btnTxt)
                     .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
-                    .css('height', this.options.toolBarHeight+'px')
+                    .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
             else if(elm.typ === 'txt')
@@ -767,11 +768,10 @@
                     .attr('size', 10)
                     .button()
                     .addClass('tb_empty')
-                    .css('height', inph+'px')
-                    .css('text-align', 'left')
+                    .css('height', (inph-2)+'px')
+                    .css('text-align', 'right')
                     .css('padding', '0')
-                    .css('margin', '0')
-                    .css('margin-left', '3')
+                    .css('margin', '0px -1px 0px 0px')
                     .keypress(function(evt) {
                         if(evt.which == 13) {
                             var rownum = parseInt($(this).val());
@@ -815,6 +815,10 @@
     _toolBarJmPrev: function(self) {
         self.buttonPress("<<");
         console.log('['+self.options.title+'] cb _toolBarJmPrev');
+    },
+    _toolBarGo2Prv: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarGo2Prv');
+        self.buttonPress("<");
     },
     _toolBarTxtBox: function(self) {
         if(self.hasOwnProperty('_toolBarTxtBoxVal')) {
@@ -861,7 +865,7 @@
     _checkRows: function(_rows) {         
         // TODO throw exception if any error
         this._rows_cache_max = _rows.cnt;
-        this._tbTxtBox.val(this._rows_cache_max);
+        this._tbTxtBox.val(this._rows_cache_max+' ');
         var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
         for (var i = 0; i < tbClass.length; ++i)
             this._tbTxtBox.removeClass(tbClass[i]);
