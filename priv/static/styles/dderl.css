@@ -98,10 +98,11 @@ button.menubutton
 
 /* text box background colors */
 .tb_empty          { background:#FFFFFF !important; }
-.tb_filling        { background:#F5BCA9 !important; }
-.tb_autofilling    { background:#A9E2F3 !important; }
-.tb_completed      { background:#CEF6CE !important; }
-.tb_tailing        { background:#FACC2E !important; }
+.tb_aborted        { background:#FF4747 !important; }
+.tb_filling        { background:#FFFF66 !important; }
+.tb_autofilling    { background:#FFC266 !important; }
+.tb_completed      { background:#CCFF66 !important; }
+.tb_tailing        { background:#FFCCCC !important; }
 
 /*.downloading {
     margin-left:3px;
