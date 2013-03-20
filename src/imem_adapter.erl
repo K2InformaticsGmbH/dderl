@@ -237,9 +237,9 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
             {Priv, [{<<"error">>, Err}]};
-        {Ex,M} ->
-            ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
+        Error ->
+            ?Error([{session, Connection}], "query error ~p", [Error]),
+            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             {Priv, [{<<"error">>, Err}]}
     end.
 

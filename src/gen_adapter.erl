@@ -6,7 +6,6 @@
 
 -export([ process_cmd/2
         , init/0
-        %, strs2bins/1
         , add_cmds_views/2
         , gui_resp/2
         ]).

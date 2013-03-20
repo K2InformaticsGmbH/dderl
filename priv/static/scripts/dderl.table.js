@@ -159,7 +159,8 @@
                               asyncEditorLoading: false,
                               autoEdit: false,
                               zIndex: 1300,
-                              rowHeight: 20 },
+                              rowHeight: 20
+                            },
 
         // dderl options
         dderlConn         : null,
@@ -709,12 +710,17 @@
         // building slickgrid
         self._grid = new Slick.Grid('#'+self._tableDiv.attr('id'), [], [], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
+        self._grid.registerPlugin(new Slick.CellExternalCopyManager());
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
         self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
         self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
+        self._grid.onScroll.subscribe(function(e, args) {
+            var vp = args.grid.getViewport();
+            console.log('viewed '+JSON.stringify(vp));
+        });
 
         self._gdata = self._grid.getData();
     },
@@ -978,9 +984,13 @@
     _renderViews: function(_views) {
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
         this.options.title = _views.name;
-        this.setColumns(_views.columns);
-        this.buttonPress(this._startBtn);
         console.log('>>>>> table '+_views.name+' '+_views.connection);
+        if(_views.hasOwnProperty('error'))
+            alert_jq(_views.error);
+        else {
+            this.setColumns(_views.columns);
+            this.buttonPress(this._startBtn);
+        }
     },
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('error')) {
@@ -1101,7 +1111,7 @@
             // .on('dialogfocus', function (event, ui) {
             //     $(".ui-dialog").find(".ui-dialog-titlebar").removeClass("ui-state-error");
             //     $(this).parents(".ui-dialog:first").find(".ui-dialog-titlebar").addClass("ui-state-error");
-            // })
+            // }
             .bind("dialogresize", function(event, ui) 
             {
                 var data = self._grid.getData();
@@ -1463,12 +1473,46 @@
                 self._gdata.splice(0, self._gdata.length);
                 redraw = true;
                 break;
-            case "nop": // prepend
+            case "nop": // no operation
                 console.log('nop');
                 break;
             default:
                 console.log("unknown operation "+_rows.op);
                 break;
+        }
+
+        // focus change on gresp receive
+        var gvp = self._grid.getViewport();
+        var gvpH = gvp.bottom - gvp.top;
+        if(_rows.focus < 0) {
+            _rows.focus = self._gdata.length + _rows.focus;
+            self._grid.scrollRowIntoView(_rows.focus);
+        } else if(_rows.focus > 0) {
+            _rows.focus -= 1;
+            self._grid.scrollRowIntoView(_rows.focus);
+        } else {
+            switch(_rows.op) {
+                case 'rpl' :
+                    _rows.focus = gvp.bottom + _rows.rows.length - 2 * gvpH;
+                    if(_rows.focus < 0) _rows.focus = 0;
+                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
+                    break;
+                case 'app' :
+                    _rows.focus = gvp.top + _rows.rows.length;
+                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
+                    break;
+                case 'prp' :
+                    _rows.focus = gvp.bottom + _rows.rows.length - 2 * gvpH;
+                    if(_rows.focus < 0) _rows.focus = 0;
+                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
+                    break;
+                case "nop": // no operation
+                    console.log('nop');
+                    break;
+                default:
+                    console.log("unknown operation "+_rows.op);
+                    break;
+            }
         }
         
         // scroll to row always if focus > 0
