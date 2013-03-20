@@ -338,14 +338,15 @@
         this._ajaxCall('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
-    cmdReload: function(cmd) {
-        if(this._cmd === cmd)
+    cmdReload: function(cmd, button) {
+        /*if(this._cmd === cmd)
             console.log('command unchanged ['+cmd+']');
-        else {
+        else {*/
             console.log('command reloading ['+cmd+']');
             this._cmd = cmd;
+            this.options.dderlStartBtn = this._startBtn = button;
             this._ajaxCall('/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
-        }
+        //}
     },
 
     // filter and sort actions

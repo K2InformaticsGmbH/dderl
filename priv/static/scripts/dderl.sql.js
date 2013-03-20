@@ -333,10 +333,10 @@ $('<div>')
                    dderlAdapter: adapter,
                   dderlStartBtn: button
                })
-               .table('cmdReload', this._modCmd)
+               .table('cmdReload', this._modCmd, button)
                .table('open');
         } else
-            this._cmdOwner.cmdReload(this._modCmd);
+            this._cmdOwner.cmdReload(this._modCmd, button);
     },
     ////////////////////////////
 
