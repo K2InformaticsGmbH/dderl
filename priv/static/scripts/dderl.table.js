@@ -1471,6 +1471,10 @@
                 break;
         }
         
+        // scroll to row always if focus > 0
+        if(!redraw && _rows.focus >= 0)
+            self._grid.scrollRowIntoView(_rows.focus);
+
         if (redraw) {
             self._grid.updateRowCount();
             //self._grid.invalidateRow(self._gdata.length-1);
