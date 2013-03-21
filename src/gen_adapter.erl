@@ -62,11 +62,11 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
     ]}])) of
         ParseStmt when is_binary(ParseStmt) ->
             ?Debug("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
-            {Priv, binary_to_list(ParseStmt)};
+            {Priv, ParseStmt};
         Error ->
             ?Error("parse_stmt error ~p~n", [Error]),
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            {Priv, binary_to_list(jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}]))}
+            {Priv, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
     end;
 process_cmd({[<<"get_query">>], ReqBody}, Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
@@ -74,7 +74,7 @@ process_cmd({[<<"get_query">>], ReqBody}, Priv) ->
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     ?Debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
-    {Priv, binary_to_list(Res)};
+    {Priv, Res};
 process_cmd({[<<"save_view">>], ReqBody}, Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
@@ -84,10 +84,10 @@ process_cmd({[<<"save_view">>], ReqBody}, Priv) ->
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
     add_cmds_views(imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
-    {Priv, binary_to_list(Res)};
+    {Priv, Res};
 process_cmd({Cmd, _BodyJson}, Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
-    {Priv, binary_to_list(jsx:encode([{<<"error">>, <<"unknown command">>}]))}.
+    {Priv, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
 col2json(Cols) -> col2json(lists:reverse(Cols), []).
 col2json([], JCols) -> [<<"id">>,<<"op">>|JCols];
@@ -99,16 +99,18 @@ col2json([C|Cols], JCols) ->
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
     ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
-    [{<<"op">>,         Gres#gres.operation}                    %% rep (replace) | app (append) | prp (prepend) | nop | close
-    ,{<<"cnt">>,        Gres#gres.cnt}                          %% current buffer size (raw table or index table size)
-    ,{<<"toolTip">>,    Gres#gres.toolTip}                      %% current buffer sizes RawCnt/IndCnt plus status information
-    ,{<<"message">>,    Gres#gres.message}                      %% error message
-    ,{<<"beep">>,       Gres#gres.beep}                         %% alert with a beep if true
-    ,{<<"state">>,      atom_to_binary(Gres#gres.state, utf8)}  %% determines color of buffer size indicator
-    ,{<<"loop">>,       Gres#gres.loop}                         %% gui should come back with this command
-    ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}           %% rows .. show (append / prepend / merge)
-    ,{<<"keep">>,       Gres#gres.keep}                         %% row count .. be kept
-    ,{<<"focus">>,       Gres#gres.focus}                       %% the row to scroll into view (default -1, do not scroll)
+    % refer to erlimem/src/gres.hrl for the descriptions of the record fields
+    [{<<"op">>,         Gres#gres.operation}
+    ,{<<"cnt">>,        Gres#gres.cnt}
+    ,{<<"toolTip">>,    Gres#gres.toolTip}
+    ,{<<"message">>,    Gres#gres.message}
+    ,{<<"beep">>,       Gres#gres.beep}
+    ,{<<"state">>,      Gres#gres.state}
+    ,{<<"loop">>,       Gres#gres.loop}
+    ,{<<"rows">>,       r2jsn(Gres#gres.rows, JCols)}
+    ,{<<"keep">>,       Gres#gres.keep}
+    ,{<<"focus">>,      Gres#gres.focus}
+    ,{<<"sql">>,        Gres#gres.sql}
     ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
     ].
 

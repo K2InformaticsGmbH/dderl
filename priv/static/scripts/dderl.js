@@ -34,9 +34,10 @@ var session = null;
 var adapter = null;
 
 // generic dderlserver call interface
-// TODO: currently the widget and non-widget is determined
-// by the presence of the context variable
-// for widget there is no this['context']
+// TODO: currently the widget and non-widget
+//       is determined by the presence of the
+//       context variable for widget there is
+//       no this['context']
 function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     var self = _ref;
 

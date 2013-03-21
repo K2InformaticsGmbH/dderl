@@ -2,57 +2,52 @@
 -module(dderl_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
+-behaviour(cowboy_loop_handler).
+ 
 -include("dderl.hrl").
 
 -export([init/3]).
--export([handle/2]).
+-export([info/3]).
 -export([terminate/3]).
+
 
 %-define(DISP_REQ, 1).
 
-init(_Transport, Req, []) ->    
-	{ok, Req, undefined}.
-
-handle(Req, State) ->
-    ?Debug("---- handler ~p", [self()]),
-	{Method, Req2} = cowboy_req:method(Req),
-	process(Method, Req2, State).
-
-process(<<"POST">>, Req, State) ->
+init({ssl, http}, Req, []) ->
     display_req(Req),
-    {DDerlSessPid, Body, Req1} = case cowboy_req:has_body(Req) of
-        true -> process_request(Req);
-       _     -> <<>>
-    end,
-    ?Debug("Resp ~p", [Body]),
-    {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req1),
-    {ok, Req2, State};
-process(_Method, Req, State) ->
-    ?Info("not allowed method ~p with ~p~n", [_Method,Req]),
-	%% Method not allowed.
-	{ok, Req1} = cowboy_req:reply(405, Req),
-    {ok, Req1, State}.
+    {Method, Req0} = cowboy_req:method(Req),
+    case cowboy_req:has_body(Req0) of
+    true ->
+        {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req0),
+        {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
+        ?Debug("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
+        case create_new_session(Session) of
+            {ok, {_,DDerlSessPid} = DderlSess} ->
+                case Adapter of
+                    undefined                       -> ok;
+                    Adapter when is_binary(Adapter) -> DderlSess:set_adapter(binary_to_list(Adapter))
+                end,
+                {Typ, Req3} = cowboy_req:path_info(Req2),
+                {ok, Body, Req4} = cowboy_req:body(Req3),
+                DderlSess:process_request(Typ, Body, self()),
+                {loop, Req4, DDerlSessPid, 60000, hibernate};
+            {error, Reason} ->
+                ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
+                {error, session_timeout, Req2}
+        end;
+    _ -> {ok, Req, undefined}
+    end.
+
+info({reply, Body}, Req, DDerlSessPid) ->
+    ?Debug("reply ~p", [Body]),
+    {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
+    {ok, Req2, DDerlSessPid};
+info(Message, Req, State) ->
+    ?Error("~p unknown message in loop ~p", [self(), Message]),
+    {loop, Req, State, hibernate}.
 
 terminate(_Reason, _Req, _State) ->
 	ok.
-
-process_request(Req) ->
-    {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req),
-    {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
-    ?Debug("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
-    case create_new_session(Session) of
-        {ok, {_,DDerlSessPid} = DderlSess} ->
-            case Adapter of
-                undefined                       -> ok;
-                Adapter when is_binary(Adapter) -> DderlSess:set_adapter(binary_to_list(Adapter))
-            end,
-            {Typ, Req3} = cowboy_req:path_info(Req2),
-            {ok, Body, Req4} = cowboy_req:body(Req3),
-            {DDerlSessPid, DderlSess:process_request(Typ, Body), Req4};
-        {error, Reason} ->
-            ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
-            {error, session_timeout, Req2}
-    end.
 
 create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
@@ -74,12 +69,12 @@ create_new_session(_) -> create_new_session(<<>>).
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Content, DDerlSessPid, Req) ->
+reply_200_json(Body, DDerlSessPid, Req) ->
 	cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
         , {<<"dderl_sess">>, list_to_binary(?EncryptPid(DDerlSessPid))}
-        ], list_to_binary(Content), Req).
+        ], Body, Req).
 
 -ifdef(DISP_REQ).
 display_req(Req) ->

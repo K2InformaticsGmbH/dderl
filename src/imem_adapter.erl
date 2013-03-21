@@ -73,7 +73,7 @@ process_cmd({[<<"connect">>], ReqBody}, _) ->
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
-            {#priv{sess=Connection, stmts=Statements}, binary_to_list(jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}]))}
+            {#priv{sess=Connection, stmts=Statements}, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])}
     end;
 process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
@@ -83,7 +83,7 @@ process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
         _ -> process_query(Query, Connection, Priv)
     end,
     ?Debug("query ~p~n~p", [Query, R]),
-    {NewPriv, binary_to_list(jsx:encode([{<<"query">>,R}]))};
+    {NewPriv, jsx:encode([{<<"query">>,R}])};
 
 process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
@@ -115,7 +115,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
             Resp
         }]),
         ?Info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
-        {NewPriv, binary_to_list(RespJson)};
+        {NewPriv, RespJson};
     true ->                
         Name = lists:last(tuple_to_list(R)),
         Query = "SELECT * FROM " ++ Name,
@@ -125,7 +125,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
             ,{<<"name">>, list_to_binary(Name)}] ++
             Resp
         }]),
-        {NewPriv, binary_to_list(RespJson)}
+        {NewPriv, RespJson}
     end;
 
 % views
@@ -142,7 +142,7 @@ process_cmd({[<<"views">>], _}, Priv) ->
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
         ++ Resp
     }]),
-    {NewPriv, binary_to_list(RespJson)};
+    {NewPriv, RespJson};
 process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
 
 % query
@@ -158,7 +158,7 @@ process_cmd({[<<"sort">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(sort, SortSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("sort ~p ~p", [SortSpec, GuiResp]),
-    {Priv, binary_to_list(jsx:encode([{<<"sort">>,GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"sort">>,GuiRespJson}])};
 process_cmd({[<<"filter">>], ReqBody}, Priv) ->
     [{<<"filter">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -167,7 +167,7 @@ process_cmd({[<<"filter">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(filter, FilterSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("filter ~p ~p", [FilterSpec, GuiResp]),
-    {Priv, binary_to_list(jsx:encode([{<<"filter">>,GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"filter">>,GuiRespJson}])};
 
 % gui button events
 process_cmd({[<<"button">>], ReqBody}, Priv) ->
@@ -177,7 +177,7 @@ process_cmd({[<<"button">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(button, Button),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("GUI response ~p", [GuiRespJson]),
-    {Priv, binary_to_list(jsx:encode([{<<"button">>, GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"button">>, GuiRespJson}])};
 process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -187,7 +187,7 @@ process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("updated ~p", [GuiResp]),
-    {Priv, binary_to_list(jsx:encode([{<<"update_data">>, GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"update_data">>, GuiRespJson}])};
 process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -195,7 +195,7 @@ process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(update, [{RowId,del,[]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("deleted ~p", [GuiResp]),
-    {Priv, binary_to_list(jsx:encode([{<<"delete_row">>, GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"delete_row">>, GuiRespJson}])};
 process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -204,13 +204,13 @@ process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("inserted ~p", [GuiResp]),
-    {Priv, binary_to_list(jsx:encode([{<<"insert_data">>, GuiRespJson}]))};
+    {Priv, jsx:encode([{<<"insert_data">>, GuiRespJson}])};
 
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
-    {Priv, binary_to_list(jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}]))}.
+    {Priv, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])}.
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
@@ -225,14 +225,20 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
-        {ok, Clms, {_,_,ConPid}=Statement} ->
-            ?Debug([{session, Connection}], "Cols ~p", [Clms]),
+        {ok, StmtRslt, {_,_,ConPid}=Statement} ->
+            Clms = proplists:get_value(cols, StmtRslt, []),
+            SortSpec = proplists:get_value(sort_spec, StmtRslt, []),
+            ?Info("StmtRslt ~p ~p", [Clms, SortSpec]),
             Columns = build_column_json(lists:reverse(Clms), []),
-            ?Debug("JColumns~n" ++ binary_to_list(jsx:prettify(jsx:encode(Columns)))),
+            JSortSpec = build_srtspec_json(SortSpec),
+            ?Info("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
+                   "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
             ?Info("process_query created statement ~p for ~p", [Statement, Query]),
             {Priv, [{<<"columns">>, Columns}
+                   ,{<<"sort_spec">>, JSortSpec}
                    ,{<<"statement">>, base64:encode(term_to_binary(Statement))}
-                   ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}]};
+                   ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}
+                   ]};
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
@@ -243,11 +249,10 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
             {Priv, [{<<"error">>, Err}]}
     end.
 
-format_return({error, {_,{error, _}=Error}}) -> format_return(Error);
-format_return({error, {E,{R,_Ext}} = Excp}) ->
-    ?Debug("exception ~p", [Excp]),
-    list_to_binary([atom_to_list(E),": ",R,"\n",lists:nth(1,io_lib:format("~p", [_Ext]))]);
-format_return(Result)             -> list_to_binary(io_lib:format("~p", [Result])).
+build_srtspec_json(SortSpecs) ->
+    [{SP, [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
+          ,{<<"asc">>, if AscDesc =:= 'asc' -> true; true -> false end}]
+     } || {SP,AscDesc} <- SortSpecs].
 
 build_column_json([], JCols) ->
     [[{<<"id">>, <<"sel">>},
@@ -255,7 +260,7 @@ build_column_json([], JCols) ->
       {<<"field">>, <<"id">>},
       {<<"behavior">>, <<"select">>},
       {<<"cssClass">>, <<"cell-selection">>},
-      {<<"width">>, 30},
+      {<<"width">>, 38},
       {<<"minWidth">>, 2},
       {<<"cannotTriggerInsert">>, true},
       {<<"resizable">>, true},

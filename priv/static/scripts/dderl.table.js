@@ -170,7 +170,8 @@
         dderlCmd          : null,
         dderlClmlay       : null,
         dderlTbllay       : null,
-        dderlStartBtn     : '>'
+        dderlStartBtn     : '>',
+        dderlSortSpec     : null,
     },
  
     // Set up the widget
@@ -189,6 +190,7 @@
         if(self.options.dderlClmlay     !== self._clmlay)   self._clmlay    = self.options.dderlClmlay;
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
+        if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
 
         // dialog elements
 
@@ -987,6 +989,9 @@
         if(_views.hasOwnProperty('error'))
             alert_jq(_views.error);
         else {
+            if(_views.hasOwnProperty('sort_spec') && _views.sort_spec.length > 0) {
+                this._sort = _views.sort_spec;
+            }
             this.setColumns(_views.columns);
             this.buttonPress(this._startBtn);
         }
@@ -1011,6 +1016,9 @@
         if(_table.hasOwnProperty('table_layout')  && _table.table_layout.length  > 0) {
             this._tbllay = _table.table_layout;
             if(_table.table_layout.length  === 0) this._tbllay = null;
+        }
+        if(_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0) {
+            this._sort = _table.sort_spec;
         }
         if(_table.hasOwnProperty('columns')) {
             this.setColumns(_table.columns);
@@ -1059,7 +1067,9 @@
             dderlStatement  : _table.statement,
             dderlCmd        : _table.content,
             dderlClmlay     : cl,
-            dderlTbllay     : tl
+            dderlTbllay     : tl,
+            dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0)
+                                 ? _table.sort_spec : null)
         })
         .table('setColumns', _table.columns)
         .table('buttonPress', '>')
