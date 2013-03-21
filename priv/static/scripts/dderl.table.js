@@ -336,7 +336,7 @@
                                           content : this._cmd}
                        };
         console.log('saving view '+JSON.stringify(saveView));
-        this._ajaxCall('/app/save_view', saveView, 'save_view', 'saveViewResult');
+        ajaxCall(this, '/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
     cmdReload: function(cmd, button) {
@@ -346,7 +346,7 @@
             console.log('command reloading ['+cmd+']');
             this._cmd = cmd;
             this.options.dderlStartBtn = this._startBtn = button;
-            this._ajaxCall('/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
+            ajaxCall(this, '/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
         //}
     },
 
@@ -523,7 +523,7 @@
                             sortspec.push(t);
                         }
 
-                        self._ajaxCall('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                        ajaxCall(self, '/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                                                
                         $(this).dialog('close');
                         $(this).remove();
@@ -637,7 +637,7 @@
                 }
                 else delete self._filters[c];
             }
-            self._ajaxCall('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+            ajaxCall(self, '/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
             $(this).dialog('close');
             $(this).remove();
         };
@@ -684,7 +684,7 @@
             var column  = self._grid.getColumns()[cell.fromCell];
             var data    = self._gdata[cell.fromRow][column.field];
             // console.log('browse_data @ '+column.name+' val '+data);
-            this._ajaxCall('/app/browse_data',
+            ajaxCall(this, '/app/browse_data',
                            { browse_data: {connection : this._conn,
                                             statement : this._stmt,
                                                   row : cell.fromRow,
@@ -815,7 +815,6 @@
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
         self.buttonPress("restart");
-        //self._ajaxCall('/app/query', {query: {connection: self._conn, qstr : self._cmd}}, 'query', 'queryResult');
     },
 
     _toolBarSkFrst: function(self) {
@@ -867,7 +866,7 @@
     ////////////////////////////
     
     /*
-     * _ajaxCall success callbacks
+     * ajaxCall success callbacks
      */
     _checkTable: function(_table) {
         // TODO sanity check the data _THROW_ if ERROR
@@ -1143,60 +1142,6 @@
     // translations to default dialog behavior
     open: function() { this._dlg.dialog("open"); },
 
-    // generic dderlserver call interface
-    _ajaxCall: function(_url,_data,_resphead,_successevt) {
-        var self = this;
-
-        // if data is JSON object format to string
-        if(_data == null) _data = JSON.stringify({});
-        else
-            try {
-                _data = JSON.stringify(_data);
-            } catch (ex) {
-                console.error(_data + ' is not JSON');
-                throw(ex);
-            }
-
-        console.log('[AJAX] TX '+_url);
-
-        $.ajax({
-            type: 'POST',
-            url: _url,
-            data: _data,
-            dataType: "JSON",
-            contentType: "application/json; charset=utf-8",
-            headers: {dderl_sess: self._session
-                     ,adapter: self._adapter
-                     },
-            context: self,
-
-            success: function(_data) {
-
-                // save the new session - legacy maybe removed TODO
-                if(_data.hasOwnProperty('session'))
-                    this.options.dderlSession = self._session = _data.session;
-
-                if(_data.hasOwnProperty(_resphead)) {
-                    console.log('[AJAX] RX '+_resphead);
-                    if(this._handlers.hasOwnProperty(_successevt))
-                        this.element.trigger(_successevt, _data[_resphead]);
-                    else
-                        throw('unsupported success event '+_successevt+' for '+_url);
-                }
-                else if(_data.hasOwnProperty('error')) {
-                    alert_jq('Error : '+_data.error);
-                }
-                else throw('resp '+_resphead+' doesn\'t match the request '+_url);
-            },
-
-            error: function (request, textStatus, errorThrown) {
-                 alert_jq('HTTP Error'+
-                       (textStatus.length > 0 ? ' '+textStatus:'')+
-                       (errorThrown.length > 0 ? ' details '+errorThrown:''));
-            }
-        });
-    },
-
     // context menus invocation for slickgrid
     _gridContextMenu: function(e, args) {
         e.preventDefault();
@@ -1276,7 +1221,7 @@
                                          value       : modifiedRow[cols[args.cell].field]}};
         console.log('changed '+JSON.stringify(updateJson));
 
-        this._ajaxCall('/app/update_data', updateJson, 'update_data', 'updateData');
+        ajaxCall(this, '/app/update_data', updateJson, 'update_data', 'updateData');
     },
     _gridAddNewRow: function(e, args) {
         e.stopPropagation();
@@ -1287,7 +1232,7 @@
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
         this['__insertingRow'] = args.item;
-        this._ajaxCall('/app/insert_data', insertJson, 'insert_data', 'insertData');
+        ajaxCall(this, '/app/insert_data', insertJson, 'insert_data', 'insertData');
     },
     _delRow: function(e, args) {
         e.stopPropagation();
@@ -1295,34 +1240,19 @@
             // Delete args.row
             var deleteJson = {delete_row: {statement : this._stmt,
                                           rowid      : args.row + 1}};
-            this._ajaxCall('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+            ajaxCall(this, '/app/delete_row', deleteJson, 'delete_row', 'deleteData');
             this._gdata.splice(args.row, 1);
             this._grid.setData(this._gdata);
             this._grid.render();
         }
     },
 
-//            console.log('deleted row '+args.row + 1);
-//                ajax_post('/app/delete_row', deleteJson, null, null, function(data) {
-//                if(data.delete_row == "ok") {
-//                    grid_data = args.grid.getData();
-//                    grid_data.splice(args.row, 1);
-//                    args.grid.setData(grid_data);
-//                    args.grid.render();
-//                }
-//                else {
-//                    alert_jq('delete failed');
-//                    console.log('delete failed');
-//                }
-//            });
-
-
     // loading the view table
-    loadViews: function() { this._ajaxCall('/app/views', null, 'views', 'loadViews'); },
+    loadViews: function() { ajaxCall(this, '/app/views', null, 'views', 'loadViews'); },
 
     // loading rows
     buttonPress: function(button) {
-        this._ajaxCall('/app/button', {button: { connection: this._conn
+        ajaxCall(this, '/app/button', {button: { connection: this._conn
                                                , statement: this._stmt
                                                , btn: button}}, 'button', 'loadRows');
     },
@@ -1426,7 +1356,7 @@
     },
 
     // public function for loading rows
-    // used by _ajaxCall but can also be used directly
+    // used by ajaxCall but can also be used directly
     appendRows: function(_rows) {
         var self = this;
         var redraw = false;

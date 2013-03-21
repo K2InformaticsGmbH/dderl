@@ -30,81 +30,82 @@ function getUniqueTime() {
   return new Date().getTime();
 }
 
-function show_logs()
-{
-    ajax_post('/app/logs', {}, null, null, function(data) {
-        $('<div style="diaply:none" />')
-        .append($('<select id="logs_list" class="ui-corner-all" size=100 style="width:100%; height:100%"/>')
-                .dblclick(function(){
-                    window.open($('#logs_list option:selected').val());
-                })
-        )
-        .appendTo(document.body)
-        .dialog({
-            autoOpen: false,
-            height: 400,
-            width: 300,
-            resizable: false,
-            modal: true,
-            title: "Logs",
-            close: function() {
-                $(this).dialog('destroy');
-                $(this).remove();
-            },
-            buttons: {
-                "Delete": function() {
-                    var selLogItem = $('#logs_list option:selected');
-                    ajax_post('/app/delete_log', {log:{file:selLogItem.val()}}, null, null, function(data) {selLogItem.remove();});
-                }
-            }
-        })
-        .dialog("open");
-
-        for(var i=0;i<data.logs.length; ++i)
-            $('<option value="'+data.logs[i]+'">'+data.logs[i]+'</option>').appendTo($('#logs_list'));
-    });
-}
-
 var session = null;
+var adapter = null;
 
-function ajax_post(url, dataJson, headers, context, successFun) {
-    if(headers == null) headers = {};
-    if(context == null) context = {};
-    if(dataJson == null) dataJson = JSON.stringify({});
-    else dataJson = JSON.stringify(dataJson);
+// generic dderlserver call interface
+// TODO: currently the widget and non-widget is determined
+// by the presence of the context variable
+// for widget there is no this['context']
+function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
+    var self = _ref;
 
-    headers["dderl_sess"] = (session != null ? '' + session : '');
-    if (adapter != null)
-        headers["adapter"] = adapter;
+    // if data is JSON object format to string
+    if(_data == null) _data = JSON.stringify({});
+    else
+        try {
+            _data = JSON.stringify(_data);
+        } catch (ex) {
+            console.error(_data + ' is not JSON');
+            throw(ex);
+        }
+
+    console.log('[AJAX] TX '+_url);
+
+    var headers = new Object();
+    if (adapter != null) headers['adapter'] = adapter;
+    headers['dderl_sess'] = (session != null ? ''+session : '');
+    if (null != self) {
+        headers['dderl_sess'] = self._session;
+        headers['adapter'] = self._adapter;
+    }
 
     $.ajax({
         type: 'POST',
-        url: url,
-        data: dataJson,
+        url: _url,
+        data: _data,
         dataType: "JSON",
         contentType: "application/json; charset=utf-8",
         headers: headers,
-        context: context,
+        context: self,
+
         success: function(_data, textStatus, request)
-        {            
-            if(_data.hasOwnProperty('error')) {
-                alert_jq(
-                    (_data.error === 'session_timeout'
-                              ? 'DDerl session timed out. Please login again.'
-                              : _data.error)
-                );
-                return;
-            }
-            console.log('dderl session '+JSON.stringify(request.getResponseHeader('dderl_sess')));
+        {
+            console.log('Requst '+_url+' Result '+textStatus);
+            
+            // dderl_sess is saved in global var session and (optionally)
+            // in the dderlSession and _session property of the widget
             var s = request.getResponseHeader('dderl_sess');
             if(s != null)
                 session = s;
-            if(successFun != null)
-                successFun.call(context, _data);
+
+            if(!this.hasOwnProperty('context'))
+                this.options.dderlSession = this._session = session;
+
+            if(_data.hasOwnProperty(_resphead)) {
+                console.log('[AJAX] RX '+_resphead);
+                if(this.hasOwnProperty('context') && null == this.context) {
+                    if(null === _successevt)
+                        console.log('no success callback for '+_url);
+                    else if($.isFunction(_successevt))
+                        _successevt(_data[_resphead]);
+                    else
+                        throw('unsupported success event '+_successevt+' for '+_url);
+                } else {
+                    if(this._handlers.hasOwnProperty(_successevt))
+                        this.element.trigger(_successevt, _data[_resphead]);
+                    else
+                        throw('unsupported success event '+_successevt+' for '+_url);
+                }
+            }
+            else if(_data.hasOwnProperty('error')) {
+                alert_jq('Error : '+_data.error);
+            }
+            else throw('resp '+_resphead+' doesn\'t match the request '+_url);
         },
 
         error: function (request, textStatus, errorThrown) {
-             alert_jq('HTTP '+ url +
+             alert_jq('HTTP Error'+
                    (textStatus.length > 0 ? ' '+textStatus:'')+
                    (errorThrown.length > 0 ? ' details '+errorThrown:''));
         }
@@ -151,81 +152,11 @@ function create_ws(url)
     };
     ws.onclose = function(){
         console.log('WebSocket: closed');
-        create_ws(node, url);
+        create_ws(url, url);
     };
     ws.onmessage = function(e) {
         $('#server-time').text(e.data);
     };
-}
-
-function prepare_table(context)
-{
-    if(context.hasOwnProperty('error')) {
-        alert_jq(table.error);
-        console.log(table.error);
-        return;
-    }
-    context.initFun = function(tblDlg) {
-        tblDlg.bind('requery', function(e, sqlObj) {
-            ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert_jq(data.error); } });
-            tblDlg.dialog('destroy');
-            tblDlg.remove();
-            context.content = sqlObj;
-            load_table(context);
-        });
-    };
-    context.destroyFun = function() {
-        ajax_post('/app/stmt_close', {stmt_close: {statement: context.statement, row_num: -1}},
-                      null, null, function(data) {if (data.hasOwnProperty('error')) { alert_jq(data.error); } });
-    };
-
-    context.countFun = function(countUpdateFun) {
-        ajax_post('/app/get_buffer_max', {get_buffer_max: {statement: context.statement}},
-                  null, null, function(data) { countUpdateFun(data.get_buffer_max); } );
-    };
-
-    context.rowFun = function(opsfetch, rowNum, renderFun, renderFunArgs) {
-        var Cmd = '/app/row';
-        switch(opsfetch) {
-            case OpsFetchEnum.NEXT:
-                Cmd += '_next';
-                break;
-            case OpsFetchEnum.PREVIOUS:
-                Cmd += '_prev';
-                break;
-            case OpsFetchEnum.TOEND:
-                Cmd += '_next';
-                rowNum = 10000000; // 10 mil for end of table for most table
-                break;
-            default:
-                Cmd += '_next';
-                break;
-        }
-        if(rowNum == null)
-            rowNum = -1;
-        ajax_post(Cmd, {row: {statement: context.statement, row_num: rowNum}}, null, null,
-        function(data) {
-            renderFunArgs[renderFunArgs.length] = data;
-            renderFun.apply(this, renderFunArgs);
-        });
-    };
-    renderTable(context);
-}
-
-function load_table(context)
-{
-    var query = context.content;
-    ajax_post('/app/query', {query: {qstr: query, id: context.id}}, null, null, function(table) {
-        if(table.hasOwnProperty('error')) {
-            alert_jq(table.error);
-            return;
-        }
-        var statement = table.statement;
-        context.columns = table.columns;
-        context.statement = statement;
-        prepare_table(context);
-    });
 }
 
 function edit_table()
@@ -257,9 +188,9 @@ function save_table()
                                          name : context.name,
                                       content : qStr}
                    };
-    ajax_post("/app/save_view", saveView, null, null, function(data) {
-        if (data.save_view != "ok") {
-            alert_jq(data.save_view);
+    ajaxCall(null,'/app/save_view',saveView,'save_view', function(data) {
+        if (data != "ok") {
+            alert_jq(data);
         }
     });
 }
@@ -285,7 +216,7 @@ function save_as_table()
         buttons: {
             "Save": function() {
                 var fileName = $(this).children('input').val();
-                ajax_post("/app/save_file", {save: {file_name:fileName, file_content:qStr}}, null, null, null);
+                ajaxCall(null,'/app/save_file',{save: {file_name:fileName, file_content:qStr}},'save_file', null);
                 $(this).dialog('close');
             }
         }

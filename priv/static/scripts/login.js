@@ -1,4 +1,3 @@
-var adapter = null;
 function display_login()
 {
     if($('#login-button').html().indexOf('out') > 0) {
@@ -43,8 +42,8 @@ function display_login()
         if(e.which == 13) {
             var loginJson = {login: { user      :   $('#user_login').val(),
                                       password  :   MD5($('#password_login').val())}};
-            ajax_post('/app/login', loginJson, null, null, function(data) {
-                if(data.login == "ok") {
+            ajaxCall(null,'/app/login',loginJson,'login', function(data) {
+                if(data == "ok") {
                     var url = (window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws';
                     create_ws(url);
                     var user = $('#user_login').val();
@@ -55,7 +54,7 @@ function display_login()
                     //display_db_login();
                 }
                 else
-                    alert('Login falied : ' + data.login);
+                    alert('Login falied : ' + data);
             });        
         }
     });
@@ -94,11 +93,11 @@ function change_password()
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {change_pswd: { user      :loggedInUser,
                                                       password  :MD5($('#password_change_login').val())}};
-                    ajax_post('/app/login_change_pswd', newPassJson, null, null, function(data) {
-                        if(data.change_pswd == "ok")
+                    ajaxCall(null,'/app/login_change_pswd',newPassJson,'login_change_pswd', function(data) {
+                        if(data == "ok")
                             $("#dialog-change-password").dialog("close");
                         else
-                            alert('Change password falied : ' + data.change_pswd);
+                            alert('Change password falied : ' + data);
                     });
                 }
                 else alert("Confirm password missmatch!");
@@ -108,13 +107,4 @@ function change_password()
             }
         }
     }).dialog("open");
-}
-
-function load_nodes(elm)
-{
-    elm.show();
-    ajax_post('/app/imem_nodes', null, null, null, function(data) {
-        for(var i=0; i<data.nodes.length; ++i)
-            $('<option value="'+data.nodes[i]+'">'+data.nodes[i]+'</option>').appendTo(elm);
-    });
 }

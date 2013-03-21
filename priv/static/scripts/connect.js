@@ -3,22 +3,23 @@ var connects = null;
 
 function load_connections()
 {
-    ajax_post('/app/adapters', {}, null, null, function(data) {
-        var adapters = data.adapters;
+    ajaxCall(null,'/app/adapters',{}, 'adapters', function(data) {
+        var adapters = data;
         for(var i=0; i<adapters.length; ++i)
             $('#adapter_list').append($('<option>', {
                 value: adapters[i].id,
                 text : adapters[i].fullName 
             }));
         setTimeout(function() {
-            ajax_post('/app/connects', null, null, null, function(data) {
-                connects = data.connects;
+            ajaxCall(null,'/app/connects',{}, 'connects', function(data) {
+                connects = data;
                 $('#connection_list').html('');
-                for(var id in connects)
+                for(var id in connects) {
                     $('#connection_list').append($('<option>', {
                         value: id,
                         text : connects[id].name
                     }));
+                }
                 set_owner_list($("#adapter_list").val());
             });
         }, 1);
@@ -163,18 +164,18 @@ function connect_dlg()
                                              tnsstring :$('#tnsstring').val()}};
                 owner = $('#user').val();
                 var Dlg = $(this);
-                ajax_post('/app/connect', connectJson, null, null, function(data) {
-                    if(data.connect.hasOwnProperty('error')) {
+                ajaxCall(null,'/app/connect', connectJson, 'connect', function(data) {
+                    if(data.hasOwnProperty('error')) {
                         alert_jq(
                             'Unable to connect<br>'+
                             'Host : '+$("#ip").val()+'<br>'+
                             'Port : '+$("#port").val()+'<br>'+
                             'User : '+$("#user").val()+'<br>'+
-                            'Error: '+data.connect.error
+                            'Error: '+data.error
                         );
                     } else {
                         Dlg.dialog("close");
-                        show_qry_files(data.connect);
+                        show_qry_files(data);
                     }
                 });
             },
@@ -183,9 +184,9 @@ function connect_dlg()
                 var selectedId = $('#connection_list').val();
                 if (null !== selectedId && selectedId.length > 0) {
                     // delete in server
-                    ajax_post('/app/del_con', {del_con: {conid: parseInt(selectedId)}}, null, null, function(data) {
-                        if(data.del_con.hasOwnProperty('error')) {
-                            alert_jq(JSON.stringify(data.del_con.error));
+                    ajaxCall(null,'/app/del_con', {del_con: {conid: parseInt(selectedId)}}, 'del_con', function(data) {
+                        if(data.hasOwnProperty('error')) {
+                            alert_jq(JSON.stringify(data.error));
                         } else {
                             // update list on success
                             $('#connection_list option[value="'+selectedId+'"]').remove();

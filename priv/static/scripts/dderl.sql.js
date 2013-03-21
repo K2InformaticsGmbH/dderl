@@ -201,7 +201,7 @@ $('<div>')
                         shouldReparse = false;
 
                 if(shouldReparse)
-                    self._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
+                    ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
             })
             .removeClass('ui-corner-all')
             .appendTo(self.element);
@@ -237,7 +237,7 @@ $('<div>')
             self._dlg.dialog("open");
 
         if (undefined != self._cmdFlat && self._cmdFlat.length > 0)
-            this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}},'parse_stmt','parsedCmd');
+            ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}},'parse_stmt','parsedCmd');
     },
 
     _setupEventHandlers: function() {
@@ -307,7 +307,7 @@ $('<div>')
      * Toolbar callbak functions
      */
     _toolBarValidate: function() {
-        this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
+        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
     },
     _toolBarTblReload: function() {
         this._loadTable('>');
@@ -341,7 +341,7 @@ $('<div>')
     ////////////////////////////
 
     /*
-     * _ajaxCall success handlers
+     * ajaxCall success handlers
      */
     _checkParsed: function(_parsed) {
         var error = ''
@@ -468,52 +468,7 @@ $('<div>')
         self._modCmd = cmd;
         self._flatTb.text(cmd);
         self._cmdFlat = self._flatTb.val();
-        this._ajaxCall('/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
-    },
-
-    // generic dderlserver call interface
-    _ajaxCall: function(_url,_data,_resphead,_successevt) {
-        var self = this;
-
-        // if data is JSON object format to string
-        if(_data == null) _data = JSON.stringify({});
-        else
-            try {
-                _data = JSON.stringify(_data);
-            } catch (ex) {
-                console.error(_data + ' is not JSON');
-                throw(ex);
-            }
-
-        $.ajax({
-            type: 'POST',
-            url: _url,
-            data: _data,
-            dataType: "JSON",
-            contentType: "application/json; charset=utf-8",
-            headers: {dderl_sess: self._session
-                     ,adapter: self._adapter
-                     },
-            context: self,
-            success: function(_data) {
-                console.log('received '+ JSON.stringify(_data));
-
-                // save the new session - legacy maybe removed TODO
-                if(_data.hasOwnProperty('session'))
-                    this.options.dderlSession = self._session = _data.session;
-
-                if(_data.hasOwnProperty(_resphead)) {
-                    if(_data[_resphead].hasOwnProperty('error'))
-                        alert_jq(_data[_resphead]['error']);
-                    else {
-                        if(this._handlers.hasOwnProperty(_successevt))
-                            this.element.trigger(_successevt, _data[_resphead]);
-                        else
-                            throw('unsupported success event '+_successevt+' for '+_url);
-                    }
-                } else throw('resp '+_resphead+' doesn\'t match the request '+_url);
-            }
-        });
+        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
 
     // // Use the _setOption method to respond to changes to options
