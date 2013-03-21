@@ -228,10 +228,10 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
         {ok, StmtRslt, {_,_,ConPid}=Statement} ->
             Clms = proplists:get_value(cols, StmtRslt, []),
             SortSpec = proplists:get_value(sort_spec, StmtRslt, []),
-            ?Info("StmtRslt ~p ~p", [Clms, SortSpec]),
+            ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
             Columns = build_column_json(lists:reverse(Clms), []),
             JSortSpec = build_srtspec_json(SortSpec),
-            ?Info("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
+            ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
                    "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
             ?Info("process_query created statement ~p for ~p", [Statement, Query]),
             {Priv, [{<<"columns">>, Columns}
@@ -250,8 +250,9 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
     end.
 
 build_srtspec_json(SortSpecs) ->
-    [{SP, [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
-          ,{<<"asc">>, if AscDesc =:= 'asc' -> true; true -> false end}]
+    [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
+     , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
+       ,{<<"asc">>, if AscDesc =:= 'asc' -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
 build_column_json([], JCols) ->
