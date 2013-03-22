@@ -23,7 +23,7 @@ add_cmds_views(A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     add_cmds_views(A, Rest).
 
 box_to_json(Box) ->
-    [{<<"ind">>, Box#box.ind}
+    [ {<<"ind">>, Box#box.ind}
     , {<<"name">>, any_to_bin(Box#box.name)}
     , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
     , {<<"collapsed">>, Box#box.collapsed}
@@ -35,7 +35,7 @@ any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
     
-process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
+process_cmd({[<<"parse_stmt">>], ReqBody}, From) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
@@ -62,20 +62,20 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Priv) ->
     ]}])) of
         ParseStmt when is_binary(ParseStmt) ->
             ?Debug("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
-            {Priv, ParseStmt};
+            From ! {reply, ParseStmt};
         Error ->
             ?Error("parse_stmt error ~p~n", [Error]),
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            {Priv, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
+            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
     end;
-process_cmd({[<<"get_query">>], ReqBody}, Priv) ->
+process_cmd({[<<"get_query">>], ReqBody}, From) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     ?Debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
-    {Priv, Res};
-process_cmd({[<<"save_view">>], ReqBody}, Priv) ->
+    From ! {reply, Res};
+process_cmd({[<<"save_view">>], ReqBody}, From) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
     Query = binary_to_list(proplists:get_value(<<"content">>, BodyJson, <<>>)),
@@ -84,10 +84,12 @@ process_cmd({[<<"save_view">>], ReqBody}, Priv) ->
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
     add_cmds_views(imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
-    {Priv, Res};
-process_cmd({Cmd, _BodyJson}, Priv) ->
+    From ! {reply, Res};
+process_cmd({Cmd, _BodyJson}, From) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
-    {Priv, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
+    From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
+
+%%%%%%%%%%%%%%%
 
 col2json(Cols) -> col2json(lists:reverse(Cols), []).
 col2json([], JCols) -> [<<"id">>,<<"op">>|JCols];

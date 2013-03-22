@@ -29,7 +29,7 @@
         , tref
         , user = <<>>
         , adapter = gen_adapter
-    }).
+        }).
 
 start() ->
     {ok, Pid} = gen_server:start_link(?MODULE, [], []),
@@ -65,8 +65,7 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
 handle_cast({process, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
     ?Debug("processing request ~p", [{Typ, WReq}]),
-    {reply, Resp, State0} = process_call({Typ, WReq}, ReplyPid, State),
-    ReplyPid ! {reply, Resp},
+    State0 = process_call({Typ, WReq}, ReplyPid, State),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
@@ -88,31 +87,35 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_call({[<<"login">>], ReqData}, _From, State) ->
+process_call({[<<"login">>], ReqData}, From, State) ->
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:login(User, Password) of
         true ->
             ?Debug("login successful for ~p", [User]),
-            {reply, jsx:encode([{<<"login">>,<<"ok">>}]), State#state{user=User}};
+            From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
+            State#state{user=User};
         {_, {error, {Exception, M}}} ->
             ?Error("login failed for ~p, result ~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
-            {reply, jsx:encode([{<<"login">>,Err}]), State}
+            From ! {reply, jsx:encode([{<<"login">>,Err}])},
+            State
     end;
 
-process_call({[<<"adapters">>], _ReqData}, _From, #state{user=User} = State) ->
+process_call({[<<"adapters">>], _ReqData}, From, #state{user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
             [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
               ,{<<"fullName">>,list_to_binary(A#ddAdapter.fullName)}]
             || A <- dderl_dal:get_adapters()]}]),
     ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
-    {reply, Res, State};
+    From ! {reply, Res},
+    State;
 
-process_call({[<<"connects">>], _ReqData}, _From, #state{user=User} = State) ->
+process_call({[<<"connects">>], _ReqData}, From, #state{user=User} = State) ->
     case dderl_dal:get_connects(User) of
-        [] -> {reply, jsx:encode([{<<"connects">>,[]}]), State};
+        [] ->
+            From ! {reply, jsx:encode([{<<"connects">>,[]}])};
         Connections ->
             ?Debug([{user, User}], "conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
@@ -130,10 +133,11 @@ process_call({[<<"connects">>], _ReqData}, _From, #state{user=User} = State) ->
                 Connections)
             }]),
             ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
-            {reply, Res, State}
-    end;
+            From ! {reply, Res}
+    end,
+    State;
 
-process_call({[<<"del_con">>], ReqData}, _From, #state{user=_User} = State) ->
+process_call({[<<"del_con">>], ReqData}, From, #state{user=_User} = State) ->
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, User}], "connection to delete ~p", [ConId]),
@@ -141,14 +145,14 @@ process_call({[<<"del_con">>], ReqData}, _From, #state{user=_User} = State) ->
         ok -> <<"success">>;
         Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
     end,
-    {reply, jsx:encode([{<<"del_con">>, Resp}]), State};
+    From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
+    State;
 
-process_call({Cmd, ReqData}, _From, #state{adapt_priv=AdaptPriv,adapter=AdaptMod} = State) ->
+process_call({Cmd, ReqData}, From, #state{adapt_priv=AdaptPriv,adapter=AdaptMod} = State) ->
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, User}], "~p processing ~p", [AdaptMod, {Cmd,BodyJson}]),
-    {NewAdaptPriv, Resp} = AdaptMod:process_cmd({Cmd, BodyJson}, AdaptPriv),
-    ?Debug([{user, User}], "~p response ~p", [AdaptMod, {Cmd,Resp}]),
-    {reply, Resp, State#state{adapt_priv=NewAdaptPriv}}.
+    NewAdaptPriv = AdaptMod:process_cmd({Cmd, BodyJson}, From, AdaptPriv),
+    State#state{adapt_priv=NewAdaptPriv}.
 
 jsq(Bin) when is_binary(Bin) -> Bin;
 jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));

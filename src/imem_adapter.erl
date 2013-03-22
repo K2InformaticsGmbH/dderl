@@ -4,7 +4,7 @@
 -include("dderl.hrl").
 
 -export([ init/0
-        , process_cmd/2
+        , process_cmd/3
         ]).
 
 -record(priv, { sess
@@ -30,7 +30,7 @@ init() ->
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
     ]).
 
-process_cmd({[<<"connect">>], ReqBody}, _) ->
+process_cmd({[<<"connect">>], ReqBody}, From, _) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -56,7 +56,8 @@ process_cmd({[<<"connect">>], ReqBody}, _) ->
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            {#priv{}, binary_to_list(jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}]))};
+            From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
+            #priv{};
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, Opts}]),
@@ -73,9 +74,10 @@ process_cmd({[<<"connect">>], ReqBody}, _) ->
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
-            {#priv{sess=Connection, stmts=Statements}, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])}
+            From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])},
+            #priv{sess=Connection, stmts=Statements}
     end;
-process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
+process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     {NewPriv, R} = case dderl_dal:is_local_query(Query) of
@@ -83,9 +85,10 @@ process_cmd({[<<"query">>], ReqBody}, #priv{sess=Connection}=Priv) ->
         _ -> process_query(Query, Connection, Priv)
     end,
     ?Debug("query ~p~n~p", [Query, R]),
-    {NewPriv, jsx:encode([{<<"query">>,R}])};
+    From ! {reply, jsx:encode([{<<"query">>,R}])},
+    NewPriv;
 
-process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
+process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
@@ -115,7 +118,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
             Resp
         }]),
         ?Info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
-        {NewPriv, RespJson};
+        From ! {reply, RespJson};
     true ->                
         Name = lists:last(tuple_to_list(R)),
         Query = "SELECT * FROM " ++ Name,
@@ -125,11 +128,12 @@ process_cmd({[<<"browse_data">>], ReqBody}, #priv{sess={_,ConnPid}} = Priv) ->
             ,{<<"name">>, list_to_binary(Name)}] ++
             Resp
         }]),
-        {NewPriv, RespJson}
-    end;
+        From ! {reply, RespJson}
+    end,
+    NewPriv;
 
 % views
-process_cmd({[<<"views">>], _}, Priv) ->
+process_cmd({[<<"views">>], _}, From, Priv) ->
     [F|_] = dderl_dal:get_view("All Views"),
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
@@ -142,15 +146,22 @@ process_cmd({[<<"views">>], _}, Priv) ->
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
         ++ Resp
     }]),
-    {NewPriv, RespJson};
-process_cmd({[<<"save_view">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"save_view">>], BodyJson}, Priv);
+    From ! {reply, RespJson},
+    NewPriv;
 
-% query
-process_cmd({[<<"get_query">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"get_query">>], BodyJson}, Priv);
-process_cmd({[<<"parse_stmt">>], BodyJson}, Priv) -> gen_adapter:process_cmd({[<<"parse_stmt">>], BodyJson}, Priv);
+% commands handled generically
+% TODO may be moved to dderl_session
+process_cmd({[C], _} = Cmd, From, Priv)
+    when    (C =:= <<"save_view">>)
+    % query
+    orelse  (C =:= <<"get_query">>)
+    orelse  (C =:= <<"parse_stmt">>)
+    ->
+    gen_adapter:process_cmd(Cmd, From),
+    Priv;
 
 % sort and filter
-process_cmd({[<<"sort">>], ReqBody}, Priv) ->
+process_cmd({[<<"sort">>], ReqBody}, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     SrtSpc = proplists:get_value(<<"spec">>, BodyJson, []),
@@ -158,8 +169,9 @@ process_cmd({[<<"sort">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(sort, SortSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("sort ~p ~p", [SortSpec, GuiResp]),
-    {Priv, jsx:encode([{<<"sort">>,GuiRespJson}])};
-process_cmd({[<<"filter">>], ReqBody}, Priv) ->
+    From ! {reply, jsx:encode([{<<"sort">>,GuiRespJson}])},
+    Priv;
+process_cmd({[<<"filter">>], ReqBody}, From, Priv) ->
     [{<<"filter">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
@@ -167,18 +179,20 @@ process_cmd({[<<"filter">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(filter, FilterSpec),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("filter ~p ~p", [FilterSpec, GuiResp]),
-    {Priv, jsx:encode([{<<"filter">>,GuiRespJson}])};
+    From ! {reply, jsx:encode([{<<"filter">>,GuiRespJson}])},
+    Priv;
 
 % gui button events
-process_cmd({[<<"button">>], ReqBody}, Priv) ->
+process_cmd({[<<"button">>], ReqBody}, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
     GuiResp = Statement:gui_req(button, Button),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Debug("GUI response ~p", [GuiRespJson]),
-    {Priv, jsx:encode([{<<"button">>, GuiRespJson}])};
-process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
+    From ! {reply, jsx:encode([{<<"button">>, GuiRespJson}])},
+    Priv;
+process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
@@ -187,16 +201,18 @@ process_cmd({[<<"update_data">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("updated ~p", [GuiResp]),
-    {Priv, jsx:encode([{<<"update_data">>, GuiRespJson}])};
-process_cmd({[<<"delete_row">>], ReqBody}, Priv) ->
+    From ! {reply, jsx:encode([{<<"update_data">>, GuiRespJson}])},
+    Priv;
+process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     GuiResp = Statement:gui_req(update, [{RowId,del,[]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("deleted ~p", [GuiResp]),
-    {Priv, jsx:encode([{<<"delete_row">>, GuiRespJson}])};
-process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
+    From ! {reply, jsx:encode([{<<"delete_row">>, GuiRespJson}])},
+    Priv;
+process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
@@ -204,13 +220,17 @@ process_cmd({[<<"insert_data">>], ReqBody}, Priv) ->
     GuiResp = Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}]),
     GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
     ?Info("inserted ~p", [GuiResp]),
-    {Priv, jsx:encode([{<<"insert_data">>, GuiRespJson}])};
+    From ! {reply, jsx:encode([{<<"insert_data">>, GuiRespJson}])},
+    Priv;
 
 % unsupported gui actions
-process_cmd({Cmd, BodyJson}, Priv) ->
+process_cmd({Cmd, BodyJson}, From, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
-    {Priv, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])}.
+    From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
+    Priv.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
