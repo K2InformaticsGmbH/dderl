@@ -8,13 +8,8 @@
 </head>
 
 <body>
-    <!-- span id=dummyspan></span -->
-    <!-- span id='txtlen' style='visibility: hidden; white-space: nowrap;'></span -->
-    <!-- audio id="beep" src="../static/success.wav" controls preload="auto" autobuffer style="display:none"></audio -->
-    <!-- embed src="../static/success.wav" autostart=false width=0 height=0 name="beep" enablejavascript="true" -->
-    
-    <div id="main-menu-bar">
-        <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
+    <div id="main-menu-bar" class = "menubar">
+        <ul class="dropdown menubar">
         	<li><a href="#">File</a>
         		<ul class="sub_menu">
         			 <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Query Files</a></li>
@@ -67,8 +62,6 @@
 	<script src="../static/scripts/connect.js"></script>
     <script src="../static/scripts/dderl.table.js"></script>
     <script src="../static/scripts/dderl.sql.js"></script>
-    <!-- script src="../static/scripts/beep.js"></script -->
-    <!-- script src="../static/scripts/jquery.playSound.js"></script -->
 
     <!-- scripts to support and flash fallback -->
     <script language='javascript' src="../static/scripts/swfobject.js"></script>
@@ -89,7 +82,7 @@
                 alert_jq("Dinosours are extinct. Upgrade!");
             }
 
-            beep(); // beep test
+            //beep(); // beep test
         });
     </script>
 </body>

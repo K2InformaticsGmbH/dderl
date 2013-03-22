@@ -228,7 +228,7 @@ function beep()
 {
     if(!document.hasOwnProperty('dderlbeep')) {
         document['dderlbeep'] = new Audio();
-        document.dderlbeep.src = '../static/success.mp3';
+        document.dderlbeep.src = './static/media/success.mp3';
     }
     document.dderlbeep.load();
     document.dderlbeep.play();
