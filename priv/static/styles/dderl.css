@@ -5,7 +5,7 @@
 @import url('slick.columnpicker.css');
 @import url('jquery.jscrollpane.css');
 
-@import url('../dropdown/dropdown.css');
+@import url('dropdown.css');
 
 @import url('dderl.sql.css');
 
@@ -104,34 +104,10 @@ button.menubutton
 .tb_completed      { background:#CCFF66 !important; }
 .tb_tailing        { background:#FFCCCC !important; }
 
-/*.downloading {
-    margin-left:3px;
-    margin-right:0px;
-    border: 1px solid #999;
-    color:#000000;
-    background:#AFAFFF !important;
+.menubar {
+    background:#AFAFAF;
+    z-index:99999;
 }
-.download_error {
-    margin-left:3px;
-    margin-right:0px;
-    border: 1px solid #999;
-    color:#000000;
-    background:#FF7F7F !important;
-}
-.download_incomplete {
-    margin-left:3px;
-    margin-right:0px;
-    border: 1px solid #999;
-    color:#000000;
-    background:#FFFF7F !important;
-}
-.download_complete {
-    margin-left:3px;
-    margin-right:0px;
-    border: 1px solid #999;
-    color:#000000;
-    background:#AFFFAF !important;
-}*/
 
 /* 
  * SlickGrid style extensions and overrides
