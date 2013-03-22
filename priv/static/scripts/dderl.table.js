@@ -1367,11 +1367,16 @@
 
     // public function for loading rows
     // used by ajaxCall but can also be used directly
-    appendRows: function(_rows) {
+    appendRows: function(_rows)
+    {
         var self = this;
         var redraw = false;
         var c = self._grid.getColumns();
         var firstChunk = (self._gdata.length === 0);
+
+        // beep
+        if(_rows.beep) beep();
+
         if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
             var fieldWidth = 0;
             for(var i=0;i<_rows.max_width_vec.length; ++i) {

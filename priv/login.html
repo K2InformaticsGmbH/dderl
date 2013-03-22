@@ -8,7 +8,11 @@
 </head>
 
 <body>
-    <span id='txtlen' style='visibility: hidden; white-space: nowrap;'></span>
+    <!-- span id=dummyspan></span -->
+    <!-- span id='txtlen' style='visibility: hidden; white-space: nowrap;'></span -->
+    <!-- audio id="beep" src="../static/success.wav" controls preload="auto" autobuffer style="display:none"></audio -->
+    <!-- embed src="../static/success.wav" autostart=false width=0 height=0 name="beep" enablejavascript="true" -->
+    
     <div id="main-menu-bar">
         <ul class="dropdown" style="background:#AFAFAF;z-index:99999;">
         	<li><a href="#">File</a>
@@ -63,7 +67,8 @@
 	<script src="../static/scripts/connect.js"></script>
     <script src="../static/scripts/dderl.table.js"></script>
     <script src="../static/scripts/dderl.sql.js"></script>
-    <script src="../static/scripts/beep.js"></script>
+    <!-- script src="../static/scripts/beep.js"></script -->
+    <!-- script src="../static/scripts/jquery.playSound.js"></script -->
 
     <!-- scripts to support and flash fallback -->
     <script language='javascript' src="../static/scripts/swfobject.js"></script>
@@ -72,7 +77,7 @@
     </script -->
     <script language='javascript' src="../static/scripts/web_socket.js"></script>
 
-    <script language='javascript'>
+    <script language='javascript'>        
         $(document).ready(function() {
             // Set URL of your WebSocketMain.swf here:
             WEB_SOCKET_SWF_LOCATION = "../static/scripts/WebSocketMainInsecure.swf";
@@ -82,7 +87,9 @@
             } else {
                 $('#main-menu-bar').hide();
                 alert_jq("Dinosours are extinct. Upgrade!");
-            }            
+            }
+
+            beep(); // beep test
         });
     </script>
 </body>

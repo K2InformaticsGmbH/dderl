@@ -224,6 +224,16 @@ function save_as_table()
     }).dialog("open");
 }
 
+function beep()
+{
+    if(!document.hasOwnProperty('dderlbeep')) {
+        document['dderlbeep'] = new Audio();
+        document.dderlbeep.src = '../static/success.mp3';
+    }
+    document.dderlbeep.load();
+    document.dderlbeep.play();
+}
+
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 
 // In some environment, console is defined but console.log or console.error is missing.
