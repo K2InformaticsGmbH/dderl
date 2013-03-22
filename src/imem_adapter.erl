@@ -2,6 +2,7 @@
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
 -include("dderl.hrl").
+-include_lib("erlimem/src/gres.hrl").
 
 -export([ init/0
         , process_cmd/3
@@ -166,20 +167,14 @@ process_cmd({[<<"sort">>], ReqBody}, From, Priv) ->
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     SrtSpc = proplists:get_value(<<"spec">>, BodyJson, []),
     SortSpec = sort_json_to_term(SrtSpc),
-    GuiResp = Statement:gui_req(sort, SortSpec),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Debug("sort ~p ~p", [SortSpec, GuiResp]),
-    From ! {reply, jsx:encode([{<<"sort">>,GuiRespJson}])},
+    Statement:gui_req(sort, SortSpec, gui_resp_cb_fun(<<"sort">>, Statement, From)),
     Priv;
 process_cmd({[<<"filter">>], ReqBody}, From, Priv) ->
     [{<<"filter">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
     FilterSpec = filter_json_to_term(FltrSpec),
-    GuiResp = Statement:gui_req(filter, FilterSpec),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Debug("filter ~p ~p", [FilterSpec, GuiResp]),
-    From ! {reply, jsx:encode([{<<"filter">>,GuiRespJson}])},
+    Statement:gui_req(filter, FilterSpec, gui_resp_cb_fun(<<"filter">>, Statement, From)),
     Priv;
 
 % gui button events
@@ -187,10 +182,7 @@ process_cmd({[<<"button">>], ReqBody}, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
-    GuiResp = Statement:gui_req(button, Button),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Debug("GUI response ~p", [GuiRespJson]),
-    From ! {reply, jsx:encode([{<<"button">>, GuiRespJson}])},
+    Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),
     Priv;
 process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
@@ -198,29 +190,20 @@ process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
     Value = binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    GuiResp = Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}]),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Info("updated ~p", [GuiResp]),
-    From ! {reply, jsx:encode([{<<"update_data">>, GuiRespJson}])},
+    Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}], gui_resp_cb_fun(<<"update_data">>, Statement, From)),
     Priv;
 process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
-    GuiResp = Statement:gui_req(update, [{RowId,del,[]}]),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Info("deleted ~p", [GuiResp]),
-    From ! {reply, jsx:encode([{<<"delete_row">>, GuiRespJson}])},
+    Statement:gui_req(update, [{RowId,del,[]}], gui_resp_cb_fun(<<"delete_row">>, Statement, From)),
     Priv;
 process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    GuiResp = Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}]),
-    GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-    ?Info("inserted ~p", [GuiResp]),
-    From ! {reply, jsx:encode([{<<"insert_data">>, GuiRespJson}])},
+    Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
     Priv;
 
 % unsupported gui actions
@@ -231,6 +214,12 @@ process_cmd({Cmd, BodyJson}, From, Priv) ->
     Priv.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+gui_resp_cb_fun(Cmd, Statement, From) ->
+    fun(#gres{} = GuiResp) ->
+        GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+        ?Debug("resp ~p ~p", [Cmd, GuiResp]),
+        From ! {reply, jsx:encode([{Cmd,GuiRespJson}])}
+    end.
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
