@@ -6,6 +6,7 @@ deps
 deps/erlimem/
 deps/imem/
 deps/sqlparse/
+priv/static/log/
 *.pydevproject
 .project
 .metadata
