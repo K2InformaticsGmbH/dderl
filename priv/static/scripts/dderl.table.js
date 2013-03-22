@@ -37,6 +37,7 @@
 
     // start button
     _startBtn       : null,
+    _cmdStrs        : [],
 
     // private event handlers
     _handlers       : { loadViews   : function(e, _views) {
@@ -295,11 +296,18 @@
     },
 
     _editCmd: function(cmd) {
+        var hasCmd = false;
+        for (var i = 0; i < this._cmdStrs.length; ++i)
+            if (this._cmd === this._cmdStrs[i]) hasCmd = true;
+
+        if(!hasCmd) this._cmdStrs.splice(0,0,this._cmd);
+
         $('<div>')
         .appendTo(document.body)
         .sql({autoOpen  : false,
               title     : this.options.title,
-              cmdOwner  : this
+              cmdOwner  : this,
+              history   : this._cmdStrs
              })
         .sql('open')
         .sql("showCmd", this._cmd);
@@ -369,7 +377,7 @@
 
         var data = new Array();
         for (var s in self._sorts)
-            data.push({select: true, name: s, sort: self._sorts[s].asc, id: self._sorts[s].id});
+            data.push({name: s, sort: (self._sorts[s].asc ? 'ASC' : 'DESC'), id: self._sorts[s].id});
 
         var sortDlg =
             $('<div>')
@@ -403,19 +411,12 @@
                         cssClass: "cell-reorder dnd"
                       },
                       {
-                        id: "select",
-                        name: "",
-                        field: "select",
-                        width: 40,
-                        selectable: true,
-                        formatter: Slick.Formatters.Checkmark,
-                        editor: Slick.Editors.Checkbox
-                      },
-                      {
                         id: "name",
                         name: "Column",
                         field: "name",
-                        width: 150
+                        width: 150,
+                        selectable: true,
+                        editor: Slick.Editors.Text
                       },
                       {
                         id: "sort",
@@ -423,15 +424,15 @@
                         field: "sort",
                         width: 100,
                         selectable: true,
-                        cannotTriggerInsert: true,
-                        formatter: function defaultFormatter(row, cell, value, columnDef, dataContext) {
-                            if (value == true) {
-                                return "ASC";
-                            } else {
-                                return "DESC";
-                            }
-                        },
-                        editor: Slick.Editors.AscDescSelect
+                        cannotTriggerInsert: true
+                      },
+                      {
+                        id: "select",
+                        name: "",
+                        field: "select",
+                        width: 40,
+                        selectable: true,
+                        formatter: Slick.Formatters.Checkmark
                       }
                     ]
                 , {
@@ -443,7 +444,26 @@
                 );
 
         sgrid.setSelectionModel(new Slick.RowSelectionModel());
-
+        sgrid.onClick.subscribe(function(e, args) {
+            var col = sgrid.getColumns()[args.cell].id
+            switch (col) {
+                case "select": // delete the row
+                    sgrid.getData().splice(args.row, 1);
+                    sgrid.updateRowCount();
+                    sgrid.render();
+                    break;
+                case "sort": // changing asc/desc
+                    var sgd = sgrid.getData();
+                    sgd[args.row][col] = (sgd[args.row][col] === 'ASC' ? 'DESC' : 'ASC');
+                    sgrid.invalidateRow(args.row);
+                    sgrid.render();
+                    break;
+                default:
+                    console.log('nothing happnes in this column');
+                    break;
+            }
+        });
+        
         var moveRowsPlugin = new Slick.RowMoveManager({
           cancelEditOnDrag: true
         });
@@ -497,6 +517,22 @@
 
         sgrid.registerPlugin(moveRowsPlugin);
 
+        var saveChange = function() {
+            var sd = sgrid.getData();
+            self._sorts = new Object();
+            for (var i = 0; i <sd.length; ++i) {
+                self._sorts[sd[i].name] = { id : sd[i].id,
+                                           asc : (sd[i].sort === 'ASC' ? true : false) };
+            }
+            var sortspec = new Array();
+            for (var s in self._sorts) {
+                var t = new Object();
+                t[self._sorts[s].id] = self._sorts[s].asc;
+                sortspec.push(t);
+            }
+            return sortspec;
+        }
+        
         sortDlg
             .dialog({
                 width : 380,
@@ -504,27 +540,13 @@
                 title : 'Sorts',
                 position : { my: "left top", at: "left bottom", of: this._dlg },
                 close : function() {
+                        saveChange();
                         $(this).dialog('close');
                         $(this).remove();
                     },
                 buttons: {
                     'Sort' : function() {
-                        var sd = sgrid.getData();
-                        for (var i = 0; i <sd.length; ++i) {
-                            if(sd[i].select === undefined)
-                                delete self._sorts[sd[i].name];
-                            else {
-                                if(sd[i].sort) self._sorts[sd[i].name].asc = true;
-                                else self._sorts[sd[i].name].asc = false;
-                            }
-                        }
-                        var sortspec = new Array();
-                        for (var s in self._sorts) {
-                            var t = new Object();
-                            t[self._sorts[s].id] = self._sorts[s].asc;
-                            sortspec.push(t);
-                        }
-
+                        var sortspec = saveChange();
                         ajaxCall(self, '/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                                                
                         $(this).dialog('close');
@@ -877,7 +899,6 @@
         // TODO throw exception if any error
         this._rows_cache_max = _rows.cnt;
         this._tbTxtBox.val(this._rows_cache_max+' ');
-        this._tbTxtBox.attr('title',_rows.toolTip);
         var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
         for (var i = 0; i < tbClass.length; ++i)
             this._tbTxtBox.removeClass(tbClass[i]);
@@ -1374,8 +1395,13 @@
         var c = self._grid.getColumns();
         var firstChunk = (self._gdata.length === 0);
 
-        // beep
+        // system actions (beep and others)
         if(_rows.beep) beep();
+        self._tbTxtBox.attr('title',_rows.toolTip);
+
+        // if new cmd is different from the last one append
+        if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))
+            self._cmdStrs.push(_rows.sql);
 
         if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
             var fieldWidth = 0;

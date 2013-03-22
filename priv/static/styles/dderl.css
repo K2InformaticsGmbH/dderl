@@ -271,7 +271,7 @@ input.editor-text {
     margin:0;
     padding:0;
     /*background-color:lightblue;*/
-    white-space:nowrap;
+    /*white-space:nowrap;*/
     overflow:hidden;
     display:none;
 }
@@ -287,7 +287,7 @@ input.editor-text {
     position:relative;
     top:0;
     left:10px;
-    right:10px;
+    /*right:10px;*/
     /*background-color:lightgreen;*/
 }
 .boxParent {
@@ -296,4 +296,10 @@ input.editor-text {
     position:relative;
     top:0;
     /*background-color: lightblue;*/
+}
+
+.ui-widget-header {
+    background: #cccccc/*{bgColorHeader}*/ url(../media/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
+    color: #222222/*{fcHeader}*/;
+    font-weight: bold;
 }

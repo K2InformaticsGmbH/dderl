@@ -29,6 +29,8 @@ $('<div>')
     _cmdFlat        : "",
     _cmdPretty      : "",
     _boxJson        : {},  
+    _boxBg          : null,
+    _history        : {},
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
@@ -42,7 +44,8 @@ $('<div>')
                        'Execute fetch first block'  : { typ : 'btn', icn : 'play',          clk : '_toolBarTblReload'       },
                        'Execute fetch to end'       : { typ : 'btn', icn : 'seek-end',      clk : '_toolBarTblFetch2End'    },
                        'Execute fetch tail mode'    : { typ : 'btn', icn : 'fetch-tail',    clk : '_toolBarTblFetchNTail'   },
-                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only',    clk : '_toolBarTblTailOnly'     }},
+                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only',    clk : '_toolBarTblTailOnly'     },
+                       ''                           : { typ : 'sel',                        clk : '_toolBarChangeSql'       }},
 
     // These options will be used as defaults
     options: {
@@ -69,7 +72,8 @@ $('<div>')
                             $(this).dialog('destroy');
                             $(this).remove();
                           },
-        cmdOwner        : null
+        cmdOwner        : null,
+        history         : {}
     },
  
     // Set up the widget
@@ -80,9 +84,10 @@ $('<div>')
         self._fntSz = $(document.body).css('font-size');
 
         // preserve some options
-        if(self.options.cmdOwner    !== self._dlg) self._cmdOwner   = self.options.cmdOwner;
-        if(self.options.cmdFlat     !== self._dlg) self._cmdFlat    = self.options.cmdFlat;
-        if(self.options.cmdPretty   !== self._dlg) self._cmdPretty  = self.options.cmdPretty;
+        if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
+        if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
+        if(self.options.cmdPretty   !== self._cmdPretty)    self._cmdPretty = self.options.cmdPretty;
+        if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
                 self.options.title = 'Query'+DEFAULT_COUNTER+'.sql';
@@ -116,7 +121,7 @@ $('<div>')
 
         var flatBg      = 'rgb(240,240,255)';
         var prettyBg    = 'rgb(255,240,240)';
-        var boxBg       = 'rgb(240,255,240)';
+        self._boxBg     = 'rgb(240,255,240)';
 
         self._flatTb =
             $('<textarea>')
@@ -126,6 +131,7 @@ $('<div>')
             .css('overflow-y', 'scroll')
             .css('resize', 'none')
             .css('border', 'none')
+            .css('font-size', '1.14em')
             .on('keyup click blur focus change paste', this, function(e) {
                 var that = e.data;
                 that._cmdFlat = $(this).val();
@@ -143,6 +149,7 @@ $('<div>')
             //.css('white-space', 'nowrap')
             .css('resize', 'none')
             .css('border', 'none')
+            .css('font-size', '1.14em')
             .on('keyup click blur focus change paste', this, function(e) {
                 var that = e.data;
                 that._cmdPretty = $(this).val();
@@ -153,9 +160,10 @@ $('<div>')
         self._boxDiv =
             $('<div>')
             .css('font-family', self._fnt)
-            .css('font-size', self._fntSz)
+            //.css('font-size', self._fntSz)
+            .css('font-size', '1.14em')
             .css('margin', 0)
-            .css('background', boxBg);
+            .css('background-color', self._boxBg);
 
         self._editDiv =
             $('<div>')            
@@ -163,7 +171,7 @@ $('<div>')
               $('<ul>'
               +'  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>'
               +'  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>'
-              +'  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>'
+              +'  <li style="background:'+self._boxBg+'"><a href="#tabbox">Box</a></li>'
               +'</ul>')
             )
             .append(
@@ -178,6 +186,7 @@ $('<div>')
             )
             .append(
               $('<div>')
+              .css('background-color', self._boxBg)
               .attr('id','tabbox')
               .append(self._boxDiv)
             )
@@ -259,19 +268,19 @@ $('<div>')
             .css('bottom', '0')
             .css('overflow', 'hidden');
 
-        self._footerWidth = self._addBtngrpToDiv(self._toolsBtns, self._footerDiv);
+        self._footerWidth = self._addBtngrpToDiv(self._footerDiv);
     },
 
-    _addBtngrpToDiv: function(_toolsBtns, _toolDiv) {
+    _addBtngrpToDiv: function(_toolDiv) {
         var self = this;
 
-        for(btnTxt in _toolsBtns) {
-            var elm = _toolsBtns[btnTxt];
+        for(btnTxt in self._toolsBtns) {
+            var elm = self._toolsBtns[btnTxt];
 
             var toolElmFn = function(e) {
                 var self = e.data;
                 var _btnTxt = $(this).text();
-                var fName = _toolsBtns[_btnTxt].clk;
+                var fName = self._toolsBtns[_btnTxt].clk;
                 var f = $.proxy(self[fName], self);
                 if($.isFunction(f))
                     f();
@@ -283,13 +292,26 @@ $('<div>')
 // TODO jQ 1.9 deprecated $.browser find work around
 //            if($.browser.msie) inph -= 2;
 
-            $('<button>')
-                .text(btnTxt)
-                .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
-                .css('height', this.options.toolBarHeight+'px')
-                .click(self, toolElmFn)
-                .appendTo(_toolDiv);
+            if (self._toolsBtns[btnTxt].typ === 'btn')
+                $('<button>')
+                    .text(btnTxt)
+                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .css('height', this.options.toolBarHeight+'px')
+                    .click(self, toolElmFn)
+                    .appendTo(_toolDiv);
+            else if (self._toolsBtns[btnTxt].typ === 'sel' && self._history.length > 0) {
+                var sel = $('<select>')
+                   .width(100)
+                   .css('margin', '0px 0px 0px 4px')
+                   .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
+                   .button()
+                   .css('height', this.options.toolBarHeight+'px')
+                   .appendTo(_toolDiv);
+                for(var i = 0; i < self._history.length; ++i)
+                    sel.append($('<option>').text(self._history[i]));
+            }
         }
+        
         _toolDiv
             .buttonset()
             .css('height', (self.options.toolBarHeight)+'px');
@@ -320,6 +342,8 @@ $('<div>')
     },
     _toolBarTblTailOnly: function() {
         this._loadTable('...');
+    },
+    _toolBarChangeSql: function() {
     },
 
     _loadTable: function(button) {
@@ -356,7 +380,7 @@ $('<div>')
         if(_parsed.hasOwnProperty('sqlbox')) {
             this._boxJson = _parsed.sqlbox;
             this._boxDiv.html('');
-            this._boxing(this._boxJson).div.appendTo(this._boxDiv);
+            this._boxing(this._boxJson, this._boxDiv.width()).div.appendTo(this._boxDiv);
         }
         if(_parsed.hasOwnProperty('pretty')) {
             this._prettyTb.text(_parsed.pretty);
@@ -368,64 +392,80 @@ $('<div>')
         }
     },
 
-    _leaf_box: function (nametxt, alltxt, children) {
+    _leaf_box: function (collapsed, nametxt, alltxt, children, maxwidth) {
+        var bx = $('<div>')
+            .addClass('boxParent')
+            .width(maxwidth);
         var edit = $('<textarea>')
             .addClass('boxEdit')
-            .attr('rows', 1)
+            .width(maxwidth)
+            .attr('rows', 2)
             .val(alltxt);
-    
         nametxt = (nametxt.length === 0 ? "" : nametxt);
         var name = $('<span>')
             .addClass('boxName')
             .text(nametxt);
     
-        var childrendiv = $('<div>')
-            .addClass('boxChildren');
+        bx.append(edit)
+        bx.append(name);
+
+        var childrendiv = null;
+        if(children.length > 0) {
+            childrendiv = $('<div>')
+                .width(maxwidth)
+                .addClass('boxChildren');
+            bx.append(childrendiv);
+        }
     
         for(var i = 0; i < children.length; ++i)
             childrendiv.append(children[i]);
     
-        edit.click(function(e) {
+        edit.dblclick(function(e) {
             e.preventDefault();
             e.stopPropagation();
             edit.css('display','none');
             name.css('display','inline');
-            childrendiv.css('display','inline');
+            if(childrendiv) childrendiv.css('display','inline');
         });
-    
-        var bx = $('<div>')
-            .addClass('boxParent')
-            .append(edit)
-            .append(name)
-            .append(childrendiv);
     
         var dblClkFn = function(e) {
             e.preventDefault();
             e.stopPropagation();
             edit.css('display','inline');
             name.css('display','none');
-            childrendiv.css('display','none');
+            if(childrendiv) childrendiv.css('display','none');
         };
     
+        if (collapsed) {
+            edit.css('display','inline');
+            name.css('display','none');
+            if(childrendiv) childrendiv.css('display','none');
+        }
+
         if (nametxt.length === 0)
-            bx.click(dblClkFn);
+            bx.dblclick(dblClkFn);
         else
-            name.click(dblClkFn);
+            name.dblclick(dblClkFn);
     
         return bx;
     },
     
-    _boxing: function(box) {
+    _boxing: function(box, maxwidth) {
         var children = new Array();
         var alltext = box.name;
+        var allChildCollapsed = true;
         if(box.children.length > 0)
             for (var i = 0; i<box.children.length; ++i) {
-                Res = this._boxing(box.children[i]);
+                Res = this._boxing(box.children[i], maxwidth-20);
                 children.push(Res.div);
                 alltext += (' ' + Res.text);
+                if (!box.children[i].collapsed) allChildCollapsed = false;
             }
         console.log(alltext);
-        return {div : this._leaf_box(box.name, alltext, children),
+        var collapsed = box.collapsed;
+        if(allChildCollapsed && box.name.length === 0)
+            collapsed = true;
+        return {div : this._leaf_box(collapsed, box.name, alltext, children, maxwidth-20),
                 text: alltext};
     },
 

@@ -243,3 +243,27 @@ if (window.console && window.console.log && window.console.error) {
   window['console'] = {log: function(){ }, error: function(){ }};
   console.log('dummy console is created');
 }
+
+// adding new formattier to slickgrid
+(function ($) {
+  // register namespace
+  $.extend(true, window, {
+    "Slick": {
+      "Formatters": {
+        "Checkmark": CheckmarkFormatter,
+        "AscDescSelect": AscDescSelectFormatter,
+      }
+    }
+  });
+
+  function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
+    return "<img src='./static/media/cross.png'>";
+  }
+
+  function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
+    return '<SELECT><OPTION value="true" '+ (value ? 'selected' : '') +'>ASC</OPTION>'+
+                   '<OPTION value="false" '+(!value ? 'selected' : '')+'>DESC</OPTION></SELECT>';
+  }
+
+})(jQuery);
+
