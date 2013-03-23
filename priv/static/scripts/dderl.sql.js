@@ -55,9 +55,6 @@ $('<div>')
         width           : 500,
         minHeight       : 50,
         minWidth        : 100,
-        position        : { at        : 'left top',
-                            my        : 'left top+21',
-                            collision : 'flipfit' },
         resizable       : true,
         modal           : false,
         title           : "_Set TITLE here_",
@@ -499,7 +496,10 @@ $('<div>')
     },
  
     // translations to default dialog behavior
-    open: function() { this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body"); },
+    open: function() {
+        this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+        this._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
+    },
     close: function() { this._dlg.dialog("close"); },
     destroy: function() { this._dlg.dialog("destroy"); },
 

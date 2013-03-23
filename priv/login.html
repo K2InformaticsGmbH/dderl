@@ -29,13 +29,13 @@
         		</ul>
             </li>
         </ul>
-        <div style="float:right;">
-            <a id="login-button" href="#" onclick='display_login()'></a>
-            <span id="server-time"></span>
-        </div>
 	</div>
     <div id="main-body">
 	</div>
+    <div id="main_footer">
+        <a id="login-button" href="#" onclick='display_login()'></a>
+        <span id="server-time"></span>
+    </div>
 
     <script src="../static/scripts/jquery.min.js"></script>
 	<script src="../static/scripts/jquery-ui.min.js"></script>
@@ -84,7 +84,7 @@
                 alert_jq("Dinosours are extinct. Upgrade!");
             }
 
-            $('#main-body').css('top', $('#main-menu-bar').height()+1);
+            $('#main-body').css('top', $('#main-menu-bar').height());
             //beep(); // beep test
         });
     </script>

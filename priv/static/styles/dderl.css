@@ -304,10 +304,20 @@ input.editor-text {
     font-weight: bold;
 }
 
-div#main-body{
+div#main-body {
     position:absolute;
     left: 0px;
     right: 0px;
     bottom: 21px;
-    background:lightblue
+    background:#F0F0FF
+}
+
+div#main_footer {
+    font-family: 'Droid Sans Mono', sans-serif;
+    font-size: 11px; 
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    background:#F0FFF0
 }

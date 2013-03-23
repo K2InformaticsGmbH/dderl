@@ -57,8 +57,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     if (adapter != null) headers['adapter'] = adapter;
     headers['dderl_sess'] = (session != null ? ''+session : '');
     if (null != self) {
-        headers['dderl_sess'] = self._session;
-        headers['adapter'] = self._adapter;
+        if(self.hasOwnProperty('_session')) headers['dderl_sess'] = self._session;
+        if(self.hasOwnProperty('_adapter')) headers['adapter'] = self._adapter;
     }
 
     $.ajax({
