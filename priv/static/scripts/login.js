@@ -36,7 +36,8 @@ function display_login()
             $(this).remove();
         }
     })
-    .dialog("open");
+    .dialog("open")
+    .dialog("widget").draggable("option","containment","#main-body");
 
     $("#password_login").keypress(function(e) {
         if(e.which == 13) {

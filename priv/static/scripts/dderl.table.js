@@ -134,9 +134,6 @@
         width             : 500,
         minHeight         : 50,
         minWidth          : 100,
-        position          : { at        : 'left top',
-                              my        : 'left top+21',
-                              collision : 'flipfit' },
         resizable         : true,
         modal             : false,
         title             : "_Set TITLE here_",
@@ -1165,6 +1162,9 @@
                 });
             title.append( this.options.title );
         };
+
+        self._dlg.dialog("widget").draggable("option","containment","#main-body");
+        self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
 
         // converting the title text to a link
         self._dlg.dialog('option', 'title', $('<a href="#">'+self.options.title+'</a>'));

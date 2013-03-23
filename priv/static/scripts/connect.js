@@ -200,7 +200,9 @@ function connect_dlg()
             }
         }
     })
-    .dialog('open');
+    .dialog('open')
+    .dialog("widget").draggable("option","containment","#main-body");
+
     $('#con_tns').hide();
     $('#con_othrs').show();
 

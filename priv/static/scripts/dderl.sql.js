@@ -499,7 +499,7 @@ $('<div>')
     },
  
     // translations to default dialog behavior
-    open: function() { this._dlg.dialog("open"); },
+    open: function() { this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body"); },
     close: function() { this._dlg.dialog("close"); },
     destroy: function() { this._dlg.dialog("destroy"); },
 

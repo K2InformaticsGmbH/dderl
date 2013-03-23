@@ -303,3 +303,11 @@ input.editor-text {
     color: #222222/*{fcHeader}*/;
     font-weight: bold;
 }
+
+div#main-body{
+    position:absolute;
+    left: 0px;
+    right: 0px;
+    bottom: 21px;
+    background:lightblue
+}
