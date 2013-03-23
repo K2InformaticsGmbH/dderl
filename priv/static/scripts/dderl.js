@@ -224,14 +224,20 @@ function save_as_table()
     }).dialog("open");
 }
 
+var _beep = null
 function beep()
 {
-    if(!document.hasOwnProperty('dderlbeep')) {
-        document['dderlbeep'] = new Audio();
-        document.dderlbeep.src = './static/media/success.mp3';
+    if(_beep === null) {
+        var aud = $('<audio>')
+            .append($('<source>')
+                    .attr('src', './static/media/success.mp3')
+                    .attr('type', 'audio/mpeg'))
+            .hide()
+            .appendTo(document.body);
+        _beep = aud.get(0);
     }
-    document.dderlbeep.load();
-    document.dderlbeep.play();
+    _beep.load();
+    _beep.play();
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
