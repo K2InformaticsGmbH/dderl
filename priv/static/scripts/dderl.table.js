@@ -1259,7 +1259,7 @@
 
         var insertJson = {insert_data: {connection  : this._conn,
                                         statement   : this._stmt,
-                                        col         : args.column.id,
+                                        col         : args.grid.getColumnIndex(args.column.id),
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
         this['__insertingRow'] = args.item;

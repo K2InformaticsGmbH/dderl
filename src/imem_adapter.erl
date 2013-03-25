@@ -201,9 +201,9 @@ process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
 process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ClmName = binary_to_list(proplists:get_value(<<"col">>, BodyJson, <<>>)),
+    ClmIdx = proplists:get_value(<<"col">>, BodyJson, <<>>),
     Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
-    Statement:gui_req(update, [{undefined,ins,[{ClmName,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
+    Statement:gui_req(update, [{undefined,ins,[{ClmIdx,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
     Priv;
 
 % unsupported gui actions
