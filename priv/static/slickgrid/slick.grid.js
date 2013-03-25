@@ -1075,7 +1075,7 @@ if (typeof Slick === "undefined") {
           if (!hash[j]) {  // prevent duplicates
             selectedRows.push(j);
           }
-          hash[j] = {};
+          if(hash[j] === undefined) hash[j] = {};
           for (var k = ranges[i].fromCell; k <= ranges[i].toCell; k++) {
             if (canCellBeSelected(j, k)) {
               hash[j][columns[k].id] = options.selectedCellCssClass;
