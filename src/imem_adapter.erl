@@ -195,8 +195,10 @@ process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
 process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
-    Statement:gui_req(update, [{RowId,del,[]}], gui_resp_cb_fun(<<"delete_row">>, Statement, From)),
+    RowIds = proplists:get_value(<<"rowid">>, BodyJson, []),
+    DelSpec = [{RowId,del,[]} || RowId<- RowIds],
+    ?Info("delete ~p", [DelSpec]),
+    Statement:gui_req(update, DelSpec, gui_resp_cb_fun(<<"delete_row">>, Statement, From)),
     Priv;
 process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
@@ -223,7 +225,7 @@ gui_resp_cb_fun(Cmd, Statement, From) ->
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
-    [{binary_to_integer(C), if T -> 'asc'; true -> 'desc' end}|sort_json_to_term(Sorts)].
+    [{binary_to_integer(C), if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
 
 filter_json_to_term([{<<"and">>,Filters}]) -> {'and', filter_json_to_term(Filters)};
 filter_json_to_term([{<<"or">>,Filters}]) -> {'or', filter_json_to_term(Filters)};
