@@ -708,12 +708,12 @@
         else {
             var cell    = _ranges[0];
             var column  = self._grid.getColumns()[cell.fromCell];
-            var data    = self._gdata[cell.fromRow][column.field];
-            // console.log('browse_data @ '+column.name+' val '+data);
+            var data    = self._gdata[cell.fromRow];
+            // console.log('browse_data @ '+column.name+' val '+JSON.stringify(data));
             ajaxCall(this, '/app/browse_data',
                            { browse_data: {connection : this._conn,
                                             statement : this._stmt,
-                                                  row : cell.fromRow,
+                                                  row : data.id, //cell.fromRow,
                                                   col : cell.fromCell}},
                            'browse_data', 'browseData');
         }
