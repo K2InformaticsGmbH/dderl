@@ -18,21 +18,6 @@
 
 #tabbox { overflow:auto; }
 
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-::-webkit-scrollbar-button {
-    background: #ccc;
-    display: none;
-}
-::-webkit-scrollbar-track-piece {
-    background: #efefef
-}
-::-webkit-scrollbar-thumb {
-    background: #888
-}
-
 .ui-tabs .ui-tabs-nav li {
     margin: 0 0 0 0;
 }

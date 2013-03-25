@@ -210,8 +210,15 @@
         }
 
         // slickgrid container
-        self._tableDiv =
-            $('<div id="id_for_slickgrid_'+getUniqueTime()+'">') // dummy id (required by slickgrid) not used anywere else
+        self._tableDiv = $('<div>')
+            .css('position', 'absolute')
+            .css('top', '0')
+            .css('left', '0')
+            .css('right', '0')
+            .css('bottom', self.options.toolBarHeight+'px')
+            .css('border-style', 'solid')
+            .css('border-width', '1px')
+            .css('border-color', 'lightblue')
             .appendTo(self.element);
 
         // toolbar container
@@ -381,9 +388,7 @@
             .css('width', 500)
             .appendTo(document.body);
 
-        var sortDivId = 'sort_'+self._tableDiv.attr('id');
-        $('<div>')
-            .attr('id', sortDivId) // dummy id (required by slickgrid) not used anywere else
+        var sortDiv = $('<div>')
             .css('position', 'absolute')
             .css('top', 0)
             .css('left', 0)
@@ -395,7 +400,7 @@
             .appendTo(sortDlg);
 
         // building slickgrid
-        var sgrid = new Slick.Grid('#'+sortDivId
+        var sgrid = new Slick.Grid(sortDiv
                 , data
                 , [ // columns
                       {
@@ -717,19 +722,8 @@
     _createSlickGrid: function() {
         var self = this;
 
-        // the slickgrid table
-        self._tableDiv
-            .css('position', 'absolute')
-            .css('top', '0')
-            .css('left', '0')
-            .css('right', '0')
-            .css('bottom', self.options.toolBarHeight+'px')
-            .css('border-style', 'solid')
-            .css('border-width', '1px')
-            .css('border-color', 'lightblue');
-
         // building slickgrid
-        self._grid = new Slick.Grid('#'+self._tableDiv.attr('id'), [], [], self.options.slickopts);
+        self._grid = new Slick.Grid(self._tableDiv, [], [], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
         self._grid.registerPlugin(new Slick.CellExternalCopyManager());
 
@@ -740,7 +734,7 @@
         self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
         self._grid.onScroll.subscribe(function(e, args) {
             var vp = args.grid.getViewport();
-            console.log('viewed '+JSON.stringify(vp));
+            //console.log('viewed '+JSON.stringify(vp));
         });
 
         self._gdata = self._grid.getData();
@@ -933,21 +927,10 @@
         }
     },
     _checkInsertResult: function(_insert) {
-        if(isNaN(parseInt(_insert)) || !this.hasOwnProperty('__insertingRow')) {
-            if(_insert.hasOwnProperty('error'))
-                alert_jq('insert failed!\n'+_insert.error);
-        } else {
-            console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
-        }
+        console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
     },
     _checkDeleteResult: function(_delete) {
         console.log('delete check '+_delete);
-        // if(isNaN(parseInt(_insert)) || !this.hasOwnProperty('__insertingRow')) {
-        //     if(_insert.hasOwnProperty('error'))
-        //         alert_jq('insert failed!\n'+_insert.error);
-        // } else {
-        //     console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
-        // }
     },
     _checkCommitResult: function(_commit) {
         if(_commit === "ok")
@@ -968,27 +951,11 @@
             alert_jq('failed to save view!\n'+_saveView.error);
     },
     _insertResult: function(_insert) {
-        if(!isNaN(parseInt(_insert)) && this.hasOwnProperty('__insertingRow')) {
-            var item = this.__insertingRow;
-            item['id'] = parseInt(_insert);
-            this._grid.invalidateRow(this._gdata.length);
-            this._gdata.push(item);
-            this._grid.updateRowCount();
-            this._grid.render();
-            console.log('[AJAX] inserted data '+JSON.stringify(item));
-        }
+        this.appendRows(_insert);
     },
     _deleteResult: function(_delete) {
-        console.log('deleted '+_delete);
-        // if(!isNaN(parseInt(_insert)) && this.hasOwnProperty('__insertingRow')) {
-        //     var item = this.__insertingRow;
-        //     item['id'] = parseInt(_insert);
-        //     this._grid.invalidateRow(this._gdata.length);
-        //     this._gdata.push(item);
-        //     this._grid.updateRowCount();
-        //     this._grid.render();
-        //     console.log('[AJAX] inserted data '+JSON.stringify(item));
-        // }
+        this.appendRows(_delete);
+        console.log('deleted '+JSON.stringify(_delete));
     },
     _filterResult: function(_filter) {
         if(_filter.hasOwnProperty('error')) {
@@ -1164,7 +1131,8 @@
         };
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
-        self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
+        if(self.options.position.length === undefined)
+            self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
 
         // converting the title text to a link
         self._dlg.dialog('option', 'title', $('<a href="#">'+self.options.title+'</a>'));
@@ -1250,9 +1218,24 @@
                                          rowid       : parseInt(modifiedRow.id),
                                          cellid      : args.cell,
                                          value       : modifiedRow[cols[args.cell].field]}};
+        ajaxCall(this, '/app/update_data', updateJson, 'update_data', 'updateData');
         console.log('changed '+JSON.stringify(updateJson));
 
-        ajaxCall(this, '/app/update_data', updateJson, 'update_data', 'updateData');
+        // Update all rows from the selected range
+        var updStyle = new Object();
+        var selRanges = this._grid.getSelectionModel().getSelectedRanges();
+        var cols = this._grid.getColumns();
+        for(var i=0; i < selRanges.length; ++i)
+            for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
+                this._gdata[ri].op = 'upd';
+                for (var j=0;j<this._gdata.length; ++j)
+                    if(this._gdata[j].op === 'upd') {
+                        updStyle[j] = new Object();
+                        for (var _i=0; _i<cols.length; ++_i)
+                            updStyle[j][cols[_i].id] = 'slick-cell-upd';
+                    }
+                this._grid.setCellCssStyles('update', updStyle);
+            }
     },
     _gridAddNewRow: function(e, args) {
         e.stopPropagation();
@@ -1262,19 +1245,40 @@
                                         col         : args.grid.getColumnIndex(args.column.id),
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
-        this['__insertingRow'] = args.item;
         ajaxCall(this, '/app/insert_data', insertJson, 'insert_data', 'insertData');
     },
     _delRow: function(e, args) {
         e.stopPropagation();
-        if(e.keyCode == 46) { // Delete
+        if(e.keyCode == 46) {
+            // Delete all rows from the selected range
+            var selRanges = this._grid.getSelectionModel().getSelectedRanges();
+            var cols = this._grid.getColumns();
+            var rids = [];
+            for(var i=0; i < selRanges.length; ++i)
+                for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
+                    if(this._gdata[ri].op !== 'ins') {
+                        this._gdata[ri].op = 'del';
+                        var delStyle = new Object();
+                        for (var j=0;j<this._gdata.length; ++j)
+                            if(this._gdata[j].op === 'del') {
+                                delStyle[j] = new Object();
+                                for (var _i=0; _i<cols.length; ++_i)
+                                    delStyle[j][cols[_i].id] = 'slick-cell-del';
+                            }
+                        this._grid.setCellCssStyles('delete', delStyle);
+                    } else {
+                        this._gdata.splice(ri, 1);
+                    }
+                    rids.push(this._gdata[ri].id);
+                }
+
             // Delete args.row
             var deleteJson = {delete_row: {statement : this._stmt,
-                                          rowid      : args.row + 1}};
+                                           rowids    : rids}};
             ajaxCall(this, '/app/delete_row', deleteJson, 'delete_row', 'deleteData');
-            this._gdata.splice(args.row, 1);
-            this._grid.setData(this._gdata);
-            this._grid.render();
+
+            this._grid.updateRowCount();
+            this._grid.invalidate();
         }
     },
 
@@ -1442,6 +1446,12 @@
                 break;
             case "clr": // delete all rows
                 self._gdata.splice(0, self._gdata.length);
+                redraw = true;
+                break;
+            case "ins": // no operation
+                console.log('ins');
+                for(var i=0; i<_rows.rows.length; ++i)
+                    self._gdata.push(_rows.rows[i]);
                 redraw = true;
                 break;
             case "nop": // no operation

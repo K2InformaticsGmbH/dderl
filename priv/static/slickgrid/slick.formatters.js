@@ -11,7 +11,8 @@
       "Formatters": {
         "PercentComplete": PercentCompleteFormatter,
         "PercentCompleteBar": PercentCompleteBarFormatter,
-        "YesNo": YesNoFormatter
+        "YesNo": YesNoFormatter,
+        "Checkmark": CheckmarkFormatter
       }
     }
   });
@@ -46,5 +47,9 @@
 
   function YesNoFormatter(row, cell, value, columnDef, dataContext) {
     return value ? "Yes" : "No";
+  }
+
+  function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
+    return value ? "<img src='../images/tick.png'>" : "";
   }
 })(jQuery);

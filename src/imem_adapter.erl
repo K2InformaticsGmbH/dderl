@@ -195,9 +195,9 @@ process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
 process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    RowIds = proplists:get_value(<<"rowid">>, BodyJson, []),
-    DelSpec = [{RowId,del,[]} || RowId<- RowIds],
-    ?Info("delete ~p", [DelSpec]),
+    RowIds = proplists:get_value(<<"rowids">>, BodyJson, []),
+    DelSpec = [{RowId,del,[]} || RowId <- RowIds],
+    ?Debug("delete ~p ~p", [RowIds, DelSpec]),
     Statement:gui_req(update, DelSpec, gui_resp_cb_fun(<<"delete_row">>, Statement, From)),
     Priv;
 process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->

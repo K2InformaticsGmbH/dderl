@@ -250,6 +250,7 @@ input.editor-text {
   padding: 1px;
 }
 
+/*
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -264,6 +265,7 @@ input.editor-text {
 ::-webkit-scrollbar-thumb {
     background: #888
 }
+*/
 
 /* SQL Box styles */
 .boxEdit {
@@ -320,4 +322,13 @@ div#main_footer {
     right:0;
     bottom:0;
     background:#F0FFF0
+}
+
+.slick-cell-del {
+    text-decoration:line-through;
+    color: red;
+}
+
+.slick-cell-upd {
+    color: red;
 }
