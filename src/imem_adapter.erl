@@ -227,6 +227,7 @@ sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
     [{binary_to_integer(C), if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
 
+filter_json_to_term([{<<"undefined">>,[]}]) -> {'undefined', []};
 filter_json_to_term([{<<"and">>,Filters}]) -> {'and', filter_json_to_term(Filters)};
 filter_json_to_term([{<<"or">>,Filters}]) -> {'or', filter_json_to_term(Filters)};
 filter_json_to_term([]) -> [];

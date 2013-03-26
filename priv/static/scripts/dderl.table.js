@@ -691,7 +691,7 @@
             self._showFilterGui();
         else {
             self._filters = null;
-            ajaxCall(self, '/app/filter', {filter: {spec: {and:[]}, statement: self._stmt}}, 'filter', 'filterResult');
+            ajaxCall(self, '/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
         }
     },
     _filter: function(_ranges) {
