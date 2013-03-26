@@ -162,7 +162,7 @@
                               enableCellNavigation: true,
                               asyncEditorLoading: false,
                               autoEdit: false,
-                              zIndex: 1300,
+                              //zIndex: 1300,
                               rowHeight: 20
                             },
 
@@ -871,7 +871,8 @@
         var self = this;
 
         // building slickgrid
-        self._grid = new Slick.Grid(self._tableDiv, [], [], self.options.slickopts);
+        // a dummy column needed to be added to enable slickgrid to enable column re-order
+        self._grid = new Slick.Grid(self._tableDiv, [], [{id: "_"}], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
         self._grid.registerPlugin(new Slick.CellExternalCopyManager());
 
@@ -1542,6 +1543,8 @@
         var self = this;
         var redraw = false;
         var c = self._grid.getColumns();
+        if (self.hasOwnProperty('_origcolumns') && self._origcolumns.length > 0)
+            c = self._origcolumns;
         var firstChunk = (self._gdata.length === 0);
 
         // system actions (beep and others)
