@@ -1332,6 +1332,9 @@
     _gridHeaderContextMenu: function(e, args) {
         e.preventDefault();
 
+        // right click on non-column zone
+        if(args.column === undefined) return;
+
         var g           = args.grid;
         var col         = g.getColumnIndex(args.column.id);
         var gSelMdl     = g.getSelectionModel();
@@ -1587,10 +1590,10 @@
         if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))
             self._cmdStrs.push(_rows.sql);
 
-        if (firstChunk && _rows.hasOwnProperty('max_width_vec')) {
+        if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec)) {
             var fieldWidth = 0;
-            for(var i=0;i<_rows.max_width_vec.length; ++i) {
-                fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
+            for(var i=0;i<c.length; ++i) {
+                fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
                 fieldWidth = fieldWidth + 0.4 * fieldWidth;
                 if(c[i].width < fieldWidth) {
                     c[i].width = fieldWidth;
@@ -1598,6 +1601,15 @@
                         c[i].width = self._MAX_ROW_WIDTH;
                 }
             }
+            /* for(var i=0;i<_rows.max_width_vec.length; ++i) {
+                fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
+                fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                if(c[i].width < fieldWidth) {
+                    c[i].width = fieldWidth;
+                    if (c[i].width > self._MAX_ROW_WIDTH)
+                        c[i].width = self._MAX_ROW_WIDTH;
+                }
+            }*/
             self._grid.setColumns(c);
             redraw = true;
         }

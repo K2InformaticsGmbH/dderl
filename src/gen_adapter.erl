@@ -100,7 +100,7 @@ col2json([C|Cols], JCols) ->
 
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
-    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
+    ?Debug("processing resp ~p cols ~p jcols ~p max ~p", [Gres, Columns, JCols]),
     % refer to erlimem/src/gres.hrl for the descriptions of the record fields
     [{<<"op">>,         Gres#gres.operation}
     ,{<<"cnt">>,        Gres#gres.cnt}
@@ -115,15 +115,14 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"sql">>,        Gres#gres.sql}
     ,{<<"disable">>,    Gres#gres.disable}
     ,{<<"promote">>,    Gres#gres.promote}
-    ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
+    ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
-    widest_cell_per_clm(Rows, lists:duplicate(length(R)-1, "")).
-widest_cell_per_clm([],V) -> [list_to_binary(Ve) || Ve <- V];
-widest_cell_per_clm([[I,_|Rest]|Rows],V) -> % the op field is buffer local
-    R = [I|Rest],
+    widest_cell_per_clm(Rows, lists:duplicate(length(R), "")).
+widest_cell_per_clm([],V) -> V;
+widest_cell_per_clm([R|Rows],V) ->
     NewV = 
     [case {Re, Ve} of
         {Re, Ve} ->
@@ -141,6 +140,7 @@ widest_cell_per_clm([[I,_|Rest]|Rows],V) -> % the op field is buffer local
 
 r2jsn(Rows, JCols) -> r2jsn(Rows, JCols, []).
 r2jsn([], _, NewRows) -> lists:reverse(NewRows);
+r2jsn([[]], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([Row|Rows], JCols, NewRows) ->
     ?Debug("converting ~p to ~p", [Row, JCols]),
     r2jsn(Rows, JCols, [
