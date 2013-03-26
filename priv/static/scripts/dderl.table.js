@@ -23,7 +23,6 @@
     _clmlay         : null,
     _tbllay         : null,
 
-    _rows_cache_max : null,
     _fetchIsDone    : false,
     _fetchIsTail    : false,
     _fetchIsPush    : false,
@@ -124,7 +123,7 @@
     _slkHdrCnxtMnu  : {'Browse Data'    : '_browseHeaderData',
                        'Hide'           : '_hide',
                        'UnHide'         : '_unhide',
-                       'Filer...'       : '_filterColumn',
+                       'Filter...'      : '_filterColumn',
                        'Filter Clear'   : '_filterClear',
                        'Sort...'        : '_sort',
                        'Sort ASC'       : '_sortAsc',
@@ -403,7 +402,7 @@
         var self = this;
         if(self._sorts === null)
             self._sorts = new Object();
-        var cols = this._grid.getColumns();
+        var cols = self._grid.getColumns();
         for (var i=0; i<_ranges.length; ++i)
             for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
                 if(cols[c].name.length > 0 && !self._sorts.hasOwnProperty(cols[c].name)) {
@@ -718,7 +717,17 @@
                 }
             }
         }
-        self._showFilterGui();
+        if(Object.keys(self._filters).length === 1) {
+            for(var c in self._filters) {
+                var strs = [];
+                for(s in self._filters[c].vals) strs.push(s);
+                self._filters[c].inp.val(strs.join('\n'));
+            }
+            var filterspec = self._filterSpec2Json('and');
+            ajaxCall(self, '/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+        }
+        else
+            self._showFilterGui();
     },
     _showFilterGui: function() {
         var self = this;
@@ -775,24 +784,7 @@
             });
 
         var applyFiltersFn = function(type) {
-            var filterspec = new Object();
-            filterspec[type] = new Array();
-            for(var c in self._filters) {
-                var _vStrings = self._filters[c].inp.val().split('\n');
-                if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
-                var vStrings = new Array();
-                self._filters[c].vals = new Object();
-                for (var i=0; i<_vStrings.length; ++i) {
-                    vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
-                    self._filters[c].vals[_vStrings[i]] = true;
-                }
-                var fltr = new Object();
-                fltr[self._filters[c].id] = vStrings;
-                if(vStrings.length > 0) {
-                    filterspec[type].push(fltr);
-                }
-                else delete self._filters[c];
-            }
+            var filterspec = self._filterSpec2Json(type);
             ajaxCall(self, '/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
             $(this).dialog('close');
             $(this).remove();
@@ -817,6 +809,32 @@
             self._filters[c].inp.width(dW);
             self._filters[c].inp.height(dH);
         }
+    },
+    _filterSpec2Json: function(type) {
+        var self = this;
+        var filterspec = new Object();
+        filterspec[type] = new Array();
+        for(var c in self._filters) {
+            var _vStrings = self._filters[c].inp.val().split('\n');
+            if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
+            var vStrings = new Array();
+            self._filters[c].vals = new Object();
+            for (var i=0; i<_vStrings.length; ++i) {
+                vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
+                self._filters[c].vals[_vStrings[i]] = true;
+            }
+            var fltr = new Object();
+            fltr[self._filters[c].id] = vStrings;
+            if(vStrings.length > 0) {
+                filterspec[type].push(fltr);
+            }
+            else delete self._filters[c];
+        }
+        if (filterspec[type].length === 0) {
+            delete filterspec[type];
+            filterspec['undefined'] = [];
+        }
+        return filterspec;
     },
     
     // browse_data actions
@@ -1017,15 +1035,8 @@
         // TODO sanity check the data _THROW_ if ERROR
     },
     _checkRows: function(_rows) {         
-        // TODO throw exception if any error
-        this._rows_cache_max = _rows.cnt;
-        this._tbTxtBox.val(this._rows_cache_max+' ');
-        var tbClass = (/tb_[^ ]+/g).exec(this._tbTxtBox.attr('class'));
-        for (var i = 0; i < tbClass.length; ++i)
-            this._tbTxtBox.removeClass(tbClass[i]);
-        this._tbTxtBox.addClass('tb_'+_rows.state);
         this._fetchIsDone = _rows.done;
-        console.log('[AJAX] ets buffer count : '+this._rows_cache_max+', fetch status : '+this._fetchIsDone);
+        console.log('[AJAX] ets buffer count : '+_rows.cnt+', fetch status : '+this._fetchIsDone);
     },
     _checkRespViews: function(_views) {
         // TODO throw exception if any error
@@ -1104,8 +1115,8 @@
         if(_views.hasOwnProperty('error'))
             alert_jq(_views.error);
         else {
-            if(_views.hasOwnProperty('sort_spec') && _views.sort_spec.length > 0) {
-                this._sort = _views.sort_spec;
+            if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
+                this._sorts = _views.sort_spec;
             }
             this.setColumns(_views.columns);
             this.buttonPress(this._startBtn);
@@ -1132,8 +1143,8 @@
             this._tbllay = _table.table_layout;
             if(_table.table_layout.length  === 0) this._tbllay = null;
         }
-        if(_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0) {
-            this._sort = _table.sort_spec;
+        if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
+            this._sorts = _table.sort_spec;
         }
         if(_table.hasOwnProperty('columns')) {
             this.setColumns(_table.columns);
@@ -1532,6 +1543,14 @@
         // system actions (beep and others)
         if(_rows.beep) beep();
         self._tbTxtBox.attr('title',_rows.toolTip);
+        self._tbTxtBox.val(_rows.cnt+' ');
+        var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
+        for (var i = 0; i < tbClass.length; ++i)
+            self._tbTxtBox.removeClass(tbClass[i]);
+        self._tbTxtBox.addClass('tb_'+_rows.state);
+        if(_rows.message.length > 0) alert_jq(_rows.message);
+        if(!$.isEmptyObject(_rows.disable)) console.log('disable buttons with tooltip '+JSON.stringify(_rows.disable));
+        if(!$.isEmptyObject(_rows.promote)) console.log('promote buttons with tooltip '+JSON.stringify(_rows.promote));
 
         // if new cmd is different from the last one append
         if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))

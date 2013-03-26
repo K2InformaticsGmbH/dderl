@@ -21,11 +21,23 @@ init() ->
                                  }),
     gen_adapter:add_cmds_views(imem, [
         { "All Tables"
-        , "select name(qname) from all_tables"
+        , "select name(qname) from all_tables order by qname"
         , remote},
         %{"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
         { "All Views"
-        , "select c.owner, v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = user or c.owner = system)"
+        , "select
+                c.owner,
+                v.name
+            from
+                ddView as v,
+                ddCmd as c
+            where
+                c.id = v.cmd
+                and c.adapters = \"[imem]\"
+                and (c.owner = user or c.owner = system)
+            order by
+                v.name,
+                c.owner"
         , local}
         %{"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)"}
         %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
@@ -264,7 +276,7 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
 build_srtspec_json(SortSpecs) ->
     [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
      , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
-       ,{<<"asc">>, if AscDesc =:= 'asc' -> true; true -> false end}]
+       ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
 build_column_json([], JCols) ->

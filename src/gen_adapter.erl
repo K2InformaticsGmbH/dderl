@@ -113,6 +113,8 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"keep">>,       Gres#gres.keep}
     ,{<<"focus">>,      Gres#gres.focus}
     ,{<<"sql">>,        Gres#gres.sql}
+    ,{<<"disable">>,    Gres#gres.disable}
+    ,{<<"promote">>,    Gres#gres.promote}
     ,{<<"max_width_vec">>, widest_cell_per_clm(Gres#gres.rows)}
     ].
 

@@ -83,7 +83,9 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             if(!this.hasOwnProperty('context'))
                 this.options.dderlSession = this._session = session;
 
-            if(_data.hasOwnProperty(_resphead)) {
+            if(!_data)
+                throw('null data received for the request '+_url);
+            else if(_data.hasOwnProperty(_resphead)) {
                 console.log('[AJAX] RX '+_resphead);
                 if(this.hasOwnProperty('context') && null == this.context) {
                     if(null === _successevt)
