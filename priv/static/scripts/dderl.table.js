@@ -122,7 +122,14 @@
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Browse Data'    : '_browseHeaderData',
-                       'Sort'           : '_sort'},
+                       'Hide'           : '_hide',
+                       'UnHide'         : '_unhide',
+                       'Filer...'       : '_filterColumn',
+                       'Filter Clear'   : '_filterClear',
+                       'Sort...'        : '_sort',
+                       'Sort ASC'       : '_sortAsc',
+                       'Sort DESC'      : '_sortDesc',
+                       'Sort Clear'     : '_sortClear'},
     _slkCellCnxtMnu : {'Browse Data'    : '_browseCellData',
                        'Filter'         : '_filter'},
 
@@ -259,19 +266,22 @@
                 .hide()
                 .mouseleave(function(e) { e.preventDefault(); $(this).hide(); })
                 .appendTo(document.body);
-            for(var m in this[_menu])
-                $('<li>')
-                    .attr("action", m)
-                    .click(function(e) {
-                        var self = $('#'+_menu).data('cnxt');
-                        if(undefined != self) {
-                            self[_menu].dom.hide();
-                            console.log('self title _cnxtMenu '+self.options.title);
-                            self._cnxtMenuAction(_menu, $(this).attr("action"));
-                        }
-                    })
-                    .text(m)
-                    .appendTo(mnu);
+            for(var m in this[_menu]) {
+                if($.type(this[_menu][m]) === "string") {
+                    $('<li>')
+                        .attr("action", m)
+                        .click(function(e) {
+                            var self = $('#'+_menu).data('cnxt');
+                            if(undefined != self) {
+                                self[_menu].dom.hide();
+                                console.log('self title _cnxtMenu '+self.options.title);
+                                self._cnxtMenuAction(_menu, $(this).attr("action"));
+                            }
+                        })
+                        .text(m)
+                        .appendTo(mnu);
+                }
+            }
             this[_menu].dom = mnu;
         }
     },
@@ -364,7 +374,31 @@
         //}
     },
 
-    // filter and sort actions
+    // columns hide/unhide
+    _hide: function(_ranges) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        self['_origcolumns'] = columns.slice(0);
+        var toHide = {};
+        for (var i=0; i<_ranges.length; ++i) {
+            toHide[_ranges[i].fromCell] = true;
+            toHide[_ranges[i].toCell] = true;
+        }
+        var toHideArray = [];
+        for(var j in toHide)
+            toHideArray[toHideArray.length] = parseInt(j);
+        toHideArray.sort(function(a,b) {return (a < b ? 1 : (a === b ? 0 : -1));});
+        for(var j=0; j<toHideArray.length; ++j)
+            columns.splice(toHideArray[j],1);
+        self._grid.setColumns(columns);
+    },
+    _unhide: function(_ranges) {
+        var self = this;
+        if(self.hasOwnProperty('_origcolumns'))
+            self._grid.setColumns(self._origcolumns);
+    },
+
+    // sorts
     _sort: function(_ranges) {
         var self = this;
         if(self._sorts === null)
@@ -378,7 +412,22 @@
                          asc : true
                         };
                 }
-
+        self._showSortGui();
+    },
+    _sortAsc: function(_ranges) {
+        var self = this;
+        self._showSortGui();
+    },
+    _sortDesc: function(_ranges) {
+        var self = this;
+        self._showSortGui();
+    },
+    _sortClear: function(_ranges) {
+        var self = this;
+        self._showSortGui();
+    },    
+    _showSortGui: function() {
+        var self = this;
         var data = new Array();
         for (var s in self._sorts)
             data.push({name: s, sort: (self._sorts[s].asc ? 'ASC' : 'DESC'), id: self._sorts[s].id});
@@ -567,6 +616,46 @@
 
     },
 
+    // filters
+    _filterColumn: function(_ranges) {
+        var self = this;
+        var cols = self._grid.getColumns();
+        if(self._filters === null)
+            self._filters = new Object();
+        for (var i=0; i<_ranges.length; ++i) {
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
+                if(cols[c].name.length > 0) {
+                    if(!self._filters.hasOwnProperty(cols[c].name)) {
+                        self._filters[cols[c].name] = {inp : $('<textarea>')
+                                                       .attr('type', "text")
+                                                       .css('margin', 0)
+                                                       .css('white-space','nowrap')
+                                                       .css('overflow','auto')
+                                                       .css('padding', 0),
+                                                 vals: new Object(),
+                                                 id: c};
+                    }
+                }
+            }
+        }
+        self._showFilterGui();
+    },
+    _filterClear: function(_ranges) {
+        var self = this;
+        if(self._filters) {
+            var cols = self._grid.getColumns();
+            for (var i=0; i<_ranges.length; ++i)
+                for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
+                    if(self._filters.hasOwnProperty(cols[c].name))
+                        delete self._filters[cols[c].name];
+        }
+        if(self._filters && !$.isEmptyObject(self._filters))
+            self._showFilterGui();
+        else {
+            self._filters = null;
+            ajaxCall(self, '/app/filter', {filter: {spec: [], statement: self._stmt}}, 'filter', 'filterResult');
+        }
+    },
     _filter: function(_ranges) {
         var self = this;
         if(self._filters === null)
@@ -591,7 +680,10 @@
                 }
             }
         }
-
+        self._showFilterGui();
+    },
+    _showFilterGui: function() {
+        var self = this;
         // number of current filters
         var fCount = 0;
         for (var c in self._filters)
@@ -688,7 +780,7 @@
             self._filters[c].inp.height(dH);
         }
     },
-
+    
     // browse_data actions
     _browseCellData: function(_ranges) {
         var self = this;
