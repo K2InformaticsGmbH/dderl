@@ -416,16 +416,50 @@
     },
     _sortAsc: function(_ranges) {
         var self = this;
-        self._showSortGui();
+        if(self._sorts === null)
+            self._sorts = new Object();
+        var cols = this._grid.getColumns();
+        for (var i=0; i<_ranges.length; ++i)
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
+                if(cols[c].name.length > 0)
+                    self._sorts[cols[c].name] = {id : c, asc : true};
+        if(Object.keys(self._sorts).length === 1) {
+            ajaxCall(self, '/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+        } else {
+            self._showSortGui();
+        }
     },
     _sortDesc: function(_ranges) {
         var self = this;
-        self._showSortGui();
+        if(self._sorts === null)
+            self._sorts = new Object();
+        var cols = this._grid.getColumns();
+        for (var i=0; i<_ranges.length; ++i)
+            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
+                if(cols[c].name.length > 0)
+                    self._sorts[cols[c].name] = {id : c, asc : false};
+        if(Object.keys(self._sorts).length === 1) {
+            ajaxCall(self, '/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+        } else {
+            self._showSortGui();
+        }
     },
     _sortClear: function(_ranges) {
         var self = this;
-        self._showSortGui();
-    },    
+        if(self._sorts && !$.isEmptyObject(self._sorts)) {
+            var cols = this._grid.getColumns();
+            for (var i=0; i<_ranges.length; ++i)
+                for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
+                    if(cols[c].name.length > 0 && self._sorts.hasOwnProperty(cols[c].name))
+                        delete self._sorts[cols[c].name];
+        }
+        if(self._sorts && !$.isEmptyObject(self._sorts))
+            self._showSortGui();
+        else {
+            self._sorts = null;
+            ajaxCall(self, '/app/sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
+        }
+    },
     _showSortGui: function() {
         var self = this;
         var data = new Array();
@@ -575,13 +609,7 @@
                 self._sorts[sd[i].name] = { id : sd[i].id,
                                            asc : (sd[i].sort === 'ASC' ? true : false) };
             }
-            var sortspec = new Array();
-            for (var s in self._sorts) {
-                var t = new Object();
-                t[self._sorts[s].id] = self._sorts[s].asc;
-                sortspec.push(t);
-            }
-            return sortspec;
+            return self._sortSpec2Json();
         }
         
         sortDlg
@@ -615,7 +643,16 @@
             });
 
     },
-
+    _sortSpec2Json: function() {
+        var sortspec = new Array();
+        for (var s in self._sorts) {
+            var t = new Object();
+            t[self._sorts[s].id] = self._sorts[s].asc;
+            sortspec.push(t);
+        }
+        return sortspec;
+    },
+    
     // filters
     _filterColumn: function(_ranges) {
         var self = this;
