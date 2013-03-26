@@ -147,7 +147,7 @@
         canMaximize       : true,
         closeOnEscape     : false,
         clear             : null,
-        toolBarHeight     : 27,
+        toolBarHeight     : 20,
         open              : function(e,ui) {},
         focus             : function(e,ui) {},
         close             : function() {
@@ -158,11 +158,10 @@
         // slickgrid options default override
         slickopts         : { editable: true,
                               enableAddRow: true,
-                              //enableColumnReorder: true,
+                              enableColumnReorder: true,
                               enableCellNavigation: true,
                               asyncEditorLoading: false,
                               autoEdit: false,
-                              //zIndex: 1300,
                               rowHeight: 20
                             },
 

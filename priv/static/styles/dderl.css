@@ -332,3 +332,6 @@ div#main_footer {
 .slick-cell-upd {
     color: red;
 }
+
+.slick-header-columns { height: 20px; }
+.slick-header.ui-state-default{ border: none; }
