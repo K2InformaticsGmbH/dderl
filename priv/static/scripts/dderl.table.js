@@ -101,18 +101,18 @@
                         }
                       },
 
-    _toolbarButtons : {'Reload'                : { typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
-                       'Move to first'         : { typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
-                       'Jump to previous page' : { typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
-                       'Previous page'         : { typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
-                       ''                      : { typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
-                       'Next page'             : { typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
-                       'Jump to next page'     : { typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                       'Move to end'           : { typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                       'Move to end then Tail' : { typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
-                       'Skip to end and Tail'  : { typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
-                       'Commit changes'        : { typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
-                       'Discard changes'       : { typ : 'btn', icn : 'close',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
+    _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
+                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
+                       '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
+                       '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
+                       ''         : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
+                       '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
+                       '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
+                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
+                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
+                       '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
+                       'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
+                       'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'close',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
@@ -908,19 +908,20 @@
             .css('overflow', 'hidden');
 
         // footer items
-        for(btnTxt in self._toolbarButtons) {
-            var elm = self._toolbarButtons[btnTxt];
+        for(btn in self._toolbarButtons) {
+            var btnTxt = self._toolbarButtons[btn].tip;
+            var elm = self._toolbarButtons[btn];
 
             var toolElmFn = function(e) {
                 var self = e.data;
-                var _btnTxt = $(this).text();
-                var fName = self._toolbarButtons[_btnTxt].clk;
+                var _btn = $(this).data('tag');
+                var fName = self._toolbarButtons[_btn].clk;
                 //var f = $.proxy(self[fName], self);
                 var f = self[fName];
                 if($.isFunction(f))
                     f(self);
                 else
-                    throw('['+self.options.title+'] toolbar '+_btnTxt+' has unimplimented cb '+fName);
+                    throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
             };
 
             var inph = self.options.toolBarHeight;
@@ -930,6 +931,7 @@
                 self[elm.dom] =
                     $('<button>')
                     .text(btnTxt)
+                    .data('tag', btn)
                     .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
@@ -939,6 +941,7 @@
                 $('<input>')
                     .attr('type', 'text')
                     .attr('size', 10)
+                    .data('tag', btn)
                     .button()
                     .addClass('tb_empty')
                     .css('height', (inph-2)+'px')
@@ -1059,13 +1062,14 @@
         }
     },
     _checkUpdateResult: function(_update) {
-        console.log('[AJAX] update_data resp '+JSON.stringify(_update));
+        this.appendRows(_update);
+        /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));        
         if(_update === 'ok') {
             console.log('update success');
         } else {
             if(_update.hasOwnProperty('error'))
                 alert_jq('update failed!\n'+_update.error);
-        }
+        }*/
     },
     _checkInsertResult: function(_insert) {
         console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
@@ -1549,8 +1553,33 @@
             self._tbTxtBox.removeClass(tbClass[i]);
         self._tbTxtBox.addClass('tb_'+_rows.state);
         if(_rows.message.length > 0) alert_jq(_rows.message);
-        if(!$.isEmptyObject(_rows.disable)) console.log('disable buttons with tooltip '+JSON.stringify(_rows.disable));
-        if(!$.isEmptyObject(_rows.promote)) console.log('promote buttons with tooltip '+JSON.stringify(_rows.promote));
+        if(!$.isEmptyObject(_rows.disable) || !$.isEmptyObject(_rows.promote))
+            for(var btn in self._toolbarButtons) {                
+                var tbBtnObj = self._toolbarButtons[btn];
+                var btnElm = self[tbBtnObj.dom];
+                if (!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) {
+                    btnElm
+                        .button('disable')
+                        .attr('title', _rows.disable[btn]);
+                }
+                else if (!$.isEmptyObject(_rows.promote) && _rows.promote.hasOwnProperty(btn)) {
+                    btnElm
+                        .button('enable')
+                        .addClass('ui-state-highlight')
+                        .attr('title', _rows.promote[btn]);
+                }                
+                else { // enable the button
+                    btnElm
+                        .button('enable')
+                        .attr('title', tbBtnObj.tip);
+                }
+            }
+        else {
+            for(var btn in self._toolbarButtons)
+                self[self._toolbarButtons[btn].dom]
+                    .button('enable')
+                    .attr('title', self._toolbarButtons[btn].tip);
+        }
 
         // if new cmd is different from the last one append
         if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))
