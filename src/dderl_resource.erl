@@ -15,7 +15,7 @@
 
 init({ssl, http}, Req, []) ->
     display_req(Req),
-    {Method, Req0} = cowboy_req:method(Req),
+    {_Method, Req0} = cowboy_req:method(Req),
     case cowboy_req:has_body(Req0) of
     true ->
         {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req0),

@@ -96,7 +96,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
     R = Statement:row_with_key(Row),
-    ?Info("Row with key ~p",[R]),
+    ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
@@ -245,7 +245,7 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
                    "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
-            ?Info("process_query created statement ~p for ~p", [Statement, Query]),
+            ?Debug("process_query created statement ~p for ~p", [Statement, Query]),
             {Priv, [{<<"columns">>, Columns}
                    ,{<<"sort_spec">>, JSortSpec}
                    ,{<<"statement">>, base64:encode(term_to_binary(Statement))}
