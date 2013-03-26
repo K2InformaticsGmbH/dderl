@@ -159,7 +159,7 @@
         // slickgrid options default override
         slickopts         : { editable: true,
                               enableAddRow: true,
-                              enableColumnReorder: true,
+                              //enableColumnReorder: true,
                               enableCellNavigation: true,
                               asyncEditorLoading: false,
                               autoEdit: false,
@@ -644,6 +644,7 @@
 
     },
     _sortSpec2Json: function() {
+        var self = this;
         var sortspec = new Array();
         for (var s in self._sorts) {
             var t = new Object();
