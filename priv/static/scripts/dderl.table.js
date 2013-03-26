@@ -1565,7 +1565,7 @@
                 else if (!$.isEmptyObject(_rows.promote) && _rows.promote.hasOwnProperty(btn)) {
                     btnElm
                         .button('enable')
-                        .addClass('ui-state-highlight')
+                        .addClass('ui-state-error')
                         .attr('title', _rows.promote[btn]);
                 }                
                 else { // enable the button
