@@ -125,8 +125,7 @@ function show_qry_files(conn)
         dderlSession: session,
         dderlAdapter: adapter,
     })
-    .table('loadViews')
-    .table('open');
+    .table('loadViews');
 }
 
 function alert_jq(string)

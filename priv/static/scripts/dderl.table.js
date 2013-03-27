@@ -1055,18 +1055,18 @@
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('result') && _table.result === 'ok') {
             console.log('[_renderTable] no row query, closing dialog');
-            this._dlg.dialog('destroy');
+            this._dlg.dialog('close');
             return;
         }
         if(_table.hasOwnProperty('error')) {
             console.error('[_renderTable] missing statement - '+_table);
-            this._dlg.dialog('destroy');
+            this._dlg.dialog('close');
             alert_jq(_table.error);
             return;
         }
         if(!_table.hasOwnProperty('statement')) {
             console.error('[_renderTable] missing statement handle - '+_table);
-            this._dlg.dialog('destroy');
+            this._dlg.dialog('close');
             alert_jq('missing statement handle');
             return;
         }
@@ -1135,8 +1135,7 @@
                                  ? _table.sort_spec : null)
         })
         .table('setColumns', _table.columns)
-        .table('buttonPress', '>')
-        .table('open');
+        .table('buttonPress', '>');
     },
     _renderRows: function(_rows) {
         var self = this;
@@ -1215,9 +1214,6 @@
         self._dlg.dialog('option', 'title', $('<a href="#">'+self.options.title+'</a>'));
     },
  
-    // translations to default dialog behavior
-    open: function() { this._dlg.dialog("open"); },
-
     // context menus invocation for slickgrid
     _gridContextMenu: function(e, args) {
         e.preventDefault();
@@ -1441,7 +1437,7 @@
 
     setColumns: function(_cols) {
         var self = this;
-        var dlg = this._dlg.dialog('widget');
+        var dlg = self._dlg.dialog('widget');
 
         // Column Data
         var columns = _cols;
@@ -1467,6 +1463,7 @@
         if(self._tbllay === null && !self._dlgResized)
             dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-10));
         //console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
+        self._dlg.dialog('open');
     },
 
     // public function for loading rows
