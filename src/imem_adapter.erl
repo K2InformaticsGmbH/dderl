@@ -97,7 +97,7 @@ process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
         true -> process_query(Query, dderl_dal:get_session(), Priv);
         _ -> process_query(Query, Connection, Priv)
     end,
-    ?Debug("query ~p~n~p", [Query, R]),
+    ?Info("query ~p~n~p", [Query, R]),
     From ! {reply, jsx:encode([{<<"query">>,R}])},
     NewPriv;
 
@@ -263,6 +263,9 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
                    ,{<<"statement">>, base64:encode(term_to_binary(Statement))}
                    ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}
                    ]};
+        ok ->
+            ?Info([{session, Connection}], "query ~p -> ok", [Query]),
+            {Priv, [{<<"result">>, <<"ok">>}]};
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),

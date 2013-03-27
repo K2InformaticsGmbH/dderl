@@ -354,8 +354,7 @@ $('<div>')
                    dderlAdapter: adapter,
                   dderlStartBtn: button
                })
-               .table('cmdReload', this._modCmd, button)
-               .table('open');
+               .table('cmdReload', this._modCmd, button);
         } else
             this._cmdOwner.cmdReload(this._modCmd, button);
     },
