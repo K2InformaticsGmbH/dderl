@@ -1,5 +1,4 @@
 (function( $ ) {
-  var SLICK_BUFFER_SIZE = 200;
 
   $.widget( "dderl.table", $.ui.dialog, {
 
@@ -23,7 +22,6 @@
     _clmlay         : null,
     _tbllay         : null,
 
-    _fetchIsDone    : false,
     _fetchIsTail    : false,
     _fetchIsPush    : false,
 
@@ -39,66 +37,19 @@
     _cmdStrs        : [],
 
     // private event handlers
-    _handlers       : { loadViews   : function(e, _views) {
-                            var self = e.data;
-                            self._checkRespViews(_views);
-                            self._renderViews(_views);
-                        },
-                        loadRows    : function(e, _rows)  {
-                            var self = e.data; 
-                            self._checkRows(_rows);
-                            self._renderRows(_rows);
-                        },
-                        browseData  : function(e, _table) {
-                            var self = e.data; 
-                            self._checkTable(_table);
-                            self._renderNewTable(_table);
-                        },
-                        queryResult : function(e, _table) {
-                            var self = e.data; 
-                            self._checkTable(_table);
-                            self._renderTable(_table);
-                        },
-                        tailResult : function(e, _tail) {
-                            var self = e.data;
-                            self._checkTailResult(_tail);
-                        },
-                        updateData : function(e, _update) {
-                            var self = e.data;
-                            self._checkUpdateResult(_update);
-                        },
-                        insertData : function(e, _insert) {
-                            var self = e.data;
-                            self._checkInsertResult(_insert);
-                            self._insertResult(_insert);
-                        },
-                        deleteData : function(e, _delete) {
-                            var self = e.data;
-                            self._checkDeleteResult(_delete);
-                            self._deleteResult(_delete);
-                        },
-                        commitResult : function(e, _commit) {
-                            var self = e.data;
-                            self._checkCommitResult(_commit);
-                        },
-                        stmtCloseResult : function(e, _stmtclose) {
-                            var self = e.data;
-                            self._checkStmtCloseResult(_stmtclose);
-                        },
-                        saveViewResult : function(e, _saveView) {
-                            var self = e.data;
-                            self._checkSaveViewResult(_saveView);
-                        },
-                        filterResult : function(e, _filter) {
-                            var self = e.data;
-                            //self._filterResult(_filter);
-                            self._renderRows(_filter);
-                        },
-                        sortResult : function(e, _sort) {
-                            var self = e.data;
-                            //self._sortResult(_sort);
-                            self._renderRows(_sort);
-                        }
+    _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
+                        browseData      : function(e, _result) { e.data._renderNewTable(_result); },
+                        queryResult     : function(e, _result) { e.data._renderTable(_result); },
+                        tailResult      : function(e, _result) { e.data._checkTailResult(_result); },
+                        updateData      : function(e, _result) { e.data._checkUpdateResult(_result); },
+                        insertData      : function(e, _result) { e.data._insertResult(_result); },
+                        deleteData      : function(e, _result) { e.data._deleteResult(_result); },
+                        commitResult    : function(e, _result) { e.data._checkCommitResult(_result); },
+                        stmtCloseResult : function(e, _result) { e.data._checkStmtCloseResult(_result); },
+                        saveViewResult  : function(e, _result) { e.data._checkSaveViewResult(_result); },
+                        loadRows        : function(e, _result) { e.data._renderRows(_result); },
+                        filterResult    : function(e, _result) { e.data._renderRows(_result); },
+                        sortResult      : function(e, _result) { e.data._renderRows(_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -1034,27 +985,6 @@
     /*
      * ajaxCall success callbacks
      */
-    _checkTable: function(_table) {
-        // TODO sanity check the data _THROW_ if ERROR
-    },
-    _checkRows: function(_rows) {         
-        this._fetchIsDone = _rows.done;
-        console.log('[AJAX] ets buffer count : '+_rows.cnt+', fetch status : '+this._fetchIsDone);
-    },
-    _checkRespViews: function(_views) {
-        // TODO throw exception if any error
-        this._cmd    = _views.content;
-        this._stmt   = _views.statement;
-        this._conn   = _views.connection;
-        if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
-            this._clmlay = _views.column_layout;
-            if(_views.column_layout.length === 0) this._clmlay = null;
-        }
-        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.length  > 0) {
-            this._tbllay = _views.table_layout;
-            if(_views.table_layout.length  === 0) this._tbllay = null;
-        }
-    },
     _checkTailResult: function(_tail) {
         console.log('[AJAX] tail resp '+JSON.stringify(_tail));
         if(_tail === 'ok') {
@@ -1070,12 +1000,6 @@
             if(_update.hasOwnProperty('error'))
                 alert_jq('update failed!\n'+_update.error);
         }*/
-    },
-    _checkInsertResult: function(_insert) {
-        console.log('[AJAX] insert_data resp '+JSON.stringify(_insert));
-    },
-    _checkDeleteResult: function(_delete) {
-        console.log('delete check '+_delete);
     },
     _checkCommitResult: function(_commit) {
         if(_commit === "ok")
@@ -1102,17 +1026,19 @@
         this.appendRows(_delete);
         console.log('deleted '+JSON.stringify(_delete));
     },
-    _filterResult: function(_filter) {
-        if(_filter.hasOwnProperty('error')) {
-            alert_jq(_filter.error);
-        }
-    },
-    _sortResult: function(_sort) {
-        if(_sort.hasOwnProperty('error')) {
-            alert_jq(_sort.error);
-        }
-    },
+
     _renderViews: function(_views) {
+        this._cmd    = _views.content;
+        this._stmt   = _views.statement;
+        this._conn   = _views.connection;
+        if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
+            this._clmlay = _views.column_layout;
+            if(_views.column_layout.length === 0) this._clmlay = null;
+        }
+        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.length  > 0) {
+            this._tbllay = _views.table_layout;
+            if(_views.table_layout.length  === 0) this._tbllay = null;
+        }
         this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
         this.options.title = _views.name;
         console.log('>>>>> table '+_views.name+' '+_views.connection);
@@ -1127,13 +1053,20 @@
         }
     },
     _renderTable: function(_table) {
+        if(_table.hasOwnProperty('result') && _table.result === 'ok') {
+            console.log('[_renderTable] no row query, closing dialog');
+            this._dlg.dialog('destroy');
+            return;
+        }
         if(_table.hasOwnProperty('error')) {
-            console.log('[_renderTable] missing statement - '+_table);
+            console.error('[_renderTable] missing statement - '+_table);
+            this._dlg.dialog('destroy');
             alert_jq(_table.error);
             return;
         }
         if(!_table.hasOwnProperty('statement')) {
-            console.log('[_renderTable] missing statement handle - '+_table);
+            console.error('[_renderTable] missing statement handle - '+_table);
+            this._dlg.dialog('destroy');
             alert_jq('missing statement handle');
             return;
         }
@@ -1207,7 +1140,6 @@
     },
     _renderRows: function(_rows) {
         var self = this;
-        
         if(_rows.hasOwnProperty('rows')) {
             //console.log('rows '+ JSON.stringify(_rows.rows));
             console.log('[AJAX] rendering '+ _rows.rows.length+' rows');
@@ -1484,7 +1416,7 @@
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
         console.log('destroying...');
-        this.buttonPress("close");
+        if(this._stmt) this.buttonPress("close");
     },
 
     /*
@@ -1535,15 +1467,6 @@
         if(self._tbllay === null && !self._dlgResized)
             dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-10));
         //console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
-    },
-
-    replaceRows: function(_rows) {
-        if($.isArray(_rows) && _rows.length > 0) {
-            var self = this;
-            self._gdata = [];
-            self._grid.setData(self._gdata);
-            self.replaceRows(_rows);
-        }
     },
 
     // public function for loading rows
