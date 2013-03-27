@@ -335,3 +335,13 @@ div#main_footer {
 
 .slick-header-columns { height: 22px; }
 .slick-header.ui-state-default{ border: none; }
+
+.table-title {
+    text-decoration:underline;
+    cursor:pointer;
+}
+
+.table-title-wait {
+  padding-left: 20px;
+  background: url('../media/ajax-loader-small.gif') no-repeat center left;
+}

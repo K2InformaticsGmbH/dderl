@@ -309,7 +309,7 @@
                                           content : this._cmd}
                        };
         console.log('saving view '+JSON.stringify(saveView));
-        ajaxCall(this, '/app/save_view', saveView, 'save_view', 'saveViewResult');
+        this._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
     cmdReload: function(cmd, button) {
@@ -319,7 +319,7 @@
             console.log('command reloading ['+cmd+']');
             this._cmd = cmd;
             this.options.dderlStartBtn = this._startBtn = button;
-            ajaxCall(this, '/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
+            this._ajax('/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
         //}
     },
 
@@ -373,7 +373,7 @@
                 if(cols[c].name.length > 0)
                     self._sorts[cols[c].name] = {id : c, asc : true};
         if(Object.keys(self._sorts).length === 1) {
-            ajaxCall(self, '/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
             self._showSortGui();
         }
@@ -388,7 +388,7 @@
                 if(cols[c].name.length > 0)
                     self._sorts[cols[c].name] = {id : c, asc : false};
         if(Object.keys(self._sorts).length === 1) {
-            ajaxCall(self, '/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
             self._showSortGui();
         }
@@ -406,7 +406,7 @@
             self._showSortGui();
         else {
             self._sorts = null;
-            ajaxCall(self, '/app/sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('/app/sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
         }
     },
     _showSortGui: function() {
@@ -575,7 +575,7 @@
                 buttons: {
                     'Sort' : function() {
                         var sortspec = saveChange();
-                        ajaxCall(self, '/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                        self._ajax('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                                                
                         $(this).dialog('close');
                         $(this).remove();
@@ -592,6 +592,12 @@
             });
 
     },
+
+    _ajax: function(url, data, resp, callback) {
+        this._dlg.dialog('option', 'title').addClass('table-title-wait');
+        ajaxCall(this, url, data, resp, callback);
+    },
+    
     _sortSpec2Json: function() {
         var self = this;
         var sortspec = new Array();
@@ -640,7 +646,7 @@
             self._showFilterGui();
         else {
             self._filters = null;
-            ajaxCall(self, '/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
         }
     },
     _filter: function(_ranges) {
@@ -674,7 +680,7 @@
                 self._filters[c].inp.val(strs.join('\n'));
             }
             var filterspec = self._filterSpec2Json('and');
-            ajaxCall(self, '/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
         }
         else
             self._showFilterGui();
@@ -735,7 +741,7 @@
 
         var applyFiltersFn = function(type) {
             var filterspec = self._filterSpec2Json(type);
-            ajaxCall(self, '/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
             $(this).dialog('close');
             $(this).remove();
         };
@@ -808,9 +814,9 @@
             var column  = self._grid.getColumns()[cell.fromCell];
             var data    = self._gdata[cell.fromRow];
             // console.log('browse_data @ '+column.name+' val '+JSON.stringify(data));
-            ajaxCall(this, '/app/browse_data',
-                           { browse_data: {connection : this._conn,
-                                            statement : this._stmt,
+            self._ajax('/app/browse_data',
+                           { browse_data: {connection : self._conn,
+                                            statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
                                                   col : cell.fromCell}},
                            'browse_data', 'browseData');
@@ -1039,7 +1045,9 @@
             this._tbllay = _views.table_layout;
             if(_views.table_layout.length  === 0) this._tbllay = null;
         }
-        this._dlg.dialog('option', 'title', $('<a href="#">'+_views.name+'</a>'));
+        this._dlg.dialog('option', 'title', $('<span>')
+                                                .text(_views.name)
+                                                .addClass('table-title'));
         this.options.title = _views.name;
         console.log('>>>>> table '+_views.name+' '+_views.connection);
         if(_views.hasOwnProperty('error'))
@@ -1116,6 +1124,8 @@
         var tl = null;
         if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
             tl = _table.table_layout.length;
+
+        this._dlg.dialog('option', 'title').removeClass('table-title-wait');
 
         $('<div>')
         .appendTo(document.body)
@@ -1211,7 +1221,9 @@
             self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
 
         // converting the title text to a link
-        self._dlg.dialog('option', 'title', $('<a href="#">'+self.options.title+'</a>'));
+        self._dlg.dialog('option', 'title', $('<span>')
+                                                .text(self.options.title)
+                                                .addClass('table-title'));
     },
  
     // context menus invocation for slickgrid
@@ -1294,7 +1306,7 @@
                                          rowid       : parseInt(modifiedRow.id),
                                          cellid      : args.cell,
                                          value       : modifiedRow[cols[args.cell].field]}};
-        ajaxCall(this, '/app/update_data', updateJson, 'update_data', 'updateData');
+        this._ajax('/app/update_data', updateJson, 'update_data', 'updateData');
         console.log('changed '+JSON.stringify(updateJson));
 
         // Update all rows from the selected range
@@ -1313,7 +1325,7 @@
                                         col         : args.grid.getColumnIndex(args.column.id),
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
-        ajaxCall(this, '/app/insert_data', insertJson, 'insert_data', 'insertData');
+        this._ajax('/app/insert_data', insertJson, 'insert_data', 'insertData');
     },
     _delRow: function(e, args) {
         e.stopPropagation();
@@ -1333,7 +1345,7 @@
             // Delete args.row
             var deleteJson = {delete_row: {statement : this._stmt,
                                            rowids    : rids}};
-            ajaxCall(this, '/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+            this._ajax('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
 
             this._applyStyle();
 
@@ -1367,11 +1379,11 @@
     },
     
     // loading the view table
-    loadViews: function() { ajaxCall(this, '/app/views', null, 'views', 'loadViews'); },
+    loadViews: function() { this._ajax('/app/views', null, 'views', 'loadViews'); },
 
     // loading rows
     buttonPress: function(button) {
-        ajaxCall(this, '/app/button', {button: { connection: this._conn
+        this._ajax('/app/button', {button: { connection: this._conn
                                                , statement: this._stmt
                                                , btn: button}}, 'button', 'loadRows');
     },
@@ -1476,6 +1488,9 @@
         if (self.hasOwnProperty('_origcolumns') && self._origcolumns.length > 0)
             c = self._origcolumns;
         var firstChunk = (self._gdata.length === 0);
+
+        // received response clear wait wheel
+        self._dlg.dialog('option', 'title').removeClass('table-title-wait');
 
         // system actions (beep and others)
         if(_rows.beep) beep();
