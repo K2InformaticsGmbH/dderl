@@ -105,7 +105,7 @@
                        '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
                        '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
-                       ''         : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
+                       'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
                        '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
                        '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
                        '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
@@ -135,7 +135,7 @@
     // These options will be used as defaults
     options: {
         // dialog options default override
-        toolBarHeight     : 20,
+        toolBarHeight     : 22,
         height            : 500,
         width             : 500,
         minHeight         : 50,
@@ -954,7 +954,7 @@
                             if(rownum != NaN) {
                                 self["_toolBarTxtBoxVal"] = rownum;
                                 evt.data = self;
-                                toolElmFn(evt);
+                                toolElmFn.call(this, evt);
                             }
                         }
                         return true;
@@ -1370,20 +1370,12 @@
         console.log('changed '+JSON.stringify(updateJson));
 
         // Update all rows from the selected range
-        var updStyle = new Object();
         var selRanges = this._grid.getSelectionModel().getSelectedRanges();
-        var cols = this._grid.getColumns();
         for(var i=0; i < selRanges.length; ++i)
             for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
                 this._gdata[ri].op = 'upd';
-                for (var j=0;j<this._gdata.length; ++j)
-                    if(this._gdata[j].op === 'upd') {
-                        updStyle[j] = new Object();
-                        for (var _i=0; _i<cols.length; ++_i)
-                            updStyle[j][cols[_i].id] = 'slick-cell-upd';
-                    }
-                this._grid.setCellCssStyles('update', updStyle);
             }
+        this._applyStyle();
     },
     _gridAddNewRow: function(e, args) {
         e.stopPropagation();
@@ -1400,23 +1392,13 @@
         if(e.keyCode == 46) {
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
-            var cols = this._grid.getColumns();
             var rids = [];
             for(var i=0; i < selRanges.length; ++i)
                 for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
-                    if(this._gdata[ri].op !== 'ins') {
+                    if(this._gdata[ri].op !== 'ins')
                         this._gdata[ri].op = 'del';
-                        var delStyle = new Object();
-                        for (var j=0;j<this._gdata.length; ++j)
-                            if(this._gdata[j].op === 'del') {
-                                delStyle[j] = new Object();
-                                for (var _i=0; _i<cols.length; ++_i)
-                                    delStyle[j][cols[_i].id] = 'slick-cell-del';
-                            }
-                        this._grid.setCellCssStyles('delete', delStyle);
-                    } else {
+                    else
                         this._gdata.splice(ri, 1);
-                    }
                     rids.push(this._gdata[ri].id);
                 }
 
@@ -1425,11 +1407,37 @@
                                            rowids    : rids}};
             ajaxCall(this, '/app/delete_row', deleteJson, 'delete_row', 'deleteData');
 
+            this._applyStyle();
+
             this._grid.updateRowCount();
             this._grid.invalidate();
         }
     },
 
+    _applyStyle: function() {
+        var self = this;
+        self._grid.removeCellCssStyles('delete');
+        self._grid.removeCellCssStyles('update');
+        var delStyle = new Object();
+        var updStyle = new Object();
+        var cols = self._grid.getColumns();
+        for (var j=0;j<self._gdata.length; ++j)
+            switch (self._gdata[j].op) {
+                case 'del':
+                    delStyle[j] = new Object();
+                    for (var _i=0; _i<cols.length; ++_i)
+                        delStyle[j][cols[_i].id] = 'slick-cell-del';
+                    break;
+                case 'upd':
+                    updStyle[j] = new Object();
+                    for (var _i=0; _i<cols.length; ++_i)
+                        updStyle[j][cols[_i].id] = 'slick-cell-upd';
+                    break;
+            }
+        if(!$.isEmptyObject(delStyle)) self._grid.setCellCssStyles('delete', delStyle);
+        if(!$.isEmptyObject(updStyle)) self._grid.setCellCssStyles('update', updStyle);
+    },
+    
     // loading the view table
     loadViews: function() { ajaxCall(this, '/app/views', null, 'views', 'loadViews'); },
 
@@ -1576,6 +1584,7 @@
                 else { // enable the button
                     btnElm
                         .button('enable')
+                        .removeClass('ui-state-error')
                         .attr('title', tbBtnObj.tip);
                 }
             }
@@ -1583,6 +1592,7 @@
             for(var btn in self._toolbarButtons)
                 self[self._toolbarButtons[btn].dom]
                     .button('enable')
+                    .removeClass('ui-state-error')
                     .attr('title', self._toolbarButtons[btn].tip);
         }
 
@@ -1748,6 +1758,9 @@
             // (so for now total time of function entry/exit is appromately equal to only row loading)
             //
             console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
+
+            // update row styles
+            self._applyStyle();
         }
     }
 
