@@ -97,7 +97,7 @@ process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
         true -> process_query(Query, dderl_dal:get_session(), Priv);
         _ -> process_query(Query, Connection, Priv)
     end,
-    ?Info("query ~p~n~p", [Query, R]),
+    ?Info("query ~p", [Query]),
     From ! {reply, jsx:encode([{<<"query">>,R}])},
     NewPriv;
 
