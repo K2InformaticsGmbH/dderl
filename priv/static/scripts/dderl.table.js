@@ -1482,6 +1482,8 @@
     // used by ajaxCall but can also be used directly
     appendRows: function(_rows)
     {
+        console.time('appendRows');
+
         var self = this;
         var redraw = false;
         var c = self._grid.getColumns();
@@ -1559,8 +1561,6 @@
             redraw = true;
         }
 
-        var start = (new Date()).getTime();
-        console.log('rows loading to slick...');
 
         switch (_rows.op) {
             case "rpl": // replace
@@ -1692,11 +1692,12 @@
             // compared to computing and adjusting the table width/height
             // (so for now total time of function entry/exit is appromately equal to only row loading)
             //
-            console.log('rows loading completed in ' + ((new Date()).getTime() - start) + 'ms');
 
             // update row styles
             self._applyStyle();
         }
+
+        console.timeEnd('appendRows');
     }
 
   });
