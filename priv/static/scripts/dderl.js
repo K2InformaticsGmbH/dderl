@@ -233,6 +233,7 @@ function beep()
             .append($('<source>')
                     .attr('src', './static/media/success.mp3')
                     .attr('type', 'audio/mpeg'))
+                    .attr('preload', 'auto')
             .hide()
             .appendTo(document.body);
         _beep = aud.get(0);
