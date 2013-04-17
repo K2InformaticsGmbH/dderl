@@ -1,4 +1,7 @@
-WEB Based Data Browser!
+dderl
+=====
+
+WEB Application DataBase Browser.
 
 Port forwarding to run as non root user
 * install rinetd
