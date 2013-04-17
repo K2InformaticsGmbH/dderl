@@ -1482,7 +1482,8 @@
     // used by ajaxCall but can also be used directly
     appendRows: function(_rows)
     {
-        console.time('appendRows');
+        //console.time('appendRows');
+        console.profile('appendRows');
 
         var self = this;
         var redraw = false;
@@ -1697,7 +1698,8 @@
             self._applyStyle();
         }
 
-        console.timeEnd('appendRows');
+        //console.timeEnd('appendRows');
+        console.profileEnd('appendRows');
     }
 
   });
