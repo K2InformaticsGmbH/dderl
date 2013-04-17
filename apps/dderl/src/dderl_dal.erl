@@ -80,7 +80,8 @@ init([SchemaName]) ->
         ]),
         ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
         Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
-        Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", "ebin")],
+        DDerlEbinPath = lists:flatten([P || P <- code:get_path(), re:run(P, ".*/dderl/.*/dderl*") =/= nomatch]),
+        Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", DDerlEbinPath)],
         ?Info("initializing ~p", [Adapters]),
         [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
         {ok, #state{sess=Sess, schema=SchemaName}};
