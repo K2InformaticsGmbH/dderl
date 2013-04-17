@@ -18,11 +18,13 @@ rel: deps compile generate
 
 rel_bikram: deps compile
 	(cd rel && rebar generate target_dir=bikram overlay_vars=vars/bikram_vars.config)
+rel_stefan: deps compile
+	(cd rel && rebar generate target_dir=stefan overlay_vars=vars/stefan_vars.config)
 
 rel_all: rel rel_lu rel_zh
 
 relclean:
-	rm -rf rel/bikram
+	rm -rf rel/bikram rel/stefan
 
 APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
 	   xmerl webtool snmp public_key mnesia eunit syntax_tools compiler
