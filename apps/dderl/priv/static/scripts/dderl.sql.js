@@ -345,7 +345,7 @@ $('<div>')
 
     _loadTable: function(button) {
         if(null === this._cmdOwner) {
-               $('<div>')
+               this._cmdOwner = $('<div>')
                .appendTo(document.body)
                .table({
                    title       : this._title,
@@ -355,8 +355,11 @@ $('<div>')
                   dderlStartBtn: button
                })
                .table('cmdReload', this._modCmd, button);
-        } else
+        }
+        else if(this._cmdOwner.hasOwnProperty('cmdReload'))
             this._cmdOwner.cmdReload(this._modCmd, button);
+        else
+            this._cmdOwner.table('cmdReload', this._modCmd, button);
     },
     ////////////////////////////
 
