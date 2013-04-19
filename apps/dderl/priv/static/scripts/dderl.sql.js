@@ -8,7 +8,35 @@ $('<div>')
     .sql('open');
 }
 
-(function( $ ) {
+function insertAtCursor(myField, myValue) {
+  //IE support
+  if (document.selection) {
+    var temp;
+    myField.focus();
+    sel = document.selection.createRange();
+    temp = sel.text.length;
+    sel.text = myValue;
+    if (myValue.length == 0) {
+      sel.moveStart('character', myValue.length);
+      sel.moveEnd('character', myValue.length);
+    } else {
+      sel.moveStart('character', -myValue.length + temp);
+    }
+    sel.select();
+  }
+  //MOZILLA/NETSCAPE support
+  else if (myField.selectionStart || myField.selectionStart == '0') {
+    var startPos = myField.selectionStart;
+    var endPos = myField.selectionEnd;
+    myField.value = myField.value.substring(0, startPos) + myValue + myField.value.substring(endPos, myField.value.length);
+    myField.selectionStart = startPos + myValue.length;
+    myField.selectionEnd = startPos + myValue.length;
+  } else {
+    myField.value += myValue;
+  }
+}
+
+(function( $ ) {    
   var DEFAULT_COUNTER = 0;
   $.widget( "dderl.sql", $.ui.dialog, {
 
@@ -120,47 +148,38 @@ $('<div>')
         var prettyBg    = 'rgb(255,240,240)';
         self._boxBg     = 'rgb(240,255,240)';
 
+        var sqlKeyHandle = function(e, self, _cmd) {
+            if(e.type == "keydown" && (e.keyCode || e.which) == 9) {
+              e.preventDefault();
+              insertAtCursor(self, "  ");
+            }
+            var that = e.data;
+            that._cmdPretty = $(self).val();
+            that._modCmd = _cmd;
+        };
+
         self._flatTb =
             $('<textarea>')
-            .css('background', flatBg)
-            .css('width', '100%')
-            .css('height', '100%')
-            .css('overflow-y', 'scroll')
-            .css('resize', 'none')
-            .css('border', 'none')
-            .css('font-size', '1.14em')
-            .on('keyup click blur focus change paste', this, function(e) {
-                var that = e.data;
-                that._cmdFlat = $(this).val();
-                that._modCmd = that._cmdFlat;
+            .addClass('sql_text_flat')
+            .on('keydown keyup click blur focus change paste', this, function(e) {
+                sqlKeyHandle(e, this, e.data._cmdFlat);
             })
             .text(self._cmdFlat);
 
         self._prettyTb =
             $('<textarea>')
-            .css('background', prettyBg)
-            .css('width', '100%')
-            .css('height', '100%')
-            .css('overflow', 'auto')
             .attr('wrap', 'off')
-            //.css('white-space', 'nowrap')
-            .css('resize', 'none')
-            .css('border', 'none')
-            .css('font-size', '1.14em')
-            .on('keyup click blur focus change paste', this, function(e) {
-                var that = e.data;
-                that._cmdPretty = $(this).val();
-                that._modCmd = that._cmdPretty;
+            .addClass('sql_text_pretty')
+            .on('keydown keyup click blur focus change paste', this, function(e) {
+                sqlKeyHandle(e, this, e.data._cmdPretty);
             })
             .text(self._cmdPretty);
 
         self._boxDiv =
             $('<div>')
-            .css('font-family', self._fnt)
+            .addClass('sql_text_box')
             //.css('font-size', self._fntSz)
-            .css('font-size', '1.14em')
-            .css('margin', 0)
-            .css('background-color', self._boxBg);
+            .css('font-family', self._fnt);
 
         self._editDiv =
             $('<div>')            

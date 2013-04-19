@@ -345,3 +345,31 @@ div#main_footer {
   padding-left: 20px;
   background: url('../media/ajax-loader-small.gif') no-repeat center left;
 }
+
+.sql_text_flat {
+    background: rgb(240,240,255);
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    resize: none;
+    border: none;
+    font-size: 1.14em;
+}
+
+.sql_text_pretty {
+    background: rgb(255,240,240);
+    width: 100%;
+    height:100%;
+    overflow: auto;
+    /*white-space:nowrap;*/
+    resize:none;
+    border:none;
+    font-size:1.14em;
+}
+
+.sql_text_box {
+    font-size:1.14em;
+    margin:0;
+    background-color: rgb(240,255,240);
+}
+
