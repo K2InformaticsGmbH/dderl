@@ -231,8 +231,10 @@ process_cmd({Cmd, BodyJson}, From, Priv) ->
 gui_resp_cb_fun(Cmd, Statement, From) ->
     fun(#gres{} = GuiResp) ->
         GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
-        ?Debug("resp ~p ~p", [Cmd, GuiResp]),
-        From ! {reply, jsx:encode([{Cmd,GuiRespJson}])}
+        case (catch jsx:encode([{Cmd,GuiRespJson}])) of
+            {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
+            Resp -> From ! {reply, Resp}
+        end
     end.
 
 sort_json_to_term([]) -> [];

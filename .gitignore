@@ -7,6 +7,8 @@ deps/erlimem/
 deps/imem/
 deps/sqlparse/
 priv/static/log/
+rel/bikram/
+snapshot/
 *.pydevproject
 .project
 .metadata
