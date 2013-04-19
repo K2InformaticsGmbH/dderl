@@ -8,6 +8,7 @@ deps/imem/
 deps/sqlparse/
 priv/static/log/
 rel/bikram/
+rel/stefan/
 snapshot/
 *.pydevproject
 .project
