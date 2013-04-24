@@ -10,6 +10,7 @@ priv/static/log/
 rel/bikram/
 rel/stefan/
 snapshot/
+log/
 *.pydevproject
 .project
 .metadata
