@@ -20,11 +20,15 @@ rel_bikram: deps compile
 	(cd rel && rebar generate target_dir=bikram overlay_vars=vars/bikram_vars.config)
 rel_stefan: deps compile
 	(cd rel && rebar generate target_dir=stefan overlay_vars=vars/stefan_vars.config)
+rel_olt: deps compile
+	(cd rel && rebar generate target_dir=olt overlay_vars=vars/olt_vars.config)
+rel_zhh: deps compile
+	(cd rel && rebar generate target_dir=zhh overlay_vars=vars/zhh_vars.config)
 
-rel_all: rel rel_lu rel_zh
+rel_all: rel rel_bikram rel_stafen rel_olt rel_zhh
 
 relclean:
-	rm -rf rel/bikram rel/stefan
+	rm -rf rel/bikram rel/stefan rel/olt rel/zhh
 
 APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
 	   xmerl webtool snmp public_key mnesia eunit syntax_tools compiler
