@@ -7,6 +7,7 @@ deps/erlimem/
 deps/imem/
 deps/sqlparse/
 priv/static/log/
+rel/agustin/
 rel/bikram/
 rel/stefan/
 snapshot/

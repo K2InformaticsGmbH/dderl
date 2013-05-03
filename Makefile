@@ -16,6 +16,8 @@ generate: compile
 
 rel: deps compile generate
 
+rel_agustin: deps compile
+	(cd rel && rebar generate target_dir=agustin overlay_vars=vars/agustin_vars.config)
 rel_bikram: deps compile
 	(cd rel && rebar generate target_dir=bikram overlay_vars=vars/bikram_vars.config)
 rel_stefan: deps compile
@@ -25,10 +27,10 @@ rel_olt: deps compile
 rel_zhh: deps compile
 	(cd rel && rebar generate target_dir=zhh overlay_vars=vars/zhh_vars.config)
 
-rel_all: rel rel_bikram rel_stafen rel_olt rel_zhh
+rel_all: rel rel_agustin rel_bikram rel_stafen rel_olt rel_zhh
 
 relclean:
-	rm -rf rel/bikram rel/stefan rel/olt rel/zhh
+	rm -rf rel/agustin rel/bikram rel/stefan rel/olt rel/zhh
 
 APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
 	   xmerl webtool snmp public_key mnesia eunit syntax_tools compiler
