@@ -376,7 +376,7 @@ function insertAtCursor(myField, myValue) {
                })
                .table('cmdReload', this._modCmd, button);
         }
-        else if(this._cmdOwner.hasOwnProperty('cmdReload'))
+        else if("cmdReload" in this._cmdOwner)
             this._cmdOwner.cmdReload(this._modCmd, button);
         else
             this._cmdOwner.table('cmdReload', this._modCmd, button);
