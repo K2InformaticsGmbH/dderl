@@ -32,6 +32,7 @@ function getUniqueTime() {
 
 var session = null;
 var adapter = null;
+var connection = null;
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -115,13 +116,13 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     });
 }
 
-function show_qry_files(conn)
+function show_qry_files()
 {
     $('<div>')
     .appendTo(document.body)
     .table({
         autoOpen    : false,
-        dderlConn   : conn,
+        dderlConn   : connection,
         dderlSession: session,
         dderlAdapter: adapter,
     })

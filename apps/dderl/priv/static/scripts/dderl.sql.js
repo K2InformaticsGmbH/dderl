@@ -154,7 +154,7 @@ function insertAtCursor(myField, myValue) {
               insertAtCursor(self, "  ");
             }
             var that = e.data;
-            that._cmdPretty = $(self).val();
+            _cmd = $(self).val();
             that._modCmd = _cmd;
         };
 
@@ -369,9 +369,10 @@ function insertAtCursor(myField, myValue) {
                .table({
                    title       : this._title,
                    autoOpen    : false,
+                   dderlConn   : connection,
                    dderlSession: session,
                    dderlAdapter: adapter,
-                  dderlStartBtn: button
+                   dderlStartBtn: button
                })
                .table('cmdReload', this._modCmd, button);
         }

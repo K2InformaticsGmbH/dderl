@@ -52,7 +52,6 @@ function display_login()
                     $('#login-button').html('Log out ' + user);
                     $("#dialog-login").dialog("close");
                     connect_dlg();
-                    //display_db_login();
                 }
                 else
                     alert('Login falied : ' + data);

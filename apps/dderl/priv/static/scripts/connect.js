@@ -175,7 +175,9 @@ function connect_dlg()
                         );
                     } else {
                         Dlg.dialog("close");
-                        show_qry_files(data);
+                        //Setting up the global connection.
+                        connection = data;
+                        show_qry_files();
                     }
                 });
             },
