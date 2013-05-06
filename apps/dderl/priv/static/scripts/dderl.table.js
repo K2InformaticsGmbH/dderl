@@ -296,8 +296,8 @@
             if(cols[idx].name.length > 0)
                 colnamesizes[colnamesizes.length] = {name: cols[idx].name, width: cols[idx].width};
         // Table width/height/position
-        var w = this._dlg.width();
-        var h = this._dlg.height();
+        var w = this._dlg.dialog('widget').width();
+        var h = this._dlg.dialog('widget').height();
         var x = this._dlg.dialog('widget').position().left;
         var y = this._dlg.dialog('widget').position().top;
         var saveView = {save_view : {table_layout : {width : w,
@@ -1021,7 +1021,8 @@
     },
     _checkSaveViewResult: function(_saveView) {
         if(_saveView === "ok")
-            console.log('[AJAX] view saved!');
+            console.log('[AJAX] view saved!'),
+            this._dlg.dialog('option', 'title').removeClass('table-title-wait');
         else if(_saveView.hasOwnProperty('error'))
             alert_jq('failed to save view!\n'+_saveView.error);
     },
@@ -1093,7 +1094,6 @@
         }
         if(_table.hasOwnProperty('columns')) {
             this.setColumns(_table.columns);
-//            this._dlgResized = false;
             this._grid.setData([]);
             this._gdata = this._grid.getData();
             this.buttonPress(this._startBtn);
@@ -1109,6 +1109,7 @@
             alert_jq(_table.error);
             return;
         }
+
         var pos = [];
         if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
             var dlg = this._dlg.dialog('widget');
@@ -1120,16 +1121,13 @@
 
         var cl = null;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0)
-            cl = _table.column_layout.length;
+            cl = _table.column_layout;
         var tl = null;
         if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
             tl = _table.table_layout.length;
 
         this._dlg.dialog('option', 'title').removeClass('table-title-wait');
-
-        $('<div>')
-        .appendTo(document.body)
-        .table({
+        var baseOptions = {
             autoOpen        : false,
             title           : _table.name,
             position        : pos,
@@ -1143,7 +1141,20 @@
             dderlTbllay     : tl,
             dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0)
                                  ? _table.sort_spec : null)
-        })
+        };
+        
+        if(_table.hasOwnProperty('table_layout')) {
+            if(_table.table_layout.hasOwnProperty('width')) {
+                baseOptions.width = _table.table_layout.width;
+            }
+            if (_table.table_layout.hasOwnProperty('height')) {
+                baseOptions.height = _table.table_layout.height;
+            }
+        }
+
+        $('<div>')
+        .appendTo(document.body)
+        .table(baseOptions)
         .table('setColumns', _table.columns)
         .table('buttonPress', '>');
     },
@@ -1454,7 +1465,7 @@
         // Column Data
         var columns = _cols;
         var fldWidth = 0;
-        for (i=1;i<columns.length;++i) {
+        for (var i = 1; i < columns.length; ++i) {
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor'))
                 columns[i].editor   = Slick.Editors.Text;
@@ -1464,8 +1475,8 @@
 
         // load the column layout if its was saved
         if(self._clmlay !== null)
-            for(var i=0;i<self._clmlay.length;++i) {
-                for(var j=0;j<self._clmlay.length;++j) {
+            for(var i = 0; i < self._clmlay.length; ++i) {
+                for(var j = 0; j < self._clmlay.length; ++j) {
                     if(columns[i].name === self._clmlay[j].name)
                         columns[i].width = self._clmlay[j].width
                 }
@@ -1538,7 +1549,7 @@
         if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))
             self._cmdStrs.push(_rows.sql);
 
-        if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec)) {
+        if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
             var fieldWidth = 0;
             for(var i=0;i<c.length; ++i) {
                 fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
@@ -1549,15 +1560,7 @@
                         c[i].width = self._MAX_ROW_WIDTH;
                 }
             }
-            /* for(var i=0;i<_rows.max_width_vec.length; ++i) {
-                fieldWidth = self._txtlen.text(_rows.max_width_vec[i]).width();
-                fieldWidth = fieldWidth + 0.4 * fieldWidth;
-                if(c[i].width < fieldWidth) {
-                    c[i].width = fieldWidth;
-                    if (c[i].width > self._MAX_ROW_WIDTH)
-                        c[i].width = self._MAX_ROW_WIDTH;
-                }
-            }*/
+            
             self._grid.setColumns(c);
             redraw = true;
         }
