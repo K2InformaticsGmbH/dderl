@@ -78,7 +78,7 @@ process_cmd({[<<"get_query">>], ReqBody}, From) ->
 process_cmd({[<<"save_view">>], ReqBody}, From) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
-    Query = binary_to_list(proplists:get_value(<<"content">>, BodyJson, <<>>)),
+    Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
