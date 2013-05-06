@@ -20,12 +20,12 @@ init() ->
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
     gen_adapter:add_cmds_views(imem, [
-        { "All Tables"
-        , "select name(qname) from all_tables order by qname"
+        { <<"All Tables">>
+        , <<"select name(qname) from all_tables order by qname">>
         , remote},
-        %{"All Tables", "select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)"},
-        { "All Views"
-        , "select
+        %{<<"All Tables">>, <<"select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)">>},
+        { <<"All Views">>
+        , <<"select
                 c.owner,
                 v.name
             from
@@ -37,10 +37,10 @@ init() ->
                 and (c.owner = user or c.owner = system)
             order by
                 v.name,
-                c.owner"
+                c.owner">>
         , local}
-        %{"All Views", "select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)"}
-        %{"All Views", "select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)"}
+        %{<<"All Views">>, <<"select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)">>}
+        %{<<"All Views">>, <<"select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)">>}
     ]).
 
 process_cmd({[<<"connect">>], ReqBody}, From, _) ->
@@ -108,10 +108,10 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
     R = Statement:row_with_key(Row),
-    ?Debug("Row with key ~p",[R]),
+    ?Info("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    ?Info("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
     if IsView ->
         {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
         Name = element(5, R),
@@ -124,8 +124,8 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
         end,
         {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
         RespJson = jsx:encode([{<<"browse_data">>,
-            [{<<"content">>, list_to_binary(C#ddCmd.command)}
-            ,{<<"name">>, list_to_binary(Name)}
+            [{<<"content">>, C#ddCmd.command}
+            ,{<<"name">>, Name}
             ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
             ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
             Resp
@@ -134,11 +134,11 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
         From ! {reply, RespJson};
     true ->                
         Name = lists:last(tuple_to_list(R)),
-        Query = "SELECT * FROM " ++ Name,
+        Query = <<"SELECT * FROM ", Name/binary>>,
         {NewPriv, Resp} = process_query(Query, Connection, Priv),
         RespJson = jsx:encode([{<<"browse_data">>,
-            [{<<"content">>, list_to_binary(Query)}
-            ,{<<"name">>, list_to_binary(Name)}] ++
+            [{<<"content">>, Query}
+            ,{<<"name">>, Name}] ++
             Resp
         }]),
         From ! {reply, RespJson}
@@ -147,13 +147,13 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
 
 % views
 process_cmd({[<<"views">>], _}, From, Priv) ->
-    [F|_] = dderl_dal:get_view("All Views"),
+    [F|_] = dderl_dal:get_view(<<"All Views">>),
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
-    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+    ?Info("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
-        [{<<"content">>, list_to_binary(C#ddCmd.command)}
+        [{<<"content">>, C#ddCmd.command}
         ,{<<"name">>, <<"All Views">>}
         ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
         ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]

@@ -97,8 +97,8 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
 
 handle_call({is_local_query, Qry}, _From, State) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
-    case sql_parse:string(Qry) of
-        {ok, {select, QOpts}} ->
+    case sql_parse:parsetree(Qry) of
+        {ok, {[{select, QOpts}|_], _Tokens}} ->
             case lists:keyfind(from, 1, QOpts) of
                 {from, Tables} ->
                     {reply, lists:foldl(fun(T,_) ->
@@ -114,15 +114,23 @@ handle_call({is_local_query, Qry}, _From, State) ->
                     , State};
                 _ -> {reply, false, State}
             end;
-        _ -> {reply, false, State}
+        {lex_error, Error} ->
+            ?Error({"SQL lexer error", Error}),
+            {reply, false, State};
+        {parse_error, Error} ->
+            ?Error({"SQL parser error", Error}),
+            {reply, false, State};
+        _ ->
+            ?Info("non select query ~p", [Qry]),
+            {reply, false, State}
     end;
 
 handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess, owner=Owner} = State) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
     NewConn =
         if Conn =:= undefined ->
-            case sql_parse:string(Cmd) of
-                {ok, {select, QOpts}} ->
+            case  sql_parse:parsetree(Cmd) of
+                {ok, {[{select, QOpts}|_], _Tokens}} ->
                     case lists:keyfind(from, 1, QOpts) of
                         {from, Tables} ->
                             ?Info("Query tables ~p", [Tables]),
@@ -146,6 +154,12 @@ handle_call({add_command, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Se
                             ?Info("no tables in ~p opts ~p", [Cmd, Opts]),
                             remote
                     end;
+                {lex_error, Error} ->
+                    ?Error({"SQL lexer error", Error}),
+                    {reply, false, State};
+                {parse_error, Error} ->
+                    ?Error({"SQL parser error", Error}),
+                    {reply, false, State};
                 _ ->
                     ?Info("non select query ~p", [Cmd]),
                     remote

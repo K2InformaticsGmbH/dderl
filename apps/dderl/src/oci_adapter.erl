@@ -54,8 +54,6 @@ process_cmd({"connect", BodyJson}, SrvPid, _) ->
     end;
 process_cmd({"query", BodyJson}, SrvPid, {Session,Pool,Statements}) ->
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
-    %{ok, Tokens, _} = sql_lex:string(Query++";"),
-    %{ok, [ParseTree|_]} = sql_parse:parse(Tokens),
     ParseTree = [],
     dderl_session:log(SrvPid, "[~p] Query ~p~n", [SrvPid, {Session, Query}]),
     case Session:execute_sql(Query, [], ?DEFAULT_ROW_SIZE, true) of

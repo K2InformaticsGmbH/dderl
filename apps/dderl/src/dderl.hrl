@@ -39,11 +39,11 @@
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
                   , conns                   ::[ddEntityId()]    %% can be used for this list of dbConn references
-                  , command                 ::string()          %% erlang term depending on adapter (e.g. SQL text)
+                  , command                 ::binary()          %% erlang term depending on adapter (e.g. SQL text)
                   , opts                    ::any()             %% command options ()
                   }
        ).
--define(ddCmd, [integer, string, userid, list, list, string, term]).
+-define(ddCmd, [integer, binstr, userid, list, list, binstr, term]).
 
 -record(ddView,                             %% user representation of a db command including rendering parameters
                   { id                      ::ddEntityId()
@@ -54,7 +54,7 @@
                   , state                   ::#viewstate{}       %% transparent viewstate (managed by client application)
                   }
        ).
--define(ddView, [integer, atom, userid, string, integer, term]).
+-define(ddView, [integer, atom, userid, binstr, integer, term]).
 
 -record(ddDash,                             %% user representation of a dashboard (collection of views)
                   { id                      ::ddEntityId()

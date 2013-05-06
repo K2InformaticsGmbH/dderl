@@ -77,7 +77,7 @@ process_cmd({[<<"get_query">>], ReqBody}, From) ->
     From ! {reply, Res};
 process_cmd({[<<"save_view">>], ReqBody}, From) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
-    Name = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
+    Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = binary_to_list(proplists:get_value(<<"content">>, BodyJson, <<>>)),
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
@@ -118,21 +118,23 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 
+
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
-    widest_cell_per_clm(Rows, lists:duplicate(length(R), "")).
+    widest_cell_per_clm(Rows, lists:duplicate(length(R), <<>>)).
 widest_cell_per_clm([],V) -> V;
 widest_cell_per_clm([R|Rows],V) ->
     NewV = 
     [case {Re, Ve} of
         {Re, Ve} ->
             ReS = if
-                is_atom(Re)     -> atom_to_list(Re);
-                is_integer(Re)  -> integer_to_list(Re);
+                is_atom(Re)     -> atom_to_binary(Re, utf8);
+                is_integer(Re)  -> integer_to_binary(Re);
+                %is_list(Re)     -> list_to_binary(Re);
                 true            -> Re
             end,
-            ReL = length(ReS),
-            VeL = length(Ve),
+            ReL = byte_size(ReS),
+            VeL = byte_size(Ve),
             if ReL > VeL -> ReS; true -> Ve end
      end
     || {Re, Ve} <- lists:zip(R,V)],
@@ -147,8 +149,9 @@ r2jsn([Row|Rows], JCols, NewRows) ->
         [{C, case R of
                 R when is_integer(R) -> R;
                 R when is_atom(R)    -> list_to_binary(atom_to_list(R));
-                R when is_tuple(R)   -> list_to_binary(lists:nth(1, io_lib:format("~p", [R])));
-                R                    -> list_to_binary(R)
+                %R when is_tuple(R)   -> list_to_binary(lists:nth(1, io_lib:format("~p", [R])));
+                %R when is_list(R)    -> list_to_binary(R);
+                R when is_binary(R)  -> R
                 end
          }
         || {C, R} <- lists:zip(JCols, Row)]
