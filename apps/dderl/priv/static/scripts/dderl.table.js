@@ -327,24 +327,44 @@
     _hide: function(_ranges) {
         var self = this;
         var columns = self._grid.getColumns();
-        self['_origcolumns'] = columns.slice(0);
         var toHide = {};
         for (var i=0; i<_ranges.length; ++i) {
             toHide[_ranges[i].fromCell] = true;
             toHide[_ranges[i].toCell] = true;
         }
         var toHideArray = [];
-        for(var j in toHide)
+        for(var j in toHide) {
             toHideArray[toHideArray.length] = parseInt(j);
+        }
         toHideArray.sort(function(a,b) {return (a < b ? 1 : (a === b ? 0 : -1));});
-        for(var j=0; j<toHideArray.length; ++j)
+
+        if(!self.hasOwnProperty('_hiddenColumns')) {
+            self['_hiddenColumns'] = new Array();
+        }
+
+        for(var j=0; j < toHideArray.length; ++j) {
+            self['_hiddenColumns'].push(
+                {
+                    idxCol: toHideArray[j],
+                    colContent: columns[toHideArray[j]]
+                }
+            );
             columns.splice(toHideArray[j],1);
+        }
         self._grid.setColumns(columns);
     },
+
     _unhide: function(_ranges) {
         var self = this;
-        if(self.hasOwnProperty('_origcolumns'))
-            self._grid.setColumns(self._origcolumns);
+        if(self.hasOwnProperty('_hiddenColumns')) {
+            var columns = self._grid.getColumns();
+            while(self._hiddenColumns.length > 0) {
+                var columnToAdd = self._hiddenColumns.pop();
+                columns.splice(columnToAdd.idxCol, 0, columnToAdd.colContent);
+            }
+            self._grid.setColumns(columns);
+            delete self._hiddenColumns;
+        }
     },
 
     // sorts
@@ -1507,8 +1527,6 @@
         var self = this;
         var redraw = false;
         var c = self._grid.getColumns();
-        if (self.hasOwnProperty('_origcolumns') && self._origcolumns.length > 0)
-            c = self._origcolumns;
         var firstChunk = (self._gdata.length === 0);
 
         // received response clear wait wheel
