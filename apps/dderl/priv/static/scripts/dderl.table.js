@@ -1467,25 +1467,33 @@
         var fldWidth = 0;
         for (var i = 1; i < columns.length; ++i) {
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
-            if(columns[i].hasOwnProperty('editor'))
+            if(columns[i].hasOwnProperty('editor')) {
                 columns[i].editor   = Slick.Editors.Text;
-                columns[i].minWidth = fldWidth;
-                columns[i].width    = fldWidth;
+            }
+            columns[i].minWidth = fldWidth;
+            columns[i].width    = fldWidth;
         }
 
         // load the column layout if its was saved
-        if(self._clmlay !== null)
-            for(var i = 0; i < self._clmlay.length; ++i) {
+        if(self._clmlay !== null) {
+            var tmpColumns = new Array();
+            //Add the id column since it should be always the first one.
+            tmpColumns[0] = columns[0];
+            for(var i = 1; i < columns.length; ++i) {
                 for(var j = 0; j < self._clmlay.length; ++j) {
-                    if(columns[i].name === self._clmlay[j].name)
-                        columns[i].width = self._clmlay[j].width
+                    if(columns[i].name === self._clmlay[j].name) {
+                        columns[i].width = self._clmlay[j].width;
+                        tmpColumns[j+1] = columns[i];
+                    }
                 }
             }
+            columns = tmpColumns;
+        }
         self._grid.setColumns(columns);
 
-        if(self._tbllay === null && !self._dlgResized)
+        if(self._tbllay === null && !self._dlgResized) {
             dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-10));
-        //console.log('dlg pos '+dlg.offset().left+','+dlg.offset().top);
+        }
         self._dlg.dialog('open');
     },
 
