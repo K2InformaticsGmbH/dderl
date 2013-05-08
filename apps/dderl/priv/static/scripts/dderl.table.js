@@ -288,13 +288,36 @@
             this._saveViewWithName(viewName);
     },
     _saveViewWithName: function(_viewName) {
-        //qStr = this._cmd.content.replace(/(\r\n|\n|\r)/gm," ");
+        var self = this;
         var colnamesizes = new Array();
         var cols = this._grid.getColumns();
+
         // Column names and width
-        for(var idx = 0; idx < cols.length; ++idx)
-            if(cols[idx].name.length > 0)
-                colnamesizes[colnamesizes.length] = {name: cols[idx].name, width: cols[idx].width};
+        for(var idx = 0; idx < cols.length; ++idx) {
+            if(cols[idx].name.length > 0) {
+                colnamesizes.push({
+                        name: cols[idx].name,
+                        width: cols[idx].width,
+                        hidden: false
+                });
+            }
+        }
+
+        // Add the hidden columns to the column layout.
+        if(self.hasOwnProperty('_hiddenColumns')) {
+            for(var idx = self._hiddenColumns.length - 1; idx >= 0; --idx) {
+                // The -1 in the insertPos is needed because the id column
+                // is not saved, but was counted when calculating the index.
+                var insertPos = self._hiddenColumns[idx].idxCol - 1;
+                var hiddenCol = self._hiddenColumns[idx].colContent;
+                colnamesizes.splice(insertPos, 0, {
+                    name: hiddenCol.name,
+                    width: hiddenCol.width,
+                    hidden: true
+                });
+            }
+        }
+
         // Table width/height/position
         var w = this._dlg.dialog('widget').width();
         var h = this._dlg.dialog('widget').height();
@@ -308,6 +331,7 @@
                                              name : _viewName,
                                           content : this._cmd}
                        };
+
         console.log('saving view '+JSON.stringify(saveView));
         this._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
@@ -343,7 +367,7 @@
         }
 
         for(var j=0; j < toHideArray.length; ++j) {
-            self['_hiddenColumns'].push(
+            self._hiddenColumns.push(
                 {
                     idxCol: toHideArray[j],
                     colContent: columns[toHideArray[j]]
@@ -1497,17 +1521,34 @@
         // load the column layout if its was saved
         if(self._clmlay !== null) {
             var tmpColumns = new Array();
+            self['_hiddenColumns'] = new Array();
             //Add the id column since it should be always the first one.
             tmpColumns[0] = columns[0];
-            for(var i = 1; i < columns.length; ++i) {
-                for(var j = 0; j < self._clmlay.length; ++j) {
-                    if(columns[i].name === self._clmlay[j].name) {
-                        columns[i].width = self._clmlay[j].width;
-                        tmpColumns[j+1] = columns[i];
+            // The offset starts in 1 due to the id as first column.
+            var offset = 1;
+            for(var i = 0; i < self._clmlay.length; ++i) {
+                for(var j = 1; j < columns.length; ++j) {
+                    if(columns[j].name === self._clmlay[i].name) {
+                        columns[j].width = self._clmlay[i].width;
+                        if(self._clmlay[i].hidden) {
+                            self._hiddenColumns.push(
+                                {
+                                    idxCol: i+offset,
+                                    colContent: columns[j]
+                                }
+                            );
+                            --offset;
+                        } else {
+                            tmpColumns[i+offset] = columns[j];
+                        }
+                        break;
                     }
                 }
             }
             columns = tmpColumns;
+            if(self._hiddenColumns.length == 0) {
+                delete self._hiddenColumns;
+            }
         }
         self._grid.setColumns(columns);
 
