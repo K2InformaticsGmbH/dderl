@@ -205,6 +205,12 @@ function connect_dlg()
     .dialog('open')
     .dialog("widget").draggable("option","containment","#main-body");
 
+    $("#password").keypress(function(e) {
+        if(e.which == 13) {
+            $("#dialog-db-login").dialog('option', 'buttons')["Login / Save"].apply($("#dialog-db-login"));
+        }
+    });
+
     $('#con_tns').hide();
     $('#con_othrs').show();
 
