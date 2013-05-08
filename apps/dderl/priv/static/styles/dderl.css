@@ -106,7 +106,7 @@ button.menubutton
 
 .menubar {
     background:#AFAFAF;
-    z-index:99999;
+    /*z-index:99999;*/
 }
 
 /* 

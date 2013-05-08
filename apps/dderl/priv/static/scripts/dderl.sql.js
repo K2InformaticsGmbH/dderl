@@ -519,7 +519,8 @@ function insertAtCursor(myField, myValue) {
  
     // translations to default dialog behavior
     open: function() {
-        this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+        this._dlg.dialog("open");
+            //.dialog("widget").draggable("option","containment","#main-body");
         this._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
     },
     close: function() { this._dlg.dialog("close"); },

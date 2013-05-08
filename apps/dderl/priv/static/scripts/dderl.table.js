@@ -1271,7 +1271,7 @@
             title.append( this.options.title );
         };
 
-        self._dlg.dialog("widget").draggable("option","containment","#main-body");
+        //self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined)
             self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
 
