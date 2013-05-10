@@ -2,6 +2,8 @@
 ## Eclipse
 #################
 
+distdir/
+package
 deps
 deps/erlimem/
 deps/imem/
