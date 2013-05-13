@@ -87,8 +87,8 @@
     options: {
         // dialog options default override
         toolBarHeight     : 22,
-        height            : 500,
-        width             : 500,
+        height            : 200,
+        width             : 200,
         minHeight         : 50,
         minWidth          : 100,
         resizable         : true,
@@ -99,7 +99,9 @@
         closeOnEscape     : false,
         clear             : null,
         toolBarHeight     : 20,
-        open              : function(e,ui) {},
+        open              : function(e,ui) {
+                              $(this).dialog("widget").appendTo("#main-body");
+                            },
         focus             : function(e,ui) {},
         close             : function() {
                               $(this).dialog('destroy');
@@ -1168,7 +1170,7 @@
             cl = _table.column_layout;
         var tl = null;
         if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
-            tl = _table.table_layout.length;
+            tl = _table.table_layout;
 
         this._dlg.dialog('option', 'title').removeClass('table-title-wait');
         var baseOptions = {
@@ -1271,9 +1273,9 @@
             title.append( this.options.title );
         };
 
-        //self._dlg.dialog("widget").draggable("option","containment","#main-body");
+        self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined)
-            self._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
+            self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'} );
 
         // converting the title text to a link
         self._dlg.dialog('option', 'title', $('<span>')

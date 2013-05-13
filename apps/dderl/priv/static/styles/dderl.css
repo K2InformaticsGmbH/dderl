@@ -32,7 +32,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 	padding: 0;
     border-bottom-right-radius: 0px;
     border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
     border-top-left-radius: 0px;
 }
 
@@ -50,7 +50,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
     border: none;
     border-bottom-right-radius: 0px;
     border-bottom-left-radius: 0px;
-    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
     border-top-left-radius: 0px;
 }
 
@@ -308,6 +308,7 @@ input.editor-text {
 
 div#main-body {
     position:absolute;
+    overflow: auto;
     left: 0px;
     right: 0px;
     bottom: 14px;

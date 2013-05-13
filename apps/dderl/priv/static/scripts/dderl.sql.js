@@ -91,7 +91,9 @@ function insertAtCursor(myField, myValue) {
         closeOnEscape   : false,
         clear           : null,
         toolBarHeight   : 27,
-        open            : function(e,ui) {},
+        open            : function(e,ui) {
+                            $(this).dialog("widget").appendTo("#main-body");
+                          },
         focus           : function(e,ui) {},
         close           : function() {
                             $(this).dialog('destroy');
@@ -519,9 +521,8 @@ function insertAtCursor(myField, myValue) {
  
     // translations to default dialog behavior
     open: function() {
-        this._dlg.dialog("open");
-            //.dialog("widget").draggable("option","containment","#main-body");
-        this._dlg.dialog( "option", "position", {at : 'left top+'+$("#main-body").css('top'), my : 'left top', collision : 'flipfit'} );
+        this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
+        this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
     },
     close: function() { this._dlg.dialog("close"); },
     destroy: function() { this._dlg.dialog("destroy"); },
