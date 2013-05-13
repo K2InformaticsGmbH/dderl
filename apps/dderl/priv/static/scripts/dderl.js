@@ -226,21 +226,47 @@ function save_as_table()
     }).dialog("open");
 }
 
-var _beep = null
 function beep()
 {
-    if(_beep === null) {
-        var aud = $('<audio>')
-            .append($('<source>')
-                    .attr('src', './static/media/success.mp3')
-                    .attr('type', 'audio/mpeg'))
-                    .attr('preload', 'auto')
-            .hide()
-            .appendTo(document.body);
-        _beep = aud.get(0);
+    var beepStorage = sessionStorage.getItem("beep-sound");
+    var beep = $("#beep-sound")[0];
+    if (beepStorage) {
+        // Reuse existing Data URL from sessionStorage
+        beep.setAttribute("src", beepStorage);
     }
-    _beep.load();
-    _beep.play();
+    else {
+        // Create XHR and FileReader objects
+        var xhr = new XMLHttpRequest();
+        var fileReader = new FileReader();
+
+        xhr.open("GET", beep.currentSrc, true);
+        // Set the responseType to blob
+        xhr.responseType = "blob";
+
+        xhr.addEventListener("load", function () {
+            if (xhr.status === 200) {
+                // onload needed since Google Chrome doesn't support addEventListener for FileReader
+                fileReader.onload = function (evt) {
+                    // Read out file contents as a Data URL
+                    var result = evt.target.result;
+                    beep.setAttribute("src", result);
+                    // Store Data URL in sessionStorage
+                    try {
+                        sessionStorage.setItem("beep-sound", result);
+                    }
+                    catch (e) {
+                        console.log("Storage failed: " + e);
+                    }
+                };
+                // Load blob as Data URL
+                fileReader.readAsDataURL(xhr.response);
+            }
+        }, false);
+        // Send XHR
+        xhr.send();
+    }
+    beep.load();
+    beep.play();
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
