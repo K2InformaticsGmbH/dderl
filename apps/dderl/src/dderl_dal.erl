@@ -80,11 +80,21 @@ init([SchemaName]) ->
         ]),
         ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
         Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
-        DDerlEbinPath = lists:flatten([P || P <- code:get_path(), re:run(P, ".*/dderl/.*/dderl*") =/= nomatch]),
-        Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", DDerlEbinPath)],
-        ?Info("initializing ~p", [Adapters]),
-        [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
-        {ok, #state{sess=Sess, schema=SchemaName}};
+        DDerlEbinPath = case lists:flatten([P || P <- code:get_path(), re:run(P, ".*/dderl/.*/dderl*") =/= nomatch]) of
+            "" ->
+                {ok, Cwd} = file:get_cwd(),
+                filename:join([Cwd, "ebin"]);
+            Other -> Other
+        end,
+        case filelib:is_dir(DDerlEbinPath) of
+        true ->
+            Adapters = [list_to_existing_atom(lists:nth(1, re:split(Fl, "[.]", [{return,list}]))) || Fl <- filelib:wildcard("*_adapter.beam", DDerlEbinPath)],
+            ?Info("initializing ~p", [Adapters]),
+            [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
+            {ok, #state{sess=Sess, schema=SchemaName}};
+        _ ->
+            {stop, {"no adapters found or directoty doesn't exists", DDerlEbinPath}}
+        end;
     {error, Reason} ->
         {stop, Reason}
     end.

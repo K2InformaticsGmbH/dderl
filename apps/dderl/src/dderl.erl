@@ -53,7 +53,11 @@ terminate(_Reason, _Req, _State) ->
 	ok.
 
 get_html() ->
-	Filename = filename:join([code:priv_dir(?MODULE), "login.html"]),
+    PrivDir = case code:priv_dir(?MODULE) of
+        {error, bad_name} -> "priv";
+        PDir -> PDir
+    end,
+	Filename = filename:join([PrivDir, "login.html"]),
 	{ok, Binary} = file:read_file(Filename),
 	Binary.
 
