@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 cd apps/dderl
 
 unamestr=`uname`
