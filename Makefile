@@ -21,7 +21,8 @@ clean:
 	rebar clean
 
 generate: compile
-	(cd rel && rebar generate target_dir=dderl overlay_vars=vars.config)
+	rebar generate $(OVERLAY_VARS)
+#	(cd rel && rebar generate target_dir=dderl overlay_vars=vars.config)
 
 rel: deps compile generate
 
