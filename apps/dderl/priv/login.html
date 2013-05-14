@@ -18,7 +18,7 @@
         			 <li><a id="show-test-dlg-button" href="#" onclick='show_dlg()'>Test Dlg</a></li>
         		</ul>
         	</li>
-        	<li><a id="connect-button" href="#" onclick='connect_dlg()'>New Connection</a></li>
+            <li><a id="connect-button" href="#" onclick='new_connection_tab()'>New Connection</a></li>
         	<li><a id="test-button" href="#" onclick='StartSqlEditor()'>New Query</a></li>
             <li><a id="tbl-opts" href="#" style="display:none">Options</a>
         		<ul class="sub_menu">
@@ -88,7 +88,7 @@
             WEB_SOCKET_SWF_LOCATION = "../static/scripts/WebSocketMainInsecure.swf";
 
             if(Object.hasOwnProperty('freeze')) {
-                display_login();
+                check_already_connected();
             } else {
                 $('#main-menu-bar').hide();
                 alert_jq("Dinosours are extinct. Upgrade!");

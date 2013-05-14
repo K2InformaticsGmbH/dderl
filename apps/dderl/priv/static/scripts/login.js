@@ -45,11 +45,8 @@ function display_login()
                                       password  :   MD5($('#password_login').val())}};
             ajaxCall(null,'/app/login',loginJson,'login', function(data) {
                 if(data == "ok") {
-                    var url = (window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws';
-                    create_ws(url);
                     var user = $('#user_login').val();
-                    $('#change-pswd-button').data("logged_in_user", user);
-                    $('#login-button').html('Log out ' + user);
+                    update_user_information(user);
                     $("#dialog-login").dialog("close");
                     connect_dlg();
                 }
@@ -58,6 +55,25 @@ function display_login()
             });        
         }
     });
+}
+
+function update_user_information(user) {
+    var url = (window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws';
+    create_ws(url);
+    $('#change-pswd-button').data("logged_in_user", user);
+    $('#login-button').html('Log out ' + user);
+}
+
+function check_already_connected() {
+    if(!window.opener || !window.opener.session ||
+       !window.opener.$('#change-pswd-button').data("logged_in_user")) {
+        display_login();
+    } else {
+        session = window.opener.session;
+        var user = window.opener.$('#change-pswd-button').data("logged_in_user");
+        update_user_information(user);
+        connect_dlg();
+    }
 }
 
 function change_password()

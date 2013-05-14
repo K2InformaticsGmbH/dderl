@@ -108,15 +108,15 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
     R = Statement:row_with_key(Row),
-    ?Info("Row with key ~p",[R]),
+    ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    ?Info("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
     if IsView ->
         {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
         Name = element(5, R),
         V = dderl_dal:get_view(Name, Owner),
-        ?Info("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
+        ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
         AdminConn =
             case C#ddCmd.conns of
             'local' -> dderl_dal:get_session();
@@ -130,7 +130,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv
             ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
             Resp
         }]),
-        ?Info("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
+        ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
         From ! {reply, RespJson};
     true ->                
         Name = lists:last(tuple_to_list(R)),
@@ -151,7 +151,7 @@ process_cmd({[<<"views">>], _}, From, Priv) ->
     C = dderl_dal:get_command(F#ddView.cmd),
     AdminSession = dderl_dal:get_session(),
     {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
-    ?Info("Views ~p~n~p", [C#ddCmd.command, Resp]),
+    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
         ,{<<"name">>, <<"All Views">>}

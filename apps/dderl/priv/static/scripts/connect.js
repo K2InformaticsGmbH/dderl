@@ -86,6 +86,11 @@ function set_conns_list(adapter, owner)
     $('#connection_list').jec();
 }
 
+function new_connection_tab() {
+    var newURL = window.location.protocol + "//" + window.location.host;
+    window.open(newURL, "_blank");
+}
+
 function connect_dlg()
 {
     $('<div id="dialog-db-login" title="Connect to Database">' +
