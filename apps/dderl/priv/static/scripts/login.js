@@ -76,6 +76,27 @@ function check_already_connected() {
     }
 }
 
+function logout() {
+    if (!session) {
+        return;
+    }
+    session = null;
+    $('#login-button').html('');
+    $('#change-pswd-button').data("logged_in_user", "");
+    $('#login-msg').html('Welcome guest');
+    if(window.opener) {
+        window.opener.logout();
+    }
+    if(children) {
+        for(var i=0; i < children.length; ++i){
+            if(!children[i].closed) {
+                children[i].logout();
+            }
+        }
+    }
+    display_login();
+}
+
 function change_password()
 {
     var loggedInUser = $('#change-pswd-button').data("logged_in_user");

@@ -86,9 +86,13 @@ function set_conns_list(adapter, owner)
     $('#connection_list').jec();
 }
 
+var children;
 function new_connection_tab() {
+    if(!children) {
+        children = new Array();
+    }
     var newURL = window.location.protocol + "//" + window.location.host;
-    window.open(newURL, "_blank");
+    children.push(window.open(newURL, "_blank"));
 }
 
 function connect_dlg()
