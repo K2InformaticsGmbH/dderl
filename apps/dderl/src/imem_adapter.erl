@@ -247,7 +247,7 @@ filter_json_to_term([{<<"or">>,Filters}]) -> {'or', filter_json_to_term(Filters)
 filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     Tail = filter_json_to_term(Filters),
-    [{binary_to_integer(C), [binary_to_list(V) || V <- Vs]} | Tail].
+    [{binary_to_integer(C), Vs} | Tail].
 
 process_query(Query, {_,ConPid}=Connection, Priv) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
