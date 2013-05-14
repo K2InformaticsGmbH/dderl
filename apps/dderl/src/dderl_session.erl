@@ -100,6 +100,11 @@ process_call({[<<"login">>], ReqData}, From, State) ->
             ?Error("login failed for ~p, result ~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
             From ! {reply, jsx:encode([{<<"login">>,Err}])},
+            State;
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("login failed for ~p, result ~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            From ! {reply, jsx:encode([{<<"login">>, Err}])},
             State
     end;
 
