@@ -13,7 +13,11 @@
 %% API.
 
 check_file(F) ->
-    File = filename:join([code:priv_dir(dderl), F]),
+    PrivDir = case code:priv_dir(dderl) of
+        {error, bad_name} -> "priv";
+        PDir -> PDir
+    end,
+    File = filename:join([PrivDir, F]),
     IsFile = filelib:is_file(File),
     if IsFile =:= true -> ok;
         true ->
