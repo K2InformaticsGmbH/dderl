@@ -136,14 +136,17 @@ function alert_jq(string)
         .appendTo(document.body)
         .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>')
         .dialog({
-            modal: true,
+            modal:false,
             width: 300,
             height: 300,
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
             close: function() {
                 $(this).dialog('destroy');
                 $(this).remove();
             }
-        });
+        }).dialog("widget").draggable("option","containment","#main-body");
 }
 
 function create_ws(url)

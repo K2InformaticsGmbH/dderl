@@ -140,7 +140,7 @@ function connect_dlg()
         height: 'auto',
         width: 'auto',
         resizable: false,
-        modal: true,
+        modal: false,
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
@@ -149,6 +149,7 @@ function connect_dlg()
             $('#adapter_list').width(200);
             $('#owners_list').width(200);
             $('#connection_list').width(200);
+            $(this).dialog("widget").appendTo("#main-body");
         },
         buttons: {
             'Login / Save': function() {

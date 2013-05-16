@@ -21,13 +21,13 @@ function display_login()
         height: 'auto',
         width: 'auto',
         resizable: false,
-        modal: true,
+        modal: false,
         closeOnEscape: false,
         dialogClass: 'no-close',
-        open: function(event, ui)
-        {
+        open: function(event, ui) {
             $('#user_login').val("admin");
             $('#password_login').focus();
+            $(this).dialog("widget").appendTo("#main-body");
         },
         close: function() {
             $(this).dialog('destroy');
@@ -125,7 +125,10 @@ function change_password(shouldConnect)
         height: 200,
         width: 300,
         resizable: false,
-        modal: true,
+        modal: false,
+        open: function() {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
         close: function() {
             $("#dialog-change-password").dialog('destroy');
             $("#dialog-change-password").remove();
@@ -157,5 +160,7 @@ function change_password(shouldConnect)
                 $(this).dialog("close");
             }
         }
-    }).dialog("open");
+    })
+    .dialog("open")
+    .dialog("widget").draggable("option","containment","#main-body");
 }
