@@ -24,11 +24,9 @@ function display_login()
         modal: true,
         closeOnEscape: false,
         dialogClass: 'no-close',
-        // TODO remove open function after test
         open: function(event, ui)
         {
             $('#user_login').val("admin");
-            $('#password_login').val("change_on_install");
             $('#password_login').focus();
         },
         close: function() {

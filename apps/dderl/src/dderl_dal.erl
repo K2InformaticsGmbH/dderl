@@ -68,8 +68,8 @@ start_link(SchemaName) ->
 
 init([SchemaName]) ->
     erlimem:start(),
-    Cred = {<<"admin">>, <<"change_on_install">>},
-    case erlimem:open(local_sec, {SchemaName}, Cred) of
+    Cred = {<<>>, <<>>},
+    case erlimem:open(local, {SchemaName}, Cred) of
     {ok, Sess} ->
         %lager:set_loglevel(lager_console_backend, debug),
         build_tables_on_boot(Sess, [
