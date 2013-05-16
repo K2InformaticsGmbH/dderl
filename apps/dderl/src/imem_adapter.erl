@@ -201,7 +201,7 @@ process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
     CellId = proplists:get_value(<<"cellid">>, BodyJson, <<>>),
-    Value = binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    Value = proplists:get_value(<<"value">>, BodyJson, <<>>),
     Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}], gui_resp_cb_fun(<<"update_data">>, Statement, From)),
     Priv;
 process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
@@ -216,7 +216,7 @@ process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmIdx = proplists:get_value(<<"col">>, BodyJson, <<>>),
-    Value =  binary_to_list(proplists:get_value(<<"value">>, BodyJson, <<>>)),
+    Value =  proplists:get_value(<<"value">>, BodyJson, <<>>),
     Statement:gui_req(update, [{undefined,ins,[{ClmIdx,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
     Priv;
 
