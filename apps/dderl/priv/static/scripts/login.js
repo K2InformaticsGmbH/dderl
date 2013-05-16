@@ -49,6 +49,11 @@ function display_login()
                     update_user_information(user);
                     $("#dialog-login").dialog("close");
                     connect_dlg();
+                } else if (data == "expired") {
+                    var user = $('#user_login').val();
+                    update_user_information(user);
+                    $("#dialog-login").dialog("close");
+                    change_password(true);
                 }
                 else
                     alert('Login falied : ' + data);
@@ -97,7 +102,7 @@ function logout() {
     display_login();
 }
 
-function change_password()
+function change_password(shouldConnect)
 {
     var loggedInUser = $('#change-pswd-button').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
@@ -109,7 +114,9 @@ function change_password()
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>User&nbsp;</td>' +
       '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
-      '      <tr><td align=right valign=center>Password&nbsp;</td>' +
+      '      <tr><td align=right valign=center>Old Password&nbsp;</td>' +
+      '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
@@ -128,13 +135,22 @@ function change_password()
         buttons: {
             "Change Password": function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
-                    var newPassJson = {change_pswd: { user      :loggedInUser,
-                                                      password  :MD5($('#password_change_login').val())}};
+                    var newPassJson = {
+                        change_pswd: {
+                            user  :loggedInUser,
+                            password  :MD5($('#old_password_login').val()),
+                            new_password  :MD5($('#password_change_login').val())
+                        }};
                     ajaxCall(null,'/app/login_change_pswd',newPassJson,'login_change_pswd', function(data) {
-                        if(data == "ok")
+                        if(data == "ok") {
                             $("#dialog-change-password").dialog("close");
-                        else
+                            if(shouldConnect) {
+                                connect_dlg();
+                            }
+                        }
+                        else {
                             alert('Change password falied : ' + data);
+                        }
                     });
                 }
                 else alert("Confirm password missmatch!");

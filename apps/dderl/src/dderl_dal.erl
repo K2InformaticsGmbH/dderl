@@ -15,6 +15,7 @@
 
 -export([get_adapters/0
         ,login/2
+        ,change_password/3
         ,add_adapter/2
         ,add_command/5
         ,add_view/3
@@ -35,6 +36,7 @@
     }).
 
 login(User, Password)                   -> gen_server:call(?MODULE, {login, User, Password}).
+change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword}).
 
 add_adapter(Id, FullName)               -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 add_connect(#ddConn{} = Connection)     -> gen_server:cast(?MODULE, {add_connect, Connection}).
@@ -304,7 +306,7 @@ handle_call({get_adapters}, _From, #state{sess=Sess} = State) ->
 
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),
-    ?Debug("login for user ~p pass ~p", [User, BinPswd]),
+    ?Debug("login for user ~p", [User]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
             ?Error("login exception ~p~n", [Error]),
@@ -312,6 +314,20 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
             ?Info("login accepted user ~p with id = ~p", [User, UserId]),
+            {reply, true, State#state{sess=Sess, owner=UserId}}
+    end;
+
+handle_call({change_password, User, Password, NewPassword}, _From, #state{schema=SchemaName} = State) ->
+    BinPswd = hexstr_to_bin(Password),
+    BinNewPswd = hexstr_to_bin(NewPassword),
+    ?Debug("changing password for user ~p", [User]),
+    case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd, BinNewPswd}) of
+        {error, Error} ->
+            ?Error("change password exception ~p~n", [Error]),
+            {reply, {error, Error}, State};
+        {ok, Sess} ->
+            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
+            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
             {reply, true, State#state{sess=Sess, owner=UserId}}
     end;
 

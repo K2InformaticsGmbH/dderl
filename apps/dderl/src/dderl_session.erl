@@ -96,15 +96,45 @@ process_call({[<<"login">>], ReqData}, From, State) ->
             ?Debug("login successful for ~p", [User]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
             State#state{user=User};
+        {_, {error, {Exception, "Password expired. Please change it" = M}}} ->
+            ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
+            From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
+            State#state{user=User};
         {_, {error, {Exception, M}}} ->
             ?Error("login failed for ~p, result ~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
             From ! {reply, jsx:encode([{<<"login">>,Err}])},
             State;
+        {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
+            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
+            From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
+            State#state{user=User};
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("login failed for ~p, result ~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
             From ! {reply, jsx:encode([{<<"login">>, Err}])},
+            State
+    end;
+
+process_call({[<<"login_change_pswd">>], ReqData}, From, State) ->
+    [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    case dderl_dal:change_password(User, Password, NewPassword) of
+        true ->
+            ?Debug("change password successful for ~p", [User]),
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
+            State#state{user=User};
+        {_, {error, {Exception, M}}} ->
+            ?Error("change password failed for ~p, result ~p", [User, {Exception, M}]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])},
+            State;
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("change password failed for ~p, result ~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])},
             State
     end;
 
