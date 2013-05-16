@@ -98,7 +98,7 @@ function new_connection_tab() {
 function connect_dlg()
 {
     $('<div id="dialog-db-login" title="Connect to Database">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
+      '  <table id="connect-html-table" border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>DB Type&nbsp;</td>' +
       '          <td valign=bottom><select id="adapter_list" class="ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>Ownership&nbsp;</td>' +
@@ -160,8 +160,21 @@ function connect_dlg()
                 }
 
                 adapter = $('#adapter_list option:checked').val();
-                Password = $('#password').val();
+                var Password = $('#password').val();
                 Password = (adapter == 'imem' ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
+                var urlConnect = '/app/connect';
+                var resp = 'connect'
+                var NewPassword = null;
+                if($('#new_password').val()) {
+                    NewPassword = $('#new_password').val();
+                    if(NewPassword != $('#confirm_new_password').val()) {
+                        alert("Confirm password missmatch!");
+                        return;
+                    }
+                    NewPassword = (adapter == 'imem' ? (is_MD5(NewPassword) ? NewPassword : MD5(NewPassword)) : NewPassword);
+                    urlConnect = '/app/connect_change_pswd';
+                    resp = 'connect_change_pswd';
+                }
                 var conname = (newName.length === 0 ? selName : newName);
                 var connectJson = {connect: {name      :conname,
                                              ip        :$('#ip').val(),
@@ -171,10 +184,18 @@ function connect_dlg()
                                              user      :$('#user').val(),
                                              password  :Password,
                                              tnsstring :$('#tnsstring').val()}};
+
+                if(NewPassword && urlConnect == '/app/connect_change_pswd') {
+                    connectJson.connect.new_password = NewPassword;
+                }
                 owner = $('#user').val();
                 var Dlg = $(this);
-                ajaxCall(null,'/app/connect', connectJson, 'connect', function(data) {
-                    if(data.hasOwnProperty('error')) {
+                ajaxCall(null, urlConnect, connectJson, resp, function(data) {
+                    if(data == "expired") {
+                        alert("Pasword expired, please change it");
+                        $("#connect-html-table").append('<tr><td align=right valign=center>New Password&nbsp;</td><td valign=bottom><input type="password" id="new_password" class="text ui-widget-content ui-corner-all"/></td></tr>');
+                        $("#connect-html-table").append('<tr><td align=right valign=center>Confirm Password&nbsp;</td><td valign=bottom><input type="password" id="confirm_new_password" class="text ui-widget-content ui-corner-all"/></td></tr>');
+                    } else if(data.hasOwnProperty('error')) {
                         alert_jq(
                             'Unable to connect<br>'+
                             'Host : '+$("#ip").val()+'<br>'+

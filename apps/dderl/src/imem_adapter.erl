@@ -66,6 +66,15 @@ process_cmd({[<<"connect">>], ReqBody}, From, _) ->
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     ?Debug("session:open ~p", [{Type, Opts, {User, Password}}]),
     case erlimem:open(Type, Opts, {User, Password}) of
+        {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
+            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
+            From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
+            #priv{};
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("Db connect failed for ~p, result ~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            From ! {reply, jsx:encode([{<<"connect">>, [{<<"error">>, Err}]}])},
+            #priv{};
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
@@ -88,6 +97,59 @@ process_cmd({[<<"connect">>], ReqBody}, From, _) ->
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
             From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])},
+            #priv{sess=Connection, stmts=Statements}
+    end;
+process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, _) ->
+    [{<<"connect">>,BodyJson}] = ReqBody,
+    Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
+    Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
+    Ip     = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
+    case Ip of
+        Ip when Ip =:= "local_sec" ->
+            Type    = local_sec,
+            Opts    = {Schema};
+        Ip when Ip =:= "local" ->
+            Type    = local,
+            Opts    = {Schema};
+        Ip when Ip =:= "rpc" ->
+            Type    = rpc,
+            Opts    = {list_to_existing_atom(Port), Schema};
+        Ip ->
+            Type    = tcp,
+            Opts    = {Ip, list_to_integer(Port), Schema}
+    end,
+    User = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
+    NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
+    ?Debug("connect change password ~p", [{Type, Opts, User}]),
+    case erlimem:open(Type, Opts, {User, Password, NewPassword}) of
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("Db connect failed for ~p, result ~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
+            #priv{};
+        {error, Error} ->
+            ?Error("DB connect error ~p", [Error]),
+            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
+            #priv{};
+        {ok, {_,ConPid} = Connection} ->
+            ?Debug("session ~p", [Connection]),
+            ?Debug("connected to params ~p", [{Type, Opts}]),
+            Statements = [],
+            Con = #ddConn { id       = erlang:phash2(make_ref())
+                          , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , adapter  = imem
+                          , access   = [ {ip,   Ip}
+                                       , {port, Port}
+                                       , {type, Type}
+                                       , {user, User}
+                                       ]
+                          , schema   = list_to_atom(Schema)
+                          },
+            ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
+            dderl_dal:add_connect(Con),
+            From ! {reply, jsx:encode([{<<"connect_change_pswd">>,list_to_binary(?EncryptPid(ConPid))}])},
             #priv{sess=Connection, stmts=Statements}
     end;
 process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
