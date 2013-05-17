@@ -861,7 +861,7 @@
             var data    = self._gdata[cell.fromRow];
             // console.log('browse_data @ '+column.name+' val '+JSON.stringify(data));
             self._ajax('/app/browse_data',
-                           { browse_data: {connection : self._conn,
+                           { browse_data: {connection : connection,
                                             statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
                                                   col : cell.fromCell}},

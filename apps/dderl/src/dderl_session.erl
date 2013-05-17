@@ -6,8 +6,7 @@
 -include("dderl.hrl").
 
 -export([start/0
-        , process_request/4
-        , set_adapter/2
+        , process_request/5
         , get_state/1
         ]).
 
@@ -28,7 +27,6 @@
         , statements = []
         , tref
         , user = <<>>
-        , adapter = gen_adapter
         }).
 
 start() ->
@@ -38,13 +36,11 @@ start() ->
 get_state({?MODULE, Pid}) ->
     gen_server:call(Pid, get_state, infinity).
 
-process_request(Type, Body, ReplyPid, {?MODULE, Pid}) ->
+process_request(undefined, Type, Body, ReplyPid, Ref) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, Ref);
+process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
     ?Debug("request received ~p", [{Type, Body}]),
-    gen_server:cast(Pid, {process, Type, Body, ReplyPid}).
-
-set_adapter(Adapter, {?MODULE, Pid}) ->
-    AdaptMod  = list_to_existing_atom(Adapter++"_adapter"),
-    gen_server:call(Pid, {adapter, AdaptMod}, infinity).
+    gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
 
 init(_Args) ->
     Self = self(),
@@ -52,9 +48,6 @@ init(_Args) ->
     ?Info("dderl_session ~p started!", [{dderl_session, Self}]),
     {ok, #state{tref=TRef}}.
 
-handle_call({adapter, Adapter}, _From, State) ->
-    ?Debug("adapter ~p initialized!", [Adapter]),
-    {reply, ok, State#state{adapter=Adapter}};
 handle_call(get_state, _From, State) ->
     ?Debug("get_state!", []),
     {reply, State, State};
@@ -62,10 +55,10 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error([{user, _User}], "unknown call ~p", [Unknown]),
     {reply, {no_supported, Unknown} , State}.
 
-handle_cast({process, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
+handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
     ?Debug("processing request ~p", [{Typ, WReq}]),
-    State0 = process_call({Typ, WReq}, ReplyPid, State),
+    State0 = process_call({Typ, WReq}, Adapter, ReplyPid, State),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
@@ -87,7 +80,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_call({[<<"login">>], ReqData}, From, State) ->
+process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
@@ -116,7 +109,7 @@ process_call({[<<"login">>], ReqData}, From, State) ->
             State
     end;
 
-process_call({[<<"login_change_pswd">>], ReqData}, From, State) ->
+process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
@@ -138,7 +131,7 @@ process_call({[<<"login_change_pswd">>], ReqData}, From, State) ->
             State
     end;
 
-process_call({[<<"adapters">>], _ReqData}, From, #state{user=User} = State) ->
+process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
             [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
               ,{<<"fullName">>,list_to_binary(A#ddAdapter.fullName)}]
@@ -147,7 +140,7 @@ process_call({[<<"adapters">>], _ReqData}, From, #state{user=User} = State) ->
     From ! {reply, Res},
     State;
 
-process_call({[<<"connects">>], _ReqData}, From, #state{user=User} = State) ->
+process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
     case dderl_dal:get_connects(User) of
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
@@ -172,7 +165,7 @@ process_call({[<<"connects">>], _ReqData}, From, #state{user=User} = State) ->
     end,
     State;
 
-process_call({[<<"del_con">>], ReqData}, From, #state{user=_User} = State) ->
+process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{user=_User} = State) ->
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, User}], "connection to delete ~p", [ConId]),
@@ -183,10 +176,10 @@ process_call({[<<"del_con">>], ReqData}, From, #state{user=_User} = State) ->
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
-process_call({Cmd, ReqData}, From, #state{adapt_priv=AdaptPriv,adapter=AdaptMod} = State) ->
+process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv=AdaptPriv} = State) ->
     BodyJson = jsx:decode(ReqData),
-    ?Debug([{user, User}], "~p processing ~p", [AdaptMod, {Cmd,BodyJson}]),
-    NewAdaptPriv = AdaptMod:process_cmd({Cmd, BodyJson}, From, AdaptPriv),
+    ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
+    NewAdaptPriv = Adapter:process_cmd({Cmd, BodyJson}, From, AdaptPriv),
     State#state{adapt_priv=NewAdaptPriv}.
 
 jsq(Bin) when is_binary(Bin) -> Bin;

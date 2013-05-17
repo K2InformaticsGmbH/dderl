@@ -23,13 +23,15 @@ init({ssl, http}, Req, []) ->
         ?Debug("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
         case create_new_session(Session) of
             {ok, {_,DDerlSessPid} = DderlSess} ->
-                case Adapter of
-                    undefined                       -> ok;
-                    Adapter when is_binary(Adapter) -> DderlSess:set_adapter(binary_to_list(Adapter))
+                if
+                    is_binary(Adapter) ->
+                        AdaptMod = list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
+                    true ->
+                        AdaptMod = undefined
                 end,
                 {Typ, Req3} = cowboy_req:path_info(Req2),
                 {ok, Body, Req4} = cowboy_req:body(Req3),
-                DderlSess:process_request(Typ, Body, self()),
+                DderlSess:process_request(AdaptMod, Typ, Body, self()),
                 {loop, Req4, DDerlSessPid, 60000, hibernate};
             {error, Reason} ->
                 ?Error("session ~p doesn't exists (~p)", [Session, Reason]),

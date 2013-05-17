@@ -152,9 +152,11 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, _) ->
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>,list_to_binary(?EncryptPid(ConPid))}])},
             #priv{sess=Connection, stmts=Statements}
     end;
-process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
+process_cmd({[<<"query">>], ReqBody}, From, #priv{} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
+    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = {erlimem_session, ConnPid},
     {NewPriv, R} = case dderl_dal:is_local_query(Query) of
         true -> process_query(Query, dderl_dal:get_session(), Priv);
         _ -> process_query(Query, Connection, Priv)
@@ -163,9 +165,10 @@ process_cmd({[<<"query">>], ReqBody}, From, #priv{sess=Connection}=Priv) ->
     From ! {reply, jsx:encode([{<<"query">>,R}])},
     NewPriv;
 
-process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{sess={_,ConnPid}} = Priv) ->
+process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
     Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
@@ -328,7 +331,7 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
                    ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}
                    ]};
         ok ->
-            ?Info([{session, Connection}], "query ~p -> ok", [Query]),
+            ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             {Priv, [{<<"result">>, <<"ok">>}]};
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
