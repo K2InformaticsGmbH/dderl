@@ -104,7 +104,7 @@ function change_password(shouldConnect)
 {
     var loggedInUser = $('#change-pswd-button').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
-        alert("Please login first!");
+        login_first();
         return;
     }
 

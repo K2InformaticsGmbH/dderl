@@ -116,8 +116,18 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     });
 }
 
+function login_first()
+{
+    alert("Please log in first!");
+}
+
 function show_qry_files()
 {
+    var loggedInUser = $('#change-pswd-button').data("logged_in_user");
+    if(loggedInUser == undefined || loggedInUser.length == 0) {
+        login_first();
+        return;
+    }
     $('<div>')
     .appendTo(document.body)
     .table({
