@@ -876,7 +876,9 @@
         // a dummy column needed to be added to enable slickgrid to enable column re-order
         self._grid = new Slick.Grid(self._tableDiv, [], [{id: "_"}], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
-        self._grid.registerPlugin(new Slick.CellExternalCopyManager());
+        var copyManager = new Slick.CellExternalCopyManager();
+        self._grid.registerPlugin(copyManager);
+        copyManager.onPasteCells.subscribe($.proxy(self._gridPasteCells, self));
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
@@ -1376,13 +1378,53 @@
     },
     _gridAddNewRow: function(e, args) {
         e.stopPropagation();
-
         var insertJson = {insert_data: {connection  : this._conn,
                                         statement   : this._stmt,
                                         col         : args.grid.getColumnIndex(args.column.id),
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
         this._ajax('/app/insert_data', insertJson, 'insert_data', 'insertData');
+    },
+    _gridPasteCells: function(e, args) {
+        e.stopPropagation();
+        var range = args.ranges[0];
+        var modifiedRows = new Array();
+        var gridData = this._gdata;
+        var cols = this._grid.getColumns();
+        var toCellSafe = Math.min(range.toCell, cols.length - 1);
+        var fromCellSafe = Math.max(range.fromCell, 1);
+        var rowsToRemove = new Array();
+        for(var i = range.fromRow; i <= range.toRow; ++i) {
+            var modifiedCells = new Array();
+            for(var j = fromCellSafe; j <= toCellSafe; ++j) {
+                var cellValue = gridData[i][cols[j].field];
+                modifiedCells.push({cellid: j, value : cellValue});
+            }
+            var rowId = parseInt(gridData[i].id);
+            if(rowId) {
+                modifiedRows.push({rowid: rowId, cells: modifiedCells});
+            } else {
+                rowsToRemove.push(i);
+                modifiedRows.push({cells: modifiedCells});
+            }
+        }
+        var pasteJson = {paste_data: {connection : this._conn,
+                                      statement  : this._stmt,
+                                      rows       : modifiedRows}};
+        this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
+
+        // Update all rows from the selected range
+        for(var i = range.fromRow; i <= range.toRow; ++i) {
+            gridData[i].op = 'upd';
+        }
+
+        // Remove rows that will be later added by the server
+        if(rowsToRemove.length > 0) {
+            gridData.splice(rowsToRemove[0], rowsToRemove.length);
+            this._grid.updateRowCount();
+            this._grid.invalidate();
+        }
+        this._applyStyle();
     },
     _delRow: function(e, args) {
         e.stopPropagation();
@@ -1426,6 +1468,7 @@
                         delStyle[j][cols[_i].id] = 'slick-cell-del';
                     break;
                 case 'upd':
+                case 'ins':
                     updStyle[j] = new Object();
                     for (var _i=0; _i<cols.length; ++_i)
                         updStyle[j][cols[_i].id] = 'slick-cell-upd';

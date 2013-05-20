@@ -284,6 +284,13 @@ process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
     Value =  proplists:get_value(<<"value">>, BodyJson, <<>>),
     Statement:gui_req(update, [{undefined,ins,[{ClmIdx,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
     Priv;
+process_cmd({[<<"paste_data">>], ReqBody}, From, Priv) ->
+    [{<<"paste_data">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ReceivedRows = proplists:get_value(<<"rows">>, BodyJson, []),
+    Rows = extract_modified_rows(ReceivedRows),
+    Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
+    Priv;
 
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, From, Priv) ->
@@ -305,6 +312,19 @@ gui_resp_cb_fun(Cmd, Statement, From) ->
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
     [{binary_to_integer(C), if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
+
+extract_modified_rows([]) -> [];
+extract_modified_rows([ReceivedRow | Rest]) ->
+    case proplists:get_value(<<"rowid">>, ReceivedRow) of
+        undefined ->
+            RowId = undefined,
+            Op = ins;
+        RowId ->
+            Op = upd
+    end,
+    Cells = [{proplists:get_value(<<"cellid">>, Cell), proplists:get_value(<<"value">>, Cell)} || Cell <- proplists:get_value(<<"cells">>, ReceivedRow, [])],
+    Row = {RowId, Op, Cells},
+    [Row | extract_modified_rows(Rest)].
 
 filter_json_to_term([{<<"undefined">>,[]}]) -> {'undefined', []};
 filter_json_to_term([{<<"and">>,Filters}]) -> {'and', filter_json_to_term(Filters)};
