@@ -21,6 +21,7 @@
     _cmd            : null,
     _clmlay         : null,
     _tbllay         : null,
+    _origcolumns    : {},
 
     _fetchIsTail    : false,
     _fetchIsPush    : false,
@@ -1363,7 +1364,7 @@
         var updateJson  = {update_data: {connection  : this._conn,
                                          statement   : this._stmt,
                                          rowid       : parseInt(modifiedRow.id),
-                                         cellid      : args.cell,
+                                         cellid      : this._origcolumns[cols[args.cell].field],
                                          value       : modifiedRow[cols[args.cell].field]}};
         this._ajax('/app/update_data', updateJson, 'update_data', 'updateData');
         console.log('changed '+JSON.stringify(updateJson));
@@ -1380,7 +1381,7 @@
         e.stopPropagation();
         var insertJson = {insert_data: {connection  : this._conn,
                                         statement   : this._stmt,
-                                        col         : args.grid.getColumnIndex(args.column.id),
+                                        col         : this._origcolumns[args.column.id],
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
         this._ajax('/app/insert_data', insertJson, 'insert_data', 'insertData');
@@ -1398,7 +1399,7 @@
             var modifiedCells = new Array();
             for(var j = fromCellSafe; j <= toCellSafe; ++j) {
                 var cellValue = gridData[i][cols[j].field];
-                modifiedCells.push({cellid: j, value : cellValue});
+                modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
             }
             var rowId = parseInt(gridData[i].id);
             if(rowId) {
@@ -1561,6 +1562,7 @@
             }
             columns[i].minWidth = fldWidth;
             columns[i].width    = fldWidth;
+            self._origcolumns[columns[i].name] = i;
         }
 
         // load the column layout if its was saved

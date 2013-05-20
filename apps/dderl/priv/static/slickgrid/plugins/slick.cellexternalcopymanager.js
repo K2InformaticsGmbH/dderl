@@ -132,10 +132,10 @@
       
       if (selectedRange){
         activeRow = selectedRange.fromRow;
-        activeCell = selectedRange.fromCell;
+        activeCell = Math.max(selectedRange.fromCell, 1);
       } else if (selectedCell){
         activeRow = selectedCell.row;
-        activeCell = selectedCell.cell;
+        activeCell = Math.max(selectedCell.cell, 1);
       } else {
         // we don't know where to paste
         return;
@@ -146,8 +146,8 @@
       var destW = clippedRange.length ? clippedRange[0].length : 0;
       if (clippedRange.length == 1 && clippedRange[0].length == 1 && selectedRange){
         oneCellToMultiple = true;
-        destH = selectedRange.toRow - selectedRange.fromRow +1;
-        destW = selectedRange.toCell - selectedRange.fromCell +1;
+        destH = selectedRange.toRow - activeRow + 1;
+        destW = selectedRange.toCell - activeCell + 1;
       }
       var availableRows = _grid.getData().length - activeRow;
       var addRows = 0;
@@ -288,12 +288,13 @@
             
             for (var rg = 0; rg < ranges.length; rg++){
                 var range = ranges[rg];
+                var fromCellSafe = Math.max(range.fromCell, 1);
                 var clipTextRows = [];
                 for (var i=range.fromRow; i< range.toRow+1 ; i++){
                     var clipTextCells = [];
                     var dt = _grid.getDataItem(i);
                     
-                    for (var j=range.fromCell; j< range.toCell+1 ; j++){
+                    for (var j=fromCellSafe; j< range.toCell+1 ; j++){
                         clipTextCells.push(getDataItemValueForColumn(dt, columns[j]));
                     }
                     clipTextRows.push(clipTextCells.join("\t"));
