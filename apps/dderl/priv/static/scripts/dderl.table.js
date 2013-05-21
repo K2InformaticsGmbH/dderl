@@ -340,14 +340,10 @@
     },
 
     cmdReload: function(cmd, button) {
-        /*if(this._cmd === cmd)
-            console.log('command unchanged ['+cmd+']');
-        else {*/
-            console.log('command reloading ['+cmd+']');
-            this._cmd = cmd;
-            this.options.dderlStartBtn = this._startBtn = button;
-            this._ajax('/app/query', {query: {connection: this._conn, qstr : this._cmd}}, 'query', 'queryResult');
-        //}
+        console.log('command reloading ['+cmd+']');
+        this._cmd = cmd;
+        this.options.dderlStartBtn = this._startBtn = button;
+        this._ajax('/app/query', {query: {connection: connection, qstr : this._cmd}}, 'query', 'queryResult');
     },
 
     // columns hide/unhide

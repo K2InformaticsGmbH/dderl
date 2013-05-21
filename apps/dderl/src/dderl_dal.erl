@@ -28,6 +28,7 @@
         ,get_view/2
         ,get_session/0
         ,is_local_query/1
+        ,logout/0
         ]).
 
 -record(state, { schema
@@ -53,7 +54,8 @@ get_view(Name)                  -> gen_server:call(?MODULE, {get_view, Name}).
 get_view(Name, Owner)           -> gen_server:call(?MODULE, {get_view, Name, Owner}).
 get_session()                   -> gen_server:call(?MODULE, {get_session}).
 is_local_query(Qry)             -> gen_server:call(?MODULE, {is_local_query, Qry}).
-            
+logout()                        -> gen_server:call(?MODULE, {logout}).
+
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
 hexstr_to_bin([X,Y|T], Acc) ->
@@ -316,6 +318,11 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
             ?Info("login accepted user ~p with id = ~p", [User, UserId]),
             {reply, true, State#state{sess=Sess, owner=UserId}}
     end;
+
+handle_call({logout}, _From, #state{sess = Session, owner = UserId} = State) ->
+    erlimem_session:close(Session),
+    ?Debug("closing the session ~p for the user ~p", [Session, UserId]),
+    {stop, normal, ok, State#state{sess = undefined}};
 
 handle_call({change_password, User, Password, NewPassword}, _From, #state{schema=SchemaName} = State) ->
     BinPswd = hexstr_to_bin(Password),

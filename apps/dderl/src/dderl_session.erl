@@ -23,8 +23,7 @@
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
 -record(state, {
-        adapt_priv
-        , statements = []
+        adapt_priv = []
         , tref
         , user = <<>>
         }).
@@ -65,9 +64,13 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [_Unknown, _User]),
     {noreply, State}.
 
-handle_info(die, #state{user=_User}=State) ->
+handle_info(die, #state{user=_User, adapt_priv = AdaptPriv}=State) ->
     ?Error([{user, _User}], "terminating session idle for ~p ms", [?SESSION_IDLE_TIMEOUT]),
-    {stop, timeout, State};
+    logout(AdaptPriv),
+    {stop, timeout, State#state{adapt_priv = []}};
+handle_info(logout, #state{user = User} = State) ->
+    ?Debug("terminating session of logged out user ~p", [User]),
+    {stop, normal, State};
 handle_info(Info, #state{user=User}=State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -131,6 +134,12 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
             State
     end;
 
+process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
+    logout(AdaptPriv),
+    From ! {reply, jsx:encode([{<<"logout">>, <<"ok">>}])},
+    self() ! logout,
+    State#state{adapt_priv = []};
+
 process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
             [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
@@ -176,12 +185,23 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{user=_User} = St
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv=AdaptPriv} = State) ->
+process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
+    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
-    NewAdaptPriv = Adapter:process_cmd({Cmd, BodyJson}, From, AdaptPriv),
-    State#state{adapt_priv=NewAdaptPriv}.
+    NewCurrentPriv = Adapter:process_cmd({Cmd, BodyJson}, From, CurrentPriv),
+    case CurrentPriv of
+        undefined ->
+            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv];
+        _ ->
+            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv})
+    end,
+    State#state{adapt_priv = NewAdaptPriv}.
 
 jsq(Bin) when is_binary(Bin) -> Bin;
 jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));
 jsq(Str)                     -> list_to_binary(Str).
+
+logout(AdaptPriv) ->
+    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
+    dderl_dal:logout().

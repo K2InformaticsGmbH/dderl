@@ -80,20 +80,35 @@ function check_already_connected() {
 }
 
 function logout() {
+    ajaxCall(null,'/app/logout', null, 'logout', function(data) {
+        if(data == "ok") {
+            process_logout();
+        }
+        else {
+            alert('Log out failed : ' + data);
+        }
+    });
+}
+
+function process_logout() {
+    connection = null;
+    adapter = null;
+    $(".ui-dialog-content").dialog('close');
     if (!session) {
         return;
     }
     session = null;
+
     $('#login-button').html('');
     $('#change-pswd-button').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
     if(window.opener) {
-        window.opener.logout();
+        window.opener.process_logout();
     }
     if(children) {
         for(var i=0; i < children.length; ++i){
             if(!children[i].closed) {
-                children[i].logout();
+                children[i].process_logout();
             }
         }
     }

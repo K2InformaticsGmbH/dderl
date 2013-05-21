@@ -6,11 +6,10 @@
 
 -export([ init/0
         , process_cmd/3
+        , disconnect/1
         ]).
 
--record(priv, { sess
-              , stmts
-       }).
+-record(priv, {connections = []}).
 
 init() ->
     dderl_dal:add_adapter(imem, "IMEM DB"),
@@ -43,7 +42,9 @@ init() ->
         %{<<"All Views">>, <<"select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)">>}
     ]).
 
-process_cmd({[<<"connect">>], ReqBody}, From, _) ->
+process_cmd({[<<"connect">>], ReqBody}, From, undefined) ->
+    process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = []});
+process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -69,21 +70,20 @@ process_cmd({[<<"connect">>], ReqBody}, From, _) ->
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
-            #priv{};
+            Priv;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
             From ! {reply, jsx:encode([{<<"connect">>, [{<<"error">>, Err}]}])},
-            #priv{};
+            Priv;
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
-            #priv{};
+            Priv;
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, Opts}]),
-            Statements = [],
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
                           , adapter  = imem
@@ -97,9 +97,11 @@ process_cmd({[<<"connect">>], ReqBody}, From, _) ->
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
             From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])},
-            #priv{sess=Connection, stmts=Statements}
+            Priv#priv{connections = [Connection|Connections]}
     end;
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, _) ->
+process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, undefined) ->
+    process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = []});
+process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -127,16 +129,15 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, _) ->
             ?Error("Db connect failed for ~p, result ~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
-            #priv{};
+            Priv;
         {error, Error} ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
-            #priv{};
+            Priv;
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, Opts}]),
-            Statements = [],
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
                           , adapter  = imem
@@ -149,23 +150,29 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, _) ->
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Con),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>,list_to_binary(?EncryptPid(ConPid))}])},
-            #priv{sess=Connection, stmts=Statements}
+            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(ConPid))}])},
+            Priv#priv{connections = [Connection|Connections]}
     end;
-process_cmd({[<<"query">>], ReqBody}, From, #priv{} = Priv) ->
+
+process_cmd({[<<"query">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
-    {NewPriv, R} = case dderl_dal:is_local_query(Query) of
-        true -> process_query(Query, dderl_dal:get_session(), Priv);
-        _ -> process_query(Query, Connection, Priv)
-    end,
     ?Info("query ~p", [Query]),
-    From ! {reply, jsx:encode([{<<"query">>,R}])},
-    NewPriv;
+    case lists:member(Connection, Connections) of
+        true ->
+            R = case dderl_dal:is_local_query(Query) of
+                    true -> process_query(Query, dderl_dal:get_session());
+                    _ -> process_query(Query, Connection)
+                end,
+            From ! {reply, jsx:encode([{<<"query">>,R}])};
+        false ->
+            From ! {reply, error_invalid_conn(Connection, Connections)}
+    end,
+    Priv;
 
-process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{} = Priv) ->
+process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
@@ -177,45 +184,57 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{} = Priv) ->
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
-    if IsView ->
-        {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
-        Name = element(5, R),
-        V = dderl_dal:get_view(Name, Owner),
-        ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
-        AdminConn =
+    if
+        IsView ->
+            {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
+            Name = element(5, R),
+            V = dderl_dal:get_view(Name, Owner),
+            ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
-            'local' -> dderl_dal:get_session();
-            _ -> Connection
-        end,
-        {NewPriv, Resp} = process_query(C#ddCmd.command, AdminConn, Priv),
-        RespJson = jsx:encode([{<<"browse_data">>,
-            [{<<"content">>, C#ddCmd.command}
-            ,{<<"name">>, Name}
-            ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-            ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++
-            Resp
-        }]),
-        ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]),
-        From ! {reply, RespJson};
-    true ->                
-        Name = lists:last(tuple_to_list(R)),
-        Query = <<"SELECT * FROM ", Name/binary>>,
-        {NewPriv, Resp} = process_query(Query, Connection, Priv),
-        RespJson = jsx:encode([{<<"browse_data">>,
-            [{<<"content">>, Query}
-            ,{<<"name">>, Name}] ++
-            Resp
-        }]),
-        From ! {reply, RespJson}
+                'local' ->
+                    Resp = process_query(C#ddCmd.command, dderl_dal:get_session()),
+                    RespJson = jsx:encode([{<<"browse_data">>,
+                        [{<<"content">>, C#ddCmd.command}
+                         ,{<<"name">>, Name}
+                         ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                         ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++ Resp}]),
+                    ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                _ ->
+                    case lists:member(Connection, Connections) of
+                        true ->
+                            Resp = process_query(C#ddCmd.command, Connection),
+                            RespJson = jsx:encode([{<<"browse_data">>,
+                                [{<<"content">>, C#ddCmd.command}
+                                 ,{<<"name">>, Name}
+                                 ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                                 ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++ Resp}]),
+                            ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                        false ->
+                            RespJson = error_invalid_conn(Connection, Connections)
+                    end
+            end,
+            From ! {reply, RespJson};
+        true ->
+            case lists:member(Connection, Connections) of
+                true ->
+                    Name = lists:last(tuple_to_list(R)),
+                    Query = <<"SELECT * FROM ", Name/binary>>,
+                    Resp = process_query(Query, Connection),
+                    RespJson = jsx:encode([{<<"browse_data">>,
+                        [{<<"content">>, Query}
+                         ,{<<"name">>, Name}] ++ Resp }]),
+                    From ! {reply, RespJson};
+                false ->
+                    From ! {reply, error_invalid_conn(Connection, Connections)}
+            end
     end,
-    NewPriv;
+    Priv;
 
 % views
 process_cmd({[<<"views">>], _}, From, Priv) ->
     [F|_] = dderl_dal:get_view(<<"All Views">>),
     C = dderl_dal:get_command(F#ddView.cmd),
-    AdminSession = dderl_dal:get_session(),
-    {NewPriv, Resp} = process_query(C#ddCmd.command, AdminSession, Priv),
+    Resp = process_query(C#ddCmd.command, dderl_dal:get_session()),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -225,7 +244,7 @@ process_cmd({[<<"views">>], _}, From, Priv) ->
         ++ Resp
     }]),
     From ! {reply, RespJson},
-    NewPriv;
+    Priv;
 
 % commands handled generically
 % TODO may be moved to dderl_session
@@ -299,6 +318,11 @@ process_cmd({Cmd, BodyJson}, From, Priv) ->
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
     Priv.
 
+disconnect(#priv{connections = Connections} = Priv) ->
+    ?Debug("closing the connections ~p", [Connections]),
+    [erlimem_session:close(Connection) || Connection <- Connections],
+    Priv#priv{connections = []}.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gui_resp_cb_fun(Cmd, Statement, From) ->
     fun(#gres{} = GuiResp) ->
@@ -334,7 +358,7 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
     Tail = filter_json_to_term(Filters),
     [{binary_to_integer(C), Vs} | Tail].
 
-process_query(Query, {_,ConPid}=Connection, Priv) ->
+process_query(Query, {_,ConPid}=Connection) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, StmtRslt, {_,_,ConPid}=Statement} ->
             Clms = proplists:get_value(cols, StmtRslt, []),
@@ -345,26 +369,25 @@ process_query(Query, {_,ConPid}=Connection, Priv) ->
             ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
                    "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
             ?Debug("process_query created statement ~p for ~p", [Statement, Query]),
-            {Priv, [{<<"columns">>, Columns}
-                   ,{<<"sort_spec">>, JSortSpec}
-                   ,{<<"statement">>, base64:encode(term_to_binary(Statement))}
-                   ,{<<"connection">>, list_to_binary(?EncryptPid(ConPid))}
-                   ]};
+            [{<<"columns">>, Columns},
+             {<<"sort_spec">>, JSortSpec},
+             {<<"statement">>, base64:encode(term_to_binary(Statement))},
+             {<<"connection">>, list_to_binary(?EncryptPid(ConPid))}];
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
-            {Priv, [{<<"result">>, <<"ok">>}]};
+            [{<<"result">>, <<"ok">>}];
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
-            {Priv, [{<<"error">>, Err}]};
+            [{<<"error">>, Err}];
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
-            {Priv, [{<<"error">>, Err}]};
+            [{<<"error">>, Err}];
         Error ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            {Priv, [{<<"error">>, Err}]}
+            [{<<"error">>, Err}]
     end.
 
 build_srtspec_json(SortSpecs) ->
@@ -403,3 +426,8 @@ int(C) when $a =< C, C =< $f -> C - $a + 10.
 
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
+
+error_invalid_conn(Connection, Connections) ->
+    Err = <<"Trying to process a query with an unowned connection">>,
+    ?Error("~s: ~p~n connections list: ~p", [Err, Connection, Connections]),
+    jsx:encode([{<<"error">>, Err}]).
