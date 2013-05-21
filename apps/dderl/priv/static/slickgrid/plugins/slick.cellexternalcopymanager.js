@@ -149,6 +149,28 @@
         destH = selectedRange.toRow - activeRow + 1;
         destW = selectedRange.toCell - activeCell + 1;
       }
+      var availableCols = columns.length - activeCell;
+      if(availableCols < destW) {
+          alert("Error: Trying to paste out of the range of columns");
+          return;
+      }
+
+      var readOnlyCols = new Array();
+      for(var i = activeCell; i < activeCell + destW; ++i) {
+          if(!columns[i].hasOwnProperty('editor')) {
+              readOnlyCols.push(columns[i].name);
+          }
+      }
+      if(readOnlyCols.length > 0) {
+          var confirmText = "Information pasted on the readonly column";
+          confirmText += (readOnlyCols.length == 1)?" ":"s ";
+          confirmText += readOnlyCols.join(",");
+          confirmText += " will be lost.\n\nDo you want to continue?";
+          if(!confirm(confirmText)) {
+              return;
+          }
+      }
+
       var availableRows = _grid.getData().length - activeRow;
       var addRows = 0;
       if(availableRows < destH)
@@ -285,17 +307,17 @@
             
             var columns = _grid.getColumns();
             var clipTextArr = [];
-            
+            var gridData = _grid.getData();
+
             for (var rg = 0; rg < ranges.length; rg++){
                 var range = ranges[rg];
                 var fromCellSafe = Math.max(range.fromCell, 1);
                 var clipTextRows = [];
                 for (var i=range.fromRow; i< range.toRow+1 ; i++){
                     var clipTextCells = [];
-                    var dt = _grid.getDataItem(i);
-                    
                     for (var j=fromCellSafe; j< range.toCell+1 ; j++){
-                        clipTextCells.push(getDataItemValueForColumn(dt, columns[j]));
+                        var cellValue = gridData[i][columns[j].field];
+                        clipTextCells.push(cellValue);
                     }
                     clipTextRows.push(clipTextCells.join("\t"));
                 }

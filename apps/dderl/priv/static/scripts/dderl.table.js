@@ -1395,7 +1395,9 @@
             var modifiedCells = new Array();
             for(var j = fromCellSafe; j <= toCellSafe; ++j) {
                 var cellValue = gridData[i][cols[j].field];
-                modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
+                if(cellValue) {
+                    modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
+                }
             }
             var rowId = parseInt(gridData[i].id);
             if(rowId) {
