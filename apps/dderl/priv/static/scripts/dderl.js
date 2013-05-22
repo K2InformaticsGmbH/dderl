@@ -33,6 +33,7 @@ function getUniqueTime() {
 var session = null;
 var adapter = null;
 var connection = null;
+var ws = null;
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -161,7 +162,9 @@ function alert_jq(string)
 
 function create_ws(url)
 {
-    var ws = new WebSocket(url);
+    if(!ws) {
+        ws = new WebSocket(url);
+    }
     ws.onopen = function(){
         console.log('WebSocket: opened');
         ws.send(JSON.stringify({time : ""}));
