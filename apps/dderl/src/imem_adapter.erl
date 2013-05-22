@@ -320,7 +320,7 @@ process_cmd({Cmd, BodyJson}, From, Priv) ->
 
 disconnect(#priv{connections = Connections} = Priv) ->
     ?Debug("closing the connections ~p", [Connections]),
-    [erlimem_session:close(Connection) || Connection <- Connections],
+    [Connection:close() || Connection <- Connections],
     Priv#priv{connections = []}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%

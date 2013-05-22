@@ -71,6 +71,9 @@ handle_info(die, #state{user=_User, adapt_priv = AdaptPriv}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
+handle_info(not_logged_in, #state{} = State) ->
+    ?Error("Session ~p not logged in trying to make a request, state: ~n~p", [self(), State]),
+    {stop, normal, State};
 handle_info(Info, #state{user=User}=State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -140,6 +143,12 @@ process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{adapt_priv = Ada
     self() ! logout,
     State#state{adapt_priv = []};
 
+process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
+    ?Error("Request from a not logged in user: ~n~p", [Req]),
+    From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
+    self() ! not_logged_in,
+    State;
+
 process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
             [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
@@ -203,5 +212,4 @@ jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));
 jsq(Str)                     -> list_to_binary(Str).
 
 logout(AdaptPriv) ->
-    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
-    dderl_dal:logout().
+    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv].
