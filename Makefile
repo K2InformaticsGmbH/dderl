@@ -163,9 +163,15 @@ pkgclean: ballclean
 # which differs from $REVISION that is repo-<commitcount>-<commitsha>
 PKG_VERSION = $(shell echo $(PKG_ID) | sed -e 's/^$(REPO)-//')
 
-package: distdir/$(PKG_ID).tar.gz
+pkgdist: distdir/$(PKG_ID).tar.gz
+	echo "prepared fresh source copy ready for packaging"
+
+pkgrpm:
 	ln -s distdir package
 	$(MAKE) -C package -f $(PKG_ID)/deps/node_package/Makefile
+
+package: pkgdist pkgrpm
+	echo "rpm successfully created"
 
 .PHONY: package
 export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE
