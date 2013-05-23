@@ -10,6 +10,8 @@ function load_connections()
                 value: adapters[i].id,
                 text : adapters[i].fullName 
             }));
+        $('#adapter_list').combobox();
+        $("#adapter_list-input").prop('readonly', true).disableSelection();
         setTimeout(function() {
             ajaxCall(null,'/app/connects',{}, 'connects', function(data) {
                 connects = data;
@@ -43,10 +45,7 @@ function load_connections()
 function set_owner_list(adapter)
 {
     var owners = new Object();
-
     $('#owners_list').empty();
-    $('#owners_list').jecKill();
-    //set_conns_list(adapter, '');
     for(var id in connects)
         if(connects[id].adapter == adapter)
             owners[connects[id].owner] = true;
@@ -58,16 +57,23 @@ function set_owner_list(adapter)
     for(var id in connects)
         if(connects[id].adapter == adapter) {
             $('#owners_list option[value="'+connects[id].owner+'"]').attr("selected","selected"); 
-            set_conns_list(adapter, connects[id].owner);
             break;
         }
-    $('#owners_list').jec();
+    $('#owners_list').combobox();
+    if($("#owners_list").children().length === 0) {
+        $('#owners_list-input').val("");
+        set_conns_list(adapter, "");
+    } else {
+        var currentOwner = $('#owners_list').val();
+        $('#owners_list-input').val(currentOwner);
+        set_conns_list(adapter, currentOwner);
+    }
+
 }
 
 function set_conns_list(adapter, owner)
 {
     $('#connection_list').empty();
-    $('#connection_list').jecKill();
     for(var id in connects)
         if(connects[id].adapter == adapter && connects[id].owner == owner)
             $('#connection_list').append($('<option>', {
@@ -77,13 +83,20 @@ function set_conns_list(adapter, owner)
     for(var id in connects)
         if(connects[id].adapter == adapter && connects[id].owner == owner) {
             $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
-            load_login_form(id);
             break;
         } else if (owner.length == 0) {
-            load_login_form('');
             break;
         }
-    $('#connection_list').jec();
+    $('#connection_list').combobox();
+    if($("#connection_list").children().length === 0) {
+        $('#connection_list-input').val("");
+        load_login_form('');
+    } else {
+        var selectedId = $("#connection_list").val();
+        var selectedText = $("#connection_list option:selected").text();
+        $('#connection_list-input').val(selectedText);
+        load_login_form(selectedId);
+    }
 }
 
 var children;
@@ -153,9 +166,8 @@ function connect_dlg()
         },
         buttons: {
             'Login / Save': function() {
-                var newName = $('#connection_list').jecValue();
-                var selName = $('#connection_list option[selected]').text();
-                if (newName.length === 0 && selName.length === 0) {
+                var connName = $('#connection_list-input').val()
+                if (!connName) {
                     alert_jq('Please provide a connection name for the new connection, or select an existing one');
                     return;
                 }
@@ -176,8 +188,7 @@ function connect_dlg()
                     urlConnect = '/app/connect_change_pswd';
                     resp = 'connect_change_pswd';
                 }
-                var conname = (newName.length === 0 ? selName : newName);
-                var connectJson = {connect: {name      :conname,
+                var connectJson = {connect: {name      :connName,
                                              ip        :$('#ip').val(),
                                              port      :$('#port').val(),
                                              service   :$('#service').val(),
@@ -189,7 +200,6 @@ function connect_dlg()
                 if(NewPassword && urlConnect == '/app/connect_change_pswd') {
                     connectJson.connect.new_password = NewPassword;
                 }
-                owner = $('#user').val();
                 var Dlg = $(this);
                 ajaxCall(null, urlConnect, connectJson, resp, function(data) {
                     if(data == "expired") {

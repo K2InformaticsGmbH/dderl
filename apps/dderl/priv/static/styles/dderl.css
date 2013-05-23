@@ -374,3 +374,31 @@ div#main_footer {
     background-color: rgb(240,255,240);
 }
 
+.custom-combobox {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-combobox-toggle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    margin-left: -1px;
+    padding: 0;
+    /* support: IE7 */
+    *height: 1.7em;
+    *top: 0.1em;
+    width: 15px;
+}
+
+.custom-combobox-input {
+    width: 165px;
+    margin: 0;
+    padding: 0.3em;
+}
+
+.custom-combobox-input-ie {
+    width: 150px;
+    margin: 0;
+    padding: 0.3em;
+}
