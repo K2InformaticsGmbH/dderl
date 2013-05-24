@@ -104,7 +104,7 @@ function insertAtCursor(myField, myValue) {
         history         : {}
     },
  
-    _refresh_history_box_size: function() {
+    _refreshHistoryBoxSize: function() {
         var self = this;
         // footer total width
         var childs = self._footerDiv.children();
@@ -178,7 +178,7 @@ function insertAtCursor(myField, myValue) {
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdFlat);
             })
-            .text(self._cmdFlat);
+            .val(self._cmdFlat);
 
         self._prettyTb =
             $('<textarea>')
@@ -187,12 +187,11 @@ function insertAtCursor(myField, myValue) {
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdPretty);
             })
-            .text(self._cmdPretty);
+            .val(self._cmdPretty);
 
         self._boxDiv =
             $('<div>')
             .addClass('sql_text_box')
-            //.css('font-size', self._fntSz)
             .css('font-family', self._fnt);
 
         self._editDiv =
@@ -229,18 +228,9 @@ function insertAtCursor(myField, myValue) {
             .tabs()
             .on("tabsactivate", function(event, ui) {
                 var shouldReparse = false;                
-                     if(ui.oldPanel.attr('id') === 'tabpretty'
-                        && (ui.newPanel.attr('id') === 'tabflat' || ui.newPanel.attr('id') === 'tabbox'))
-                        shouldReparse = true;
-                else if(ui.oldPanel.attr('id') === 'tabflat'
-                        && (ui.newPanel.attr('id') === 'tabpretty' || ui.newPanel.attr('id') === 'tabbox'))
-                        shouldReparse = true;
-                else if(ui.oldPanel.attr('id') === 'tabbox'
-                        && (ui.newPanel.attr('id') === 'tabflat' || ui.newPanel.attr('id') === 'tabpretty'))
-                        shouldReparse = false;
-
-                if(shouldReparse)
+                if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id')) {
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
+                }
             })
             .removeClass('ui-corner-all')
             .appendTo(self.element);
@@ -378,6 +368,8 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
+        this._addToHistory(this._modCmd);
+
         var initOptions = {
             title       : this._title,
             autoOpen    : false,
@@ -398,6 +390,10 @@ function insertAtCursor(myField, myValue) {
             this._cmdOwner.appendTo(document.body).table(initOptions)
             .table('cmdReload', this._modCmd, button);
         }
+    },
+
+    _addToHistory: function(sql) {
+        this._historySelect.append($('<option>').text(sql));
     },
     ////////////////////////////
 
@@ -420,11 +416,11 @@ function insertAtCursor(myField, myValue) {
             this._boxing(this._boxJson, this._boxDiv.width()).div.appendTo(this._boxDiv);
         }
         if(_parsed.hasOwnProperty('pretty')) {
-            this._prettyTb.text(_parsed.pretty);
+            this._prettyTb.val(_parsed.pretty);
             this._cmdPretty = this._prettyTb.val();
         }
         if(_parsed.hasOwnProperty('flat')) {
-            this._flatTb.text(_parsed.flat);
+            this._flatTb.val(_parsed.flat);
             this._cmdFlat = this._flatTb.val();
         }
     },
@@ -514,7 +510,7 @@ function insertAtCursor(myField, myValue) {
         self._dlg = self.element
             .dialog(self.options)
             .bind("dialogresizestop", function(event, ui) {
-                self._refresh_history_box_size();
+                self._refreshHistoryBoxSize();
             });
     },
  
@@ -522,7 +518,7 @@ function insertAtCursor(myField, myValue) {
     open: function() {
         this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
-        this._refresh_history_box_size();
+        this._refreshHistoryBoxSize();
     },
     close: function() { this._dlg.dialog("close"); },
     destroy: function() { this._dlg.dialog("destroy"); },
@@ -530,24 +526,8 @@ function insertAtCursor(myField, myValue) {
     showCmd: function(cmd) {
         var self = this;
         self._modCmd = cmd;
-        self._flatTb.text(cmd);
-        self._cmdFlat = self._flatTb.val();
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
-
-    // // Use the _setOption method to respond to changes to options
-    // _setOption: function( key, value ) {
-    //     var self = this;
-    //     var save = false;
-    //     switch( key ) {
-    //       case "clear":             // handle changes to clear option
-    //         save = true;
-    //         break;
-    //     }
- 
-    //     // In jQuery UI 1.9 and above, you use the _super method instead
-    //     if (save) this._super('_setOption', key, value);
-    // },
  
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
