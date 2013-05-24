@@ -1523,6 +1523,9 @@
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
         console.log('destroying...');
+        this._footerDiv.remove();
+        this._tableDiv.remove();
+        this._grid.destroy();
         if(this._stmt) this.buttonPress("close");
     },
 

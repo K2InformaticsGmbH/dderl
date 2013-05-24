@@ -388,15 +388,14 @@ function insertAtCursor(myField, myValue) {
         };
 
         if(null === this._cmdOwner) {
-               this._cmdOwner = $('<div>')
-               .appendTo(document.body)
-               .table(initOptions)
-               .table('cmdReload', this._modCmd, button);
+            this._cmdOwner = $('<div>')
+                .appendTo(document.body)
+                .table(initOptions)
+                .table('cmdReload', this._modCmd, button);
         } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
             this._cmdOwner.table('cmdReload', this._modCmd, button);
         } else {
-            this._cmdOwner = $('<div>')
-            .appendTo(document.body).table(initOptions)
+            this._cmdOwner.appendTo(document.body).table(initOptions)
             .table('cmdReload', this._modCmd, button);
         }
     },
