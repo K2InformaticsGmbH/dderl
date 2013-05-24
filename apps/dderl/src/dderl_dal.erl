@@ -121,10 +121,10 @@ handle_call({is_local_query, Qry}, _From, State) ->
                 _ -> {reply, false, State}
             end;
         {lex_error, Error} ->
-            ?Error({"SQL lexer error", Error}),
+            ?Error("SQL lexer error ~p", [Error]),
             {reply, false, State};
         {parse_error, Error} ->
-            ?Error({"SQL parser error", Error}),
+            ?Error("SQL parser error ~p", [Error]),
             {reply, false, State};
         _ ->
             ?Info("non select query ~p", [Qry]),
