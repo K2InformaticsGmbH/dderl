@@ -272,7 +272,7 @@
         .appendTo(document.body)
         .sql({autoOpen  : false,
               title     : this.options.title,
-              cmdOwner  : this,
+              cmdOwner  : this._dlg,
               history   : this._cmdStrs
              })
         .sql('open')

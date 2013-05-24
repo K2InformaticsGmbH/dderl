@@ -59,6 +59,7 @@ function insertAtCursor(myField, myValue) {
     _boxJson        : {},  
     _boxBg          : null,
     _history        : {},
+    _historySelect  : null,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
@@ -103,6 +104,17 @@ function insertAtCursor(myField, myValue) {
         history         : {}
     },
  
+    _refresh_history_box_size: function() {
+        var self = this;
+        // footer total width
+        var childs = self._footerDiv.children();
+        var totWidth = 0;
+        for(var i = 0; i + 1 < childs.length; ++i) {
+            totWidth += $(childs[i]).width();
+        }
+        self._historySelect.css('width', self._footerDiv.width() - totWidth);
+    },
+
     // Set up the widget
     _create: function() {
         var self = this;
@@ -289,7 +301,7 @@ function insertAtCursor(myField, myValue) {
         self._footerWidth = self._addBtngrpToDiv(self._footerDiv);
     },
 
-    _addBtngrpToDiv: function(_toolDiv) {
+    _addBtngrpToDiv: function(toolDiv) {
         var self = this;
 
         for(btnTxt in self._toolsBtns) {
@@ -310,32 +322,33 @@ function insertAtCursor(myField, myValue) {
 // TODO jQ 1.9 deprecated $.browser find work around
 //            if($.browser.msie) inph -= 2;
 
-            if (self._toolsBtns[btnTxt].typ === 'btn')
+            if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
                     .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
                     .click(self, toolElmFn)
-                    .appendTo(_toolDiv);
-            else if (self._toolsBtns[btnTxt].typ === 'sel' && self._history.length > 0) {
+                    .appendTo(toolDiv);
+            } else if (self._toolsBtns[btnTxt].typ === 'sel') {
                 var sel = $('<select>')
-                   .width(100)
-                   .css('margin', '0px 0px 0px 4px')
-                   .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
-                   .button()
-                   .css('height', this.options.toolBarHeight+'px')
-                   .appendTo(_toolDiv);
+                    .width(100)
+                    .css('margin', '0px 0px 0px 0px')
+                    .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
+                    .button()
+                    .css('height', this.options.toolBarHeight+'px')
+                    .appendTo(toolDiv);
                 for(var i = 0; i < self._history.length; ++i)
-                    sel.append($('<option>').text(self._history[i]));
+                     sel.append($('<option>').text(self._history[i]));
+                self._historySelect = sel;
             }
         }
         
-        _toolDiv
+        toolDiv
             .buttonset()
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width
-        var childs = _toolDiv.children();
+        var childs = toolDiv.children();
         var totWidth = 0;
         for(var i=0; i<childs.length; ++i)
             totWidth += $(childs[i]).width();
@@ -365,23 +378,27 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
+        var initOptions = {
+            title       : this._title,
+            autoOpen    : false,
+            dderlConn   : connection,
+            dderlSession: session,
+            dderlAdapter: adapter,
+            dderlStartBtn: button
+        };
+
         if(null === this._cmdOwner) {
                this._cmdOwner = $('<div>')
                .appendTo(document.body)
-               .table({
-                   title       : this._title,
-                   autoOpen    : false,
-                   dderlConn   : connection,
-                   dderlSession: session,
-                   dderlAdapter: adapter,
-                   dderlStartBtn: button
-               })
+               .table(initOptions)
                .table('cmdReload', this._modCmd, button);
-        }
-        else if("cmdReload" in this._cmdOwner)
-            this._cmdOwner.cmdReload(this._modCmd, button);
-        else
+        } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
             this._cmdOwner.table('cmdReload', this._modCmd, button);
+        } else {
+            this._cmdOwner = $('<div>')
+            .appendTo(document.body).table(initOptions)
+            .table('cmdReload', this._modCmd, button);
+        }
     },
     ////////////////////////////
 
@@ -496,33 +513,17 @@ function insertAtCursor(myField, myValue) {
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
-            .dialog(self.options);
-//            .bind("dialogresize", function(event, ui) 
-//            {
-//            });
-
-        // // for dialog title as html DOM / jQuery Obj
-        // self._dlg.data( "uiDialog" )._title = function(title) {
-        //     title.html('');
-        //     this.options.title
-        //         .click(function(e) {
-        //             self._dlgTtlCnxtMnu.dom
-        //                 .css("top", e.clientY - 10)
-        //                 .css("left", e.clientX)
-        //                 .data('cnxt', self)
-        //                 .show();
-        //         });
-        //     title.append( this.options.title );
-        // };
-
-        // // converting the title text to a link
-        // self._dlg.dialog('option', 'title', $('<a href="#">'+self.options.title+'</a>'));
+            .dialog(self.options)
+            .bind("dialogresizestop", function(event, ui) {
+                self._refresh_history_box_size();
+            });
     },
  
     // translations to default dialog behavior
     open: function() {
         this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+        this._refresh_history_box_size();
     },
     close: function() { this._dlg.dialog("close"); },
     destroy: function() { this._dlg.dialog("destroy"); },
@@ -606,3 +607,4 @@ function insertAtCursor(myField, myValue) {
 //         ],"collapsed":false,"error":"","color":"black","pick":""};
 //     boxing(BOX).div.appendTo(document.body);
 // });
+
