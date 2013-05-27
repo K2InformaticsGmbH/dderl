@@ -637,7 +637,7 @@
     },
 
     _ajax: function(url, data, resp, callback) {
-        this._dlg.dialog('option', 'title').addClass('table-title-wait');
+        this._setTitleHtml($(this._dlg.dialog('option', 'title')).addClass('table-title-wait'));
         ajaxCall(this, url, data, resp, callback);
     },
     
@@ -1065,9 +1065,10 @@
             alert_jq('failed to close statement!\n'+_stmtclose.error);
     },
     _checkSaveViewResult: function(_saveView) {
-        if(_saveView === "ok")
-            console.log('[AJAX] view saved!'),
-            this._dlg.dialog('option', 'title').removeClass('table-title-wait');
+        if(_saveView === "ok") {
+            console.log('[AJAX] view saved!');
+            this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        }
         else if(_saveView.hasOwnProperty('error'))
             alert_jq('failed to save view!\n'+_saveView.error);
     },
@@ -1091,9 +1092,7 @@
             this._tbllay = _views.table_layout;
             if(_views.table_layout.length  === 0) this._tbllay = null;
         }
-        this._dlg.dialog('option', 'title', $('<span>')
-                                                .text(_views.name)
-                                                .addClass('table-title'));
+        this._setTitleHtml($('<span>').text(_views.name).addClass('table-title'));
         this.options.title = _views.name;
         console.log('>>>>> table '+_views.name+' '+_views.connection);
         if(_views.hasOwnProperty('error'))
@@ -1171,7 +1170,7 @@
         if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
             tl = _table.table_layout;
 
-        this._dlg.dialog('option', 'title').removeClass('table-title-wait');
+        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         var baseOptions = {
             autoOpen        : false,
             title           : _table.name,
@@ -1244,10 +1243,6 @@
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
             .dialog(self.options)
-            // .on('dialogfocus', function (event, ui) {
-            //     $(".ui-dialog").find(".ui-dialog-titlebar").removeClass("ui-state-error");
-            //     $(this).parents(".ui-dialog:first").find(".ui-dialog-titlebar").addClass("ui-state-error");
-            // }
             .bind("dialogresize", function(event, ui) 
             {
                 var data = self._grid.getData();
@@ -1258,28 +1253,12 @@
                 self._dlgResized = true;
             });
 
-        // for dialog title as html DOM / jQuery Obj
-        self._dlg.data( "uiDialog" )._title = function(title) {
-            title.html('');
-            this.options.title
-                .click(function(e) {
-                    self._dlgTtlCnxtMnu.dom
-                        .css("top", e.clientY - 10)
-                        .css("left", e.clientX)
-                        .data('cnxt', self)
-                        .show();
-                });
-            title.append( this.options.title );
-        };
-
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined)
             self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'} );
 
         // converting the title text to a link
-        self._dlg.dialog('option', 'title', $('<span>')
-                                                .text(self.options.title)
-                                                .addClass('table-title'));
+        self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
     },
  
     // context menus invocation for slickgrid
@@ -1313,9 +1292,6 @@
         
         gSelMdl.setSelectedRanges(gSelecteds);
 
-        // console.log('cnxtmnu @ cell -> cell ('+cell.cell+', '+row+') value '+data+' column '+column.field);
-        // console.log('cnxtmnu @ cell -> ('+e.clientX+', '+e.clientY+')');
-
         this._slkHdrCnxtMnu.dom
             .removeData('cnxt')
             .hide();
@@ -1338,9 +1314,6 @@
 
         gSelecteds.push(new Slick.Range(0, col, g.getDataLength() - 1, col));
         gSelMdl.setSelectedRanges(gSelecteds);
-
-        // console.log('cnxtmnu @ header -> (name, id, field) = ('+args.column.name+', '+args.column.id+', '+args.column.field+')');
-        // console.log('cnxtmnu @ header -> ('+e.clientX+', '+e.clientY+')');
 
         this._slkCellCnxtMnu.dom
             .removeData('cnxt')
@@ -1519,7 +1492,19 @@
         // In jQuery UI 1.9 and above, you use the _super method instead
         if (save) this._super( "_setOption", key, value );
     },
- 
+
+    _setTitleHtml: function(newTitle) {
+        var self = this;
+        self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
+        self._dlg.dialog("widget").find(".table-title").click(function(e) {
+            self._dlgTtlCnxtMnu.dom
+                .css("top", e.clientY - 10)
+                .css("left", e.clientX)
+                .data('cnxt', self)
+                .show();
+        });
+    },
+
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
         console.log('destroying...');
@@ -1619,7 +1604,7 @@
         var firstChunk = (self._gdata.length === 0);
 
         // received response clear wait wheel
-        self._dlg.dialog('option', 'title').removeClass('table-title-wait');
+        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
 
         // system actions (beep and others)
         if(_rows.beep) beep();
