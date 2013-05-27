@@ -393,7 +393,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _addToHistory: function(sql) {
-        this._historySelect.append($('<option>').text(sql));
+        this._historySelect.prepend($('<option>').text(sql));
     },
     ////////////////////////////
 
