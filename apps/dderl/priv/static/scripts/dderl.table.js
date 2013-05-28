@@ -50,7 +50,8 @@
                         saveViewResult  : function(e, _result) { e.data._checkSaveViewResult(_result); },
                         loadRows        : function(e, _result) { e.data._renderRows(_result); },
                         filterResult    : function(e, _result) { e.data._renderRows(_result); },
-                        sortResult      : function(e, _result) { e.data._renderRows(_result); }
+                        sortResult      : function(e, _result) { e.data._renderRows(_result); },
+                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor(_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -72,17 +73,18 @@
                        'Save View As'   : '_saveViewAs'},
 
     // slick context menus
-    _slkHdrCnxtMnu  : {'Browse Data'    : '_browseHeaderData',
-                       'Hide'           : '_hide',
-                       'UnHide'         : '_unhide',
-                       'Filter...'      : '_filterColumn',
-                       'Filter Clear'   : '_filterClear',
-                       'Sort...'        : '_sort',
-                       'Sort ASC'       : '_sortAsc',
-                       'Sort DESC'      : '_sortDesc',
-                       'Sort Clear'     : '_sortClear'},
-    _slkCellCnxtMnu : {'Browse Data'    : '_browseCellData',
-                       'Filter'         : '_filter'},
+    _slkHdrCnxtMnu  : {'Browse Data'      : '_browseHeaderData',
+                       'Hide'             : '_hide',
+                       'UnHide'           : '_unhide',
+                       'Filter...'        : '_filterColumn',
+                       'Filter Clear'     : '_filterClear',
+                       'Sort...'          : '_sort',
+                       'Sort ASC'         : '_sortAsc',
+                       'Sort DESC'        : '_sortDesc',
+                       'Sort Clear'       : '_sortClear'},
+    _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
+                       'Filter'           : '_filter',
+                       'Edit Erlang Term' : '_editErlangTerm'},
 
     // These options will be used as defaults
     options: {
@@ -624,14 +626,6 @@
                         $(this).remove();
                     }                   
                 }
-                /*resize: function(e, ui) {
-                    var dH = $(this).height() / fCount - 30;
-                    var dW = $(this).width() - 30;
-                    for(var c in self._filters) {
-                        self._filters[c].inp.width(dW);
-                        self._filters[c].inp.height(dH);
-                    }
-                }*/
             });
 
     },
@@ -843,14 +837,13 @@
         console.log('_browseCellData for '+_ranges.length+' slick range(s)');
 
         // test the range and throw unsupported exceptions
-        if(_ranges.length >= 2 && (!(
+        if(_ranges.length > 2 || _ranges.length >= 2 && (!(
                  _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
                  _ranges[0].fromCell === _ranges[0].toCell &&
                  _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
                  _ranges[1].fromCell === _ranges[1].toCell &&
                  _ranges[1].fromCell === _ranges[0].toCell && // same cell
-                 _ranges[1].fromRow  === _ranges[0].toRow
-                 ) || _ranges.length > 2))
+                _ranges[1].fromRow  === _ranges[0].toRow)))
                 throw('cell level \'Browse Data\' don\'t support multiples and ranges');
         else {
             var cell    = _ranges[0];
@@ -864,6 +857,19 @@
                                                   col : cell.fromCell}},
                            'browse_data', 'browseData');
         }
+    },
+
+    _editErlangTerm: function () {
+        var self = this;
+        var selectedCell = self._grid.getActiveCell();
+        if(!selectedCell) {
+            console.log("_editErlangTerm with no selected cell");
+            return;
+        }
+        console.log(selectedCell);
+        var columnField = self._grid.getColumns()[selectedCell.cell].field;
+        var stringToFormat = self._gdata[selectedCell.row][columnField];
+        self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:1}},'format_erlang_term', 'editErlangTerm');
     },
 
     _createSlickGrid: function() {
@@ -1227,6 +1233,19 @@
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
         }
+    },
+
+    _openErlangTermEditor: function(formattedString) {
+        var thisIsMyEditor = $('<div>')
+        .appendTo(document.body)
+        .termEditor(
+            {
+                autoOpen  : false,
+                title     : "Erlang term editor",
+                termOwner : this,
+                term      : formattedString
+            }
+        ).termEditor('open');
     },
     ////////////////////////////
 

@@ -151,7 +151,7 @@ function insertAtCursor(myField, myValue) {
             self._txtlen =
                 $('#txtlen')
                 .css('font-family', self._fnt)
-                .css('font-size', self._fntSz)
+                .css('font-size', self._fntSz);
         }
 
         //
@@ -228,7 +228,7 @@ function insertAtCursor(myField, myValue) {
             .tabs()
             .on("tabsactivate", function(event, ui) {
                 var shouldReparse = false;                
-                if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id')) {
+                if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
             })
