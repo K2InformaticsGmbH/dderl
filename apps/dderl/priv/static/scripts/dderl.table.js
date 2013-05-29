@@ -37,6 +37,10 @@
     _startBtn       : null,
     _cmdStrs        : [],
 
+    // for edit erlang terms
+    _erlangCellPos  : null,
+    _divDisable     : null,
+
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable(_result); },
@@ -192,7 +196,7 @@
         self._createSlickGrid();
         self._createContextMenus();
 
-        // setting up the event handlers last to aid debugging
+        // setting up the event handlers last to aid debuggin
         self._setupEventHandlers();
     },
 
@@ -838,11 +842,11 @@
 
         // test the range and throw unsupported exceptions
         if(_ranges.length > 2 || _ranges.length >= 2 && (!(
-                 _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
-                 _ranges[0].fromCell === _ranges[0].toCell &&
-                 _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
-                 _ranges[1].fromCell === _ranges[1].toCell &&
-                 _ranges[1].fromCell === _ranges[0].toCell && // same cell
+                _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
+                _ranges[0].fromCell === _ranges[0].toCell &&
+                _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
+                _ranges[1].fromCell === _ranges[1].toCell &&
+                _ranges[1].fromCell === _ranges[0].toCell && // same cell
                 _ranges[1].fromRow  === _ranges[0].toRow)))
                 throw('cell level \'Browse Data\' don\'t support multiples and ranges');
         else {
@@ -859,17 +863,23 @@
         }
     },
 
-    _editErlangTerm: function () {
+    _editErlangTerm: function (_ranges) {
         var self = this;
-        var selectedCell = self._grid.getActiveCell();
-        if(!selectedCell) {
-            console.log("_editErlangTerm with no selected cell");
-            return;
+        if(_ranges.length > 2 || _ranges.length >= 2 && (!(
+                _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
+                _ranges[0].fromCell === _ranges[0].toCell &&
+                _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
+                _ranges[1].fromCell === _ranges[1].toCell &&
+                _ranges[1].fromCell === _ranges[0].toCell && // same cell
+                _ranges[1].fromRow  === _ranges[0].toRow))) {
+            throw('cell level \'Edit Erlang Term\' don\'t support multiples and ranges');
+        } else {
+            var cell = _ranges[0];
+            var columnField = self._grid.getColumns()[cell.fromCell].field;
+            var stringToFormat = self._gdata[cell.fromRow][columnField];
+            self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
+            self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:1}},'format_erlang_term', 'editErlangTerm');
         }
-        console.log(selectedCell);
-        var columnField = self._grid.getColumns()[selectedCell.cell].field;
-        var stringToFormat = self._gdata[selectedCell.row][columnField];
-        self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:1}},'format_erlang_term', 'editErlangTerm');
     },
 
     _createSlickGrid: function() {
@@ -1236,16 +1246,26 @@
     },
 
     _openErlangTermEditor: function(formattedString) {
-        var thisIsMyEditor = $('<div>')
-        .appendTo(document.body)
-        .termEditor(
-            {
-                autoOpen  : false,
-                title     : "Erlang term editor",
-                termOwner : this,
-                term      : formattedString
-            }
-        ).termEditor('open');
+        var self = this;
+        // received response clear wait wheel
+        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+
+        if(formattedString.hasOwnProperty('error')) {
+            alert_jq('Error : '+ formattedString.error);
+        } else {
+            self.disableDialog();
+            var thisIsMyEditor = $('<div>')
+                .appendTo(document.body)
+                .termEditor(
+                    {
+                        autoOpen  : false,
+                        title     : "Erlang term editor",
+                        termOwner : self,
+                        container : self._divDisable,
+                        term      : formattedString
+                    }
+                ).termEditor('open');
+        }
     },
     ////////////////////////////
 
@@ -1344,7 +1364,9 @@
             .show();
     },
     _gridCellChange: function(e, args) {
-        e.stopPropagation();
+        if(e) {
+            e.stopPropagation();
+        }
 
         var g           = args.grid;
         var modifiedRow = g.getData()[args.row];
@@ -1477,6 +1499,39 @@
         this._ajax('/app/button', {button: { connection: this._conn
                                                , statement: this._stmt
                                                , btn: button}}, 'button', 'loadRows');
+    },
+
+    disableDialog: function() {
+        var self = this;
+        if(!self._divDisable) {
+            self._divDisable = $('<div>').addClass('ui-dialog-disabled');
+        }
+        self._divDisable.appendTo(self._dlg.dialog('widget'));
+        self._divDisable.css('z-index', self._dlg.dialog('widget').css('z-index'));
+    },
+
+    enableDialog: function() {
+        var self = this;
+        if(!self._divDisable) {
+            return;
+        }
+        self._divDisable.remove();
+    },
+
+    updateErlangCell: function(newErlangString) {
+        var self = this;
+        if(!self._erlangCellPos) {
+            return;
+        }
+        var rowPos = self._erlangCellPos.row;
+        var cell = self._erlangCellPos.cell;
+        var columnField = self._grid.getColumns()[cell].field;
+        self._gdata[rowPos][columnField] = newErlangString;
+        self._gridCellChange(null, {
+            grid : self._grid,
+            row  : rowPos,
+            cell : cell
+        });
     },
 
     // Use the _setOption method to respond to changes to options

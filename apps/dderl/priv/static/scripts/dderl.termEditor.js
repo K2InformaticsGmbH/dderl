@@ -2,6 +2,7 @@
     $.widget("dderl.termEditor", $.ui.dialog, {
         _dlg            : null,
         _termOwner      : null,
+        _container      : null,
         _term           : null,
         _editDiv        : null,
         _editText       : null,
@@ -9,25 +10,26 @@
         _footerWidth    : 0,
         _txtlen         : null,
         _fnt            : null,
+        _currentExpLvl  : 1,
 
-        _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
-                           '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
-                           '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
-                           '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
-                           'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
-                           '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
-                           '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                           '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                           '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
-                           '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
-                           'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
-                           'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'close',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
+        _handlers       : {
+            updateTextArea      : function(e, _result) { e.data._updateTextArea(_result); },
+            saveChangesResponse : function(e, _result) { e.data._saveChangesResponse(_result); }
+        },
+
+        _toolbarButtons : {
+            '<'       : {tip: 'Reduce expansion', typ : 'btn', icn : 'rev-play', clk : '_decreaseExp', dom: '_tbExpDown'},
+            'textBox' : {tip: 'Expansion level',  typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
+            '>'       : {tip: 'Next page',        typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
+            'accept'  : {tip: 'Set changes',      typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
+            'cancel'  : {tip: 'Discard changes',  typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' }},
+
 
         // These options will be used as defaults
         options: {
             // dialog options default override
-            height          : 500,
-            width           : 500,
+            height          : 300,
+            width           : 400,
             minHeight       : 50,
             minWidth        : 100,
             resizable       : true,
@@ -36,10 +38,7 @@
             canMaximize     : true,
             closeOnEscape   : false,
             clear           : null,
-            toolBarHeight   : 27,
-            open            : function(e,ui) {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            toolBarHeight   : 20,
             focus           : function(e,ui) {},
             close           : function() {
                 $(this).dialog('destroy');
@@ -57,6 +56,7 @@
             // preserve some options
             if(self.options.termOwner   !== self._termOwner)   self._termOwner = self.options.termOwner;
             if(self.options.term        !== self._term)        self._term      = self.options.term;
+            if(self.options.container   !== self._container)   self._container = self.options.container;
 
             // dialog elements
 
@@ -102,11 +102,17 @@
             // need the max footer with to set as dlg minWidth
             self._createDlgFooter();
             self.options.minWidth = self._footerWidth;
-            //self._createDlg();
-
+            self._tbTxtBox.val(self._currentExpLvl);
             self._dlg = self.element.dialog(self.options);
             // setting up the event handlers last to aid debugging
-            //self._setupEventHandlers();
+            self._setupEventHandlers();
+        },
+
+        _setupEventHandlers: function() {
+            // make this as context to private event handler functions
+            // and register for named events
+            for(var fun in this._handlers)
+                this.element.on(fun, null, this, this._handlers[fun]);
         },
 
         _createDlgFooter: function() {
@@ -154,7 +160,7 @@
                     self[elm.dom] =
                     $('<input>')
                     .attr('type', 'text')
-                    .attr('size', 10)
+                    .attr('size', 5)
                     .data('tag', btn)
                     .button()
                     .addClass('tb_empty')
@@ -164,9 +170,9 @@
                     .css('margin', '0px -1px 0px 0px')
                     .keypress(function(evt) {
                         if(evt.which == 13) {
-                            var rownum = parseInt($(this).val());
-                            if(rownum != NaN) {
-                                self["_toolBarTxtBoxVal"] = rownum;
+                            var explvlnum = parseInt($(this).val());
+                            if(explvlnum != NaN) {
+                                self._currentExpLvl = explvlnum;
                                 evt.data = self;
                                 toolElmFn.call(this, evt);
                             }
@@ -190,7 +196,80 @@
 
         open: function() {
             this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
-            this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+            this._dlg.dialog("open").dialog("widget").draggable("option","containment", this._container);
+            this._dlg.dialog("widget").appendTo(this._container);
         },
+
+        destroy: function() {
+            this._termOwner.enableDialog();
+        },
+
+        updateExp: function(expansionLevel) {
+            var stringToFormat = this._editText.val();
+            ajaxCall(this, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionLevel}},'format_erlang_term', 'updateTextArea');
+        },
+
+        /*
+         * Toolbar callbak functions
+         */
+        // NOTE: self is 'this' and 'this' is dom ;)
+        _decreaseExp: function(self) {
+            console.log('cb _decreaseExp current: ' + self._currentExpLvl);
+            self._currentExpLvl = self._currentExpLvl - 1;
+            if(self._currentExpLvl < 0) {
+                self._currentExpLvl = 0;
+            }
+            self._tbTxtBox.val(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl);
+        },
+        _setExpLevel: function(self) {
+            console.log('cb _setExpLevel ' + self._currentExpLvl);
+            if(self._currentExpLvl < 0) {
+                self._currentExpLvl = 0;
+            }
+            self._tbTxtBox.val(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl);
+        },
+        _increaseExp: function(self) {
+            console.log('cb _increaseExp current: ' + self._currentExpLvl);
+            self._currentExpLvl = self._currentExpLvl + 1;
+            if(self._currentExpLvl < 0) {
+                self._currentExpLvl = 0;
+            }
+            self._tbTxtBox.val(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl);
+        },
+        _saveChanges: function(self) {
+            console.log('cb _saveChanges: the new term: ' + self._editText.val());
+            var stringToFormat = self._editText.val();
+            var expansionLevel = self._currentExpLvl;
+            ajaxCall(self, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionLevel}},'format_erlang_term', 'saveChangesResponse');
+        },
+        _abortChanges: function(self) {
+            console.log('['+self.options.title+'] cb _abortChanges');
+            self._dlg.dialog("close");
+        },
+        ////////////////////////////
+
+        /*
+         * ajaxCall callbacks
+         */
+        _updateTextArea: function(formattedString) {
+            if(formattedString.hasOwnProperty('error')) {
+                alert_jq('Error : '+ formattedString.error);
+            } else {
+                this._editText.val(formattedString);
+            }
+        },
+
+        _saveChangesResponse: function(formattedString) {
+            if(formattedString.hasOwnProperty('error')) {
+                alert_jq('Error : ' + formattedString.error);
+            } else {
+                this._termOwner.updateErlangCell(formattedString);
+                this._dlg.dialog("close");
+            }
+        }
+        ////////////////////////////
     });
 }( jQuery ) );

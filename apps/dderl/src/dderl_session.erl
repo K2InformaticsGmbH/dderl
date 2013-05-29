@@ -146,14 +146,15 @@ process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{adapt_priv = Ada
 process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = State) ->
     [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
-    ?Info("The string to format: ~p", [StringToFormat]),
+    ?Debug("The string to format: ~p", [StringToFormat]),
     ExpandLevel = proplists:get_value(<<"expansion_level">>, BodyJson, 1),
     case erlformat:format(binary_to_list(StringToFormat), ExpandLevel) of
         {error, ErrorInfo} ->
-            ?Error("Error trying to format the erlang term ~n~p", [ErrorInfo]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Invalid erlang term">>}])};
+            ?Error("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
+            From ! {reply, jsx:encode([{<<"format_erlang_term">>,
+                                        [{<<"error">>, <<"Invalid erlang term">>}]}])};
         Formatted ->
-            ?Info("The formatted text: ~p", [Formatted]),
+            ?Debug("The formatted text: ~p", [Formatted]),
             From ! {reply, jsx:encode([{<<"format_erlang_term">>, Formatted}])}
     end,
     State;

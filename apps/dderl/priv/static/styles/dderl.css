@@ -28,6 +28,15 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .ui-widget textarea,
 .ui-widget button { font-family: 'Droid Sans Mono', sans-serif; }
 
+.ui-dialog-disabled {
+    position: absolute;
+    top: 0px;
+    height: 100%;
+    left: 0px;
+    width: 100%;
+    background: rgba(235, 235, 235, 0.5);
+}
+
 .ui-dialog {
 	padding: 0;
     border-bottom-right-radius: 0px;

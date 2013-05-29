@@ -79,7 +79,6 @@ function insertAtCursor(myField, myValue) {
     // These options will be used as defaults
     options: {
         // dialog options default override
-        toolBarHeight   : 20,
         height          : 500,
         width           : 500,
         minHeight       : 50,
