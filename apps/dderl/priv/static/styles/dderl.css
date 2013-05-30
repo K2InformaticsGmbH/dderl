@@ -245,6 +245,10 @@ button.menubutton
   background-color: white;
 }
 
+.ui-dialog .ui-dialog-titlebar-close {
+  height: 15px;
+}
+
 .no-close .ui-dialog-titlebar-close {display: none }
 
 .ui-icon-txt-align-wrap { background-position: -100px -224px; }
