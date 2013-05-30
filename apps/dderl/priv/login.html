@@ -93,6 +93,9 @@
             }
 
             $('#main-body').css('top', $('#main-menu-bar').height());
+            $(window).on('beforeunload', function() { 
+                return "You will lose all unsaved data, are you sure do you wan't to continue?";
+            });
             //beep(); // beep test
         });
     </script>
