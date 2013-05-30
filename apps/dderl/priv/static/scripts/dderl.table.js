@@ -1440,6 +1440,10 @@
         this._applyStyle();
     },
     _delRow: function(e, args) {
+        if(this._grid.getCellEditor()) {
+            //We don't want to delete rows if there is a active edit
+            return;
+        }
         e.stopPropagation();
         if(e.keyCode == 46) {
             // Delete all rows from the selected range
