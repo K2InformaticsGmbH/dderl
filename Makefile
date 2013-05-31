@@ -114,11 +114,11 @@ get_dist_deps = mkdir distdir && \
 #   This enables the toplevel repository package to change names
 #   when underlying dependencies change.
 NAME_HASH = $(shell git hash-object distdir/$(CLONEDIR)/$(MANIFEST_FILE) 2>/dev/null | cut -c 1-8)
-#ifeq ($(REVISION), $(MAJOR_VERSION))
-#PKG_ID := $(REPO_TAG)
-#else
+ifeq ($(REVISION), $(MAJOR_VERSION))
+PKG_ID := $(REPO_TAG)
+else
 PKG_ID = $(REPO)-$(MAJOR_VERSION)-$(NAME_HASH)
-#endif
+endif
 
 # To ensure a clean build, copy the CLONEDIR at a specific tag to a new directory
 #  which will be the basis of the src tar file (and packages)
