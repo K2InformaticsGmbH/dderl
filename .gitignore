@@ -35,6 +35,7 @@ priv/log/
 *.DCD
 *.DAT
 ebin/*
+apps/derl/ebin
 *.DCL
 *.dump
 
