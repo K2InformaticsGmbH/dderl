@@ -246,17 +246,6 @@ process_cmd({[<<"views">>], _}, From, Priv) ->
     From ! {reply, RespJson},
     Priv;
 
-% commands handled generically
-% TODO may be moved to dderl_session
-process_cmd({[C], _} = Cmd, From, Priv)
-    when    (C =:= <<"save_view">>)
-    % query
-    orelse  (C =:= <<"get_query">>)
-    orelse  (C =:= <<"parse_stmt">>)
-    ->
-    gen_adapter:process_cmd(Cmd, From),
-    Priv;
-
 % sort and filter
 process_cmd({[<<"sort">>], ReqBody}, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,

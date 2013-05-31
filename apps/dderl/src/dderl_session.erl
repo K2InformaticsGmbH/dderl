@@ -26,6 +26,7 @@
         adapt_priv = []
         , tref
         , user = <<>>
+        , local_connection
         }).
 
 start() ->
@@ -210,16 +211,28 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{user=_User} = St
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
+
+% commands handled generically
+process_call({[<<"save_view">>], _} = Cmd, _Adapter, From, #state{} = State) ->
+    gen_adapter:process_cmd(Cmd, From, undefined),
+    State;
+process_call({[<<"get_query">>], _} = Cmd, _Adapter, From, #state{} = State) ->
+    gen_adapter:process_cmd(Cmd, From, undefined),
+    State;
+process_call({[<<"parse_stmt">>], _} = Cmd, _Adapter, From, #state{} = State) ->
+    gen_adapter:process_cmd(Cmd, From, undefined),
+    State;
+
 process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
     NewCurrentPriv = Adapter:process_cmd({Cmd, BodyJson}, From, CurrentPriv),
-    case CurrentPriv of
-        undefined ->
-            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv];
-        _ ->
-            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv})
+    case proplists:is_defined(Adapter, AdaptPriv) of
+        true ->
+            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
+        false ->
+            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv]
     end,
     State#state{adapt_priv = NewAdaptPriv}.
 

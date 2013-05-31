@@ -4,7 +4,7 @@
 -include_lib("sqlparse/src/sql_box.hrl").
 -include_lib("erlimem/src/gres.hrl").
 
--export([ process_cmd/2
+-export([ process_cmd/3
         , init/0
         , add_cmds_views/2
         , gui_resp/2
@@ -35,7 +35,7 @@ any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
     
-process_cmd({[<<"parse_stmt">>], ReqBody}, From) ->
+process_cmd({[<<"parse_stmt">>], ReqBody}, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
@@ -68,14 +68,14 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, From) ->
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
     end;
-process_cmd({[<<"get_query">>], ReqBody}, From) ->
+process_cmd({[<<"get_query">>], ReqBody}, From, _Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     ?Debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
     From ! {reply, Res};
-process_cmd({[<<"save_view">>], ReqBody}, From) ->
+process_cmd({[<<"save_view">>], ReqBody}, From, _Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
@@ -85,7 +85,7 @@ process_cmd({[<<"save_view">>], ReqBody}, From) ->
     add_cmds_views(imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
     From ! {reply, Res};
-process_cmd({Cmd, _BodyJson}, From) ->
+process_cmd({Cmd, _BodyJson}, From, _Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
