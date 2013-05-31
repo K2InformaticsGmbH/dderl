@@ -5,7 +5,7 @@
 -include_lib("erlimem/src/gres.hrl").
 
 -export([ init/0
-        , process_cmd/3
+        , process_cmd/5
         , disconnect/1
         ]).
 
@@ -13,12 +13,14 @@
 
 init() ->
     dderl_dal:add_adapter(imem, "IMEM DB"),
-    dderl_dal:add_connect(#ddConn{ id = erlang:phash2(make_ref())
+    dderl_dal:add_connect(undefined,
+                          #ddConn{ id = erlang:phash2(make_ref())
                                  , name = "local imem"
+                                 , owner = system
                                  , adapter = imem
                                  , access = [{ip, "local"}, {user, "admin"}]
                                  }),
-    gen_adapter:add_cmds_views(imem, [
+    gen_adapter:add_cmds_views(undefined, system, imem, [
         { <<"All Tables">>
         , <<"select name(qname) from all_tables order by qname">>
         , remote},
@@ -42,9 +44,9 @@ init() ->
         %{<<"All Views">>, <<"select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)">>}
     ]).
 
-process_cmd({[<<"connect">>], ReqBody}, From, undefined) ->
-    process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = []});
-process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
+process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
+    process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
+process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -86,6 +88,7 @@ process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = Connections} =
             ?Debug("connected to params ~p", [{Type, Opts}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , owner    = UserId
                           , adapter  = imem
                           , access   = [ {ip,   Ip}
                                        , {port, Port}
@@ -95,13 +98,13 @@ process_cmd({[<<"connect">>], ReqBody}, From, #priv{connections = Connections} =
                           , schema   = list_to_atom(Schema)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            dderl_dal:add_connect(Con),
+            dderl_dal:add_connect(Sess, Con),
             From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])},
             Priv#priv{connections = [Connection|Connections]}
     end;
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, undefined) ->
-    process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = []});
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
+process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefined) ->
+    process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
+process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -140,6 +143,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = Co
             ?Debug("connected to params ~p", [{Type, Opts}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , owner    = UserId
                           , adapter  = imem
                           , access   = [ {ip,   Ip}
                                        , {port, Port}
@@ -149,12 +153,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, From, #priv{connections = Co
                           , schema   = list_to_atom(Schema)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            dderl_dal:add_connect(Con),
+            dderl_dal:add_connect(Sess, Con),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(ConPid))}])},
             Priv#priv{connections = [Connection|Connections]}
     end;
 
-process_cmd({[<<"query">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
+process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
@@ -163,7 +167,7 @@ process_cmd({[<<"query">>], ReqBody}, From, #priv{connections = Connections} = P
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
-                    true -> process_query(Query, dderl_dal:get_session());
+                    true -> process_query(Query, Sess);
                     _ -> process_query(Query, Connection)
                 end,
             From ! {reply, jsx:encode([{<<"query">>,R}])};
@@ -172,7 +176,7 @@ process_cmd({[<<"query">>], ReqBody}, From, #priv{connections = Connections} = P
     end,
     Priv;
 
-process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{connections = Connections} = Priv) ->
+process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
@@ -188,11 +192,11 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{connections = Connection
         IsView ->
             {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
             Name = element(5, R),
-            V = dderl_dal:get_view(Name, Owner),
+            V = dderl_dal:get_view(Sess, Name, Owner),
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
-                    Resp = process_query(C#ddCmd.command, dderl_dal:get_session()),
+                    Resp = process_query(C#ddCmd.command, Sess),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
@@ -231,10 +235,10 @@ process_cmd({[<<"browse_data">>], ReqBody}, From, #priv{connections = Connection
     Priv;
 
 % views
-process_cmd({[<<"views">>], _}, From, Priv) ->
-    [F|_] = dderl_dal:get_view(<<"All Views">>),
-    C = dderl_dal:get_command(F#ddView.cmd),
-    Resp = process_query(C#ddCmd.command, dderl_dal:get_session()),
+process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
+    [F|_] = dderl_dal:get_view(Sess, <<"All Views">>),
+    C = dderl_dal:get_command(Sess, F#ddView.cmd),
+    Resp = process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -247,14 +251,14 @@ process_cmd({[<<"views">>], _}, From, Priv) ->
     Priv;
 
 % sort and filter
-process_cmd({[<<"sort">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     SrtSpc = proplists:get_value(<<"spec">>, BodyJson, []),
     SortSpec = sort_json_to_term(SrtSpc),
     Statement:gui_req(sort, SortSpec, gui_resp_cb_fun(<<"sort">>, Statement, From)),
     Priv;
-process_cmd({[<<"filter">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"filter">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"filter">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
@@ -263,13 +267,13 @@ process_cmd({[<<"filter">>], ReqBody}, From, Priv) ->
     Priv;
 
 % gui button events
-process_cmd({[<<"button">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
     Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),
     Priv;
-process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"update_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowId = proplists:get_value(<<"rowid">>, BodyJson, <<>>),
@@ -277,7 +281,7 @@ process_cmd({[<<"update_data">>], ReqBody}, From, Priv) ->
     Value = proplists:get_value(<<"value">>, BodyJson, <<>>),
     Statement:gui_req(update, [{RowId,upd,[{CellId,Value}]}], gui_resp_cb_fun(<<"update_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"delete_row">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"delete_row">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RowIds = proplists:get_value(<<"rowids">>, BodyJson, []),
@@ -285,14 +289,14 @@ process_cmd({[<<"delete_row">>], ReqBody}, From, Priv) ->
     ?Debug("delete ~p ~p", [RowIds, DelSpec]),
     Statement:gui_req(update, DelSpec, gui_resp_cb_fun(<<"delete_row">>, Statement, From)),
     Priv;
-process_cmd({[<<"insert_data">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"insert_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"insert_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ClmIdx = proplists:get_value(<<"col">>, BodyJson, <<>>),
     Value =  proplists:get_value(<<"value">>, BodyJson, <<>>),
     Statement:gui_req(update, [{undefined,ins,[{ClmIdx,Value}]}], gui_resp_cb_fun(<<"insert_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"paste_data">>], ReqBody}, From, Priv) ->
+process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"paste_data">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ReceivedRows = proplists:get_value(<<"rows">>, BodyJson, []),
@@ -301,7 +305,7 @@ process_cmd({[<<"paste_data">>], ReqBody}, From, Priv) ->
     Priv;
 
 % unsupported gui actions
-process_cmd({Cmd, BodyJson}, From, Priv) ->
+process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
