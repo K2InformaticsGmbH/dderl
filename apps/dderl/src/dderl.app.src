@@ -1,6 +1,6 @@
 {application, dderl,
  [
-  {description, ""},
+  {description, "Web based tool for exploring databases"},
   {vsn, "1.0.0"},
   {registered, []},
   {applications, [
