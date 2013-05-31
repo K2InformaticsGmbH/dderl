@@ -107,7 +107,6 @@ get_dist_deps = mkdir distdir && \
                     cd ../..; done && \
                 LC_ALL=POSIX && export LC_ALL && sort $(MANIFEST_FILE) > $(MANIFEST_FILE).tmp && mv $(MANIFEST_FILE).tmp $(MANIFEST_FILE);
 
-
 # Name resulting directory & tar file based on current status of the git tag
 # If it is a tagged release (PKG_VERSION == MAJOR_VERSION), use the toplevel
 #   tag as the package name, otherwise generate a unique hash of all the
