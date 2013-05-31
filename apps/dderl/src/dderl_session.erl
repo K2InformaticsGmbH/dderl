@@ -65,10 +65,9 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [_Unknown, _User]),
     {noreply, State}.
 
-handle_info(die, #state{user=_User, adapt_priv = AdaptPriv}=State) ->
+handle_info(die, #state{user=_User}=State) ->
     ?Error([{user, _User}], "terminating session idle for ~p ms", [?SESSION_IDLE_TIMEOUT]),
-    logout(AdaptPriv),
-    {stop, timeout, State#state{adapt_priv = []}};
+    {stop, timeout, State};
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
@@ -79,7 +78,8 @@ handle_info(Info, #state{user=User}=State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
 
-terminate(Reason, #state{user=User}) ->
+terminate(Reason, #state{user = User, adapt_priv = AdaptPriv}) ->
+    logout(AdaptPriv),
     ?Info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
@@ -213,14 +213,12 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{user=_User} = St
 
 
 % commands handled generically
-process_call({[<<"save_view">>], _} = Cmd, _Adapter, From, #state{} = State) ->
-    gen_adapter:process_cmd(Cmd, From, undefined),
-    State;
-process_call({[<<"get_query">>], _} = Cmd, _Adapter, From, #state{} = State) ->
-    gen_adapter:process_cmd(Cmd, From, undefined),
-    State;
-process_call({[<<"parse_stmt">>], _} = Cmd, _Adapter, From, #state{} = State) ->
-    gen_adapter:process_cmd(Cmd, From, undefined),
+process_call({[C], ReqData}, _Adapter, From, #state{} = State) when
+      C =:= <<"parse_stmt">>;
+      C =:= <<"get_query">>;
+      C =:= <<"save_view">> ->
+    BodyJson = jsx:decode(ReqData),
+    gen_adapter:process_cmd({[C], BodyJson}, From, undefined),
     State;
 
 process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
