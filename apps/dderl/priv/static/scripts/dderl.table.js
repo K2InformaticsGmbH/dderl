@@ -646,7 +646,7 @@
         var sortspec = new Array();
         for (var s in self._sorts) {
             var t = new Object();
-            t[self._sorts[s].id] = self._sorts[s].asc;
+            t[self._origcolumns[s]] = self._sorts[s].asc;
             sortspec.push(t);
         }
         return sortspec;
@@ -823,7 +823,7 @@
                 self._filters[c].vals[_vStrings[i]] = true;
             }
             var fltr = new Object();
-            fltr[self._filters[c].id] = vStrings;
+            fltr[self._origcolumns[c]] = vStrings;
             if(vStrings.length > 0) {
                 filterspec[type].push(fltr);
             }
