@@ -246,6 +246,7 @@ button.menubutton
 }
 
 .ui-dialog .ui-dialog-titlebar-close {
+  width:  17px;
   height: 15px;
 }
 

@@ -26,6 +26,8 @@
         adapt_priv = []
         , tref
         , user = <<>>
+        , user_id
+        , sess
         }).
 
 start() ->
@@ -64,10 +66,9 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [_Unknown, _User]),
     {noreply, State}.
 
-handle_info(die, #state{user=_User, adapt_priv = AdaptPriv}=State) ->
+handle_info(die, #state{user=_User}=State) ->
     ?Error([{user, _User}], "terminating session idle for ~p ms", [?SESSION_IDLE_TIMEOUT]),
-    logout(AdaptPriv),
-    {stop, timeout, State#state{adapt_priv = []}};
+    {stop, timeout, State};
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
@@ -78,7 +79,8 @@ handle_info(Info, #state{user=User}=State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
 
-terminate(Reason, #state{user=User}) ->
+terminate(Reason, #state{user=User} = State) ->
+    logout(State),
     ?Info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
@@ -91,14 +93,14 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:login(User, Password) of
-        true ->
+        {true, Sess, UserId} ->
             ?Debug("login successful for ~p", [User]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
-            State#state{user=User};
+            State#state{sess=Sess, user=User, user_id=UserId};
         {_, {error, {Exception, "Password expired. Please change it" = M}}} ->
             ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
-            State#state{user=User};
+            State;
         {_, {error, {Exception, M}}} ->
             ?Error("login failed for ~p, result ~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
@@ -107,7 +109,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
-            State#state{user=User};
+            State;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("login failed for ~p, result ~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
@@ -121,10 +123,10 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
     case dderl_dal:change_password(User, Password, NewPassword) of
-        true ->
+        {true, Sess, UserId} ->
             ?Debug("change password successful for ~p", [User]),
             From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
-            State#state{user=User};
+            State#state{sess=Sess, user=User, user_id=UserId};
         {_, {error, {Exception, M}}} ->
             ?Error("change password failed for ~p, result ~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
@@ -137,11 +139,11 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
             State
     end;
 
-process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
-    logout(AdaptPriv),
+process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
+    NewState = logout(State),
     From ! {reply, jsx:encode([{<<"logout">>, <<"ok">>}])},
     self() ! logout,
-    State#state{adapt_priv = []};
+    NewState;
 
 process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = State) ->
     [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
@@ -162,20 +164,21 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
     ?Error("Request from a not logged in user: ~n~p", [Req]),
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
+    %%TODO: Should we really terminate here?, maybe the error reply is ok...
     self() ! not_logged_in,
     State;
 
-process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
+process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
             [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
               ,{<<"fullName">>,list_to_binary(A#ddAdapter.fullName)}]
-            || A <- dderl_dal:get_adapters()]}]),
+            || A <- dderl_dal:get_adapters(Sess)]}]),
     ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
     From ! {reply, Res},
     State;
 
-process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{user=User} = State) ->
-    case dderl_dal:get_connects(User) of
+process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
+    case dderl_dal:get_connects(Sess, User) of
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
         Connections ->
@@ -199,27 +202,37 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{user=User} = S
     end,
     State;
 
-process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{user=_User} = State) ->
+process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=_User} = State) ->
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, User}], "connection to delete ~p", [ConId]),
-    Resp = case dderl_dal:del_conn(ConId) of
+    Resp = case dderl_dal:del_conn(Sess, ConId) of
         ok -> <<"success">>;
         Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
     end,
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{adapt_priv = AdaptPriv} = State) ->
+
+% commands handled generically
+process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
+      C =:= <<"parse_stmt">>;
+      C =:= <<"get_query">>;
+      C =:= <<"save_view">> ->
+    BodyJson = jsx:decode(ReqData),
+    gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined),
+    State;
+
+process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
-    NewCurrentPriv = Adapter:process_cmd({Cmd, BodyJson}, From, CurrentPriv),
-    case CurrentPriv of
-        undefined ->
-            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv];
-        _ ->
-            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv})
+    NewCurrentPriv = Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv),
+    case proplists:is_defined(Adapter, AdaptPriv) of
+        true ->
+            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
+        false ->
+            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv]
     end,
     State#state{adapt_priv = NewAdaptPriv}.
 
@@ -227,5 +240,9 @@ jsq(Bin) when is_binary(Bin) -> Bin;
 jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));
 jsq(Str)                     -> list_to_binary(Str).
 
-logout(AdaptPriv) ->
-    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv].
+logout(#state{sess=undefined, adapt_priv=AdaptPriv} = State) ->
+    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
+    State#state{adapt_priv = []};
+logout(#state{sess=Sess} = State) ->
+    Sess:close(),
+    logout(State#state{sess=undefined}).
