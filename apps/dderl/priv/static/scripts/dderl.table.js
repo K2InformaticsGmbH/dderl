@@ -31,7 +31,9 @@
     // sort and filter
     _sorts          : null,
     _filters        : null,
-    _rftchExpBkOff  : 2,
+    _INIT_WAIT_TAIL : 5,
+    _rftchExpBkOff  : 5,
+    _MAX_WAIT_TAIL  : 5000,
 
     // start button
     _startBtn       : null,
@@ -1033,10 +1035,12 @@
     },
     _toolBarSkTail: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkTail');
+        self._rftchExpBkOff = self._INIT_WAIT_TAIL;
         self.buttonPress(">|...");
     },
     _toolBarSkipTl: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkipTl');
+        self._rftchExpBkOff = self._INIT_WAIT_TAIL;
         self.buttonPress("...");
     },
     _toolBarCommit: function(self) {
@@ -1231,9 +1235,12 @@
                 if (rowsCount > 0) {
                     console.log(rowsCount+' rows received, retrying '+_rows.loop);
                     this.buttonPress(_rows.loop);
-                    this._rftchExpBkOff = 2;
+                    this._rftchExpBkOff = this._INIT_WAIT_TAIL;
                 } else {
                     this._rftchExpBkOff = (this._rftchExpBkOff * 2);
+                    if(this._rftchExpBkOff > this._MAX_WAIT_TAIL) {
+                        this._rftchExpBkOff = this._MAX_WAIT_TAIL;
+                    }
                     console.log('no rows received, retrying '+_rows.loop+' after '+this._rftchExpBkOff+' ms');
                     setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
                 }
