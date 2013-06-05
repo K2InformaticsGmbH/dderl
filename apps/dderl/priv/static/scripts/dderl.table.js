@@ -7,7 +7,7 @@
     _footerDiv      : null,
     _footerWidth    : 0,
     _grid           : null,
-    _gdata          : [],
+    _gdata          : null,
     _txtlen         : null,
     _fnt            : null,
     _fntSz          : null,
@@ -43,6 +43,9 @@
     // for edit erlang terms
     _erlangCellPos  : null,
     _divDisable     : null,
+
+    // flag to avoid multiple calls to reorder
+    _reorderCalled  : false,
 
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
@@ -135,10 +138,12 @@
         dderlSession      : null,
         dderlStatement    : null,
         dderlCmd          : null,
+        dderlCmdStrs      : null,
         dderlClmlay       : null,
         dderlTbllay       : null,
         dderlStartBtn     : '>',
         dderlSortSpec     : null,
+        dderlSqlEditor    : null,
     },
  
     // Set up the widget
@@ -146,7 +151,7 @@
         var self = this;
 
         self._origcolumns = {};
-        self._cmdStrs = [];
+        self._gdata = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -157,10 +162,17 @@
         if(self.options.dderlSession    !== self._session)  self._session   = self.options.dderlSession;
         if(self.options.dderlStatement  !== self._stmt)     self._stmt      = self.options.dderlStatement;
         if(self.options.dderlCmd        !== self._cmd)      self._cmd       = self.options.dderlCmd;
+        if(self.options.dderlCmdStrs    !== self._cmdStrs)  self._cmdStrs   = self.options.dderlCmdStrs;
         if(self.options.dderlClmlay     !== self._clmlay)   self._clmlay    = self.options.dderlClmlay;
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
+        if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
+            self._divSqlEditor = self.options.dderlSqlEditor;
+        }
+
+        //initialize the array containing the history if was not set in the options
+        if(!self._cmdStrs) self._cmdStrs = [];
 
         // dialog elements
 
@@ -276,9 +288,6 @@
 
     _editCmd: function(cmd) {
         var self = this;
-        if(self._cmdStrs.indexOf(self._cmd) == -1) {
-            self._cmdStrs.unshift(self._cmd);
-        }
         if(!self._divSqlEditor || !self._divSqlEditor.hasClass('ui-dialog-content')) {
             self._divSqlEditor = $('<div>')
                 .appendTo(document.body)
@@ -294,10 +303,18 @@
 
     _addToEditorHistory: function(sql) {
         var self = this;
-        if(!self._divSqlEditor || !self._divSqlEditor.hasClass('ui-dialog-content')) {
-            return;
+        var posInHistory = self._cmdStrs.indexOf(sql);
+        var exist = (posInHistory !== -1);
+        if(!exist) {
+            self._cmdStrs.unshift(sql);
         }
-        self._divSqlEditor.sql("addToHistorySelect", sql);
+        if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
+            if(!exist) {
+                self._divSqlEditor.sql("addToHistorySelect", sql);
+            } else {
+                self._divSqlEditor.sql("selHistorySelect", posInHistory, sql);
+            }
+        }
     },
 
     /*
@@ -323,21 +340,6 @@
                         name: cols[idx].name,
                         width: cols[idx].width,
                         hidden: false
-                });
-            }
-        }
-
-        // Add the hidden columns to the column layout.
-        if(self.hasOwnProperty('_hiddenColumns')) {
-            for(var idx = self._hiddenColumns.length - 1; idx >= 0; --idx) {
-                // The -1 in the insertPos is needed because the id column
-                // is not saved, but was counted when calculating the index.
-                var insertPos = self._hiddenColumns[idx].idxCol - 1;
-                var hiddenCol = self._hiddenColumns[idx].colContent;
-                colnamesizes.splice(insertPos, 0, {
-                    name: hiddenCol.name,
-                    width: hiddenCol.width,
-                    hidden: true
                 });
             }
         }
@@ -1662,10 +1664,11 @@
             self._origcolumns[columns[i].name] = i;
         }
 
+        self['_hiddenColumns'] = new Array();
+
         // load the column layout if its was saved
         if(self._clmlay !== null) {
             var tmpColumns = new Array();
-            self['_hiddenColumns'] = new Array();
             //Add the id column since it should be always the first one.
             tmpColumns[0] = columns[0];
             // The offset starts in 1 due to the id as first column.
@@ -1758,11 +1761,12 @@
 
         // if new cmd is not in the list
         if(_rows.sql.length > 0) {
+            self._reorderCalled = false;
             self._cmd = _rows.sql;
-            if(self._cmdStrs.indexOf(_rows.sql) == -1) {
-                self._cmdStrs.unshift(_rows.sql);
-                self._addToEditorHistory(_rows.sql);
-            }
+            self._addToEditorHistory(_rows.sql);
+        } else if(_rows.rows.length !== 0 && !self._reorderCalled) {
+            self._reorderCalled = true;
+            self._gridColumnsReorder();
         }
 
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
@@ -1918,7 +1922,7 @@
         }
 
         //console.timeEnd('appendRows');
-        console.profileEnd('appendRows');
+        //console.profileEnd('appendRows');
     }
 
   });

@@ -371,15 +371,15 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
-        this._addToHistory(this._modCmd);
-
         var initOptions = {
-            title       : this._title,
-            autoOpen    : false,
-            dderlConn   : connection,
-            dderlSession: session,
-            dderlAdapter: adapter,
-            dderlStartBtn: button
+            title          : this._title,
+            autoOpen       : false,
+            dderlConn      : connection,
+            dderlSession   : session,
+            dderlAdapter   : adapter,
+            dderlStartBtn  : button,
+            dderlCmdStrs   : this._history,
+            dderlSqlEditor : this._dlg
         };
 
         if(null === this._cmdOwner) {
@@ -535,11 +535,16 @@ function insertAtCursor(myField, myValue) {
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
 
+    selHistorySelect: function(pos, sql) {
+        var self = this;
+        self._historySelect[0].options[pos].selected = true;
+        self.showCmd(sql);
+    },
+
     addToHistorySelect: function(sql) {
         var self = this;
         self._historySelect.prepend($('<option>').text(sql));
-        self._historySelect[0].options[0].selected = true;
-        self.showCmd(sql);
+        self.selHistorySelect(0, sql);
     },
 
     // Use the destroy method to clean up any modifications your widget has made to the DOM
