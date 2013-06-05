@@ -250,7 +250,7 @@ process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
     From ! {reply, RespJson},
     Priv;
 
-% sort and filter
+% events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -264,6 +264,12 @@ process_cmd({[<<"filter">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     FltrSpec = proplists:get_value(<<"spec">>, BodyJson, []),
     FilterSpec = filter_json_to_term(FltrSpec),
     Statement:gui_req(filter, FilterSpec, gui_resp_cb_fun(<<"filter">>, Statement, From)),
+    Priv;
+process_cmd({[<<"reorder">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"reorder">>,BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnOrder = proplists:get_value(<<"column_order">>, BodyJson, []),
+    Statement:gui_req(reorder, ColumnOrder, gui_resp_cb_fun(<<"reorder">>, Statement, From)),
     Priv;
 
 % gui button events

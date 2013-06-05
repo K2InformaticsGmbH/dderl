@@ -58,7 +58,7 @@ function insertAtCursor(myField, myValue) {
     _cmdPretty      : "",
     _boxJson        : {},  
     _boxBg          : null,
-    _history        : {},
+    _history        : null,
     _historySelect  : null,
 
     // private event handlers
@@ -100,7 +100,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).remove();
                           },
         cmdOwner        : null,
-        history         : {}
+        history         : []
     },
  
     _refreshHistoryBoxSize: function() {
@@ -117,6 +117,8 @@ function insertAtCursor(myField, myValue) {
     // Set up the widget
     _create: function() {
         var self = this;
+
+        self._history = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -325,9 +327,11 @@ function insertAtCursor(myField, myValue) {
                     .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
                     .button()
                     .css('height', this.options.toolBarHeight+'px')
+                    .css('text-align', 'left')
                     .appendTo(toolDiv);
-                for(var i = 0; i < self._history.length; ++i)
+                for(var i = 0; i < self._history.length; ++i) {
                      sel.append($('<option>').text(self._history[i]));
+                }
                 self._historySelect = sel;
             }
         }
@@ -392,7 +396,10 @@ function insertAtCursor(myField, myValue) {
     },
 
     _addToHistory: function(sql) {
-        this._historySelect.prepend($('<option>').text(sql));
+        if(this._history.indexOf(sql) == -1) {
+            this._history.unshift(sql);
+            this._historySelect.prepend($('<option>').text(sql));
+        }
     },
     ////////////////////////////
 
@@ -520,19 +527,26 @@ function insertAtCursor(myField, myValue) {
         this._refreshHistoryBoxSize();
     },
     close: function() { this._dlg.dialog("close"); },
-    destroy: function() { this._dlg.dialog("destroy"); },
+    //destroy: function() { this._dlg.dialog("destroy"); },
 
     showCmd: function(cmd) {
         var self = this;
         self._modCmd = cmd;
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
- 
+
+    addToHistorySelect: function(sql) {
+        var self = this;
+        self._historySelect.prepend($('<option>').text(sql));
+        self._historySelect[0].options[0].selected = true;
+        self.showCmd(sql);
+    },
+
     // Use the destroy method to clean up any modifications your widget has made to the DOM
     _destroy: function() {
-        --DEFAULT_COUNTER;
-        if(DEFAULT_COUNTER < 0)
-            DEFAULT_COUNTER=0;
+        this._editDiv.remove();
+        this._footerDiv.remove();
+        this.element.removeAttr('style class scrolltop scrollleft');
     },
 
   });

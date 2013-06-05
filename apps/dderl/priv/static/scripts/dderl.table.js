@@ -21,7 +21,7 @@
     _cmd            : null,
     _clmlay         : null,
     _tbllay         : null,
-    _origcolumns    : {},
+    _origcolumns    : null,
 
     _fetchIsTail    : false,
     _fetchIsPush    : false,
@@ -33,11 +33,12 @@
     _filters        : null,
     _INIT_WAIT_TAIL : 5,
     _rftchExpBkOff  : 5,
-    _MAX_WAIT_TAIL  : 5000,
+    _MAX_WAIT_TAIL  : 1000,
 
     // start button
     _startBtn       : null,
-    _cmdStrs        : [],
+    _cmdStrs        : null,
+    _divSqlEditor   : null,
 
     // for edit erlang terms
     _erlangCellPos  : null,
@@ -57,6 +58,7 @@
                         loadRows        : function(e, _result) { e.data._renderRows(_result); },
                         filterResult    : function(e, _result) { e.data._renderRows(_result); },
                         sortResult      : function(e, _result) { e.data._renderRows(_result); },
+                        reorderResult   : function(e, _result) { e.data._renderRows(_result); },
                         editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor(_result); }
                       },
 
@@ -142,6 +144,9 @@
     // Set up the widget
     _create: function() {
         var self = this;
+
+        self._origcolumns = {};
+        self._cmdStrs = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -270,21 +275,29 @@
     },
 
     _editCmd: function(cmd) {
-        var hasCmd = false;
-        for (var i = 0; i < this._cmdStrs.length; ++i)
-            if (this._cmd === this._cmdStrs[i]) hasCmd = true;
+        var self = this;
+        if(self._cmdStrs.indexOf(self._cmd) == -1) {
+            self._cmdStrs.unshift(self._cmd);
+        }
+        if(!self._divSqlEditor || !self._divSqlEditor.hasClass('ui-dialog-content')) {
+            self._divSqlEditor = $('<div>')
+                .appendTo(document.body)
+                .sql({autoOpen  : false,
+                      title     : this.options.title,
+                      cmdOwner  : this._dlg,
+                      history   : this._cmdStrs
+                     })
+                .sql('open')
+                .sql("showCmd", this._cmd);
+        }
+    },
 
-        if(!hasCmd) this._cmdStrs.splice(0,0,this._cmd);
-
-        $('<div>')
-        .appendTo(document.body)
-        .sql({autoOpen  : false,
-              title     : this.options.title,
-              cmdOwner  : this._dlg,
-              history   : this._cmdStrs
-             })
-        .sql('open')
-        .sql("showCmd", this._cmd);
+    _addToEditorHistory: function(sql) {
+        var self = this;
+        if(!self._divSqlEditor || !self._divSqlEditor.hasClass('ui-dialog-content')) {
+            return;
+        }
+        self._divSqlEditor.sql("addToHistorySelect", sql);
     },
 
     /*
@@ -383,6 +396,7 @@
             columns.splice(toHideArray[j],1);
         }
         self._grid.setColumns(columns);
+        self._gridColumnsReorder();
     },
 
     _unhide: function(_ranges) {
@@ -396,6 +410,7 @@
             self._grid.setColumns(columns);
             delete self._hiddenColumns;
         }
+        self._gridColumnsReorder();
     },
 
     // sorts
@@ -899,11 +914,8 @@
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
         self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
+        self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
-        self._grid.onScroll.subscribe(function(e, args) {
-            var vp = args.grid.getViewport();
-            //console.log('viewed '+JSON.stringify(vp));
-        });
 
         self._gdata = self._grid.getData();
     },
@@ -1477,6 +1489,20 @@
         }
     },
 
+    _gridColumnsReorder: function() {
+        var self = this;
+        var columns = self._grid.getColumns();
+        var columnsPos = new Array();
+        //id is the first column, it is not part of the sql
+        for(var i = 1; i < columns.length; ++i) {
+            columnsPos.push(self._origcolumns[columns[i].field]);
+        }
+        console.log(columnsPos);
+        var reorderData = {reorder: {statement   : self._stmt,
+                                     column_order: columnsPos}};
+        self._ajax('app/reorder', reorderData, 'reorder', 'reorderResult');
+    },
+
     _applyStyle: function() {
         var self = this;
         self._grid.removeCellCssStyles('delete');
@@ -1681,7 +1707,7 @@
     appendRows: function(_rows)
     {
         //console.time('appendRows');
-        console.profile('appendRows');
+        //console.profile('appendRows');
 
         var self = this;
         var redraw = false;
@@ -1730,9 +1756,14 @@
                     .attr('title', self._toolbarButtons[btn].tip);
         }
 
-        // if new cmd is different from the last one append
-        if(_rows.sql.length > 0 && (self._cmdStrs.length === 0 || self._cmdStrs[self._cmdStrs.length-1] !== _rows.sql))
-            self._cmdStrs.push(_rows.sql);
+        // if new cmd is not in the list
+        if(_rows.sql.length > 0) {
+            self._cmd = _rows.sql;
+            if(self._cmdStrs.indexOf(_rows.sql) == -1) {
+                self._cmdStrs.unshift(_rows.sql);
+                self._addToEditorHistory(_rows.sql);
+            }
+        }
 
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
             var fieldWidth = 0;
