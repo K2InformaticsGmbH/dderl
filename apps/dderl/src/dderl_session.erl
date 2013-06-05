@@ -149,7 +149,11 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
     ?Debug("The string to format: ~p", [StringToFormat]),
-    ExpandLevel = proplists:get_value(<<"expansion_level">>, BodyJson, 1),
+    %% Auto formating not supported for now, just set 1 to expansion level.
+    case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
+        <<"auto">> -> ExpandLevel = 1;
+        ExpandLevel -> ok
+    end,
     case erlformat:format(binary_to_list(StringToFormat), ExpandLevel) of
         {error, ErrorInfo} ->
             ?Error("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),

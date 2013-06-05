@@ -895,7 +895,7 @@
             var columnField = self._grid.getColumns()[cell.fromCell].field;
             var stringToFormat = self._gdata[cell.fromRow][columnField];
             self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-            self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:1}},'format_erlang_term', 'editErlangTerm');
+            self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:"auto"}},'format_erlang_term', 'editErlangTerm');
         }
     },
 

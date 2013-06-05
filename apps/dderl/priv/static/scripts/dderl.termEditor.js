@@ -10,7 +10,7 @@
         _footerWidth    : 0,
         _txtlen         : null,
         _fnt            : null,
-        _currentExpLvl  : 1,
+        _currentExpLvl  : -1,
 
         _handlers       : {
             updateTextArea      : function(e, _result) { e.data._updateTextArea(_result); },
@@ -102,7 +102,7 @@
             // need the max footer with to set as dlg minWidth
             self._createDlgFooter();
             self.options.minWidth = self._footerWidth;
-            self._tbTxtBox.val(self._currentExpLvl);
+            self._updateTxtBox();
             self._dlg = self.element.dialog(self.options);
             // setting up the event handlers last to aid debugging
             self._setupEventHandlers();
@@ -173,9 +173,11 @@
                             var explvlnum = parseInt($(this).val());
                             if(explvlnum != NaN) {
                                 self._currentExpLvl = explvlnum;
-                                evt.data = self;
-                                toolElmFn.call(this, evt);
+                            } else {
+                                self._currentExpLvl = -1;
                             }
+                            evt.data = self;
+                            toolElmFn.call(this, evt);
                         }
                         return true;
                     })
@@ -194,6 +196,15 @@
             self._footerWidth = totWidth;
         },
 
+        _updateTxtBox: function() {
+            var self = this;
+            if(self._currentExpLvl < 0) {
+                self._tbTxtBox.val("auto");
+            } else {
+                self._tbTxtBox.val(self._currentExpLvl);
+            }
+        },
+
         open: function() {
             this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             this._dlg.dialog("open").dialog("widget").draggable("option","containment", this._container);
@@ -206,7 +217,8 @@
 
         updateExp: function(expansionLevel) {
             var stringToFormat = this._editText.val();
-            ajaxCall(this, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionLevel}},'format_erlang_term', 'updateTextArea');
+            var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
+            ajaxCall(this, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionWithAuto}},'format_erlang_term', 'updateTextArea');
         },
 
         /*
@@ -216,27 +228,27 @@
         _decreaseExp: function(self) {
             console.log('cb _decreaseExp current: ' + self._currentExpLvl);
             self._currentExpLvl = self._currentExpLvl - 1;
-            if(self._currentExpLvl < 0) {
-                self._currentExpLvl = 0;
+            if(self._currentExpLvl < -1) {
+                self._currentExpLvl = -1;
             }
-            self._tbTxtBox.val(self._currentExpLvl);
+            self._updateTxtBox();
             self.updateExp(self._currentExpLvl);
         },
         _setExpLevel: function(self) {
             console.log('cb _setExpLevel ' + self._currentExpLvl);
-            if(self._currentExpLvl < 0) {
-                self._currentExpLvl = 0;
+            if(self._currentExpLvl < -1) {
+                self._currentExpLvl = -1;
             }
-            self._tbTxtBox.val(self._currentExpLvl);
+            self._updateTxtBox();
             self.updateExp(self._currentExpLvl);
         },
         _increaseExp: function(self) {
             console.log('cb _increaseExp current: ' + self._currentExpLvl);
             self._currentExpLvl = self._currentExpLvl + 1;
-            if(self._currentExpLvl < 0) {
-                self._currentExpLvl = 0;
+            if(self._currentExpLvl < -1) {
+                self._currentExpLvl = -1;
             }
-            self._tbTxtBox.val(self._currentExpLvl);
+            self._updateTxtBox();
             self.updateExp(self._currentExpLvl);
         },
         _saveChanges: function(self) {
