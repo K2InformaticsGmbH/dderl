@@ -1785,33 +1785,49 @@
             redraw = true;
         }
 
-
+       // focus change on gresp receive
+        var gvp = self._grid.getViewport();
+        var gvpH = gvp.bottom - gvp.top;
+        var computedFocus = _rows.focus;
+        var needScroll = false;
         switch (_rows.op) {
             case "rpl": // replace
                 self._grid.setData(_rows.rows);
                 self._gdata = self._grid.getData();
+                computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
+                if(computedFocus < 0) computedFocus = 0;
+                if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
                 redraw = true;
+                needScroll = true;
                 break;
             case "app": // append
-                for(var i=0; i < _rows.rows.length; ++i)
+                for(var i=0; i < _rows.rows.length; ++i) {
                     self._gdata.push(_rows.rows[i])
+                }
                 self._gdata.splice(0, self._gdata.length - _rows.keep);
+                computedFocus = gvp.top + _rows.rows.length;
+                if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
                 redraw = true;
+                needScroll = true;
                 break;
             case "prp": // prepend
                 do {
                     self._gdata.splice(0, 0, _rows.rows.pop());
                 } while (_rows.rows.length > 0)
                 self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
+                computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
+                if(computedFocus < 0) computedFocus = 0;
+                if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
                 redraw = true;
+                needScroll = true;
                 break;
             case "clr": // delete all rows
                 self._gdata.splice(0, self._gdata.length);
                 redraw = true;
                 break;
-            case "ins": // no operation
+            case "ins": // add rows to the end, keep all
                 console.log('ins');
-                for(var i=0; i<_rows.rows.length; ++i)
+                for(var i=0; i < _rows.rows.length; ++i)
                     self._gdata.push(_rows.rows[i]);
                 redraw = true;
                 break;
@@ -1823,51 +1839,23 @@
                 break;
         }
 
-        // focus change on gresp receive
-        var gvp = self._grid.getViewport();
-        var gvpH = gvp.bottom - gvp.top;
         if(_rows.focus < 0) {
-            _rows.focus = self._gdata.length + _rows.focus;
-            self._grid.scrollRowIntoView(_rows.focus);
+            computedFocus = self._gdata.length + _rows.focus;
+            if(computedFocus < 0) computedFocus = 0;
         } else if(_rows.focus > 0) {
-            _rows.focus -= 1;
-            self._grid.scrollRowIntoView(_rows.focus);
-        } else {
-            switch(_rows.op) {
-                case 'rpl' :
-                    _rows.focus = gvp.bottom + _rows.rows.length - 2 * gvpH;
-                    if(_rows.focus < 0) _rows.focus = 0;
-                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
-                    break;
-                case 'app' :
-                    _rows.focus = gvp.top + _rows.rows.length;
-                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
-                    break;
-                case 'prp' :
-                    _rows.focus = gvp.bottom + _rows.rows.length - 2 * gvpH;
-                    if(_rows.focus < 0) _rows.focus = 0;
-                    if(_rows.focus > self._gdata.length - 1) _rows.focus = self._gdata.length - 1;
-                    break;
-                case "nop": // no operation
-                    console.log('nop');
-                    break;
-                default:
-                    console.log("unknown operation "+_rows.op);
-                    break;
-            }
+            computedFocus = _rows.focus - 1;
         }
         
-        // scroll to row always if focus > 0
-        if(!redraw && _rows.focus >= 0)
-            self._grid.scrollRowIntoView(_rows.focus);
+        if(!redraw && needScroll) {
+            self._grid.scrollRowIntoView(computedFocus);
+        }
 
         if (redraw) {
             self._grid.updateRowCount();
-            //self._grid.invalidateRow(self._gdata.length-1);
-            if(_rows.focus > self._gdata.length || _rows.focus < 0)
+            if(computedFocus > self._gdata.length || computedFocus < 0)
                 self._grid.scrollRowIntoView(self._gdata.length-1);
-            else if(_rows.focus >= 0)
-                self._grid.scrollRowIntoView(_rows.focus);
+            else if(needScroll)
+                self._grid.scrollRowIntoView(computedFocus);
 
             self._grid.resizeCanvas();
 
