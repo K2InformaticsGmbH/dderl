@@ -171,6 +171,7 @@ function connect_dlg()
                     alert_jq('Please provide a connection name for the new connection, or select an existing one');
                     return;
                 }
+                document.title = connName;
 
                 adapter = $('#adapter_list option:checked').val();
                 var Password = $('#password').val();
