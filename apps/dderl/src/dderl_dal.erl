@@ -23,8 +23,8 @@
         ,get_connects/2
         ,del_conn/2
         ,get_command/2
-        ,get_view/2
         ,get_view/3
+        ,get_view/4
         ,is_local_query/1
         ]).
 
@@ -41,13 +41,13 @@ add_connect(Sess, #ddConn{} = Conn) -> gen_server:cast(?MODULE, {add_connect, Se
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
 add_view(Sess, Owner, Name, CmdId, ViewsState)           -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
 
-get_adapters(Sess)            -> gen_server:call(?MODULE, {get_adapters, Sess}).
-get_connects(Sess, User)      -> gen_server:call(?MODULE, {get_connects, Sess, User}).
-del_conn(Sess, ConId)         -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
-get_command(Sess, IdOrName)   -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
-get_view(Sess, Name)          -> gen_server:call(?MODULE, {get_view, Sess, Name}).
-get_view(Sess, Name, Owner)   -> gen_server:call(?MODULE, {get_view, Sess, Name, Owner}).
-is_local_query(Qry)           -> gen_server:call(?MODULE, {is_local_query, Qry}).
+get_adapters(Sess)                     -> gen_server:call(?MODULE, {get_adapters, Sess}).
+get_connects(Sess, User)               -> gen_server:call(?MODULE, {get_connects, Sess, User}).
+del_conn(Sess, ConId)                  -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
+get_command(Sess, IdOrName)            -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
+get_view(Sess, Name, Adapter)          -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter}).
+get_view(Sess, Name, Adapter, Owner)   -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
+is_local_query(Qry)                    -> gen_server:call(?MODULE, {is_local_query, Qry}).
 
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
@@ -193,7 +193,7 @@ handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, S
 handle_call({add_view, undefined, Owner, Name, CmdId, ViewsState}, From, #state{sess=Sess} = State) ->
     handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, From, State);
 handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
-    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, id='$1', owner=Owner, _='_'}
+    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd = CmdId, id='$1', owner=Owner, _='_'}
                                             , []
                                             , ['$1']}]]) of
         {[Id0|_], true} ->
@@ -212,14 +212,16 @@ handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
     Sess:run_cmd(insert, [ddView, NewView]),
     ?Debug("add_view inserted ~p", [NewView]),
     {reply, Id, State};
-handle_call({get_view, Sess, Name, Owner}, _From, State) ->
+handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
     ?Debug("get_view ~p", [Name]),
-    {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
+    {[#ddCmd{id=Id}], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, adapters=[Adapter], owner=Owner, _='_'}, [], ['$_']}]]),
+    {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd=Id, owner=Owner, _='_'}, [], ['$_']}]]),
     ?Debug("view ~p", [View]),
     {reply, View, State};
-handle_call({get_view, Sess, Name}, _From, State) ->
+handle_call({get_view, Sess, Name, Adapter}, _From, State) ->
     ?Debug("get_view ~p", [Name]),
-    {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, _='_'}, [], ['$_']}]]),
+    {[#ddCmd{id=Id}], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, adapters=[Adapter], _='_'}, [], ['$_']}]]),
+    {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd=Id, _='_'}, [], ['$_']}]]),
     ?Debug("view ~p", [Views]),
     {reply, Views, State};
 

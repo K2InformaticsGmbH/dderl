@@ -192,7 +192,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
         IsView ->
             {#ddView{name=Name,owner=Owner},#ddCmd{}=C,_} = element(3, R),
             Name = element(5, R),
-            V = dderl_dal:get_view(Sess, Name, Owner),
+            V = dderl_dal:get_view(Sess, Name, imem, Owner),
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
@@ -236,7 +236,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
 
 % views
 process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
-    [F|_] = dderl_dal:get_view(Sess, <<"All Views">>),
+    [F|_] = dderl_dal:get_view(Sess, <<"All Views">>, imem),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
     Resp = process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),

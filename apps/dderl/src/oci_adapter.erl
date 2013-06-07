@@ -13,13 +13,13 @@ init() ->
     dderl_dal:add_adapter(oci, "Oracle/OCI"),
     gen_adapter:add_cmds_views(undefined, system, oci, [
         { <<"Users.sql">>
-        , <<"SELECT USERNAME FROM ALL_USERS">>
+        , <<"select USERNAME from ALL_USERS">>
         , remote },
         { <<"Tables.sql">>
-        , <<"SELECT CONCAT(OWNER,CONCAT('.', TABLE_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_TABLES WHERE OWNER=user ORDER BY TABLE_NAME">>
+        , <<"select concat(OWNER,concat('.', TABLE_NAME)) as QUALIFIED_TABLE_NAME from ALL_TABLES where OWNER=user order by TABLE_NAME">>
         , remote },
         { <<"Views.sql">>
-        , <<"SELECT CONCAT(OWNER,CONCAT('.', VIEW_NAME)) AS QUALIFIED_TABLE_NAME FROM ALL_VIEWS WHERE OWNER=user ORDER BY VIEW_NAME">>
+        , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
         , remote },
         { <<"All Views">>
         , <<"select
@@ -27,8 +27,7 @@ init() ->
                 v.name
             from
                 ddView as v,
-                ddCmd as c, disconnect/1
-        
+                ddCmd as c
             where
                 c.id = v.cmd
                 and c.adapters = \"[oci]\"
@@ -82,7 +81,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
 
 % views
 process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
-    [F|_] = dderl_dal:get_view(Sess, <<"All Views">>),
+    [F|_] = dderl_dal:get_view(Sess, <<"All Views">>, oci),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
     Resp = process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
