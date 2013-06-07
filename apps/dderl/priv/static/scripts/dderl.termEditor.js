@@ -28,8 +28,8 @@
         // These options will be used as defaults
         options: {
             // dialog options default override
-            height          : 300,
-            width           : 400,
+            height          : 400,
+            width           : 600,
             minHeight       : 50,
             minWidth        : 100,
             resizable       : true,
