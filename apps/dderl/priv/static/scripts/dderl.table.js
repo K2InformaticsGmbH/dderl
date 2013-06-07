@@ -1244,6 +1244,16 @@
             var rowsCount = _rows.rows.length;
             this.appendRows(_rows);
 
+            // if new cmd is not in the list
+            if(_rows.sql.length > 0) {
+                self._reorderCalled = false;
+                self._cmd = _rows.sql;
+                self._addToEditorHistory(_rows.sql);
+            } else if(rowsCount > 0 && !self._reorderCalled && _rows.loop.length === 0) {
+                self._reorderCalled = true;
+                self._gridColumnsReorder();
+            }
+
             // command back request
             if(_rows.loop.length > 0) {
                 if (rowsCount > 0) {
@@ -1258,8 +1268,9 @@
                     console.log('no rows received, retrying '+_rows.loop+' after '+this._rftchExpBkOff+' ms');
                     setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
                 }
+            } else {
+                this._rftchExpBkOff = 2; // end of command looping received
             }
-            else this._rftchExpBkOff = 2; // end of command looping received
         }
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
@@ -1320,7 +1331,7 @@
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
     },
- 
+
     // context menus invocation for slickgrid
     _gridContextMenu: function(e, args) {
         e.preventDefault();
@@ -1757,16 +1768,6 @@
                     .button('enable')
                     .removeClass('ui-state-error')
                     .attr('title', self._toolbarButtons[btn].tip);
-        }
-
-        // if new cmd is not in the list
-        if(_rows.sql.length > 0) {
-            self._reorderCalled = false;
-            self._cmd = _rows.sql;
-            self._addToEditorHistory(_rows.sql);
-        } else if(_rows.rows.length !== 0 && !self._reorderCalled) {
-            self._reorderCalled = true;
-            self._gridColumnsReorder();
         }
 
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
