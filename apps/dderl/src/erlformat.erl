@@ -35,18 +35,20 @@ expand_auto(Term, _Col) when is_atom(Term);
                              is_float(Term)  -> {false, io_lib:format("~w", [Term])};
 expand_auto(Term, _Col) when is_binary(Term) -> {false, io_lib:format("~p", [Term])};
 expand_auto({First, Second}, Col)            ->
-    %TODO: If the first is expanded the second one needs a new line...
-    {IsFirstExp, FirstResult} = expand_auto(First, Col + 1),
-    FirstFlat = lists:flatten(FirstResult),
-    {IsSecondExp, SecondResult} = expand_auto(Second, Col + length(FirstFlat) + 2),
-    WasExpanded = IsFirstExp orelse IsSecondExp,
-    if
-        WasExpanded -> NL = ["\n", add_spaces(Col)];
-        true -> NL = ""
-    end,
-    {WasExpanded, ["{", FirstResult,
-     ",", SecondResult,
-     NL, ["}"]]};
+    case expand_auto(First, Col+1) of
+        {true, FirstResult} ->
+            {true, ["{", FirstResult, "\n", add_spaces(Col),
+                    ",", get_result(expand_auto(Second, Col+1)),
+                    "\n", add_spaces(Col), "}"]};
+        {false, FirstResult} ->
+            FirstFlat = lists:flatten(FirstResult),
+            {WasExpanded, SecondResult} = expand_auto(Second, Col + length(FirstFlat) + 2),
+            if
+                WasExpanded -> NL = ["\n", add_spaces(Col)];
+                true -> NL = ""
+            end,
+            {WasExpanded, ["{", FirstResult, ",", SecondResult, NL, ["}"]]}
+    end;
 expand_auto(Term, Col) when is_tuple(Term)  -> expand_elements(tuple_to_list(Term), "{}", Col);
 expand_auto(Term, Col) when is_list(Term)   -> 
     case io_lib:printable_list(Term) of
@@ -94,8 +96,8 @@ expand_cons([], Brackets, _Expand, _Tab) -> [Brackets];
 expand_cons([Element | Rest], [LB, RB], Expand, Tab) ->
     [[LB], ?NL(Expand), ?NT(Expand,Tab+1),
     [expand(Element,Expand-1,Tab+1)],
-    [[?NL(Expand), ?NT(Expand,Tab+1), ",", expand(T,Expand-1,Tab+1)] || T <- Rest]
-    ++ ?NL(Expand) ++ ?NT(Expand,Tab), [RB]].
+    [[?NL(Expand), ?NT(Expand,Tab+1), ",", expand(T,Expand-1,Tab+1)] || T <- Rest],
+    ?NL(Expand), ?NT(Expand,Tab), [RB]].
 
 add_dot(Val) ->
     case [lists:last(string:strip(Val))] of
