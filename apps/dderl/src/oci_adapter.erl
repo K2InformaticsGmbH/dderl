@@ -43,15 +43,23 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
-    Port     = list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>))),
+    Port     =
+        try list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)))
+        catch _:_ -> undefined
+        end,
     Service  = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr   = proplists:get_value(<<"tnsstring">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
-    %%ErlOciSession = erloci_session:start_link(Tnsstr, User, Password, <<>>, [{logging, true}]),
-    ErlOciSession = {a,self()},
+    case Port of
+        undefined ->
+            ErlOciSession = {error, "Invalid port"};
+        Port ->
+            %ErlOciSession = erloci_session:start_link(Tnsstr, User, Password, <<>>, [{logging, true}]),
+            ErlOciSession = {a,self()}
+    end,
     case ErlOciSession of
         {_, ErlOciSessionPid} when is_pid(ErlOciSessionPid) ->
             ?Info("ErlOciSession ~p", [ErlOciSession]),

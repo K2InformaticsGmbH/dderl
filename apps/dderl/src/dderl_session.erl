@@ -80,8 +80,8 @@ handle_info(Info, #state{user=User}=State) ->
     {noreply, State}.
 
 terminate(Reason, #state{user=User} = State) ->
-    logout(State),
-    ?Info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]).
+    ?Info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]),
+    logout(State).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
@@ -239,9 +239,9 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     end,
     State#state{adapt_priv = NewAdaptPriv}.
 
-jsq(Bin) when is_binary(Bin) -> Bin;
-jsq(Atom) when is_atom(Atom) -> list_to_binary(atom_to_list(Atom));
-jsq(Str)                     -> list_to_binary(Str).
+jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, latin1);
+jsq(Str)   when is_list(Str) -> list_to_binary(Str);
+jsq(OtherTypes) -> OtherTypes.
 
 logout(#state{sess=undefined, adapt_priv=AdaptPriv} = State) ->
     [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],

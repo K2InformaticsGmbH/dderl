@@ -48,27 +48,15 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
-    Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
-    Ip     = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
-    case Ip of
-        Ip when Ip =:= "local_sec" ->
-            Type    = local_sec,
-            Opts    = {Schema};
-        Ip when Ip =:= "local" ->
-            Type    = local,
-            Opts    = {Schema};
-        Ip when Ip =:= "rpc" ->
-            Type    = rpc,
-            Opts    = {list_to_existing_atom(Port), Schema};
-        Ip ->
-            Type    = tcp,
-            Opts    = {Ip, list_to_integer(Port), Schema}
-    end,
-    User = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Ip       = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
+    Port     = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
+    Schema   = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    ?Debug("session:open ~p", [{Type, Opts, {User, Password}}]),
-    case erlimem:open(Type, Opts, {User, Password}) of
+    Type = get_connection_type(Ip),
+    ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User}]),
+    ResultConnect = connect_to_erlimem(Type, Ip, Port, Schema, {User, Password}),
+    case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
@@ -85,7 +73,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             Priv;
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
-            ?Debug("connected to params ~p", [{Type, Opts}]),
+            ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
                           , owner    = UserId
@@ -106,28 +94,16 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefine
     process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
-    Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
     Ip     = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
-    case Ip of
-        Ip when Ip =:= "local_sec" ->
-            Type    = local_sec,
-            Opts    = {Schema};
-        Ip when Ip =:= "local" ->
-            Type    = local,
-            Opts    = {Schema};
-        Ip when Ip =:= "rpc" ->
-            Type    = rpc,
-            Opts    = {list_to_existing_atom(Port), Schema};
-        Ip ->
-            Type    = tcp,
-            Opts    = {Ip, list_to_integer(Port), Schema}
-    end,
+    Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
+    Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
-    ?Debug("connect change password ~p", [{Type, Opts, User}]),
-    case erlimem:open(Type, Opts, {User, Password, NewPassword}) of
+    Type = get_connection_type(Ip),
+    ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
+    ResultConnect = connect_to_erlimem(Type, Ip, Port, Schema, {User, Password, NewPassword}),
+    case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
@@ -140,7 +116,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             Priv;
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
-            ?Debug("connected to params ~p", [{Type, Opts}]),
+            ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
                           , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
                           , owner    = UserId
@@ -425,6 +401,25 @@ int(C) when $a =< C, C =< $f -> C - $a + 10.
 
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
+
+
+connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
+    try list_to_existing_atom(Port) of
+        AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
+    catch _:_ -> {error, "Invalid port for connection type rpc"}
+    end;
+connect_to_erlimem(tcp, Ip, Port, Schema, Credentials) ->
+    try list_to_integer(Port) of
+        IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema}, Credentials)
+    catch _:_ -> {error, "Invalid port for connection type tcp"}
+    end;
+connect_to_erlimem(Type, _Ip, _Port, Schema, Credentials) ->
+    erlimem:open(Type, {Schema}, Credentials).
+
+get_connection_type("local_sec") -> local_sec;
+get_connection_type("local") -> local;
+get_connection_type("rpc") -> rpc;
+get_connection_type(_Ip) -> tcp.
 
 error_invalid_conn(Connection, Connections) ->
     Err = <<"Trying to process a query with an unowned connection">>,
