@@ -76,7 +76,7 @@ init([SchemaName]) ->
             , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
         ]),
         ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
-        Sess:run_cmd(insert, [ddInterface, #ddInterface{id=ddjson,fullName="DDerl"}]),
+        Sess:run_cmd(insert, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
 
         % Initializing adapters (all the *_adapter modules compiled with dderl)
         %  doesn't include dynamically built adapters

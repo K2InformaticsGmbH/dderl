@@ -10,17 +10,17 @@
 
 -record(ddAdapter,                          %% DDerl adapter (connect to databases)              
                   { id                      :: atom()             %% oci | imem | ets | os_text | dfs_text | hdfs_text
-                  , fullName                :: string()           %% displayed in drop down box
+                  , fullName                :: binary()           %% displayed in drop down box
                   }
        ). 
--define(ddAdapter, [atom, string]).
+-define(ddAdapter, [atom, binstr]).
 
 -record(ddInterface,                        %% DDerl client interface (connect to ui / applications)               
                   { id                      :: atom()             %% ddjson
-                  , fullName                :: string()           %% displayed in drop down box
+                  , fullName                :: binary()           %% displayed in drop down box
                   }
        ).
--define(ddInterface, [atom, string]).
+-define(ddInterface, [atom, binstr]).
 
 -record(ddConn,                             %% DB connection    
                   { id                      ::ddEntityId()       
@@ -31,7 +31,7 @@
                   , schema                  ::any()             %% erlang term depending on adapter (e.g. name or uri or data root path)
                   }
        ).
--define(ddConn, [integer, string, userid, atom, term, term]).
+-define(ddConn, [integer, binstr, userid, atom, term, term]).
       
 -record(ddCmd,                              %% DB command     
                   { id                      ::ddEntityId()       
@@ -64,7 +64,7 @@
                   , views                   ::[ddEntityId()]    %% ddView.ids
                   }
        ).
--define(ddDash, [integer, atom, userid, string, list]).
+-define(ddDash, [integer, atom, userid, binstr, list]).
 
 -define(LOG_TAG, "_DDRL_").
 

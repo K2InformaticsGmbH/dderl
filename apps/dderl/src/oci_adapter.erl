@@ -10,7 +10,7 @@
 -record(priv, {connections = []}).
 
 init() ->
-    dderl_dal:add_adapter(oci, "Oracle/OCI"),
+    dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
     gen_adapter:add_cmds_views(undefined, system, oci, [
         { <<"Users.sql">>
         , <<"select USERNAME from ALL_USERS">>
@@ -42,13 +42,13 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    IpAddr   = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
+    IpAddr   = proplists:get_value(<<"ip">>, BodyJson, <<>>),
     Port     =
         try list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)))
         catch _:_ -> undefined
         end,
-    Service  = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
-    Type     = binary_to_list(proplists:get_value(<<"type">>, BodyJson, <<>>)),
+    Service  = proplists:get_value(<<"service">>, BodyJson, <<>>),
+    Type     = proplists:get_value(<<"type">>, BodyJson, <<>>),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr   = proplists:get_value(<<"tnsstring">>, BodyJson, <<>>),
@@ -64,7 +64,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
         {_, ErlOciSessionPid} when is_pid(ErlOciSessionPid) ->
             ?Info("ErlOciSession ~p", [ErlOciSession]),
             Con = #ddConn { id = erlang:phash2(make_ref())
-                          , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner    = UserId
                           , adapter  = oci
                           , access   = [ {ip,       IpAddr}
@@ -74,7 +74,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                                        , {user,     User}
                                        , {tnsstr,   Tnsstr}
                                        ]
-                          , schema   = list_to_atom(Service)
+                          , schema   = binary_to_atom(Service, utf8)
                           },
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
                     dderl_dal:add_connect(Sess, Con),

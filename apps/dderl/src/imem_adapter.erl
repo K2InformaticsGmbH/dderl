@@ -12,13 +12,13 @@
 -record(priv, {connections = []}).
 
 init() ->
-    dderl_dal:add_adapter(imem, "IMEM DB"),
+    dderl_dal:add_adapter(imem, <<"IMEM DB">>),
     dderl_dal:add_connect(undefined,
                           #ddConn{ id = erlang:phash2(make_ref())
-                                 , name = "local imem"
+                                 , name = <<"local imem">>
                                  , owner = system
                                  , adapter = imem
-                                 , access = [{ip, "local"}, {user, "admin"}]
+                                 , access = [{ip, <<"local">>}, {user, <<"admin">>}]
                                  }),
     gen_adapter:add_cmds_views(undefined, system, imem, [
         { <<"All Tables">>
@@ -48,14 +48,14 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Ip       = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
-    Port     = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
-    Schema   = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
+    Ip       = proplists:get_value(<<"ip">>, BodyJson, <<>>),
+    Port     = proplists:get_value(<<"port">>, BodyJson, <<>>),
+    Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     Type = get_connection_type(Ip),
     ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, Ip, Port, Schema, {User, Password}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password}),
     case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -75,7 +75,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
-                          , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner    = UserId
                           , adapter  = imem
                           , access   = [ {ip,   Ip}
@@ -83,7 +83,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                                        , {type, Type}
                                        , {user, User}
                                        ]
-                          , schema   = list_to_atom(Schema)
+                          , schema   = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
@@ -94,15 +94,15 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefine
     process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Ip     = binary_to_list(proplists:get_value(<<"ip">>, BodyJson, <<>>)),
-    Port   = binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)),
-    Schema = binary_to_list(proplists:get_value(<<"service">>, BodyJson, <<>>)),
+    Ip     = proplists:get_value(<<"ip">>, BodyJson, <<>>),
+    Port   = proplists:get_value(<<"port">>, BodyJson, <<>>),
+    Schema = proplists:get_value(<<"service">>, BodyJson, <<>>),
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
     Type = get_connection_type(Ip),
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, Ip, Port, Schema, {User, Password, NewPassword}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password, NewPassword}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~p", [User, Error]),
@@ -118,7 +118,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             Con = #ddConn { id       = erlang:phash2(make_ref())
-                          , name     = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>))
+                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner    = UserId
                           , adapter  = imem
                           , access   = [ {ip,   Ip}
@@ -126,7 +126,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                                        , {type, Type}
                                        , {user, User}
                                        ]
-                          , schema   = list_to_atom(Schema)
+                          , schema   = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
@@ -404,21 +404,21 @@ hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
 
 connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
-    try list_to_existing_atom(Port) of
+    try binary_to_existing_atom(Port, utf8) of
         AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type rpc"}
     end;
 connect_to_erlimem(tcp, Ip, Port, Schema, Credentials) ->
-    try list_to_integer(Port) of
+    try binary_to_integer(Port) of
         IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type tcp"}
     end;
 connect_to_erlimem(Type, _Ip, _Port, Schema, Credentials) ->
     erlimem:open(Type, {Schema}, Credentials).
 
-get_connection_type("local_sec") -> local_sec;
-get_connection_type("local") -> local;
-get_connection_type("rpc") -> rpc;
+get_connection_type(<<"local_sec">>) -> local_sec;
+get_connection_type(<<"local">>) -> local;
+get_connection_type(<<"rpc">>) -> rpc;
 get_connection_type(_Ip) -> tcp.
 
 error_invalid_conn(Connection, Connections) ->

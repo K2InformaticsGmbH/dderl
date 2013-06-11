@@ -173,8 +173,8 @@ process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
 
 process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
     Res = jsx:encode([{<<"adapters">>,
-            [ [{<<"id">>,list_to_binary(atom_to_list(A#ddAdapter.id))}
-              ,{<<"fullName">>,list_to_binary(A#ddAdapter.fullName)}]
+            [ [{<<"id">>, jsq(A#ddAdapter.id)}
+              ,{<<"fullName">>, A#ddAdapter.fullName}]
             || A <- dderl_dal:get_adapters(Sess)]}]),
     ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
     From ! {reply, Res},
@@ -188,13 +188,13 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
             ?Debug([{user, User}], "conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
                 lists:foldl(fun(C, Acc) ->
-                    [{list_to_binary(integer_to_list(C#ddConn.id)), [
-                            {<<"name">>,jsq(C#ddConn.name)}
-                          , {<<"adapter">>,jsq(C#ddConn.adapter)}
+                    [{integer_to_binary(C#ddConn.id), [
+                            {<<"name">>, C#ddConn.name}
+                          , {<<"adapter">>, jsq(C#ddConn.adapter)}
                           , {<<"service">>, jsq(C#ddConn.schema)}
                           , {<<"owner">>, jsq(C#ddConn.owner)}
                           ] ++
-                          [{list_to_binary(atom_to_list(N)), jsq(V)} || {N,V} <- C#ddConn.access]
+                          [{atom_to_binary(N, utf8), jsq(V)} || {N,V} <- C#ddConn.access]
                      } | Acc]
                 end,
                 [],
@@ -239,8 +239,7 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     end,
     State#state{adapt_priv = NewAdaptPriv}.
 
-jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, latin1);
-jsq(Str)   when is_list(Str) -> list_to_binary(Str);
+jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
 jsq(OtherTypes) -> OtherTypes.
 
 logout(#state{sess=undefined, adapt_priv=AdaptPriv} = State) ->
