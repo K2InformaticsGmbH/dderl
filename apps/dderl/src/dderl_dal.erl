@@ -62,7 +62,6 @@ start_link(SchemaName) ->
     Result.
 
 init([SchemaName]) ->
-    erlimem:start(),
     Cred = {<<>>, <<>>},
     case erlimem:open(local, {SchemaName}, Cred) of
     {ok, Sess} ->
@@ -97,7 +96,7 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
 
 handle_call({is_local_query, Qry}, _From, State) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
-    case sql_parse:parsetree(Qry) of
+    case sqlparse:parsetree(Qry) of
         {ok, {[{select, QOpts}|_], _Tokens}} ->
             case lists:keyfind(from, 1, QOpts) of
                 {from, Tables} ->
@@ -131,7 +130,7 @@ handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, S
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
     NewConn =
         if Conn =:= undefined ->
-            case sql_parse:parsetree(Cmd) of
+            case sqlparse:parsetree(Cmd) of
                 {ok, {[{select, QOpts}|_], _Tokens}} ->
                     case lists:keyfind(from, 1, QOpts) of
                         {from, Tables} ->

@@ -142,6 +142,47 @@ function show_qry_files()
     .table('loadViews');
 }
 
+function show_about_dlg()
+{
+    ajaxCall(null, '/app/about', null, 'about', function(applications) {
+        var aboutDlg =
+            $('<div id="about-dderl-dlg" title ="About DDerl"></div>')
+            .appendTo(document.body);
+
+        var table = '<table class="about-deps-table">';
+        for(app in applications) {
+            var version = applications[app].version;
+            if(app === "dderl") {
+                var description = applications[app].description;
+                var p = '<p class="about-title">DDerl</p>';
+                p += '<p class="about-vsn">Version ' + version + '</p>';
+                p += '<p class="about-desc">' + description + '</p>';
+                aboutDlg.prepend(p);
+            } else {
+                table += '<tr>';
+                table += '<td class="about-dep-name">' + app + '</td>';
+                table += '<td class="about-dep-vsn">' + version + '</td>';
+                table += '</tr>';
+            }
+        }
+        table += '</table>';
+        aboutDlg.append(table);
+
+        aboutDlg.dialog({
+            modal:false,
+            width: 240,
+            resizable:false,
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
+            close: function() {
+                $(this).dialog('destroy');
+                $(this).remove();
+            }
+        }).dialog("widget").draggable("option","containment","#main-body");
+    });
+}
+
 function alert_jq(string)
 {
     var dlgDiv =

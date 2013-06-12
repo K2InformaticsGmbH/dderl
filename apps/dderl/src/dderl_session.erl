@@ -164,6 +164,15 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     end,
     State;
 
+process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
+    case application:get_key(dderl, applications) of
+        undefined -> Apps = [];
+        {ok, Apps} -> Apps
+    end,
+    Versions = get_apps_version([dderl|Apps]),
+    From ! {reply, jsx:encode([{<<"about">>, Versions}])},
+    State;
+
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
     ?Error("Request from a not logged in user: ~n~p", [Req]),
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
@@ -248,3 +257,15 @@ logout(#state{sess=undefined, adapt_priv=AdaptPriv} = State) ->
 logout(#state{sess=Sess} = State) ->
     Sess:close(),
     logout(State#state{sess=undefined}).
+
+get_apps_version([]) -> [];
+get_apps_version([App|Rest]) ->
+    {ok, Vsn} = application:get_key(App, vsn),
+    {ok, Desc} = application:get_key(App, description),
+    AppInfo = {atom_to_binary(App, utf8),
+                  [
+                      {<<"version">>, list_to_binary(Vsn)},
+                      {<<"description">>, list_to_binary(Desc)}
+                  ]
+              },
+    [AppInfo | get_apps_version(Rest)].

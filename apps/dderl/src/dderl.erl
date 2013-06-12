@@ -27,6 +27,8 @@ start() ->
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
     ok = imem:start(),
+    ok = erlimem:start(),
+    ok = application:start(sqlparse),
 	ok = application:start(dderl).
 -else.
 start() ->
@@ -34,6 +36,8 @@ start() ->
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
     ok = imem:start(),
+    ok = erlimem:start(),
+    ok = application:start(sqlparse),
     ?Info("lager not started...!"),
 	ok = application:start(dderl).
 -endif.

@@ -3,9 +3,11 @@
   {description, "Web based tool for exploring databases"},
   {vsn, "1.0.0"},
   {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib
+  {applications, [kernel,
+                  stdlib,
+                  erlimem,
+                  imem,
+                  sqlparse
                  ]},
   {mod, { dderl_app, []}},
   {env, [ {interface, "0.0.0.0"}

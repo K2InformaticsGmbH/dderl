@@ -416,3 +416,31 @@ div#main_footer {
     margin: 0;
     padding: 0.3em;
 }
+
+.about-title {
+    font-size: x-large;
+    font-weight: bold;
+    margin: 0;
+}
+
+.about-vsn {
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.about-desc {
+    margin-top: 5px;
+    font-size: large;
+}
+
+.about-dep-name {
+    font-weight: bold;
+    margin: 0;
+    text-align: left;
+}
+
+.about-dep-vsn {
+    font-weight: bold;
+    margin: 0;
+    text-align: right;
+}
