@@ -72,7 +72,7 @@ dialyzer: compile
 #                                 Last tag:          dderl-1.1.0pre1
 #                                 Commits since tag: 27
 #                                 Hash of commit:    g1170096
-REPO_TAG 	:= $(shell git describe --abbrev=0 --tags)
+REPO_TAG 	:= $(shell git describe --tags)
 
 # Split off repo name
 # Changes to 1.0.3 or 1.1.0pre1-27-g1170096 from example above
