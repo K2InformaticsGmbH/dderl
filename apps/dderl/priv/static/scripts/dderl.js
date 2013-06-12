@@ -146,10 +146,10 @@ function show_about_dlg()
 {
     ajaxCall(null, '/app/about', null, 'about', function(applications) {
         var aboutDlg =
-            $('<div id="about-dderl-dlg" title ="About DDerl"></div>')
+            $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
 
-        var table = '<table class="about-deps-table">';
+        var table = '<table class="about-deps-table" cellspacing="5" border="0">';
         for(app in applications) {
             var version = applications[app].version;
             if(app === "dderl") {
@@ -157,6 +157,7 @@ function show_about_dlg()
                 var p = '<p class="about-title">DDerl</p>';
                 p += '<p class="about-vsn">Version ' + version + '</p>';
                 p += '<p class="about-desc">' + description + '</p>';
+                p += '<hr>'
                 aboutDlg.prepend(p);
             } else {
                 table += '<tr>';
@@ -170,7 +171,7 @@ function show_about_dlg()
 
         aboutDlg.dialog({
             modal:false,
-            width: 240,
+            width: 230,
             resizable:false,
             open: function() {
                 $(this).dialog("widget").appendTo("#main-body");

@@ -430,17 +430,15 @@ div#main_footer {
 
 .about-desc {
     margin-top: 5px;
-    font-size: large;
+    font-size: small;
 }
 
 .about-dep-name {
-    font-weight: bold;
     margin: 0;
     text-align: left;
 }
 
 .about-dep-vsn {
-    font-weight: bold;
     margin: 0;
-    text-align: right;
+    text-align: left;
 }
