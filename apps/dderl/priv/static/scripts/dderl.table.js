@@ -333,15 +333,14 @@
         var colnamesizes = new Array();
         var cols = this._grid.getColumns();
 
-        // Column names and width
-        for(var idx = 0; idx < cols.length; ++idx) {
-            if(cols[idx].name.length > 0) {
-                colnamesizes.push({
-                        name: cols[idx].name,
-                        width: cols[idx].width,
-                        hidden: false
-                });
-            }
+        // Column names and width.
+        // Index starting at 1 to skip the id column.
+        for(var idx = 1; idx < cols.length; ++idx) {
+            colnamesizes.push({
+                name: cols[idx].field,
+                width: cols[idx].width,
+                hidden: false
+            });
         }
 
         // Table width/height/position
@@ -418,17 +417,18 @@
     // sorts
     _sort: function(_ranges) {
         var self = this;
-        if(self._sorts === null)
+        if(self._sorts === null) {
             self._sorts = new Object();
+        }
         var cols = self._grid.getColumns();
-        for (var i=0; i<_ranges.length; ++i)
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
-                if(cols[c].name.length > 0 && !self._sorts.hasOwnProperty(cols[c].name)) {
-                    self._sorts[cols[c].name] =
-                        { id : c,
-                         asc : true
-                        };
+        for (var i = 0; i < _ranges.length; ++i) {
+            var fromCell = Math.max(_ranges[i].fromCell, 1);
+            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                if(!self._sorts.hasOwnProperty(cols[c].field)) {
+                    self._sorts[cols[c].field] = {name : cols[c].name, asc : true};
                 }
+            }
+        }
         self._showSortGui();
     },
     _sortAsc: function(_ranges) {
@@ -436,10 +436,12 @@
         if(self._sorts === null)
             self._sorts = new Object();
         var cols = this._grid.getColumns();
-        for (var i=0; i<_ranges.length; ++i)
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
-                if(cols[c].name.length > 0)
-                    self._sorts[cols[c].name] = {id : c, asc : true};
+        for (var i=0; i<_ranges.length; ++i) {
+            var fromCell = Math.max(_ranges[i].fromCell, 1);
+            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                self._sorts[cols[c].field] = {name : cols[c].name, asc : true};
+            }
+        }
         if(Object.keys(self._sorts).length === 1) {
             self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
@@ -451,10 +453,12 @@
         if(self._sorts === null)
             self._sorts = new Object();
         var cols = this._grid.getColumns();
-        for (var i=0; i<_ranges.length; ++i)
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
-                if(cols[c].name.length > 0)
-                    self._sorts[cols[c].name] = {id : c, asc : false};
+        for (var i = 0; i < _ranges.length; ++i) {
+            var fromCell = Math.max(_ranges[i].fromCell, 1);
+            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                self._sorts[cols[c].field] = {name : cols[c].name, asc : false};
+            }
+        }
         if(Object.keys(self._sorts).length === 1) {
             self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
@@ -465,14 +469,16 @@
         var self = this;
         if(self._sorts && !$.isEmptyObject(self._sorts)) {
             var cols = this._grid.getColumns();
-            for (var i=0; i<_ranges.length; ++i)
-                for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
-                    if(cols[c].name.length > 0 && self._sorts.hasOwnProperty(cols[c].name))
-                        delete self._sorts[cols[c].name];
+            for (var i=0; i<_ranges.length; ++i) {
+                var fromCell = Math.max(_ranges[i].fromCell, 1);
+                for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                    delete self._sorts[cols[c].field];
+                }
+            }
         }
-        if(self._sorts && !$.isEmptyObject(self._sorts))
+        if(self._sorts && !$.isEmptyObject(self._sorts)) {
             self._showSortGui();
-        else {
+        } else {
             self._sorts = null;
             self._ajax('/app/sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
         }
@@ -480,8 +486,9 @@
     _showSortGui: function() {
         var self = this;
         var data = new Array();
-        for (var s in self._sorts)
-            data.push({name: s, sort: (self._sorts[s].asc ? 'ASC' : 'DESC'), id: self._sorts[s].id});
+        for (var s in self._sorts) {
+            data.push({id: s, name: self._sorts[s].name, sort: (self._sorts[s].asc ? 'ASC' : 'DESC')});
+        }
 
         var sortDlg =
             $('<div>')
@@ -622,9 +629,9 @@
         var saveChange = function() {
             var sd = sgrid.getData();
             self._sorts = new Object();
-            for (var i = 0; i <sd.length; ++i) {
-                self._sorts[sd[i].name] = { id : sd[i].id,
-                                           asc : (sd[i].sort === 'ASC' ? true : false) };
+            for (var i = 0; i < sd.length; ++i) {
+                self._sorts[sd[i].id] = {name : sd[i].name,
+                                         asc : (sd[i].sort === 'ASC' ? true : false) };
             }
             return self._sortSpec2Json();
         }
@@ -673,21 +680,24 @@
     _filterColumn: function(_ranges) {
         var self = this;
         var cols = self._grid.getColumns();
-        if(self._filters === null)
+        if(self._filters === null) {
             self._filters = new Object();
+        }
         for (var i=0; i<_ranges.length; ++i) {
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
-                if(cols[c].name.length > 0) {
-                    if(!self._filters.hasOwnProperty(cols[c].name)) {
-                        self._filters[cols[c].name] = {inp : $('<textarea>')
-                                                       .attr('type', "text")
-                                                       .css('margin', 0)
-                                                       .css('white-space','nowrap')
-                                                       .css('overflow','auto')
-                                                       .css('padding', 0),
-                                                 vals: new Object(),
-                                                 id: c};
-                    }
+            var fromCell = Math.max(_ranges[i].fromCell, 1);
+            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                if(!self._filters.hasOwnProperty(cols[c].field)) {
+                    self._filters[cols[c].field] =
+                        {
+                            inp : $('<textarea>')
+                                .attr('type', "text")
+                                .css('margin', 0)
+                                .css('white-space','nowrap')
+                                .css('overflow','auto')
+                                .css('padding', 0),
+                            vals: new Object(),
+                            name: cols[c].name
+                        };
                 }
             }
         }
@@ -697,39 +707,44 @@
         var self = this;
         if(self._filters) {
             var cols = self._grid.getColumns();
-            for (var i=0; i<_ranges.length; ++i)
-                for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c)
-                    if(self._filters.hasOwnProperty(cols[c].name))
-                        delete self._filters[cols[c].name];
+            for (var i = 0; i < _ranges.length; ++i) {
+                var fromCell = Math.max(_ranges[i].fromCell, 1);
+                for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                    delete self._filters[cols[c].field];
+                }
+            }
         }
-        if(self._filters && !$.isEmptyObject(self._filters))
+        if(self._filters && !$.isEmptyObject(self._filters)) {
             self._showFilterGui();
-        else {
+        } else {
             self._filters = null;
             self._ajax('/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
         }
     },
     _filter: function(_ranges) {
         var self = this;
-        if(self._filters === null)
+        if(self._filters === null) {
             self._filters = new Object();
+        }
         var cols = this._grid.getColumns();
-        for (var i=0; i<_ranges.length; ++i) {
-            for(var c=_ranges[i].fromCell; c <= _ranges[i].toCell; ++c) {
-                if(cols[c].name.length > 0) {
-                    if(!self._filters.hasOwnProperty(cols[c].name)) {
-                        self._filters[cols[c].name] = {inp : $('<textarea>')
-                                                       .attr('type', "text")
-                                                       .css('margin', 0)
-                                                       .css('white-space','nowrap')
-                                                       .css('overflow','auto')
-                                                       .css('padding', 0),
-                                                 vals: new Object(),
-                                                 id: c};
-                    }
-                    for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
-                        self._filters[cols[c].name].vals[this._gdata[r][cols[c].name].replace(/\n/g,'\\n')] = true;
-                    }
+        for (var i = 0; i < _ranges.length; ++i) {
+            var fromCell = Math.max(_ranges[i].fromCell, 1);
+            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                if(!self._filters.hasOwnProperty(cols[c].field)) {
+                    self._filters[cols[c].field] =
+                        {
+                            inp : $('<textarea>')
+                                .attr('type', "text")
+                                .css('margin', 0)
+                                .css('white-space','nowrap')
+                                .css('overflow','auto')
+                                .css('padding', 0),
+                            vals: new Object(),
+                            name: cols[c].name
+                        };
+                }
+                for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
+                    self._filters[cols[c].field].vals[this._gdata[r][cols[c].field].replace(/\n/g,'\\n')] = true;
                 }
             }
         }
@@ -741,9 +756,9 @@
             }
             var filterspec = self._filterSpec2Json('and');
             self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
-        }
-        else
+        } else {
             self._showFilterGui();
+        }
     },
     _showFilterGui: function() {
         var self = this;
@@ -771,7 +786,7 @@
             self._filters[c].inp.val(strs.join('\n'));
             $('<tr>')
                 .append($('<td>'))
-                .append('<td>'+c+'</td>')
+                .append('<td>'+ self._filters[c].name +'</td>')
                 .appendTo(fltrTbl);
             $('<tr>')
                 .append('<td>in&nbsp;</td>')
@@ -1423,7 +1438,7 @@
         e.stopPropagation();
         var insertJson = {insert_data: {connection  : this._conn,
                                         statement   : this._stmt,
-                                        col         : this._origcolumns[args.column.id],
+                                        col         : this._origcolumns[args.column.field],
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
         this._ajax('/app/insert_data', insertJson, 'insert_data', 'insertData');
@@ -1668,11 +1683,11 @@
         for (var i = 1; i < columns.length; ++i) {
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor')) {
-                columns[i].editor   = Slick.Editors.Text;
+                columns[i].editor = Slick.Editors.Text;
             }
             columns[i].minWidth = fldWidth;
             columns[i].width    = fldWidth;
-            self._origcolumns[columns[i].name] = i;
+            self._origcolumns[columns[i].field] = i;
         }
 
         self['_hiddenColumns'] = new Array();
@@ -1686,7 +1701,7 @@
             var offset = 1;
             for(var i = 0; i < self._clmlay.length; ++i) {
                 for(var j = 1; j < columns.length; ++j) {
-                    if(columns[j].name === self._clmlay[i].name) {
+                    if(columns[j].field === self._clmlay[i].name) {
                         columns[j].width = self._clmlay[i].width;
                         if(self._clmlay[i].hidden) {
                             self._hiddenColumns.push(

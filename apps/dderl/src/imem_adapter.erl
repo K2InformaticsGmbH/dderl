@@ -339,7 +339,7 @@ process_query(Query, {_,ConPid}=Connection) ->
             Clms = proplists:get_value(cols, StmtRslt, []),
             SortSpec = proplists:get_value(sort_spec, StmtRslt, []),
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-            Columns = build_column_json(lists:reverse(Clms), []),
+            Columns = build_column_json(lists:reverse(Clms)),
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
                    "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
@@ -371,7 +371,10 @@ build_srtspec_json(SortSpecs) ->
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
-build_column_json([], JCols) ->
+build_column_json(Cols) ->
+    build_column_json(Cols, [], 0).
+
+build_column_json([], JCols, _Counter) ->
     [[{<<"id">>, <<"sel">>},
       {<<"name">>, <<"">>},
       {<<"field">>, <<"id">>},
@@ -383,9 +386,10 @@ build_column_json([], JCols) ->
       {<<"resizable">>, true},
       {<<"sortable">>, false},
       {<<"selectable">>, false}] | JCols];
-build_column_json([C|Cols], JCols) ->
+build_column_json([C|Cols], JCols, Counter) ->
     Nm = C#stmtCol.alias,
-    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
+    BinCounter = integer_to_binary(Counter),
+    Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
     JC = [{<<"id">>, Nm1},
           {<<"name">>, Nm},
           {<<"field">>, Nm1},
@@ -393,7 +397,7 @@ build_column_json([C|Cols], JCols) ->
           {<<"sortable">>, false},
           {<<"selectable">>, true}],
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
-    build_column_json(Cols, [JCol | JCols]).
+    build_column_json(Cols, [JCol | JCols], Counter + 1).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
 int(C) when $A =< C, C =< $F -> C - $A + 10;

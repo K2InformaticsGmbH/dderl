@@ -91,12 +91,13 @@ process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
 
 %%%%%%%%%%%%%%%
 
-col2json(Cols) -> col2json(lists:reverse(Cols), []).
-col2json([], JCols) -> [<<"id">>,<<"op">>|JCols];
-col2json([C|Cols], JCols) ->
+col2json(Cols) -> col2json(lists:reverse(Cols), [], 0).
+col2json([], JCols, _Counter) -> [<<"id">>,<<"op">>|JCols];
+col2json([C|Cols], JCols, Counter) ->
     Nm = C#stmtCol.alias,
-    Nm1 = if Nm =:= <<"id">> -> <<"_id">>; true -> Nm end,
-    col2json(Cols, [Nm1 | JCols]).
+    BinCounter = integer_to_binary(Counter),
+    Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
+    col2json(Cols, [Nm1 | JCols], Counter + 1).
 
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
