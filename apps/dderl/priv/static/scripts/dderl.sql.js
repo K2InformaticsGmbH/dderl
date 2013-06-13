@@ -532,6 +532,7 @@ function insertAtCursor(myField, myValue) {
     showCmd: function(cmd) {
         var self = this;
         self._modCmd = cmd;
+        this._flatTb.val(cmd);
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
 
