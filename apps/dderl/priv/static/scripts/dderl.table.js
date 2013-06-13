@@ -1488,22 +1488,29 @@
     },
     _delRow: function(e, args) {
         if(this._grid.getCellEditor()) {
-            //We don't want to delete rows if there is a active edit
-            return;
-        }
-        e.stopPropagation();
-        if(e.keyCode == 46) {
+            if(e.keyCode == 9) {
+                e.stopImmediatePropagation();
+                //Keep the cell in edit mode after a tab.
+                do {
+                    this._grid.navigateNext();
+                    this._grid.editActiveCell();
+                } while (!this._grid.getCellEditor());
+            }
+        } else if(e.keyCode == 46) {
+            e.stopImmediatePropagation();
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
             var rids = [];
-            for(var i=0; i < selRanges.length; ++i)
+            for(var i=0; i < selRanges.length; ++i) {
                 for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
-                    if(this._gdata[ri].op !== 'ins')
+                    if(this._gdata[ri].op !== 'ins') {
                         this._gdata[ri].op = 'del';
-                    else
+                    } else {
                         this._gdata.splice(ri, 1);
+                    }
                     rids.push(this._gdata[ri].id);
                 }
+            }
 
             // Delete args.row
             var deleteJson = {delete_row: {statement : this._stmt,
