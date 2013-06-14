@@ -1,8 +1,10 @@
 -module(gen_adapter).
 
 -include("dderl.hrl").
+-include("gres.hrl").
+
 -include_lib("sqlparse/src/sql_box.hrl").
--include_lib("erlimem/src/gres.hrl").
+-include_lib("imem/include/imem_sql.hrl").
 
 -export([ process_cmd/5
         , init/0

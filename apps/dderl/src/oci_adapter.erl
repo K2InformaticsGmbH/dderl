@@ -2,6 +2,8 @@
 
 -include("dderl.hrl").
 
+-include_lib("imem/include/imem_sql.hrl").
+
 -export([ init/0
         , process_cmd/5
         , disconnect/1
