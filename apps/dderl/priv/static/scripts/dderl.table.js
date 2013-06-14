@@ -933,7 +933,7 @@
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
-
+        self._grid.onClick.subscribe($.proxy(self._handleClick, self));
         self._gdata = self._grid.getData();
     },
 
@@ -1524,6 +1524,11 @@
         }
     },
 
+    _handleClick: function(e, args) {
+        var self = this;
+        self._dlg.dialog("moveToTop");
+    },
+
     _gridColumnsReorder: function() {
         var self = this;
         var columns = self._grid.getColumns();
@@ -1920,7 +1925,12 @@
                     }
                 }
             }
-            self._grid.invalidate();
+            if(this._grid.getCellEditor()) {
+                self._grid.invalidate();
+                this._grid.editActiveCell();
+            } else {
+                this._grid.invalidate();
+            }
 
             // 
             // loading of rows is the costliest of the operations
