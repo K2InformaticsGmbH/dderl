@@ -57,7 +57,8 @@ function display_login()
                     alert('Login falied : ' + data);
             });        
         }
-    });
+    })
+    .focus();
 }
 
 function update_user_information(user) {
