@@ -1,7 +1,4 @@
 -include_lib("imem/include/imem_meta.hrl").
--include_lib("imem/include/imem_sql.hrl").
-
--define(VERSION, "1.0").
 
 -define(DEFAULT_ROW_SIZE, 100).
 -record(viewstate, { table_layout = []

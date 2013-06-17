@@ -2,7 +2,9 @@
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
 -include("dderl.hrl").
--include_lib("erlimem/src/gres.hrl").
+-include("gres.hrl").
+
+-include_lib("imem/include/imem_sql.hrl").
 
 -export([ init/0
         , process_cmd/5
@@ -315,8 +317,9 @@ disconnect(#priv{connections = Connections} = Priv) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gui_resp_cb_fun(Cmd, Statement, From) ->
+    Clms = Statement:get_columns(),
     fun(#gres{} = GuiResp) ->
-        GuiRespJson = gen_adapter:gui_resp(GuiResp, Statement:get_columns()),
+        GuiRespJson = gen_adapter:gui_resp(GuiResp, Clms),
         case (catch jsx:encode([{Cmd,GuiRespJson}])) of
             {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
             Resp -> From ! {reply, Resp}
@@ -350,22 +353,44 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 
 process_query(Query, {_,ConPid}=Connection) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
-        {ok, StmtRslt, {_,_,ConPid}=Statement} ->
-            Clms = proplists:get_value(cols, StmtRslt, []),
-            SortSpec = proplists:get_value(sort_spec, StmtRslt, []),
+        ok ->
+            ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
+            [{<<"result">>, <<"ok">>}];
+        {ok, #stmtResult{ stmtCols = Clms
+                        , rowFun   = RowFun
+                        , stmtRef  = StmtRef
+                        , sortFun  = SortFun
+                        , sortSpec = SortSpec} = StmtRslt} ->
+            StmtFsm = dderl_fsm:start_link(
+                                #fsmctx{ id                         = "what is it?"
+                                       , stmtCols                   = Clms
+                                       , rowFun                     = RowFun
+                                       , sortFun                    = SortFun
+                                       , sortSpec                   = SortSpec
+                                       , block_length               = ?DEFAULT_ROW_SIZE
+                                       , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
+                                       , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
+                                       , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
+                                                                            Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
+                                                                        end
+                                       , update_cursor_prepare_fun  = fun(ChangeList) ->
+                                                                            Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
+                                                                        end
+                                       , update_cursor_execute_fun  = fun(Lock) ->
+                                                                            Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                                                                        end
+                                       }),
+            Connection:add_stmt_fsm(StmtRef, StmtFsm),
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
             Columns = build_column_json(lists:reverse(Clms)),
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
                    "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
-            ?Debug("process_query created statement ~p for ~p", [Statement, Query]),
+            ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
             [{<<"columns">>, Columns},
              {<<"sort_spec">>, JSortSpec},
-             {<<"statement">>, base64:encode(term_to_binary(Statement))},
+             {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, list_to_binary(?EncryptPid(ConPid))}];
-        ok ->
-            ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
-            [{<<"result">>, <<"ok">>}];
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
