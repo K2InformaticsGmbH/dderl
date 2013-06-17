@@ -134,6 +134,21 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             Priv#priv{connections = [Connection|Connections]}
     end;
 
+process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    [{<<"disconnect">>, BodyJson}] = ReqBody,
+    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = {erlimem_session, ConnPid},
+    case lists:member(Connection, Connections) of
+        true ->
+            Connection:close(),
+            RestConnections = lists:delete(Connection, Connections),
+            From ! {reply, jsx:encode([{<<"disconnect">>, <<"ok">>}])},
+            Priv#priv{connections = RestConnections};
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
+    end;
+
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),

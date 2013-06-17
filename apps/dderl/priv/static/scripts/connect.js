@@ -99,13 +99,34 @@ function set_conns_list(adapter, owner)
     }
 }
 
+function disconnect_tab() {
+    if(connection) {
+        ajaxCall(null,'/app/disconnect', {disconnect: {connection: connection}}, 'disconnect', function(data) {
+            if(data == "ok") {
+                connection = null;
+                adapter = null;
+                $(".ui-dialog-content").dialog('close');
+                connect_dlg();
+            } else {
+                alert('Unable to disconnect : ' + data);
+            }
+        });
+    }
+}
+
 var children;
 function new_connection_tab() {
-    if(!children) {
-        children = new Array();
+    if(session) {
+        if(!connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+            connect_dlg();
+        } else {
+            if(!children) {
+                children = new Array();
+            }
+            var newURL = window.location.protocol + "//" + window.location.host;
+            children.push(window.open(newURL, "_blank"));
+        }
     }
-    var newURL = window.location.protocol + "//" + window.location.host;
-    children.push(window.open(newURL, "_blank"));
 }
 
 function connect_dlg()
