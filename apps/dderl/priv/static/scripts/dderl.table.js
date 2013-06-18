@@ -1894,21 +1894,30 @@
                     var dlg = this._dlg.dialog('widget');
 
                     if (!self._dlgResized) {
-
-                        var gWidth = self._getGridWidth();
-                        var rWindowWidth = $(window).width()-dlg.offset().left-10; // available width for the window
+                        var gWidth = self._getGridWidth() + 13;
+                        var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
                         
                         // Dialog width adjustment
                         if (self._footerWidth > gWidth) // table is smaller than the footer
                             dlg.width(self._footerWidth);
                         else if (gWidth < rWindowWidth) // table is smaller than the remaining window
                             dlg.width(gWidth);
-                        else                            // table is bigger then the remaining window
-                            dlg.width(rWindowWidth);
+                        else {
+                            // table is bigger then the remaining window
+                            var orig_top = dlg.offset().top;
+                            var new_left = dlg.offset().left - gWidth + rWindowWidth;
+                            if(new_left > 0) {
+                                self._dlg.dialog("option", "position", [new_left, orig_top]);
+                                dlg.width(gWidth);
+                            } else {
+                                self._dlg.dialog("option", "position", [0, orig_top]);
+                                dlg.width($(window).width() - 20);
+                            }
+                        }
 
                         var oldDlgHeight = dlg.height();
-                        var gHeight = self._getGridHeight();
-                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight; // available height for the window
+                        var gHeight = self._getGridHeight() + 10;
+                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
                         if (dlg.height() > gHeight)       // if dialog is already bigger than height required by the table
                             this._dlg.height(gHeight);
                         else if (gHeight < rWindowHeight) // if table height is less then remaining window height
@@ -1919,8 +1928,8 @@
                             self._grid.resizeCanvas();
                     }
                     // adjusting the column to fill the rest of the window
-                    if(self._getGridWidth() < dlg.width()) {
-                        c[c.length - 1].width += (dlg.width()-self._getGridWidth()-10);
+                    if((self._getGridWidth() + 10) < dlg.width()) {
+                        c[c.length - 1].width += (dlg.width()-self._getGridWidth()-18);
                         self._grid.setColumns(c);
                     }
                 }
