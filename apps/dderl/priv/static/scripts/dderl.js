@@ -206,6 +206,11 @@ function alert_jq(string)
 
 function create_ws(url)
 {
+    //If there is no websocket support just return.
+    if( typeof(WebSocket) != "function" ) {
+        return;
+    }
+
     if(!ws) {
         ws = new WebSocket(url);
     }

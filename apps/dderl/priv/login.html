@@ -74,18 +74,8 @@
     <script src="../static/scripts/dderl.sql.js"></script>
     <script src="../static/scripts/dderl.termEditor.js"></script>
 
-    <!-- scripts to support and flash fallback -->
-    <script language='javascript' src="../static/scripts/swfobject.js"></script>
-    <!-- script language='javascript'>
-        window.WebSocket = null;
-    </script -->
-    <script language='javascript' src="../static/scripts/web_socket.js"></script>
-
     <script language='javascript'>        
         $(document).ready(function() {
-            // Set URL of your WebSocketMain.swf here:
-            WEB_SOCKET_SWF_LOCATION = "../static/scripts/WebSocketMainInsecure.swf";
-
             if(Object.hasOwnProperty('freeze')) {
                 check_already_connected();
             } else {
