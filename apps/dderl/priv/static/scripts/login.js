@@ -26,8 +26,10 @@ function display_login()
         dialogClass: 'no-close',
         open: function(event, ui) {
             $('#user_login').val("admin");
-            $('#password_login').focus();
             $(this).dialog("widget").appendTo("#main-body");
+            setTimeout(function() {
+                $('#password_login').focus();
+            }, 10);
         },
         close: function() {
             $(this).dialog('destroy');
@@ -57,8 +59,7 @@ function display_login()
                     alert('Login falied : ' + data);
             });        
         }
-    })
-    .focus();
+    });
 }
 
 function update_user_information(user) {
