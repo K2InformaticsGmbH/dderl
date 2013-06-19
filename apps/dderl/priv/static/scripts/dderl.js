@@ -295,11 +295,11 @@ function beep()
 {
     var beepStorage = sessionStorage.getItem("beep-sound");
     var beep = $("#beep-sound")[0];
+
     if (beepStorage) {
         // Reuse existing Data URL from sessionStorage
         beep.setAttribute("src", beepStorage);
-    }
-    else {
+    } else if (typeof(FileReader) === "function") { //I.E. 9 doesn't support FileReader
         // Create XHR and FileReader objects
         var xhr = new XMLHttpRequest();
         var fileReader = new FileReader();
