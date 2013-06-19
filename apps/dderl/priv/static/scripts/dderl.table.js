@@ -893,7 +893,7 @@
                            { browse_data: {connection : connection,
                                             statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
-                                                  col : cell.fromCell}},
+                                                  col : this._origcolumns[column.field]}},
                            'browse_data', 'browseData');
         }
     },

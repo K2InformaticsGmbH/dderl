@@ -23,7 +23,6 @@
         ,get_connects/2
         ,del_conn/2
         ,get_command/2
-        ,get_view/3
         ,get_view/4
         ,is_local_query/1
         ]).
@@ -45,7 +44,6 @@ get_adapters(Sess)                     -> gen_server:call(?MODULE, {get_adapters
 get_connects(Sess, User)               -> gen_server:call(?MODULE, {get_connects, Sess, User}).
 del_conn(Sess, ConId)                  -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
 get_command(Sess, IdOrName)            -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
-get_view(Sess, Name, Adapter)          -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter}).
 get_view(Sess, Name, Adapter, Owner)   -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
 is_local_query(Qry)                    -> gen_server:call(?MODULE, {is_local_query, Qry}).
 
@@ -217,12 +215,6 @@ handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
     {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd=Id, owner=Owner, _='_'}, [], ['$_']}]]),
     ?Debug("view ~p", [View]),
     {reply, View, State};
-handle_call({get_view, Sess, Name, Adapter}, _From, State) ->
-    ?Debug("get_view ~p", [Name]),
-    {[#ddCmd{id=Id}], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, adapters=[Adapter], _='_'}, [], ['$_']}]]),
-    {Views, true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd=Id, _='_'}, [], ['$_']}]]),
-    ?Debug("view ~p", [Views]),
-    {reply, Views, State};
 
 handle_call({get_command, Sess, IdOrName}, _From, State) ->
     ?Debug("get_command for id ~p", [IdOrName]),
