@@ -412,7 +412,7 @@ build_srtspec_json(SortSpecs) ->
      } || {SP,AscDesc} <- SortSpecs].
 
 build_column_json(Cols) ->
-    build_column_json(Cols, [], 0).
+    build_column_json(Cols, [], length(Cols)).
 
 build_column_json([], JCols, _Counter) ->
     [[{<<"id">>, <<"sel">>},
@@ -437,7 +437,7 @@ build_column_json([C|Cols], JCols, Counter) ->
           {<<"sortable">>, false},
           {<<"selectable">>, true}],
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
-    build_column_json(Cols, [JCol | JCols], Counter + 1).
+    build_column_json(Cols, [JCol | JCols], Counter - 1).
 
 int(C) when $0 =< C, C =< $9 -> C - $0;
 int(C) when $A =< C, C =< $F -> C - $A + 10;

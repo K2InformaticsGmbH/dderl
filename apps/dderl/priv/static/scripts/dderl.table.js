@@ -336,8 +336,9 @@
         // Column names and width.
         // Index starting at 1 to skip the id column.
         for(var idx = 1; idx < cols.length; ++idx) {
+            var newColName = cols[idx].name + "_" + idx;
             colnamesizes.push({
-                name: cols[idx].field,
+                name: newColName,
                 width: cols[idx].width,
                 hidden: false
             });
