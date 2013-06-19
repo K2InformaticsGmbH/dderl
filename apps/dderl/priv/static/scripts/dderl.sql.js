@@ -325,7 +325,7 @@ function insertAtCursor(myField, myValue) {
                     .width(100)
                     .css('margin', '0px 0px 0px 0px')
                     .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
-                    .button()
+                    .addClass('ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right')
                     .css('height', this.options.toolBarHeight+'px')
                     .css('text-align', 'left')
                     .appendTo(toolDiv);
