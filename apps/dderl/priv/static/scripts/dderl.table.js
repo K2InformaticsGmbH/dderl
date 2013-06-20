@@ -364,6 +364,7 @@
 
     cmdReload: function(cmd, button) {
         console.log('command reloading ['+cmd+']');
+        this._clmlay = null;
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
         this._ajax('/app/query', {query: {connection: connection, qstr : this._cmd}}, 'query', 'queryResult');
@@ -1199,6 +1200,9 @@
         console.log('>>>>> table '+_table.name+' '+_table.connection);
     },
     _renderNewTable: function(_table) {
+        var tl = null;
+        var cl = null;
+
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
             return;
@@ -1211,14 +1215,12 @@
             pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
         } else {
             pos = [_table.table_layout.x, _table.table_layout.y];
+            tl = _table.table_layout;
         }
 
-        var cl = null;
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0)
             cl = _table.column_layout;
-        var tl = null;
-        if(_table.hasOwnProperty('table_layout') && _table.table_layout.length > 0)
-            tl = _table.table_layout;
+
 
         this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         var baseOptions = {
@@ -1693,6 +1695,7 @@
         // Column Data
         var columns = _cols;
         var fldWidth = 0;
+        self._origcolumns = {};
         for (var i = 1; i < columns.length; ++i) {
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor')) {
@@ -1703,43 +1706,26 @@
             self._origcolumns[columns[i].field] = i;
         }
 
-        self['_hiddenColumns'] = new Array();
+        //If we load new columns we can't keep the hidden columns information...
+        if(self.hasOwnProperty('_hiddenColumns')) {
+            delete self._hiddenColumns;
+        }
 
         // load the column layout if its was saved
         if(self._clmlay !== null) {
-            var tmpColumns = new Array();
-            //Add the id column since it should be always the first one.
-            tmpColumns[0] = columns[0];
-            // The offset starts in 1 due to the id as first column.
-            var offset = 1;
-            for(var i = 0; i < self._clmlay.length; ++i) {
-                for(var j = 1; j < columns.length; ++j) {
-                    if(columns[j].field === self._clmlay[i].name) {
-                        columns[j].width = self._clmlay[i].width;
-                        if(self._clmlay[i].hidden) {
-                            self._hiddenColumns.push(
-                                {
-                                    idxCol: i+offset,
-                                    colContent: columns[j]
-                                }
-                            );
-                            --offset;
-                        } else {
-                            tmpColumns[i+offset] = columns[j];
-                        }
+            for(var i = 1; i < columns.length; ++i) {
+                for(var j = 0; j < self._clmlay.length; ++j) {
+                    if(columns[i].field === self._clmlay[j].name) {
+                        columns[i].width = self._clmlay[j].width;
                         break;
                     }
                 }
-            }
-            columns = tmpColumns;
-            if(self._hiddenColumns.length == 0) {
-                delete self._hiddenColumns;
             }
         }
         self._grid.setColumns(columns);
 
         if(self._tbllay === null && !self._dlgResized) {
-            dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth()), $(window).width()-dlg.offset().left-10));
+            dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth() + 13), $(window).width()-dlg.offset().left-20));
         }
         self._dlg.dialog('open');
     },
@@ -1809,7 +1795,6 @@
                         c[i].width = self._MAX_ROW_WIDTH;
                 }
             }
-            
             self._grid.setColumns(c);
             redraw = true;
         }
@@ -1889,7 +1874,7 @@
             self._grid.resizeCanvas();
 
             // only if the dialog don't have a predefined height/width
-            if(self._tbllay === null && self._clmlay === null) {
+            if(self._tbllay === null) {
                 // since columns' width doesn't change after the first block we can skip this
                 if (firstChunk) {
                     var dlg = this._dlg.dialog('widget');
