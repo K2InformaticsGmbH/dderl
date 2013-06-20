@@ -678,6 +678,18 @@
         return sortspec;
     },
     
+    _setSortSpecFromJson: function(self, origJson) {
+        if(self._sorts === null) {
+            self._sorts = new Object();
+        }
+
+        var cols = self._grid.getColumns();
+        for (colpos in origJson) {
+            var col_id = origJson[colpos].id
+            self._sorts[cols[col_id].field] = {name : cols[col_id].name, asc : origJson[colpos].asc};
+        }
+    },
+
     // filters
     _filterColumn: function(_ranges) {
         var self = this;
@@ -1149,10 +1161,10 @@
         if(_views.hasOwnProperty('error'))
             alert_jq(_views.error);
         else {
-            if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
-                this._sorts = _views.sort_spec;
-            }
             this.setColumns(_views.columns);
+            if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
+                this._setSortSpecFromJson(this, _views.sort_spec);
+            }
             this.buttonPress(this._startBtn);
         }
     },
@@ -1184,11 +1196,11 @@
             this._tbllay = _table.table_layout;
             if(_table.table_layout.length  === 0) this._tbllay = null;
         }
-        if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
-            this._sorts = _table.sort_spec;
-        }
         if(_table.hasOwnProperty('columns')) {
             this.setColumns(_table.columns);
+            if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
+                this._setSortSpecFromJson(this, _table.sort_spec);
+            }
             this._grid.setData([]);
             this._gdata = this._grid.getData();
             this.buttonPress(this._startBtn);
