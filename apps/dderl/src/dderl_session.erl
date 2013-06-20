@@ -200,7 +200,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                     [{integer_to_binary(C#ddConn.id), [
                             {<<"name">>, C#ddConn.name}
                           , {<<"adapter">>, jsq(C#ddConn.adapter)}
-                          , {<<"service">>, jsq(C#ddConn.schema)}
+                          , {<<"service">>, jsq(C#ddConn.schm)}
                           , {<<"owner">>, jsq(C#ddConn.owner)}
                           ] ++
                           [{atom_to_binary(N, utf8), jsq(V)} || {N,V} <- C#ddConn.access]

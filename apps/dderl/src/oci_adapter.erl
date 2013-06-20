@@ -76,7 +76,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                                        , {user,     User}
                                        , {tnsstr,   Tnsstr}
                                        ]
-                          , schema   = binary_to_atom(Service, utf8)
+                          , schm    = binary_to_atom(Service, utf8)
                           },
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
                     dderl_dal:add_connect(Sess, Con),

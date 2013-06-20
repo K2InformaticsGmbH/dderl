@@ -95,7 +95,7 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
 handle_call({is_local_query, Qry}, _From, State) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
     case sqlparse:parsetree(Qry) of
-        {ok, {[{select, QOpts}|_], _Tokens}} ->
+        {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
             case lists:keyfind(from, 1, QOpts) of
                 {from, Tables} ->
                     {reply, lists:foldl(fun(T,_) ->
@@ -129,7 +129,7 @@ handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, S
     NewConn =
         if Conn =:= undefined ->
             case sqlparse:parsetree(Cmd) of
-                {ok, {[{select, QOpts}|_], _Tokens}} ->
+                {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
                     case lists:keyfind(from, 1, QOpts) of
                         {from, Tables} ->
                             ?Info("Query tables ~p", [Tables]),
@@ -312,8 +312,8 @@ handle_call(Req,From,State) ->
 handle_cast({add_connect, undefined, Con}, #state{sess=Sess} = State) ->
     handle_cast({add_connect, Sess, Con}, State);
 handle_cast({add_connect, Sess, #ddConn{owner = Owner} = Con}, #state{schema=SchemaName} = State) ->
-    NewCon0 = case Con#ddConn.schema of
-        undefined -> Con#ddConn{schema = SchemaName};
+    NewCon0 = case Con#ddConn.schm of
+        undefined -> Con#ddConn{schm = SchemaName};
         _ -> Con
     end,
     NewCon = case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}

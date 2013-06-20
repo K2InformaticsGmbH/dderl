@@ -25,7 +25,7 @@
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapter                 ::atom()            %% oci | imem | ets | os_text | dfs_text | hdfs_text
                   , access                  ::any()             %% erlang term depending on adapter (e.g. ip+service or tns)
-                  , schema                  ::any()             %% erlang term depending on adapter (e.g. name or uri or data root path)
+                  , schm                    ::any()             %% erlang term depending on adapter (e.g. name or uri or data root path)
                   }
        ).
 -define(ddConn, [integer, binstr, userid, atom, term, term]).

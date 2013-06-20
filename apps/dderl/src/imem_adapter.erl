@@ -76,16 +76,16 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            Con = #ddConn { id       = erlang:phash2(make_ref())
-                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner    = UserId
-                          , adapter  = imem
-                          , access   = [ {ip,   Ip}
+            Con = #ddConn { id      = erlang:phash2(make_ref())
+                          , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
+                          , owner   = UserId
+                          , adapter = imem
+                          , access  = [ {ip,   Ip}
                                        , {port, Port}
                                        , {type, Type}
                                        , {user, User}
                                        ]
-                          , schema   = binary_to_atom(Schema, utf8)
+                          , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
@@ -119,16 +119,16 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            Con = #ddConn { id       = erlang:phash2(make_ref())
-                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner    = UserId
-                          , adapter  = imem
-                          , access   = [ {ip,   Ip}
+            Con = #ddConn { id      = erlang:phash2(make_ref())
+                          , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
+                          , owner   = UserId
+                          , adapter = imem
+                          , access  = [ {ip,   Ip}
                                        , {port, Port}
                                        , {type, Type}
                                        , {user, User}
                                        ]
-                          , schema   = binary_to_atom(Schema, utf8)
+                          , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
