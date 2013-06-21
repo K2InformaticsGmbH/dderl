@@ -1926,7 +1926,7 @@
                             self._grid.resizeCanvas();
                     }
                     // adjusting the column to fill the rest of the window
-                    if((self._getGridWidth() + 10) < dlg.width()) {
+                    if((self._getGridWidth() + 18) < dlg.width()) {
                         c[c.length - 1].width += (dlg.width()-self._getGridWidth()-18);
                         self._grid.setColumns(c);
                     }
