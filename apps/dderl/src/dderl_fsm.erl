@@ -15,7 +15,7 @@
 -define(RawMin,0).
 -define(IndMax,[]).     %% value bigger than any possible sort key {SortFun(Recs),Id}
 -define(IndMin,{}).     %% value smaller than any possible sort key {SortFun(Recs),Id}
--define(NoSort,{}).     %% signalling no sort
+-define(NoSort,[]).     %% signalling no sort
 
 -define(IndRec(__R,__SortFun),{{__SortFun(element(3,__R)),element(1,__R)},element(1,__R)}).
 -define(IndKey(__R,__SortFun),{__SortFun(element(3,__R)),element(1,__R)}).
@@ -1599,7 +1599,7 @@ data_sort(SN,?NoSort,#state{filterSpec=?NoFilter,colOrder=ColOrder}=State0) ->
     State1 = gui_clear(ind_clear(State0#state{nav=raw,srt=false})),
     case filter_and_sort(?NoFilter, ?NoSort, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sortSpec=?NoSort, sql=list_to_binary(NewSql)});
         {error, _Error} ->
             serve_top(SN, State1)
     end;    
@@ -1609,7 +1609,7 @@ data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
         {ok, NewSql, NewSortFun} ->
             ?Debug("data_sort NewSql=~p NewSortFun=~p", [NewSql,NewSortFun]),
             State1 = data_index(NewSortFun,FilterSpec,State0),
-            serve_top(SN, State1#state{sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sortSpec=SortSpec, sql=list_to_binary(NewSql)});
         {error, Error} ->
             Message = list_to_binary(io_lib:format("~p",[Error])),
             gui_nop(#gres{state=SN,beep=true,message=Message}, State0)
