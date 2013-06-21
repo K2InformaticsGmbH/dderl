@@ -641,7 +641,7 @@
         sortDlg
             .dialog({
                 width : 380,
-                modal : true,
+                modal : false,
                 title : 'Sorts',
                 position : { my: "left top", at: "left bottom", of: this._dlg },
                 close : function() {
@@ -653,13 +653,14 @@
                     'Sort' : function() {
                         var sortspec = saveChange();
                         self._ajax('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
-                                               
                         $(this).dialog('close');
                         $(this).remove();
                     }                   
                 }
             });
 
+        sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
+        sortDlg.dialog("widget").appendTo("#main-body");
     },
 
     _ajax: function(url, data, resp, callback) {
@@ -811,7 +812,7 @@
         fltrDlg
             .dialog({
                 width: fltrTbl.width()+60,
-                modal: true,
+                modal: false,
                 title:'Filter',
                 position: { my: "left top", at: "left bottom", of: this._dlg },
                 close : function() {
@@ -827,6 +828,9 @@
                     }
                 }
             });
+
+        fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
+        fltrDlg.dialog("widget").appendTo("#main-body");
 
         var applyFiltersFn = function(type) {
             var filterspec = self._filterSpec2Json(type);
@@ -1368,6 +1372,12 @@
 
         var g           = args.grid;
         var cell        = g.getCellFromEvent(e);
+
+        //Check if we are in a new row.
+        if(!g.getData()[cell.row]) {
+            return;
+        }
+
         var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
         var data        = g.getData()[cell.row][column.field];
