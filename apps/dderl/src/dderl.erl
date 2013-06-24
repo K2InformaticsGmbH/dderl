@@ -26,18 +26,18 @@ start() ->
 	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
-    ok = imem:start(),
-    ok = erlimem:start(),
-    ok = application:start(sqlparse),
+    ok = application:start(erlimem),
+    application:start(sqlparse), % maybe already started by imem
+    ok = application:start(imem),
 	ok = application:start(dderl).
 -else.
 start() ->
 	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
-    ok = imem:start(),
-    ok = erlimem:start(),
-    ok = application:start(sqlparse),
+    ok = application:start(erlimem),
+    application:start(sqlparse),% maybe already started by imem 
+    ok = application:start(imem),
     ?Info("lager not started...!"),
 	ok = application:start(dderl).
 -endif.
