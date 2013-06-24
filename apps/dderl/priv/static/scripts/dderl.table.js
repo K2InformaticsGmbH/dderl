@@ -328,13 +328,10 @@
         if (null !== viewName)
             this._saveViewWithName(viewName);
     },
-    _saveViewWithName: function(_viewName) {
-        var self = this;
+
+    _getTableLayout: function(_viewName) {
         var colnamesizes = new Array();
         var cols = this._grid.getColumns();
-
-        // Column names and width.
-        // Index starting at 1 to skip the id column.
         for(var idx = 1; idx < cols.length; ++idx) {
             var newColName = cols[idx].name + "_" + idx;
             colnamesizes.push({
@@ -349,14 +346,22 @@
         var h = this._dlg.dialog('widget').height();
         var x = this._dlg.dialog('widget').position().left;
         var y = this._dlg.dialog('widget').position().top;
-        var saveView = {save_view : {table_layout : {width : w,
-                                                    height : h,
-                                                         y : y,
-                                                         x : x},
-                                    column_layout : colnamesizes,
-                                             name : _viewName,
-                                          content : this._cmd}
-                       };
+        return {save_view : {table_layout : {width : w,
+                                            height : h,
+                                                 y : y,
+                                                 x : x},
+                            column_layout : colnamesizes,
+                                     name : _viewName,
+                                  content : this._cmd}
+               };
+    },
+
+    _saveViewWithName: function(_viewName) {
+        var self = this;
+        // Column names and width.
+        // Index starting at 1 to skip the id column.
+
+        saveView = self._getTableLayout(_viewName);
 
         console.log('saving view '+JSON.stringify(saveView));
         this._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
@@ -1047,6 +1052,9 @@
     // NOTE: self is 'this' and 'this' is dom ;)
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
+        var viewInfo = self._getTableLayout("");
+        self._clmlay = viewInfo.column_layout;
+        self._tbllay = viewInfo.table_layout;
         self.buttonPress("restart");
     },
 
