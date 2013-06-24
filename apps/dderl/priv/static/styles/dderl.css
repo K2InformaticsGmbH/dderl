@@ -442,3 +442,15 @@ div#main_footer {
     margin: 0;
     text-align: left;
 }
+
+.about-more {
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+}
+
+.remote-apps {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+}

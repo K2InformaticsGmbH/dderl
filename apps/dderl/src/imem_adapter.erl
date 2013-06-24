@@ -150,6 +150,20 @@ process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connectio
             From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
             Priv
     end;
+process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    [{<<"remote_apps">>, BodyJson}] = ReqBody,
+    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = {erlimem_session, ConnPid},
+    case lists:member(Connection, Connections) of
+        true ->
+            Apps = Connection:run_cmd(which_applications, []),
+            Versions = dderl_session:get_apps_version(Apps, []),
+            From ! {reply, jsx:encode([{<<"remote_apps">>, Versions}])},
+            Priv;
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
+    end;
 
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,

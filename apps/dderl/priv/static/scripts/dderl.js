@@ -142,6 +142,57 @@ function show_qry_files()
     .table('loadViews');
 }
 
+function show_more_apps() {
+    if($(".extra-app").css('display') === 'none') {
+        $(".extra-app").css('display', '');
+        $("#more-apps-link").html("-").css('text-decoration', 'none');
+    } else {
+        $(".extra-app").css('display', 'none');
+        $("#more-apps-link").html("+").css('text-decoration', 'none');
+    }
+}
+
+function get_local_apps(table) {
+    ajaxCall(null, '/app/about', null, 'about', function(applications) {
+        var apps = '';
+        for(app in applications) {
+            var version = applications[app].version;
+            if(app === "dderl") {
+            } else if(applications[app].dependency) {
+                apps += '<tr>';
+                apps += '<td class="about-dep-name">' + app + '</td>';
+                apps += '<td class="about-dep-vsn">' + version + '</td>';
+                apps += '</tr>';
+            } else {
+                apps += '<tr class="extra-app">';
+                apps += '<td class="about-dep-name">' + app + '</td>';
+                apps += '<td class="about-dep-vsn">' + version + '</td>';
+                apps += '</tr>';
+            }
+        }
+        table.html(apps);
+        $("#more-apps-link").css('display', '');
+        show_more_apps();
+    });
+}
+
+function get_remote_apps(table) {
+    ajaxCall(null, '/app/remote_apps', {remote_apps : {connection: connection}}, 'remote_apps', function(applications) {
+        var extra_apps = '';
+        for(app in applications) {
+            var version = applications[app].version;
+            if(app !== "dderl") {
+                extra_apps += '<tr class="extra-app">';
+                extra_apps += '<td class="about-dep-name">' + app + '</td>';
+                extra_apps += '<td class="about-dep-vsn">' + version + '</td>';
+                extra_apps += '</tr>';
+            }
+        }
+        table.html(extra_apps);
+        $("#more-apps-link").css('display', 'none');
+    });
+}
+
 function show_about_dlg()
 {
     ajaxCall(null, '/app/about', null, 'about', function(applications) {
@@ -149,7 +200,12 @@ function show_about_dlg()
             $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
 
+        if(connection) {
+            aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
+        }
+
         var table = '<table class="about-deps-table" cellspacing="5" border="0">';
+        var extra_apps = '';
         for(app in applications) {
             var version = applications[app].version;
             if(app === "dderl") {
@@ -159,15 +215,41 @@ function show_about_dlg()
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
-            } else {
+            } else if(applications[app].dependency) {
                 table += '<tr>';
                 table += '<td class="about-dep-name">' + app + '</td>';
                 table += '<td class="about-dep-vsn">' + version + '</td>';
                 table += '</tr>';
+            } else {
+                extra_apps += '<tr class="extra-app">';
+                extra_apps += '<td class="about-dep-name">' + app + '</td>';
+                extra_apps += '<td class="about-dep-vsn">' + version + '</td>';
+                extra_apps += '</tr>';
             }
         }
         table += '</table>';
+        table = $(table).append(extra_apps);
         aboutDlg.append(table);
+
+        var isLocal = true;
+        aboutDlg.find('#remote-apps-link').click(
+            function(evt) {
+                evt.preventDefault();
+                var apps;
+                if(isLocal) {
+                    isLocal = false;
+                    $(this).html("show local");
+                    apps = get_remote_apps(table);
+                } else {
+                    isLocal = true;
+                    $(this).html("show remote");
+                    apps = get_local_apps(table);
+                }
+            }
+        );
+
+        var divMore = '<div class="about-more"><a id="more-apps-link" title="Show all running apps" href="#" onclick="show_more_apps()">+</a></div>';
+        aboutDlg.append(divMore);
 
         aboutDlg.dialog({
             modal:false,
@@ -181,6 +263,7 @@ function show_about_dlg()
                 $(this).remove();
             }
         }).dialog("widget").draggable("option","containment","#main-body");
+        show_more_apps();
     });
 }
 

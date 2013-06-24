@@ -8,6 +8,7 @@
 -export([start/0
         , process_request/5
         , get_state/1
+        , get_apps_version/2
         ]).
 
 -export([init/1
@@ -166,10 +167,11 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
 
 process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     case application:get_key(dderl, applications) of
-        undefined -> Apps = [];
-        {ok, Apps} -> Apps
+        undefined -> Deps = [];
+        {ok, Deps} -> Deps
     end,
-    Versions = get_apps_version([dderl|Apps]),
+    Apps = application:which_applications(),
+    Versions = get_apps_version(Apps, [dderl|Deps]),
     From ! {reply, jsx:encode([{<<"about">>, Versions}])},
     State;
 
@@ -258,14 +260,15 @@ logout(#state{sess=Sess} = State) ->
     Sess:close(),
     logout(State#state{sess=undefined}).
 
-get_apps_version([]) -> [];
-get_apps_version([App|Rest]) ->
-    {ok, Vsn} = application:get_key(App, vsn),
-    {ok, Desc} = application:get_key(App, description),
-    AppInfo = {atom_to_binary(App, utf8),
+get_apps_version([], _Deps) -> [];
+get_apps_version([App|Rest], Deps) ->
+    {AppName, Desc, Vsn} = App,
+    Dependency = lists:member(AppName, Deps),
+    AppInfo = {atom_to_binary(AppName, utf8),
                   [
                       {<<"version">>, list_to_binary(Vsn)},
-                      {<<"description">>, list_to_binary(Desc)}
+                      {<<"description">>, list_to_binary(Desc)},
+                      {<<"dependency">>, Dependency}
                   ]
               },
-    [AppInfo | get_apps_version(Rest)].
+    [AppInfo | get_apps_version(Rest, Deps)].
