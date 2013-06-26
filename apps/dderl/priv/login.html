@@ -1,37 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="utf-8">
+    <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>DDerl 1.0</title>
+    <title>DDerl 1.0</title>
     <link rel="stylesheet" href="../static/styles/dderl.css" type="text/css"/>
 </head>
 
 <body>
     <div id="main-menu-bar" class = "menubar">
         <ul class="dropdown menubar">
-        	<li><a href="#">File</a>
-        		<ul class="sub_menu">
-        			 <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Query Files</a></li>
+            <li><a href="#">Query Server</a>
+                <ul class="sub_menu">
+                     <li><a id="files-list-button" href="#" onclick='show_qry_files()'>Tables and Views</a></li>
                      <li><a id="change-pswd-button" href="#" onclick='change_password(false)'>Change Password</a></li>
                      <li><a id="about-dderl-button" href="#" onclick='disconnect_tab()'>Disconnect</a></li>
                      <li><a id="about-dderl-button" href="#" onclick='show_about_dlg()'>About</a></li>
-        		</ul>
-        	</li>
+                </ul>
+            </li>
             <li><a id="connect-button" href="#" onclick='new_connection_tab()'>New Connection</a></li>
-        	<li><a id="test-button" href="#" onclick='StartSqlEditor()'>New Query</a></li>
+            <li><a id="test-button" href="#" onclick='StartSqlEditor()'>New Query</a></li>
             <li><a id="tbl-opts" href="#" style="display:none">Options</a>
-        		<ul class="sub_menu">
-        			 <li><a id="table-edit-query" href="#" onclick='edit_table()'>Edit Query</a></li>
-        			 <li><a id="table-save" href="#" onclick='save_table()'>Save</a></li>
-        			 <li><a id="table-save-as" href="#" onclick='save_as_table()'>Save As</a></li>
-        			 <li><a id="table-export" href="#">Export Rows</a></li>
-        		</ul>
+                <ul class="sub_menu">
+                     <li><a id="table-edit-query" href="#" onclick='edit_table()'>Edit Query</a></li>
+                     <li><a id="table-save" href="#" onclick='save_table()'>Save</a></li>
+                     <li><a id="table-save-as" href="#" onclick='save_as_table()'>Save As</a></li>
+                     <li><a id="table-export" href="#">Export Rows</a></li>
+                </ul>
             </li>
         </ul>
-	</div>
+    </div>
     <div id="main-body">
-	</div>
+    </div>
     <div id="main_footer">
         <a id="login-button" href="#" onclick='logout()'></a>
         <span id="server-time"></span>
@@ -66,16 +66,19 @@
     <script src="../static/slickgrid/plugins/slick.rowmovemanager.js"></script>
     <script src="../static/slickgrid/controls/slick.columnpicker.js"></script>
 
-	<script src="../static/scripts/md5.js"></script>
-	<script src="../static/scripts/login.js"></script>
-	<script src="../static/scripts/dderl.js"></script>
-	<script src="../static/scripts/connect.js"></script>
+    <script src="../static/flot/jquery.flot.js"></script>
+
+    <script src="../static/scripts/md5.js"></script>
+    <script src="../static/scripts/login.js"></script>
+    <script src="../static/scripts/dderl.js"></script>
+    <script src="../static/scripts/connect.js"></script>
     <script src="../static/scripts/dderl.table.js"></script>
     <script src="../static/scripts/dderl.sql.js"></script>
     <script src="../static/scripts/dderl.termEditor.js"></script>
 
     <script language='javascript'>        
         $(document).ready(function() {
+            $('#main-body').css('top', $('#main-menu-bar').height());
             if(Object.hasOwnProperty('freeze')) {
                 check_already_connected();
             } else {
@@ -83,7 +86,6 @@
                 alert_jq("Dinosours are extinct. Upgrade!");
             }
 
-            $('#main-body').css('top', $('#main-menu-bar').height());
             $(window).on('beforeunload', function() { 
                 return "You will lose all unsaved data, are you sure you want to continue?";
             });

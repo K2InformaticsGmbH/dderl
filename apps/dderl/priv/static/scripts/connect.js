@@ -175,6 +175,7 @@ function connect_dlg()
         width: 'auto',
         resizable: false,
         modal: false,
+        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
