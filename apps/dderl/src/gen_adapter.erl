@@ -16,12 +16,16 @@ init() -> ok.
 
 add_cmds_views(_, _, _, []) -> ok;
 add_cmds_views(Sess, UserId, A, [{N,C,Con}|Rest]) ->
-    Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-    dderl_dal:add_view(Sess, UserId, N, Id, #viewstate{}),
-    add_cmds_views(Sess, UserId, A, Rest);
+    add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}}|Rest]);
 add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
-    Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-    dderl_dal:add_view(Sess, UserId, N, Id, V),
+    case dderl_dal:get_view(Sess, N, A, UserId) of
+        undefined ->
+            Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
+            dderl_dal:add_view(Sess, UserId, N, Id, V);
+        View ->
+            dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
+            dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V)
+        end,
     add_cmds_views(Sess, UserId, A, Rest).
 
 box_to_json(Box) ->
