@@ -10,18 +10,23 @@
         , init/0
         , add_cmds_views/4
         , gui_resp/2
+        , build_resp_fun/3
         ]).
 
 init() -> ok.
 
 add_cmds_views(_, _, _, []) -> ok;
 add_cmds_views(Sess, UserId, A, [{N,C,Con}|Rest]) ->
-    Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-    dderl_dal:add_view(Sess, UserId, N, Id, #viewstate{}),
-    add_cmds_views(Sess, UserId, A, Rest);
+    add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}}|Rest]);
 add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
-    Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-    dderl_dal:add_view(Sess, UserId, N, Id, V),
+    case dderl_dal:get_view(Sess, N, A, UserId) of
+        undefined ->
+            Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
+            dderl_dal:add_view(Sess, UserId, N, Id, V);
+        View ->
+            dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
+            dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V)
+    end,
     add_cmds_views(Sess, UserId, A, Rest).
 
 box_to_json(Box) ->
@@ -121,7 +126,6 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 
-
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
     widest_cell_per_clm(Rows, lists:duplicate(length(R), <<>>)).
@@ -159,3 +163,12 @@ r2jsn([Row|Rows], JCols, NewRows) ->
          }
         || {C, R} <- lists:zip(JCols, Row)]
     | NewRows]).
+
+build_resp_fun(Cmd, Clms, From) ->
+    fun(#gres{} = GuiResp) ->
+        GuiRespJson = gui_resp(GuiResp, Clms),
+        case (catch jsx:encode([{Cmd,GuiRespJson}])) of
+            {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
+            Resp -> From ! {reply, Resp}
+        end
+    end.

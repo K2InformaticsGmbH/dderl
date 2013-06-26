@@ -53,7 +53,7 @@ terminate(_Reason, _Req, _State) ->
 
 create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
-    ?Info("new dderl session ~p", [DderlSess]),
+    ?Info("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 create_new_session([_,_|_] = DDerlSessPid) ->
     ?Debug("existing session ~p", [DDerlSessPid]),

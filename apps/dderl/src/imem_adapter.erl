@@ -333,13 +333,7 @@ disconnect(#priv{connections = Connections} = Priv) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gui_resp_cb_fun(Cmd, Statement, From) ->
     Clms = Statement:get_columns(),
-    fun(#gres{} = GuiResp) ->
-        GuiRespJson = gen_adapter:gui_resp(GuiResp, Clms),
-        case (catch jsx:encode([{Cmd,GuiRespJson}])) of
-            {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
-            Resp -> From ! {reply, Resp}
-        end
-    end.
+    gen_adapter:build_resp_fun(Cmd, Clms, From).
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->

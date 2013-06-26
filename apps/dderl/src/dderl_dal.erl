@@ -18,6 +18,7 @@
         ,change_password/3
         ,add_adapter/2
         ,add_command/7
+        ,update_command/8
         ,add_view/5
         ,add_connect/2
         ,get_connects/2
@@ -38,6 +39,7 @@ add_adapter(Id, FullName)           -> gen_server:cast(?MODULE, {add_adapter, Id
 add_connect(Sess, #ddConn{} = Conn) -> gen_server:cast(?MODULE, {add_connect, Sess, Conn}).
 
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
+update_command(Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}).
 add_view(Sess, Owner, Name, CmdId, ViewsState)           -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
 
 get_adapters(Sess)                     -> gen_server:call(?MODULE, {get_adapters, Sess}).
@@ -45,7 +47,6 @@ get_connects(Sess, User)               -> gen_server:call(?MODULE, {get_connects
 del_conn(Sess, ConId)                  -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
 get_command(Sess, IdOrName)            -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
 get_view(Sess, Name, Adapter, Owner)   -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
-is_local_query(Qry)                    -> gen_server:call(?MODULE, {is_local_query, Qry}).
 
 hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
@@ -92,96 +93,43 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
-handle_call({is_local_query, Qry}, _From, State) ->
-    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
-    case sqlparse:parsetree(Qry) of
-        {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
-            case lists:keyfind(from, 1, QOpts) of
-                {from, Tables} ->
-                    {reply, lists:foldl(fun(T,_) ->
-                             Tab = case T of
-                                 {_,T1,_} when is_binary(T1) -> T1;
-                                 T when is_binary(T) -> T
-                             end,
-                             HasSysTab = lists:member(Tab, SysTabs),
-                             if HasSysTab -> true; true -> false end
-                         end,
-                         true,
-                         Tables)
-                    , State};
-                _ -> {reply, false, State}
-            end;
-        {lex_error, Error} ->
-            ?Error("SQL lexer error ~p", [Error]),
-            {reply, false, State};
-        {parse_error, Error} ->
-            ?Error("SQL parser error ~p", [Error]),
-            {reply, false, State};
-        _ ->
-            ?Info("non select query ~p", [Qry]),
-            {reply, false, State}
-    end;
-
-handle_call({add_command, undefined, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
-    handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
-handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
-    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
-    NewConn =
-        if Conn =:= undefined ->
-            case sqlparse:parsetree(Cmd) of
-                {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
-                    case lists:keyfind(from, 1, QOpts) of
-                        {from, Tables} ->
-                            ?Info("Query tables ~p", [Tables]),
-                            case 
-                                lists:foldl(fun(T,A) ->
-                                                Tab = case T of
-                                                    {_,T1,_} when is_binary(T1) -> T1;
-                                                    T when is_binary(T) -> T
-                                                end,
-                                                HasSysTab = lists:member(Tab, SysTabs),
-                                                if HasSysTab -> found; true -> A end
-                                            end,
-                                            [],
-                                            Tables) of
-                            [] ->
-                                ?Info("No system table in query ~p tables ~p", [Cmd, Tables]),
-                                remote;
-                            _ -> local
-                            end;
-                        false ->
-                            ?Info("no tables in ~p opts ~p", [Cmd, Opts]),
-                            remote
-                    end;
-                {lex_error, Error} ->
-                    ?Error({"SQL lexer error", Error}),
-                    {reply, false, State};
-                {parse_error, Error} ->
-                    ?Error({"SQL parser error", Error}),
-                    {reply, false, State};
-                _ ->
-                    ?Info("non select query ~p", [Cmd]),
-                    remote
-            end;
-        true -> Conn
+handle_call({update_command, undefined, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
+    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
+handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, undefined, Opts}, From, State) ->
+    case is_local_query(Cmd) of
+        true -> Conn = local;
+        false -> Conn = remote
     end,
-    Id = case Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, id='$1', adapters='$2', owner=Owner, _='_'}
-                                           , [{'=:=', '$2', [Adapter]}]
-                                           , ['$1']}]]) of
-        {[Id0|_], true} ->
-            ?Debug("add_command ~p replacing id ~p", [Name, Id0]),
-            Id0;
-        _ ->
-            Id1 = erlang:phash2(make_ref()),
-            ?Debug("add_command ~p new id ~p", [Name, Id1]),
-            Id1
-    end,
+    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
+handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
+    ?Debug("update command ~p replacing id ~p", [Name, Id]),
     NewCmd = #ddCmd { id     = Id
                  , name      = Name
                  , owner     = Owner
                  , adapters  = [Adapter]
                  , command   = Cmd
-                 , conns     = NewConn
+                 , conns     = Conn
+                 , opts      = Opts},
+    Sess:run_cmd(insert, [ddCmd, NewCmd]),
+    {reply, Id, State};
+
+handle_call({add_command, undefined, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
+    handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
+handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, undefined, Opts}, From, State) ->
+    case is_local_query(Cmd) of
+        true -> Conn = local;
+        false -> Conn = remote
+    end,
+    handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
+handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
+    Id = erlang:phash2(make_ref()),
+    ?Debug("add_command ~p new id ~p", [Name, Id]),
+    NewCmd = #ddCmd { id     = Id
+                 , name      = Name
+                 , owner     = Owner
+                 , adapters  = [Adapter]
+                 , command   = Cmd
+                 , conns     = Conn
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
     ?Debug("add_command inserted ~p", [NewCmd]),
@@ -209,11 +157,22 @@ handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
     Sess:run_cmd(insert, [ddView, NewView]),
     ?Debug("add_view inserted ~p", [NewView]),
     {reply, Id, State};
+
+handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess} = State) ->
+    handle_call({get_view, Sess, Name, Adapter, Owner}, From, State);
 handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
     ?Debug("get_view ~p", [Name]),
-    {[#ddCmd{id=Id}], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, adapters=[Adapter], owner=Owner, _='_'}, [], ['$_']}]]),
-    {[View], true} = Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd=Id, owner=Owner, _='_'}, [], ['$_']}]]),
-    ?Debug("view ~p", [View]),
+    {Views, true} = Sess:run_cmd(select, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
+    %% TODO: Add support to multiples adapters.
+    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters=[Adapter], _='_'}, [], ['$_']}]])} || V <- Views],
+    Result = [V || {V, {C, true}} <- ListResult, C =/= []],
+    if
+        length(Result) > 0 ->
+            %% TODO: How can we discriminate to ignore the correct one?
+            [View | _Ignored] = Result;
+        true ->
+            View = undefined
+    end,
     {reply, View, State};
 
 handle_call({get_command, Sess, IdOrName}, _From, State) ->
@@ -353,3 +312,32 @@ terminate(Reason, #state{sess = Sess}) ->
     ok.
 code_change(_OldVsn, State, _Extra)     -> {ok, State}.
 format_status(_Opt, [_PDict, _State])   -> ok.
+
+is_local_query(Qry) ->
+    SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
+    case sqlparse:parsetree(Qry) of
+        {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
+            case lists:keyfind(from, 1, QOpts) of
+                {from, Tables} ->
+                    lists:foldl(fun(T,_) ->
+                             Tab = case T of
+                                 {_,T1,_} when is_binary(T1) -> T1;
+                                 T when is_binary(T) -> T
+                             end,
+                             HasSysTab = lists:member(Tab, SysTabs),
+                             if HasSysTab -> true; true -> false end
+                         end,
+                         true,
+                         Tables);
+                _ -> false
+            end;
+        {lex_error, Error} ->
+            ?Error("SQL lexer error ~p", [Error]),
+            false;
+        {parse_error, Error} ->
+            ?Error("SQL parser error ~p", [Error]),
+            false;
+        _ ->
+            ?Info("non select query ~p", [Qry]),
+            false
+    end.

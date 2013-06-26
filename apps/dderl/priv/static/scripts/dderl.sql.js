@@ -324,13 +324,19 @@ function insertAtCursor(myField, myValue) {
                 var sel = $('<select>')
                     .width(100)
                     .css('margin', '0px 0px 0px 0px')
-                    .change( function(e) { self.showCmd($(this).find(":selected").text()); } )
                     .addClass('ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right')
                     .css('height', this.options.toolBarHeight+'px')
                     .css('text-align', 'left')
                     .appendTo(toolDiv);
+
                 for(var i = 0; i < self._history.length; ++i) {
-                     sel.append($('<option>').text(self._history[i]));
+                    var optionToAdd = $('<option>')
+                        .text(self._history[i])
+                        .click(function (evt) {
+                            evt.preventDefault();
+                            self.showCmd($(this).text());
+                        });
+                    sel.append(optionToAdd);
                 }
                 self._historySelect = sel;
             }
@@ -396,9 +402,15 @@ function insertAtCursor(myField, myValue) {
     },
 
     _addToHistory: function(sql) {
-        if(this._history.indexOf(sql) == -1) {
-            this._history.unshift(sql);
-            this._historySelect.prepend($('<option>').text(sql));
+        var self = this;
+        if(self._history.indexOf(sql) == -1) {
+            self._history.unshift(sql);
+            self._historySelect.prepend(
+                $('<option>').text(sql)
+                    .click(function (evt) {
+                        evt.preventDefault();
+                        self.showCmd($(this).text());
+                    }));
         }
     },
     ////////////////////////////
@@ -544,7 +556,13 @@ function insertAtCursor(myField, myValue) {
 
     addToHistorySelect: function(sql) {
         var self = this;
-        self._historySelect.prepend($('<option>').text(sql));
+        self._historySelect.prepend(
+            $('<option>').text(sql)
+                .click(function (evt) {
+                    evt.preventDefault();
+                    self.showCmd($(this).text());
+                })
+        );
         self.selHistorySelect(0, sql);
     },
 

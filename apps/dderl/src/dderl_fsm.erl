@@ -211,7 +211,8 @@ get_columns({?MODULE, Pid}) ->
     % ?Debug("get_columns...", []),
     gen_fsm:sync_send_all_state_event(Pid,{"get_columns"}).
 
-
+rows({error, _} = Error, {?MODULE, Pid}) ->
+    gen_fsm:send_all_state_event(Pid, Error);
 rows({Rows,Completed},{?MODULE,Pid}) -> 
     % ?Debug("rows ~p ~p", [length(Rows), Completed]),
     gen_fsm:send_event(Pid,{rows, {Rows,Completed}}).
@@ -838,6 +839,12 @@ handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
 %    ?Debug("row_with_key ~p ~p", [RowId, Row]),
 %    ReplyTo(Row),
 %    {next_state, SN, State#state{tailLock=true}};
+handle_event({error, Error}, SN, State) ->
+    ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
+    ErrorMsg = iolist_to_binary(io_lib:format("~p", [Error])),
+    State1 = gui_nop(#gres{state=SN,beep=true,message=ErrorMsg},State),
+    State2 = fetch_close(State1#state{tailMode=false}),
+    {next_state, aborted, State2#state{tailLock=false}};
 handle_event(Event, SN, State) ->
     ?Info("handle_event -- unexpected event ~p in state ~p~n", [Event,SN]),
     {next_state, SN, State}.

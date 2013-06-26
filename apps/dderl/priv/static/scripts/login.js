@@ -5,7 +5,7 @@ function display_login()
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
     }
-    var dlg = $('<div id="dialog-login" title="Login to DDerl" style="diaply:none">'
+    var dlg = $('<div id="dialog-login" title="Login to Query Server" style="diaply:none">'
      +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
      +'      <tr><td align=right valign=center>User&nbsp;</td>'
      +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
@@ -22,6 +22,7 @@ function display_login()
         width: 'auto',
         resizable: false,
         modal: false,
+        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
         closeOnEscape: false,
         dialogClass: 'no-close',
         open: function(event, ui) {

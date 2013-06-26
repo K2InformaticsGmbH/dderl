@@ -32,7 +32,7 @@
         }).
 
 start() ->
-    {ok, Pid} = gen_server:start_link(?MODULE, [], []),
+    {ok, Pid} = gen_server:start(?MODULE, [], []),
     {dderl_session, Pid}.
 
 get_state({?MODULE, Pid}) ->
@@ -45,6 +45,7 @@ process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
     gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
 
 init(_Args) ->
+    process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     ?Info("dderl_session ~p started!", [{dderl_session, Self}]),
@@ -241,7 +242,13 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
-    NewCurrentPriv = Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv),
+    NewCurrentPriv =
+        try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
+        catch Class:Error ->
+                ?Error("Problem processing command: ~p:~p~n", [Class, Error]),
+                From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
+                CurrentPriv
+        end,
     case proplists:is_defined(Adapter, AdaptPriv) of
         true ->
             NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
