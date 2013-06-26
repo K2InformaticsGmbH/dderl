@@ -10,6 +10,7 @@
         , init/0
         , add_cmds_views/4
         , gui_resp/2
+        , build_resp_fun/3
         ]).
 
 init() -> ok.
@@ -125,7 +126,6 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 
-
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
     widest_cell_per_clm(Rows, lists:duplicate(length(R), <<>>)).
@@ -163,3 +163,12 @@ r2jsn([Row|Rows], JCols, NewRows) ->
          }
         || {C, R} <- lists:zip(JCols, Row)]
     | NewRows]).
+
+build_resp_fun(Cmd, Clms, From) ->
+    fun(#gres{} = GuiResp) ->
+        GuiRespJson = gui_resp(GuiResp, Clms),
+        case (catch jsx:encode([{Cmd,GuiRespJson}])) of
+            {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
+            Resp -> From ! {reply, Resp}
+        end
+    end.
