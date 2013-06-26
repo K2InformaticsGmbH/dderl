@@ -25,7 +25,7 @@ add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
         View ->
             dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
             dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V)
-        end,
+    end,
     add_cmds_views(Sess, UserId, A, Rest).
 
 box_to_json(Box) ->
