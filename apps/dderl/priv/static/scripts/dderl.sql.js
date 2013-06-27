@@ -174,7 +174,7 @@ function insertAtCursor(myField, myValue) {
         };
 
         self._flatTb =
-            $('<textarea>')
+            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .addClass('sql_text_flat')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdFlat);
@@ -182,7 +182,7 @@ function insertAtCursor(myField, myValue) {
             .val(self._cmdFlat);
 
         self._prettyTb =
-            $('<textarea>')
+            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .attr('wrap', 'off')
             .addClass('sql_text_pretty')
             .on('keydown keyup click blur focus change paste', this, function(e) {
@@ -447,7 +447,7 @@ function insertAtCursor(myField, myValue) {
         var bx = $('<div>')
             .addClass('boxParent')
             .width(maxwidth);
-        var edit = $('<textarea>')
+        var edit = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .addClass('boxEdit')
             .width(maxwidth)
             .attr('rows', 2)
