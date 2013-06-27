@@ -44,6 +44,11 @@
     _erlangCellPos  : null,
     _divDisable     : null,
 
+    // pause continue tail on edition of cells
+    _editedText     : null,
+    _editorEscaped  : false,
+    _loop           : "",
+
     // flag to avoid multiple calls to reorder
     _reorderCalled  : false,
 
@@ -953,6 +958,8 @@
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
         self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
+        self._grid.onBeforeEditCell.subscribe($.proxy(self._gridBeforeEdit, self));
+        self._grid.onBeforeCellEditorDestroy.subscribe($.proxy(self._gridAfterEdit, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
@@ -1298,7 +1305,9 @@
 
             // command back request
             if(_rows.loop.length > 0) {
-                if (rowsCount > 0) {
+                if (self._grid.getCellEditor()) {
+                    self._loop = _rows.loop;
+                } else if (rowsCount > 0) {
                     console.log(rowsCount+' rows received, retrying '+_rows.loop);
                     this.buttonPress(_rows.loop);
                     this._rftchExpBkOff = this._INIT_WAIT_TAIL;
@@ -1519,7 +1528,36 @@
         }
         this._applyStyle();
     },
+
+    _gridBeforeEdit: function(e, args) {
+        if(args.item) {
+            this._editedText = args.item[args.column.field];
+        }
+    },
+
+    _gridAfterEdit: function(e, args) {
+        var self = this;
+        var cell = args.grid.getActiveCell();
+        var columnField = args.grid.getColumns()[cell.cell].field;
+        var loop = self._loop;
+        self._loop = "";
+        var cellChanged = false;
+        if(self._editorEscaped) {
+            self._editorEscaped = false;
+        } else if(self._gdata[cell.row]) {
+            cellChanged = self._gdata[cell.row][columnField] !== self._editedText;
+        } else {
+            cellChanged = args.editor.isValueChanged();
+        }
+        if(!cellChanged && loop) {
+            self.buttonPress(loop);
+        }
+    },
+
     _delRow: function(e, args) {
+        if(e.keyCode == 27 && this._loop) {
+            this._editorEscaped = true;
+        }
         if(this._grid.getCellEditor()) {
             if(e.keyCode == 9) {
                 e.stopImmediatePropagation();
