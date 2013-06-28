@@ -64,8 +64,9 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
             Priv;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result ~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            ?Error("Db connect failed for ~p, result: ~n~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"connect">>, [{<<"error">>, Err}]}])},
             Priv;
         {error, Error} ->
@@ -107,8 +108,9 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
     ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password, NewPassword}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result ~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
             Priv;
         {error, Error} ->

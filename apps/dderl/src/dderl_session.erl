@@ -104,8 +104,9 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
             State;
         {_, {error, {Exception, M}}} ->
-            ?Error("login failed for ~p, result ~p", [User, {Exception, M}]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
+            ?Error("login failed for ~p, result ~n~p", [User, {Exception, M}]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login">>,Err}])},
             State;
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
@@ -113,8 +114,9 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
             State;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("login failed for ~p, result ~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            ?Error("login failed for ~p, result ~n~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login">>, Err}])},
             State
     end;
@@ -130,13 +132,15 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
             From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
             State#state{sess=Sess, user=User, user_id=UserId};
         {_, {error, {Exception, M}}} ->
-            ?Error("change password failed for ~p, result ~p", [User, {Exception, M}]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": "++ element(1, M)),
+            ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])},
             State;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("change password failed for ~p, result ~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++ element(1, M)),
+            ?Error("change password failed for ~p, result ~n~p", [User, Error]),
+            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])},
             State
     end;
@@ -245,7 +249,7 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     NewCurrentPriv =
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->
-                ?Error("Problem processing command: ~p:~p~n", [Class, Error]),
+                ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
                 CurrentPriv
         end,
