@@ -242,7 +242,7 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
     ?Debug("login for user ~p", [User]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
         {error, Error} ->
-            ?Error("login exception ~p~n", [Error]),
+            ?Error("login exception ~n~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
@@ -256,7 +256,7 @@ handle_call({change_password, User, Password, NewPassword}, _From, #state{schema
     ?Debug("changing password for user ~p", [User]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd, BinNewPswd}) of
         {error, Error} ->
-            ?Error("change password exception ~p~n", [Error]),
+            ?Error("change password exception ~n~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
