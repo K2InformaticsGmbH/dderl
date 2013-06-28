@@ -123,6 +123,7 @@
                             },
         focus             : function(e,ui) {},
         close             : function() {
+                              $(this).table('close_stmt');
                               $(this).dialog('destroy');
                               $(this).remove();
                             },
@@ -674,7 +675,9 @@
     },
 
     _ajax: function(url, data, resp, callback) {
-        this._setTitleHtml($(this._dlg.dialog('option', 'title')).addClass('table-title-wait'));
+        if(this._dlg.hasClass('ui-dialog-content')) {
+            this._setTitleHtml($(this._dlg.dialog('option', 'title')).addClass('table-title-wait'));
+        }
         ajaxCall(this, url, data, resp, callback);
     },
     
@@ -1638,7 +1641,9 @@
         if(!$.isEmptyObject(delStyle)) self._grid.setCellCssStyles('delete', delStyle);
         if(!$.isEmptyObject(updStyle)) self._grid.setCellCssStyles('update', updStyle);
     },
-    
+
+    close_stmt: function() { if(this._stmt) this.buttonPress("close"); },
+
     // loading the view table
     loadViews: function() { this._ajax('/app/views', null, 'views', 'loadViews'); },
 
@@ -1733,7 +1738,6 @@
         this._footerDiv.remove();
         this._tableDiv.remove();
         this._grid.destroy();
-        if(this._stmt) this.buttonPress("close");
     },
 
     /*
@@ -1765,6 +1769,7 @@
         var fldWidth = 0;
         self._origcolumns = {};
         for (var i = 1; i < columns.length; ++i) {
+            columns[i].formatter = Slick.Formatters.BinStringText;
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor')) {
                 columns[i].editor = Slick.Editors.Text;

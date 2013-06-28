@@ -424,30 +424,66 @@ $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 if (window.console && window.console.log && window.console.error) {
     console.log('console log is defined');
 } else {
-  window['console'] = {log: function(){ }, error: function(){ }};
-  console.log('dummy console is created');
+    window['console'] = {log: function(){ }, error: function(){ }};
+    console.log('dummy console is created');
+}
+
+// Helpers functions for the formatter
+/* Creates a uppercase hex number with at least length digits from a given number */
+function fixedHex(number, length)
+{
+    var str = number.toString(16).toUpperCase();
+    while(str.length < length) {
+        str = "0" + str;
+    }
+    return str;
+}
+
+/* Creates a unicode literal based on the string */
+function unicodeLiteral(str)
+{
+    var i;
+    var result = "";
+    for( i = 0; i < str.length; ++i) {
+        /* You should probably replace this by an isASCII test */
+        if(str.charCodeAt(i) < 32) {
+            result += "\\u" + fixedHex(str.charCodeAt(i),4);
+        } else {
+            result += str[i];
+        }
+    }
+    return result;
 }
 
 // adding new formattier to slickgrid
 (function ($) {
-  // register namespace
-  $.extend(true, window, {
-    "Slick": {
-      "Formatters": {
-        "Checkmark": CheckmarkFormatter,
-        "AscDescSelect": AscDescSelectFormatter,
-      }
+    // register namespace
+    $.extend(true, window, {
+        "Slick": {
+            "Formatters": {
+                "Checkmark": CheckmarkFormatter,
+                "AscDescSelect": AscDescSelectFormatter,
+                "BinStringText": BinStringTextFormatter,
+            }
+        }
+    });
+
+    function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
+        return "<img src='./static/media/cross.png'>";
     }
-  });
 
-  function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
-    return "<img src='./static/media/cross.png'>";
-  }
+    function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
+        return '<SELECT><OPTION value="true" '+ (value ? 'selected' : '') +'>ASC</OPTION>'+
+            '<OPTION value="false" '+(!value ? 'selected' : '')+'>DESC</OPTION></SELECT>';
+    }
 
-  function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
-    return '<SELECT><OPTION value="true" '+ (value ? 'selected' : '') +'>ASC</OPTION>'+
-                   '<OPTION value="false" '+(!value ? 'selected' : '')+'>DESC</OPTION></SELECT>';
-  }
-
+    function BinStringTextFormatter(row, cell, value, columnDef, dataContext) {
+        var newValue;
+        if (value == null) {
+            newValue = "";
+        } else {
+            newValue = value.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        }
+        return unicodeLiteral(newValue);
+    }
 })(jQuery);
-

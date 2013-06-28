@@ -641,6 +641,7 @@ tailing({button, <<">|">>, ReplyTo}, State0) ->
     State2 = serve_bot(tailing, <<"">>, State1),
     {next_state, tailing, State2#state{tailLock=true}};
 tailing({rows, {Recs,Complete}}, State0) ->
+    % ?Info("tailing -- row~n", []),
     State1 = data_append(tailing,{Recs,Complete},State0),
     {next_state, tailing, State1#state{pfc=0}};
 tailing(Other, State) ->
@@ -1761,7 +1762,7 @@ data_commit_state_name(SN) ->
     case SN of 
         filling ->      aborted;
         autofilling ->  aborted;
-        tailing ->      aborted;
+        tailing ->      tailing;
         _ ->            SN
     end.    
 
