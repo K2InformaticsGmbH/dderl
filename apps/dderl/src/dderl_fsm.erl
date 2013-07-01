@@ -16,6 +16,7 @@
 -define(IndMax,[]).     %% value bigger than any possible sort key {SortFun(Recs),Id}
 -define(IndMin,{}).     %% value smaller than any possible sort key {SortFun(Recs),Id}
 -define(NoSort,[]).     %% signalling no sort
+-define(NoSortFunResult,{}).
 
 -define(IndRec(__R,__SortFun),{{__SortFun(element(3,__R)),element(1,__R)},element(1,__R)}).
 -define(IndKey(__R,__SortFun),{__SortFun(element(3,__R)),element(1,__R)}).
@@ -319,7 +320,7 @@ init(#ctx{ bl                           = BL
 
 navigation_type(SortFun,FilterSpec) -> 
     case catch (SortFun(1)) of
-        ?NoSort ->
+        ?NoSortFunResult ->
             case FilterSpec of 
                 ?NoFilter ->    {raw,false};
                 _ ->            {ind,false}
@@ -1471,11 +1472,14 @@ key_at_pos(_Tid,_,'$end_of_table') -> undefined;
 key_at_pos(_Tid,1,Probe) -> Probe;
 key_at_pos(Tid,Pos,Probe) -> key_at_pos(Tid,Pos-1,ets:next(Tid,Probe)).
 
-
+% gui_row_as_list({}) ->
+%     [];
 gui_row_as_list(FullRowTuple) ->
     List = tuple_to_list(FullRowTuple),
     [hd(List),lists:nth(2,List)|lists:nthtail(3,List)].
 
+% gui_row_expand({}, _, _) ->
+%     [];
 gui_row_expand({I,Op,RK}, TableId, RowFun) ->
     Row = RowFun(RK),
     ets:insert(TableId, list_to_tuple([I, Op, RK | Row])),
@@ -1626,6 +1630,7 @@ data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
 data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=RowFun}=State0) ->
     FilterFun = filter_fun(FilterSpec),
     {Nav,Srt} = navigation_type(SortFun,FilterSpec),
+    ?Debug("data_index Nav=~p Srt=~p", [Nav,Srt]),
     State1 = ind_clear(State0),
     CompleteFun = fun
         ({Id,Op,RK},Acc) -> 
@@ -1725,8 +1730,8 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun,guiTop=GuiTop0
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot}=State0) ->
     ChangeList = change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),
-    ?Debug("ChangeList length must match DirtyCnt ~p ~p",[length(ChangeList),DirtyCnt]),
-    ?Debug("ChangeList ~p",[ChangeList]),
+    ?Debug("ChangeList length must match DirtyCnt~n~p ~p",[length(ChangeList),DirtyCnt]),
+    ?Debug("ChangeList~n~p",[ChangeList]),
     case update_cursor_prepare(ChangeList,State0) of
         ok ->
             NewSN = data_commit_state_name(SN),
@@ -1735,21 +1740,24 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                     ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
                 ChangedKeys ->
-                    {GuiCnt,GuiTop,_GuiBot} = case Nav of
+                    {GuiCnt,GuiTop,GuiBot} = case Nav of
                         raw ->  data_commit_raw(TableId,ChangedKeys,0,?RawMax,?RawMin);
                         ind ->  data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,0,?IndMax,?IndMin)
                     end,
                     case {change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),GuiCnt} of
                         {[],0} ->   
-                            State1 = State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin},
-                            {NewSN,gui_replace_from(GuiTop0,GL,#gres{state=NewSN,focus=1},reset_buf_counters(State1))};
+                            State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
+                            ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
+                            {NewSN,gui_replace_from(GuiTop0,GL,#gres{state=NewSN,focus=1},State1)};
                         {[],_} ->   
-                            State1 = State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin},
-                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1},reset_buf_counters(State1))};
+                            State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
+                            ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
+                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1},State1)};
                         {DL,_} ->   
-                            ?Error("Dirty rows after commit ~p",[DL]),
+                            ?Error("Dirty rows after commit~n~p",[DL]),
                             Message = <<"Dirty rows after commit">>,
-                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1,message=Message},reset_buf_counters(State0))}
+                            State1 = reset_buf_counters(State0),
+                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1,message=Message},State1)}
                     end
             end;
         {_,PrepError} ->
