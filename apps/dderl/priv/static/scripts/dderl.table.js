@@ -388,8 +388,9 @@
         for (var i=0; i<_ranges.length; ++i) {
             //Validate that id column is not on the selection.
             if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0)  {
-                toHide[_ranges[i].fromCell] = true;
-                toHide[_ranges[i].toCell] = true;
+                for(var j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
+                    toHide[j] = true;
+                }
             }
         }
         var toHideArray = [];
@@ -1400,8 +1401,22 @@
             return;
         }
         
+        var row         = cell.row;
+        var column      = g.getColumns()[cell.cell];
+        var data        = g.getData()[cell.row][column.field];
         var gSelMdl     = g.getSelectionModel();
-        gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
+        var gSelecteds  = gSelMdl.getSelectedRanges();
+
+        var missing = true;
+        for(var i=0; i < gSelecteds.length; ++i) {
+            if(gSelecteds[i].contains(cell.row, cell.cell)) {
+                missing = false;
+                break;
+            }
+        }
+        if(missing) {
+            gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
+        }
 
         this._slkHdrCnxtMnu.dom
             .removeData('cnxt')
@@ -1421,8 +1436,30 @@
         var g           = args.grid;
         var col         = g.getColumnIndex(args.column.id);
         var gSelMdl     = g.getSelectionModel();
+        var gSelecteds  = gSelMdl.getSelectedRanges();
 
-        gSelMdl.setSelectedRanges([new Slick.Range(0, col, g.getDataLength() - 1, col)]);
+        var fullCols = [];
+        for(var i = 0; i < gSelecteds.length; ++i) {
+            if(gSelecteds[i].fullCol) {
+                fullCols.push(gSelecteds[i]);
+            }
+        }
+
+        var found = false;
+        for(var i = 0; i < fullCols.length; ++i) {
+            if(fullCols[i].contains(0, col)) {
+                found = true;
+                break;
+            }
+        }
+
+        if(found) {
+            gSelMdl.setSelectedRanges(fullCols);
+        } else {
+            var newSelection = new Slick.Range(0, col, g.getDataLength() - 1, col);
+            newSelection.fullCol = true;
+            gSelMdl.setSelectedRanges([newSelection]);
+        }
 
         this._slkCellCnxtMnu.dom
             .removeData('cnxt')

@@ -224,7 +224,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
     end,
     State;
 
-process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=_User} = State) ->
+process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, User}], "connection to delete ~p", [ConId]),
@@ -248,7 +248,7 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
-    ?Debug([{user, User}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
+    ?Debug([{user, UserId}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
     NewCurrentPriv =
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->
