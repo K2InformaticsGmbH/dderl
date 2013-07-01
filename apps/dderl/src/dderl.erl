@@ -13,24 +13,6 @@
         ]).
 
 %% API.
-
--ifdef(islager).
-start() ->
-    ok = application:load(lager),
-    ok = application:set_env(lager, handlers, [{lager_console_backend, info},
-                                               {lager_file_backend, [{"error.log", error, 10485760, "$D0", 5},
-                                                                     {"console.log", info, 10485760, "$D0", 5}]}]),
-    ok = application:set_env(lager, error_logger_redirect, false),
-    ok = lager:start(),
-    ?Info("lager started...!"),
-	ok = application:start(crypto),
-	ok = application:start(ranch),
-	ok = application:start(cowboy),
-    ok = application:start(erlimem),
-    application:start(sqlparse), % maybe already started by imem
-    ok = application:start(imem),
-	ok = application:start(dderl).
--else.
 start() ->
 	ok = application:start(crypto),
 	ok = application:start(ranch),
@@ -38,9 +20,7 @@ start() ->
     ok = application:start(erlimem),
     application:start(sqlparse),% maybe already started by imem 
     ok = application:start(imem),
-    ?Info("lager not started...!"),
 	ok = application:start(dderl).
--endif.
 
 
 init(_Transport, Req, []) ->

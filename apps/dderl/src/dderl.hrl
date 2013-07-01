@@ -65,9 +65,6 @@
 
 -define(LOG_TAG, "_DDRL_").
 
-% LOGGING wrapper
--ifdef(islager).
-
 -define(Debug(__M,__F,__A), lager:debug(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Debug(__F,__A),     lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Debug(__F),         lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
@@ -79,24 +76,6 @@
 -define(Error(__M,__F,__A), lager:error(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Error(__F,__A),     lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Error(__F),         lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
-
--else.
-
--include_lib("erlimem/src/log.hrl").
-
--define(Debug(__M,__F,__A), ?LOG(?LOG_TAG, dbg, __M, "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F,__A),     ?LOG(?LOG_TAG, dbg,  [], "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F),         ?LOG(?LOG_TAG, dbg,  [], "~p "++__F, [{?MODULE,?LINE}])).
-
--define(Info(__M,__F,__A),  ?LOG(?LOG_TAG, nfo, __M,  "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F,__A),      ?LOG(?LOG_TAG, nfo,  [],  "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F),          ?LOG(?LOG_TAG, nfo,  [],  "~p "++__F, [{?MODULE,?LINE}])).
-
--define(Error(__M,__F,__A), ?LOG(?LOG_TAG, err, __M, "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F,__A),     ?LOG(?LOG_TAG, err,  [], "~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F),         ?LOG(?LOG_TAG, err,  [], "~p "++__F, [{?MODULE,?LINE}])).
-
--endif.
 
 % Function shortcuts
 -define(EncryptPid(__P), dderl:encrypt_pid(__P)).

@@ -26,6 +26,20 @@ check_file(F) ->
     File.
 
 start(_Type, _Args) ->
+    ok = application:load(lager),
+    ok = application:set_env(lager, handlers, [{lager_console_backend, info},
+                                               {lager_file_backend, [{file, "log/error.log"},
+                                                                     {level, error},
+                                                                     {size, 10485760},
+                                                                     {date, "$D0"},
+                                                                     {count, 5}]},
+                                               {lager_file_backend, [{file, "log/console.log"},
+                                                                     {level, info},
+                                                                     {size, 10485760},
+                                                                     {date, "$D0"},
+                                                                     {count, 5}]}]),
+    ok = application:set_env(lager, error_logger_redirect, false),
+    ok = lager:start(),
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
@@ -38,8 +52,8 @@ start(_Type, _Args) ->
 		]}
 	]),
 
-    {ok, Ip}            = application:get_env(dderl, interface),
-    {ok, Port}          = application:get_env(dderl, port),
+    {ok, Ip}         = application:get_env(dderl, interface),
+    {ok, Port}       = application:get_env(dderl, port),
     {ok, CaCertF}    = application:get_env(dderl, ssl_cacertfile),
     {ok, CertF}      = application:get_env(dderl, ssl_certfile),
     {ok, KeyF}       = application:get_env(dderl, ssl_keyfile),
