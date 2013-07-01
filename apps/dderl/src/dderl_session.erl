@@ -77,7 +77,10 @@ handle_info(logout, #state{user = User} = State) ->
 handle_info(not_logged_in, #state{} = State) ->
     ?Error("Session ~p not logged in trying to make a request, state: ~n~p", [self(), State]),
     {stop, normal, State};
-handle_info(Info, #state{user=User}=State) ->
+handle_info({'EXIT', Pid, normal}, #state{user = User} = State) ->
+    ?Debug("Received normal exit from ~p for ~p", [Pid, User]),
+    {noreply, State};
+handle_info(Info, #state{user = User} = State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
 

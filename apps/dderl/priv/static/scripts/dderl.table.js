@@ -89,8 +89,7 @@
                        'Save View As'   : '_saveViewAs'},
 
     // slick context menus
-    _slkHdrCnxtMnu  : {'Browse Data'      : '_browseHeaderData',
-                       'Hide'             : '_hide',
+    _slkHdrCnxtMnu  : {'Hide'             : '_hide',
                        'UnHide'           : '_unhide',
                        'Filter...'        : '_filterColumn',
                        'Filter Clear'     : '_filterClear',
@@ -387,8 +386,11 @@
         var columns = self._grid.getColumns();
         var toHide = {};
         for (var i=0; i<_ranges.length; ++i) {
-            toHide[_ranges[i].fromCell] = true;
-            toHide[_ranges[i].toCell] = true;
+            //Validate that id column is not on the selection.
+            if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0)  {
+                toHide[_ranges[i].fromCell] = true;
+                toHide[_ranges[i].toCell] = true;
+            }
         }
         var toHideArray = [];
         for(var j in toHide) {
@@ -1397,31 +1399,9 @@
         if(!g.getData()[cell.row]) {
             return;
         }
-
-        var row         = cell.row;
-        var column      = g.getColumns()[cell.cell];
-        var data        = g.getData()[cell.row][column.field];
-        var gSelMdl     = g.getSelectionModel();
-        var gSelecteds  = gSelMdl.getSelectedRanges();
-
-        var missing = true;
-        for(var i=0; i < gSelecteds.length; ++i) {
-            var tRow = cell.row;
-            var tCol = cell.cell;
-            var bFRw = Math.min(gSelecteds[i].fromRow, gSelecteds[i].toRow);
-            var bFCl = Math.min(gSelecteds[i].fromCell, gSelecteds[i].toCell);
-            var bTRw = Math.max(gSelecteds[i].fromRow, gSelecteds[i].toRow);
-            var bTCl = Math.max(gSelecteds[i].fromCell, gSelecteds[i].toCell);
-
-            if(bFRw <= tRow && bFCl <= tCol && bTRw >= tRow && bTCl >= tCol) {
-                 missing = false;
-                 break;
-             }
-        }
-        if(missing)
-            gSelecteds.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
         
-        gSelMdl.setSelectedRanges(gSelecteds);
+        var gSelMdl     = g.getSelectionModel();
+        gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
 
         this._slkHdrCnxtMnu.dom
             .removeData('cnxt')
@@ -1441,10 +1421,8 @@
         var g           = args.grid;
         var col         = g.getColumnIndex(args.column.id);
         var gSelMdl     = g.getSelectionModel();
-        var gSelecteds  = gSelMdl.getSelectedRanges();
 
-        gSelecteds.push(new Slick.Range(0, col, g.getDataLength() - 1, col));
-        gSelMdl.setSelectedRanges(gSelecteds);
+        gSelMdl.setSelectedRanges([new Slick.Range(0, col, g.getDataLength() - 1, col)]);
 
         this._slkCellCnxtMnu.dom
             .removeData('cnxt')
