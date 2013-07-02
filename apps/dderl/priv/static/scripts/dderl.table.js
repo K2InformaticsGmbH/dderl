@@ -1866,8 +1866,7 @@
                             .attr('title', tbBtnObj.tip);
                     }
                 }
-            }
-            else {
+            } else {
                 for(var btn in self._toolbarButtons) {
                     self[self._toolbarButtons[btn].dom]
                     .button('enable')

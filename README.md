@@ -1,7 +1,7 @@
 dderl
 =====
 
-WEB Application DataBase Browser.
+WEB DataBase Browser Application.
 
 Port forwarding to run as non root user
 * install rinetd
