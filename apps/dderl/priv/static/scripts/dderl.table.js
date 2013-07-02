@@ -1843,34 +1843,38 @@
             self._tbTxtBox.removeClass(tbClass[i]);
         self._tbTxtBox.addClass('tb_'+_rows.state);
         if(_rows.message.length > 0) alert_jq(_rows.message);
-        if(!$.isEmptyObject(_rows.disable) || !$.isEmptyObject(_rows.promote))
-            for(var btn in self._toolbarButtons) {                
-                var tbBtnObj = self._toolbarButtons[btn];
-                var btnElm = self[tbBtnObj.dom];
-                if (!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) {
-                    btnElm
-                        .button('disable')
-                        .attr('title', _rows.disable[btn]);
-                }
-                else if (!$.isEmptyObject(_rows.promote) && _rows.promote.hasOwnProperty(btn)) {
-                    btnElm
-                        .button('enable')
-                        .addClass('ui-state-error')
-                        .attr('title', _rows.promote[btn]);
-                }                
-                else { // enable the button
-                    btnElm
-                        .button('enable')
-                        .removeClass('ui-state-error')
-                        .attr('title', tbBtnObj.tip);
+        if(_rows.op !== "nop") {
+            if(!$.isEmptyObject(_rows.disable) || !$.isEmptyObject(_rows.promote)) {
+                for(var btn in self._toolbarButtons) {
+                    var tbBtnObj = self._toolbarButtons[btn];
+                    var btnElm = self[tbBtnObj.dom];
+                    if (!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) {
+                        btnElm
+                            .button('disable')
+                            .attr('title', _rows.disable[btn]);
+                    }
+                    else if (!$.isEmptyObject(_rows.promote) && _rows.promote.hasOwnProperty(btn)) {
+                        btnElm
+                            .button('enable')
+                            .addClass('ui-state-error')
+                            .attr('title', _rows.promote[btn]);
+                    }
+                    else { // enable the button
+                        btnElm
+                            .button('enable')
+                            .removeClass('ui-state-error')
+                            .attr('title', tbBtnObj.tip);
+                    }
                 }
             }
-        else {
-            for(var btn in self._toolbarButtons)
-                self[self._toolbarButtons[btn].dom]
+            else {
+                for(var btn in self._toolbarButtons) {
+                    self[self._toolbarButtons[btn].dom]
                     .button('enable')
                     .removeClass('ui-state-error')
                     .attr('title', self._toolbarButtons[btn].tip);
+                }
+            }
         }
 
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
