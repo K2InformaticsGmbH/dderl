@@ -1163,6 +1163,7 @@
     _insertResult: function(_insert) {
         this.appendRows(_insert);
     },
+
     _deleteResult: function(_delete) {
         this.appendRows(_delete);
         console.log('deleted '+JSON.stringify(_delete));
@@ -1787,7 +1788,7 @@
             columns[i].formatter = Slick.Formatters.BinStringText;
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor')) {
-                columns[i].editor = Slick.Editors.Text;
+                columns[i].editor = Slick.Editors.ControlChars;
             }
             columns[i].minWidth = fldWidth;
             columns[i].width    = fldWidth;
