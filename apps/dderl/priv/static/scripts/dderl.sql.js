@@ -80,8 +80,8 @@ function insertAtCursor(myField, myValue) {
     // These options will be used as defaults
     options: {
         // dialog options default override
-        height          : 500,
-        width           : 500,
+        height          : 250,
+        width           : 336,
         minHeight       : 50,
         minWidth        : 100,
         resizable       : true,

@@ -41,7 +41,8 @@ get_state({?MODULE, Pid}) ->
 process_request(undefined, Type, Body, ReplyPid, Ref) ->
     process_request(gen_adapter, Type, Body, ReplyPid, Ref);
 process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
-    ?Debug("request received ~p", [{Type, Body}]),
+    ?Debug("request received, type ~p body~n" ++
+               binary_to_list(jsx:prettify(Body)), [Type]),
     gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
 
 init(_Args) ->
@@ -52,7 +53,7 @@ init(_Args) ->
     {ok, #state{tref=TRef}}.
 
 handle_call(get_state, _From, State) ->
-    ?Debug("get_state!", []),
+    ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error([{user, _User}], "unknown call ~p", [Unknown]),
@@ -60,7 +61,6 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
 
 handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
-    ?Debug("processing request ~p", [{Typ, WReq}]),
     State0 = process_call({Typ, WReq}, Adapter, ReplyPid, State),
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
@@ -195,7 +195,7 @@ process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
             [ [{<<"id">>, jsq(A#ddAdapter.id)}
               ,{<<"fullName">>, A#ddAdapter.fullName}]
             || A <- dderl_dal:get_adapters(Sess)]}]),
-    ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
+    ?Debug([{user, User}], "adapters " ++ binary_to_list(jsx:prettify(Res)), []),
     From ! {reply, Res},
     State;
 
@@ -219,7 +219,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Debug([{user, User}], "adapters " ++ jsx:prettify(Res)),
+            ?Debug([{user, User}], "adapters " ++ binary_to_list(jsx:prettify(Res)), []),
             From ! {reply, Res}
     end,
     State;
@@ -248,7 +248,7 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
-    ?Debug([{user, UserId}], "~p processing ~p", [Adapter, {Cmd,BodyJson}]),
+    ?Debug([{user, UserId}], "~p processing ~p~n" ++ binary_to_list(jsx:prettify(ReqData)), [Adapter, Cmd]),
     NewCurrentPriv =
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->

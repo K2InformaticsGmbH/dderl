@@ -34,7 +34,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
     height: 100%;
     left: 0px;
     width: 100%;
-    background: rgba(235, 235, 235, 0.5);
+    background: rgba(235, 235, 235, 0.25);
 }
 
 .ui-dialog {

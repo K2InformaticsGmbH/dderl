@@ -108,7 +108,7 @@ col2json([C|Cols], JCols, Counter) ->
 
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
-    ?Debug("processing resp ~p cols ~p jcols ~p max ~p", [Gres, Columns, JCols]),
+    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
     % refer to erlimem/src/gres.hrl for the descriptions of the record fields
     [{<<"op">>,         Gres#gres.operation}
     ,{<<"cnt">>,        Gres#gres.cnt}
@@ -151,7 +151,6 @@ r2jsn(Rows, JCols) -> r2jsn(Rows, JCols, []).
 r2jsn([], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([[]], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([Row|Rows], JCols, NewRows) ->
-    ?Debug("converting ~p to ~p", [Row, JCols]),
     r2jsn(Rows, JCols, [
         [{C, case R of
                 R when is_integer(R) -> R;
