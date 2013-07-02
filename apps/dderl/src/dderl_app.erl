@@ -26,7 +26,7 @@ check_file(F) ->
     File.
 
 start(_Type, _Args) ->
-    ok = application:load(lager),
+    application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},
                                                {lager_file_backend, [{file, "log/error.log"},
                                                                      {level, error},
