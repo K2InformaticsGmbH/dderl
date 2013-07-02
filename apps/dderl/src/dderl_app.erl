@@ -26,20 +26,6 @@ check_file(F) ->
     File.
 
 start(_Type, _Args) ->
-    application:load(lager),
-    ok = application:set_env(lager, handlers, [{lager_console_backend, info},
-                                               {lager_file_backend, [{file, "log/error.log"},
-                                                                     {level, error},
-                                                                     {size, 10485760},
-                                                                     {date, "$D0"},
-                                                                     {count, 5}]},
-                                               {lager_file_backend, [{file, "log/console.log"},
-                                                                     {level, info},
-                                                                     {size, 10485760},
-                                                                     {date, "$D0"},
-                                                                     {count, 5}]}]),
-    ok = application:set_env(lager, error_logger_redirect, false),
-    ok = lager:start(),
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
