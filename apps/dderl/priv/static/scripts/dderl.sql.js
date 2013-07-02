@@ -60,6 +60,7 @@ function insertAtCursor(myField, myValue) {
     _boxBg          : null,
     _history        : null,
     _historySelect  : null,
+    _cmdChanged     : false,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
@@ -196,7 +197,7 @@ function insertAtCursor(myField, myValue) {
             .css('font-family', self._fnt);
 
         self._editDiv =
-            $('<div>')            
+            $('<div>')
             .append(
               $('<ul>'
               +'  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>'
@@ -436,6 +437,10 @@ function insertAtCursor(myField, myValue) {
         if(_parsed.hasOwnProperty('pretty')) {
             this._prettyTb.val(_parsed.pretty);
             this._cmdPretty = this._prettyTb.val();
+            if(!this._cmdChanged) {
+                this._cmdChanged = true;
+                this._editDiv.tabs("option", "active", 1);
+            }
         }
         if(_parsed.hasOwnProperty('flat')) {
             this._flatTb.val(_parsed.flat);
