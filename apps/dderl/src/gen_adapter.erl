@@ -155,11 +155,17 @@ r2jsn([Row|Rows], JCols, NewRows) ->
     r2jsn(Rows, JCols, [
         [{C, case R of
                 R when is_integer(R) -> R;
-                R when is_atom(R)    -> list_to_binary(atom_to_list(R));
-                %R when is_tuple(R)   -> list_to_binary(lists:nth(1, io_lib:format("~p", [R])));
-                %R when is_list(R)    -> list_to_binary(R);
-                R when is_binary(R)  -> R
-                end
+                R when is_atom(R)    -> atom_to_binary(R, utf8);
+                R when is_binary(R)  ->
+                     %% check if it is a valid utf8
+                     %% else we convert it from latin1
+                     case unicode:characters_to_binary(R) of
+                         Invalid when is_tuple(Invalid) -> 
+                             unicode:characters_to_binary(R, latin1, utf8);
+                         UnicodeBin ->
+                             UnicodeBin
+                     end
+             end
          }
         || {C, R} <- lists:zip(JCols, Row)]
     | NewRows]).
