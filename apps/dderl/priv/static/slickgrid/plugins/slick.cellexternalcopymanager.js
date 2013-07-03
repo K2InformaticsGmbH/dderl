@@ -327,7 +327,7 @@
                 }
             }
             var clipText = clipTextArr.join('');
-            var $focus = $(":focus");
+            var $focus = $(_grid.getActiveCellNode());
 
             var ta = _createTextBox(clipText);
 
@@ -336,7 +336,11 @@
             setTimeout(function(){
                 document.body.removeChild(ta);
                 // restore focus
-                if ($focus && $focus.length>0) { $focus.focus(); }
+                if ($focus && $focus.length > 0) {
+                    $focus.attr('tabIndex', '-1');
+                    $focus.focus();
+                    $focus.removeAttr('tabIndex');
+                }
             }, 100);
 
             return false;
