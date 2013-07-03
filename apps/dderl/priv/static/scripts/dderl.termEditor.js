@@ -29,7 +29,7 @@
         options: {
             // dialog options default override
             height          : 400,
-            width           : 600,
+            width           : 450,
             minHeight       : 50,
             minWidth        : 100,
             resizable       : true,

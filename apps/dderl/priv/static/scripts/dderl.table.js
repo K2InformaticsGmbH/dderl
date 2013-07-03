@@ -1693,6 +1693,7 @@
             return;
         }
         self._divDisable.remove();
+        self._grid.focus();
     },
 
     updateErlangCell: function(newErlangString) {
