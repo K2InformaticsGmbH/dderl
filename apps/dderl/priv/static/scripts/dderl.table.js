@@ -689,7 +689,11 @@
         var sortspec = new Array();
         for (var s in self._sorts) {
             var t = new Object();
-            t[self._origcolumns[s]] = self._sorts[s].asc;
+            if(self._origcolumns.hasOwnProperty(s)) {
+                t[self._origcolumns[s]] = self._sorts[s].asc;
+            } else {
+                t[s] = self._sorts[s].asc;
+            }
             sortspec.push(t);
         }
         return sortspec;
@@ -702,8 +706,12 @@
 
         var cols = self._grid.getColumns();
         for (colpos in origJson) {
-            var col_id = origJson[colpos].id
-            self._sorts[cols[col_id].field] = {name : cols[col_id].name, asc : origJson[colpos].asc};
+            var col_id = origJson[colpos].id;
+            if(col_id === -1) {
+                self._sorts[colpos] = {name : colpos, asc : origJson[colpos].asc};
+            } else {
+                self._sorts[cols[col_id].field] = {name : cols[col_id].name, asc : origJson[colpos].asc};
+            }
         }
     },
 

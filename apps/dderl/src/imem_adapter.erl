@@ -266,6 +266,7 @@ process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     SrtSpc = proplists:get_value(<<"spec">>, BodyJson, []),
     SortSpec = sort_json_to_term(SrtSpc),
+    ?Debug("The sort spec from json: ~p", [SortSpec]),
     Statement:gui_req(sort, SortSpec, gui_resp_cb_fun(<<"sort">>, Statement, From)),
     Priv;
 process_cmd({[<<"filter">>], ReqBody}, _Sess, _UserId, From, Priv) ->
@@ -339,7 +340,11 @@ gui_resp_cb_fun(Cmd, Statement, From) ->
 
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
-    [{binary_to_integer(C), if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
+    case string:to_integer(binary_to_list(C)) of
+        {Index, []} -> Index;
+        {error, _R} -> Index = C
+    end,
+    [{Index, if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
 
 extract_modified_rows([]) -> [];
 extract_modified_rows([ReceivedRow | Rest]) ->
@@ -417,6 +422,7 @@ process_query(Query, {_,ConPid}=Connection) ->
     end.
 
 build_srtspec_json(SortSpecs) ->
+    ?Debug("The sort spec ~p", [SortSpecs]),
     [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
      , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
