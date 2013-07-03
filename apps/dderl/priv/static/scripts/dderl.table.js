@@ -1668,7 +1668,11 @@
         if(!$.isEmptyObject(updStyle)) self._grid.setCellCssStyles('update', updStyle);
     },
 
-    close_stmt: function() { if(this._stmt) this.buttonPress("close"); },
+    close_stmt: function() {
+        if(this._stmt && session && connection) {
+            this.buttonPress("close");
+        }
+    },
 
     // loading the view table
     loadViews: function() { this._ajax('/app/views', null, 'views', 'loadViews'); },
