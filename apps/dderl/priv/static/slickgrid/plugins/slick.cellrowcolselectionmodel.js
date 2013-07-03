@@ -170,11 +170,15 @@
                                 return !(col === _ranges[i].fromCell || col === _ranges[i].toCell);
                             });
                         } else if (e.shiftKey) {
-                            var from = Math.min(_ranges[0].fromCell, col);
-                            var to = Math.max(_ranges[0].fromCell, col);
-                            _ranges = [];
-                            for(var i=from; i <= to; ++i) {
-                                _ranges.push(createFullColRange(0, i, maxRow, i));
+                            if(_ranges && _ranges.length > 0) {
+                                var from = Math.min(_ranges[0].fromCell, col);
+                                var to = Math.max(_ranges[0].fromCell, col);
+                                _ranges = [];
+                                for(var i=from; i <= to; ++i) {
+                                    _ranges.push(createFullColRange(0, i, maxRow, i));
+                                }
+                            } else {
+                                _ranges = [createFullColRange(0, col, maxRow, col)];
                             }
                         }
                         setSelectedRanges(_ranges);
