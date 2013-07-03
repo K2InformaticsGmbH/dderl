@@ -299,10 +299,10 @@
                 .sql({autoOpen  : false,
                       title     : this.options.title,
                       cmdOwner  : this._dlg,
-                      history   : this._cmdStrs
+                      history   : this._cmdStrs,
+                      cmdFlat   : this._cmd,
                      })
-                .sql('open')
-                .sql("showCmd", this._cmd);
+                .sql('open');
         }
     },
 

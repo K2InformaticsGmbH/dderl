@@ -100,6 +100,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).dialog('destroy');
                             $(this).remove();
                           },
+        cmdFlat         : "",
         cmdOwner        : null,
         history         : []
     },
@@ -127,7 +128,6 @@ function insertAtCursor(myField, myValue) {
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
-        if(self.options.cmdPretty   !== self._cmdPretty)    self._cmdPretty = self.options.cmdPretty;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
@@ -267,8 +267,10 @@ function insertAtCursor(myField, myValue) {
     	if (self.options.autoOpen)
             self._dlg.dialog("open");
 
-        if (undefined != self._cmdFlat && self._cmdFlat.length > 0)
-            ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}},'parse_stmt','parsedCmd');
+        if (undefined != self._cmdFlat && self._cmdFlat.length > 0) {
+            self._modCmd = self._cmdFlat;
+            ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
+        }
     },
 
     _setupEventHandlers: function() {
@@ -350,9 +352,9 @@ function insertAtCursor(myField, myValue) {
         // footer total width
         var childs = toolDiv.children();
         var totWidth = 0;
-        for(var i=0; i<childs.length; ++i)
+        for(var i = 0; i < childs.length; ++i) {
             totWidth += $(childs[i]).width();
-
+        }
         return totWidth;
     },
   
@@ -541,10 +543,23 @@ function insertAtCursor(myField, myValue) {
     open: function() {
         this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+        if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
+            var ownerDlg = this._cmdOwner.dialog('widget');
+            var dlg = this._dlg.dialog("widget");
+            if(ownerDlg.offset().left > dlg.width()) {
+                this._dlg.dialog("option", "position", {at: 'left top', my : 'right top', of: ownerDlg});
+            } else if($(window).width() - ownerDlg.offset().left - ownerDlg.width() > dlg.width()) {
+                this._dlg.dialog("option", "position", {at: 'right top', my : 'left top', of: ownerDlg});
+            } else if(ownerDlg.offset().top > dlg.height()) {
+                this._dlg.dialog("option", "position", {at: 'left top', my : 'left bottom', of: ownerDlg});
+            } else if($(window).height() - ownerDlg.offset().top - ownerDlg.height() > dlg.height()) {
+                this._dlg.dialog("option", "position", {at: 'left bottom', my : 'left top', of: ownerDlg});
+            }
+        }
         this._refreshHistoryBoxSize();
     },
+
     close: function() { this._dlg.dialog("close"); },
-    //destroy: function() { this._dlg.dialog("destroy"); },
 
     showCmd: function(cmd) {
         var self = this;
