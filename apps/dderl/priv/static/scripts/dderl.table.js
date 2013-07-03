@@ -1011,10 +1011,12 @@
                 var fName = self._toolbarButtons[_btn].clk;
                 //var f = $.proxy(self[fName], self);
                 var f = self[fName];
-                if($.isFunction(f))
+                if($.isFunction(f)) {
                     f(self);
-                else
+                    self._grid.focus();
+                } else {
                     throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
+                }
             };
 
             var inph = self.options.toolBarHeight;
