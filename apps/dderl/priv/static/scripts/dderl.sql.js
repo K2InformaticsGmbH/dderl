@@ -93,7 +93,6 @@ function insertAtCursor(myField, myValue) {
         clear           : null,
         toolBarHeight   : 27,
         open            : function(e,ui) {
-                            $(this).dialog("widget").appendTo("#main-body");
                           },
         focus           : function(e,ui) {},
         close           : function() {
@@ -543,18 +542,24 @@ function insertAtCursor(myField, myValue) {
     open: function() {
         this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+        this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
             var ownerDlg = this._cmdOwner.dialog('widget');
             var dlg = this._dlg.dialog("widget");
-            if(ownerDlg.offset().left > dlg.width()) {
+            if(ownerDlg.position().left > dlg.width()) {
                 this._dlg.dialog("option", "position", {at: 'left top', my : 'right top', of: ownerDlg});
-            } else if($(window).width() - ownerDlg.offset().left - ownerDlg.width() > dlg.width()) {
+            } else if($("#main-body").width() - ownerDlg.position().left - ownerDlg.width() > dlg.width()) {
                 this._dlg.dialog("option", "position", {at: 'right top', my : 'left top', of: ownerDlg});
-            } else if(ownerDlg.offset().top > dlg.height()) {
+            } else if(ownerDlg.position().top > dlg.height()) {
                 this._dlg.dialog("option", "position", {at: 'left top', my : 'left bottom', of: ownerDlg});
-            } else if($(window).height() - ownerDlg.offset().top - ownerDlg.height() > dlg.height()) {
+            } else if($("#main-body").height() - ownerDlg.position().top - ownerDlg.height() > dlg.height()) {
                 this._dlg.dialog("option", "position", {at: 'left bottom', my : 'left top', of: ownerDlg});
+            } else {
+                //Default we open it at the right of the table.
+                this._dlg.dialog("option", "position", {at: 'right top', my : 'left top', of: ownerDlg});
             }
+        } else {
+            // Here we need the smart positioning....
         }
         this._refreshHistoryBoxSize();
     },
