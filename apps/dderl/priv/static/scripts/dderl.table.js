@@ -652,29 +652,29 @@
             return self._sortSpec2Json();
         }
         
-        sortDlg
-            .dialog({
-                width : 380,
-                modal : false,
-                title : 'Sorts',
-                position : { my: "left top", at: "left bottom", of: this._dlg },
-                close : function() {
-                        saveChange();
-                        $(this).dialog('close');
-                        $(this).remove();
-                    },
-                buttons: {
-                    'Sort' : function() {
-                        var sortspec = saveChange();
-                        self._ajax('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
-                        $(this).dialog('close');
-                        $(this).remove();
-                    }                   
+        sortDlg.dialog({
+            width : 336,
+            modal : false,
+            title : 'Sorts',
+            close : function() {
+                saveChange();
+                $(this).dialog('close');
+                $(this).remove();
+            },
+            buttons: {
+                'Sort' : function() {
+                    var sortspec = saveChange();
+                    self._ajax('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                    $(this).dialog('close');
+                    $(this).remove();
                 }
-            });
+            }
+        });
 
         sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
         sortDlg.dialog("widget").appendTo("#main-body");
+        //Lets put it where we have space...
+        smartDialogPosition($("#main-body"), this._dlg, sortDlg, ['bottom','right','left','top','right']);
     },
 
     _ajax: function(url, data, resp, callback) {

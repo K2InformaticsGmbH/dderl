@@ -544,22 +544,9 @@ function insertAtCursor(myField, myValue) {
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
-            var ownerDlg = this._cmdOwner.dialog('widget');
-            var dlg = this._dlg.dialog("widget");
-            if(ownerDlg.position().left > dlg.width()) {
-                this._dlg.dialog("option", "position", {at: 'left top', my : 'right top', of: ownerDlg});
-            } else if($("#main-body").width() - ownerDlg.position().left - ownerDlg.width() > dlg.width()) {
-                this._dlg.dialog("option", "position", {at: 'right top', my : 'left top', of: ownerDlg});
-            } else if(ownerDlg.position().top > dlg.height()) {
-                this._dlg.dialog("option", "position", {at: 'left top', my : 'left bottom', of: ownerDlg});
-            } else if($("#main-body").height() - ownerDlg.position().top - ownerDlg.height() > dlg.height()) {
-                this._dlg.dialog("option", "position", {at: 'left bottom', my : 'left top', of: ownerDlg});
-            } else {
-                //Default we open it at the right of the table.
-                this._dlg.dialog("option", "position", {at: 'right top', my : 'left top', of: ownerDlg});
-            }
+            smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['left', 'right', 'top', 'bottom', 'right']);
         } else {
-            // Here we need the smart positioning....
+            // TODO: Here we maximize unused space
         }
         this._refreshHistoryBoxSize();
     },

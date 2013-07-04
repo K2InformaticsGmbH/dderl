@@ -427,3 +427,40 @@ if (window.console && window.console.log && window.console.error) {
     window['console'] = {log: function(){ }, error: function(){ }};
     console.log('dummy console is created');
 }
+
+function smartDialogPosition(container, owner, self, checks)
+{
+    if(!checks || checks.length === 0) {
+        checks = ['right'];
+    }
+    var dlg = self.dialog("widget");
+    var ownerDlg = owner.dialog("widget");
+    for(var i = 0; i < checks.length; ++i) {
+        var haveSpace = false;
+        var newPos = {at: 'left bottom', my : 'left top', of: ownerDlg};
+        switch(checks[i]) {
+        case 'left':
+            haveSpace = ownerDlg.position().left > dlg.width();
+            newPos = {at: 'left top', my : 'right top', of: ownerDlg};
+            break;
+        case 'right':
+            haveSpace = container.width() - ownerDlg.position().left - ownerDlg.width() > dlg.width();
+            newPos = {at: 'right top', my : 'left top', of: ownerDlg};
+            break;
+        case 'top':
+            haveSpace = ownerDlg.position().top > dlg.height();
+            newPos = {at: 'left top', my : 'left bottom', of: ownerDlg};
+            break;
+        case 'bottom':
+            haveSpace = container.height() - ownerDlg.position().top - ownerDlg.height() > dlg.height();
+            newPos = {at: 'left bottom', my : 'left top', of: ownerDlg};
+            break;
+        }
+
+        //The last check is the default pos.
+        if((i === checks.length - 1) || haveSpace) {
+            self.dialog("option", "position", newPos);
+            break;
+        }
+    }
+}
