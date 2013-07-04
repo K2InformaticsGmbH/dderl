@@ -23,6 +23,7 @@
                 , block_length
                 , fetch_recs_async_fun
                 , fetch_close_fun
+                , stmt_close_fun
                 , filter_and_sort_fun
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
