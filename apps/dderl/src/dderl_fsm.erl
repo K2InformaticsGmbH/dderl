@@ -63,6 +63,7 @@
                 , replyToFun          %% reply fun
                 , fetch_recs_async_fun
                 , fetch_close_fun
+                , stmt_close_fun
                 , filter_and_sort_fun
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
@@ -165,6 +166,7 @@ fsm_ctx(#fsmctx{ id                         = Id
                , block_length               = BL
                , fetch_recs_async_fun       = Fraf
                , fetch_close_fun            = Fcf
+               , stmt_close_fun             = Scf
                , filter_and_sort_fun        = Fasf
                , update_cursor_prepare_fun  = Ucpf
                , update_cursor_execute_fun  = Ucef
@@ -177,6 +179,7 @@ fsm_ctx(#fsmctx{ id                         = Id
         , sortSpec                  = SortSpec
         , fetch_recs_async_fun      = Fraf
         , fetch_close_fun           = Fcf
+        , stmt_close_fun            = Scf
         , filter_and_sort_fun       = Fasf
         , update_cursor_prepare_fun = Ucpf
         , update_cursor_execute_fun = Ucef
@@ -641,8 +644,21 @@ tailing({button, <<">|">>, ReplyTo}, State0) ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"">>, State1),
     {next_state, tailing, State2#state{tailLock=true}};
+% tailing({rows, {[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
+%     % ?Info("tracking -- row~n", []),
+%     PKey = guard_wrap(element(2,element(1,Rec))),
+%     case ets:select(TableId,[{'$1',[{'==',{element,2,{element,1,{element,3,'$1'}}},PKey}],['$_']}]) of
+%         [Row] ->
+%             ?Info("insert tracking -- row~n~p~n", [Row]),
+%             State1 = data_append(tailing,{[Rec],tail},State0),      %% REPLACE $$$$$$$$$
+%             {next_state, tailing, State1#state{pfc=0}};             %% REPLACE $$$$$$$$$
+%         _ ->
+%             ?Info("fallback to tailing -- row~n~p~n", [Rec]),
+%             State1 = data_append(tailing,{[Rec],tail},State0),
+%             {next_state, tailing, State1#state{pfc=0}}
+%     end;      
 tailing({rows, {Recs,Complete}}, State0) ->
-    % ?Info("tailing -- row~n", []),
+    % ?Info("tailing  -- row~n", []),
     State1 = data_append(tailing,{Recs,Complete},State0),
     {next_state, tailing, State1#state{pfc=0}};
 tailing(Other, State) ->
@@ -836,11 +852,6 @@ handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = gui_nop(#gres{state=SN,beep=true,message= ?MustCommit},State1),
     {next_state, SN, State2#state{tailLock=true}};
-%handle_event({"row_with_key", RowId, ReplyTo}, SN, #state{tableId=TableId}=State) ->
-%    [Row] = ets:lookup(TableId, RowId),
-%    ?Debug("row_with_key ~p ~p", [RowId, Row]),
-%    ReplyTo(Row),
-%    {next_state, SN, State#state{tailLock=true}};
 handle_event({error, Error}, SN, State) ->
     ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
     ErrorMsg = iolist_to_binary(io_lib:format("~p", [Error])),
@@ -895,7 +906,9 @@ handle_info(Unknown, SN, State) ->
 %% Purpose: Shutdown the fsm
 %% Returns: any
 %% --------------------------------------------------------------------
-terminate(_Reason, _SN, _StatData) -> ok.
+terminate(_Reason, _SN, #state{ctx=Ctx}) -> 
+    F= Ctx#ctx.stmt_close_fun,
+    F().
 
 %% --------------------------------------------------------------------
 %% Func: code_change/4
@@ -908,6 +921,13 @@ code_change(_OldVsn, SN, StateData, _Extra) ->
 %% --------------------------------------------------------------------
 %%% Internal functions
 %% --------------------------------------------------------------------
+
+% guard_wrap(L) when is_list(L) ->
+%     [guard_wrap(Item) || Item <- L];
+% guard_wrap(T) when is_tuple(T) ->
+%     {const,list_to_tuple(guard_wrap(tuple_to_list(T)))};
+% guard_wrap(E) -> E.
+
 
 gui_max(BL) when BL < 10 -> 30;
 gui_max(BL) -> 3 * BL.
@@ -1384,15 +1404,6 @@ serve_stack(SN , #state{stack=_Stack}=State) ->
     ?Debug("~p serve_stack nop~p", [SN,<<"...">>]),
     State.
 
-
-% all_rows(Top, Bot, _) when Top > Bot -> [];
-% all_rows(Top, Bot, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
-%     Rows = ets:select(TableId,[{'$1',[{'>=',{element,1,'$1'},Top},{'=<',{element,1,'$1'},Bot}],['$_']}]),
-%     [gui_row_expand(R, TableId, RowFun) || R <- Rows];
-% all_rows(Top, Bot, #state{nav=ind,indexId=IndexId,tableId=TableId}) ->
-%     IndRows = ets:select(IndexId,[{'$1',[{'>=',{element,1,'$1'},Top},{'=<',{element,1,'$1'},Bot}],['$_']}]),
-%     [gui_row_as_list(ets:lookup(TableId, Id)) || {_,Id} <- IndRows].
-
 rows_after(_, [], _) -> [];
 rows_after(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Key}],['$_']}],Limit) of
@@ -1860,3 +1871,4 @@ change_tuples(TableId, _DirtyCnt, DirtyTop, DirtyBot) ->
 
 change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)]. 
+
