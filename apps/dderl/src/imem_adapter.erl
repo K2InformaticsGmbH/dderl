@@ -368,7 +368,7 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | Tail].
 
 process_query(Query, {_,ConPid}=Connection) ->
-    case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
+    case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)) of
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];
@@ -464,7 +464,6 @@ int(C) when $a =< C, C =< $f -> C - $a + 10.
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
-
 connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
         AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
@@ -487,3 +486,22 @@ error_invalid_conn(Connection, Connections) ->
     Err = <<"Trying to process a query with an unowned connection">>,
     ?Error("~s: ~p~n connections list: ~p", [Err, Connection, Connections]),
     jsx:encode([{<<"error">>, Err}]).
+
+check_fun_vsn(Fun) when is_function(Fun)->
+    {module, Mod} = erlang:fun_info(Fun, module),
+    [ModVsn] = proplists:get_value(vsn, Mod:module_info(attributes)),
+    ?Debug("The Module version: ~p~n", [ModVsn]),
+    {new_uniq, <<FunVsn:16/unit:8>>} = erlang:fun_info(Fun, new_uniq),
+    ?Debug("The function version: ~p~n", [FunVsn]),
+    ModVsn =:= FunVsn;
+check_fun_vsn(_) ->
+    false.
+
+check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
+    ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
+    if
+        ValidFuns -> {ok, StmtRslt};
+        true -> <<"Unsupported target database version">>
+    end;
+check_funs(Error) ->
+    Error.
