@@ -418,8 +418,13 @@ process_query(Query, {_,ConPid}=Connection) ->
             [{<<"error">>, Err}];
         Error ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
-            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            [{<<"error">>, Err}]
+            if
+                is_binary(Error) ->
+                    [{<<"error">>, Error}];
+                true ->
+                    Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+                    [{<<"error">>, Err}]
+            end
     end.
 
 build_srtspec_json(SortSpecs) ->
