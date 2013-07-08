@@ -1384,11 +1384,6 @@
             .dialog(self.options)
             .bind("dialogresize", function(event, ui) 
             {
-                var data = self._grid.getData();
-                self._grid.setData(data);
-                self._grid.updateRowCount();
-                self._grid.render();
-                self._grid.resizeCanvas();
                 self._dlgResized = true;
             });
 
