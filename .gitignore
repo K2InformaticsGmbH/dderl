@@ -2,7 +2,7 @@
 ## Eclipse
 #################
 
-apps/derl/ebin
+apps/dderl/ebin/
 distdir/
 package
 deps
