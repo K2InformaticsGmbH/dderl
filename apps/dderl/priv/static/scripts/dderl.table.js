@@ -1384,6 +1384,7 @@
             .dialog(self.options)
             .bind("dialogresize", function(event, ui) 
             {
+                self._grid.resizeCanvas();
                 self._dlgResized = true;
             });
 
