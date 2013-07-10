@@ -86,7 +86,8 @@
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
                        'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs'},
+                       'Save View As'   : '_saveViewAs',
+                       'Plot'           : '_plotTable'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Hide'             : '_hide',
@@ -328,6 +329,7 @@
     _saveView: function() {
         this._saveViewWithName(this.options.title);
     },
+
     _saveViewAs: function() {
         var viewName = prompt("View name",this.options.title);
         if (null !== viewName)
@@ -372,6 +374,18 @@
         this._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
+    // Open plot for this table
+    _plotTable: function() {
+        $('<div>').appendTo(document.body)
+            .plotTable({
+                autoOpen     : false,
+                title        : this.options.title,
+                initialQuery : this._cmd,
+            })
+            .plotTable('open');
+    },
+
+    // Reload table: called from the sql editor to refresh this table.
     cmdReload: function(cmd, button) {
         console.log('command reloading ['+cmd+']');
         this._clmlay = null;
