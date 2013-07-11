@@ -29,8 +29,12 @@ start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
-            {"/ws", dderl_ws, []},
+            {"/ws", bullet_handler, [{handler, dderl_stream}]},
             {"/app/[...]", dderl_resource, []},
+            {"/bullet.js", cowboy_static, [
+                {directory, {priv_dir, bullet, []}},
+                {file, "bullet.js"}
+            ]},
             {"/[...]", cowboy_static, [
                 {directory, {priv_dir, dderl, []}},
                 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}

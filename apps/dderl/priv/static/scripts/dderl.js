@@ -290,25 +290,29 @@ function alert_jq(string)
 
 function create_ws(url)
 {
-    //If there is no websocket support just return.
-    if( typeof(WebSocket) != "function" ) {
-        return;
-    }
-
     if(!ws) {
-        ws = new WebSocket(url);
+        ws = $.bullet(url, {});
+
+        ws.onopen = function(){
+            console.log('WebSocket: opened');
+            ws.send("time");
+        };
+        ws.onclose = function(){
+            console.log('WebSocket: closed');
+            $('#server-time').text("");
+        };
+        ws.onmessage = function(e) {
+            if(e.data != 'pong') {
+                $('#server-time').text(e.data);
+            }
+        };
+        ws.onheartbeat = function() {
+			ws.send('ping');
+        };
+        ws.ondisconnect = function() {
+            console.log('WebSocket: disconnected');
+        }
     }
-    ws.onopen = function(){
-        console.log('WebSocket: opened');
-        ws.send(JSON.stringify({time : ""}));
-    };
-    ws.onclose = function(){
-        console.log('WebSocket: closed');
-        create_ws(url, url);
-    };
-    ws.onmessage = function(e) {
-        $('#server-time').text(e.data);
-    };
 }
 
 function edit_table()
@@ -463,4 +467,27 @@ function smartDialogPosition(container, owner, self, checks)
             break;
         }
     }
+}
+
+function findFreeSpace(self) {
+    var currentDlgs = $(".ui-dialog-content");
+    var dialogPositions = [];
+    for(var i = 0; i < currentDlgs.length; ++i) {
+        if($(currentDlgs[i]).dialog('isOpen')) {
+            var dlg = $(currentDlgs[i]).dialog("widget");
+            var box = {top   : dlg.position().top,
+                       left  : dlg.position().left,
+                       bottom: dlg.position().top + dlg.height(),
+                       right : dlg.position().left + dlg.width()};
+            dialogPositions.push(box);
+        }
+    }
+    dialogPositions.sort(function(b1, b2) {return b1.left - b2.left});
+    //TODO: Naive implementation, we improve it if it works...
+    for(var i = 0; i < $("#main-body").width(); i += 10) {
+        for(var j = 0; j < $("#main-body").height(); j += 10) {
+        }
+    }
+    console.log(self.dialog("widget").width() + ", " + self.dialog("widget").height());
+    //console.log(dialogPositions);
 }
