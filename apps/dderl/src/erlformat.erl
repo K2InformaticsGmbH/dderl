@@ -8,27 +8,65 @@
 -define(NT(__E,__T), if __E > 0 -> lists:duplicate(?TAB_SIZE*(__T),32); true -> "" end).
 -define(MAX_COMPRESS, 50).
 
+format(<<>>, _Expand) -> <<>>;
 format(String, Expand) ->
     case erl_scan:string(add_dot(binary_to_list(String))) of
         {ok, Tokens, _} ->
             case erl_parse:parse_term(Tokens) of
-                {error, ErrorInfo} ->
-                    {error, ErrorInfo};
+                {error, _TermError} ->
+                    %% Try to format it using pretty_pr in case of expresion.
+                    Escaped = escape_quotes(binary_to_list(String)),
+                    NewString = lists:flatten(["<<\"", Escaped, "\">>"]),
+                    {ok, NewTokens, _} = erl_scan:string(add_dot(NewString)),
+                    {ok, NewBin} = erl_parse:parse_term(NewTokens),
+                    case expand_expression(NewBin) of
+                        {ok, Result} ->
+                            iolist_to_binary(Result);
+                        Error ->
+                            Error
+                    end;
                 {ok, Term} ->
                     case Expand of
-                        auto ->
-                            {_Expanded, Result} = expand_auto(Term, 0),
-                            iolist_to_binary(Result);
                         0 ->
                             %% In level raw data is returned.
                             iolist_to_binary(io_lib:format("~w", [Term]));
                         _ ->
-                            iolist_to_binary(expand(Term, Expand))
+                            if
+                                is_binary(Term) ->
+                                    case expand_expression(Term) of
+                                        {ok, Result} ->
+                                            Escaped = escape_quotes(Result),
+                                            iolist_to_binary(["<<\"\n", Escaped, "\n\">>"]);
+                                        {error, Bin} ->
+                                            Bin
+                                    end;
+                                true ->
+                                    iolist_to_binary(expand(Term, Expand))
+                            end
                     end
             end;
         {error, ErrorInfo, _} ->
             {error, ErrorInfo}
     end.
+
+expand_expression(BinStr) ->
+    case erl_scan:string(add_dot(binary_to_list(BinStr))) of
+        {ok, Tokens, _} ->
+            case erl_parse:parse_exprs(Tokens) of
+                {ok, ExprList} ->
+                    {ok, erl_prettypr:format(erl_syntax:form_list(ExprList))};
+                Error ->
+                    {error, iolist_to_binary(io_lib:format("~p", [BinStr]))}
+            end;
+        _ ->
+            {error, iolist_to_binary(io_lib:format("~p", [BinStr]))}
+    end.
+
+
+expand(Term, auto) ->
+    {_Expanded, Result} = expand_auto(Term, 0),
+    Result;
+expand(Term, Expand) -> expand(Term, Expand, 0).
 
 expand_auto(Term, _Col) when is_atom(Term);
                              is_integer(Term);
@@ -80,7 +118,6 @@ add_spaces(Count) ->
 
 get_result({_WasExpanded, Result}) -> Result.
 
-expand(Term, Expand) -> expand(Term, Expand, 0).
 expand(Term, _Expand, _Tab) when is_atom(Term);
                                  is_integer(Term);
                                  is_float(Term)  -> io_lib:format("~w", [Term]);
@@ -100,7 +137,18 @@ expand_cons([Element | Rest], [LB, RB], Expand, Tab) ->
     ?NL(Expand), ?NT(Expand,Tab), [RB]].
 
 add_dot(Val) ->
-    case [lists:last(string:strip(Val))] of
+    case [lists:last(trim_whitespace(Val))] of
         "." -> Val;
         _ -> Val ++ "."
     end.
+
+escape_quotes([]) -> [];
+escape_quotes([$"|Rest]) ->
+    [$\\, $" | escape_quotes(Rest)];
+escape_quotes([Char|Rest]) ->
+    [Char | escape_quotes(Rest)].
+
+trim_whitespace(Input) ->
+    LS = re:replace(Input, "^\\s*", "", [unicode, {return, list}]),
+    RS = re:replace(LS, "\\s*$", "", [unicode, {return, list}]),
+    RS.
