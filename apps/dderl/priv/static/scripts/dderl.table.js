@@ -966,9 +966,15 @@
         } else {
             var cell = _ranges[0];
             var columnField = self._grid.getColumns()[cell.fromCell].field;
-            var stringToFormat = self._gdata[cell.fromRow][columnField];
+            var stringToFormat = unescapeNewLines(self._gdata[cell.fromRow][columnField]);
             self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-            self._ajax('/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:"auto"}},'format_erlang_term', 'editErlangTerm');
+            self._ajax('/app/format_erlang_term', {
+                format_erlang_term: {
+                    erlang_term: stringToFormat,
+                    expansion_level: "auto",
+                    force: false
+                }
+            }, 'format_erlang_term', 'editErlangTerm');
         }
     },
 
@@ -1384,7 +1390,7 @@
     ////////////////////////////
 
     _createDlg: function() {
-        var self = this;                    
+        var self = this;
 
         if(self._tbllay !== null) {
             self.options['width'] = self._tbllay.width;
@@ -1403,8 +1409,9 @@
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
-        if(self.options.position.length === undefined)
+        if(self.options.position.length === undefined) {
             self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'} );
+        }
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));

@@ -152,6 +152,32 @@ function show_more_apps() {
     }
 }
 
+
+/* Escape new lines and tabs */
+function escapeNewLines(str)
+{
+    var result = "";
+    for(var i = 0; i < str.length; ++i) {
+        if(str.charCodeAt(i) === 9) {
+            result += "\\t";
+        } else if(str.charCodeAt(i) === 10) {
+            result += "\\n";
+        } else if(str.charCodeAt(i) !== 13) {
+            result += str[i];
+        }
+    }
+    return result;
+}
+
+/* Parse escaped new lines and tabs
+   TODO: Handle escaped new lines as \\n...
+*/
+function unescapeNewLines(str) {
+    str = str.replace(/\\t/gi, "\t");
+    str = str.replace(/\\n/gi, "\n");
+    return unescape(str);
+}
+
 function get_local_apps(table) {
     ajaxCall(null, '/app/about', null, 'about', function(applications) {
         var apps = '';

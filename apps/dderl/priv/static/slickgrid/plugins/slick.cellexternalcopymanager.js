@@ -176,8 +176,9 @@
       if(availableRows < destH)
       {
         var d = _grid.getData();
-        for(addRows = 1; addRows <= destH - availableRows; addRows++)
+        for(addRows = 1; addRows <= destH - availableRows; addRows++) {
             d.push({});
+        }
         _grid.setData(d);
         _grid.render();
       }
@@ -217,10 +218,11 @@
                 var nd = _grid.getCellNode(desty, destx);
                 var dt = _grid.getDataItem(desty);
                 this.oldValues[y][x] = dt[columns[destx]['id']];
-                if (oneCellToMultiple)
-                  this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
-                else
-                  this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                if (oneCellToMultiple) {
+                    this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
+                } else {
+                    this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                }
                 _grid.updateCell(desty, destx);
               }
             }
@@ -284,8 +286,7 @@
         clipCommand.execute();
       }
     }
-    
-    
+
     function handleKeyDown(e, args) {
       var ranges;
       if (!_grid.getEditorLock().isActive()) {
@@ -317,7 +318,7 @@
                     var clipTextCells = [];
                     for (var j=fromCellSafe; j< range.toCell+1 ; j++){
                         var cellValue = gridData[i][columns[j].field];
-                        clipTextCells.push(cellValue);
+                        clipTextCells.push(escapeNewLines(cellValue));
                     }
                     clipTextRows.push(clipTextCells.join("\t"));
                 }

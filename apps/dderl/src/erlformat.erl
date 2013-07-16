@@ -1,14 +1,28 @@
 -module(erlformat).
 -author("bikram.chatterjee@k2informatics.ch").
 
--export([format/2]).
+-export([format/3]).
 
 -define(TAB_SIZE, 4).
 -define(NL(__E), if __E > 0 -> "\n"; true -> "" end).
 -define(NT(__E,__T), if __E > 0 -> lists:duplicate(?TAB_SIZE*(__T),32); true -> "" end).
 -define(MAX_COMPRESS, 50).
 
-format(<<>>, _Expand) -> <<>>;
+%% TODO: Try to expand tabs to make it compatible with tab size 4 spaces.
+%% http://www.trapexit.org/String_Tabs
+format(<<>>, _Expand, _Force) -> <<>>;
+format(String, Expand, false) ->
+    case re:run(String, [$\n]) of
+        nomatch ->
+            %% If we dont have formatting already.
+            format(String, Expand);
+        _ ->
+            %% Else we preserve it.
+            String
+    end;
+format(String, Expand, true) ->
+    format(String, Expand).
+
 format(String, Expand) ->
     case erl_scan:string(add_dot(binary_to_list(String))) of
         {ok, Tokens, _} ->
@@ -17,18 +31,26 @@ format(String, Expand) ->
                     %% Try to format it using pretty_pr in case of expresion.
                     Escaped = escape_quotes(binary_to_list(String)),
                     NewString = lists:flatten(["<<\"", Escaped, "\">>"]),
-                    {ok, NewTokens, _} = erl_scan:string(add_dot(NewString)),
-                    {ok, NewBin} = erl_parse:parse_term(NewTokens),
-                    case expand_expression(NewBin) of
-                        {ok, Result} ->
-                            iolist_to_binary(Result);
-                        Error ->
-                            Error
+                    case erl_scan:string(add_dot(NewString)) of
+                        {ok, NewTokens, _} ->
+                            case erl_parse:parse_term(NewTokens) of
+                                {ok, NewBin} ->
+                                    case expand_expression(NewBin) of
+                                        {ok, Result} ->
+                                            iolist_to_binary(Result);
+                                        Error ->
+                                            Error
+                                    end;
+                                Error ->
+                                    Error
+                            end;
+                        {error, ErrorInfo, _} ->
+                            {error, ErrorInfo}
                     end;
                 {ok, Term} ->
                     case Expand of
                         0 ->
-                            %% In level raw data is returned.
+                            %% In level 0 raw data is returned.
                             iolist_to_binary(io_lib:format("~w", [Term]));
                         _ ->
                             if
@@ -55,7 +77,7 @@ expand_expression(BinStr) ->
             case erl_parse:parse_exprs(Tokens) of
                 {ok, ExprList} ->
                     {ok, erl_prettypr:format(erl_syntax:form_list(ExprList))};
-                Error ->
+                _Error ->
                     {error, iolist_to_binary(io_lib:format("~p", [BinStr]))}
             end;
         _ ->

@@ -16,13 +16,9 @@ function unicodeLiteral(str)
     var i;
     var result = "";
     for( i = 0; i < str.length; ++i) {
-        if(str.charCodeAt(i) === 9) {
-            result += "\\t";
-        } else if(str.charCodeAt(i) === 10) {
-            result += "\\n";
-        } else if(str.charCodeAt(i) < 32) {
+        if(str.charCodeAt(i) < 32) {
             result += "\\u" + fixedHex(str.charCodeAt(i),4);
-        } else if(str.charCodeAt(i) !== 13) {
+        } else {
             result += str[i];
         }
     }
@@ -36,8 +32,6 @@ function fromUnicodeLiteral(str)
     str = str.replace(r, function (match, grp) {
         return String.fromCharCode(parseInt(grp, 16));
     });
-    str = str.replace(/\\t/gi, "\t");
-    str = str.replace(/\\n/gi, "\n");
     return unescape(str);
 }
 

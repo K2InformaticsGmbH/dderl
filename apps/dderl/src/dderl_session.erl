@@ -162,7 +162,9 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
         <<"auto">> -> ExpandLevel = auto;
         ExpandLevel -> ok
     end,
-    case erlformat:format(StringToFormat, ExpandLevel) of
+    Force = proplists:get_value(<<"force">>, BodyJson, false),
+    ?Debug("Forced value: ~p", [Force]),
+    case erlformat:format(StringToFormat, ExpandLevel, Force) of
         {error, ErrorInfo} ->
             ?Error("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
             From ! {reply, jsx:encode([{<<"format_erlang_term">>,

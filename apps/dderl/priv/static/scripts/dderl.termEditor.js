@@ -18,11 +18,12 @@
         },
 
         _toolbarButtons : {
-            '<'       : {tip: 'Reduce expansion', typ : 'btn', icn : 'rev-play', clk : '_decreaseExp', dom: '_tbExpDown'},
-            'textBox' : {tip: 'Expansion level',  typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
-            '>'       : {tip: 'Next page',        typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
-            'accept'  : {tip: 'Set changes',      typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
-            'cancel'  : {tip: 'Discard changes',  typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' }},
+            'format' : {tip: 'Auto indent',       typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_autoFormat', dom: '_tbAutoFormat'},
+            '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'rev-play', clk : '_decreaseExp', dom: '_tbExpDown'},
+            'textBox': {tip: 'Expansion level',   typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
+            '>'      : {tip: 'Increase expansion',typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
+            'accept' : {tip: 'Set changes',       typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
+            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' }},
 
 
         // These options will be used as defaults
@@ -215,16 +216,26 @@
             this._termOwner.enableDialog();
         },
 
-        updateExp: function(expansionLevel) {
-            var stringToFormat = this._editText.val();
+        updateExp: function(expansionLevel, force) {
+            var stringToFormat = unescapeNewLines(this._editText.val());
             var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
-            ajaxCall(this, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionWithAuto}},'format_erlang_term', 'updateTextArea');
+            ajaxCall(this, '/app/format_erlang_term', {
+                format_erlang_term: {
+                    erlang_term: stringToFormat, 
+                    expansion_level: expansionWithAuto,
+                    force: force
+                }
+            }, 'format_erlang_term', 'updateTextArea');
         },
 
         /*
          * Toolbar callbak functions
          */
         // NOTE: self is 'this' and 'this' is dom ;)
+        _autoFormat: function(self) {
+            console.log('cb _autoFormat current ' + self._currentExpLvl);
+            self.updateExp(self._currentExpLvl, true);
+        },
         _decreaseExp: function(self) {
             console.log('cb _decreaseExp current: ' + self._currentExpLvl);
             self._currentExpLvl = self._currentExpLvl - 1;
@@ -232,7 +243,7 @@
                 self._currentExpLvl = -1;
             }
             self._updateTxtBox();
-            self.updateExp(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl, false);
         },
         _setExpLevel: function(self) {
             console.log('cb _setExpLevel ' + self._currentExpLvl);
@@ -240,7 +251,7 @@
                 self._currentExpLvl = -1;
             }
             self._updateTxtBox();
-            self.updateExp(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl, false);
         },
         _increaseExp: function(self) {
             console.log('cb _increaseExp current: ' + self._currentExpLvl);
@@ -249,13 +260,19 @@
                 self._currentExpLvl = -1;
             }
             self._updateTxtBox();
-            self.updateExp(self._currentExpLvl);
+            self.updateExp(self._currentExpLvl, false);
         },
         _saveChanges: function(self) {
             console.log('cb _saveChanges: the new term: ' + self._editText.val());
-            var stringToFormat = self._editText.val();
-            var expansionLevel = self._currentExpLvl;
-            ajaxCall(self, '/app/format_erlang_term', {format_erlang_term: {erlang_term:stringToFormat, expansion_level:expansionLevel}},'format_erlang_term', 'saveChangesResponse');
+            var stringToFormat = unescapeNewLines(self._editText.val());
+            var expansionWithAuto = (self._currentExpLvl < 0)? "auto": self._currentExpLvl;
+            ajaxCall(self, '/app/format_erlang_term', {
+                format_erlang_term: {
+                    erlang_term: stringToFormat,
+                    expansion_level: expansionWithAuto,
+                    force: false
+                }
+            }, 'format_erlang_term', 'saveChangesResponse');
         },
         _abortChanges: function(self) {
             console.log('['+self.options.title+'] cb _abortChanges');
