@@ -1,0 +1,143 @@
+#!/bin/sh
+#
+# dderl
+#
+# chkconfig: 2345 80 30
+# description: MPro is a multi-protocol messaging proxy
+# processname: beam
+# config: /opt/dderl/config/dderl/app.config
+# config: /opt/dderl/config/dderl/vm.args
+#
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+RETVAL=0
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="DDErl is a web application for browsing databases"
+NAME=dderl
+DAEMON=/opt/$NAME/bin/$NAME
+lockfile=/var/lock/subsys/$NAME
+pidfile=/var/run/$NAME/$NAME.pid
+
+# Check for script, config and data dirs
+[ -x $DAEMON ] || exit 0
+[ -f /opt/$NAME/config/$NAME/app.config ] || exit 0
+[ -f /opt/$NAME/config/$NAME/vm.args ] || exit 0
+[ -d /var/opt/$NAME ] || exit 0
+
+status -p $pidfile -l $(basename $lockfile) $NAME &>/dev/null
+running=$?
+
+check_pid_status() {
+    pid=$(ps ax | grep beam | grep "\-progname $NAME" | awk '{print $1}')
+    if [ "$pid" = "" ]; then
+        # prog not running?
+        return 1
+    else
+        # running
+        return 0
+    fi
+}
+
+start() {
+    # Start daemons.
+    echo -n $"Starting $NAME:"
+    su --session-command="$DAEMON start" $NAME
+    RETVAL=$?
+    if [ $RETVAL -eq 0 ]; then
+        touch $lockfile
+        success
+    else
+        failure $"$NAME start"
+    fi
+    echo
+    return $RETVAL
+}
+
+stop() {
+    # Stop daemon.
+    echo -n $"Shutting down $NAME: "
+    su --session-command="$DAEMON stop" $NAME
+    for n in $(seq 1 10); do
+        sleep 1
+        check_pid_status
+        RETVAL=$?
+        if [ $RETVAL -eq 1 ]; then
+            break
+        fi
+    done
+    if [ $RETVAL -eq 1 ]; then
+        rm -f $lockfile $pidfile
+        success
+    else
+        echo -n $"$NAME stop failure status: $RETVAL"
+        failure $"$NAME stop"
+    fi
+    echo
+    return $RETVAL
+}
+
+hardstop() {
+    echo -n $"Shutting down $NAME: "
+    su - $NAME -c "ps -ef | grep beam | grep '\-progname $NAME ' | grep -v grep | awk '{print \$2}' | xargs kill -9"
+    for n in $(seq 1 10); do
+        sleep 1
+        check_pid_status
+        RETVAL=$?
+        if [ $RETVAL -eq 1 ]; then
+            break
+        fi
+    done
+    if [ $RETVAL -eq 1 ]; then
+        rm -f $lockfile $pidfile
+        success
+    else
+        failure $"$NAME hardstop"
+    fi
+    echo
+    return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+    start)
+        [ $running -eq 0 ] && exit 0
+        start
+        ;;
+    stop)
+        if [ $running -eq 0 ]; then
+            stop
+        else
+            check_pid_status
+            RETVAL=$?
+            if [ $RETVAL -eq 1 ]; then
+                rm -f $lockfile $pidfile
+            fi
+            exit 0
+        fi
+        ;;
+    restart|force-reload)
+        [ $running -eq 0 ] && stop
+        start
+        ;;
+    hardstop)
+        [ $running -eq 0 ] || exit 0
+        hardstop
+        ;;
+    condrestart|try-restart)
+        [ $running -eq 0 ] || exit 0
+        restart
+        ;;
+    status)
+        status -p $pidfile -l $(basename $lockfile) $NAME
+        ;;
+    ping)
+        $DAEMON ping || exit $?
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|restart|force-reload|hardstop|condrestart|try-restart|status|ping}"
+        exit 1
+esac
+
+exit $?
