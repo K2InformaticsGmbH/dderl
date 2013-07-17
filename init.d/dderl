@@ -2,7 +2,7 @@
 #
 # dderl
 #
-# chkconfig: 2345 80 30
+# chkconfig: 345 80 30
 # description: MPro is a multi-protocol messaging proxy
 # processname: beam
 # config: /opt/dderl/config/dderl/app.config
