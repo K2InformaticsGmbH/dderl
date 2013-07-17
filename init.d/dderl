@@ -3,7 +3,7 @@
 # dderl
 #
 # chkconfig: 345 80 30
-# description: MPro is a multi-protocol messaging proxy
+# description: DDErl is generic web-based DB management tool
 # processname: beam
 # config: /opt/dderl/config/dderl/app.config
 # config: /opt/dderl/config/dderl/vm.args
