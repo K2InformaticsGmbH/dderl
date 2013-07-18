@@ -1410,7 +1410,7 @@
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined) {
-            self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'} );
+            self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'none'} );
         }
 
         // converting the title text to a link
@@ -2008,11 +2008,13 @@
                         var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
                         
                         // Dialog width adjustment
-                        if (self._footerWidth > gWidth) // table is smaller than the footer
+                        if (self._footerWidth > gWidth) {
+                            // table is smaller than the footer
                             dlg.width(self._footerWidth);
-                        else if (gWidth < rWindowWidth) // table is smaller than the remaining window
+                        } else if (gWidth < rWindowWidth) {
+                            // table is smaller than the remaining window
                             dlg.width(gWidth);
-                        else {
+                        } else {
                             // table is bigger then the remaining window
                             var orig_top = dlg.offset().top;
                             var new_left = dlg.offset().left - gWidth + rWindowWidth;

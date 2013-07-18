@@ -86,6 +86,7 @@
         $(document).ready(function() {
             $('#main-body').css('top', $('#main-menu-bar').height());
             if(Object.hasOwnProperty('freeze')) {
+                patch_jquery_ui();
                 check_already_connected();
             } else {
                 $('#main-menu-bar').hide();

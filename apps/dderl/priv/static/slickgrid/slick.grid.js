@@ -1024,13 +1024,21 @@ if (typeof Slick === "undefined") {
     }
 
     function applyColumnWidths() {
-      var x = 0, w, rule;
+      var w, rule, cssLeft, cssRight, x = 0;
+
       for (var i = 0; i < columns.length; i++) {
         w = columns[i].width;
 
         rule = getColumnCssRules(i);
-        rule.left.style.left = x + "px";
-        rule.right.style.right = (canvasWidth - x - w) + "px";
+
+        cssLeft = x;
+        if(cssLeft < 0.001) { cssLeft = 0;}
+
+        cssRight = canvasWidth - x - w;
+        if(cssRight < 0.001) { cssRight = 0;}
+
+        rule.left.style.left = cssLeft + "px";
+        rule.right.style.right = cssRight + "px";
 
         x += columns[i].width;
       }
