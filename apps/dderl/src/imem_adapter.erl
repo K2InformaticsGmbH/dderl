@@ -328,10 +328,15 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
     Priv.
 
-disconnect(#priv{connections = Connections} = Priv) ->
-    ?Debug("closing the connections ~p", [Connections]),
-    [Connection:close() || Connection <- Connections],
-    Priv#priv{connections = []}.
+disconnect(#priv{connections = []} = Priv) -> Priv;
+disconnect(#priv{connections = [Connection | Rest]} = Priv) ->
+    ?Debug("closing the connection ~p", [Connection]),
+    try Connection:close()
+    catch Class:Error ->
+            ?Error("Error trying to close the connection ~p ~p:~p~n~p~n",
+                   [Connection, Class, Error, erlang:get_stacktrace()])
+    end,
+    disconnect(Priv#priv{connections = Rest}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gui_resp_cb_fun(Cmd, Statement, From) ->

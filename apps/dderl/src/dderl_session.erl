@@ -269,12 +269,16 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
 jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
 jsq(OtherTypes) -> OtherTypes.
 
-logout(#state{sess=undefined, adapt_priv=AdaptPriv} = State) ->
+logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
     [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
     State#state{adapt_priv = []};
-logout(#state{sess=Sess} = State) ->
-    Sess:close(),
-    logout(State#state{sess=undefined}).
+logout(#state{sess = Sess} = State) ->
+    try Sess:close()
+    catch Class:Error ->
+            ?Error("Error trying to close the session ~p ~p:~p~n~p~n",
+                   [Sess, Class, Error, erlang:get_stacktrace()])
+    end,
+    logout(State#state{sess = undefined}).
 
 get_apps_version([], _Deps) -> [];
 get_apps_version([App|Rest], Deps) ->
