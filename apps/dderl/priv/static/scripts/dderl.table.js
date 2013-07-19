@@ -86,8 +86,7 @@
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
                        'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs',
-                       'Plot'           : '_plotTable'},
+                       'Save View As'   : '_saveViewAs'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Hide'             : '_hide',
