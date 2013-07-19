@@ -83,12 +83,29 @@ function check_already_connected() {
 }
 
 function logout() {
-    ajaxCall(null,'/app/logout', null, 'logout', function(data) {
-        if(data == "ok") {
+    var headers = new Object();
+
+    if (adapter != null) {
+        headers['adapter'] = adapter;
+    }
+    headers['dderl_sess'] = (session != null ? '' + session : '');
+
+    $.ajax({
+        type: 'POST',
+        url: '/app/logout',
+        data: JSON.stringify({}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus, request) {
+            console.log('Request logout Result ' + textStatus);
             process_logout();
-        }
-        else {
-            alert('Log out failed : ' + data);
+        },
+
+        error: function (request, textStatus, errorThrown) {
+            process_logout();
         }
     });
 }

@@ -74,7 +74,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
         success: function(_data, textStatus, request)
         {
-            console.log('Requst '+_url+' Result '+textStatus);
+            console.log('Request '+_url+' Result '+textStatus);
             
             // dderl_sess is saved in global var session and (optionally)
             // in the dderlSession and _session property of the widget

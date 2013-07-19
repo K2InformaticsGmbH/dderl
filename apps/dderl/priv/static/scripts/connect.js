@@ -27,7 +27,6 @@ function load_connections()
         }, 1);
     });
 
-
     $('#adapter_list').change(function() {
         set_owner_list($("#adapter_list").val());
     });
@@ -68,7 +67,6 @@ function set_owner_list(adapter)
         $('#owners_list-input').val(currentOwner);
         set_conns_list(adapter, currentOwner);
     }
-
 }
 
 function set_conns_list(adapter, owner)
@@ -100,18 +98,38 @@ function set_conns_list(adapter, owner)
 }
 
 function disconnect_tab() {
-    if(connection) {
-        ajaxCall(null,'/app/disconnect', {disconnect: {connection: connection}}, 'disconnect', function(data) {
-            if(data == "ok") {
-                connection = null;
-                adapter = null;
-                $(".ui-dialog-content").dialog('close');
-                connect_dlg();
-            } else {
-                alert('Unable to disconnect : ' + data);
-            }
-        });
+    var headers = new Object();
+
+    if (adapter != null) {
+        headers['adapter'] = adapter;
     }
+    headers['dderl_sess'] = (session != null ? '' + session : '');
+
+    $.ajax({
+        type: 'POST',
+        url: '/app/disconnect',
+        data: JSON.stringify({disconnect: {connection: connection}}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus, request) {
+            console.log('Request disconnect result ' + textStatus);
+            connection = null;
+            adapter = null;
+            $(".ui-dialog-content").dialog('close');
+            connect_dlg();
+        },
+
+        error: function (request, textStatus, errorThrown) {
+            console.log('Request disconnect result ' + textStatus);
+            connection = null;
+            adapter = null;
+            $(".ui-dialog-content").dialog('close');
+            connect_dlg();
+        }
+    });
 }
 
 var children;

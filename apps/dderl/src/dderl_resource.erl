@@ -35,9 +35,12 @@ init({ssl, http}, Req, []) ->
                 {loop, Req4, DDerlSessPid, 60000, hibernate};
             {error, Reason} ->
                 ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
-                {error, session_timeout, Req2}
+                self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
+                {loop, Req2, Session, 5000, hibernate}
         end;
-    _ -> {ok, Req, undefined}
+    _ ->
+        self() ! {reply, <<"{}">>},
+        {loop, Req, <<>>, 5000, undefined}
     end.
 
 info({reply, Body}, Req, DDerlSessPid) ->
@@ -57,10 +60,14 @@ create_new_session(<<>>) ->
     {ok, DderlSess};
 create_new_session([_,_|_] = DDerlSessPid) ->
     ?Debug("existing session ~p", [DDerlSessPid]),
-    Pid = ?DecryptPid(DDerlSessPid),
-    case erlang:process_info(Pid) of
-        undefined -> {error, "process not found"};
-        _ -> {ok, {dderl_session, Pid}}
+    try ?DecryptPid(DDerlSessPid) of
+        Pid ->
+            case erlang:process_info(Pid) of
+                undefined -> {error, "process not found"};
+                _ -> {ok, {dderl_session, Pid}}
+            end
+    catch
+        Error:Reason ->  {error, {Error, Reason}}
     end;
 create_new_session(S) when is_binary(S) -> create_new_session(binary_to_list(S));
 create_new_session(_) -> create_new_session(<<>>).
@@ -71,11 +78,13 @@ create_new_session(_) -> create_new_session(<<>>).
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Body, DDerlSessPid, Req) ->
+reply_200_json(Body, DDerlSessPid, Req) when is_pid(DDerlSessPid) ->
+    reply_200_json(Body, list_to_binary(?EncryptPid(DDerlSessPid)), Req);
+reply_200_json(Body, EncryptedPid, Req) ->
 	cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
-        , {<<"dderl_sess">>, list_to_binary(?EncryptPid(DDerlSessPid))}
+        , {<<"dderl_sess">>, EncryptedPid}
         ], Body, Req).
 
 -ifdef(DISP_REQ).
