@@ -116,7 +116,7 @@ expand_auto(Term, Col) when is_list(Term)   ->
         false -> expand_elements(Term, "[]", Col)
     end.
 
-expand_elements([], Brackets, _Col) -> [Brackets];
+expand_elements([], Brackets, _Col) -> {false, [Brackets]};
 expand_elements([Element | Rest] = Term, [LB, RB], Col) ->
     TextWidth = length(lists:flatten(io_lib:format("~w", [Term]))),
     Result = lists:flatten(get_result(expand_auto(Element, Col+1))),
