@@ -995,7 +995,7 @@
         self._grid.onBeforeCellEditorDestroy.subscribe($.proxy(self._gridAfterEdit, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
-        self._grid.onKeyDown.subscribe($.proxy(self._delRow, self));
+        self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
         self._gdata = self._grid.getData();
     },
@@ -1599,25 +1599,35 @@
         }
     },
 
-    _delRow: function(e, args) {
-        if(e.keyCode == 27 && this._loop) {
+    _handleKeyDown: function(e, args) {
+        var keyCode = $.ui.keyCode;
+        var col;
+        var activeCell;
+        if(e.keyCode === 27 && this._loop) { // Esc
             this._editorEscaped = true;
         }
+
         if(this._grid.getCellEditor()) {
-            if(e.keyCode == 9) {
+            if(e.keyCode === keyCode.ENTER) {
                 e.stopImmediatePropagation();
-                //Keep the cell in edit mode after a tab.
                 do {
                     this._grid.navigateNext();
-                    this._grid.editActiveCell();
-                } while (!this._grid.getCellEditor());
+                    activeCell = this._grid.getActiveCell();
+                    if(activeCell) {
+                        col = activeCell.cell;
+                    }
+                } while (activeCell && !this._grid.getColumns()[col].editor);
+            } else if(!this._grid.getCellEditor().isFocused()) {
+                this._grid.editActiveCell();
             }
-        } else if(e.keyCode == 46) {
+            // If we are in edit mode already.
+            return;
+        } else if(e.keyCode === 46) { // Del
             e.stopImmediatePropagation();
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
             var rids = [];
-            for(var i=0; i < selRanges.length; ++i) {
+            for(var i = 0; i < selRanges.length; ++i) {
                 for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
                     if(this._gdata[ri].op !== 'ins') {
                         this._gdata[ri].op = 'del';
@@ -1637,6 +1647,36 @@
 
             this._grid.updateRowCount();
             this._grid.invalidate();
+        } else if(e.keyCode === keyCode.ENTER || e.keyCode === 113) {
+            e.stopImmediatePropagation();
+            this._grid.editActiveCell();
+            if(this._grid.getCellEditor()) {
+                this._grid.getCellEditor().moveCaretToEnd();
+            }
+        } else if((e.keyCode >= 112 && e.keyCode <= 123) ||
+                  $.inArray(e.keyCode, [keyCode.LEFT, keyCode.RIGHT, keyCode.UP,
+                                        keyCode.DOWN, keyCode.PAGE_UP, keyCode.PAGE_DOWN,
+                                        keyCode.CAPS_LOCK, keyCode.HOME, keyCode.END,
+                                        keyCode.INSERT, keyCode.TAB, keyCode.ENTER,
+                                        16, 17, 18, 225]) !== -1) {
+            // Checks for keys we handle different.
+            // 112-123 -> F1 - F12
+            // 16, 17, 18 -> shift, ctrl, alt
+            // 225 -> altgr on firefox ?
+            return;
+        } else {
+            var activeCellNode = this._grid.getActiveCellNode();
+            var isInEditMode = $(activeCellNode).hasClass("editable");
+
+            activeCell = this._grid.getActiveCell()
+            if (activeCell && !isInEditMode) {
+                col = activeCell.cell;
+
+                // would be nice to have xor in javascript to avoid confusing ternary operator.
+                if (this._grid.getColumns()[col].editor && !(e.ctrlKey? !e.altKey : e.altKey)) {
+                    this._grid.editActiveCell();
+                }
+            }
         }
     },
 

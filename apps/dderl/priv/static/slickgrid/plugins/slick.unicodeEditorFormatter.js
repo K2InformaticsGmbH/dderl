@@ -95,6 +95,19 @@ function fromUnicodeLiteral(str)
             $input.focus();
         };
 
+        this.moveCaretToEnd = function() {
+            var textBox = $input[0];
+            textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+        };
+
+        this.isEmpty = function() {
+            return $input.val() == "";
+        };
+
+        this.isFocused = function() {
+            return $input.is(":focus");
+        };
+
         this.loadValue = function (item) {
             defaultValue = item[args.column.field] || "";
             $input.val(unicodeLiteral(defaultValue));
