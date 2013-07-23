@@ -2085,12 +2085,7 @@
                     }
                 }
             }
-            if(this._grid.getCellEditor()) {
-                self._grid.invalidate();
-                this._grid.editActiveCell();
-            } else {
-                this._grid.invalidate();
-            }
+            this._grid.invalidate();
 
             // 
             // loading of rows is the costliest of the operations
