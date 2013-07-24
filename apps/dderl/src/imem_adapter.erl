@@ -231,7 +231,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
         true ->
             case lists:member(Connection, Connections) of
                 true ->
-                    Name = lists:last(tuple_to_list(R)),
+                    Name = element(3 + Col, R),
                     Query = <<"select * from ", Name/binary>>,
                     Resp = process_query(Query, Connection),
                     RespJson = jsx:encode([{<<"browse_data">>,
