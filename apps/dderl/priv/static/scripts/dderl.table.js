@@ -31,6 +31,7 @@
     // sort and filter
     _sorts          : null,
     _filters        : null,
+    _fltrDlg        : null,
     _INIT_WAIT_TAIL : 5,
     _rftchExpBkOff  : 5,
     _MAX_WAIT_TAIL  : 1000,
@@ -134,7 +135,8 @@
                               enableCellNavigation: true,
                               asyncEditorLoading: false,
                               autoEdit: false,
-                              rowHeight: 20
+                              rowHeight: 20,
+                              editorLock: null
                             },
 
         // dderl options
@@ -176,7 +178,12 @@
             self._divSqlEditor = self.options.dderlSqlEditor;
         }
 
-        //initialize the array containing the history if was not set in the options
+        // editor lock private to this table.
+        if(!self.options.slickopts.editorLock) {
+            self.options.slickopts.editorLock = new Slick.EditorLock();
+        }
+
+        // initialize the array containing the history if was not set in the options
         if(!self._cmdStrs) self._cmdStrs = [];
 
         // dialog elements
@@ -814,14 +821,19 @@
     },
     _showFilterGui: function() {
         var self = this;
+        // first check if we have a filter open and close it.
+        if(self._fltrDlg && self._fltrDlg.hasClass('ui-dialog-content')) {
+            self._fltrDlg.dialog("close");
+        }
+
         // number of current filters
         var fCount = 0;
         for (var c in self._filters)
             fCount++;
 
-        var fltrDlg =
+        self._fltrDlg =
             $('<div>')
-            .css('width', 400)
+            .css('width', 336)
             .appendTo(document.body);
 
         var fltrTbl =
@@ -831,7 +843,7 @@
             .attr('border', 0)
             .attr('cellpadding', 0)
             .attr('cellspacing', 0)   
-            .appendTo(fltrDlg);
+            .appendTo(self._fltrDlg);
         for(var c in self._filters) {
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
@@ -846,9 +858,9 @@
                 .appendTo(fltrTbl);
         }
 
-        fltrDlg
+        self._fltrDlg
             .dialog({
-                width: fltrTbl.width()+60,
+                width: fltrTbl.width(),
                 modal: false,
                 title:'Filter',
                 position: { my: "left top", at: "left bottom", of: this._dlg },
@@ -866,8 +878,10 @@
                 }
             });
 
-        fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
-        fltrDlg.dialog("widget").appendTo("#main-body");
+        self._fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
+        self._fltrDlg.dialog("widget").appendTo("#main-body");
+        //Lets put it where we have space...
+        smartDialogPosition($("#main-body"), this._dlg, self._fltrDlg, ['bottom','right','left','top','right']);
 
         var applyFiltersFn = function(type) {
             var filterspec = self._filterSpec2Json(type);
@@ -887,10 +901,10 @@
                 { text: 'Apply', click: function() { applyFiltersFn.apply(this, ['and']);}}
             ];
         }
-        fltrDlg.dialog('option', 'buttons', buttons);
+        self._fltrDlg.dialog('option', 'buttons', buttons);
 
-        var dH = fltrDlg.height() / fCount - 30;
-        var dW = fltrDlg.width() - 30;
+        var dH = self._fltrDlg.height() / fCount - 30;
+        var dW = self._fltrDlg.width() - 30;
         for(var c in self._filters) {
             self._filters[c].inp.width(dW);
             self._filters[c].inp.height(dH);
@@ -1483,7 +1497,8 @@
         if(found) {
             gSelMdl.setSelectedRanges(fullCols);
         } else {
-            var newSelection = new Slick.Range(0, col, g.getDataLength() - 1, col);
+            var lastRow = (g.getDataLength() === 0? 0 : g.getDataLength() -1);
+            var newSelection = new Slick.Range(0, col, lastRow, col);
             newSelection.fullCol = true;
             gSelMdl.setSelectedRanges([newSelection]);
         }
@@ -2070,11 +2085,11 @@
                         var gHeight = self._getGridHeight() + 10;
                         var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
                         if (dlg.height() > gHeight)       // if dialog is already bigger than height required by the table
-                            this._dlg.height(gHeight);
+                            self._dlg.height(gHeight);
                         else if (gHeight < rWindowHeight) // if table height is less then remaining window height
-                            this._dlg.height(gHeight);
+                            self._dlg.height(gHeight);
                         else                              // if table height is still bigger than the remaining window height
-                            this._dlg.height(rWindowHeight);
+                            self._dlg.height(rWindowHeight);
                         if (oldDlgHeight != dlg.height())
                             self._grid.resizeCanvas();
                     }
@@ -2085,7 +2100,16 @@
                     }
                 }
             }
-            this._grid.invalidate();
+            // If we are tailing we need to keep the editor
+            // TODO: Improve this design to avoid errors in edge cases.
+            if(self._grid.getCellEditor() && _rows.loop == "tail") {
+                self._grid.invalidate();
+                if(self._grid.getActiveCell().row < self._gdata.length) {
+                    self._grid.editActiveCell();
+                }
+            } else {
+                self._grid.invalidate();
+            }
 
             // 
             // loading of rows is the costliest of the operations
