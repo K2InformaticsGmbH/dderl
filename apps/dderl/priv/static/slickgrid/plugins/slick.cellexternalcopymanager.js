@@ -228,13 +228,7 @@
             }
           }
 
-          var bRange = {
-            'fromCell': activeCell,
-            'fromRow': activeRow,
-            'toCell': activeCell+this.w-1,
-            'toRow': activeRow+this.h-1
-          }
-
+          var bRange = new Slick.Range(activeRow, activeCell, activeRow+this.h-1, activeCell+this.w-1);
           this.markCopySelection([bRange]);
           _grid.getSelectionModel().setSelectedRanges([bRange]);
           this.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
@@ -258,12 +252,7 @@
             }
           }
 
-          var bRange = {
-            'fromCell': activeCell,
-            'fromRow': activeRow,
-            'toCell': activeCell+this.w-1,
-            'toRow': activeRow+this.h-1
-          }
+          var bRange = new Slick.Range(activeRow, activeCell, activeRow+this.h-1, activeCell+this.w-1);
 
           this.markCopySelection([bRange]);
           _grid.getSelectionModel().setSelectedRanges([bRange]);

@@ -115,8 +115,27 @@
         }
 
         function setSelectedRanges(ranges) {
+            var currentCell = _grid.getActiveCell();
+
             _ranges = removeInvalidRanges(ranges);
             _self.onSelectedRangesChanged.notify(_ranges);
+
+            for(var i = 0; currentCell && i < ranges.length; ++i) {
+                if(_ranges[i].contains(currentCell.row, currentCell.cell)) {
+                    return;
+                }
+                // TODO: Check if the active cell is the row itself.
+                if(currentCell.cell == 0) {
+                    if(currentCell.row >= _ranges[i].fromRow &&
+                       currentCell.row <= _ranges[i].toRow) {
+                        if(_ranges[i].fromCell == 1 &&
+                           _ranges[i].toCell == _grid.getColumns().length - 1) {
+                            return;
+                        }
+                    }
+                }
+            }
+            _grid.resetActiveCell();
         }
 
         function getSelectedRanges() {
@@ -131,6 +150,7 @@
         }
 
         function handleCellRangeSelected(e, args) {
+            _grid.getEditorLock().commitCurrentEdit();
             setSelectedRanges([args.range]);
         }
 
@@ -159,6 +179,7 @@
                 if (typeof data.column.id != "undefined") {
                     var col = _grid.getColumnIndex(data.column.id);
                     var maxRow = _grid.getDataLength() - 1;
+                    _grid.getEditorLock().commitCurrentEdit();
 
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                         setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
@@ -193,6 +214,7 @@
         function handleKeyDown(e) {
             var activeRow = _grid.getActiveCell();
             if (activeRow && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && (e.which == 38 || e.which == 40)) {
+                _grid.getEditorLock().commitCurrentEdit();
                 var selectedRows = getSelectedRows();
                 selectedRows.sort(function (x, y) {
                     return x - y
@@ -233,6 +255,7 @@
                 return false;
             }
             else if (_grid.getOptions().multiSelect) {
+                _grid.getEditorLock().commitCurrentEdit();
                 if(cell.cell === 0) {
                     var selection = rangesToRows(_ranges);
                     var idx = $.inArray(cell.row, selection);

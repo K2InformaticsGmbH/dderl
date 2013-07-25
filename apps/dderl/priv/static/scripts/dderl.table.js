@@ -948,15 +948,9 @@
         console.log('_browseCellData for '+_ranges.length+' slick range(s)');
 
         // test the range and throw unsupported exceptions
-        if(_ranges.length > 2 || _ranges.length >= 2 && (!(
-                _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
-                _ranges[0].fromCell === _ranges[0].toCell &&
-                _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
-                _ranges[1].fromCell === _ranges[1].toCell &&
-                _ranges[1].fromCell === _ranges[0].toCell && // same cell
-                _ranges[1].fromRow  === _ranges[0].toRow)))
-                throw('cell level \'Browse Data\' don\'t support multiples and ranges');
-        else {
+        if(!self._singleCellSelected(_ranges)) {
+            throw('cell level \'Browse Data\' don\'t support multiples and ranges');
+        } else {
             var cell    = _ranges[0];
             var column  = self._grid.getColumns()[cell.fromCell];
             var data    = self._gdata[cell.fromRow];
@@ -972,13 +966,7 @@
 
     _editErlangTerm: function (_ranges) {
         var self = this;
-        if(_ranges.length > 2 || _ranges.length >= 2 && (!(
-                _ranges[0].fromRow  === _ranges[0].toRow  && // single cell
-                _ranges[0].fromCell === _ranges[0].toCell &&
-                _ranges[1].fromRow  === _ranges[1].toRow  && // single cell
-                _ranges[1].fromCell === _ranges[1].toCell &&
-                _ranges[1].fromCell === _ranges[0].toCell && // same cell
-                _ranges[1].fromRow  === _ranges[0].toRow))) {
+        if(!self._singleCellSelected(_ranges)) {
             throw('cell level \'Edit Erlang Term\' don\'t support multiples and ranges');
         } else {
             var cell = _ranges[0];
@@ -1371,7 +1359,7 @@
                         this._rftchExpBkOff = this._MAX_WAIT_TAIL;
                     }
                     console.log('no rows received, retrying '+_rows.loop+' after '+this._rftchExpBkOff+' ms');
-                    setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
+                    this._tailTimer = setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
                 }
             } else {
                 this._rftchExpBkOff = 2; // end of command looping received
@@ -1594,9 +1582,13 @@
     },
 
     _gridBeforeEdit: function(e, args) {
+        if(!this._singleCellSelected(this._grid.getSelectionModel().getSelectedRanges())) {
+            return false;
+        }
         if(args.item) {
             this._editedText = args.item[args.column.field];
         }
+        return true;
     },
 
     _gridAfterEdit: function(e, args) {
@@ -1668,6 +1660,9 @@
             this._grid.invalidate();
         } else if(e.keyCode === keyCode.ENTER || e.keyCode === 113) {
             e.stopImmediatePropagation();
+            if(!this._singleCellSelected(this._grid.getSelectionModel().getSelectedRanges())) {
+                return;
+            }
             this._grid.editActiveCell();
             if(this._grid.getCellEditor()) {
                 this._grid.getCellEditor().moveCaretToEnd();
@@ -1693,7 +1688,9 @@
 
                 // would be nice to have xor in javascript to avoid confusing ternary operator.
                 if (this._grid.getColumns()[col].editor && !(e.ctrlKey? !e.altKey : e.altKey)) {
-                    this._grid.editActiveCell();
+                    if(this._singleCellSelected(this._grid.getSelectionModel().getSelectedRanges())) {
+                        this._grid.editActiveCell();
+                    }
                 }
             }
         }
@@ -1744,6 +1741,9 @@
     },
 
     close_stmt: function() {
+        if(this._tailTimer) {
+            clearTimeout(this._tailTimer);
+        }
         if(this._stmt && session && connection) {
             this.buttonPress("close");
         }
@@ -1836,6 +1836,22 @@
                 .data('cnxt', self)
                 .show();
         });
+    },
+
+    _singleCellSelected: function(selRanges) {
+        if(selRanges.length > 2) {
+            return false;
+        } else if(selRanges.length == 2) {
+            return (selRanges[0].fromRow  === selRanges[0].toRow  && // single cell
+                    selRanges[0].fromCell === selRanges[0].toCell &&
+                    selRanges[1].fromRow  === selRanges[1].toRow  && // single cell
+                    selRanges[1].fromCell === selRanges[1].toCell &&
+                    selRanges[1].fromCell === selRanges[0].toCell && // same cell
+                    selRanges[1].fromRow  === selRanges[0].toRow);
+        } else if(selRanges.length == 1) {
+            return (selRanges[0].fromRow  === selRanges[0].toRow &&
+                    selRanges[0].fromCell === selRanges[0].toCell);
+        }
     },
 
     // Use the destroy method to clean up any modifications your widget has made to the DOM
