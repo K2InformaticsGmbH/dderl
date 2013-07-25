@@ -415,11 +415,13 @@ process_query(Query, {_,ConPid}=Connection) ->
              {<<"connection">>, list_to_binary(?EncryptPid(ConPid))}];
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
+            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
         {error, {Ex,M}} ->
             ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++ element(1, M)),
+            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
         Error ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
