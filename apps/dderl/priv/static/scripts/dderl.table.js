@@ -300,7 +300,9 @@
 
     _editCmd: function(cmd) {
         var self = this;
-        if(!self._divSqlEditor || !self._divSqlEditor.hasClass('ui-dialog-content')) {
+        if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
+            self._divSqlEditor.dialog("moveToTop");
+        } else {
             self._divSqlEditor = $('<div>')
                 .appendTo(document.body)
                 .sql({autoOpen  : false,
@@ -398,6 +400,7 @@
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
         this._ajax('/app/query', {query: {connection: connection, qstr : this._cmd}}, 'query', 'queryResult');
+        this._dlg.dialog("moveToTop");
     },
 
     // columns hide/unhide
@@ -828,8 +831,9 @@
 
         // number of current filters
         var fCount = 0;
-        for (var c in self._filters)
+        for (var c in self._filters) {
             fCount++;
+        }
 
         self._fltrDlg =
             $('<div>')
