@@ -114,22 +114,23 @@
             return result;
         }
 
-        function setSelectedRanges(ranges) {
+        function setSelectedRanges(origRanges) {
             var currentCell = _grid.getActiveCell();
 
-            _ranges = removeInvalidRanges(ranges);
+            _ranges = removeInvalidRanges(origRanges);
             _self.onSelectedRangesChanged.notify(_ranges);
 
-            for(var i = 0; currentCell && i < ranges.length; ++i) {
-                if(_ranges[i].contains(currentCell.row, currentCell.cell)) {
+            // We have to test in the original ranges
+            for(var i = 0; currentCell && i < origRanges.length; ++i) {
+                if(origRanges[i].contains(currentCell.row, currentCell.cell)) {
                     return;
                 }
-                // TODO: Check if the active cell is the row itself.
+                // Check if the active cell is the row itself.
                 if(currentCell.cell == 0) {
-                    if(currentCell.row >= _ranges[i].fromRow &&
-                       currentCell.row <= _ranges[i].toRow) {
-                        if(_ranges[i].fromCell == 1 &&
-                           _ranges[i].toCell == _grid.getColumns().length - 1) {
+                    if(currentCell.row >= origRanges[i].fromRow &&
+                       currentCell.row <= origRanges[i].toRow) {
+                        if(origRanges[i].fromCell == 1 &&
+                           origRanges[i].toCell == _grid.getColumns().length - 1) {
                             return;
                         }
                     }

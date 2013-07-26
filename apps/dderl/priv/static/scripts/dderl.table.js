@@ -1582,7 +1582,9 @@
     },
 
     _gridBeforeEdit: function(e, args) {
-        if(!this._singleCellSelected(this._grid.getSelectionModel().getSelectedRanges())) {
+        var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
+        if(!(currentSelectedRanges.length == 0 ||
+             this._singleCellSelected(currentSelectedRanges))) {
             return false;
         }
         if(args.item) {
@@ -1605,8 +1607,12 @@
         } else {
             cellChanged = args.editor.isValueChanged();
         }
-        if(!cellChanged && loop) {
-            self.buttonPress(loop);
+        if(!cellChanged) {
+            console.log("deleting pending editor");
+            delete self._pendingEditorCell;
+            if (loop) {
+                self.buttonPress(loop);
+            }
         }
     },
 
@@ -1614,16 +1620,27 @@
         var keyCode = $.ui.keyCode;
         var col;
         var activeCell;
+        var oldActiveCell;
         if(e.keyCode === 27 && this._loop) { // Esc
             this._editorEscaped = true;
         }
 
+        // TODO: Review this, maybe it can be simplified.
         if(this._grid.getCellEditor()) {
             if(e.keyCode === keyCode.ENTER) {
                 e.stopImmediatePropagation();
                 do {
+                    oldActiveCell = this._grid.getActiveCell();
                     this._grid.navigateNext();
                     activeCell = this._grid.getActiveCell();
+                    if(activeCell && oldActiveCell &&
+                       activeCell.row == oldActiveCell.row &&
+                       activeCell.cell == oldActiveCell.cell &&
+                       this._gdata.length == activeCell.row) {
+                        this._pendingEditorCell = activeCell;
+                        console.log("saving pending editor!");
+                        break;
+                    }
                     if(activeCell) {
                         col = activeCell.cell;
                     }
@@ -1688,7 +1705,11 @@
 
                 // would be nice to have xor in javascript to avoid confusing ternary operator.
                 if (this._grid.getColumns()[col].editor && !(e.ctrlKey? !e.altKey : e.altKey)) {
-                    if(this._singleCellSelected(this._grid.getSelectionModel().getSelectedRanges())) {
+                    // If we have an active cell but no range means that we are in a new cell, 
+                    // so we open the editor.
+                    var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
+                    if(currentSelectedRanges.length == 0 ||
+                       this._singleCellSelected(currentSelectedRanges)) {
                         this._grid.editActiveCell();
                     }
                 }
@@ -2122,11 +2143,19 @@
             }
             // If we are tailing we need to keep the editor
             // TODO: Improve this design to avoid errors in edge cases.
+            // Note: it is not posible to call invalidate before checking for
+            //       the cell editor, since calling invalidate will destroy it.
             if(self._grid.getCellEditor() && _rows.loop == "tail") {
                 self._grid.invalidate();
                 if(self._grid.getActiveCell().row < self._gdata.length) {
                     self._grid.editActiveCell();
                 }
+            } else if(self._pendingEditorCell && _rows.op == "ins") {
+                console.log("en append rows deleting pendingeditorcell");
+                self._grid.invalidate();
+                self._grid.setActiveCell(self._pendingEditorCell.row + 1,
+                                         self._pendingEditorCell.cell);
+                delete self._pendingEditorCell;
             } else {
                 self._grid.invalidate();
             }
