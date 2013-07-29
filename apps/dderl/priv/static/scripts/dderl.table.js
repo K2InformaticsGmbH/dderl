@@ -68,6 +68,10 @@
                         filterResult    : function(e, _result) { e.data._renderRows(_result); },
                         sortResult      : function(e, _result) { e.data._renderRows(_result); },
                         reorderResult   : function(e, _result) { e.data._renderRows(_result); },
+                        truncateResult  : function(e, _result) { e.data._reloadOnSuccess(_result); },
+                        dropResult      : function(e, _result) { e.data._reloadOnSuccess(_result); },
+                        snapshotResult  : function(e, _result) { e.data._reloadOnSuccess(_result); },
+                        restoreResult   : function(e, _result) { e.data._reloadOnSuccess(_result); },
                         editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor(_result); }
                       },
 
@@ -100,7 +104,11 @@
                        'Sort Clear'       : '_sortClear'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
-                       'Edit Erlang Term' : '_editErlangTerm'},
+                       'Edit Erlang Term' : '_editErlangTerm',
+                       'Truncate Table'   : '_truncateTable',
+                       'Drop Table'       : '_dropTable',
+                       'Snapshot Table'   : '_snapshotTable',
+                       'Restore Table'    : '_restoreTable'},
 
     // These options will be used as defaults
     options: {
@@ -941,27 +949,59 @@
         return filterspec;
     },
     
-    // browse_data actions
-    _browseCellData: function(_ranges) {
+    // table actions
+    _browseCellData: function(ranges) {
         var self = this;
+        console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
         
-        console.log('_browseCellData for '+_ranges.length+' slick range(s)');
-
         // test the range and throw unsupported exceptions
-        if(!self._singleCellSelected(_ranges)) {
+        if(!self._singleCellSelected(ranges)) {
             throw('cell level \'Browse Data\' don\'t support multiples and ranges');
         } else {
-            var cell    = _ranges[0];
+            var cell    = ranges[0];
             var column  = self._grid.getColumns()[cell.fromCell];
             var data    = self._gdata[cell.fromRow];
-            // console.log('browse_data @ '+column.name+' val '+JSON.stringify(data));
+            // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
             self._ajax('/app/browse_data',
                            { browse_data: {connection : connection,
                                             statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
                                                   col : this._origcolumns[column.field]}},
                            'browse_data', 'browseData');
+         }
+    },
+
+    _runTableCmd: function(tableCmd, callback, ranges) {
+        var self = this;
+
+        console.log(tableCmd + ' for '+ ranges.length + ' slick range(s)');
+
+        // test the range and throw unsupported exceptions
+        if(!self._singleCellSelected(ranges)) {
+            throw('cell level ' + tableCmd + ' don\'t support multiples and ranges');
+        } else {
+            var cell    = ranges[0];
+            var column  = self._grid.getColumns()[cell.fromCell];
+            var row    = self._gdata[cell.fromRow];
+            var context = {};
+            context[tableCmd] = {connection : connection,
+                                 statement : self._stmt,
+                                 table_name : row[column.field]};
+            self._ajax('/app/' + tableCmd, context, tableCmd, callback);
         }
+    },
+
+    _truncateTable: function(ranges) {
+        this._runTableCmd('truncate_table', 'truncateResult', ranges);
+    },
+    _dropTable: function (ranges) {
+        this._runTableCmd('drop_table', 'dropResult', ranges);
+    },
+    _snapshotTable: function(ranges) {
+        this._runTableCmd('snapshot_table', 'snapshotResult', ranges);
+    },
+    _restoreTable: function(ranges) {
+        this._runTableCmd('restore_table', 'restoreResult', ranges);
     },
 
     _editErlangTerm: function (_ranges) {
@@ -1367,6 +1407,16 @@
         }
         else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
+        }
+    },
+
+    _reloadOnSuccess: function(result) {
+        // received response clear wait wheel
+        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        if(result.hasOwnProperty('error')) {
+            alert_jq(result.error);
+        } else {
+            this._toolBarReload(this);
         }
     },
 

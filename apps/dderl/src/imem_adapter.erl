@@ -282,6 +282,15 @@ process_cmd({[<<"reorder">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     ColumnOrder = proplists:get_value(<<"column_order">>, BodyJson, []),
     Statement:gui_req(reorder, ColumnOrder, gui_resp_cb_fun(<<"reorder">>, Statement, From)),
     Priv;
+process_cmd({[<<"drop_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    process_table_cmd(drop_table, <<"drop_table">>, ReqBody, From, Connections),
+    Priv;
+process_cmd({[<<"truncate_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    process_table_cmd(truncate_table, <<"truncate_table">>, ReqBody, From, Connections),
+    Priv;
+process_cmd({[<<"snapshot_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    process_table_cmd(snapshot_table, <<"snapshot_table">>, ReqBody, From, Connections),
+    Priv;
 
 % gui button events
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
@@ -432,6 +441,41 @@ process_query(Query, {_,ConPid}=Connection) ->
                     Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
                     [{<<"error">>, Err}]
             end
+    end.
+
+process_table_cmd(Cmd, BinCmd, ReqBody, From, Connections) ->
+    [{BinCmd, BodyJson}] = ReqBody,
+    TableName = proplists:get_value(<<"table_name">>, BodyJson, <<>>),
+    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = {erlimem_session, ConnPid},
+    case lists:member(Connection, Connections) of
+        true ->
+            R = case Connection:run_cmd(Cmd, [TableName]) of
+                ok ->
+                    [{<<"result">>, <<"ok">>}];
+                {error, {{Ex, M}, _Stacktrace} = Error} ->
+                    ?Error([{session, Connection}], "query error ~p", [Error]),
+                    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    [{<<"error">>, Err}];
+                {error, {Ex,M}} ->
+                    ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
+                    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    [{<<"error">>, Err}];
+                Error ->
+                    ?Error([{session, Connection}], "query error ~p", [Error]),
+                    if
+                        is_binary(Error) ->
+                            [{<<"error">>, Error}];
+                        true ->
+                            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+                            [{<<"error">>, Err}]
+                    end
+            end,
+            From ! {reply, jsx:encode([{BinCmd, R}])};
+        false ->
+            From ! {reply, error_invalid_conn(Connection, Connections)}
     end.
 
 build_srtspec_json(SortSpecs) ->
