@@ -291,6 +291,9 @@ process_cmd({[<<"truncate_table">>], ReqBody}, _Sess, _UserId, From, #priv{conne
 process_cmd({[<<"snapshot_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     process_table_cmd(snapshot_table, <<"snapshot_table">>, ReqBody, From, Connections),
     Priv;
+process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    process_table_cmd(restore_table, <<"restore_table">>, ReqBody, From, Connections),
+    Priv;
 
 % gui button events
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
