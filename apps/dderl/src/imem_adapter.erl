@@ -20,7 +20,10 @@ init() ->
                                  , name = <<"local imem">>
                                  , owner = system
                                  , adapter = imem
-                                 , access = [{ip, <<"local">>}, {user, <<"admin">>}]
+                                 , access = [{ip, <<"local">>},
+                                             {user, <<"admin">>},
+                                             {port, <<>>},
+                                             {type, local}]
                                  }),
     gen_adapter:add_cmds_views(undefined, system, imem, [
         { <<"All Tables">>

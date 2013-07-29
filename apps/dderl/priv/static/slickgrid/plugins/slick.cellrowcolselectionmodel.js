@@ -136,7 +136,11 @@
                     }
                 }
             }
-            _grid.resetActiveCell();
+            if(_ranges && _ranges.length !== 0) {
+                _grid.setActiveCell(_ranges[0].fromRow, _ranges[0].fromCell);
+            } else {
+                _grid.resetActiveCell();
+            }
         }
 
         function getSelectedRanges() {

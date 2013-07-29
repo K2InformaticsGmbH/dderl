@@ -1461,6 +1461,14 @@
             {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
+            })
+            .bind("dialogfocus", function(event, ui)
+            {
+                var cellEditor = self._grid.getCellEditor();
+                self._grid.focus();
+                if(cellEditor && !cellEditor.isFocused()) {
+                    cellEditor.focus();
+                }
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
@@ -1696,7 +1704,7 @@
                     }
                 } while (activeCell && !this._grid.getColumns()[col].editor);
             } else if(!this._grid.getCellEditor().isFocused()) {
-                this._grid.editActiveCell();
+                this._grid.getCellEditor().focus();
             }
             // If we are in edit mode already.
             return;
