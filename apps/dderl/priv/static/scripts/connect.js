@@ -206,7 +206,7 @@ function connect_dlg()
         },
         buttons: {
             'Login / Save': function() {
-                var connName = $('#connection_list-input').val()
+                var connName = $('#connection_list-input').val();
                 if (!connName) {
                     alert_jq('Please provide a connection name for the new connection, or select an existing one');
                     return;
@@ -277,7 +277,13 @@ function connect_dlg()
                             delete connects[selectedId];
                             var id = null;
                             for(id in connects);
-                            if(null != id) load_login_form(id);
+                            if(null != id) {
+                                $('#connection_list-input').val(connects[id].name);
+                                load_login_form(id);
+                            } else {
+                                $('#connection_list-input').val("");
+                                load_login_form('');
+                            }
                         }
                     });
                 }
