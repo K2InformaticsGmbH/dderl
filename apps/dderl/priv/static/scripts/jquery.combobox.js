@@ -38,6 +38,22 @@ $.widget( "custom.combobox", {
                     item: ui.item.option
                 });
                 this.element.trigger("change");
+            },
+
+            // ui here is always empty.
+            autocompletechange: function( event, ui ) {
+
+                // Search for a match (case-sensitive)
+                var self = this;
+                var value = self.input.val();
+
+                self.element.children( "option" ).each(function() {
+                    if ( $( this ).text() === value ) {
+                        this.selected = true;
+                        self.element.trigger("change");
+                        return false;
+                    }
+                });
             }
         });
     },

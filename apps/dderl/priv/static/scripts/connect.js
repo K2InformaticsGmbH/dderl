@@ -37,6 +37,8 @@ function load_connections()
 
     $('#connection_list').change(function() {
         var selectedId = $("#connection_list").val();
+        var selectedText = $("#connection_list option:selected").text();
+        $('#connection_list-input').val(selectedText);
         load_login_form(selectedId);
     });
 }
@@ -229,6 +231,7 @@ function connect_dlg()
                     urlConnect = '/app/connect_change_pswd';
                     resp = 'connect_change_pswd';
                 }
+
                 var connectJson = {connect: {name      :connName,
                                              ip        :$('#ip').val(),
                                              port      :$('#port').val(),
@@ -241,6 +244,14 @@ function connect_dlg()
                 if(NewPassword && urlConnect == '/app/connect_change_pswd') {
                     connectJson.connect.new_password = NewPassword;
                 }
+                // Add the current id if we are not creating a new connection
+                if(connName === $("#connection_list option:selected").text()) {
+                    var selectedConnIdAsInt = parseInt($("#connection_list").val())
+                    if(!isNaN(selectedConnIdAsInt)) {
+                        connectJson.connect.id = selectedConnIdAsInt;
+                    }
+                }
+
                 var Dlg = $(this);
                 ajaxCall(null, urlConnect, connectJson, resp, function(data) {
                     if(data == "expired") {
@@ -340,16 +351,9 @@ function load_login_form(id) {
         $('#connection_list option[value="'+id+'"]').attr("selected","selected"); 
         $('#password').focus();
         $('#dialog-db-login').data(id);
-        console.log('loaded connection id '+connects[id].name);
+        console.log('loaded connection id '+ id);
     }
     else {
         $('#connection_list option[selected]').removeAttr('selected');
-    //    $('#ip').val('');
-    //    $('#port').val('');
-    //    $('#service').val('');
-    //    $('#sid').val('');
-    //    $('#user').val('');
-    //    $('#password').val('');
-    //    $('#tnsstring').val('');
     }
 }

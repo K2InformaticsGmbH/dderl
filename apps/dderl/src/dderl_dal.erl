@@ -270,24 +270,48 @@ handle_call(Req,From,State) ->
 
 handle_cast({add_connect, undefined, Con}, #state{sess=Sess} = State) ->
     handle_cast({add_connect, Sess, Con}, State);
-handle_cast({add_connect, Sess, #ddConn{owner = Owner} = Con}, #state{schema=SchemaName} = State) ->
-    NewCon0 = case Con#ddConn.schm of
-        undefined -> Con#ddConn{schm = SchemaName};
-        _ -> Con
-    end,
-    NewCon = case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
-                                                , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',Owner}]
-                                                , ['$3']}]]) of
+handle_cast({add_connect, Sess, #ddConn{schm = undefined} = Con}, #state{schema = SchemaName} = State) ->
+    handle_cast({add_connect, Sess, Con#ddConn{schm = SchemaName}}, State);
+handle_cast({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, State) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
+                                         , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',Owner}]
+                                         , ['$3']}]]) of
         {[Id|_], true} ->
             ?Info("add_connect replacing id ~p", [Id]),
-            NewCon0#ddConn{id=Id};
+            NewCon = Con#ddConn{id=Id};
         _ ->
             ?Info("add_connect adding new ~p", [NewCon0#ddConn.id]),
-            NewCon0
+            NewId = erlang:phash2(make_ref()),
+            NewCon = Con#ddConn{id=NewId}
     end,
     Sess:run_cmd(insert, [ddConn, NewCon]),
     ?Debug("add_connect inserted ~p", [NewCon]),
     {noreply, State};
+handle_cast({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, State) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
+                                         , [{'=:=', '$1', OldId}]
+                                         , ['$_']}]]) of
+        {[#ddConn{owner = Owner}], true} ->
+            %% The same owner, save old view as it is.
+            Sess:run_cmd(insert, [ddConn, Con]);
+        {[#ddConn{owner = OldOwner} = OldCon], true} ->
+            %% It is not the same owner, save a copy if there is some difference.
+            %% TODO: Validate authorization before saving.
+            case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
+                true ->
+                    %% If the connection is not changed then do not save a copy.
+                    ok;
+                false ->
+                    handle_cast({add_connect, Sess, Con#ddConn{id = undefined}}, State)
+            end;
+        {[], true} ->
+            %% Connection with id not found, adding a new one.
+            Sess:run_cmd(insert, [ddConn, Con]);
+        Result ->
+            ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result])
+    end,
+    {noreply, State};
+
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Adp = #ddAdapter{id=Id,fullName=FullName},
     Sess:run_cmd(insert, [ddAdapter, Adp]),
@@ -341,3 +365,10 @@ is_local_query(Qry) ->
             ?Info("non select query ~p", [Qry]),
             false
     end.
+
+compare_connections(Connection, Connection) -> true;
+compare_connections(#ddConn{access = []}, _) -> false;
+compare_connections(_, #ddConn{access = []}) -> false;
+compare_connections(#ddConn{access = A1} = Con1, #ddConn{access = A2} = Con2) ->
+    lists:sort(A1) =:= lists:sort(A2)
+        andalso compare_connections(Con1#ddConn{access = []}, Con2#ddConn{access = []}).

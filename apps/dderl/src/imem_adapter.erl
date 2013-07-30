@@ -16,7 +16,7 @@
 init() ->
     dderl_dal:add_adapter(imem, <<"IMEM DB">>),
     dderl_dal:add_connect(undefined,
-                          #ddConn{ id = erlang:phash2(make_ref())
+                          #ddConn{ id = undefined
                                  , name = <<"local imem">>
                                  , owner = system
                                  , adapter = imem
@@ -80,7 +80,8 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            Con = #ddConn { id      = erlang:phash2(make_ref())
+            %% Id undefined if we are creating a new connection.
+            Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
                           , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner   = UserId
                           , adapter = imem
@@ -124,7 +125,8 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
         {ok, {_,ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            Con = #ddConn { id      = erlang:phash2(make_ref())
+            %% Id undefined if we are creating a new connection.
+            Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
                           , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner   = UserId
                           , adapter = imem

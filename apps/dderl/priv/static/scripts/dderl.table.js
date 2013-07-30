@@ -2209,7 +2209,6 @@
                     self._grid.editActiveCell();
                 }
             } else if(self._pendingEditorCell && _rows.op == "ins") {
-                console.log("en append rows deleting pendingeditorcell");
                 self._grid.invalidate();
                 self._grid.setActiveCell(self._pendingEditorCell.row + 1,
                                          self._pendingEditorCell.cell);
