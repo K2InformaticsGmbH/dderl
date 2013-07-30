@@ -280,8 +280,8 @@ handle_cast({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, S
             ?Info("add_connect replacing id ~p", [Id]),
             NewCon = Con#ddConn{id=Id};
         _ ->
-            ?Info("add_connect adding new ~p", [NewCon0#ddConn.id]),
             NewId = erlang:phash2(make_ref()),
+            ?Info("add_connect adding new id ~p", [NewId]),
             NewCon = Con#ddConn{id=NewId}
     end,
     Sess:run_cmd(insert, [ddConn, NewCon]),
