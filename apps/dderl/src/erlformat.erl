@@ -57,9 +57,11 @@ format(String, Expand) ->
                                 is_binary(Term) ->
                                     case expand_expression(Term) of
                                         {ok, Result} ->
+                                            io:format("I am where i think~n"),
                                             Escaped = escape_quotes(Result),
                                             iolist_to_binary(["<<\"\n", Escaped, "\n\">>"]);
                                         {error, Bin} ->
+                                            io:format("Error :s ~p~n", [Bin]),
                                             Bin
                                     end;
                                 true ->
@@ -72,6 +74,7 @@ format(String, Expand) ->
     end.
 
 expand_expression(BinStr) ->
+    io:format("The initial expression ~p~n", [BinStr]),
     case erl_scan:string(add_dot(binary_to_list(BinStr))) of
         {ok, Tokens, _} ->
             case erl_parse:parse_exprs(Tokens) of
@@ -165,6 +168,10 @@ add_dot(Val) ->
     end.
 
 escape_quotes([]) -> [];
+escape_quotes([$\\, $" | Rest]) ->
+    [$\\, $\\, $\\, $" | escape_quotes(Rest)];
+escape_quotes([$\\, $\\ | Rest]) ->
+    [$\\, $\\, $\\, $\\ | escape_quotes(Rest)];
 escape_quotes([$"|Rest]) ->
     [$\\, $" | escape_quotes(Rest)];
 escape_quotes([Char|Rest]) ->

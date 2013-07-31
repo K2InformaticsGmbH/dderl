@@ -1011,7 +1011,7 @@
         } else {
             var cell = _ranges[0];
             var columnField = self._grid.getColumns()[cell.fromCell].field;
-            var stringToFormat = unescapeNewLines(self._gdata[cell.fromRow][columnField]);
+            var stringToFormat = self._gdata[cell.fromRow][columnField];
             self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
             self._ajax('/app/format_erlang_term', {
                 format_erlang_term: {
