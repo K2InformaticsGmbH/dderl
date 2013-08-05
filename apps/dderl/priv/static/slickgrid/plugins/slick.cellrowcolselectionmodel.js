@@ -115,32 +115,8 @@
         }
 
         function setSelectedRanges(origRanges) {
-            //var currentCell = _grid.getActiveCell();
-
             _ranges = removeInvalidRanges(origRanges);
             _self.onSelectedRangesChanged.notify(_ranges);
-
-            // We have to test in the original ranges
-            /*for(var i = 0; currentCell && i < origRanges.length; ++i) {
-                if(origRanges[i].contains(currentCell.row, currentCell.cell)) {
-                    return;
-                }
-                // Check if the active cell is the row itself.
-                if(currentCell.cell == 0) {
-                    if(currentCell.row >= origRanges[i].fromRow &&
-                       currentCell.row <= origRanges[i].toRow) {
-                        if(origRanges[i].fromCell == 1 &&
-                           origRanges[i].toCell == _grid.getColumns().length - 1) {
-                            return;
-                        }
-                    }
-                }
-            }
-            if(_ranges && _ranges.length !== 0) {
-                _grid.setActiveCell(_ranges[0].fromRow, _ranges[0].fromCell);
-            } else {
-                //_grid.resetActiveCell();
-            }*/
         }
 
         function getSelectedRanges() {
