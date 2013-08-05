@@ -1043,6 +1043,7 @@
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
+        self._grid.onScroll.subscribe($.proxy(self._handleScroll, self));
         self._gdata = self._grid.getData();
     },
 
@@ -1773,6 +1774,11 @@
                 }
             }
         }
+    },
+
+    _handleScroll: function(e, args) {
+        var self = this;
+        self._grid.focus();
     },
 
     _handleClick: function(e, args) {

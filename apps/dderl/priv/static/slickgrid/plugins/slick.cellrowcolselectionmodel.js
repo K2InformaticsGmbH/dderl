@@ -115,13 +115,13 @@
         }
 
         function setSelectedRanges(origRanges) {
-            var currentCell = _grid.getActiveCell();
+            //var currentCell = _grid.getActiveCell();
 
             _ranges = removeInvalidRanges(origRanges);
             _self.onSelectedRangesChanged.notify(_ranges);
 
             // We have to test in the original ranges
-            for(var i = 0; currentCell && i < origRanges.length; ++i) {
+            /*for(var i = 0; currentCell && i < origRanges.length; ++i) {
                 if(origRanges[i].contains(currentCell.row, currentCell.cell)) {
                     return;
                 }
@@ -139,8 +139,8 @@
             if(_ranges && _ranges.length !== 0) {
                 _grid.setActiveCell(_ranges[0].fromRow, _ranges[0].fromCell);
             } else {
-                _grid.resetActiveCell();
-            }
+                //_grid.resetActiveCell();
+            }*/
         }
 
         function getSelectedRanges() {
@@ -187,26 +187,30 @@
                     _grid.getEditorLock().commitCurrentEdit();
 
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
+                        _grid.setActiveCell(0, col);
                         setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
                     } else if(col !== 0) {
                         var matches = $.grep(_ranges, function(o,i) {
                             return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
                         });
                         if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
+                            _grid.setActiveCell(0, col);
                             _ranges.push(createFullColRange(0, col, maxRow, col));
                         } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
                             _ranges = $.grep(_ranges, function (o, i) {
                                 return !(col === _ranges[i].fromCell || col === _ranges[i].toCell);
                             });
                         } else if (e.shiftKey) {
-                            if(_ranges && _ranges.length > 0) {
-                                var from = Math.min(_ranges[0].fromCell, col);
-                                var to = Math.max(_ranges[0].fromCell, col);
+                            var activeCell = _grid.getActiveCell();
+                            if(activeCell) {
+                                var from = Math.min(activeCell.cell, col);
+                                var to = Math.max(activeCell.cell, col);
                                 _ranges = [];
                                 for(var i=from; i <= to; ++i) {
                                     _ranges.push(createFullColRange(0, i, maxRow, i));
                                 }
                             } else {
+                                _grid.setActiveCell(0, col);
                                 _ranges = [createFullColRange(0, col, maxRow, col)];
                             }
                         }
@@ -217,33 +221,61 @@
         }
 
         function handleKeyDown(e) {
-            var activeRow = _grid.getActiveCell();
-            if (activeRow && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && (e.which == 38 || e.which == 40)) {
+            var activeCell = _grid.getActiveCell();
+            if (activeCell && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey &&
+                (e.which >= 37 && e.which <= 40)) {
                 _grid.getEditorLock().commitCurrentEdit();
-                var selectedRows = getSelectedRows();
-                selectedRows.sort(function (x, y) {
-                    return x - y
-                });
 
-                if (!selectedRows.length) {
-                    selectedRows = [activeRow.row];
+                if(_ranges.length !== 1 || !_ranges[0].contains(activeCell.row, activeCell.cell)) {
+                    if(activeCell.cell !== 0) {
+                        _ranges = [new Slick.Range(activeCell.row, activeCell.cell)];
+                    } else {
+                        _ranges = [new Slick.Range(activeCell.row, 0, activeCell.row, _grid.getColumns().length - 1)];
+                    }
                 }
 
-                var top = selectedRows[0];
-                var bottom = selectedRows[selectedRows.length - 1];
-                var active;
-
-                if (e.which == 40) {
-                    active = activeRow.row < bottom || top == bottom ? ++bottom : ++top;
-                } else {
-                    active = activeRow.row < bottom ? --bottom : --top;
+                if(e.which == 37) { // left
+                    if(_ranges[0].toCell > activeCell.cell) {
+                        if(_ranges[0].toCell > 1) {
+                            _ranges[0].toCell -=1;
+                        }
+                    } else {
+                        if(_ranges[0].fromCell > 1) {
+                            _ranges[0].fromCell -= 1;
+                        }
+                    }
+                } else if (e.which == 38) { // up
+                    if(_ranges[0].toRow > activeCell.row) {
+                        _ranges[0].toRow -=1;
+                    } else {
+                        if(_ranges[0].fromRow > 0) {
+                            _ranges[0].fromRow -= 1;
+                        }
+                    }
+                } else if (e.which == 39) { // right
+                    if(_ranges[0].fromCell < activeCell.cell) {
+                        _ranges[0].fromCell +=1;
+                    } else {
+                        if(_ranges[0].toCell < (_grid.getColumns().length - 1)) {
+                            _ranges[0].toCell += 1;
+                        }
+                    }
+                } else { // down
+                    if(_ranges[0].fromRow < activeCell.row) {
+                        _ranges[0].fromRow +=1;
+                    } else {
+                        if(_ranges[0].toRow < (_grid.getDataLength() - 1)) {
+                            _ranges[0].toRow += 1;
+                        }
+                    }
                 }
 
-                if (active >= 0 && active < _grid.getDataLength()) {
-                    _grid.scrollRowIntoView(active);
-                    _ranges = rowsToRanges(getRowsRange(top, bottom));
-                    setSelectedRanges(_ranges);
-                }
+                // Scroll view into the selection area.
+                var viewRow = activeCell.row == _ranges[0].fromRow ? _ranges[0].toRow : _ranges[0].fromRow;
+                var viewCell = activeCell.cell == _ranges[0].fromCell ? _ranges[0].toCell : _ranges[0].fromCell;
+                _grid.scrollCellIntoView(viewRow, viewCell);
+
+                setSelectedRanges(_ranges);
 
                 e.preventDefault();
                 e.stopPropagation();
@@ -256,10 +288,10 @@
                 return false;
             }
 
+            var activeCell = _grid.getActiveCell();
             if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                 return false;
-            }
-            else if (_grid.getOptions().multiSelect) {
+            } else if (activeCell && _grid.getOptions().multiSelect) {
                 _grid.getEditorLock().commitCurrentEdit();
                 if(cell.cell === 0) {
                     var selection = rangesToRows(_ranges);
@@ -267,56 +299,47 @@
 
                     if (idx === -1 && (e.ctrlKey || e.metaKey)) {
                         selection.push(cell.row);
+                        _grid.setActiveCell(cell.row, cell.cell);
+                        _ranges = rowsToRanges(selection);
                     } else if (idx !== -1 && (e.ctrlKey || e.metaKey)) {
                         selection = $.grep(selection, function (o, i) {
                             return (o !== cell.row);
                         });
-                    } else if (selection.length && e.shiftKey) {
-                        var last = selection.pop();
-                        var from = Math.min(cell.row, last);
-                        var to = Math.max(cell.row, last);
-                        selection = [];
-                        if(from === last) selection.push(last);
-                        for (var i = from; i <= to; i++) {
-                            if (i !== last) {
-                                selection.push(i);
-                            }
-                        }
-                        if(from !== last) selection.push(last);
+                        _ranges = rowsToRanges(selection);
+                    } else if (e.shiftKey) {
+                        var from = Math.min(cell.row, activeCell.row);
+                        var to = Math.max(cell.row, activeCell.row);
+                        _ranges = [new Slick.Range(from, 0, to, _grid.getColumns().length - 1)];
                     }
-                    _ranges = rowsToRanges(selection);
                 } else {
                     var matches = $.grep(_ranges, function(o,i) {
-                        return ((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell)
-                                ||
-                                (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
+                        return _ranges[i].contains(cell.row, cell.cell);
                     });
                     if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
+                        //TODO: Consolidate ranges.
                         _ranges.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
+                        _grid.setActiveCell(cell.row, cell.cell);
                     } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
+                        // TODO: Split ranges if the cell is inside, test using contains.
                         _ranges = $.grep(_ranges, function (o, i) {
                             return !((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell)
                                      ||
                                      (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
                         });
                     } else if (e.shiftKey) {
-                        if(_ranges.length === 1) {
-                            var frmRow = _ranges[0].fromRow;
-                            var frmCell = _ranges[0].fromCell;
-                            _ranges[0] = new Slick.Range(frmRow, frmCell, cell.row, cell.cell);
-                        } else {
-                            _ranges = [];
-                            _ranges.push(new Slick.Range(cell.row, cell.cell, cell.row, cell.cell));
-                        }
+                        var fromRow = Math.min(cell.row, activeCell.row);
+                        var fromCell = Math.min(cell.cell, activeCell.cell);
+                        var toRow = Math.max(cell.row, activeCell.row);
+                        var toCell = Math.max(cell.cell, activeCell.cell);
+                        _ranges = [new Slick.Range(fromRow, fromCell, toRow, toCell)];
                     }
                 }
-
-                _grid.setActiveCell(cell.row, cell.cell);
                 setSelectedRanges(_ranges);
 
                 e.stopImmediatePropagation();
                 return true;
             }
+            return false;
         }
 
         $.extend(this, {

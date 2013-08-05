@@ -2059,6 +2059,36 @@ if (typeof Slick === "undefined") {
       $focusSink[0].focus();
     }
 
+    // Added from 2.1 to support shift + arrows selection.
+    function scrollCellIntoView(row, cell) {
+      scrollRowIntoView(row, false);
+
+      var columnPosLeft = [];
+      var columnPosRight = [];
+      var x = 0;
+      for (var i = 0, ii = columns.length; i < ii; i++) {
+        columnPosLeft[i] = x;
+        columnPosRight[i] = x + columns[i].width;
+        x += columns[i].width;
+      }
+
+      var colspan = getColspan(row, cell);
+      var left = columnPosLeft[cell];
+      var right = columnPosRight[cell + (colspan > 1 ? colspan - 1 : 0)];
+      var scrollLeft = $viewport[0].scrollLeft;
+      var scrollRight = scrollLeft + viewportW;
+
+      if (left < scrollLeft) {
+        $viewport.scrollLeft(left);
+        handleScroll();
+        render();
+      } else if (right > scrollRight) {
+        $viewport.scrollLeft(Math.min(left, right - $viewport[0].clientWidth));
+        handleScroll();
+        render();
+      }
+    }
+
     function scrollActiveCellIntoView() {
       if (activeCellNode) {
         var left = $(activeCellNode).position().left,
@@ -2870,6 +2900,7 @@ if (typeof Slick === "undefined") {
       "updateRowCount": updateRowCount,
       "scrollRowIntoView": scrollRowIntoView,
       "scrollRowToTop": scrollRowToTop,
+      "scrollCellIntoView": scrollCellIntoView,
       "getCanvasNode": getCanvasNode,
       "focus": setFocus,
 

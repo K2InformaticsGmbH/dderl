@@ -60,6 +60,9 @@
 
       dd.range = {start: start, end: {}};
 
+      _grid.getEditorLock().commitCurrentEdit();
+      _grid.setActiveCell(start.row, start.cell);
+
       return _decorator.show(new Slick.Range(start.row, start.cell));
     }
 
