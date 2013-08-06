@@ -1043,7 +1043,6 @@
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
-        self._grid.onScroll.subscribe($.proxy(self._handleScroll, self));
         self._gdata = self._grid.getData();
     },
 
@@ -1249,6 +1248,7 @@
         this._cmd    = _views.content;
         this._stmt   = _views.statement;
         this._conn   = _views.connection;
+//        this._viewId = _views.view_id;
         if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
             this._clmlay = _views.column_layout;
             if(_views.column_layout.length === 0) this._clmlay = null;
@@ -1290,6 +1290,9 @@
         }
         this._stmt = _table.statement;
         this._conn = _table.connection;
+/*        if(_table.hasOwnProperty('view_id')) {
+            this._viewId = _table.view_id;
+        }*/
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
             if(_table.column_layout.length === 0) this._clmlay = null;
@@ -1776,14 +1779,10 @@
         }
     },
 
-    _handleScroll: function(e, args) {
-        var self = this;
-        self._grid.focus();
-    },
-
     _handleClick: function(e, args) {
         var self = this;
         self._dlg.dialog("moveToTop");
+        self._grid.focus();
     },
 
     _gridColumnsReorder: function() {
