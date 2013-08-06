@@ -72,11 +72,15 @@ format(String, Expand) ->
     end.
 
 expand_expression(BinStr) ->
-    case erl_scan:string(add_dot(binary_to_list(BinStr))) of
+    AsString = add_dot(binary_to_list(BinStr)),
+    case erl_scan:string(AsString) of
         {ok, Tokens, _} ->
             case erl_parse:parse_exprs(Tokens) of
                 {ok, ExprList} ->
-                    {ok, erl_prettypr:format(erl_syntax:form_list(ExprList))};
+                    NoComments = erl_syntax:form_list(ExprList),
+                    Comments = erl_comment_scan:string(AsString),
+                    WithComments = erl_recomment:recomment_forms(NoComments, Comments),
+                    {ok, erl_prettypr:format(WithComments)};
                 _Error ->
                     {error, iolist_to_binary(io_lib:format("~p", [BinStr]))}
             end;
