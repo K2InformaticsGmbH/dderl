@@ -423,8 +423,7 @@ process_query(Query, {_,ConPid}=Connection) ->
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
             Columns = build_column_json(lists:reverse(Clms)),
             JSortSpec = build_srtspec_json(SortSpec),
-            ?Debug("JColumns~n"++binary_to_list(jsx:prettify(jsx:encode(Columns)))++
-                   "~n JSortSpec~n"++binary_to_list(jsx:prettify(jsx:encode(JSortSpec)))),
+            ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
             ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
             [{<<"columns">>, Columns},
              {<<"sort_spec">>, JSortSpec},

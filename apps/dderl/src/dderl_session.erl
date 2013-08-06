@@ -41,8 +41,7 @@ get_state({?MODULE, Pid}) ->
 process_request(undefined, Type, Body, ReplyPid, Ref) ->
     process_request(gen_adapter, Type, Body, ReplyPid, Ref);
 process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
-    ?Debug("request received, type ~p body~n" ++
-               binary_to_list(jsx:prettify(Body)), [Type]),
+    ?Debug("request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
     gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
 
 init(_Args) ->
@@ -202,7 +201,7 @@ process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
             [ [{<<"id">>, jsq(A#ddAdapter.id)}
               ,{<<"fullName">>, A#ddAdapter.fullName}]
             || A <- dderl_dal:get_adapters(Sess)]}]),
-    ?Debug([{user, User}], "adapters " ++ binary_to_list(jsx:prettify(Res)), []),
+    ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
     From ! {reply, Res},
     State;
 
@@ -226,7 +225,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Debug([{user, User}], "adapters " ++ binary_to_list(jsx:prettify(Res)), []),
+            ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
     State;
@@ -255,7 +254,7 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
-    ?Debug([{user, UserId}], "~p processing ~p~n" ++ binary_to_list(jsx:prettify(ReqData)), [Adapter, Cmd]),
+    ?Debug([{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     NewCurrentPriv =
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->

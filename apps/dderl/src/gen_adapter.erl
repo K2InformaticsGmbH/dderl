@@ -68,7 +68,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
         end
     ]}])) of
         ParseStmt when is_binary(ParseStmt) ->
-            ?Debug("Json -- "++binary_to_list(jsx:prettify(ParseStmt))),
+            ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
             From ! {reply, ParseStmt};
         Error ->
             ?Error("parse_stmt error ~p~n", [Error]),

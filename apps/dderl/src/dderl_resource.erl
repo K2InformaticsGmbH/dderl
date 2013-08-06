@@ -44,7 +44,7 @@ init({ssl, http}, Req, []) ->
     end.
 
 info({reply, Body}, Req, DDerlSessPid) ->
-    ?Debug("reply ~n" ++ binary_to_list(jsx:prettify(Body))),
+    ?Debug("reply ~n~s", [jsx:prettify(Body)]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info(Message, Req, State) ->
