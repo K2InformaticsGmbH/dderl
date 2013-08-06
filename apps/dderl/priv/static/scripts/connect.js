@@ -120,6 +120,7 @@ function disconnect_tab() {
             console.log('Request disconnect result ' + textStatus);
             connection = null;
             adapter = null;
+            resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             connect_dlg();
         },
@@ -128,6 +129,7 @@ function disconnect_tab() {
             console.log('Request disconnect result ' + textStatus);
             connection = null;
             adapter = null;
+            resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             connect_dlg();
         }
@@ -270,6 +272,8 @@ function connect_dlg()
                         Dlg.dialog("close");
                         //Setting up the global connection.
                         connection = data;
+                        //Set the ping timer.
+                        resetPingTimer();
                         show_qry_files();
                     }
                 });

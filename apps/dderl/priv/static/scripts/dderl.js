@@ -34,6 +34,7 @@ var session = null;
 var adapter = null;
 var connection = null;
 var ws = null;
+var pingTimer = null;
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -41,6 +42,7 @@ var ws = null;
 //       context variable for widget there is
 //       no this['context']
 function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
+    resetPingTimer();
     var self = _ref;
 
     // if data is JSON object format to string
@@ -112,11 +114,39 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         },
 
         error: function (request, textStatus, errorThrown) {
-             alert_jq('HTTP Error'+
-                   (textStatus.length > 0 ? ' '+textStatus:'')+
-                   (errorThrown.length > 0 ? ' details '+errorThrown:''));
+            if(_url == '/app/ping') {
+                _successevt("error");
+            } else {
+                alert_jq('HTTP Error'+
+                         (textStatus.length > 0 ? ' '+textStatus:'')+
+                         (errorThrown.length > 0 ? ' details '+errorThrown:''));
+            }
         }
     });
+}
+
+function resetPingTimer() {
+    if(pingTimer) {
+        clearTimeout(pingTimer);
+    }
+
+    //Stop ping if there is no connection/session.
+    if(!connection || !session) {
+        console.log("ping canceled");
+        return;
+    }
+
+    pingTimer = setTimeout(
+        function() {
+            ajaxCall(null, '/app/ping', null, 'ping', function(response) {
+                console.log("ping " + response);
+                if(response != "pong") {
+                    alert_jq("Failed to reach the server, the connection might be lost.");
+                    clearTimeout(pingTimer);
+                }
+            });
+        },
+    300000); // Ping time 5 minutes.
 }
 
 function login_first()

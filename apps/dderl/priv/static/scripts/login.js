@@ -55,9 +55,9 @@ function display_login()
                     update_user_information(user);
                     $("#dialog-login").dialog("close");
                     change_password(true);
-                }
-                else
+                } else {
                     alert('Login falied : ' + data);
+                }
             });        
         }
     });
@@ -118,6 +118,7 @@ function process_logout() {
         return;
     }
     session = null;
+    resetPingTimer();
 
     $('#login-button').html('');
     $('#change-pswd-button').data("logged_in_user", "");
