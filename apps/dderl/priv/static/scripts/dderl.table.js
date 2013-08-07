@@ -33,9 +33,6 @@
     _sorts          : null,
     _filters        : null,
     _fltrDlg        : null,
-    _INIT_WAIT_TAIL : 5,
-    _rftchExpBkOff  : 5,
-    _MAX_WAIT_TAIL  : 1000,
 
     // start button
     _startBtn       : null,
@@ -1193,12 +1190,10 @@
     },
     _toolBarSkTail: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkTail');
-        self._rftchExpBkOff = self._INIT_WAIT_TAIL;
         self.buttonPress(">|...");
     },
     _toolBarSkipTl: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSkipTl');
-        self._rftchExpBkOff = self._INIT_WAIT_TAIL;
         self.buttonPress("...");
     },
     _toolBarCommit: function(self) {
@@ -1422,20 +1417,10 @@
             if(_rows.loop.length > 0) {
                 if (self._grid.getCellEditor()) {
                     self._loop = _rows.loop;
-                } else if (rowsCount > 0) {
+                } else {
                     console.log(rowsCount+' rows received, retrying '+_rows.loop);
                     this.buttonPress(_rows.loop);
-                    this._rftchExpBkOff = this._INIT_WAIT_TAIL;
-                } else {
-                    this._rftchExpBkOff = (this._rftchExpBkOff * 2);
-                    if(this._rftchExpBkOff > this._MAX_WAIT_TAIL) {
-                        this._rftchExpBkOff = this._MAX_WAIT_TAIL;
-                    }
-                    console.log('no rows received, retrying '+_rows.loop+' after '+this._rftchExpBkOff+' ms');
-                    this._tailTimer = setTimeout(function(){self.buttonPress(_rows.loop);}, this._rftchExpBkOff);
                 }
-            } else {
-                this._rftchExpBkOff = 2; // end of command looping received
             }
         }
         else if(_rows.hasOwnProperty('error')) {
@@ -1854,9 +1839,6 @@
     },
 
     close_stmt: function() {
-        if(this._tailTimer) {
-            clearTimeout(this._tailTimer);
-        }
         if(this._stmt && session && connection) {
             this.buttonPress("close");
         }

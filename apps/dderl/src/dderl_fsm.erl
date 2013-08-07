@@ -624,9 +624,9 @@ tailing({button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,g
     ?Debug("tailing stack 'tail'"),
     {ok, NewTRef} = timer:send_after(?TAIL_TIMEOUT, cmd_stack_timeout),
     {next_state, tailing, State1#state{stack=Cmd, tRef=NewTRef}};
-tailing({button, <<"tail">>, ReplyTo}, #state{tailLock=false}=State0) ->
+tailing({button, <<"tail">>, ReplyTo}, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     % continue tailing
-    % ?Debug("tailing button in state ~n~p", [tailing]),
+    ?Debug("tailing button in state ~n~p guibot: ~p bufbot: ~p", [tailing, GuiBot, BufBot]),
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"tail">>, State1),
     {next_state, tailing, State2};
@@ -979,9 +979,13 @@ gui_nop(GuiResult,State) ->
     ?Debug("gui_nop () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     gui_response(GuiResult#gres{operation= <<"nop">>},State).
 
-gui_clear(GuiResult,State0) ->
+gui_clear(GuiResult,#state{nav = Nav} = State0) ->
     ?Debug("gui_clear () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
-    State1 = State0#state{guiCnt=0,guiTop=undefined,guiBot=undefined,guiCol=false},
+    case Nav of
+        raw -> GuiBot = ?RawMin;
+        ind -> GuiBot = ?IndMin
+    end,
+    State1 = State0#state{guiCnt=0,guiTop=undefined,guiBot=GuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State1).
 
 % gui_replace(NewTop,NewBot,GuiResult,State0) ->
