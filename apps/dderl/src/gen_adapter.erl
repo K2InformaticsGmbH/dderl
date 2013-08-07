@@ -92,7 +92,7 @@ process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     add_cmds_views(Sess, UserId, imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
     From ! {reply, Res};
-process_cmd({[<<"update_view">>], ReqBody}, Sess, _UserId, From, _Priv) ->
+process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     [{<<"update_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
@@ -101,12 +101,19 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, _UserId, From, _Priv) ->
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     ?Info("update view ~s with id ~p layout ~p", [Name, ViewId, TableLay]),
     ViewState = #viewstate{table_layout=TableLay, column_layout=ColumLay},
-    %% TODO: We need to pass the userid to provide authorization.
-    case dderl_dal:update_view(Sess, ViewId, ViewState, Query) of
-        {error, Reason} ->
-            Res = jsx:encode([{<<"update_view">>, [{<<"error">>, Reason}]}]);
-        _ ->
-            Res = jsx:encode([{<<"update_view">>, <<"ok">>}])
+    if
+        %% System tables can't be overriden.
+        Name =:= <<"All Views">> orelse Name =:= <<"All Tables">> ->
+            add_cmds_views(Sess, UserId, imem, [{Name, Query, undefined, ViewState}]),
+            Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
+        true ->
+            %% TODO: We need to pass the userid to provide authorization.
+            case dderl_dal:update_view(Sess, ViewId, ViewState, Query) of
+                {error, Reason} ->
+                    Res = jsx:encode([{<<"update_view">>, [{<<"error">>, Reason}]}]);
+                _ ->
+                    Res = jsx:encode([{<<"update_view">>, <<"ok">>}])
+            end
     end,
     From ! {reply, Res};
 process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
