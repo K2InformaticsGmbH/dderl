@@ -216,7 +216,8 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
                          ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-                         ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++ Resp}]),
+                         ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
+                         ,{<<"view_id">>, V#ddView.id}] ++ Resp}]),
                     ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
                 _ ->
                     case lists:member(Connection, Connections) of
@@ -226,7 +227,8 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                                 [{<<"content">>, C#ddCmd.command}
                                  ,{<<"name">>, Name}
                                  ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-                                 ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}] ++ Resp}]),
+                                 ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
+                                 ,{<<"view_id">>, V#ddView.id}] ++ Resp}]),
                             ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
                         false ->
                             RespJson = error_invalid_conn(Connection, Connections)
@@ -259,7 +261,8 @@ process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
         [{<<"content">>, C#ddCmd.command}
         ,{<<"name">>, <<"All Views">>}
         ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}]
+        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+        ,{<<"view_id">>, F#ddView.id}]
         ++ Resp
     }]),
     From ! {reply, RespJson},

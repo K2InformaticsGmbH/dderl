@@ -92,6 +92,23 @@ process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     add_cmds_views(Sess, UserId, imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
     Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
     From ! {reply, Res};
+process_cmd({[<<"update_view">>], ReqBody}, Sess, _UserId, From, _Priv) ->
+    [{<<"update_view">>,BodyJson}] = ReqBody,
+    Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
+    Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
+    TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
+    ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
+    ViewId = proplists:get_value(<<"view_id">>, BodyJson),
+    ?Info("update view ~s with id ~p layout ~p", [Name, ViewId, TableLay]),
+    ViewState = #viewstate{table_layout=TableLay, column_layout=ColumLay},
+    %% TODO: We need to pass the userid to provide authorization.
+    case dderl_dal:update_view(Sess, ViewId, ViewState, Query) of
+        {error, Reason} ->
+            Res = jsx:encode([{<<"update_view">>, [{<<"error">>, Reason}]}]);
+        _ ->
+            Res = jsx:encode([{<<"update_view">>, <<"ok">>}])
+    end,
+    From ! {reply, Res};
 process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
     io:format(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.

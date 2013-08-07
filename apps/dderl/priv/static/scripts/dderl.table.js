@@ -21,6 +21,7 @@
     _cmd            : null,
     _clmlay         : null,
     _tbllay         : null,
+    _viewId         : null,
     _origcolumns    : null,
 
     _fetchIsTail    : false,
@@ -156,6 +157,7 @@
         dderlCmdStrs      : null,
         dderlClmlay       : null,
         dderlTbllay       : null,
+        dderlViewId       : null,
         dderlStartBtn     : '>',
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
@@ -180,6 +182,7 @@
         if(self.options.dderlCmdStrs    !== self._cmdStrs)  self._cmdStrs   = self.options.dderlCmdStrs;
         if(self.options.dderlClmlay     !== self._clmlay)   self._clmlay    = self.options.dderlClmlay;
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
+        if(self.options.dderlViewId     !== self._viewId)   self._viewId    = self.options.dderlViewId;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
         if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
@@ -343,7 +346,11 @@
      * Saving a table
      */
     _saveView: function() {
-        this._saveViewWithName(this.options.title);
+        if(this._viewId) {
+            this._updateView(this._viewId, this.options.title);
+        } else {
+            this._saveViewWithName(this.options.title);
+        }
     },
 
     _saveViewAs: function() {
@@ -353,6 +360,8 @@
     },
 
     _getTableLayout: function(_viewName) {
+        // Column names and width.
+        // Index starting at 1 to skip the id column.
         var colnamesizes = new Array();
         var cols = this._grid.getColumns();
         for(var idx = 1; idx < cols.length; ++idx) {
@@ -379,15 +388,21 @@
                };
     },
 
+    _updateView: function(viewId, viewName) {
+        var self = this;
+        saveView = self._getTableLayout(viewName);
+        updateView = {update_view : saveView.save_view};
+        updateView.update_view.view_id = viewId;
+        self._ajax('/app/update_view', updateView, 'update_view', 'saveViewResult');
+    },
+
     _saveViewWithName: function(_viewName) {
         var self = this;
-        // Column names and width.
-        // Index starting at 1 to skip the id column.
 
         saveView = self._getTableLayout(_viewName);
 
         console.log('saving view '+JSON.stringify(saveView));
-        this._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
+        self._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
     // Open plot for this table
@@ -1228,12 +1243,12 @@
             alert_jq('failed to close statement!\n'+_stmtclose.error);
     },
     _checkSaveViewResult: function(_saveView) {
+        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         if(_saveView === "ok") {
             console.log('[AJAX] view saved!');
-            this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
-        }
-        else if(_saveView.hasOwnProperty('error'))
+        } else if(_saveView.hasOwnProperty('error')) {
             alert_jq('failed to save view!\n'+_saveView.error);
+        }
     },
     _insertResult: function(_insert) {
         this.appendRows(_insert);
@@ -1248,21 +1263,28 @@
         this._cmd    = _views.content;
         this._stmt   = _views.statement;
         this._conn   = _views.connection;
-//        this._viewId = _views.view_id;
+        this._viewId = _views.view_id;
         if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
             this._clmlay = _views.column_layout;
-            if(_views.column_layout.length === 0) this._clmlay = null;
         }
-        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.length  > 0) {
+        if(_views.hasOwnProperty('table_layout')  && _views.table_layout.hasOwnProperty('x')) {
             this._tbllay = _views.table_layout;
-            if(_views.table_layout.length  === 0) this._tbllay = null;
+            // Set the options.
+            this.options.width = this._tbllay.width;
+            this.options.height = this._tbllay.height;
+            this.options.position = [this._tbllay.x, this._tbllay.y];
+
+            // Override default dialog options.
+            this._dlg.dialog("option", "position", this.options.position);
+            this._dlg.dialog("option", "width", this.options.width);
+            this._dlg.dialog("option", "height", this.options.height);
         }
         this._setTitleHtml($('<span>').text(_views.name).addClass('table-title'));
         this.options.title = _views.name;
         console.log('>>>>> table '+_views.name+' '+_views.connection);
-        if(_views.hasOwnProperty('error'))
+        if(_views.hasOwnProperty('error')) {
             alert_jq(_views.error);
-        else {
+        } else {
             this.setColumns(_views.columns);
             if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
                 this._setSortSpecFromJson(this, _views.sort_spec);
@@ -1290,9 +1312,9 @@
         }
         this._stmt = _table.statement;
         this._conn = _table.connection;
-/*        if(_table.hasOwnProperty('view_id')) {
+        if(_table.hasOwnProperty('view_id')) {
             this._viewId = _table.view_id;
-        }*/
+        }
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
             if(_table.column_layout.length === 0) this._clmlay = null;
@@ -1319,6 +1341,7 @@
     _renderNewTable: function(_table) {
         var tl = null;
         var cl = null;
+        var viewId = null;
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
@@ -1335,8 +1358,13 @@
             tl = _table.table_layout;
         }
 
-        if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0)
+        if(_table.hasOwnProperty('view_id')) {
+            viewId = _table.view_id;
+        }
+
+        if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             cl = _table.column_layout;
+        }
 
 
         this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
@@ -1352,6 +1380,7 @@
             dderlCmd        : _table.content,
             dderlClmlay     : cl,
             dderlTbllay     : tl,
+            dderlViewId     : viewId,
             dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0)
                                  ? _table.sort_spec : null)
         };
@@ -2188,14 +2217,18 @@
                         var oldDlgHeight = dlg.height();
                         var gHeight = self._getGridHeight() + 10;
                         var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
-                        if (dlg.height() > gHeight)       // if dialog is already bigger than height required by the table
+                        if (dlg.height() > gHeight || gHeight < rWindowHeight) {
+                            // if dialog is already bigger than height required by the table or
+                            // if table height is less then remaining window height
                             self._dlg.height(gHeight);
-                        else if (gHeight < rWindowHeight) // if table height is less then remaining window height
-                            self._dlg.height(gHeight);
-                        else                              // if table height is still bigger than the remaining window height
+                        } else {
+                            // if table height is still bigger than the remaining window height
                             self._dlg.height(rWindowHeight);
-                        if (oldDlgHeight != dlg.height())
+                        }
+
+                        if (oldDlgHeight != dlg.height()) {
                             self._grid.resizeCanvas();
+                        }
                     }
                     // adjusting the column to fill the rest of the window
                     if((self._getGridWidth() + 18) < dlg.width()) {

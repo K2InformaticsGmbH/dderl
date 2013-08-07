@@ -20,6 +20,7 @@
         ,add_command/7
         ,update_command/8
         ,add_view/5
+        ,update_view/4
         ,add_connect/2
         ,get_connects/2
         ,del_conn/2
@@ -40,7 +41,8 @@ add_connect(Sess, #ddConn{} = Conn) -> gen_server:cast(?MODULE, {add_connect, Se
 
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
 update_command(Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}).
-add_view(Sess, Owner, Name, CmdId, ViewsState)           -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
+add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
+update_view(Sess, ViewId, ViewsState, Qry) when is_integer(ViewId) -> gen_server:call(?MODULE, {update_view, Sess, ViewId, ViewsState, Qry}).
 
 get_adapters(Sess)                     -> gen_server:call(?MODULE, {get_adapters, Sess}).
 get_connects(Sess, User)               -> gen_server:call(?MODULE, {get_connects, Sess, User}).
@@ -158,6 +160,35 @@ handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
     ?Debug("add_view inserted ~p", [NewView]),
     {reply, Id, State};
 
+handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            ?Debug("The oldView ~p and the session ~p", [OldView, Sess]),
+            Cmd = internal_get_command(Sess, OldView#ddView.cmd),
+            ?Debug("The old cmd ~p", [Cmd]),
+            %% TODO: Handle multiple adapters.
+            [Adapter] = Cmd#ddCmd.adapters,
+            UpdateCmdParams = {update_command,
+                               Sess,
+                               Cmd#ddCmd.id,
+                               Cmd#ddCmd.owner,
+                               Adapter,
+                               Cmd#ddCmd.name,
+                               Qry,
+                               Cmd#ddCmd.conns,
+                               Cmd#ddCmd.opts},
+            handle_call(UpdateCmdParams, From, State),
+            NewView = OldView#ddView{state=ViewsState},
+            Sess:run_cmd(insert, [ddView, NewView]),
+            ?Debug("update_view inserted ~p", [NewView]),
+            {reply, ViewId, State};
+        _ ->
+            ?Error("Unable to get the view to update ~p", [ViewId]),
+            {reply, {error, "Unable to get the view to update"}, State}
+    end;
+
 handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess} = State) ->
     handle_call({get_view, Sess, Name, Adapter, Owner}, From, State);
 handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
@@ -176,12 +207,7 @@ handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
     {reply, View, State};
 
 handle_call({get_command, Sess, IdOrName}, _From, State) ->
-    ?Debug("get_command for id ~p", [IdOrName]),
-    {Cmds, true} = case IdOrName of
-        Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
-        Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
-    end,
-    Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
+    Cmd = internal_get_command(Sess, IdOrName),
     {reply, Cmd, State};
 
 handle_call({get_connects, Sess, User}, _From, State) ->
@@ -372,3 +398,13 @@ compare_connections(_, #ddConn{access = []}) -> false;
 compare_connections(#ddConn{access = A1} = Con1, #ddConn{access = A2} = Con2) ->
     lists:sort(A1) =:= lists:sort(A2)
         andalso compare_connections(Con1#ddConn{access = []}, Con2#ddConn{access = []}).
+
+internal_get_command(Sess, IdOrName) ->
+  ?Debug("get_command for id ~p", [IdOrName]),
+  {Cmds, true} =
+      case IdOrName of
+          Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
+          Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
+      end,
+  Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
+  Cmd.

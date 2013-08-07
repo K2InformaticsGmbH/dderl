@@ -246,7 +246,8 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=
 process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
       C =:= <<"get_query">>;
-      C =:= <<"save_view">> ->
+      C =:= <<"save_view">>;
+      C =:= <<"update_view">> ->
     BodyJson = jsx:decode(ReqData),
     gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined),
     State;
