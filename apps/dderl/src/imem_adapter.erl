@@ -27,9 +27,8 @@ init() ->
                                  }),
     gen_adapter:add_cmds_views(undefined, system, imem, [
         { <<"All Tables">>
-        , <<"select name(qname) from all_tables order by qname">>
+        , <<"select name(qname), size rows, memory from all_tables, ddSize where name = element(2, qname) order by qname asc">>
         , remote},
-        %{<<"All Tables">>, <<"select name(qname) from all_tables where not is_member(\"{virtual, true}\", opts)">>},
         { <<"All Views">>
         , <<"select
                 c.owner,
@@ -45,8 +44,6 @@ init() ->
                 v.name,
                 c.owner">>
         , local}
-        %{<<"All Views">>, <<"select v.name from ddView as v, ddCmd as c where c.id = v.cmd and c.adapters = \"[imem]\" and (c.owner = system)">>}
-        %{<<"All Views">>, <<"select name, owner, command from ddCmd where adapters = '[imem]' and (owner = user or owner = system)">>}
     ]).
 
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
