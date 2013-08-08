@@ -27,7 +27,6 @@
       _grid = grid;
       _canvas = _grid.getCanvasNode();
       _handler
-        .subscribe(_grid.onDragInit, handleDragInit)
         .subscribe(_grid.onDragStart, handleDragStart)
         .subscribe(_grid.onDrag, handleDrag)
         .subscribe(_grid.onDragEnd, handleDragEnd);
@@ -35,11 +34,6 @@
 
     function destroy() {
       _handler.unsubscribeAll();
-    }
-
-    function handleDragInit(e, dd) {
-      // prevent the grid from cancelling drag'n'drop by default
-      e.stopImmediatePropagation();
     }
 
     function handleDragStart(e, dd) {

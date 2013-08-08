@@ -255,13 +255,20 @@
                     
     // create the context menu and add them to document.body
     // only if they do not exist
+    // TODO: Create a context menu once per table instead of the global
+    //       to allow dynamic menu options depending on the column content.
     _cnxtMenu: function(_menu) {
         if($('#'+_menu).length === 0) {
             var mnu = $('<ul>')
                 .attr('id', _menu)
                 .addClass("context_menu")
                 .hide()
-                .mouseleave(function(e) { e.preventDefault(); $(this).hide(); })
+                .mouseleave(function(e) {
+                    var self = $('#'+_menu).data('cnxt');
+                    e.preventDefault();
+                    $(this).hide();
+                    self._grid.focus();
+                })
                 .appendTo(document.body);
             for(var m in this[_menu]) {
                 if($.type(this[_menu][m]) === "string") {
@@ -1055,6 +1062,8 @@
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
         self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
+        self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
+        self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
         self._gdata = self._grid.getData();
     },
 
@@ -1515,6 +1524,7 @@
         var data        = g.getData()[cell.row][column.field];
         var gSelMdl     = g.getSelectionModel();
         var gSelecteds  = gSelMdl.getSelectedRanges();
+        var activeCell  = g.getActiveCell();
 
         var missing = true;
         for(var i=0; i < gSelecteds.length; ++i) {
@@ -1523,8 +1533,12 @@
                 break;
             }
         }
+
         if(missing) {
+            g.setActiveCell(cell.row, cell.cell);
             gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
+        } else if(!activeCell) {
+            g.setActiveCell(cell.row, cell.cell);
         }
 
         this._slkHdrCnxtMnu.dom
@@ -1565,6 +1579,7 @@
         if(found) {
             gSelMdl.setSelectedRanges(fullCols);
         } else {
+            g.setActiveCell(0, col);
             var lastRow = (g.getDataLength() === 0? 0 : g.getDataLength() -1);
             var newSelection = new Slick.Range(0, col, lastRow, col);
             newSelection.fullCol = true;
@@ -1794,6 +1809,30 @@
     },
 
     _handleClick: function(e, args) {
+        var self = this;
+        self._dlg.dialog("moveToTop");
+    },
+
+    // Recover the focus if the vieport gets a mouse event.
+    _handleMouseDown: function(e, args) {
+        var self = this;
+        self._dlg.dialog("moveToTop");
+        if($.browser.msie) {
+            //Ie steals the focus to the scrollbar even after preventDefaults.
+            //Added the timer to get the focus back.
+            setTimeout(function() {
+                self._grid.focus();
+                console.log("Focus set");
+            }, 50);
+        } else {
+            self._grid.focus();
+            console.log("Focus set");
+        }
+
+    },
+
+    _handleDragInit: function(e, args) {
+        e.stopImmediatePropagation();
         var self = this;
         self._dlg.dialog("moveToTop");
         self._grid.focus();

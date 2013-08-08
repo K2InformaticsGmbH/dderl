@@ -269,7 +269,8 @@ if (typeof Slick === "undefined") {
         $container
             .bind("resize.slickgrid", resizeCanvas);
         $viewport
-            .bind("scroll.slickgrid", handleScroll);
+            .bind("scroll.slickgrid", handleScroll)
+            .bind("mousedown.slickgrid", handleMouseDown);
         $headerScroller
             .bind("contextmenu.slickgrid", handleHeaderContextMenu)
             .bind("click.slickgrid", handleHeaderClick)
@@ -1877,6 +1878,18 @@ if (typeof Slick === "undefined") {
       }
     }
 
+    // Added handler to set the focus after a click on the scroll.
+    function handleMouseDown(e) {
+        // Only trigger on left mousedown.
+        if(e.which == 1) {
+            trigger(self.onMouseDown, {}, e);
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            return false;
+        }
+        return true;
+    }
+
     function handleClick(e) {
       if (!currentEditor) {
         // if this click resulted in some cell child node getting focus,
@@ -2843,6 +2856,7 @@ if (typeof Slick === "undefined") {
       "onBeforeHeaderDestroy": new Slick.Event(),
       "onMouseEnter": new Slick.Event(),
       "onMouseLeave": new Slick.Event(),
+      "onMouseDown": new Slick.Event(),
       "onClick": new Slick.Event(),
       "onDblClick": new Slick.Event(),
       "onContextMenu": new Slick.Event(),
