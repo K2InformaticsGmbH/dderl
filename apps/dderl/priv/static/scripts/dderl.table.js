@@ -1822,10 +1822,18 @@
             //Added the timer to get the focus back.
             setTimeout(function() {
                 self._grid.focus();
+                var cellEditor = self._grid.getCellEditor();
+                if(cellEditor && !cellEditor.isFocused()) {
+                    cellEditor.focus();
+                }
                 console.log("Focus set");
             }, 50);
         } else {
             self._grid.focus();
+            var cellEditor = self._grid.getCellEditor();
+            if(cellEditor && !cellEditor.isFocused()) {
+                cellEditor.focus();
+            }
             console.log("Focus set");
         }
 

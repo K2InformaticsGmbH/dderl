@@ -1882,10 +1882,12 @@ if (typeof Slick === "undefined") {
     function handleMouseDown(e) {
         // Only trigger on left mousedown.
         if(e.which == 1) {
-            trigger(self.onMouseDown, {}, e);
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            return false;
+            if(e.target != document.activeElement) {
+                trigger(self.onMouseDown, {}, e);
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return false;
+            }
         }
         return true;
     }
