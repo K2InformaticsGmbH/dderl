@@ -1845,7 +1845,13 @@
     },
 
     // loading the view table
-    loadViews: function() { this._ajax('/app/views', null, 'views', 'loadViews'); },
+    loadViews: function(useSystem) {
+        if(useSystem){
+            this._ajax('/app/system_views', null, 'system_views', 'loadViews');
+        } else {
+            this._ajax('/app/views', null, 'views', 'loadViews');
+        }
+    },
 
     // loading rows
     buttonPress: function(button) {

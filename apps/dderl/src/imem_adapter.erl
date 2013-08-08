@@ -249,12 +249,37 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     Priv;
 
 % views
-process_cmd({[<<"views">>], _}, Sess, _UserId, From, Priv) ->
-    F = dderl_dal:get_view(Sess, <<"All Views">>, imem, system),
+process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
+    %% TODO: This should be replaced by dashboard.
+    case dderl_dal:get_view(Sess, <<"All Views">>, imem, UserId) of
+        undefined ->
+            ?Debug("Using system view All Views"),
+            F = dderl_dal:get_view(Sess, <<"All Views">>, imem, system);
+        UserView ->
+            ?Debug("Using a personalized view All Views"),
+            F = UserView
+    end,
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
     Resp = process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
+        [{<<"content">>, C#ddCmd.command}
+        ,{<<"name">>, <<"All Views">>}
+        ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+        ,{<<"view_id">>, F#ddView.id}]
+        ++ Resp
+    }]),
+    From ! {reply, RespJson},
+    Priv;
+
+%  system views
+process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
+    F = dderl_dal:get_view(Sess, <<"All Views">>, imem, system),
+    C = dderl_dal:get_command(Sess, F#ddView.cmd),
+    Resp = process_query(C#ddCmd.command, Sess),
+    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+    RespJson = jsx:encode([{<<"system_views">>,
         [{<<"content">>, C#ddCmd.command}
         ,{<<"name">>, <<"All Views">>}
         ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}

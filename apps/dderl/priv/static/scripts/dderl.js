@@ -154,7 +154,7 @@ function login_first()
     alert("Please log in first!");
 }
 
-function show_qry_files()
+function show_qry_files(useSystem)
 {
     var loggedInUser = $('#change-pswd-button').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
@@ -169,7 +169,7 @@ function show_qry_files()
         dderlSession: session,
         dderlAdapter: adapter,
     })
-    .table('loadViews');
+    .table('loadViews', useSystem);
 }
 
 function show_more_apps() {

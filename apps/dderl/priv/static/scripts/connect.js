@@ -274,7 +274,7 @@ function connect_dlg()
                         connection = data;
                         //Set the ping timer.
                         resetPingTimer();
-                        show_qry_files();
+                        show_qry_files(false);
                     }
                 });
             },
