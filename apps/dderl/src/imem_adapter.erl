@@ -536,7 +536,14 @@ build_column_json([C|Cols], JCols, Counter) ->
     Nm = C#stmtCol.alias,
     BinCounter = integer_to_binary(Counter),
     Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
+    case C#stmtCol.type of
+        integer -> Type = <<"numeric">>;
+        float -> Type = <<"numeric">>;
+        decimal -> Type = <<"numeric">>;
+        _ -> Type = <<"text">>
+    end,
     JC = [{<<"id">>, Nm1},
+          {<<"type">>, Type},
           {<<"name">>, Nm},
           {<<"field">>, Nm1},
           {<<"resizable">>, true},

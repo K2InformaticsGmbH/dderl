@@ -2039,6 +2039,10 @@
         var fldWidth = 0;
         self._origcolumns = {};
         for (var i = 1; i < columns.length; ++i) {
+            if(columns[i].type == "numeric") {
+                columns[i].cssClass = "numeric";
+                columns[i].headerCssClass = "numeric";
+            }
             columns[i].formatter = Slick.Formatters.BinStringText;
             fldWidth = self._txtlen.text(_cols[i].name).width()+25;
             if(columns[i].hasOwnProperty('editor')) {

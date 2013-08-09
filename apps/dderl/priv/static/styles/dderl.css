@@ -152,12 +152,15 @@ button.menubutton
   border-right: none;
 }
 
-/*
-.slick-header-column.ui-state-default {
-  height: 10px;
-  line-height: 10px;
+.slick-cell.numeric {
+    text-align: right;
+    padding-right: 4px;
 }
-*/
+
+.slick-header-column.numeric {
+    text-align: right;
+}
+
 /*********************************************/
 
 /* .ui-button { margin-left: -1px; } */

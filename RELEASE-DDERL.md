@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.0.5 (Release Date TBD)
+=======================================
+
+* numeric columns are right aligned
+* 
+
 Version 1.0.4 (Release Date 08.08.2013)
 =======================================
 
