@@ -11,6 +11,7 @@
         _txtlen         : null,
         _fnt            : null,
         _currentExpLvl  : -1,
+        _tabDefault     : "    ",
 
         _handlers       : {
             updateTextArea      : function(e, _result) { e.data._updateTextArea(_result); },
@@ -83,7 +84,22 @@
                 $('<textarea>')
                 .addClass('sql_text_flat')
                 .attr('wrap', 'off')
-                .val(self._term);
+                .val(self._term)
+                .keydown(function(e) {
+                    if(e.keyCode === 9) {
+                        var start = this.selectionStart;
+                        var end = this.selectionEnd;
+                        var oldText = self._editText.val();
+                        self._editText.val(oldText.substring(0, start)
+                                           + self._tabDefault
+                                           + oldText.substring(end));
+                        this.selectionStart = this.selectionEnd = (start + self._tabDefault.length);
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        return false;
+                    }
+                    return true;
+                });
 
             self._editDiv =
                 $('<div>')
