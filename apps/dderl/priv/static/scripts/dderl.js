@@ -30,11 +30,13 @@ function getUniqueTime() {
   return new Date().getTime();
 }
 
+// TODO: Move this to a global object
 var session = null;
 var adapter = null;
 var connection = null;
 var ws = null;
 var pingTimer = null;
+var currentErrorAlert = null;
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -117,9 +119,11 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             if(_url == '/app/ping') {
                 _successevt("error");
             } else {
-                alert_jq('HTTP Error'+
-                         (textStatus.length > 0 ? ' '+textStatus:'')+
-                         (errorThrown.length > 0 ? ' details '+errorThrown:''));
+                if(!currentErrorAlert || !currentErrorAlert.hasClass('ui-dialog-content')) {
+                    currentErrorAlert = alert_jq('HTTP Error'+
+                        (textStatus.length > 0 ? ' '+textStatus:'') +
+                        (errorThrown.length > 0 ? ' details '+errorThrown:''));
+                }
             }
         }
     });
@@ -327,21 +331,26 @@ function show_about_dlg()
 function alert_jq(string)
 {
     var dlgDiv =
-        $('<div id="dialog-message" title="DDerl message"></div>')
+        $('<div>')
         .appendTo(document.body)
         .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>')
         .dialog({
             modal:false,
             width: 300,
             height: 300,
+            title: "DDerl message",
             open: function() {
                 $(this).dialog("widget").appendTo("#main-body");
             },
             close: function() {
-                $(this).dialog('destroy');
-                $(this).remove();
+                //We have to remove the added child p
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
             }
-        }).dialog("widget").draggable("option","containment","#main-body");
+        });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
 }
 
 function create_ws(url)
