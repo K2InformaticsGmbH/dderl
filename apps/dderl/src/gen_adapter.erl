@@ -117,7 +117,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     end,
     From ! {reply, Res};
 process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
-    ?Error(user, "Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
+    ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
 %%%%%%%%%%%%%%%
