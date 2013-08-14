@@ -2104,6 +2104,12 @@ if (typeof Slick === "undefined") {
       }
     }
 
+    // Added to fix header columns keeping the old scroll position after
+    // after closing  & open in firefox.
+    function resetHeaderScroll() {
+        $headerScroller[0].scrollLeft = 0;
+    }
+
     function scrollActiveCellIntoView() {
       if (activeCellNode) {
         var left = $(activeCellNode).position().left,
@@ -2919,6 +2925,7 @@ if (typeof Slick === "undefined") {
       "scrollCellIntoView": scrollCellIntoView,
       "getCanvasNode": getCanvasNode,
       "focus": setFocus,
+      "resetHeaderScroll": resetHeaderScroll,
 
       "getCellFromPoint": getCellFromPoint,
       "getCellFromEvent": getCellFromEvent,

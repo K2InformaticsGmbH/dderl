@@ -1484,18 +1484,19 @@
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
             .dialog(self.options)
-            .bind("dialogresize", function(event, ui) 
-            {
+            .bind("dialogresize", function(event, ui) {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
             })
-            .bind("dialogfocus", function(event, ui)
-            {
+            .bind("dialogfocus", function(event, ui) {
                 var cellEditor = self._grid.getCellEditor();
                 self._grid.focus();
                 if(cellEditor && !cellEditor.isFocused()) {
                     cellEditor.focus();
                 }
+            })
+            .bind("dialogbeforeclose", function(event, ui) {
+                self._grid.resetHeaderScroll();
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
