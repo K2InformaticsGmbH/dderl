@@ -28,11 +28,15 @@ start() ->
                                                                      {count, 5}]}]),
     ok = application:set_env(lager, error_logger_redirect, false),
     ok = application:start(lager),
+    ok = application:load(sasl),
+    ok = application:set_env(sasl, sasl_error_logger, false),
+    ok = application:start(sasl),
+    ok = application:start(os_mon),
 	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
     ok = application:start(erlimem),
-    application:start(sqlparse),% maybe already started by imem 
+    ok = application:start(sqlparse),% maybe already started by imem 
     ok = application:start(imem),
 	ok = application:start(dderl).
 

@@ -5,8 +5,10 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
-                  erlimem,
                   lager,
+                  sasl,
+                  os_mon,
+                  erlimem,
                   ranch,
                   imem,
                   sqlparse
