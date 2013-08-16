@@ -16,7 +16,6 @@
     _url            : null,
     _stmt           : null,
     _conn           : null,
-    _session        : null,
     _adapter        : null,
     _cmd            : null,
     _clmlay         : null,
@@ -148,7 +147,6 @@
         // dderl options
         dderlConn         : null,
         dderlAdapter      : null,
-        dderlSession      : null,
         dderlStatement    : null,
         dderlCmd          : null,
         dderlCmdStrs      : null,
@@ -173,7 +171,6 @@
         // preserve some options
         if(self.options.dderlConn       !== self._conn)     self._conn      = self.options.dderlConn;
         if(self.options.dderlAdapter    !== self._adapter)  self._adapter   = self.options.dderlAdapter;
-        if(self.options.dderlSession    !== self._session)  self._session   = self.options.dderlSession;
         if(self.options.dderlStatement  !== self._stmt)     self._stmt      = self.options.dderlStatement;
         if(self.options.dderlCmd        !== self._cmd)      self._cmd       = self.options.dderlCmd;
         if(self.options.dderlCmdStrs    !== self._cmdStrs)  self._cmdStrs   = self.options.dderlCmdStrs;
@@ -1378,7 +1375,6 @@
             position        : pos,
 
             dderlAdapter    : this._adapter,
-            dderlSession    : this._session,
             dderlConn       : this._conn,
             dderlStatement  : _table.statement,
             dderlCmd        : _table.content,
@@ -1959,15 +1955,6 @@
             }
             else
                 $.error('adapter is already set to '+self._adapter+' and can\'t be changed to '+value);
-            break;
-          case "dderlSession":
-            // handle changes to dderlSession option
-            if(self._session === null || self._session === value) {
-                self._session = value;
-                save = true;
-            }
-            else
-                $.error('session is already set to '+self._session+' and can\'t be changed to '+value);
             break;
         }
  

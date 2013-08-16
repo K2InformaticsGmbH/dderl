@@ -20,7 +20,7 @@
         , format_status/2
         ]).
 
--define(SESSION_IDLE_TIMEOUT, 3600000). % 1 hour
+-define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
 -record(state, {
@@ -72,10 +72,10 @@ handle_info(die, #state{user=_User}=State) ->
     {stop, timeout, State};
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
-    {stop, normal, State};
-handle_info(not_logged_in, #state{} = State) ->
-    ?Error("Session ~p not logged in trying to make a request, state: ~n~p", [self(), State]),
-    {stop, normal, State};
+    {stop, logout, State};
+handle_info(invalid_credentials, #state{} = State) ->
+    ?Debug("terminating session ~p due to invalid credentials", [self()]),
+    {stop, invalid_credentials, State};
 handle_info({'EXIT', Pid, normal}, #state{user = User} = State) ->
     ?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
@@ -110,6 +110,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login">>,Err}])},
+            self() ! invalid_credentials,
             State;
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -120,6 +121,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login">>, Err}])},
+            self() ! invalid_credentials,
             State
     end;
 
@@ -187,8 +189,6 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
     ?Error("Request from a not logged in user: ~n~p", [Req]),
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
-    %%TODO: Should we really terminate here?, maybe the error reply is ok...
-    self() ! not_logged_in,
     State;
 
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->

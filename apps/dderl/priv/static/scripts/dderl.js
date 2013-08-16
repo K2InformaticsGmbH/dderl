@@ -79,15 +79,14 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         success: function(_data, textStatus, request)
         {
             console.log('Request '+_url+' Result '+textStatus);
-            
-            // dderl_sess is saved in global var session and (optionally)
-            // in the dderlSession and _session property of the widget
-            var s = request.getResponseHeader('dderl_sess');
-            if(s != null)
-                session = s;
 
-            if(!this.hasOwnProperty('context'))
-                this.options.dderlSession = this._session = session;
+            // Save the session if the request was to log in.
+            if(_url == '/app/login') {
+                var s = request.getResponseHeader('dderl_sess');
+                console.log("The session response header dderl_sess");
+                console.log(s);
+                session = s;
+            }
 
             if(request.status === 204) {
                 console.error('204 received for the request ' + _url);
@@ -150,7 +149,7 @@ function resetPingTimer() {
                 }
             });
         },
-    300000); // Ping time 5 minutes.
+    30000); // Ping time 30 secs.
 }
 
 function login_first()
@@ -170,8 +169,7 @@ function show_qry_files(useSystem)
     .table({
         autoOpen    : false,
         dderlConn   : connection,
-        dderlSession: session,
-        dderlAdapter: adapter,
+        dderlAdapter: adapter
     })
     .table('loadViews', useSystem);
 }

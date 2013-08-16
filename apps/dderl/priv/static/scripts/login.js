@@ -44,7 +44,7 @@ function display_login()
         if(e.which == 13) {
             var loginJson = {login: { user      :   $('#user_login').val(),
                                       password  :   MD5($('#password_login').val())}};
-            ajaxCall(null,'/app/login',loginJson,'login', function(data) {
+            ajaxCall(null, '/app/login', loginJson, 'login', function(data) {
                 if(data == "ok") {
                     var user = $('#user_login').val();
                     update_user_information(user);
@@ -56,6 +56,7 @@ function display_login()
                     $("#dialog-login").dialog("close");
                     change_password(true);
                 } else {
+                    session = null;
                     alert('Login falied : ' + data);
                 }
             });        
@@ -101,13 +102,13 @@ function logout() {
 
         success: function(_data, textStatus, request) {
             console.log('Request logout Result ' + textStatus);
-            process_logout();
         },
 
         error: function (request, textStatus, errorThrown) {
-            process_logout();
+            console.log('Request logout Error, status: ' + textStatus);
         }
     });
+    process_logout();
 }
 
 function process_logout() {

@@ -383,7 +383,6 @@ function insertAtCursor(myField, myValue) {
             title          : this._title,
             autoOpen       : false,
             dderlConn      : connection,
-            dderlSession   : session,
             dderlAdapter   : adapter,
             dderlStartBtn  : button,
             dderlCmdStrs   : this._history,
@@ -540,6 +539,16 @@ function insertAtCursor(myField, myValue) {
  
     // translations to default dialog behavior
     open: function() {
+        /*if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
+            this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+            this._dlg.dialog("widget").appendTo("#main-body");
+            smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['left', 'right', 'top', 'bottom', 'right']);
+        } else {
+            findFreeSpace(this._dlg);
+            this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
+            this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
+            this._dlg.dialog("widget").appendTo("#main-body");
+        } */
         this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         this._dlg.dialog("widget").appendTo("#main-body");
