@@ -30,6 +30,7 @@
 
     // sort and filter
     _sorts          : null,
+    _sortDlg        : null,
     _filters        : null,
     _fltrDlg        : null,
 
@@ -548,12 +549,18 @@
     },
     _showSortGui: function() {
         var self = this;
+
+        // first check if we have a sort dialog open and close it.
+        if(self._sortDlg && self._sortDlg.hasClass('ui-dialog-content')) {
+            self._sortDlg.dialog("close");
+        }
+
         var data = new Array();
         for (var s in self._sorts) {
             data.push({id: s, name: self._sorts[s].name, sort: (self._sorts[s].asc ? 'ASC' : 'DESC')});
         }
 
-        var sortDlg =
+        self._sortDlg =
             $('<div>')
             .css('width', 500)
             .appendTo(document.body);
@@ -567,7 +574,7 @@
             .css('border-style', 'solid')
             .css('border-width', '1px')
             .css('border-color', 'lightblue')
-            .appendTo(sortDlg);
+            .appendTo(self._sortDlg);
 
         // building slickgrid
         var sgrid = new Slick.Grid(sortDiv
@@ -699,12 +706,12 @@
             return self._sortSpec2Json();
         }
         
-        sortDlg.dialog({
+        self._sortDlg.dialog({
             width : 336,
             modal : false,
             title : 'Sorts',
+            rowHeight : self.options.slickopts.rowHeight,
             close : function() {
-                saveChange();
                 $(this).dialog('close');
                 $(this).remove();
             },
@@ -718,10 +725,13 @@
             }
         });
 
-        sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
-        sortDlg.dialog("widget").appendTo("#main-body");
+        self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
+        self._sortDlg.dialog("widget").appendTo("#main-body");
+        //Set the height of the sort dialog depending on the number of rows...
+        var sortGridHeight = (data.length + 2) * self.options.slickopts.rowHeight;
+        self._sortDlg.height(sortGridHeight);
         //Lets put it where we have space...
-        smartDialogPosition($("#main-body"), this._dlg, sortDlg, ['bottom','right','left','top','right']);
+        smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['bottom','right','left','top','right']);
     },
 
     _ajax: function(url, data, resp, callback) {
@@ -1502,6 +1512,9 @@
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
+
+        // add this dialog to the window finder.
+        addWindowFinder(self, self.options.title);
     },
 
     // context menus invocation for slickgrid
@@ -1920,6 +1933,20 @@
         }
         self._divDisable.remove();
         self._grid.focus();
+    },
+
+    moveAllToTop: function() {
+        var self = this;
+        self._dlg.dialog("moveToTop");
+        if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
+            self._divSqlEditor.dialog("moveToTop");
+        }
+        if(self._fltrDlg && self._fltrDlg.hasClass('ui-dialog-content')) {
+            self._fltrDlg.dialog("moveToTop");
+        }
+        if(self._sortDlg && self._sortDlg.hasClass('ui-dialog-content')) {
+            self._sortDlg.dialog("moveToTop");
+        }
     },
 
     updateErlangCell: function(newErlangString) {

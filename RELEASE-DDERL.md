@@ -7,6 +7,8 @@ Version 1.0.5 (Release Date TBD)
 =======================================
 
 * numeric columns are right aligned
+* disconnecting from the system clean up all the session related processes in a shorter time
+* added a Window entry on the menu to allow easier selection of open tables
 * 
 
 Version 1.0.4 (Release Date 08.08.2013)

@@ -169,7 +169,8 @@ function show_qry_files(useSystem)
     .table({
         autoOpen    : false,
         dderlConn   : connection,
-        dderlAdapter: adapter
+        dderlAdapter: adapter,
+        title       : "All Views"
     })
     .table('loadViews', useSystem);
 }
@@ -618,5 +619,37 @@ function patch_jquery_ui() {
         stop: function () {
             $(this).removeData("resizable-alsoresize");
         }
+    });
+}
+
+function addWindowFinder(table, title) {
+    // Create the elements.
+    var windowsList = document.getElementById("window-finder");
+    var link = document.createElement("a");
+    var li = document.createElement("li");
+
+    // Set the title and the click event.
+    if(title.length < 20) {
+        link.textContent = title;
+    } else {
+        link.textContent = title.substring(0, 17) + "...";
+    }
+    link.href = '#';
+    link.onclick = function() {
+        if(table && table._dlg && table._dlg.hasClass('ui-dialog-content')) {
+            table.moveAllToTop();
+        } else {
+            // In case we have a invalid entry it is removed.
+            windowsList.removeChild(li);
+        }
+    };
+
+    // Append to the page.
+    li.appendChild(link);
+    windowsList.appendChild(li);
+
+    // Bind to the close event to remove it from the list.
+    table._dlg.bind("dialogclose", function(event, ui) {
+        windowsList.removeChild(li);
     });
 }
