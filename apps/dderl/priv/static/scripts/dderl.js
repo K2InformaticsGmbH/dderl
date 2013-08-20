@@ -109,7 +109,9 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                alert_jq('Error : '+_data.error);
+                if(!currentErrorAlert || !currentErrorAlert.hasClass('ui-dialog-content')) {
+                    currentErrorAlert = alert_jq('Error : '+_data.error);
+                }
             }
             else throw('resp '+_resphead+' doesn\'t match the request '+_url);
         },
