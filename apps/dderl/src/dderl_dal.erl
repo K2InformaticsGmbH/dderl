@@ -29,33 +29,57 @@
         ,is_local_query/1
         ]).
 
--record(state, { schema
-               , sess
+-record(state, { schema :: term()
+               , sess :: {atom(), pid()}
     }).
 
+-spec login(binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 login(User, Password)                        -> gen_server:call(?MODULE, {login, User, Password}).
+
+-spec change_password(binary(), binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword}).
 
+-spec add_adapter(atom(), binary()) -> ok.
 add_adapter(Id, FullName)           -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
+
+-spec add_connect({atom(), pid()} | undefined, #ddConn{}) -> ok.
 add_connect(Sess, #ddConn{} = Conn) -> gen_server:cast(?MODULE, {add_connect, Sess, Conn}).
 
+-spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), atom(), term()) -> ddEntityId().
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
+
+-spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), atom(), binary(), binary(), atom(), term()) -> ddEntityId().
 update_command(Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}).
+
+-spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
 add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
+
+-spec update_view({atom(), pid()}, integer(), #viewstate{}, binary()) -> integer() | {error, binary()}.
 update_view(Sess, ViewId, ViewsState, Qry) when is_integer(ViewId) -> gen_server:call(?MODULE, {update_view, Sess, ViewId, ViewsState, Qry}).
 
-get_adapters(Sess)                     -> gen_server:call(?MODULE, {get_adapters, Sess}).
-get_connects(Sess, User)               -> gen_server:call(?MODULE, {get_connects, Sess, User}).
-del_conn(Sess, ConId)                  -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
-get_command(Sess, IdOrName)            -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
-get_view(Sess, Name, Adapter, Owner)   -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
+-spec get_adapters({atom(), pid()}) -> [#ddAdapter{}].
+get_adapters(Sess) -> gen_server:call(?MODULE, {get_adapters, Sess}).
 
-hexstr_to_bin(S)        -> hexstr_to_bin(S, []).
-hexstr_to_bin([], Acc)  -> list_to_binary(lists:reverse(Acc));
+-spec get_connects({atom(), pid()}, binary()) -> [#ddConn{}].
+get_connects(Sess, User) -> gen_server:call(?MODULE, {get_connects, Sess, User}).
+
+-spec del_conn({atom(), pid()}, ddEntityId()) -> ok | no_permission.
+del_conn(Sess, ConId) -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
+
+-spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
+get_command(Sess, IdOrName) -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
+
+-spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{}.
+get_view(Sess, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
+
+-spec hexstr_to_bin(binary()) -> binary().
+hexstr_to_bin(S) -> hexstr_to_bin(S, []).
+hexstr_to_bin([], Acc) -> list_to_binary(lists:reverse(Acc));
 hexstr_to_bin([X,Y|T], Acc) ->
     {ok, [V], []} = io_lib:fread("~16u", [X,Y]),
     hexstr_to_bin(T, [V | Acc]).
 
+-spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
     ?Debug("starting...~n"),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
@@ -77,7 +101,6 @@ init([SchemaName]) ->
         ]),
         ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
         Sess:run_cmd(insert, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
-
         % Initializing adapters (all the *_adapter modules compiled with dderl)
         %  doesn't include dynamically built adapters
         {ok, AdaptMods} = application:get_key(dderl, modules),
@@ -89,6 +112,7 @@ init([SchemaName]) ->
         {stop, Reason}
     end.
 
+-spec build_tables_on_boot({atom() | pid()}, [tuple()]) -> ok.
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     ?Info("creating table ~p", [N]),
@@ -186,7 +210,7 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
             {reply, ViewId, State};
         _ ->
             ?Error("Unable to get the view to update ~p", [ViewId]),
-            {reply, {error, "Unable to get the view to update"}, State}
+            {reply, {error, <<"Unable to get the view to update">>}, State}
     end;
 
 handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess} = State) ->
@@ -356,13 +380,18 @@ handle_cast(Req,State) ->
 handle_info(Req,State) ->
     ?Debug("unknown info ~p", [Req]),
     {noreply, State}.
+
 terminate(Reason, #state{sess = Sess}) ->
     ?Debug("terminating, reason ~p", [Reason]),
     Sess:close(),
     ok.
+
 code_change(_OldVsn, State, _Extra)     -> {ok, State}.
 format_status(_Opt, [_PDict, _State])   -> ok.
 
+
+%% Helper functions %%
+-spec is_local_query(binary()) -> boolean().
 is_local_query(Qry) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
     case sqlparse:parsetree(Qry) of
@@ -392,6 +421,7 @@ is_local_query(Qry) ->
             false
     end.
 
+-spec compare_connections(#ddConn{}, #ddConn{}) -> boolean().
 compare_connections(Connection, Connection) -> true;
 compare_connections(#ddConn{access = []}, _) -> false;
 compare_connections(_, #ddConn{access = []}) -> false;
@@ -399,6 +429,7 @@ compare_connections(#ddConn{access = A1} = Con1, #ddConn{access = A2} = Con2) ->
     lists:sort(A1) =:= lists:sort(A2)
         andalso compare_connections(Con1#ddConn{access = []}, Con2#ddConn{access = []}).
 
+-spec internal_get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
 internal_get_command(Sess, IdOrName) ->
   ?Debug("get_command for id ~p", [IdOrName]),
   {Cmds, true} =
