@@ -15,6 +15,7 @@
 
 init() -> ok.
 
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), [{binary(), binary(), atom()}]) -> ok.
 add_cmds_views(_, _, _, []) -> ok;
 add_cmds_views(Sess, UserId, A, [{N,C,Con}|Rest]) ->
     add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}}|Rest]);
@@ -29,6 +30,7 @@ add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     end,
     add_cmds_views(Sess, UserId, A, Rest).
 
+-spec box_to_json(#box{}) -> [{binary(), term()}].
 box_to_json(Box) ->
     [ {<<"ind">>, Box#box.ind}
     , {<<"name">>, any_to_bin(Box#box.name)}
@@ -38,10 +40,12 @@ box_to_json(Box) ->
     , {<<"color">>, Box#box.color}
     , {<<"pick">>, Box#box.pick}].
 
+-spec any_to_bin(term()) -> binary().
 any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
-    
+
+-spec process_cmd({[binary()], [{binary(), list()}]}, {atom() | pid()}, ddEntityId(), pid(), term()) -> term().
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
@@ -122,7 +126,10 @@ process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
 
 %%%%%%%%%%%%%%%
 
+-spec col2json([#stmtCol{}]) -> [binary()].
 col2json(Cols) -> col2json(lists:reverse(Cols), [], length(Cols)).
+
+-spec col2json([#stmtCol{}], [binary()], integer()) -> [binary()].
 col2json([], JCols, _Counter) -> [<<"id">>,<<"op">>|JCols];
 col2json([C|Cols], JCols, Counter) ->
     Nm = C#stmtCol.alias,
@@ -130,6 +137,7 @@ col2json([C|Cols], JCols, Counter) ->
     Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
     col2json(Cols, [Nm1 | JCols], Counter - 1).
 
+-spec gui_resp(#gres{}, [#stmtCol{}]) -> [{binary(), term()}].
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
     ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
@@ -150,9 +158,12 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 
+-spec widest_cell_per_clm(list()) -> [binary()].
 widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
     widest_cell_per_clm(Rows, lists:duplicate(length(R), <<>>)).
+
+-spec widest_cell_per_clm([], [binary()]) -> [binary()].
 widest_cell_per_clm([],V) -> V;
 widest_cell_per_clm([R|Rows],V) ->
     NewV = 
@@ -171,6 +182,7 @@ widest_cell_per_clm([R|Rows],V) ->
     || {Re, Ve} <- lists:zip(R,V)],
     widest_cell_per_clm(Rows,NewV).
 
+-spec r2jsn(list(), [binary()]) -> list().
 r2jsn(Rows, JCols) -> r2jsn(Rows, JCols, []).
 r2jsn([], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([[]], _, NewRows) -> lists:reverse(NewRows);
@@ -193,6 +205,7 @@ r2jsn([Row|Rows], JCols, NewRows) ->
         || {C, R} <- lists:zip(JCols, Row)]
     | NewRows]).
 
+-spec build_resp_fun(binary(), [#stmtCol{}], pid()) -> fun().
 build_resp_fun(Cmd, Clms, From) ->
     fun(#gres{} = GuiResp) ->
         GuiRespJson = gui_resp(GuiResp, Clms),

@@ -37,6 +37,7 @@ terminate(_Req, TRef) ->
     is_reference(TRef) andalso erlang:cancel_timer(TRef),
     ok.
 
+-spec get_time() -> binary().
 get_time() ->
     {_,_,Micros} = Now = erlang:now(),
     {{Year,Month,Day},{Hour,Minute,Sec}} = calendar:now_to_local_time(Now),

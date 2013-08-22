@@ -8,8 +8,7 @@
 -define(NT(__E,__T), if __E > 0 -> lists:duplicate(?TAB_SIZE*(__T),32); true -> "" end).
 -define(MAX_COMPRESS, 50).
 
-%% TODO: Try to expand tabs to make it compatible with tab size 4 spaces.
-%% http://www.trapexit.org/String_Tabs
+-spec format(binary(), integer() | auto, boolean()) -> binary() | {error, term()}.
 format(<<>>, _Expand, _Force) -> <<>>;
 format(String, Expand, false) ->
     case re:run(String, [$\n]) of
@@ -23,6 +22,7 @@ format(String, Expand, false) ->
 format(String, Expand, true) ->
     format(String, Expand).
 
+-spec format(binary(), integer() | auto) -> binary() | {error, term()}.
 format(String, Expand) ->
     case erl_scan:string(add_dot(binary_to_list(String))) of
         {ok, Tokens, _} ->
@@ -71,6 +71,7 @@ format(String, Expand) ->
             {error, ErrorInfo}
     end.
 
+-spec expand_expression(binary()) -> {ok, string()} | {error, binary()}.
 expand_expression(BinStr) ->
     AsString = add_dot(binary_to_list(BinStr)),
     case erl_scan:string(AsString) of
@@ -88,12 +89,13 @@ expand_expression(BinStr) ->
             {error, iolist_to_binary(io_lib:format("~p", [BinStr]))}
     end.
 
-
+-spec expand(term(), integer() | auto) -> iolist().
 expand(Term, auto) ->
     {_Expanded, Result} = expand_auto(Term, 0),
     Result;
 expand(Term, Expand) -> expand(Term, Expand, 0).
 
+-spec expand_auto(term(), integer()) -> {boolean(), iolist()}.
 expand_auto(Term, _Col) when is_atom(Term);
                              is_integer(Term);
                              is_float(Term)  -> {false, io_lib:format("~w", [Term])};
@@ -120,6 +122,7 @@ expand_auto(Term, Col) when is_list(Term)   ->
         false -> expand_elements(Term, "[]", Col)
     end.
 
+-spec expand_elements(list(), list(), integer()) -> {boolean(), iolist()}.
 expand_elements([], Brackets, _Col) -> {false, [Brackets]};
 expand_elements([Element | Rest] = Term, [LB, RB], Col) ->
     TextWidth = length(lists:flatten(io_lib:format("~w", [Term]))),
@@ -134,16 +137,20 @@ expand_elements([Element | Rest] = Term, [LB, RB], Col) ->
              "\n", add_spaces(Col), [RB]]}
     end.
 
+-spec add_commas(iolist(), integer()) -> iolist().
 add_commas([], _Col) -> [];
 add_commas([Element | Rest], Col) ->
     Result = lists:flatten(get_result(expand_auto(Element, Col+1))),
     [",", Result, add_commas(Rest, Col + length(Result) + 1)].
 
+-spec add_spaces(integer()) -> [32].
 add_spaces(Count) ->
    lists:duplicate(Count, 32).
 
+-spec get_result({boolean(), iolist()}) -> iolist().
 get_result({_WasExpanded, Result}) -> Result.
 
+-spec expand(term(), integer(), integer()) -> iolist().
 expand(Term, _Expand, _Tab) when is_atom(Term);
                                  is_integer(Term);
                                  is_float(Term)  -> io_lib:format("~w", [Term]);
@@ -155,6 +162,7 @@ expand(Term, Expand, Tab) when is_list(Term)     ->
         false -> expand_cons(Term, "[]", Expand, Tab)
     end.
 
+-spec expand_cons(list(), list(), integer(), integer()) -> iolist().
 expand_cons([], Brackets, _Expand, _Tab) -> [Brackets];
 expand_cons([Element | Rest], [LB, RB], Expand, Tab) ->
     [[LB], ?NL(Expand), ?NT(Expand,Tab+1),
@@ -162,12 +170,14 @@ expand_cons([Element | Rest], [LB, RB], Expand, Tab) ->
     [[?NL(Expand), ?NT(Expand,Tab+1), ",", expand(T,Expand-1,Tab+1)] || T <- Rest],
     ?NL(Expand), ?NT(Expand,Tab), [RB]].
 
+-spec add_dot(list()) -> list().
 add_dot(Val) ->
     case [lists:last(trim_whitespace(Val))] of
         "." -> Val;
         _ -> Val ++ "."
     end.
 
+-spec escape_quotes(list()) -> list().
 escape_quotes([]) -> [];
 escape_quotes([$\\, $" | Rest]) ->
     [$\\, $\\, $\\, $" | escape_quotes(Rest)];
@@ -178,6 +188,7 @@ escape_quotes([$"|Rest]) ->
 escape_quotes([Char|Rest]) ->
     [Char | escape_quotes(Rest)].
 
+-spec trim_whitespace(list()) -> list().
 trim_whitespace(Input) ->
     LS = re:replace(Input, "^\\s*", "", [unicode, {return, list}]),
     RS = re:replace(LS, "\\s*$", "", [unicode, {return, list}]),

@@ -31,9 +31,11 @@
                 ins_delay = ?INS_DELAY,
                 tables = []}).
 
+-spec start() -> ok | already_started | {error, term()}.
 start() ->
     start(?NTABLES, ?NROWS, ?NCOLUMNS, ?INS_DELAY).
 
+-spec start(integer(), integer(), integer(), integer()) -> ok | already_started | {error, term()}.
 start(NTables, NRows, NColumns, InsDelay) ->
     InitState = #state{n_tables = NTables,
                        n_rows = NRows,
@@ -92,6 +94,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 create_names(Prefix, TotalNames) ->
     create_names(Prefix, TotalNames, 1).
 
+-spec create_names(string(), pos_integer(), pos_integer()) -> [atom()].
 create_names(_Prefix, TotalNames, NCurrent) when NCurrent > TotalNames -> [];
 create_names(Prefix, TotalNames, NCurrent) when NCurrent =< TotalNames ->
     [list_to_atom(Prefix ++ [96 + NCurrent]) | create_names(Prefix, TotalNames, NCurrent + 1)].

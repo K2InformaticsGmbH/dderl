@@ -54,6 +54,8 @@ info(Message, Req, State) ->
 terminate(_Reason, _Req, _State) ->
 	ok.
 
+%% Helper functions
+-spec create_new_session(binary()) -> {ok, {atom(), pid()}} | {error, term()}.
 create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
     ?Info("new dderl session ~p from ~p", [DderlSess, self()]),
@@ -63,7 +65,7 @@ create_new_session([_,_|_] = DDerlSessPid) ->
     try ?DecryptPid(DDerlSessPid) of
         Pid ->
             case erlang:process_info(Pid) of
-                undefined -> {error, "process not found"};
+                undefined -> {error, <<"process not found">>};
                 _ -> {ok, {dderl_session, Pid}}
             end
     catch
