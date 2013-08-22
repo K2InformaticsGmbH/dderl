@@ -27,7 +27,7 @@ init() ->
                                  }),
     gen_adapter:add_cmds_views(undefined, system, imem, [
         { <<"All Tables">>
-        , <<"select name(qname), size rows, memory from all_tables, ddSize where name = element(2, qname) order by qname asc">>
+        , <<"select name(qname),size as rows, memory, nodef(expiry), nodef(ttl) from all_tables, ddSize where name = element(2,qname) and size <> undefined order by qname asc">>
         , remote},
         { <<"All Views">>
         , <<"select
