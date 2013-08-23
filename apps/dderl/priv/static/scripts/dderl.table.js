@@ -1495,6 +1495,10 @@
                 self._dlgResized = true;
             })
             .bind("dialogfocus", function(event, ui) {
+                // If the tale is disabled do not set the focus.
+                if(self._divDisable) {
+                    return;
+                }
                 var cellEditor = self._grid.getCellEditor();
                 self._grid.focus();
                 if(cellEditor && !cellEditor.isFocused()) {
@@ -1751,7 +1755,7 @@
             }
             // If we are in edit mode already.
             return;
-        } else if(e.keyCode === 46) { // Del
+        } else if(e.keyCode === 46 || e.keyCode === 8) { // Del
             e.stopImmediatePropagation();
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
@@ -1825,7 +1829,13 @@
 
     // Recover the focus if the vieport gets a mouse event.
     _handleMouseDown: function(e, args) {
+        console.log("handle mouse down");
         var self = this;
+        // If the tale is disabled do not set the focus.
+        if(self._divDisable) {
+            return;
+        }
+
         self._dlg.dialog("moveToTop");
         if($.browser.msie) {
             //Ie steals the focus to the scrollbar even after preventDefaults.
@@ -1846,7 +1856,6 @@
             }
             console.log("Focus set");
         }
-
     },
 
     _handleDragInit: function(e, args) {
@@ -1854,6 +1863,7 @@
         var self = this;
         self._dlg.dialog("moveToTop");
         self._grid.focus();
+        console.log("Focus set");
     },
 
     _gridColumnsReorder: function() {
