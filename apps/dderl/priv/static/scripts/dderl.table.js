@@ -1001,19 +1001,20 @@
         var self = this;
 
         console.log(tableCmd + ' for '+ ranges.length + ' slick range(s)');
+        var columns  = self._grid.getColumns();
 
-        // test the range and throw unsupported exceptions
-        if(!self._singleCellSelected(ranges)) {
-            throw('cell level ' + tableCmd + ' don\'t support multiples and ranges');
-        } else {
-            var cell    = ranges[0];
-            var column  = self._grid.getColumns()[cell.fromCell];
-            var row    = self._gdata[cell.fromRow];
-            var context = {};
-            context[tableCmd] = {connection : connection,
-                                 statement : self._stmt,
-                                 table_name : row[column.field]};
-            self._ajax('/app/' + tableCmd, context, tableCmd, callback);
+        for(var i = 0; i < ranges.length; ++i) {
+            for(var j = ranges[i].fromCell; j <= ranges[i].toCell; ++j) {
+                var cell = columns[j];
+                for(var k = ranges[i].fromRow; k <= ranges[i].toRow; ++k) {
+                    var row    = self._gdata[k];
+                    var context = {};
+                    context[tableCmd] = {connection : connection,
+                                         statement : self._stmt,
+                                         table_name : row[cell.field]};
+                    self._ajax('/app/' + tableCmd, context, tableCmd, callback);
+                }
+            }
         }
     },
 
