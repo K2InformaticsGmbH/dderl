@@ -3,13 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.0.5 (Release Date TBD)
+Version 1.0.5 (Release Date 28.08.2013)
 =======================================
 
 * numeric columns are right aligned
 * disconnecting from the system clean up all the session related processes in a shorter time
 * added a Window entry on the menu to allow easier selection of open tables
-* 
+* added support to perform table operations using multiple selection
+
+* fix click on a disabled table behind the erlang term editor steal the focus
 
 Version 1.0.4 (Release Date 08.08.2013)
 =======================================
