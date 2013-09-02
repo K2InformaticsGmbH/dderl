@@ -15,7 +15,7 @@
 
 init() -> ok.
 
--spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), [{binary(), binary(), atom()}]) -> ok.
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), [tuple()]) -> ok.
 add_cmds_views(_, _, _, []) -> ok;
 add_cmds_views(Sess, UserId, A, [{N,C,Con}|Rest]) ->
     add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}}|Rest]);
@@ -45,7 +45,7 @@ any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
--spec process_cmd({[binary()], [{binary(), list()}]}, {atom() | pid()}, ddEntityId(), pid(), term()) -> term().
+-spec process_cmd({[binary()], [{binary(), list()}]}, {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
@@ -163,7 +163,7 @@ widest_cell_per_clm([]) -> [];
 widest_cell_per_clm([R|_] = Rows) ->
     widest_cell_per_clm(Rows, lists:duplicate(length(R), <<>>)).
 
--spec widest_cell_per_clm([], [binary()]) -> [binary()].
+-spec widest_cell_per_clm(list(), [binary()]) -> [binary()].
 widest_cell_per_clm([],V) -> V;
 widest_cell_per_clm([R|Rows],V) ->
     NewV = 

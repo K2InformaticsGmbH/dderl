@@ -13,6 +13,7 @@
 
 -record(priv, {connections = []}).
 
+-spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(imem, <<"IMEM DB">>),
     dderl_dal:add_connect(undefined,
@@ -46,6 +47,7 @@ init() ->
         , local}
     ]).
 
+-spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}) -> #priv{}.
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
@@ -171,7 +173,7 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
 
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
-    Query = binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>)),
+    Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     ?Info("query ~p", [Query]),
@@ -192,8 +194,8 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
-    Row = proplists:get_value(<<"row">>, BodyJson, <<>>),
-    Col = proplists:get_value(<<"col">>, BodyJson, <<>>),
+    Row = proplists:get_value(<<"row">>, BodyJson, 0),
+    Col = proplists:get_value(<<"col">>, BodyJson, 0),
     R = Statement:row_with_key(Row),
     ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
@@ -369,7 +371,7 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     CmdBin = lists:last(Cmd),
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
     Priv.
-
+-spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = []} = Priv) -> Priv;
 disconnect(#priv{connections = [Connection | Rest]} = Priv) ->
     ?Debug("closing the connection ~p", [Connection]),
@@ -381,10 +383,12 @@ disconnect(#priv{connections = [Connection | Rest]} = Priv) ->
     disconnect(Priv#priv{connections = Rest}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec gui_resp_cb_fun(binary(), {atom(), pid()}, pid()) -> fun().
 gui_resp_cb_fun(Cmd, Statement, From) ->
     Clms = Statement:get_columns(),
     gen_adapter:build_resp_fun(Cmd, Clms, From).
 
+-spec sort_json_to_term(list()) -> [tuple()].
 sort_json_to_term([]) -> [];
 sort_json_to_term([[{C,T}|_]|Sorts]) ->
     case string:to_integer(binary_to_list(C)) of
@@ -393,6 +397,7 @@ sort_json_to_term([[{C,T}|_]|Sorts]) ->
     end,
     [{Index, if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
 
+-spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
 extract_modified_rows([]) -> [];
 extract_modified_rows([ReceivedRow | Rest]) ->
     case proplists:get_value(<<"rowid">>, ReceivedRow) of
@@ -406,14 +411,15 @@ extract_modified_rows([ReceivedRow | Rest]) ->
     Row = {RowId, Op, Cells},
     [Row | extract_modified_rows(Rest)].
 
+-spec filter_json_to_term([{binary(), term()} | [{binary(), term()}]]) -> [{atom() | integer(), term()}].
 filter_json_to_term([{<<"undefined">>,[]}]) -> {'undefined', []};
 filter_json_to_term([{<<"and">>,Filters}]) -> {'and', filter_json_to_term(Filters)};
 filter_json_to_term([{<<"or">>,Filters}]) -> {'or', filter_json_to_term(Filters)};
 filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
-    Tail = filter_json_to_term(Filters),
-    [{binary_to_integer(C), Vs} | Tail].
+    [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
+-spec process_query(binary(), tuple()) -> list().
 process_query(Query, {_,ConPid}=Connection) ->
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)) of
         ok ->
@@ -475,6 +481,7 @@ process_query(Query, {_,ConPid}=Connection) ->
             end
     end.
 
+-spec process_table_cmd(atom(), binary(), term(), pid(), [{atom(), pid()}]) -> term().
 process_table_cmd(Cmd, BinCmd, ReqBody, From, Connections) ->
     [{BinCmd, BodyJson}] = ReqBody,
     TableName = proplists:get_value(<<"table_name">>, BodyJson, <<>>),
@@ -510,6 +517,7 @@ process_table_cmd(Cmd, BinCmd, ReqBody, From, Connections) ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end.
 
+-spec build_srtspec_json([{integer()| binary(), boolean()}]) -> list().
 build_srtspec_json(SortSpecs) ->
     ?Debug("The sort spec ~p", [SortSpecs]),
     [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
@@ -517,9 +525,11 @@ build_srtspec_json(SortSpecs) ->
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
+-spec build_column_json([#stmtCol{}]) -> list().
 build_column_json(Cols) ->
     build_column_json(Cols, [], length(Cols)).
 
+-spec build_column_json([#stmtCol{}], list(), integer()) -> list().
 build_column_json([], JCols, _Counter) ->
     [[{<<"id">>, <<"sel">>},
       {<<"name">>, <<"">>},
@@ -552,13 +562,16 @@ build_column_json([C|Cols], JCols, Counter) ->
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
 
+-spec int(integer()) -> integer().
 int(C) when $0 =< C, C =< $9 -> C - $0;
 int(C) when $A =< C, C =< $F -> C - $A + 10;
 int(C) when $a =< C, C =< $f -> C - $a + 10.
 
+-spec hexstr_to_list(list()) -> list().
 hexstr_to_list([]) -> [];
 hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
+-spec connect_to_erlimem(atom(), list(), binary(), binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
 connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
         AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
@@ -572,16 +585,19 @@ connect_to_erlimem(tcp, Ip, Port, Schema, Credentials) ->
 connect_to_erlimem(Type, _Ip, _Port, Schema, Credentials) ->
     erlimem:open(Type, {Schema}, Credentials).
 
+-spec get_connection_type(binary()) -> atom().
 get_connection_type(<<"local_sec">>) -> local_sec;
 get_connection_type(<<"local">>) -> local;
 get_connection_type(<<"rpc">>) -> rpc;
 get_connection_type(_Ip) -> tcp.
 
+-spec error_invalid_conn({atom(), pid()}, [{atom(), pid()}]) -> term().
 error_invalid_conn(Connection, Connections) ->
     Err = <<"Trying to process a query with an unowned connection">>,
     ?Error("~s: ~p~n connections list: ~p", [Err, Connection, Connections]),
     jsx:encode([{<<"error">>, Err}]).
 
+-spec check_fun_vsn(fun()) -> boolean().
 check_fun_vsn(Fun) when is_function(Fun)->
     {module, Mod} = erlang:fun_info(Fun, module),
     [ModVsn] = proplists:get_value(vsn, Mod:module_info(attributes)),
@@ -592,6 +608,7 @@ check_fun_vsn(Fun) when is_function(Fun)->
 check_fun_vsn(_) ->
     false.
 
+-spec check_funs(term()) -> term().
 check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if

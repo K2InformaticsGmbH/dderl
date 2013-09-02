@@ -11,6 +11,7 @@
 
 -record(priv, {connections = []}).
 
+-spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
     gen_adapter:add_cmds_views(undefined, system, oci, [
@@ -40,6 +41,7 @@ init() ->
         , local}
     ]).
 
+-spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}) -> #priv{}.
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
@@ -112,11 +114,13 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command ", CmdBin/binary, " is unsupported">>}]}])},
     Priv.
 
+-spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->
     ?Debug("closing the connections ~p", [Connections]),
     [Connection:close() || Connection <- Connections],
     Priv#priv{connections = []}.
 
+-spec process_query(binary(), {}) -> list().
 process_query(Query, {_,ConPid}=Connection) ->
     case Connection:exec(Query, ?DEFAULT_ROW_SIZE) of
         {ok, StmtRslt, {_,_,ConPid}=Statement} ->
@@ -148,12 +152,14 @@ process_query(Query, {_,ConPid}=Connection) ->
             [{<<"error">>, Err}]
     end.
 
+-spec build_srtspec_json([{integer()| binary(), boolean()}]) -> list().
 build_srtspec_json(SortSpecs) ->
     [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
      , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
+-spec build_column_json([#stmtCol{}], list()) -> list().
 build_column_json([], JCols) ->
     [[{<<"id">>, <<"sel">>},
       {<<"name">>, <<"">>},

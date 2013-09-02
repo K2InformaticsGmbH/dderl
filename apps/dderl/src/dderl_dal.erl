@@ -33,10 +33,10 @@
                , sess :: {atom(), pid()}
     }).
 
--spec login(binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-login(User, Password)                        -> gen_server:call(?MODULE, {login, User, Password}).
+-spec login(binary(), list()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+login(User, Password) -> gen_server:call(?MODULE, {login, User, Password}).
 
--spec change_password(binary(), binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+-spec change_password(binary(),list(),list())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword}).
 
 -spec add_adapter(atom(), binary()) -> ok.
@@ -69,10 +69,10 @@ del_conn(Sess, ConId) -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
 -spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
 get_command(Sess, IdOrName) -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
 
--spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{}.
+-spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
 get_view(Sess, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
 
--spec hexstr_to_bin(binary()) -> binary().
+-spec hexstr_to_bin(string()) -> binary().
 hexstr_to_bin(S) -> hexstr_to_bin(S, []).
 hexstr_to_bin([], Acc) -> list_to_binary(lists:reverse(Acc));
 hexstr_to_bin([X,Y|T], Acc) ->
@@ -112,7 +112,7 @@ init([SchemaName]) ->
         {stop, Reason}
     end.
 
--spec build_tables_on_boot({atom() | pid()}, [tuple()]) -> ok.
+-spec build_tables_on_boot({atom(), pid()}, [tuple()]) -> ok.
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     ?Info("creating table ~p", [N]),

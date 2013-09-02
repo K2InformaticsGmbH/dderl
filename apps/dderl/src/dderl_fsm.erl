@@ -148,16 +148,19 @@
 %% External functions
 %% ====================================================================
 
+-spec start(#fsmctx{}) -> {atom(), pid()}.
 start(#fsmctx{} = FsmCtx) ->
     Ctx = fsm_ctx(FsmCtx),
 	{ok,Pid} = gen_fsm:start(?MODULE,Ctx,[]),
     {?MODULE,Pid}.
 
+-spec start_link(#fsmctx{}) -> {atom(), pid()}.
 start_link(#fsmctx{} = FsmCtx) ->
     Ctx = fsm_ctx(FsmCtx),
 	{ok, Pid} = gen_fsm:start_link(?MODULE,Ctx,[]),
     {?MODULE,Pid}.
 
+-spec fsm_ctx(#fsmctx{}) -> #ctx{}.
 fsm_ctx(#fsmctx{ id                         = Id
                , stmtCols                   = StmtCols
                , rowFun                     = RowFun
@@ -185,9 +188,11 @@ fsm_ctx(#fsmctx{ id                         = Id
         , update_cursor_execute_fun = Ucef
         }.
 
+-spec stop({atom(), pid()}) -> ok.
 stop({?MODULE,Pid}) -> 
 	gen_fsm:send_all_state_event(Pid,stop).
 
+-spec gui_req(atom(), binary(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) -> 
     ?Debug("button ~p", [<<"restart">>]),
     gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
@@ -200,27 +205,32 @@ gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) ->
 gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) -> 
     ?Debug("button ~p", [<<"...">>]),
     gen_fsm:send_event(Pid,{button, <<"...">>, ReplyTo});
-gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) -> 
+gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
     % ?Debug("button ~p", [<<"tail">>]),
     gen_fsm:send_event(Pid,{button, <<"tail">>, ReplyTo});
-gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) -> 
+gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) ->
     ?Debug("~p ~p", [CommandStr,Parameter]),
     gen_fsm:send_all_state_event(Pid,{CommandStr, Parameter, ReplyTo}).
 
+-spec row_with_key(integer(), {atom(), pid()}) -> tuple().
 row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) -> 
     % ?Debug("row_with_key ~p", [RowId]),
     gen_fsm:sync_send_all_state_event(Pid,{"row_with_key", RowId}).
 
+%% the return tuple type #stmtcol{}. but is not imported
+-spec get_columns({atom(), pid()}) -> [tuple()].
 get_columns({?MODULE, Pid}) ->
     % ?Debug("get_columns...", []),
     gen_fsm:sync_send_all_state_event(Pid,{"get_columns"}).
 
+-spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
     gen_fsm:send_all_state_event(Pid, Error);
 rows({Rows,Completed},{?MODULE,Pid}) -> 
     % ?Debug("rows ~p ~p", [length(Rows), Completed]),
     gen_fsm:send_event(Pid,{rows, {Rows,Completed}}).
 
+-spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
@@ -238,15 +248,18 @@ fetch(FetchMode,TailMode, #state{ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0
             State0
     end.
 
+-spec prefetch(atom(), #state{}) -> #state{}.
 prefetch(filling,#state{pfc=0}=State) ->  fetch(none,none,State);
 prefetch(filling,State) ->                State;
 prefetch(_,State) ->                      State.
 
+-spec fetch_close(#state{}) -> #state{}.
 fetch_close(#state{ctx = #ctx{fetch_close_fun = Fcf}}=State) ->
     Result = Fcf(),
     ?Debug("fetch_close -- ~p", [Result]),
     State#state{pfc=0}.
 
+-spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
 filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}}) ->
     case Fasf(FilterSpec, SortSpec, Cols) of
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
@@ -262,6 +275,7 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
             {error, Else}            
     end.
 
+-spec update_cursor_prepare(list(), #state{}) -> ok | {error, term()}.
 update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf}}) ->
     case Ucpf(ChangeList) of
         %% driver session maps to imem_sec:update_cursor_prepare()
@@ -273,6 +287,7 @@ update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = 
             {error, Error}
     end.
 
+-spec update_cursor_execute(atom(), #state{}) -> list() | {error, term()}.
 update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}) ->
     case Ucef(Lock) of
         %% driver session maps to imem_sec:update_cursor_execute()
@@ -285,6 +300,91 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
             ChangedKeys
     end.
 
+-spec navigation_type(fun(), {atom() | integer(), term()}) -> {raw | ind, boolean()}.
+navigation_type(SortFun,FilterSpec) -> 
+    case catch (SortFun(1)) of
+        ?NoSortFunResult ->
+            case FilterSpec of 
+                ?NoFilter ->    {raw,false};
+                _ ->            {ind,false}
+            end;
+        _ ->    
+            {ind,true}
+    end.
+
+% buf_cnt(#state{nav=raw,rawCnt=RawCnt}) -> RawCnt;
+% buf_cnt(#state{nav=ind,indCnt=IndCnt}) -> IndCnt.
+
+% buf_top(#state{nav=raw,rawTop=RawTop}) -> RawTop;
+% buf_top(#state{nav=ind,indTop=IndTop}) -> IndTop.
+
+% buf_bot(#state{nav=raw,rawBot=RawBot}) -> RawBot;
+% buf_bot(#state{nav=ind,indBot=IndBot}) -> IndBot.
+
+-spec reset_buf_counters(#state{}) -> #state{}.
+reset_buf_counters(#state{nav=Nav,tableId=TableId,indexId=IndexId}=State0) -> 
+    RawCnt=ets:info(TableId,size),
+    {RawTop,RawBot} = case RawCnt of
+        0 ->    {?RawMax,?RawMin};
+        _ ->    {ets:first(TableId),ets:last(TableId)}
+    end,
+    IndCnt = ets:info(IndexId,size),
+    {IndTop,IndBot} = if 
+        (Nav == ind) andalso (IndCnt > 0) ->
+            {ets:first(IndexId),ets:last(IndexId)};
+        true ->
+            {?IndMax,?IndMin}
+    end,
+    set_buf_counters(State0#state{rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot
+                                 ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).
+
+-spec set_buf_counters(#state{}) -> #state{}.
+set_buf_counters(#state{nav=raw,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) -> 
+    State0#state{bufCnt=RawCnt,bufTop=RawTop,bufBot=RawBot};
+set_buf_counters(#state{nav=ind,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}=State0) -> 
+    State0#state{bufCnt=IndCnt,bufTop=IndTop,bufBot=IndBot}.
+
+-spec filter_fun({'and' | 'or' | undefined, list()}) -> fun().
+filter_fun(?NoFilter) ->
+    fun(_) -> true end;
+filter_fun({'and',Conditions}) ->
+    fun(R) -> 
+        filter_and(R,Conditions)
+    end;
+filter_fun({'or',Conditions}) ->
+    fun(R) -> 
+        filter_or(R,Conditions)
+    end.
+
+-spec filter_and(tuple(), [{integer(), term()}]) -> boolean().
+filter_and(_,[]) -> true;
+filter_and(R,[{Col,Values}|Conditions]) ->
+    case lists:member(element(Col+3,R), Values) of
+        true ->     filter_and(R,Conditions);
+        false ->    false
+    end.
+
+-spec filter_or(tuple(), [{integer(), term()}]) -> boolean().
+filter_or(_,[]) -> false;
+filter_or(R,[{Col,Values}|Conditions]) ->
+    case lists:member(element(Col+3,R), Values) of
+        false ->    filter_or(R,Conditions);
+        true ->     true
+    end.
+
+-spec reply_stack(atom(), fun(), #state{}) -> #state{}.
+reply_stack(_SN,ReplyTo, #state{stack=undefined}=State0) ->
+    % stack is empty, nothing to do    
+    State0#state{replyToFun=ReplyTo};
+reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=undefined}=State0) ->
+    % stack is obsolete, overriden by new command, reply delayed request with nop    
+    State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT}),
+    State1#state{replyToFun=ReplyTo};
+reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=TRef}=State0) ->
+    % stack is obsolete, overriden by new command, reply delayed request with nop
+    timer:cancel(TRef),    
+    State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT,tRef=undefined}),
+    State1#state{replyToFun=ReplyTo}.
 
 %% ====================================================================
 %% Server functions
@@ -320,85 +420,6 @@ init(#ctx{ bl                           = BL
                  },
     State1 = data_index(SortFun,FilterSpec,State0),           
     {ok, empty, reset_buf_counters(State1)}.
-
-navigation_type(SortFun,FilterSpec) -> 
-    case catch (SortFun(1)) of
-        ?NoSortFunResult ->
-            case FilterSpec of 
-                ?NoFilter ->    {raw,false};
-                _ ->            {ind,false}
-            end;
-        _ ->    
-            {ind,true}
-    end. 
-
-% buf_cnt(#state{nav=raw,rawCnt=RawCnt}) -> RawCnt;
-% buf_cnt(#state{nav=ind,indCnt=IndCnt}) -> IndCnt.
-
-% buf_top(#state{nav=raw,rawTop=RawTop}) -> RawTop;
-% buf_top(#state{nav=ind,indTop=IndTop}) -> IndTop.
-
-% buf_bot(#state{nav=raw,rawBot=RawBot}) -> RawBot;
-% buf_bot(#state{nav=ind,indBot=IndBot}) -> IndBot.
-
-reset_buf_counters(#state{nav=Nav,tableId=TableId,indexId=IndexId}=State0) -> 
-    RawCnt=ets:info(TableId,size),
-    {RawTop,RawBot} = case RawCnt of
-        0 ->    {?RawMax,?RawMin};
-        _ ->    {ets:first(TableId),ets:last(TableId)}
-    end,
-    IndCnt = ets:info(IndexId,size),
-    {IndTop,IndBot} = if 
-        (Nav == ind) andalso (IndCnt > 0) ->
-            {ets:first(IndexId),ets:last(IndexId)};
-        true ->
-            {?IndMax,?IndMin}
-    end,
-    set_buf_counters(State0#state{rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot
-                                 ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).
-
-set_buf_counters(#state{nav=raw,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) -> 
-    State0#state{bufCnt=RawCnt,bufTop=RawTop,bufBot=RawBot};
-set_buf_counters(#state{nav=ind,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}=State0) -> 
-    State0#state{bufCnt=IndCnt,bufTop=IndTop,bufBot=IndBot}.
-
-filter_fun(?NoFilter) ->
-    fun(_) -> true end;
-filter_fun({'and',Conditions}) ->
-    fun(R) -> 
-        filter_and(R,Conditions)
-    end;
-filter_fun({'or',Conditions}) ->
-    fun(R) -> 
-        filter_or(R,Conditions)
-    end.
-
-filter_and(_,[]) -> true;
-filter_and(R,[{Col,Values}|Conditions]) ->
-    case lists:member(element(Col+3,R), Values) of
-        true ->     filter_and(R,Conditions);
-        false ->    false
-    end.
-
-filter_or(_,[]) -> false;
-filter_or(R,[{Col,Values}|Conditions]) ->
-    case lists:member(element(Col+3,R), Values) of
-        false ->    filter_or(R,Conditions);
-        true ->     true
-    end.
-
-reply_stack(_SN,ReplyTo, #state{stack=undefined}=State0) ->
-    % stack is empty, nothing to do    
-    State0#state{replyToFun=ReplyTo};
-reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=undefined}=State0) ->
-    % stack is obsolete, overriden by new command, reply delayed request with nop    
-    State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT}),
-    State1#state{replyToFun=ReplyTo};
-reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=TRef}=State0) ->
-    % stack is obsolete, overriden by new command, reply delayed request with nop
-    timer:cancel(TRef),    
-    State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT,tRef=undefined}),
-    State1#state{replyToFun=ReplyTo}.
 
 %% --------------------------------------------------------------------
 %% Func: SN/2	 non-synchronized event handling
@@ -928,15 +949,17 @@ code_change(_OldVsn, SN, StateData, _Extra) ->
 %     {const,list_to_tuple(guard_wrap(tuple_to_list(T)))};
 % guard_wrap(E) -> E.
 
-
+-spec gui_max(integer()) -> integer().
 gui_max(BL) when BL < 10 -> 30;
 gui_max(BL) -> 3 * BL.
 
+%% What is the return of a log ? -spec gui_response_log(#gres{}) -> ok.
 gui_response_log(#gres{sql= <<"">>}=Gres) ->
     ?Debug("gui_response ~p", [Gres#gres{rows=[]}]);
 gui_response_log(Gres) ->
     ?Debug("gui_response ~p", [Gres#gres.sql]).
 
+-spec gui_response(#gres{}, #state{}) -> #state{}.
 gui_response(#gres{state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql}=State0) ->
     Gres1 = gres(SN,RawCnt,integer_to_list(RawCnt),Sql,DirtyCnt,false,Gres0),
     ReplyTo(Gres1),
@@ -949,6 +972,7 @@ gui_response(#gres{state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,d
     gui_response_log(Gres1),
     State0#state{sql= <<"">>}.
 
+-spec gres(atom(), integer(), list(), binary(), integer(), boolean(), #gres{}) -> #gres{}.
 gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0) ->
     Disable = case DirtyCount of
         0 ->    
@@ -968,17 +992,21 @@ gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0) ->
     TTbin = list_to_binary(ToolTip),
     Gres0#gres{state=SNbin,cnt=Cnt,toolTip=TTbin,sql=Sql,disable=empty_override(Disable),promote=empty_override(Promo)}.
 
+-spec empty_override(list()) -> list().
 empty_override([]) -> [{}];
 empty_override(List) -> List.
 
+-spec gui_close(#gres{}, #state{}) -> #state{}.
 gui_close(GuiResult,State) -> 
     ?Debug("gui_close () ~p", [GuiResult#gres.state]),
     gui_response(GuiResult#gres{operation= <<"close">>},State).
 
+-spec gui_nop(#gres{}, #state{}) -> #state{}.
 gui_nop(GuiResult,State) -> 
     ?Debug("gui_nop () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     gui_response(GuiResult#gres{operation= <<"nop">>},State).
 
+-spec gui_clear(#gres{}, #state{}) -> #state{}.
 gui_clear(GuiResult,#state{nav = Nav} = State0) ->
     ?Debug("gui_clear () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     case Nav of
@@ -994,12 +1022,13 @@ gui_clear(GuiResult,#state{nav = Nav} = State0) ->
 %     Cnt=length(Rows),
 %     State1 = State0#state{guiCnt=Cnt,guiTop=NewTop,guiBot=NewBot,guiCol=false},
 %     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt},State1).
-
+-spec gui_ins(#gres{}, #state{}) -> #state{}.
 gui_ins(#gres{rows=Rows}=GuiResult, #state{guiCnt=GuiCnt}=State0) ->
     Cnt = length(Rows),
     ?Debug("gui_ins (~p) ~p ~p", [Cnt, GuiResult#gres.state, GuiResult#gres.loop]),
     gui_response(GuiResult#gres{operation= <<"ins">>},State0#state{guiCnt=GuiCnt+Cnt}).
 
+-spec gui_replace_from(integer() | tuple(), integer(), #gres{}, #state{}) -> #state{}.
 gui_replace_from(Top,Limit,GuiResult,#state{nav=raw,tableId=TableId,rowFun=RowFun}=State0) ->
     Ids = case ets:lookup(TableId, Top) of
         [] ->   ids_after(Top, Limit, State0);
@@ -1024,6 +1053,7 @@ gui_replace_from(Top,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt}, State1).
 
+-spec gui_replace_until(integer() | tuple(), integer(), #gres{}, #state{}) -> #state{}.
 gui_replace_until(Bot,Limit,GuiResult,#state{nav=raw,tableId=TableId,rowFun=RowFun}=State0) ->
     Ids = case ets:lookup(TableId, Bot) of
         [] ->   ids_before(Bot, Limit, State0);
@@ -1048,6 +1078,7 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt},State1).
 
+-spec gui_prepend(#gres{}, #state{}) -> #state{}.
 gui_prepend(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
     Rows=rows_before(?RawMax, BL, State0),
     case length(Rows) of
@@ -1097,6 +1128,7 @@ gui_prepend(GuiResult,#state{nav=ind,bl=BL,gl=GL,tableId=TableId,guiCnt=GuiCnt,g
     State1 = State0#state{guiCnt=NewGuiCnt,guiTop=NewGuiTop,guiBot=NewGuiBot},
     gui_response(GuiResult#gres{operation= <<"prp">>,rows=Rows,keep=NewGuiCnt}, State1).
 
+-spec gui_append(#gres{}, #state{}) -> #state{}.
 gui_append(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
     Rows=rows_after(?RawMin, BL, State0),
     case length(Rows) of
@@ -1148,6 +1180,7 @@ gui_append(GuiResult,#state{nav=ind,bl=BL,gl=GL,tableId=TableId,guiCnt=GuiCnt,gu
     State1 = State0#state{guiCnt=NewGuiCnt,guiTop=NewGuiTop,guiBot=NewGuiBot},
     gui_response(GuiResult#gres{operation= <<"app">>,rows=Rows,keep=NewGuiCnt}, State1).
 
+-spec serve_top(atom(), #state{}) -> #state{}.
 serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
     if
         (BufCnt == 0) ->
@@ -1163,6 +1196,7 @@ serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
             gui_replace_from(BufTop,BL,#gres{state=SN,focus=1},State1)
     end.
 
+-spec serve_fwd(atom(), #state{}) -> #state{}.
 serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
     if
         (BufCnt == 0) ->
@@ -1192,6 +1226,7 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
             gui_append(#gres{state=SN},State0)
     end.
 
+-spec serve_ffwd(atom(), #state{}) -> #state{}.
 serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
     if
         (BufCnt == 0) ->
@@ -1223,6 +1258,7 @@ serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,gui
             end
     end.
 
+-spec serve_bwd(atom(), #state{}) -> #state{}.
 serve_bwd(SN,#state{srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,guiTop=GuiTop,replyToFun=ReplyTo}=State0) ->
     if
         (BufCnt == 0) ->
@@ -1244,6 +1280,7 @@ serve_bwd(SN,#state{srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,guiTop=Gui
             gui_prepend(#gres{state=SN},State0)
     end.
 
+-spec serve_fbwd(atom(), #state{}) -> #state{}.
 serve_fbwd(SN,#state{bl=BL,srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,guiTop=GuiTop,replyToFun=ReplyTo}=State0) ->
     if
         (BufCnt == 0) ->
@@ -1266,6 +1303,7 @@ serve_fbwd(SN,#state{bl=BL,srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,gui
             gui_replace_from(NewGuiTop,BL,#gres{state=SN},State0)
     end.
 
+-spec serve_target(atom(), integer(), #state{}) -> #state{}.
 serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,replyToFun=ReplyTo}=State0) when is_integer(Target) ->
     if
         (BufCnt == 0) ->
@@ -1307,6 +1345,7 @@ serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufC
             gui_nop(#gres{state=SN},State0)
     end.
 
+-spec serve_bot(atom(), binary(), #state{}) -> #state{}.
 serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol}=State0) ->
     %?Debug("serve_bot  (~p ~p) ~p ~p ~p ~p", [SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
@@ -1334,6 +1373,7 @@ serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCn
             gui_replace_until(BufBot,BL,#gres{state=SN,loop=Loop,focus=-1},State0)
     end.
 
+-spec serve_stack(atom(), #state{}) -> #state{}.
 serve_stack(SN, #state{tRef=TRef} = State) when TRef =/= undefined ->
     timer:cancel(TRef),
     serve_stack(SN, State#state{tRef = undefined});
@@ -1408,21 +1448,24 @@ serve_stack(SN , #state{stack=_Stack}=State) ->
     ?Debug("~p serve_stack nop~p", [SN,<<"...">>]),
     State.
 
-rows_after(_, [], _) -> [];
+-spec rows_after(integer(), integer(), #state{}) -> list().
 rows_after(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Key}],['$_']}],Limit) of
         {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- Rs];  
         '$end_of_table' ->  []
     end.
 
+-spec rows_for_keys(list(), integer()) -> list().
 rows_for_keys([],_) -> [];
 rows_for_keys(Keys,TableId) ->
     [gui_row_as_list(hd(ets:lookup(TableId, Id))) || {_,Id} <- Keys].
 
+-spec rows_for_ids(list(), atom() | ets:tid(), fun()) -> list().
 rows_for_ids([],_,_) -> [];
 rows_for_ids(Ids,TableId,RowFun) ->
     [gui_row_expand(hd(ets:lookup(TableId, Id)), TableId, RowFun) || Id <- Ids].
 
+-spec keys_before(integer() | tuple() | [], integer(), #state{}) -> list().
 keys_before(_, 0, _) -> [];
 keys_before(Id, Limit, #state{nav=raw}=State) ->
     ids_before(Id, Limit, State);
@@ -1432,6 +1475,7 @@ keys_before(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
         '$end_of_table' ->  []
     end.
 
+-spec keys_after(integer() | tuple(), integer(), #state{}) -> list().
 keys_after(_, 0, _) -> [];
 keys_after(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
     case ets:select(IndexId,[{'$1',[{'>',{element,1,'$1'},{const,Key}}],[{element,1,'$1'}]}],Limit) of
@@ -1439,6 +1483,7 @@ keys_after(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
         '$end_of_table' ->  []
     end.
 
+-spec rows_before(integer() | tuple(), integer(), #state{}) -> list().
 rows_before(_, 0, _) -> [];
 rows_before(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select_reverse(TableId,[{'$1',[{'<',{element,1,'$1'},Key}],['$_']}],Limit) of
@@ -1449,6 +1494,7 @@ rows_before(Key, Limit, #state{tableId=TableId}=State) ->
     Keys = keys_before(Key, Limit, State),
     [gui_row_as_list(ets:lookup(TableId, Id)) || {_,Id} <- Keys].
 
+-spec ids_before(integer(), integer(), #state{}) -> list().
 ids_before(_, 0, _) -> [];
 ids_before(Id, Limit, #state{nav=raw,tableId=TableId}) ->
     case ets:select_reverse(TableId,[{'$1',[{'<',{element,1,'$1'},Id}],[{element,1,'$1'}]}],Limit) of
@@ -1456,6 +1502,7 @@ ids_before(Id, Limit, #state{nav=raw,tableId=TableId}) ->
         '$end_of_table' ->  []
     end.
 
+-spec ids_after(integer(), integer(), #state{}) -> list().
 ids_after(_, 0, _) -> [];
 ids_after(Id, Limit, #state{nav=raw,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Id}],[{element,1,'$1'}]}],Limit) of
@@ -1463,25 +1510,30 @@ ids_after(Id, Limit, #state{nav=raw,tableId=TableId}) ->
         '$end_of_table' ->  []
     end.
 
-
+-spec key_times_2(integer() | tuple(), #state{}) -> integer() | tuple() | undefined.
 key_times_2(Key,#state{nav=raw}) ->
     Key+Key;    % hd(ids_before(Key+Key, 1, State)) if within buffer
 key_times_2(Key,#state{nav=ind,indexId=IndexId}) ->
     key_at_pos(IndexId,2*key_pos(IndexId,Key)).
 
+-spec key_div_2(integer() | tuple(), #state{}) -> integer() | tuple().
 key_div_2(Key,#state{nav=raw,bufTop=BufTop}=State) ->
     hd(ids_after((Key-BufTop) div 2, 1, State));
 key_div_2(Key,#state{nav=ind,indexId=IndexId}) ->
     key_at_pos(IndexId,(key_pos(IndexId,Key)+1) div 2).
 
+-spec key_pos(integer(), integer() | tuple()) -> undefined | integer().
 key_pos(Tid,Key) -> key_pos(Tid,Key,ets:first(Tid),1).
 
+-spec key_pos(integer(), integer() | tuple(), integer() | tuple(), integer()) -> integer().
 key_pos(_Tid,Key,Key,Pos) -> Pos;
 key_pos(_Tid,_,'$end_of_table',_) -> undefined;
 key_pos(Tid,Key,Probe,Pos) -> key_pos(Tid,Key,ets:next(Tid,Probe),Pos+1).
 
+-spec key_at_pos(integer(), integer()) -> undefined | integer() | tuple().
 key_at_pos(Tid,Pos) -> key_at_pos(Tid,Pos,ets:first(Tid)).
 
+-spec key_at_pos(integer(), undefined | integer(), integer() | tuple()) -> undefined | integer() | tuple().
 key_at_pos(_Tid,undefined,_) -> undefined;
 key_at_pos(_Tid,_,'$end_of_table') -> undefined;
 key_at_pos(_Tid,1,Probe) -> Probe;
@@ -1489,12 +1541,14 @@ key_at_pos(Tid,Pos,Probe) -> key_at_pos(Tid,Pos-1,ets:next(Tid,Probe)).
 
 % gui_row_as_list({}) ->
 %     [];
+-spec gui_row_as_list(tuple()) -> list().
 gui_row_as_list(FullRowTuple) ->
     List = tuple_to_list(FullRowTuple),
     [hd(List),lists:nth(2,List)|lists:nthtail(3,List)].
 
 % gui_row_expand({}, _, _) ->
 %     [];
+-spec gui_row_expand(tuple(), integer(), fun()) -> list().
 gui_row_expand({I,Op,RK}, TableId, RowFun) ->
     Row = RowFun(RK),
     ets:insert(TableId, list_to_tuple([I, Op, RK | Row])),
@@ -1503,12 +1557,15 @@ gui_row_expand(FullRowTuple, _TableId, _RowFun) ->
     List = tuple_to_list(FullRowTuple),
     [hd(List),lists:nth(2,List)|lists:nthtail(3,List)].
 
+-spec raw_row_expand(tuple(), fun()) -> tuple().
 raw_row_expand({I,Op,RK}, RowFun) ->
     list_to_tuple([I, Op, RK | RowFun(RK)]).
 
+-spec data_clear(#state{}) -> #state{}.
 data_clear(State) -> 
     gui_clear(ind_clear(raw_clear(State))).
 
+-spec raw_clear(#state{}) -> #state{}.
 raw_clear(#state{tableId=TableId}=State) -> 
     ?Debug("raw_clear"),
     true = ets:delete_all_objects(TableId),    
@@ -1521,6 +1578,7 @@ raw_clear(#state{tableId=TableId}=State) ->
                                 , dirtyBot = Default#state.dirtyBot        
                     }). 
 
+-spec ind_clear(#state{}) -> #state{}.
 ind_clear(#state{indexId=IndexId}=State) -> 
     ?Debug("ind_clear"),
     true = ets:delete_all_objects(IndexId),    
@@ -1530,6 +1588,7 @@ ind_clear(#state{indexId=IndexId}=State) ->
                                 , indBot = Default#state.indBot
                     }). 
 
+-spec gui_clear(#state{}) -> #state{}.
 gui_clear(State) -> 
     ?Debug("gui_clear"),
     Default = #state{}, 
@@ -1539,6 +1598,7 @@ gui_clear(State) ->
                 , guiCol = Default#state.guiCol         
                 }. 
 
+-spec data_append(atom(), tuple(), #state{}) -> #state{}.
 data_append(SN, {[],_Complete},#state{nav=Nav,rawBot=RawBot}=State0) -> 
     NewPfc=State0#state.pfc-1,
     ?Debug("data_append -~p- count ~p bufBottom ~p pfc ~p", [Nav,0,RawBot,NewPfc]),
@@ -1582,6 +1642,7 @@ data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
                                     )
                 ).
 
+-spec data_reorder(atom(), list(), #state{}) -> #state{}.
 data_reorder(SN,ColOrder,#state{sortSpec=SortSpec,filterSpec=FilterSpec}=State0) ->
     ?Debug("data_sort ~p data_filter ~p col_order ~p", [SortSpec,FilterSpec,ColOrder]),
     State1 = State0#state{colOrder=ColOrder},
@@ -1592,6 +1653,7 @@ data_reorder(SN,ColOrder,#state{sortSpec=SortSpec,filterSpec=FilterSpec}=State0)
             gui_nop(#gres{state=SN,beep=true}, State1)
     end.    
 
+-spec data_filter(atom(), [{atom() | integer(), term()}], #state{}) -> #state{}.
 data_filter(SN,?NoFilter,#state{nav=raw}=State0) ->
     %% No filter in place
     ?Debug("data_filter ~p", [?NoFilter]),
@@ -1614,8 +1676,9 @@ data_filter(SN,FilterSpec,#state{sortSpec=SortSpec,sortFun=SortFun,colOrder=ColO
             serve_top(SN, State1#state{sql=list_to_binary(NewSql)});
         {error, _Error} ->
             serve_top(SN, State1)
-    end.    
+    end.
 
+-spec data_sort(atom(), [{integer() | binary(),boolean()}], #state{}) -> #state{}.
 data_sort(SN,?NoSort,#state{srt=false}=State0) ->
     %% No sort in place
     ?Debug("data_sort ~p", [?NoSort]),
@@ -1642,6 +1705,7 @@ data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
             gui_nop(#gres{state=SN,beep=true,message=Message}, State0)
     end.
 
+-spec data_index(fun(), [{atom() | integer(), term()}], #state{}) -> #state{}.
 data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=RowFun}=State0) ->
     FilterFun = filter_fun(FilterSpec),
     {Nav,Srt} = navigation_type(SortFun,FilterSpec),
@@ -1674,12 +1738,13 @@ data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=Row
         ,sortFun=SortFun,filterSpec=FilterSpec,filterFun=FilterFun
         ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).
 
-
+-spec data_update(atom(), list(), #state{}) -> #state{}.
 data_update(SN,ChangeList,#state{stmtColsCount=StmtColsCount}=State0) ->
     {State1,InsRows} = data_update_rows(ChangeList,StmtColsCount,State0,[]),
     ?Debug("InsRows ~p",[InsRows]),
     gui_ins(#gres{state=SN,rows=InsRows}, State1).
 
+-spec data_update_rows(list(), integer(), #state{}, list()) -> {#state{}, list()}.
 data_update_rows([], _, State0, Acc) -> {set_buf_counters(State0), lists:reverse(Acc)};
 data_update_rows([Ch|ChangeList], ColCount, State0, Acc) ->
     case data_update_row(Ch, ColCount, State0) of
@@ -1687,6 +1752,7 @@ data_update_rows([Ch|ChangeList], ColCount, State0, Acc) ->
         {[Row],S2} ->   data_update_rows(ChangeList, ColCount, S2, [Row|Acc])    %% ins
     end.
 
+-spec data_update_row(tuple(), integer(), #state{}) -> tuple().
 data_update_row({Id,Op,Fields}, _ColCount, #state{tableId=TableId}=State0) when is_integer(Id) ->
     [OldRow] = ets:lookup(TableId, Id),
     ?Debug("OldRow/Ch ~p ~p", [OldRow,{Id,Op,Fields}]),
@@ -1730,17 +1796,21 @@ data_update_row({_,ins,Fields}, ColCount, #state{nav=ind,tableId=TableId,rawCnt=
     ets:insert(TableId, list_to_tuple(RowAsList)),    
     {[[Id,ins|lists:nthtail(3, RowAsList)]],State0#state{rawCnt=RawCnt+1,rawBot=Id,guiCnt=GuiCnt+1,dirtyTop=min(DT0,Id),dirtyBot=Id,dirtyCnt=DC0+1}}.
 
+-spec ins_tuple([tuple()], integer()) -> tuple().
 ins_tuple(Fields,ColCount) ->
     ins_tuple(Fields,ColCount,erlang:make_tuple(ColCount, <<>>)).
 
+-spec ins_tuple(list(), integer(), tuple()) -> tuple().
 ins_tuple([],_,Tuple) -> Tuple;
 ins_tuple([{Cp,Value}|Fields],ColCount,Tuple) when is_integer(Cp) ->
     ins_tuple(Fields,ColCount,setelement(Cp, Tuple, Value)).
 
+-spec upd_tuple(list(), tuple()) -> tuple().
 upd_tuple([],Tuple) -> Tuple;
 upd_tuple([{Cp,Value}|Fields],Tuple) ->
     upd_tuple(Fields,setelement(Cp+3, Tuple, Value)).
 
+-spec data_commit(atom(), #state{}) -> tuple().
 data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun,guiTop=GuiTop0
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot}=State0) ->
@@ -1781,6 +1851,7 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
             {SN,gui_nop(#gres{state=SN,beep=true,message=PrepMessage},State0)}
     end.
 
+-spec data_commit_state_name(atom()) -> atom().
 data_commit_state_name(SN) ->
     case SN of 
         filling ->      aborted;
@@ -1789,6 +1860,7 @@ data_commit_state_name(SN) ->
         _ ->            SN
     end.    
 
+-spec data_commit_raw(integer(), list(), integer(), integer(), integer()) -> tuple().
 data_commit_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(1,NK)==?NoKey)  ->
     ets:delete(TableId,Id),    
@@ -1797,6 +1869,7 @@ data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) ->
     ets:insert(TableId,{Id,nop,NK}),    
     data_commit_raw(TableId,ChangedKeys,GuiCnt+1,min(GuiTop,Id),max(GuiBot,Id)).
 
+-spec data_commit_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> tuple().
 data_commit_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(1,NK)==?NoKey)  ->
     [OldRow] = ets:lookup(TableId,Id),
@@ -1820,6 +1893,7 @@ data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],G
             data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,GuiCnt,GuiTop,GuiBot)
     end.
 
+-spec data_rollback(atom(), #state{})-> #state{}.
 data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot
@@ -1838,6 +1912,7 @@ data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                 gui_replace_from(GuiTop,GL,#gres{state=SN,focus=1,message=Message},reset_buf_counters(State0))
     end.
 
+-spec data_rollback_raw(integer(), list(), integer(), integer(), integer()) -> {integer(), integer(), integer()}.
 data_rollback_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(1,element(3,Row))==?NoKey)  ->
     Id = element(1,Row),
@@ -1849,6 +1924,7 @@ data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) ->
     ets:insert(TableId,{Id,nop,element(3,Row)}),    
     data_rollback_raw(TableId,ChangeList,GuiCnt+1,min(GuiTop,Id),max(GuiBot,Id)).
 
+-spec data_rollback_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> {integer(), tuple(), tuple()}.
 data_rollback_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(1,element(3,Row))==?NoKey) ->
     Id = element(1,Row),
@@ -1867,12 +1943,14 @@ data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiC
             data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangeList,GuiCnt,GuiTop,GuiBot)
     end.
 
+-spec change_tuples(integer(), integer(), integer(), integer()) -> list().
 change_tuples(TableId, _DirtyCnt, DirtyTop, DirtyBot) ->
     Guard = [{'>=',{element,1,'$1'},DirtyTop}
             ,{'=<',{element,1,'$1'},DirtyBot}
             ,{'=/=',nop,{element,2,'$1'}}],
     ets:select(TableId,[{'$1',Guard,['$_']}]). 
 
+-spec change_list(integer(), integer(), integer(), integer()) -> list().
 change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)]. 
 

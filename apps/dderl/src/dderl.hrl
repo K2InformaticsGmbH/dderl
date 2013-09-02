@@ -35,7 +35,7 @@
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
-                  , conns                   ::[ddEntityId()]    %% can be used for this list of dbConn references
+                  , conns                   ::[ddEntityId()] | atom()    %% can be used for this list of dbConn references
                   , command                 ::binary()          %% erlang term depending on adapter (e.g. SQL text)
                   , opts                    ::any()             %% command options ()
                   }
@@ -48,7 +48,7 @@
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , cmd                     ::ddEntityId()      %% db command id
-                  , state                   ::#viewstate{}       %% transparent viewstate (managed by client application)
+                  , state                   ::#viewstate{}      %% transparent viewstate (managed by client application)
                   }
        ).
 -define(ddView, [integer, atom, userid, binstr, integer, term]).

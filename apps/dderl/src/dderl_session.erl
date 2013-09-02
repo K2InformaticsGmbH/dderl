@@ -24,20 +24,23 @@
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
 -record(state, {
-        adapt_priv = []
-        , tref
-        , user = <<>>
-        , user_id
-        , sess
+        adapt_priv = [] :: list()
+        , tref :: timer:tref()
+        , user = <<>> :: binary()
+        , user_id :: ddEntityId()
+        , sess :: {atom, pid()}
         }).
 
+-spec start() -> {dderl_session, pid()}.
 start() ->
     {ok, Pid} = gen_server:start(?MODULE, [], []),
     {dderl_session, Pid}.
 
+-spec get_state({atom(), pid()}) -> #state{}.
 get_state({?MODULE, Pid}) ->
     gen_server:call(Pid, get_state, infinity).
 
+-spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()}) -> term().
 process_request(undefined, Type, Body, ReplyPid, Ref) ->
     process_request(gen_adapter, Type, Body, ReplyPid, Ref);
 process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
@@ -92,6 +95,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
@@ -271,9 +275,11 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     end,
     State#state{adapt_priv = NewAdaptPriv}.
 
+-spec jsq(term()) -> term().
 jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
 jsq(OtherTypes) -> OtherTypes.
 
+-spec logout(#state{}) -> #state{}.
 logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
     [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
     State#state{adapt_priv = []};
@@ -285,6 +291,7 @@ logout(#state{sess = Sess} = State) ->
     end,
     logout(State#state{sess = undefined}).
 
+-spec get_apps_version([{atom(), list(), list()}], [atom()]) -> [{binary(), list()}].
 get_apps_version([], _Deps) -> [];
 get_apps_version([App|Rest], Deps) ->
     {AppName, Desc, Vsn} = App,

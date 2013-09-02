@@ -55,7 +55,7 @@ terminate(_Reason, _Req, _State) ->
 	ok.
 
 %% Helper functions
--spec create_new_session(binary()) -> {ok, {atom(), pid()}} | {error, term()}.
+-spec create_new_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
 create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
     ?Info("new dderl session ~p from ~p", [DderlSess, self()]),
