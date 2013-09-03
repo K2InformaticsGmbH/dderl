@@ -113,7 +113,10 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                     currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
             }
-            else throw('resp '+_resphead+' doesn\'t match the request '+_url);
+            else {
+                console.log(_data);
+                throw('resp doesn\'t match the request '+_url);
+            }
         },
 
         error: function (request, textStatus, errorThrown) {
@@ -273,7 +276,7 @@ function show_about_dlg()
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
                 p += '<p class="about-vsn">Version ' + version + '</p>';
-                p += '<p class="about-vsn">Gui Version 1.0.5</p>';
+                p += '<p class="about-vsn">Gui Version 1.0.6</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
