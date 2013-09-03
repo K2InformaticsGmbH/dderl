@@ -315,16 +315,28 @@ process_cmd({[<<"reorder">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     Statement:gui_req(reorder, ColumnOrder, gui_resp_cb_fun(<<"reorder">>, Statement, From)),
     Priv;
 process_cmd({[<<"drop_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
-    process_table_cmd(drop_table, <<"drop_table">>, ReqBody, From, Connections),
+    [{<<"drop_table">>, BodyJson}] = ReqBody,
+    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    Results = [process_table_cmd(drop_table, TableName, BodyJson, Connections) || TableName <- TableNames],
+    send_result_table_cmd(From, <<"drop_table">>, Results),
     Priv;
 process_cmd({[<<"truncate_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
-    process_table_cmd(truncate_table, <<"truncate_table">>, ReqBody, From, Connections),
+    [{<<"truncate_table">>, BodyJson}] = ReqBody,
+    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    Results = [process_table_cmd(truncate_table, TableName, BodyJson, Connections) || TableName <- TableNames],
+    send_result_table_cmd(From, <<"truncate_table">>, Results),
     Priv;
 process_cmd({[<<"snapshot_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
-    process_table_cmd(snapshot_table, <<"snapshot_table">>, ReqBody, From, Connections),
+    [{<<"snapshot_table">>, BodyJson}] = ReqBody,
+    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    Results = [process_table_cmd(snapshot_table, TableName, BodyJson, Connections) || TableName <- TableNames],
+    send_result_table_cmd(From, <<"snapshot_table">>, Results),
     Priv;
 process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
-    process_table_cmd(restore_table, <<"restore_table">>, ReqBody, From, Connections),
+    [{<<"restore_table">>, BodyJson}] = ReqBody,
+    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    Results = [process_table_cmd(restore_table, TableName, BodyJson, Connections) || TableName <- TableNames],
+    send_result_table_cmd(From, <<"restore_table">>, Results),
     Priv;
 
 % gui button events
@@ -481,40 +493,45 @@ process_query(Query, {_,ConPid}=Connection) ->
             end
     end.
 
--spec process_table_cmd(atom(), binary(), term(), pid(), [{atom(), pid()}]) -> term().
-process_table_cmd(Cmd, BinCmd, ReqBody, From, Connections) ->
-    [{BinCmd, BodyJson}] = ReqBody,
-    TableName = proplists:get_value(<<"table_name">>, BodyJson, <<>>),
+-spec send_result_table_cmd(pid(), binary(), list()) -> ok.
+send_result_table_cmd(From, BinCmd, Results) ->
+    TableErrors = [TableName || {error, TableName} <- Results],
+    case TableErrors of
+        [] ->
+            From ! {reply, jsx:encode([{BinCmd, [{<<"result">>, <<"ok">>}]}])};
+        [invalid_connection | _Rest] ->
+            From ! {reply, error_invalid_conn()};
+        _ ->
+            ListNames = [binary_to_list(X) || X <- TableErrors],
+            BinTblError = list_to_binary(string:join(ListNames, ",")),
+            [CmdSplit|_] = binary:split(BinCmd, <<"_">>),
+            Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  BinTblError]),
+            ?Error("Error: ",  [Err]),
+            From ! {reply, jsx:encode([{BinCmd, [{<<"error">>, Err}]}])}
+    end.
+
+
+-spec process_table_cmd(atom(), binary(), term(), [{atom(), pid()}]) -> term().
+process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
     ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     case lists:member(Connection, Connections) of
         true ->
-            R = case Connection:run_cmd(Cmd, [TableName]) of
+            case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
-                    [{<<"result">>, <<"ok">>}];
-                {error, {{Ex, M}, _Stacktrace} = Error} ->
+                    ok;
+                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
                     ?Error([{session, Connection}], "query error ~p", [Error]),
-                    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                                             lists:flatten(io_lib:format("~p", [M]))),
-                    [{<<"error">>, Err}];
-                {error, {Ex,M}} ->
+                    {error, TableName};
+                {error, {Ex, M}} ->
                     ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-                    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                                             lists:flatten(io_lib:format("~p", [M]))),
-                    [{<<"error">>, Err}];
+                    {error, TableName};
                 Error ->
                     ?Error([{session, Connection}], "query error ~p", [Error]),
-                    if
-                        is_binary(Error) ->
-                            [{<<"error">>, Error}];
-                        true ->
-                            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-                            [{<<"error">>, Err}]
-                    end
-            end,
-            From ! {reply, jsx:encode([{BinCmd, R}])};
+                    {error, TableName}
+            end;
         false ->
-            From ! {reply, error_invalid_conn(Connection, Connections)}
+            {error, invalid_connection}
     end.
 
 -spec build_srtspec_json([{integer()| binary(), boolean()}]) -> list().
@@ -595,6 +612,11 @@ get_connection_type(_Ip) -> tcp.
 error_invalid_conn(Connection, Connections) ->
     Err = <<"Trying to process a query with an unowned connection">>,
     ?Error("~s: ~p~n connections list: ~p", [Err, Connection, Connections]),
+    jsx:encode([{<<"error">>, Err}]).
+
+-spec error_invalid_conn() -> term().
+error_invalid_conn() ->
+    Err = <<"Trying to process a query with an unowned connection">>,
     jsx:encode([{<<"error">>, Err}]).
 
 -spec check_fun_vsn(fun()) -> boolean().

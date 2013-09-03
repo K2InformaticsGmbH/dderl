@@ -1001,21 +1001,24 @@
         var self = this;
 
         console.log(tableCmd + ' for '+ ranges.length + ' slick range(s)');
-        var columns  = self._grid.getColumns();
+        var columns = self._grid.getColumns();
+
+        var tables = [];
 
         for(var i = 0; i < ranges.length; ++i) {
             for(var j = ranges[i].fromCell; j <= ranges[i].toCell; ++j) {
                 var cell = columns[j];
                 for(var k = ranges[i].fromRow; k <= ranges[i].toRow; ++k) {
                     var row    = self._gdata[k];
-                    var context = {};
-                    context[tableCmd] = {connection : connection,
-                                         statement : self._stmt,
-                                         table_name : row[cell.field]};
-                    self._ajax('/app/' + tableCmd, context, tableCmd, callback);
+                    tables.push(row[cell.field]);
                 }
             }
         }
+        var context = {};
+        context[tableCmd] = {connection  : connection,
+                             statement   : self._stmt,
+                             table_names : tables};
+        self._ajax('/app/' + tableCmd, context, tableCmd, callback);
     },
 
     _truncateTable: function(ranges) {
