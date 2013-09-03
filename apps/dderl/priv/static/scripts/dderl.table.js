@@ -1764,14 +1764,29 @@
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
             var rids = [];
+            var modifiedRows = [];
             for(var i = 0; i < selRanges.length; ++i) {
                 for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
-                    if(this._gdata[ri].op !== 'ins') {
-                        this._gdata[ri].op = 'del';
+                    if(selRanges[i].fromCell === 0) {
+                        if(this._gdata[ri].op !== 'ins') {
+                            this._gdata[ri].op = 'del';
+                        } else {
+                            this._gdata.splice(ri, 1);
+                        }
+                        rids.push(this._gdata[ri].id);
                     } else {
-                        this._gdata.splice(ri, 1);
+                        var cols = this._grid.getColumns();
+                        var modifiedCells = [];
+                        for(var j = selRanges[i].fromCell; j <= selRanges[i].toCell; ++j) {
+                            modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : ""});
+                            this._gdata[ri][cols[j].field] = "";
+                        }
+                        var rowId = parseInt(this._gdata[ri].id);
+                        if(rowId) {
+                            modifiedRows.push({rowid: rowId, cells: modifiedCells});
+                            this._gdata[ri].op = 'upd';
+                        }
                     }
-                    rids.push(this._gdata[ri].id);
                 }
             }
 
@@ -1779,6 +1794,11 @@
             var deleteJson = {delete_row: {statement : this._stmt,
                                            rowids    : rids}};
             this._ajax('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+
+            var pasteJson = {paste_data: {connection : this._conn,
+                                                      statement  : this._stmt,
+                                                      rows       : modifiedRows}};
+            this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
 
             this._applyStyle();
 
