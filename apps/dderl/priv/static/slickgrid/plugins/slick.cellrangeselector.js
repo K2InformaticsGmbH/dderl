@@ -37,6 +37,9 @@
     }
 
     function handleDragStart(e, dd) {
+      if(e.ctrlKey || e.shiftKey || e.metaKey) {
+          return;
+      }
       var cell = _grid.getCellFromEvent(e);
       if (_self.onBeforeCellRangeSelected.notify(cell) !== false) {
         if (_grid.canCellBeSelected(cell.row, cell.cell)) {
