@@ -171,9 +171,12 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     ?Debug("Forced value: ~p", [Force]),
     case erlformat:format(StringToFormat, ExpandLevel, Force) of
         {error, ErrorInfo} ->
-            ?Error("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
+            ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
             From ! {reply, jsx:encode([{<<"format_erlang_term">>,
-                                        [{<<"error">>, <<"Invalid erlang term">>}]}])};
+                                        [
+                                            {<<"error">>, <<"Invalid erlang term">>},
+                                            {<<"originalText">>, StringToFormat}
+                                        ]}])};
         Formatted ->
             ?Debug("The formatted text: ~p", [Formatted]),
             From ! {reply, jsx:encode([{<<"format_erlang_term">>, Formatted}])}
