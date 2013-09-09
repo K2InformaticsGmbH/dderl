@@ -1435,7 +1435,7 @@
             }
 
             // command back request
-            if(_rows.loop.length > 0) {
+            if(_rows.loop.length > 0 && !self._divDisable) {
                 if (self._grid.getCellEditor()) {
                     self._loop = _rows.loop;
                 } else {
@@ -1515,7 +1515,7 @@
                 self._dlgResized = true;
             })
             .bind("dialogfocus", function(event, ui) {
-                // If the tale is disabled do not set the focus.
+                // If the table is disabled do not set the focus.
                 if(self._divDisable) {
                     return;
                 }
@@ -1982,6 +1982,7 @@
             return;
         }
         self._divDisable.remove();
+        self._divDisable = null;
         self._grid.focus();
     },
 
