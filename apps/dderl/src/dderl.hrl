@@ -35,12 +35,12 @@
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
-                  , conns                   ::[ddEntityId()] | atom()    %% can be used for this list of dbConn references
+                  , conns                   ::local|remote      %% can be used for local dderl connections or for remote connections
                   , command                 ::binary()          %% erlang term depending on adapter (e.g. SQL text)
                   , opts                    ::any()             %% command options ()
                   }
        ).
--define(ddCmd, [integer, binstr, userid, list, list, binstr, term]).
+-define(ddCmd, [integer, binstr, userid, list, atom, binstr, term]).
 
 -record(ddView,                             %% user representation of a db command including rendering parameters
                   { id                      ::ddEntityId()
