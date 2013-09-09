@@ -1019,6 +1019,8 @@
                              statement   : self._stmt,
                              table_names : tables};
         self._ajax('/app/' + tableCmd, context, tableCmd, callback);
+        self._grid.resetActiveCell();
+        self._grid.setSelectedRows([]);
     },
 
     _truncateTable: function(ranges) {
