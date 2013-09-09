@@ -102,7 +102,7 @@
                        'Sort Clear'       : '_sortClear'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
-                       'Edit Erlang Term' : '_editErlangTerm',
+                       'Edit'             : '_editErlangTerm',
                        'Truncate Table'   : '_truncateTable',
                        'Drop Table'       : '_dropTable',
                        'Snapshot Table'   : '_snapshotTable',
@@ -1037,7 +1037,7 @@
     _editErlangTerm: function (_ranges) {
         var self = this;
         if(!self._singleCellSelected(_ranges)) {
-            throw('cell level \'Edit Erlang Term\' don\'t support multiples and ranges');
+            throw('cell level \'Edit\' don\'t support multiples and ranges');
         } else {
             var cell = _ranges[0];
             var columnField = self._grid.getColumns()[cell.fromCell].field;
@@ -1463,7 +1463,20 @@
         self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
 
         if(formattedString.hasOwnProperty('error')) {
-            alert_jq('Error : '+ formattedString.error);
+            //If it is not an erlang term
+            self.disableDialog();
+            var thisIsMyEditor = $('<div>')
+                .appendTo(document.body)
+                .termEditor(
+                    {
+                        autoOpen  : false,
+                        title     : "Text editor (Read Only)",
+                        termOwner : self,
+                        readOnly  : true,
+                        container : self._divDisable,
+                        term      : formattedString.originalText
+                    }
+                ).termEditor('open');
         } else {
             self.disableDialog();
             var thisIsMyEditor = $('<div>')
@@ -1473,6 +1486,7 @@
                         autoOpen  : false,
                         title     : "Erlang term editor",
                         termOwner : self,
+                        readOnly  : false,
                         container : self._divDisable,
                         term      : formattedString
                     }
@@ -2097,7 +2111,7 @@
             if(columns[i].hasOwnProperty('editor')) {
                 columns[i].editor = Slick.Editors.ControlChars;
             }
-            columns[i].minWidth = fldWidth;
+            columns[i].minWidth = 40;
             columns[i].width    = fldWidth;
             self._origcolumns[columns[i].field] = i;
         }

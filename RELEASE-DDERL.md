@@ -3,6 +3,17 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.0.7 (Release Date TBD)
+=======================================
+* Generalized erlang term editor, now it support any text in read only format
+* Improved ctrl+click selection to not clear the selection in case of small mouse drags
+* Minimum size of columns set to fixed 40 pixels instead of proportional to the column name
+
+Version 1.0.6 (Release Date 04.09.2013)
+=======================================
+* Fixed support to table operations on multi selection.
+* Delete key now clear the content of the cells unless the full row is selected
+
 Version 1.0.5 (Release Date 28.08.2013)
 =======================================
 

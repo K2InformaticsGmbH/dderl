@@ -199,6 +199,18 @@
                         return true;
                     })
                     .appendTo(self._footerDiv);
+
+                if(self.options.readOnly) {
+                    if(btn === "accept" || btn === "cancel") {
+                        var tbBtnObj = self._toolbarButtons[btn];
+                        var btnElm = self[tbBtnObj.dom];
+                        btnElm.button('disable').attr('title', "Read only");
+                    }
+                }
+            }
+
+            if(self.options.readOnly) {
+                self._editText.attr('wrap', 'on');
             }
             self._footerDiv
                 .buttonset()
@@ -207,7 +219,7 @@
             // footer total width
             var childs = self._footerDiv.children();
             var totWidth = 0;
-            for(var i=0; i<childs.length; ++i)
+            for(var i=0; i < childs.length; ++i)
                 totWidth += $(childs[i]).width();
 
             self._footerWidth = totWidth;
