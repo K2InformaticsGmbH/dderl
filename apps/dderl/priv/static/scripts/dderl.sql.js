@@ -61,12 +61,17 @@ function insertAtCursor(myField, myValue) {
     _history        : null,
     _historySelect  : null,
     _cmdChanged     : false,
+    _reloadBtn      : null,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
                             var self = e.data; 
                             self._checkParsed(_parsed);
                             self._renderParsed(_parsed);
+                        },
+                        reloadParsedCmd : function(e, _parsed) {
+                            var self = e.data;
+                            self._reloadParsedCmd(_parsed);
                         }
                       },
 
@@ -379,26 +384,41 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
-        var initOptions = {
-            title          : this._title,
-            autoOpen       : false,
-            dderlConn      : connection,
-            dderlAdapter   : adapter,
-            dderlStartBtn  : button,
-            dderlCmdStrs   : this._history,
-            dderlSqlEditor : this._dlg
-        };
+        self._reloadBtn = button;
+        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','reloadParsedCmd');
+    },
 
-        if(null === this._cmdOwner) {
-            this._cmdOwner = $('<div>')
-                .appendTo(document.body)
-                .table(initOptions)
-                .table('cmdReload', this._modCmd, button);
-        } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
-            this._cmdOwner.table('cmdReload', this._modCmd, button);
+    _reloadParsedCmd: function(_parsed) {
+        var error = ''
+        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>'+_parsed.boxerror+'<br>';
+        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>'+_parsed.prettyerror+'<br>';
+        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>'+_parsed.flaterror+'<br>';
+
+        if (error.length > 0) {
+            alert_jq(error);
         } else {
-            this._cmdOwner.appendTo(document.body).table(initOptions)
-            .table('cmdReload', this._modCmd, button);
+            var initOptions = {
+                title          : this._title,
+                autoOpen       : false,
+                dderlConn      : connection,
+                dderlAdapter   : adapter,
+                dderlStartBtn  : self._reloadBtn,
+                dderlCmdStrs   : this._history,
+                dderlSqlEditor : this._dlg
+            };
+            this._renderParsed(_parsed);
+            this._modCmd = this._cmdFlat;
+            if(null === this._cmdOwner) {
+                this._cmdOwner = $('<div>')
+                    .appendTo(document.body)
+                    .table(initOptions)
+                    .table('cmdReload', this._modCmd, self._reloadBtn);
+            } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
+                this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
+            } else {
+                this._cmdOwner.appendTo(document.body).table(initOptions)
+                    .table('cmdReload', this._modCmd, self._reloadBtn);
+            }
         }
     },
 
