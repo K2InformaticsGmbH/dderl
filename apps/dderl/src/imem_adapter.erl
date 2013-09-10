@@ -508,7 +508,8 @@ send_result_table_cmd(From, BinCmd, Results) ->
             Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  BinTblError]),
             ?Error("Error: ",  [Err]),
             From ! {reply, jsx:encode([{BinCmd, [{<<"error">>, Err}]}])}
-    end.
+    end,
+    ok.
 
 
 -spec process_table_cmd(atom(), binary(), term(), [{atom(), pid()}]) -> term().

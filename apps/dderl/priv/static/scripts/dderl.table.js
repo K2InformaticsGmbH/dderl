@@ -2052,6 +2052,47 @@
         });
     },
 
+    _moveSelection : function(nRowsToMove) {
+        var self = this;
+
+        var g           = self._grid;
+        var gSelMdl     = g.getSelectionModel();
+        var gSelecteds  = gSelMdl.getSelectedRanges();
+        var activeCell  = g.getActiveCell();
+
+        var missing = true;
+        for(var i=0; i < gSelecteds.length; ++i) {
+            gSelecteds[i].fromRow -= nRowsToMove;
+            if(gSelecteds[i].fromRow < 0) {
+                gSelecteds[i].fromRow = 0;
+            }
+            gSelecteds[i].toRow -= nRowsToMove;
+            if(gSelecteds[i].toRow < 0) {
+                gSelecteds[i].toRow = 0;
+            }
+        }
+
+        if(activeCell) {
+            if(activeCell.row - nRowsToMove < 0) {
+                g.resetActiveCell();
+            } else if (g.getCellEditor()) {
+                self._grid.setActiveCell(activeCell.row - nRowsToMove, activeCell.cell);
+                self._grid.editActiveCell();
+            } else {
+                self._grid.setActiveCell(activeCell.row - nRowsToMove, activeCell.cell);
+            }
+        }
+
+        /*
+        if(missing) {
+            g.setActiveCell(cell.row, cell.cell);
+            gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
+        } else if(!activeCell) {
+            g.setActiveCell(cell.row, cell.cell);
+        }*/
+        gSelMdl.setSelectedRanges(gSelecteds);
+    },
+
     _singleCellSelected: function(selRanges) {
         if(selRanges.length > 2) {
             return false;
@@ -2234,7 +2275,11 @@
                 for(var i=0; i < _rows.rows.length; ++i) {
                     self._gdata.push(_rows.rows[i])
                 }
-                self._gdata.splice(0, self._gdata.length - _rows.keep);
+                var nRowsMoved = self._gdata.length - _rows.keep;
+                if(nRowsMoved > 0) {
+                    self._moveSelection(nRowsMoved);
+                    self._gdata.splice(0, nRowsMoved);
+                }
                 computedFocus = gvp.top + _rows.rows.length;
                 if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
                 redraw = true;
