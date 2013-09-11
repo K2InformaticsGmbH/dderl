@@ -1586,11 +1586,18 @@
             .removeData('cnxt')
             .hide();
         this._slkCellCnxtMnu.dom
-            .css("top", e.clientY - 10)
-            .css("left", e.clientX)
+            .css("top", e.clientY - 20)
+            .css("left", e.clientX - 10)
             .data('cnxt', this)
             .show();
+
+        var maxLeft = $("#main-body").width() - this._slkCellCnxtMnu.dom.width();
+        var maxTop = $("#main-body").height() - this._slkCellCnxtMnu.dom.height();
+        var newLeft = Math.min(this._slkCellCnxtMnu.dom.position().left, maxLeft);
+        var newTop = Math.min(this._slkCellCnxtMnu.dom.position().top, maxTop);
+        this._slkCellCnxtMnu.dom.css("top", newTop).css("left", newLeft);
     },
+
     _gridHeaderContextMenu: function(e, args) {
         e.preventDefault();
 
@@ -1631,8 +1638,8 @@
             .removeData('cnxt')
             .hide();
         this._slkHdrCnxtMnu.dom
-            .css("top", e.clientY - 10)
-            .css("left", e.clientX)
+            .css("top", e.clientY - 20)
+            .css("left", e.clientX - 10)
             .data('cnxt', this)
             .show();
     },
