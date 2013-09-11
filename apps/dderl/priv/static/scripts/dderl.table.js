@@ -788,7 +788,6 @@
                             inp : $('<textarea>')
                                 .attr('type', "text")
                                 .css('margin', 0)
-                                .css('white-space','nowrap')
                                 .css('overflow','auto')
                                 .css('padding', 0),
                             vals: new Object(),
@@ -799,6 +798,7 @@
         }
         self._showFilterGui();
     },
+
     _filterClear: function(_ranges) {
         var self = this;
         if(self._filters) {
@@ -832,7 +832,6 @@
                             inp : $('<textarea>')
                                 .attr('type', "text")
                                 .css('margin', 0)
-                                .css('white-space','nowrap')
                                 .css('overflow','auto')
                                 .css('padding', 0),
                             vals: new Object(),
@@ -848,7 +847,11 @@
             for(var c in self._filters) {
                 var strs = [];
                 for(s in self._filters[c].vals) strs.push(s);
-                self._filters[c].inp.val(strs.join('\n'));
+                if($.browser.msie) {
+                    self._filters[c].inp.val(strs.join('\n\r'));
+                } else {
+                    self._filters[c].inp.val(strs.join('\n'));
+                }
             }
             var filterspec = self._filterSpec2Json('and');
             self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
@@ -885,7 +888,11 @@
         for(var c in self._filters) {
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
-            self._filters[c].inp.val(strs.join('\n'));
+            if($.browser.msie) {
+                self._filters[c].inp.val(strs.join('\n\r'));
+            } else {
+                self._filters[c].inp.val(strs.join('\n'));
+            }
             $('<tr>')
                 .append($('<td>'))
                 .append('<td>'+ self._filters[c].name +'</td>')
@@ -1675,7 +1682,7 @@
             var modifiedCells = new Array();
             for(var j = fromCellSafe; j <= toCellSafe; ++j) {
                 var cellValue = gridData[i][cols[j].field];
-                if(cellValue) {
+                if(cellValue != null) {
                     modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
                 }
             }
