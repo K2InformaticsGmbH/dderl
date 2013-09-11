@@ -120,7 +120,6 @@
       document.body.removeChild(ta);
 
       for (var i=0; i<clipRows.length; i++) {
-        if (clipRows[i]!="")
           clippedRange[i] = clipRows[i].split("\t");
       }
 
@@ -303,7 +302,7 @@
                 var range = ranges[rg];
                 var fromCellSafe = Math.max(range.fromCell, 1);
                 var clipTextRows = [];
-                for (var i=range.fromRow; i< range.toRow+1 ; i++){
+                for (var i=range.fromRow; i < range.toRow+1 ; i++){
                     var clipTextCells = [];
                     for (var j=fromCellSafe; j< range.toCell+1 ; j++){
                         var cellValue = gridData[i][columns[j].field];
