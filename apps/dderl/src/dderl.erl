@@ -8,8 +8,8 @@
         , init/3
         , handle/2
         , terminate/3
-        , encrypt_pid/1
-        , decrypt_pid/1
+        , encrypt_pid/2
+        , decrypt_pid/2
         ]).
 
 %% API.
@@ -54,6 +54,7 @@ handle(Req, State) ->
 terminate(_Reason, _Req, _State) ->
 	ok.
 
+-spec get_html() -> binary().
 get_html() ->
     PrivDir = case code:priv_dir(?MODULE) of
         {error, bad_name} -> "priv";
@@ -63,7 +64,13 @@ get_html() ->
 	{ok, Binary} = file:read_file(Filename),
 	Binary.
 
-% encrypt_pid(Pid)    when is_pid(Pid)        -> base64:encode_to_string(pid_to_list(Pid)).
-% decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(base64:decode_to_string(PidStr)).
-encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
-decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).
+-spec encrypt_pid(atom(), pid()) -> list().
+encrypt_pid(Module, Pid) when is_pid(Pid) -> base64:encode_to_string(term_to_binary({Module, Pid})).
+
+-spec decrypt_pid(atom(), list()) -> pid().
+decrypt_pid(Module, PidStr) when is_list(PidStr) ->
+    {Module, Pid} = binary_to_term(base64:decode(PidStr)),
+    Pid.
+
+%%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
+%%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).

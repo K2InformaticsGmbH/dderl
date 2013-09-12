@@ -82,7 +82,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                           },
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
                     dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ErlOciSessionPid))}])},
+            From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(oci, ErlOciSessionPid))}])},
             Priv#priv{connections = [ErlOciSession|Connections]};
         Error ->
             ?Error("DB connect error ~p", [Error]),
@@ -134,7 +134,7 @@ process_query(Query, {_,ConPid}=Connection) ->
             [{<<"columns">>, Columns},
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(Statement))},
-             {<<"connection">>, list_to_binary(?EncryptPid(ConPid))}];
+             {<<"connection">>, list_to_binary(?EncryptPid(oci, ConPid))}];
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];

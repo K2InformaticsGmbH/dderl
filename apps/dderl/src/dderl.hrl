@@ -78,5 +78,5 @@
 -define(Error(__F),         lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
 
 % Function shortcuts
--define(EncryptPid(__P), dderl:encrypt_pid(__P)).
--define(DecryptPid(__P), dderl:decrypt_pid(__P)).
+-define(EncryptPid(__M, __P), dderl:encrypt_pid(__M, __P)).
+-define(DecryptPid(__M, __P), dderl:decrypt_pid(__M, __P)).

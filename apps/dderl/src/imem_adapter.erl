@@ -93,7 +93,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(ConPid))}])},
+            From ! {reply, jsx:encode([{<<"connect">>, list_to_binary(?EncryptPid(erlimem_session, ConPid))}])},
             Priv#priv{connections = [Connection|Connections]}
     end;
 process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefined) ->
@@ -138,13 +138,13 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(ConPid))}])},
+            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(erlimem_session, ConPid))}])},
             Priv#priv{connections = [Connection|Connections]}
     end;
 
 process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
-    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(erlimem_session, binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     case lists:member(Connection, Connections) of
         true ->
@@ -158,7 +158,7 @@ process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connectio
     end;
 process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"remote_apps">>, BodyJson}] = ReqBody,
-    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(erlimem_session, binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     case lists:member(Connection, Connections) of
         true ->
@@ -174,7 +174,7 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
-    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(erlimem_session, binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     ?Info("query ~p", [Query]),
     case lists:member(Connection, Connections) of
@@ -192,7 +192,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
 process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(erlimem_session, binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     Row = proplists:get_value(<<"row">>, BodyJson, 0),
     Col = proplists:get_value(<<"col">>, BodyJson, 0),
@@ -471,7 +471,7 @@ process_query(Query, {_,ConPid}=Connection) ->
             [{<<"columns">>, Columns},
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
-             {<<"connection">>, list_to_binary(?EncryptPid(ConPid))}];
+             {<<"connection">>, list_to_binary(?EncryptPid(erlimem_session, ConPid))}];
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
@@ -514,7 +514,7 @@ send_result_table_cmd(From, BinCmd, Results) ->
 
 -spec process_table_cmd(atom(), binary(), term(), [{atom(), pid()}]) -> term().
 process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
-    ConnPid = list_to_pid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnPid = ?DecryptPid(erlimem_session, binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     Connection = {erlimem_session, ConnPid},
     case lists:member(Connection, Connections) of
         true ->
