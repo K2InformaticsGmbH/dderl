@@ -1197,7 +1197,11 @@
     },
     _toolBarGo2Prv: function(self) {
         console.log('['+self.options.title+'] cb _toolBarGo2Prv');
-        self.buttonPress("<");
+        if(!self._atTop()) {
+            self._scrollBack();
+        } else {
+            self.buttonPress("<");
+        }
     },
     _toolBarTxtBox: function(self) {
         if(self.hasOwnProperty('_toolBarTxtBoxVal')) {
@@ -1207,7 +1211,11 @@
     },
     _toolBarGo2Nex: function(self) {
         console.log('['+self.options.title+'] cb _toolBarGo2Nex');
-        self.buttonPress(">");
+        if(!self._atBottom()) {
+            self._scrollNext();
+        } else {
+            self.buttonPress(">");
+        }
     },
     _toolBarJmNext: function(self) {
         self.buttonPress(">>");
@@ -1423,6 +1431,7 @@
         .table('setColumns', _table.columns)
         .table('buttonPress', '>');
     },
+
     _renderRows: function(_rows) {
         var self = this;
         if(_rows.hasOwnProperty('rows')) {
@@ -2107,6 +2116,29 @@
         gSelMdl.setSelectedRanges(gSelecteds);
     },
 
+    _atBottom : function() {
+        return this._grid.getViewport().bottom >= this._grid.getData().length;
+    },
+
+    _scrollNext : function() {
+        var currentViewPort = this._grid.getViewport();
+        //The viewport reports 2 more rows than the visible rows...
+        var numberOfRows = currentViewPort.bottom - currentViewPort.top - 4;
+        var rowScrollTarget = Math.min(this._grid.getData().length, currentViewPort.bottom + numberOfRows);
+        this._grid.scrollRowIntoView(rowScrollTarget);
+    },
+
+    _atTop : function() {
+        return this._grid.getViewport().top <= 0;
+    },
+
+    _scrollBack : function() {
+        var currentViewPort = this._grid.getViewport();
+        var numberOfRows = currentViewPort.bottom - currentViewPort.top - 4;
+        var rowScrollTarget = Math.max(0, currentViewPort.top - numberOfRows);
+        this._grid.scrollRowIntoView(rowScrollTarget);
+    },
+
     _singleCellSelected: function(selRanges) {
         if(selRanges.length > 2) {
             return false;
@@ -2293,9 +2325,12 @@
                 if(nRowsMoved > 0) {
                     self._moveSelection(nRowsMoved);
                     self._gdata.splice(0, nRowsMoved);
+                    computedFocus = gvp.bottom - 4 - nRowsMoved;
+                } else {
+                    computedFocus = gvp.bottom + Math.min(_rows.rows.length, gvpH - 4);
                 }
-                computedFocus = gvp.top + _rows.rows.length;
                 if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
+                if(computedFocus < 1) computedFocus = 1;
                 redraw = true;
                 needScroll = true;
                 break;
@@ -2303,10 +2338,14 @@
                 do {
                     self._gdata.splice(0, 0, _rows.rows.pop());
                 } while (_rows.rows.length > 0)
-                self._gdata.splice(_rows.keep, self._gdata.length - _rows.keep);
-                computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
-                if(computedFocus < 0) computedFocus = 0;
-                if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
+                var nRowsUp = self._gdata.length - _rows.keep;
+                self._gdata.splice(_rows.keep, nRowsUp);
+                computedFocus = gvp.top - Math.min(_rows.rows.length, gvpH - 4) + nRowsUp;
+                if(computedFocus < 0) {
+                    computedFocus = 0;
+                } else if(computedFocus > self._gdata.length - 1) {
+                    computedFocus = self._gdata.length - 1;
+                }
                 redraw = true;
                 needScroll = true;
                 break;

@@ -67,7 +67,7 @@ handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) 
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
-    ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [_Unknown, _User]),
+    ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
 handle_info(die, #state{user=_User}=State) ->
