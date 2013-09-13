@@ -64,17 +64,6 @@ start(_Type, _Args) ->
 		{certfile, CertFile},
 		{keyfile, KeyFile}
     ], [{env, [{dispatch, Dispatch}]}]),
-
-    case application:get_env(dderl, flash_fallback) of
-        {ok, true} ->
-            %% we serve the flash policy file which MUST be on port 843
-            %% you need root privileges to run this
-            ranch:start_listener(flash_fallback, 100,
-                                 ranch_tcp, [{port, 843}],
-                                 flash_policy, []);
-        _ ->
-            ok
-    end,
 	dderl_sup:start_link().
 
 stop(_State) ->
