@@ -8,27 +8,33 @@
 
 -export([ process_cmd/5
         , init/0
-        , add_cmds_views/4
+        , add_cmds_views/5
         , gui_resp/2
         , build_resp_fun/3
         ]).
 
 init() -> ok.
 
--spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), [tuple()]) -> ok.
-add_cmds_views(_, _, _, []) -> ok;
-add_cmds_views(Sess, UserId, A, [{N,C,Con}|Rest]) ->
-    add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}}|Rest]);
-add_cmds_views(Sess, UserId, A, [{N,C,Con,#viewstate{}=V}|Rest]) ->
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> ok | need_replace.
+add_cmds_views(_, _, _, _, []) -> ok;
+add_cmds_views(Sess, UserId, A, R, [{N,C,Con}|Rest]) ->
+    add_cmds_views(Sess, UserId, A, R, [{N,C,Con,#viewstate{}}|Rest]);
+add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     case dderl_dal:get_view(Sess, N, A, UserId) of
         undefined ->
             Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-            dderl_dal:add_view(Sess, UserId, N, Id, V);
+            dderl_dal:add_view(Sess, UserId, N, Id, V),
+            add_cmds_views(Sess, UserId, A, Replace, Rest);
         View ->
-            dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
-            dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V)
-    end,
-    add_cmds_views(Sess, UserId, A, Rest).
+            if
+                Replace ->
+                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
+                    dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
+                    add_cmds_views(Sess, UserId, A, Replace, Rest);
+                true ->
+                    need_replace
+            end
+    end.
 
 -spec box_to_json(#box{}) -> [{binary(), term()}].
 box_to_json(Box) ->
@@ -92,9 +98,14 @@ process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
+    ReplaceView = proplists:get_value(<<"replace">>, BodyJson, false),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
-    add_cmds_views(Sess, UserId, imem, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]),
-    Res = jsx:encode([{<<"save_view">>,<<"ok">>}]),
+    case add_cmds_views(Sess, UserId, imem, ReplaceView, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of 
+        ok ->
+            Res = jsx:encode([{<<"save_view">>,<<"ok">>}]);
+        need_replace ->
+            Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}])
+    end,
     From ! {reply, Res};
 process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     [{<<"update_view">>,BodyJson}] = ReqBody,
@@ -108,7 +119,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     if
         %% System tables can't be overriden.
         Name =:= <<"All Views">> orelse Name =:= <<"All Tables">> ->
-            add_cmds_views(Sess, UserId, imem, [{Name, Query, undefined, ViewState}]),
+            add_cmds_views(Sess, UserId, imem, true, [{Name, Query, undefined, ViewState}]),
             Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
         true ->
             %% TODO: We need to pass the userid to provide authorization.

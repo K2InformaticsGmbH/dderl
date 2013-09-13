@@ -26,7 +26,7 @@ init() ->
                                              {port, <<>>},
                                              {type, local}]
                                  }),
-    gen_adapter:add_cmds_views(undefined, system, imem, [
+    gen_adapter:add_cmds_views(undefined, system, imem, true, [
         { <<"All Tables">>
         , <<"select name(qname),size as rows, memory, nodef(expiry) as expires, nodef(tte) as expires_after from all_tables, ddSize where name = element(2,qname) and size <> undefined order by qname asc">>
         , remote},

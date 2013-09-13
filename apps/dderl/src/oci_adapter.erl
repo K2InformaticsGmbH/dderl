@@ -14,7 +14,7 @@
 -spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
-    gen_adapter:add_cmds_views(undefined, system, oci, [
+    gen_adapter:add_cmds_views(undefined, system, oci, true, [
         { <<"Users.sql">>
         , <<"select USERNAME from ALL_USERS">>
         , remote },

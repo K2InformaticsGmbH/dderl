@@ -351,14 +351,15 @@
         if(this._viewId) {
             this._updateView(this._viewId, this.options.title);
         } else {
-            this._saveViewWithName(this.options.title);
+            this._saveViewWithName(this.options.title, false);
         }
     },
 
     _saveViewAs: function() {
         var viewName = prompt("View name",this.options.title);
-        if (null !== viewName)
-            this._saveViewWithName(viewName);
+        if (null !== viewName) {
+            this._saveViewWithName(viewName, false);
+        }
     },
 
     _getTableLayout: function(_viewName) {
@@ -398,10 +399,11 @@
         self._ajax('/app/update_view', updateView, 'update_view', 'saveViewResult');
     },
 
-    _saveViewWithName: function(_viewName) {
+    _saveViewWithName: function(_viewName, replace) {
         var self = this;
 
         saveView = self._getTableLayout(_viewName);
+        saveView.save_view.replace = replace;
 
         console.log('saving view '+JSON.stringify(saveView));
         self._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
@@ -1275,9 +1277,29 @@
             alert_jq('failed to close statement!\n'+_stmtclose.error);
     },
     _checkSaveViewResult: function(_saveView) {
-        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        var self = this;
+        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         if(_saveView === "ok") {
             console.log('[AJAX] view saved!');
+        } else if(_saveView.hasOwnProperty('need_replace')) {
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
+                resizable: false,
+                height:180,
+                modal: true,
+                buttons: {
+                    "Replace the view": function() {
+                        $( this ).dialog( "close" );
+                        self._saveViewWithName(_saveView.need_replace, true);
+                    },
+                    Cancel: function() {
+                        $( this ).dialog( "close" );
+                    }
+                },
+                close : function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                }
+            });
         } else if(_saveView.hasOwnProperty('error')) {
             alert_jq('failed to save view!\n'+_saveView.error);
         }
