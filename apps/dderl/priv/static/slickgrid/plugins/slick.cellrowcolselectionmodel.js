@@ -101,7 +101,7 @@
                     // we return here if r.fromCell is NaN
                     // this it the case if we are selecting a row
                     return ranges;
-                } else if(r.fromRow === 0 && r.toRow === 0) {
+                } else if(r.fromRow <= 0 && r.toRow === 0) {
                     // we are selecting a column when there are no rows.
                     result.push(r);
                 } else {

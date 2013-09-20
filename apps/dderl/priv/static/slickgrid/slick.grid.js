@@ -849,6 +849,17 @@ if (typeof Slick === "undefined") {
       } else {
         $style[0].appendChild(document.createTextNode(rules.join(" ")));
       }
+      if (selectionModel) {
+        var ranges = selectionModel.getSelectedRanges();
+        var headerColumnEls = $headers.children();
+        for (var i = 0; i < ranges.length; i++) {
+          if(ranges[i].fullCol) {
+            for (var l = ranges[i].fromCell; l <= ranges[i].toCell; ++l) {
+              headerColumnEls.eq(l).addClass("selected");
+            }
+          }
+        }
+      }
     }
 
     function getColumnCssRules(idx) {
@@ -1077,25 +1088,30 @@ if (typeof Slick === "undefined") {
     }
 
     function handleSelectedRangesChanged(e, ranges) {
-      selectedRows = [];
-      var hash = {};
-      for (var i = 0; i < ranges.length; i++) {
-        for (var j = ranges[i].fromRow; j <= ranges[i].toRow; j++) {
-          if (!hash[j]) {  // prevent duplicates
-            selectedRows.push(j);
-          }
-          if(hash[j] === undefined) hash[j] = {};
-          for (var k = ranges[i].fromCell; k <= ranges[i].toCell; k++) {
-            if (canCellBeSelected(j, k)) {
-              hash[j][columns[k].id] = options.selectedCellCssClass;
+        selectedRows = [];
+        var hash = {};
+        var headerColumnEls = $headers.children();
+        headerColumnEls.removeClass("selected");
+        for (var i = 0; i < ranges.length; i++) {
+            for (var j = ranges[i].fromRow; j <= ranges[i].toRow; j++) {
+                if (!hash[j]) {  // prevent duplicates
+                    selectedRows.push(j);
+                }
+                if(hash[j] === undefined) hash[j] = {};
+                for (var k = ranges[i].fromCell; k <= ranges[i].toCell; k++) {
+                    if (canCellBeSelected(j, k)) {
+                        hash[j][columns[k].id] = options.selectedCellCssClass;
+                    }
+                }
             }
-          }
+            if(ranges[i].fullCol) {
+                for (var l = ranges[i].fromCell; l <= ranges[i].toCell; ++l) {
+                    headerColumnEls.eq(l).addClass("selected");
+                }
+            }
         }
-      }
-
-      setCellCssStyles(options.selectedCellCssClass, hash);
-
-      trigger(self.onSelectedRowsChanged, {rows: getSelectedRows()}, e);
+        setCellCssStyles(options.selectedCellCssClass, hash);
+        trigger(self.onSelectedRowsChanged, {rows: getSelectedRows()}, e);
     }
 
     function getColumns() {
