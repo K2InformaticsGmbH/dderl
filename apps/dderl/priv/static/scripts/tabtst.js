@@ -181,7 +181,7 @@ function render_table(tableNameList, query, owner)
 
     loading(true, $('#'+dialogueId));
 
-    var sessionStr = (session != null ? '' + session : '');
+    var sessionStr = (dderlState.session != null ? '' + dderlState.session : '');
     ajax_post('/app/query', {query: {qstr: query, table: tableName}}, null, null, function(table) {
         var table_id = 'qr'+table.table;
         var dlgId = "#dialog-"+table.table;

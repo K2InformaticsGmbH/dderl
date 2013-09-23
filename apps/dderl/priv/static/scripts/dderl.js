@@ -30,13 +30,14 @@ function getUniqueTime() {
   return new Date().getTime();
 }
 
-// TODO: Move this to a global object
-var session = null;
-var adapter = null;
-var connection = null;
-var ws = null;
-var pingTimer = null;
-var currentErrorAlert = null;
+var dderlState = {
+    session: null,
+    adapter: null,
+    connection: null,
+    ws: null,
+    pingTimer: null,
+    currentErrorAlert: null
+}
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -60,8 +61,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     console.log('[AJAX] TX '+_url);
 
     var headers = new Object();
-    if (adapter != null) headers['adapter'] = adapter;
-    headers['dderl_sess'] = (session != null ? ''+session : '');
+    if (dderlState.adapter != null) headers['adapter'] = dderlState.adapter;
+    headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
     if (null != self) {
         if(self.hasOwnProperty('_session')) headers['dderl_sess'] = self._session;
         if(self.hasOwnProperty('_adapter')) headers['adapter'] = self._adapter;
@@ -85,7 +86,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 var s = request.getResponseHeader('dderl_sess');
                 console.log("The session response header dderl_sess");
                 console.log(s);
-                session = s;
+                dderlState.session = s;
             }
 
             if(request.status === 204) {
@@ -109,8 +110,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(!currentErrorAlert || !currentErrorAlert.hasClass('ui-dialog-content')) {
-                    currentErrorAlert = alert_jq('Error : '+_data.error);
+                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+                    dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
             }
             else {
@@ -123,8 +124,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             if(_url == '/app/ping') {
                 _successevt("error");
             } else {
-                if(!currentErrorAlert || !currentErrorAlert.hasClass('ui-dialog-content')) {
-                    currentErrorAlert = alert_jq('HTTP Error'+
+                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+                    dderlState.currentErrorAlert = alert_jq('HTTP Error'+
                         (textStatus.length > 0 ? ' '+textStatus:'') +
                         (errorThrown.length > 0 ? ' details '+errorThrown:''));
                 }
@@ -134,23 +135,23 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 }
 
 function resetPingTimer() {
-    if(pingTimer) {
-        clearTimeout(pingTimer);
+    if(dderlState.pingTimer) {
+        clearTimeout(dderlState.pingTimer);
     }
 
     //Stop ping if there is no connection/session.
-    if(!connection || !session) {
+    if(!dderlState.connection || !dderlState.session) {
         console.log("ping canceled");
         return;
     }
 
-    pingTimer = setTimeout(
+    dderlState.pingTimer = setTimeout(
         function() {
             ajaxCall(null, '/app/ping', null, 'ping', function(response) {
                 console.log("ping " + response);
                 if(response != "pong") {
                     alert_jq("Failed to reach the server, the connection might be lost.");
-                    clearTimeout(pingTimer);
+                    clearTimeout(dderlState.pingTimer);
                 }
             });
         },
@@ -173,8 +174,8 @@ function show_qry_files(useSystem)
     .appendTo(document.body)
     .table({
         autoOpen    : false,
-        dderlConn   : connection,
-        dderlAdapter: adapter,
+        dderlConn   : dderlState.connection,
+        dderlAdapter: dderlState.adapter,
         title       : "All Views"
     })
     .table('loadViews', useSystem);
@@ -241,7 +242,7 @@ function get_local_apps(table) {
 }
 
 function get_remote_apps(table) {
-    ajaxCall(null, '/app/remote_apps', {remote_apps : {connection: connection}}, 'remote_apps', function(applications) {
+    ajaxCall(null, '/app/remote_apps', {remote_apps : {connection: dderlState.connection}}, 'remote_apps', function(applications) {
         var extra_apps = '';
         for(app in applications) {
             var version = applications[app].version;
@@ -264,7 +265,7 @@ function show_about_dlg()
             $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
 
-        if(connection) {
+        if(dderlState.connection) {
             aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
         }
 
@@ -359,26 +360,26 @@ function alert_jq(string)
 
 function create_ws(url)
 {
-    if(!ws) {
-        ws = $.bullet(url, {});
+    if(!dderlState.ws) {
+        dderlState.ws = $.bullet(url, {});
 
-        ws.onopen = function(){
+        dderlState.ws.onopen = function(){
             console.log('WebSocket: opened');
-            ws.send("time");
+            dderlState.ws.send("time");
         };
-        ws.onclose = function(){
+        dderlState.ws.onclose = function(){
             console.log('WebSocket: closed');
             $('#server-time').text("");
         };
-        ws.onmessage = function(e) {
+        dderlState.ws.onmessage = function(e) {
             if(e.data != 'pong') {
                 $('#server-time').text(e.data);
             }
         };
-        ws.onheartbeat = function() {
-			ws.send('ping');
+        dderlState.ws.onheartbeat = function() {
+			dderlState.ws.send('ping');
         };
-        ws.ondisconnect = function() {
+        dderlState.ws.ondisconnect = function() {
             console.log('WebSocket: disconnected');
         }
     }

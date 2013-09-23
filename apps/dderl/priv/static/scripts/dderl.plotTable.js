@@ -159,7 +159,7 @@
 
             self._plotDiv.addClass('demo-container');
             self._divPlaceHolder = $('<div>').appendTo(self._plotDiv).addClass('demo-placeholder');
-            ajaxCall(self, '/app/query', {query: {connection: connection, qstr : self._cmd}}, 'query', 'queryResult');
+            ajaxCall(self, '/app/query', {query: {connection: dderlState.connection, qstr : self._cmd}}, 'query', 'queryResult');
         },
 
         _createPlot: function(_data) {
@@ -279,7 +279,7 @@
 
         // loading rows
         buttonPress: function(button) {
-            ajaxCall(this, '/app/button', {button: {connection: connection,
+            ajaxCall(this, '/app/button', {button: {connection: dderlState.connection,
                                                     statement : this._stmt,
                                                     btn       : button
                                                    }}, 'button', 'updateData');

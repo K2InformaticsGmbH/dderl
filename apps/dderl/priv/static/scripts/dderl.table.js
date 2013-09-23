@@ -426,7 +426,7 @@
         this._clmlay = null;
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
-        this._ajax('/app/query', {query: {connection: connection, qstr : this._cmd}}, 'query', 'queryResult');
+        this._ajax('/app/query', {query: {connection: dderlState.connection, qstr : this._cmd}}, 'query', 'queryResult');
         this._dlg.dialog("moveToTop");
     },
 
@@ -998,7 +998,7 @@
             var data    = self._gdata[cell.fromRow];
             // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
             self._ajax('/app/browse_data',
-                           { browse_data: {connection : connection,
+                           { browse_data: {connection : dderlState.connection,
                                             statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
                                                   col : this._origcolumns[column.field]}},
@@ -1024,7 +1024,7 @@
             }
         }
         var context = {};
-        context[tableCmd] = {connection  : connection,
+        context[tableCmd] = {connection  : dderlState.connection,
                              statement   : self._stmt,
                              table_names : tables};
         self._ajax('/app/' + tableCmd, context, tableCmd, callback);
@@ -1991,7 +1991,7 @@
     },
 
     close_stmt: function() {
-        if(this._stmt && session && connection) {
+        if(this._stmt && dderlState.session && dderlState.connection) {
             this.buttonPress("close");
         }
     },
@@ -2008,8 +2008,8 @@
     // loading rows
     buttonPress: function(button) {
         this._ajax('/app/button', {button: { connection: this._conn
-                                               , statement: this._stmt
-                                               , btn: button}}, 'button', 'loadRows');
+                                             , statement: this._stmt
+                                             , btn: button}}, 'button', 'loadRows');
     },
 
     disableDialog: function() {

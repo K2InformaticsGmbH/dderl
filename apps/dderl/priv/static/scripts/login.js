@@ -56,7 +56,7 @@ function display_login()
                     $("#dialog-login").dialog("close");
                     change_password(true);
                 } else {
-                    session = null;
+                    dderlState.session = null;
                     alert('Login falied : ' + data);
                 }
             });        
@@ -72,11 +72,11 @@ function update_user_information(user) {
 }
 
 function check_already_connected() {
-    if(!window.opener || !window.opener.session ||
+    if(!window.opener || !window.opener.dderlState.session ||
        !window.opener.$('#change-pswd-button').data("logged_in_user")) {
         display_login();
     } else {
-        session = window.opener.session;
+        dderlState.session = window.opener.dderlState.session;
         var user = window.opener.$('#change-pswd-button').data("logged_in_user");
         update_user_information(user);
         connect_dlg();
@@ -86,10 +86,10 @@ function check_already_connected() {
 function logout() {
     var headers = new Object();
 
-    if (adapter != null) {
-        headers['adapter'] = adapter;
+    if (dderlState.adapter != null) {
+        headers['adapter'] = dderlState.adapter;
     }
-    headers['dderl_sess'] = (session != null ? '' + session : '');
+    headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',
@@ -112,13 +112,13 @@ function logout() {
 }
 
 function process_logout() {
-    connection = null;
-    adapter = null;
+    dderlState.connection = null;
+    dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
-    if (!session) {
+    if (!dderlState.session) {
         return;
     }
-    session = null;
+    dderlState.session = null;
     resetPingTimer();
 
     $('#login-button').html('');

@@ -102,15 +102,15 @@ function set_conns_list(adapter, owner)
 function disconnect_tab() {
     var headers = new Object();
 
-    if (adapter != null) {
-        headers['adapter'] = adapter;
+    if (dderlState.adapter != null) {
+        headers['adapter'] = dderlState.adapter;
     }
-    headers['dderl_sess'] = (session != null ? '' + session : '');
+    headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',
         url: '/app/disconnect',
-        data: JSON.stringify({disconnect: {connection: connection}}),
+        data: JSON.stringify({disconnect: {connection: dderlState.connection}}),
         dataType: "JSON",
         contentType: "application/json; charset=utf-8",
         headers: headers,
@@ -118,8 +118,8 @@ function disconnect_tab() {
 
         success: function(_data, textStatus, request) {
             console.log('Request disconnect result ' + textStatus);
-            connection = null;
-            adapter = null;
+            dderlState.connection = null;
+            dderlState.adapter = null;
             resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             connect_dlg();
@@ -127,8 +127,8 @@ function disconnect_tab() {
 
         error: function (request, textStatus, errorThrown) {
             console.log('Request disconnect result ' + textStatus);
-            connection = null;
-            adapter = null;
+            dderlState.connection = null;
+            dderlState.adapter = null;
             resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             connect_dlg();
@@ -138,8 +138,8 @@ function disconnect_tab() {
 
 var children;
 function new_connection_tab() {
-    if(session) {
-        if(!connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+    if(dderlState.session) {
+        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
             connect_dlg();
         } else {
             if(!children) {
@@ -217,9 +217,9 @@ function connect_dlg()
                 }
                 document.title = connName;
 
-                adapter = $('#adapter_list option:checked').val();
+                dderlState.adapter = $('#adapter_list option:checked').val();
                 var Password = $('#password').val();
-                Password = (adapter == 'imem' ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
+                Password = (dderlState.adapter == 'imem' ? (is_MD5(Password) ? Password : MD5(Password)) : Password);
                 var urlConnect = '/app/connect';
                 var resp = 'connect'
                 var NewPassword = null;
@@ -229,7 +229,7 @@ function connect_dlg()
                         alert("Confirm password missmatch!");
                         return;
                     }
-                    NewPassword = (adapter == 'imem' ? (is_MD5(NewPassword) ? NewPassword : MD5(NewPassword)) : NewPassword);
+                    NewPassword = (dderlState.adapter == 'imem' ? (is_MD5(NewPassword) ? NewPassword : MD5(NewPassword)) : NewPassword);
                     urlConnect = '/app/connect_change_pswd';
                     resp = 'connect_change_pswd';
                 }
@@ -271,7 +271,7 @@ function connect_dlg()
                     } else {
                         Dlg.dialog("close");
                         //Setting up the global connection.
-                        connection = data;
+                        dderlState.connection = data;
                         //Set the ping timer.
                         resetPingTimer();
                         show_qry_files(false);

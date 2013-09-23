@@ -400,8 +400,8 @@ function insertAtCursor(myField, myValue) {
             var initOptions = {
                 title          : this._title,
                 autoOpen       : false,
-                dderlConn      : connection,
-                dderlAdapter   : adapter,
+                dderlConn      : dderlState.connection,
+                dderlAdapter   : dderlState.adapter,
                 dderlStartBtn  : self._reloadBtn,
                 dderlCmdStrs   : this._history,
                 dderlSqlEditor : this._dlg
