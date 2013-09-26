@@ -208,9 +208,6 @@ function escapeNewLines(str)
     return result;
 }
 
-/* Parse escaped new lines and tabs
-   TODO: Handle escaped new lines as \\n...
-*/
 function unescapeNewLines(str) {
     str = str.replace(/\\t/gi, "\t");
     str = str.replace(/\\n/gi, "\n");
@@ -540,7 +537,7 @@ function smartDialogPosition(container, owner, self, checks)
 }
 
 function findFreeSpace(self) {
-    var currentDlgs = $(".ui-dialog-content");
+/*    var currentDlgs = $(".ui-dialog-content");
     var dialogPositions = [];
     for(var i = 0; i < currentDlgs.length; ++i) {
         if($(currentDlgs[i]).dialog('isOpen')) {
@@ -560,6 +557,7 @@ function findFreeSpace(self) {
     }
     console.log(self.dialog("widget").width() + ", " + self.dialog("widget").height());
     //console.log(dialogPositions);
+*/
 }
 
 function patch_jquery_ui() {
