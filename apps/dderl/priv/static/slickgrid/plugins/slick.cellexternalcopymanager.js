@@ -45,11 +45,6 @@
       if (!cellSelectionModel){
         throw new Error("Selection model is mandatory for this plugin. Please set a selection model on the grid before adding this plugin: grid.setSelectionModel(new Slick.CellSelectionModel())");
       }
-      // we give focus on the grid when a selection is done on it.
-      // without this, if the user selects a range of cell without giving focus on a particular cell, the grid doesn't get the focus and key stroke handles (ctrl+c) don't work
-      cellSelectionModel.onSelectedRangesChanged.subscribe(function(e, args){
-        _grid.focus();
-      });
     }
 
     function destroy() {
