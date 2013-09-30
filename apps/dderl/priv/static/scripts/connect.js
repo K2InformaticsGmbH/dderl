@@ -274,6 +274,7 @@ function connect_dlg()
                         dderlState.connection = data;
                         //Set the ping timer.
                         resetPingTimer();
+                        initDashboards();
                         show_qry_files(false);
                     }
                 });

@@ -104,7 +104,7 @@ init([SchemaName]) ->
         % Initializing adapters (all the *_adapter modules compiled with dderl)
         %  doesn't include dynamically built adapters
         {ok, AdaptMods} = application:get_key(dderl, modules),
-        Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter") =/= nomatch],
+        Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter$") =/= nomatch],
         [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
         ?Info("adapters ~p", [Adapters]),
         {ok, #state{sess=Sess, schema=SchemaName}};

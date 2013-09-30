@@ -36,7 +36,9 @@ var dderlState = {
     connection: null,
     ws: null,
     pingTimer: null,
-    currentErrorAlert: null
+    currentErrorAlert: null,
+    dashboards: null,
+    currentDashViews: null
 }
 
 // generic dderlserver call interface
@@ -133,6 +135,84 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         }
     });
 }
+
+/*** TODO: Move this to dashboard container class dderl.dashboard ***/
+function addDashView(id, x, y, width, height) {
+    dderlState.currentDashViews.push(new DDerl.DashView(id, x, y, width, height));
+}
+
+function removeDashView(viewId) {
+    //TODO: Find the view id and remove it ...
+}
+
+function findDashboard(name) {
+    for(var i = 0; i < dderlState.dashboards.length; ++i) {
+        if(dderlState.dashboards[i].getName() === name) {
+            return dderlState.dashboards[i];
+        }
+    }
+    return null;
+}
+
+function saveDashboard() {
+    var dashboardList, addedOption, newValue, dashboard, dashViews;
+
+    newValue = document.getElementById("dashboard-list-input").value;
+    dashboard = findDashboard(newValue);
+
+    if(dashboard === null) {
+        dashboard = new DDerl.Dashboard(-1, newValue, dderlState.currentDashViews);
+        dderlState.dashboards.push(dashboard);
+        //TODO: The value should be the id, for now just keep it simple
+        addedOption = document.createElement("option");
+        addedOption.value = -1;
+        addedOption.textContent = newValue;
+
+        dashboardList = document.getElementById("dashboard-list");
+        dashboardList.appendChild(addedOption);
+    }
+}
+
+function createDashboardMenu(container) {
+    var mainMenuBar, saveButton, dashboardList, defaultOption;
+
+    // Button creation
+    saveButton = document.createElement("input");
+    saveButton.type = "button";
+    saveButton.id = "dashboard-save";
+    saveButton.value = "Save this dash";
+    saveButton.onclick = function() {
+        saveDashboard();
+    }
+
+    // Default option creation
+    defaultOption = document.createElement("option");
+    defaultOption.value = "default";
+    defaultOption.textContent = "default";
+
+    dderlState.dashboards.push("default");
+
+    // Dashboard list creation
+    dashboardList = document.createElement("select");
+    dashboardList.id = "dashboard-list";
+    dashboardList.appendChild(defaultOption);
+
+    // Add elements to the dom
+    container.appendChild(dashboardList);
+    container.appendChild(saveButton);
+
+    // Convert the select to combobox
+    $('#dashboard-list').combobox();
+}
+
+function initDashboards() {
+    dderlState.dashboards = new Array();
+    dderlState.currentDashViews = new Array();
+    createDashboardMenu(document.getElementById("main-menu-bar"));
+    //var userDashboards = requestDashboards();
+}
+/********** End dashboard functions *********************/
+
 
 function resetPingTimer() {
     if(dderlState.pingTimer) {
@@ -537,7 +617,7 @@ function smartDialogPosition(container, owner, self, checks)
 }
 
 function findFreeSpace(self) {
-/*    var currentDlgs = $(".ui-dialog-content");
+    var currentDlgs = $(".ui-dialog-content");
     var dialogPositions = [];
     for(var i = 0; i < currentDlgs.length; ++i) {
         if($(currentDlgs[i]).dialog('isOpen')) {
@@ -557,7 +637,6 @@ function findFreeSpace(self) {
     }
     console.log(self.dialog("widget").width() + ", " + self.dialog("widget").height());
     //console.log(dialogPositions);
-*/
 }
 
 function patch_jquery_ui() {
