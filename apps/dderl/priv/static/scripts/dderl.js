@@ -38,7 +38,7 @@ var dderlState = {
     pingTimer: null,
     currentErrorAlert: null,
     dashboards: null,
-    currentDashViews: null
+    currentDashboard: null
 }
 
 // generic dderlserver call interface
@@ -138,11 +138,11 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
 /*** TODO: Move this to dashboard container class dderl.dashboard ***/
 function addDashView(id, x, y, width, height) {
-    dderlState.currentDashViews.push(new DDerl.DashView(id, x, y, width, height));
+    dderlState.currentDashboard.addView(new DDerl.DashView(id, x, y, width, height));
 }
 
 function removeDashView(viewId) {
-    //TODO: Find the view id and remove it ...
+    dderlState.currentDashboard.removeView(viewId);
 }
 
 function findDashboard(name) {
@@ -207,7 +207,7 @@ function createDashboardMenu(container) {
 
 function initDashboards() {
     dderlState.dashboards = new Array();
-    dderlState.currentDashViews = new Array();
+    dderlState.currentDashboard = new DDerl.Dashboard(-1, "default", []);
     createDashboardMenu(document.getElementById("main-menu-bar"));
     //var userDashboards = requestDashboards();
 }
