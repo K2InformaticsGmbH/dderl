@@ -27,6 +27,7 @@
         ,get_command/2
         ,get_view/4
         ,is_local_query/1
+        ,save_dashboard/5
         ]).
 
 -record(state, { schema :: term()
@@ -71,6 +72,9 @@ get_command(Sess, IdOrName) -> gen_server:call(?MODULE, {get_command, Sess, IdOr
 
 -spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
 get_view(Sess, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
+
+-spec save_dashboard({atom(), pid()}, ddEntityId(), integer(), binary(), list()) -> integer() | {error, binary()}.
+save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {save_dashboard, Sess, Owner, DashId, Name, Views}).
 
 -spec hexstr_to_bin(string()) -> binary().
 hexstr_to_bin(S) -> hexstr_to_bin(S, []).
@@ -233,6 +237,21 @@ handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
 handle_call({get_command, Sess, IdOrName}, _From, State) ->
     Cmd = internal_get_command(Sess, IdOrName),
     {reply, Cmd, State};
+
+handle_call({save_dashboard, Sess, Owner, -1, Name, Views}, From, State) ->
+    NewId = erlang:phash2(make_ref()),
+    case Sess:run_cmd(select, [ddDash, [{#ddDash{id=NewId, name='$1', _='_'}, [], ['$1']}]]) of
+        {[DashName], true} ->
+            ?Debug("Save dashboard colision saving the dashboard ~p with id ~p", [DashName, NewId]),
+            handle_call({save_dashboard, Sess, Owner, -1, Name, Views}, From, State);
+        _ ->
+            handle_call({save_dashboard, Sess, Owner, NewId, Name, Views}, From, State)
+    end;
+handle_call({save_dashboard, Sess, Owner, DashId, Name, Views}, _From, State) ->
+    NewDash = #ddDash{id = DashId, name = Name, owner = Owner, views = Views},
+    Sess:run_cmd(insert, [ddDash, NewDash]),
+    ?Debug("dashboard saved ~p", [NewDash]),
+    {reply, DashId, State};
 
 handle_call({get_connects, Sess, User}, _From, State) ->
     {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
