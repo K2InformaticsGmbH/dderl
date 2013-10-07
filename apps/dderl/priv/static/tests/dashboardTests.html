@@ -93,7 +93,57 @@
            compareViews(dashboard.getViews(), dashViews);
        });
 
-       // TODO: test("Save dashboard", function() {});
+       test("Dashboard as object", function() {
+           var dashView, dashboard;
+           dashView = new DDerl.DashView(1, 3, 4, 100, 300);
+           dashboard = new DDerl.Dashboard(5, "My dash", [dashView]);
+           deepEqual(dashboard.getAsObject(),
+                          {
+                              id: 5,
+                              name: "My dash",
+                              views: [
+                                  {
+                                      id: 1,
+                                      layout: {x: 3, y: 4, width: 100, height: 300}
+                                  }]
+                          });
+           dashboard.removeView(1);
+           deepEqual(dashboard.getAsObject(), {id: 5, name: "My dash", views: []});
+       });
+
+       test("Save dashboard", function() {
+           var dashViews, dataObj, dashboard;
+           // Mock for the jquery ajax calls
+           $.ajax = function(options) {
+               equal(options.url, "/app/save_dashboard");
+               dataObj = JSON.parse(options.data);
+               equal(dataObj.dashboard.id, -1);
+               options.success({save_dashboard: 5}, "ok", {status: 200});
+           };
+           dashViews = new Array();
+           for(var i = 0; i < 5; ++i) {
+               dashViews.push(new DDerl.DashView(i + 2, 3 + i, -1 + i*2, i*10, i*10 + 100));
+           }
+           dashboard = new DDerl.Dashboard(-1, "My dash", dashViews);
+           dashboard.save();
+           equal(dashboard.getId(), 5);
+       });
+
+       test("Update dashboard", function() {
+           var dashViews, dataObj, dashboard;
+           // Mock for the jquery ajax calls
+           $.ajax = function(options) {
+               equal(options.url, "/app/save_dashboard");
+               dataObj = JSON.parse(options.data);
+               equal(dataObj.dashboard.id, 5);
+               options.success({save_dashboard: 5}, "ok", {status: 200});
+           };
+           dashView = new DDerl.DashView(1, 3, 4, 100, 300);
+           dashboard = new DDerl.Dashboard(5, "My dash", [dashView]);
+           dashboard.save();
+           equal(dashboard.getId(), 5);
+       });
+
      </script>
 </head>
 <body>

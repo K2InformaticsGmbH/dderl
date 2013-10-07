@@ -31,11 +31,16 @@
             return layout;
         }
 
+        function getAsObject() {
+            return {id: id, layout: layout};
+        }
+
         $.extend(this, {
             "getId": getId,
             "getPos": getPos,
             "getSize": getSize,
-            "getLayout": getLayout
+            "getLayout": getLayout,
+            "getAsObject": getAsObject
         });
 
         init();

@@ -58,9 +58,12 @@
                   , interface               ::atom()            %% interface plugin (ddjson for now)  
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
-                  , views                   ::[ddEntityId()]    %% ddView.ids
+                  , views                   ::list()            %% array of proplists with view layout
                   }
        ).
+
+
+
 -define(ddDash, [integer, atom, userid, binstr, list]).
 
 -define(LOG_TAG, "_DDRL_").

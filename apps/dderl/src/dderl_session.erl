@@ -254,16 +254,21 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
       C =:= <<"parse_stmt">>;
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
-      C =:= <<"update_view">> ->
+      C =:= <<"update_view">>;
+      C =:= <<"save_dashboard">> ->
     BodyJson = jsx:decode(ReqData),
-    gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined),
+    try gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined)
+    catch Class:Error ->
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
+    end,
     State;
 
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?Debug([{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
-    NewCurrentPriv =
+    NewCurrentPriv =g
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),

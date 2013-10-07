@@ -1345,6 +1345,8 @@
             }
             this.buttonPress(this._startBtn);
         }
+        // If this is a view we add it to the current views
+        addToCurrentViews(this);
     },
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('result') && _table.result === 'ok') {
@@ -1566,6 +1568,23 @@
             .bind("dialogbeforeclose", function(event, ui) {
                 self._grid.resetHeaderScroll();
             });
+/*            bind("dialogdrag", function(event, ui) {
+                var dlg = self._dlg.dialog('widget');
+                var wDlg = dlg.width();
+                var hDlg = dlg.height();
+                var xDlg = dlg.position().left;
+                var yDlg = dlg.position().top;
+
+                var wBody = $("#main-body").width();
+                var hBody = $("#main-body").height();
+
+                if(wBody - (xDlg + wDlg) < 20) {
+                    $("#main-body").width(wBody + 30);
+                }
+                if(hBody - (yDlg + hDlg) < 20) {
+                    $("#main-body").height(hBody + 30);
+                }
+            });*/
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined) {
@@ -1574,6 +1593,11 @@
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
+
+        // If this is a view we add it to the current views
+        if(self._viewId) {
+            addToCurrentViews(self);
+        }
 
         // add this dialog to the window finder.
         addWindowFinder(self, self.options.title);
@@ -2105,7 +2129,6 @@
         var gSelecteds  = gSelMdl.getSelectedRanges();
         var activeCell  = g.getActiveCell();
 
-        var missing = true;
         for(var i=0; i < gSelecteds.length; ++i) {
             gSelecteds[i].fromRow -= nRowsToMove;
             if(gSelecteds[i].fromRow < 0) {
@@ -2128,13 +2151,6 @@
             }
         }
 
-        /*
-        if(missing) {
-            g.setActiveCell(cell.row, cell.cell);
-            gSelMdl.setSelectedRanges([new Slick.Range(cell.row, cell.cell, cell.row, cell.cell)]);
-        } else if(!activeCell) {
-            g.setActiveCell(cell.row, cell.cell);
-        }*/
         gSelMdl.setSelectedRanges(gSelecteds);
     },
 

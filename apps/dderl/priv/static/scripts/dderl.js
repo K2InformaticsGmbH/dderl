@@ -38,7 +38,8 @@ var dderlState = {
     pingTimer: null,
     currentErrorAlert: null,
     dashboards: null,
-    currentDashboard: null
+    currentDashboard: null,
+    currentViews: null
 }
 
 // generic dderlserver call interface
@@ -137,6 +138,31 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 }
 
 /*** TODO: Move this to dashboard container class dderl.dashboard ***/
+function addToCurrentViews(tableView) {
+    // Bind to the close event to remove it from the list.
+    tableView._dlg.bind("dialogclose", function(event, ui) {
+        var viewPos = dderlState.currentViews.indexOf(tableView);
+        if(viewPos != -1) {
+            dderlState.currentViews.splice(viewPos, 1);
+        }
+    });
+    dderlState.currentViews.push(tableView);
+}
+
+function getCurrentViews() {
+    var resultViews, id, x, y, w, h;
+    resultViews = new Array();
+    for(var i = 0; i < dderlState.currentViews.length; ++i) {
+        id = dderlState.currentViews[i]._viewId;
+        x = dderlState.currentViews[i]._dlg.dialog('widget').position().left;
+        y = dderlState.currentViews[i]._dlg.dialog('widget').position().top;
+        w = dderlState.currentViews[i]._dlg.dialog('widget').width();
+        h = dderlState.currentViews[i]._dlg.dialog('widget').height();
+        resultViews.push(new DDerl.DashView(id, x, y, w, h));
+    }
+    return resultViews;
+}
+
 function addDashView(id, x, y, width, height) {
     dderlState.currentDashboard.addView(new DDerl.DashView(id, x, y, width, height));
 }
@@ -158,18 +184,24 @@ function saveDashboard() {
     var dashboardList, addedOption, newValue, dashboard, dashViews;
 
     newValue = document.getElementById("dashboard-list-input").value;
+    if(newValue === "default") {
+        alert_jq("Please select a name for the dashboard");
+        return;
+    }
     dashboard = findDashboard(newValue);
 
     if(dashboard === null) {
-        dashboard = new DDerl.Dashboard(-1, newValue, dderlState.currentDashViews);
-        dderlState.dashboards.push(dashboard);
-        //TODO: The value should be the id, for now just keep it simple
-        addedOption = document.createElement("option");
-        addedOption.value = -1;
-        addedOption.textContent = newValue;
-
-        dashboardList = document.getElementById("dashboard-list");
-        dashboardList.appendChild(addedOption);
+        dashboard = new DDerl.Dashboard(-1, newValue, getCurrentViews());
+        dashboard.save(function() {
+            dderlState.dashboards.push(dashboard);
+            //TODO: The value should be the id, for now just keep it simple
+            addedOption = document.createElement("option");
+            addedOption.value = dashboard.getId();
+            addedOption.textContent = newValue;
+            
+            dashboardList = document.getElementById("dashboard-list");
+            dashboardList.appendChild(addedOption);
+        });
     }
 }
 
@@ -190,8 +222,6 @@ function createDashboardMenu(container) {
     defaultOption.value = "default";
     defaultOption.textContent = "default";
 
-    dderlState.dashboards.push("default");
-
     // Dashboard list creation
     dashboardList = document.createElement("select");
     dashboardList.id = "dashboard-list";
@@ -208,6 +238,7 @@ function createDashboardMenu(container) {
 function initDashboards() {
     dderlState.dashboards = new Array();
     dderlState.currentDashboard = new DDerl.Dashboard(-1, "default", []);
+    dderlState.currentViews = new Array();
     createDashboardMenu(document.getElementById("main-menu-bar"));
     //var userDashboards = requestDashboards();
 }

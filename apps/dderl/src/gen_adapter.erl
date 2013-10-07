@@ -131,6 +131,18 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
             end
     end,
     From ! {reply, Res};
+process_cmd({[<<"save_dashboard">>], ReqBody}, Sess, UserId, From, _Priv) ->
+    [{<<"dashboard">>, BodyJson}] = ReqBody,
+    Id = proplists:get_value(<<"id">>, BodyJson, -1),
+    Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
+    Views = proplists:get_value(<<"views">>, BodyJson, []),
+    case dderl_dal:save_dashboard(Sess, UserId, Id, Name, Views) of
+        {error, Reason} ->
+            Res = jsx:encode([{<<"save_dashboard">>, [{<<"error">>, Reason}]}]);
+        NewId ->
+            Res = jsx:encode([{<<"save_dashboard">>, NewId}])
+    end,
+    From ! {reply, Res};
 process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
