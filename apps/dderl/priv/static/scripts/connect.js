@@ -122,6 +122,7 @@ function disconnect_tab() {
             dderlState.adapter = null;
             resetPingTimer();
             $(".ui-dialog-content").dialog('close');
+            $('#dashboard-menu').empty();
             connect_dlg();
         },
 
@@ -131,6 +132,7 @@ function disconnect_tab() {
             dderlState.adapter = null;
             resetPingTimer();
             $(".ui-dialog-content").dialog('close');
+            $('#dashboard-menu').empty();
             connect_dlg();
         }
     });

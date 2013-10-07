@@ -208,6 +208,11 @@ function saveDashboard() {
 function createDashboardMenu(container) {
     var mainMenuBar, saveButton, dashboardList, defaultOption;
 
+    // Check to only create the elements once.
+    if(document.getElementById("dashboard-list")) {
+        return;
+    }
+
     // Button creation
     saveButton = document.createElement("input");
     saveButton.type = "button";
@@ -239,7 +244,7 @@ function initDashboards() {
     dderlState.dashboards = new Array();
     dderlState.currentDashboard = new DDerl.Dashboard(-1, "default", []);
     dderlState.currentViews = new Array();
-    createDashboardMenu(document.getElementById("main-menu-bar"));
+    createDashboardMenu(document.getElementById("dashboard-menu"));
     //var userDashboards = requestDashboards();
 }
 /********** End dashboard functions *********************/

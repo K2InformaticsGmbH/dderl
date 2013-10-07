@@ -115,6 +115,7 @@ function process_logout() {
     dderlState.connection = null;
     dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
+    $('#dashboard-menu').empty();
     if (!dderlState.session) {
         return;
     }
