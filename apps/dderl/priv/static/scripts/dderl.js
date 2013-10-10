@@ -155,8 +155,8 @@ function requestDashboards() {
                     new DDerl.DashView(view.id,
                                        viewLayout.x,
                                        viewLayout.y,
-                                       viewLayout.w,
-                                       viewLayout.h)
+                                       viewLayout.width,
+                                       viewLayout.height)
                 );
             }
             addDashboard(dashboard);

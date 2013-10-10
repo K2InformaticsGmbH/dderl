@@ -53,7 +53,7 @@
 
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
-                        openView        : function(e, _result) { e.data._renderViews(_result); },
+                        openView        : function(e, _result) { e.data._openView(_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable(_result); },
                         queryResult     : function(e, _result) { e.data._renderTable(_result); },
                         tailResult      : function(e, _result) { e.data._checkTailResult(_result); },
@@ -1312,6 +1312,30 @@
     _deleteResult: function(_delete) {
         this.appendRows(_delete);
         console.log('deleted '+JSON.stringify(_delete));
+    },
+
+    _openView: function(viewResult) {
+        this._cmd    = viewResult.content;
+        this._stmt   = viewResult.statement;
+        this._conn   = viewResult.connection;
+        this._viewId = viewResult.view_id;
+        if(viewResult.hasOwnProperty('column_layout') && viewResult.column_layout.length > 0) {
+            this._clmlay = viewResult.column_layout;
+        }
+        this._setTitleHtml($('<span>').text(viewResult.name).addClass('table-title'));
+        this.options.title = viewResult.name;
+        console.log('>>>>> table '+viewResult.name+' '+viewResult.connection);
+        if(viewResult.hasOwnProperty('error')) {
+            alert_jq(viewResult.error);
+        } else {
+            this.setColumns(viewResult.columns);
+            if(viewResult.hasOwnProperty('sort_spec') && !$.isEmptyObject(viewResult.sort_spec)) {
+                this._setSortSpecFromJson(this, viewResult.sort_spec);
+            }
+            this.buttonPress(this._startBtn);
+        }
+        // If this is a view we add it to the current views
+        addToCurrentViews(this);
     },
 
     _renderViews: function(_views) {

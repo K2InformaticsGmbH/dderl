@@ -73,7 +73,8 @@
                         autoOpen    : false,
                         dderlConn   : dderlState.connection,
                         dderlAdapter: dderlState.adapter,
-                        title       : "New view"
+                        title       : "New view",
+                        dderlTbllay : views[i].getLayout(),
                     })
                     .table('openView', views[i].getId());
             }
