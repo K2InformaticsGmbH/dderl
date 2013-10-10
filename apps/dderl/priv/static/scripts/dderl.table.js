@@ -53,6 +53,7 @@
 
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
+                        openView        : function(e, _result) { e.data._renderViews(_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable(_result); },
                         queryResult     : function(e, _result) { e.data._renderTable(_result); },
                         tailResult      : function(e, _result) { e.data._checkTailResult(_result); },
@@ -2020,13 +2021,20 @@
         }
     },
 
-    // loading the view table
+    // loading the views table
     loadViews: function(useSystem) {
         if(useSystem){
             this._ajax('/app/system_views', null, 'system_views', 'loadViews');
         } else {
             this._ajax('/app/views', null, 'views', 'loadViews');
         }
+    },
+
+    // loading the required view
+    openView: function(viewId) {
+        // TODO: maybe here we need to set the position and the size.
+        var openViewData = {open_view: {view_id: viewId}};
+        this._ajax('/app/open_view', openViewData, 'open_view', 'openView');
     },
 
     // loading rows

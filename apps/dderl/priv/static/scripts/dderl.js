@@ -138,6 +138,32 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 }
 
 /*** TODO: Move this to dashboard container class dderl.dashboard ***/
+function loadDashboard(dashboard) {
+    $(".ui-dialog-content").dialog('close');
+    dashboard.openViews();
+}
+
+function requestDashboards() {
+    ajaxCall(null, '/app/dashboards', null, 'dashboards', function(dashboards) {
+        var dashboard, view, viewLayout;
+        for(var i = 0; i < dashboards.length; ++i) {
+            dashboard = new DDerl.Dashboard(dashboards[i].id, dashboards[i].name, []);
+            for(var j = 0; j < dashboards[i].views.length; ++j) {
+                view = dashboards[i].views[j];
+                viewLayout = view.layout;
+                dashboard.addView(
+                    new DDerl.DashView(view.id,
+                                       viewLayout.x,
+                                       viewLayout.y,
+                                       viewLayout.w,
+                                       viewLayout.h)
+                );
+            }
+            addDashboard(dashboard);
+        }
+    });
+}
+
 function addToCurrentViews(tableView) {
     // Bind to the close event to remove it from the list.
     tableView._dlg.bind("dialogclose", function(event, ui) {
@@ -171,6 +197,15 @@ function removeDashView(viewId) {
     dderlState.currentDashboard.removeView(viewId);
 }
 
+function findDashboardById(dashboardId) {
+    for(var i = 0; i < dderlState.dashboards.length; ++i) {
+        if(dderlState.dashboards[i].getId() === dashboardId) {
+            return dderlState.dashboards[i];
+        }
+    }
+    return null;
+}
+
 function findDashboard(name) {
     for(var i = 0; i < dderlState.dashboards.length; ++i) {
         if(dderlState.dashboards[i].getName() === name) {
@@ -180,33 +215,42 @@ function findDashboard(name) {
     return null;
 }
 
-function saveDashboard() {
-    var dashboardList, addedOption, newValue, dashboard, dashViews;
+function addDashboard(dashboard) {
+    var addedOption, dashboardList;
 
-    newValue = document.getElementById("dashboard-list-input").value;
-    if(newValue === "default") {
+    dderlState.dashboards.push(dashboard);
+
+    addedOption = document.createElement("option");
+    addedOption.value = dashboard.getId();
+    addedOption.textContent = dashboard.getName();
+
+    dashboardList = document.getElementById("dashboard-list");
+    dashboardList.appendChild(addedOption);
+}
+
+function saveDashboard() {
+    var name, dashboard, dashViews;
+
+    name = document.getElementById("dashboard-list-input").value;
+    if(name === "default") {
         alert_jq("Please select a name for the dashboard");
         return;
     }
-    dashboard = findDashboard(newValue);
+    dashboard = findDashboard(name);
 
     if(dashboard === null) {
-        dashboard = new DDerl.Dashboard(-1, newValue, getCurrentViews());
+        dashboard = new DDerl.Dashboard(-1, name, getCurrentViews());
         dashboard.save(function() {
-            dderlState.dashboards.push(dashboard);
-            //TODO: The value should be the id, for now just keep it simple
-            addedOption = document.createElement("option");
-            addedOption.value = dashboard.getId();
-            addedOption.textContent = newValue;
-            
-            dashboardList = document.getElementById("dashboard-list");
-            dashboardList.appendChild(addedOption);
+            addDashboard(dashboard);
         });
+    } else {
+        dashboard.updateViews(getCurrentViews());
+        dashboard.save();
     }
 }
 
 function createDashboardMenu(container) {
-    var mainMenuBar, saveButton, dashboardList, defaultOption;
+    var mainMenuBar, saveButton, dashboardList, dashboardListObj, defaultOption;
 
     // Check to only create the elements once.
     if(document.getElementById("dashboard-list")) {
@@ -237,7 +281,24 @@ function createDashboardMenu(container) {
     container.appendChild(saveButton);
 
     // Convert the select to combobox
-    $('#dashboard-list').combobox();
+    dashboardListObj = $('#dashboard-list').combobox();
+
+    // Add the handler for selection
+    dashboardListObj.change(function() {
+        var dashId, dashboard;
+        dashId = dashboardListObj.val();
+        if($('#dashboard-list-input').is(":focus")) {
+            $('#dashboard-list-input').blur();
+        }
+        if(dashId === "default") {
+            return;
+        } else if(!isNaN(parseInt(dashId)) && isFinite(dashId)) {
+            dashboard = findDashboardById(parseInt(dashId));
+            if(dashboard) {
+                loadDashboard(dashboard);
+            }
+        }
+    });
 }
 
 function initDashboards() {
@@ -245,7 +306,7 @@ function initDashboards() {
     dderlState.currentDashboard = new DDerl.Dashboard(-1, "default", []);
     dderlState.currentViews = new Array();
     createDashboardMenu(document.getElementById("dashboard-menu"));
-    //var userDashboards = requestDashboards();
+    var userDashboards = requestDashboards();
 }
 /********** End dashboard functions *********************/
 

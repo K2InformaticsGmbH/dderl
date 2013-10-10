@@ -232,7 +232,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
+            ?Debug([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
     State;
@@ -255,7 +255,8 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
       C =:= <<"update_view">>;
-      C =:= <<"save_dashboard">> ->
+      C =:= <<"save_dashboard">>;
+      C =:= <<"dashboards">> ->
     BodyJson = jsx:decode(ReqData),
     try gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined)
     catch Class:Error ->

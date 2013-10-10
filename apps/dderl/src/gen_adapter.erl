@@ -143,6 +143,18 @@ process_cmd({[<<"save_dashboard">>], ReqBody}, Sess, UserId, From, _Priv) ->
             Res = jsx:encode([{<<"save_dashboard">>, NewId}])
     end,
     From ! {reply, Res};
+process_cmd({[<<"dashboards">>], _ReqBody}, Sess, UserId, From, _Priv) ->
+    case dderl_dal:get_dashboards(Sess, UserId) of
+        [] ->
+            ?Debug("No dashboards found for the user ~p", [UserId]),
+            Res = jsx:encode([{<<"dashboards">>,[]}]);
+        Dashboards ->
+            ?Debug("dashboards of the user ~p, ~n~p", [UserId, Dashboards]),
+            DashboardsAsProplist = [[{<<"id">>, D#ddDash.id}, {<<"name">>, D#ddDash.name}, {<<"views">>, D#ddDash.views}] || D <- Dashboards],
+            Res = jsx:encode([{<<"dashboards">>, DashboardsAsProplist}]),
+            ?Debug("dashboards as json ~s", [jsx:prettify(Res)])
+    end,
+    From ! {reply, Res};
 process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.

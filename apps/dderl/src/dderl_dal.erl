@@ -26,8 +26,10 @@
         ,del_conn/2
         ,get_command/2
         ,get_view/4
+        ,get_view/2
         ,is_local_query/1
         ,save_dashboard/5
+        ,get_dashboards/2
         ]).
 
 -record(state, { schema :: term()
@@ -70,11 +72,17 @@ del_conn(Sess, ConId) -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
 -spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
 get_command(Sess, IdOrName) -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
 
+-spec get_view({atom(), pid()}, ddEntityId()) -> #ddView{} | undefined.
+get_view(Sess, ViewId) -> gen_server:call(?MODULE, {get_view, Sess, ViewId}).
+
 -spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
 get_view(Sess, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
 
 -spec save_dashboard({atom(), pid()}, ddEntityId(), integer(), binary(), list()) -> integer() | {error, binary()}.
 save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {save_dashboard, Sess, Owner, DashId, Name, Views}).
+
+-spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
+get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, Owner}).
 
 -spec hexstr_to_bin(string()) -> binary().
 hexstr_to_bin(S) -> hexstr_to_bin(S, []).
@@ -217,6 +225,17 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
             {reply, {error, <<"Unable to get the view to update">>}, State}
     end;
 
+handle_call({get_view, Sess, ViewId}, _From, #state{} = State) ->
+    ?Debug("get view by id ~p", [ViewId]),
+    case Sess:run_cmd(select, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
+        {[View], true} ->
+            View;
+        Result ->
+            ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
+            View = undefined
+    end,
+    {reply, View, State};
+
 handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess} = State) ->
     handle_call({get_view, Sess, Name, Adapter, Owner}, From, State);
 handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
@@ -252,6 +271,10 @@ handle_call({save_dashboard, Sess, Owner, DashId, Name, Views}, _From, State) ->
     Sess:run_cmd(insert, [ddDash, NewDash]),
     ?Debug("dashboard saved ~p", [NewDash]),
     {reply, DashId, State};
+
+handle_call({get_dashboards, Sess, Owner}, _From, State) ->
+    {Dashboards, true} = Sess:run_cmd(select, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]),
+    {reply, Dashboards, State};
 
 handle_call({get_connects, Sess, User}, _From, State) ->
     {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),

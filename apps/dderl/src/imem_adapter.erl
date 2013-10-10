@@ -292,6 +292,30 @@ process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
     From ! {reply, RespJson},
     Priv;
 
+% open view by id
+process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
+    [{<<"open_view">>, BodyJson}] = ReqBody,
+    ViewId = proplists:get_value(<<"view_id">>, BodyJson),
+    case dderl_dal:get_view(Sess, ViewId) of
+        undefined ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"View not found">>}])},
+            Priv;
+        F ->
+            C = dderl_dal:get_command(Sess, F#ddView.cmd),
+            Resp = process_query(C#ddCmd.command, Sess),
+            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+            RespJson = jsx:encode([{<<"open_view">>,
+                                    [{<<"content">>, C#ddCmd.command}
+                                     ,{<<"name">>, F#ddView.name}
+                                     ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                                     ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                                     ,{<<"view_id">>, F#ddView.id}]
+                                    ++ Resp
+                                   }]),
+            From ! {reply, RespJson},
+            Priv
+    end;
+
 % events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,

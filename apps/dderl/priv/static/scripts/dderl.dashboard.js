@@ -10,6 +10,7 @@
 
         function init() {
             views = origViews.slice(0);
+            origViews = null;
         }
 
         function getId() {
@@ -59,6 +60,25 @@
             }
         }
 
+        function updateViews(newViews) {
+            views = newViews.slice(0);
+            newViews = null;
+        }
+
+        function openViews() {
+            for(var i = 0; i < views.length; ++i) {
+                $('<div>')
+                    .appendTo(document.body)
+                    .table({
+                        autoOpen    : false,
+                        dderlConn   : dderlState.connection,
+                        dderlAdapter: dderlState.adapter,
+                        title       : "New view"
+                    })
+                    .table('openView', views[i].getId());
+            }
+        }
+
         function save(cbSuccess) {
             var url = '/app/save_dashboard';
             var data = {dashboard: getAsObject()};
@@ -67,10 +87,12 @@
                     alert_jq('<strong>save dashboard failed!</strong><br><br>' + result.error);
                 } else if(!isNaN(parseInt(result)) && isFinite(result)) {
                     if(id === -1) {
-                        // Only modify the id if 
-                        id = result;
+                        // Only update the id if we are creating a new dashboard
+                        id = parseInt(result);
                     }
-                    cbSuccess();
+                    if(cbSuccess) {
+                        cbSuccess();
+                    }
                 }
             });
         }
@@ -81,8 +103,10 @@
             "getViews": getViews,
             "addView": addView,
             "removeView": removeView,
+            "updateViews": updateViews,
             "save": save,
-            "getAsObject": getAsObject
+            "getAsObject": getAsObject,
+            "openViews": openViews
         });
 
         init();

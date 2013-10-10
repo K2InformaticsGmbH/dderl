@@ -59,7 +59,7 @@ function display_login()
                     dderlState.session = null;
                     alert('Login falied : ' + data);
                 }
-            });        
+            });
         }
     });
 }
