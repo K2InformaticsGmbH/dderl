@@ -163,8 +163,17 @@
                     _grid.getEditorLock().commitCurrentEdit();
 
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
-                        _grid.setActiveCell(0, col);
-                        setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
+                        if(col === 0) {
+                            _grid.setActiveCell(0, 1);
+                            _ranges = [];
+                            for(var i = 1; i < _grid.getColumns().length; ++i) {
+                                _ranges.push(createFullColRange(0, i, maxRow, i));
+                            }
+                            setSelectedRanges(_ranges);
+                        } else {
+                            _grid.setActiveCell(0, col);
+                            setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
+                        }
                     } else if(col !== 0) {
                         var matches = $.grep(_ranges, function(o,i) {
                             return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
