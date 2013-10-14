@@ -57,15 +57,33 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr   = proplists:get_value(<<"tnsstring">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
-    case Port of
-        undefined ->
-            ErlOciSession = {error, "Invalid port"};
-        Port ->
-            %ErlOciSession = erloci_session:start_link(Tnsstr, User, Password, <<>>, [{logging, true}]),
-            ErlOciSession = {a,self()}
+    ErlOciSession = if Tnsstr =:= <<>> ->
+        case Port of
+            undefined -> {error, "Invalid port"};
+            Port ->
+                NewTnsstr = list_to_binary(io_lib:format(
+                    "(DESCRIPTION="
+                    "  (ADDRESS_LIST="
+                    "      (ADDRESS=(PROTOCOL=tcp)"
+                    "          (HOST=~s)"
+                    "          (PORT=~p)"
+                    "      )"
+                    "  )"
+                    "  (CONNECT_DATA=(SERVICE_NAME=~s)))",
+                        [ binary_to_list(IpAddr)
+                        , Port
+                        , binary_to_list(Service)])),
+                ?Info("session:open ~p", [{User, Password, NewTnsstr}]),
+                OciPort = oci_port:start_link([{logging, true}]),
+                OciPort:get_session(NewTnsstr, User, Password)
+        end;
+    true ->
+        ?Info("session:open ~p", [{User, Password, Tnsstr}]),
+        OciPort = oci_port:start_link([{logging, true}]),
+        OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
-        {_, ErlOciSessionPid} when is_pid(ErlOciSessionPid) ->
+        {_, ErlOciSessionPid, _} when is_pid(ErlOciSessionPid) ->
             ?Info("ErlOciSession ~p", [ErlOciSession]),
             Con = #ddConn { id = erlang:phash2(make_ref())
                           , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
