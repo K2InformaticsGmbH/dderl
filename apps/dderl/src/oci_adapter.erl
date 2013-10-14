@@ -16,6 +16,17 @@
 -spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
+    dderl_dal:add_connect(undefined,
+                          #ddConn{ id = undefined
+                                 , name = <<"local oracle">>
+                                 , owner = system
+                                 , adapter = oci
+                                 , access = [{ip, <<"localhost">>},
+                                             {user, <<"scott">>},
+                                             {port, 1521},
+                                             {type, <<"DB Name">>},
+                                             {service, xe}]
+                                 }),
     gen_adapter:add_cmds_views(undefined, system, oci, true, [
         { <<"Users.sql">>
         , <<"select USERNAME from ALL_USERS">>
@@ -136,14 +147,14 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
             Priv;
-        {ok, {_,ConPid} = Connection} ->
+        {ok, Connection} when is_tuple(Connection) ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             %% Id undefined if we are creating a new connection.
             Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
                           , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner   = UserId
-                          , adapter = imem
+                          , adapter = oci
                           , access  = [ {ip,   Ip}
                                        , {port, Port}
                                        , {type, Type}
@@ -216,7 +227,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
         IsView ->
             {#ddView{name=Name,owner=Owner},#ddCmd{}=OldC,_} = element(3, R),
             Name = element(5, R),
-            V = dderl_dal:get_view(Sess, Name, imem, Owner),
+            V = dderl_dal:get_view(Sess, Name, oci, Owner),
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
@@ -233,6 +244,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                     case lists:member(Connection, Connections) of
                         true ->
                             Resp = process_query(C#ddCmd.command, Connection),
+io:format(user, "View ~p~n", [V]),
                             RespJson = jsx:encode([{<<"browse_data">>,
                                 [{<<"content">>, C#ddCmd.command}
                                  ,{<<"name">>, Name}
@@ -462,66 +474,124 @@ filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
--spec process_query(binary(), tuple()) -> list().
-process_query(Query, {_,ConPid}=Connection) ->
-    case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)) of
-        ok ->
-            ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
-            [{<<"result">>, <<"ok">>}];
-        {ok, #stmtResult{ stmtCols = Clms
-                        , rowFun   = RowFun
-                        , stmtRef  = StmtRef
-                        , sortFun  = SortFun
-                        , sortSpec = SortSpec} = StmtRslt} ->
-            StmtFsm = dderl_fsm:start_link(
-                                #fsmctx{ id                         = "what is it?"
-                                       , stmtCols                   = Clms
-                                       , rowFun                     = RowFun
-                                       , sortFun                    = SortFun
-                                       , sortSpec                   = SortSpec
-                                       , block_length               = ?DEFAULT_ROW_SIZE
-                                       , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
-                                       , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
-                                       , stmt_close_fun             = fun() -> Connection:run_cmd(close, [StmtRef]) end
-                                       , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
-                                                                            Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
-                                                                        end
-                                       , update_cursor_prepare_fun  = fun(ChangeList) ->
-                                                                            Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
-                                                                        end
-                                       , update_cursor_execute_fun  = fun(Lock) ->
-                                                                            Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                        end
-                                       }),
-            Connection:add_stmt_fsm(StmtRef, StmtFsm),
-            ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-            Columns = build_column_json(lists:reverse(Clms)),
-            JSortSpec = build_srtspec_json(SortSpec),
-            ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
-            ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
-            [{<<"columns">>, Columns},
-             {<<"sort_spec">>, JSortSpec},
-             {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
-             {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
-        {error, {{Ex, M}, _Stacktrace} = Error} ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
+-spec process_query(tuple(), tuple()) -> list().
+process_query(Query, Connection) when is_tuple(Connection) ->
+    case dderl_dal:is_local_query(Query) of
+        true ->
+process_query(check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)), Query, Connection);
+        _ ->
+process_query(check_funs(dderloci:exec(Query, Connection)), Query, Connection)
+    end.
+
+-spec process_query(term(), binary(), tuple()) -> list().
+process_query(ok, Query, Connection) ->
+    ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
+    [{<<"result">>, <<"ok">>}];
+process_query({ok, #stmtResult{ stmtCols = Clms
+                , rowFun   = RowFun
+                , stmtRef  = StmtRef
+                , sortFun  = SortFun
+                , sortSpec = SortSpec} = StmtRslt}, Query, {oci_port, _, _} = Connection) ->
+    StmtFsm = dderl_fsm:start_link(
+                        #fsmctx{ id                         = "what is it?"
+                               , stmtCols                   = Clms
+                               , rowFun                     = RowFun
+                               , sortFun                    = SortFun
+                               , sortSpec                   = SortSpec
+                               , block_length               = ?DEFAULT_ROW_SIZE
+                               , fetch_recs_async_fun       = fun(_Opts) ->
+                                                                FsmPid = self(),
+                                                                spawn(fun() ->
+                                                                    {{rows, Rows}, Completed} = StmtRef:fetch_rows(?DEFAULT_ROW_SIZE),
+                                                                    io:format(user, "{StmtRef ~p, Rows ~p, Completed ~p}~n", [StmtRef, Rows, Completed]),
+                                                                    FsmPid ! {StmtRef, Rows, Completed}
+                                                                end)
+                                                              end
+                               , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
+                               , stmt_close_fun             = fun() -> StmtRef:close() end
+                               , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
+                                                                    Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
+                                                                end
+                               , update_cursor_prepare_fun  = fun(ChangeList) ->
+                                                                    Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
+                                                                end
+                               , update_cursor_execute_fun  = fun(Lock) ->
+                                                                    Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                                                                end                               %, fetch_recs_async_fun       = fun(_Opts) -> ok end
+                               %, fetch_close_fun            = fun() -> ok end
+                               %, stmt_close_fun             = fun() -> ok end
+                               %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
+                               %, update_cursor_prepare_fun  = fun(_ChangeList) -> ok end
+                               %, update_cursor_execute_fun  = fun(_Lock) -> ok end
+                               }),
+    Connection:add_stmt_fsm(StmtRef, StmtFsm),
+    ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
+    Columns = build_column_json(lists:reverse(Clms)),
+    JSortSpec = build_srtspec_json(SortSpec),
+    ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
+    ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
+    [{<<"columns">>, Columns},
+     {<<"sort_spec">>, JSortSpec},
+     {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
+     {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
+process_query({ok, #stmtResult{ stmtCols = Clms
+                , rowFun   = RowFun
+                , stmtRef  = StmtRef
+                , sortFun  = SortFun
+                , sortSpec = SortSpec} = StmtRslt}, Query, Connection) ->
+    StmtFsm = dderl_fsm:start_link(
+                        #fsmctx{ id                         = "what is it?"
+                               , stmtCols                   = Clms
+                               , rowFun                     = RowFun
+                               , sortFun                    = SortFun
+                               , sortSpec                   = SortSpec
+                               , block_length               = ?DEFAULT_ROW_SIZE
+                               , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
+                               , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
+                               , stmt_close_fun             = fun() -> Connection:run_cmd(close, [StmtRef]) end
+                               , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
+                                                                    Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
+                                                                end
+                               , update_cursor_prepare_fun  = fun(ChangeList) ->
+                                                                    Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
+                                                                end
+                               , update_cursor_execute_fun  = fun(Lock) ->
+                                                                    Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                                                                end                               %, fetch_recs_async_fun       = fun(_Opts) -> ok end
+                               %, fetch_close_fun            = fun() -> ok end
+                               %, stmt_close_fun             = fun() -> ok end
+                               %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
+                               %, update_cursor_prepare_fun  = fun(_ChangeList) -> ok end
+                               %, update_cursor_execute_fun  = fun(_Lock) -> ok end
+                               }),
+    Connection:add_stmt_fsm(StmtRef, StmtFsm),
+    ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
+    Columns = build_column_json(lists:reverse(Clms)),
+    JSortSpec = build_srtspec_json(SortSpec),
+    ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
+    ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
+    [{<<"columns">>, Columns},
+     {<<"sort_spec">>, JSortSpec},
+     {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
+     {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
+process_query({error, {{Ex, M}, _Stacktrace} = Error}, _Query, Connection) ->
+    ?Error([{session, Connection}], "query error ~p", [Error]),
+    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                             lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
-        {error, {Ex,M}} ->
-            ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-            Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            [{<<"error">>, Err}];
-        Error ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
-            if
-                is_binary(Error) ->
-                    [{<<"error">>, Error}];
-                true ->
-                    Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-                    [{<<"error">>, Err}]
-            end
+process_query({error, {Ex,M}}, _Query, Connection) ->
+    ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
+    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
+                             lists:flatten(io_lib:format("~p", [M]))),
+    [{<<"error">>, Err}];
+process_query(Error, _Query, Connection) ->
+    ?Error([{session, Connection}], "query error ~p", [Error]),
+    if
+        is_binary(Error) ->
+            [{<<"error">>, Error}];
+        true ->
+            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            [{<<"error">>, Err}]
     end.
 
 -spec send_result_table_cmd(pid(), binary(), list()) -> ok.
