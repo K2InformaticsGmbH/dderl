@@ -71,6 +71,7 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess(_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess(_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess(_result); },
+                        histogramResult : function(e, _result) { e.data._loadHistogram(_result); },
                         editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor(_result); }
                       },
 
@@ -100,7 +101,8 @@
                        'Sort...'          : '_sort',
                        'Sort ASC'         : '_sortAsc',
                        'Sort DESC'        : '_sortDesc',
-                       'Sort Clear'       : '_sortClear'},
+                       'Sort Clear'       : '_sortClear',
+                       'Histogram'        : '_showHistogram'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
                        'Edit'             : '_editErlangTerm',
@@ -276,9 +278,13 @@
                         .click(function(e) {
                             var self = $('#'+_menu).data('cnxt');
                             if(undefined != self) {
+                                var columnId = null;
+                                console.log('self title _cnxtMenu ' + self.options.title);
+                                if(_menu === '_slkHdrCnxtMnu') {
+                                    columnId = $('#'+_menu).data('column-id');
+                                }
                                 self[_menu].dom.hide();
-                                console.log('self title _cnxtMenu '+self.options.title);
-                                self._cnxtMenuAction(_menu, $(this).attr("action"));
+                                self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
                             }
                         })
                         .text(m)
@@ -290,13 +296,20 @@
     },
 
     // delegate actions of context menu
-    _cnxtMenuAction: function(_menu, _action) {
+    _cnxtMenuAction: function(_menu, _action, _columnId) {
         var funName = this[_menu][_action];
         var fun = $.proxy(this[funName], this);
         var data = null;
         if($.isFunction(fun)) {
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
+                    if(_action === "Histogram") {
+                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
+                                columnId: _columnId};
+                    } else {
+                        data = this._grid.getSelectionModel().getSelectedRanges();
+                    }
+                break;
                 case '_slkCellCnxtMnu':
                     data = this._grid.getSelectionModel().getSelectedRanges();
                 break;
@@ -307,9 +320,9 @@
             }
             //console.log('applying fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+data);
             fun(data);
-        }
-        else
+        } else {
             throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu);
+        }
     },
 
     _editCmd: function(cmd) {
@@ -408,6 +421,19 @@
 
         console.log('saving view '+JSON.stringify(saveView));
         self._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
+    },
+
+    _showHistogram: function(data) {
+        var self = this;
+        var columnId = data.columnId;
+        var reqObj = {histogram: {
+            connection : this._conn,
+            statement  : this._stmt,
+            column_id : self._origcolumns[columnId]
+        }};
+
+        console.log('show histogram ' + JSON.stringify(data));
+        self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
     },
 
     // Open plot for this table
@@ -1524,6 +1550,20 @@
         }
     },
 
+    _loadHistogram: function(histogram) {
+        var self = this;
+        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        alert(JSON.stringify(histogram));
+//          alert(data.columnId);
+/*        $('<div>').appendTo(document.body)
+            .histogramTable({
+                autoOpen     : false,
+                title        : this.options.title,
+                initialQuery : this._cmd,
+            })
+            .histogramTable('open');*/
+    },
+
     _openErlangTermEditor: function(formattedString) {
         var self = this;
         // received response clear wait wheel
@@ -1716,11 +1756,13 @@
 
         this._slkCellCnxtMnu.dom
             .removeData('cnxt')
+            .removeData('column-id')
             .hide();
         this._slkHdrCnxtMnu.dom
             .css("top", e.clientY - 20)
             .css("left", e.clientX - 10)
             .data('cnxt', this)
+            .data('column-id', args.column.id)
             .show();
     },
     _gridCellChange: function(e, args) {

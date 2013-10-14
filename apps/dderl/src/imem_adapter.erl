@@ -305,13 +305,13 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
             Resp = process_query(C#ddCmd.command, Sess),
             ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
             RespJson = jsx:encode([{<<"open_view">>,
-                                    [{<<"content">>, C#ddCmd.command}
-                                     ,{<<"name">>, F#ddView.name}
-                                     ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-                                     ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-                                     ,{<<"view_id">>, F#ddView.id}]
-                                    ++ Resp
-                                   }]),
+                [{<<"content">>, C#ddCmd.command}
+                ,{<<"name">>, F#ddView.name}
+                ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                ,{<<"view_id">>, F#ddView.id}]
+                ++ Resp
+            }]),
             From ! {reply, RespJson},
             Priv
     end;
@@ -399,6 +399,15 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     ReceivedRows = proplists:get_value(<<"rows">>, BodyJson, []),
     Rows = extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
+    Priv;
+process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"histogram">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnId = proplists:get_value(<<"column_id">>, BodyJson, 0),
+    HistogramResult = Statement:get_histogram(ColumnId),
+    RespJson = jsx:encode([{<<"histogram">>, HistogramResult}]),
+    From ! {reply, RespJson},
+%    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
     Priv;
 
 % unsupported gui actions

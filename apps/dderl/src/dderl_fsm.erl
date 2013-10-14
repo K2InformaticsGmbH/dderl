@@ -51,6 +51,7 @@
                         %% sort   GuiSortSpec  =  [{Col1,'asc'}..{ColN,'desc'}]
         , row_with_key/2
         , get_columns/1
+        , get_histogram/2
         ]).
 
 -record(ctx,    { %% session context
@@ -192,7 +193,7 @@ fsm_ctx(#fsmctx{ id                         = Id
 stop({?MODULE,Pid}) -> 
 	gen_fsm:send_all_state_event(Pid,stop).
 
--spec gui_req(atom(), binary(), fun(), {atom(), pid()}) -> ok.
+-spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) -> 
     ?Debug("button ~p", [<<"restart">>]),
     gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
@@ -222,6 +223,10 @@ row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) ->
 get_columns({?MODULE, Pid}) ->
     % ?Debug("get_columns...", []),
     gen_fsm:sync_send_all_state_event(Pid,{"get_columns"}).
+
+-spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
+get_histogram(ColumnId, {?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -900,6 +905,20 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
+handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId=TableId}=State) ->
+    ?Debug("Getting the histogram of the column ~p", [ColumnId]),
+    IncrFun =
+        fun(Row, CountList) ->
+            Value = element(3 + ColumnId, Row),
+            case proplists:get_value(Value, CountList) of
+                undefined ->
+                    [{Value, 1} | CountList];
+                OldCount ->
+                    lists:keyreplace(Value, 1, CountList, {Value, OldCount + 1})
+            end
+        end,
+    Result = ets:foldl(IncrFun, [], TableId),
+    {reply, Result, SN, State, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 
