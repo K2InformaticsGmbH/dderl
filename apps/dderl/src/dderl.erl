@@ -8,8 +8,8 @@
         , init/3
         , handle/2
         , terminate/3
-        , encrypt_pid/2
-        , decrypt_pid/2
+        , encrypt_id/1
+        , decrypt_id/1
         ]).
 
 %% API.
@@ -64,13 +64,11 @@ get_html() ->
 	{ok, Binary} = file:read_file(Filename),
 	Binary.
 
--spec encrypt_pid(atom(), pid()) -> list().
-encrypt_pid(Module, Pid) when is_pid(Pid) -> base64:encode_to_string(term_to_binary({Module, Pid})).
+-spec encrypt_id(term()) -> list().
+encrypt_id(Term) -> base64:encode_to_string(term_to_binary(Term)).
 
--spec decrypt_pid(atom(), list()) -> pid().
-decrypt_pid(Module, PidStr) when is_list(PidStr) ->
-    {Module, Pid} = binary_to_term(base64:decode(PidStr)),
-    Pid.
+-spec decrypt_id(list()) -> term().
+decrypt_id(IdStr) when is_list(IdStr) -> binary_to_term(base64:decode(IdStr)).
 
 %%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
 %%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).

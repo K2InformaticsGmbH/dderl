@@ -60,14 +60,14 @@ create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
     ?Info("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
-create_new_session([_,_|_] = DDerlSessPid) ->
-    ?Debug("existing session ~p", [DDerlSessPid]),
-    try ?DecryptPid(dderl_session, DDerlSessPid) of
-        Pid ->
-            case erlang:process_info(Pid) of
-                undefined -> {error, <<"process not found">>};
-                _ -> {ok, {dderl_session, Pid}}
-            end
+create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
+    try
+        {_, Pid} = DDerlSess = ?DecryptPid(DDerlSessStr),
+        ?Debug("existing session ~p", [DDerlSess]),
+        case erlang:process_info(Pid) of
+            undefined -> {error, <<"process not found">>};
+            _ -> {ok, {dderl_session, Pid}}
+        end
     catch
         Error:Reason ->  {error, {Error, Reason}}
     end;
@@ -81,7 +81,7 @@ create_new_session(_) -> create_new_session(<<>>).
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, DDerlSessPid, Req) when is_pid(DDerlSessPid) ->
-    reply_200_json(Body, list_to_binary(?EncryptPid(dderl_session, DDerlSessPid)), Req);
+    reply_200_json(Body, list_to_binary(?EncryptPid({dderl_session, DDerlSessPid})), Req);
 reply_200_json(Body, EncryptedPid, Req) ->
 	cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
