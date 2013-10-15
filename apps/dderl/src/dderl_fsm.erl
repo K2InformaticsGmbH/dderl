@@ -265,16 +265,19 @@ fetch_close(#state{ctx = #ctx{fetch_close_fun = Fcf}}=State) ->
     State#state{pfc=0}.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
-filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}}) ->
+filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}, sql=Sql}) ->
     case Fasf(FilterSpec, SortSpec, Cols) of
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
         {ok, NewSql, NewSortFun} ->
             ?Debug("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
-            {ok, NewSql, NewSortFun}; 
+            {ok, NewSql, NewSortFun};
         {_, Error} -> 
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Error]),
             {error, Error};
+        unchanged ->
+            ?Debug("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, unchanged]),
+            {ok, binary_to_list(Sql), Fasf};
         Else ->
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
             {error, Else}            
