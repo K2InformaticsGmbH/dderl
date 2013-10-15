@@ -395,8 +395,26 @@ process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connec
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
-    Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),
+    case proplists:get_value(<<"btn">>, BodyJson, <<">">>) of
+        <<"restart">> ->
+            Query = Statement:get_query(),
+            case dderl_dal:is_local_query(Query) of
+                true ->
+                    Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
+                _ ->
+                    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+                    case dderloci:exec(Query, Connection) of
+                        {ok, #stmtResult{} = StmtRslt} ->
+                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection),
+                            Statement:refresh_session_ctx(FsmCtx),
+                            Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
+                        _ ->
+                            From ! {reply, jsx:encode([{<<"button">>, [{<<"error">>, <<"unable to refresh the table">>}]}])}
+                    end
+            end;
+        Button ->
+            Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From))
+    end,
     Priv;
 process_cmd({[<<"update_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"update_data">>,BodyJson}] = ReqBody,
@@ -492,44 +510,9 @@ process_query(check_funs(dderloci:exec(Query, Connection)), Query, Connection)
 process_query(ok, Query, Connection) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{ stmtCols = Clms
-                , rowFun   = RowFun
-                , stmtRef  = StmtRef
-                , sortFun  = SortFun
-                , sortSpec = SortSpec} = StmtRslt}, Query, {oci_port, _, _} = Connection) ->
-    StmtFsm = dderl_fsm:start_link(
-                        #fsmctx{ id                         = "what is it?"
-                               , stmtCols                   = Clms
-                               , rowFun                     = RowFun
-                               , sortFun                    = SortFun
-                               , sortSpec                   = SortSpec
-                               , block_length               = ?DEFAULT_ROW_SIZE
-                               , fetch_recs_async_fun       = fun(_Opts) ->
-                                                                FsmPid = self(),
-                                                                spawn(fun() ->
-                                                                    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
-                                                                        {{rows, Rows}, Completed} ->
-                                                                            ?Debug("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
-                                                                            FsmPid ! {StmtRef, {Rows, Completed}};
-                                                                        {error, Error} -> {error, Error}
-                                                                    end
-                                                                end),
-                                                                ok
-                                                              end
-                               , fetch_close_fun            = fun() -> ok end
-                               , stmt_close_fun             = fun() -> StmtRef:close() end
-                               , filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> unchanged end
-                               , update_cursor_prepare_fun  = fun(ChangeList) ->
-                                                                    Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
-                                                                end
-                               , update_cursor_execute_fun  = fun(Lock) ->
-                                                                    Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                end
-                               %, fetch_close_fun            = fun() -> ok end
-                               %, stmt_close_fun             = fun() -> ok end
-                               %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
-                               %, update_cursor_execute_fun  = fun(_Lock) -> ok end
-                               }),
+process_query({ok, #stmtResult{stmtRef  = StmtRef, sortSpec = SortSpec, stmtCols = Clms} = StmtRslt}, Query, {oci_port, _, _} = Connection) ->
+    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection),
+    StmtFsm = dderl_fsm:start_link(FsmCtx),
     Connection:add_stmt_fsm(StmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = build_column_json(lists:reverse(Clms)),
@@ -563,7 +546,9 @@ process_query({ok, #stmtResult{ stmtCols = Clms
                                                                 end
                                , update_cursor_execute_fun  = fun(Lock) ->
                                                                     Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                end                               %, fetch_recs_async_fun       = fun(_Opts) -> ok end
+                                                                end
+                               , orig_qry                   = Query
+%, fetch_recs_async_fun       = fun(_Opts) -> ok end
                                %, fetch_close_fun            = fun() -> ok end
                                %, stmt_close_fun             = fun() -> ok end
                                %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
@@ -744,3 +729,44 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     end;
 check_funs(Error) ->
     Error.
+
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple()) -> #fsmctx{}.
+generate_fsmctx_oci(#stmtResult{
+                  stmtCols = Clms
+                , rowFun   = RowFun
+                , stmtRef  = StmtRef
+                , sortFun  = SortFun
+                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection) ->
+    #fsmctx{id            = "what is it?"
+           ,stmtCols      = Clms
+           ,rowFun        = RowFun
+           ,sortFun       = SortFun
+           ,sortSpec      = SortSpec
+           ,orig_qry      = Query
+           ,block_length  = ?DEFAULT_ROW_SIZE
+           ,fetch_recs_async_fun =
+                fun(_Opts) ->
+                        FsmPid = self(),
+                        spawn(fun() ->
+                                      case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+                                          {{rows, Rows}, Completed} ->
+                                              ?Debug("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
+                                              FsmPid ! {StmtRef, {Rows, Completed}};
+                                          {error, Error} ->
+                                              FsmPid ! {StmtRef, {error, Error}}
+                                      end
+                              end),
+                        ok
+                end
+            ,fetch_close_fun = fun() -> ok end
+            ,stmt_close_fun  = fun() -> StmtRef:close() end
+            ,filter_and_sort_fun = fun(_FilterSpec, _SrtSpec, _Cols) -> unchanged end
+            ,update_cursor_prepare_fun =
+                fun(ChangeList) ->
+                        Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
+                end
+            ,update_cursor_execute_fun =
+                fun(Lock) ->
+                        Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                end
+           }.

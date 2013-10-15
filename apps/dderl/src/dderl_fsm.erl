@@ -51,7 +51,9 @@
                         %% sort   GuiSortSpec  =  [{Col1,'asc'}..{ColN,'desc'}]
         , row_with_key/2
         , get_columns/1
+        , get_query/1
         , get_histogram/2
+        , refresh_session_ctx/2
         ]).
 
 -record(ctx,    { %% session context
@@ -68,6 +70,7 @@
                 , filter_and_sort_fun
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
+                , orig_qry
                 }).
 
 -record(state,  { %% fsm combined state
@@ -174,6 +177,7 @@ fsm_ctx(#fsmctx{ id                         = Id
                , filter_and_sort_fun        = Fasf
                , update_cursor_prepare_fun  = Ucpf
                , update_cursor_execute_fun  = Ucef
+               , orig_qry                   = Qry
                }) ->
     #ctx{ id                        = Id
         , bl                        = BL
@@ -187,11 +191,18 @@ fsm_ctx(#fsmctx{ id                         = Id
         , filter_and_sort_fun       = Fasf
         , update_cursor_prepare_fun = Ucpf
         , update_cursor_execute_fun = Ucef
+        , orig_qry                  = Qry
         }.
 
 -spec stop({atom(), pid()}) -> ok.
 stop({?MODULE,Pid}) -> 
 	gen_fsm:send_all_state_event(Pid,stop).
+
+-spec refresh_session_ctx(#fsmctx{}, {atom(), pid()}) -> ok.
+refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
+    Ctx = fsm_ctx(FsmCtx),
+    ?Info("Refreshing the session ctx"),
+    gen_fsm:sync_send_all_state_event(Pid, {refresh_ctx, Ctx}).
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) -> 
@@ -223,6 +234,10 @@ row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) ->
 get_columns({?MODULE, Pid}) ->
     % ?Debug("get_columns...", []),
     gen_fsm:sync_send_all_state_event(Pid,{"get_columns"}).
+
+-spec get_query({atom(), pid()}) -> binary().
+get_query({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, get_query).
 
 -spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_histogram(ColumnId, {?MODULE, Pid}) ->
@@ -904,6 +919,9 @@ handle_event(Event, SN, State) ->
 handle_sync_event({"get_columns"}, _From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
     ?Debug("get_columns ~p", [Columns]),
     {reply, Columns, SN, State, infinity};
+handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
+    ?Debug("get_query ~p", [Qry]),
+    {reply, Qry, SN, State, infinity};
 handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=State) ->
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
@@ -922,6 +940,18 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId=TableId}=Stat
         end,
     Result = ets:foldl(IncrFun, [], TableId),
     {reply, Result, SN, State, infinity};
+handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{} = State) ->
+    #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
+    State0 = State#state{bl        = BL
+                   , gl            = gui_max(BL)
+                   , ctx           = Ctx
+                   , stmtColsCount = length(StmtCols)
+                   , rowFun        = RowFun
+                   , sortFun       = SortFun
+                   , sortSpec      = SortSpec
+                   , replyToFun    = ReplyTo
+                   },
+    {reply, ok, SN, State0, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 

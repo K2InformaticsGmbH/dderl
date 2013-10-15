@@ -2104,7 +2104,7 @@
 
     // loading rows
     buttonPress: function(button) {
-        this._ajax('/app/button', {button: { connection: this._conn
+        this._ajax('/app/button', {button: { connection: dderlState.connection
                                              , statement: this._stmt
                                              , btn: button}}, 'button', 'loadRows');
     },

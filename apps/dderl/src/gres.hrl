@@ -27,4 +27,5 @@
                 , filter_and_sort_fun
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
+                , orig_qry
                 }).
