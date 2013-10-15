@@ -219,12 +219,17 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     Row = proplists:get_value(<<"row">>, BodyJson, 0),
     Col = proplists:get_value(<<"col">>, BodyJson, 0),
     R = Statement:row_with_key(Row),
-    ?Debug("Row with key ~p",[R]),
-    Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
-    IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
+    IsView = try
+        Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
+        _IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
+        ?Debug("browse_data (view ~p) ~p - ~p", [_IsView, Tables, {R, Col}]),
+        _IsView
+    catch
+        _:_ -> false
+    end,
     if
         IsView ->
+            ?Debug("Row with key ~p",[R]),
             {#ddView{name=Name,owner=Owner},#ddCmd{}=OldC,_} = element(3, R),
             Name = element(5, R),
             V = dderl_dal:get_view(Sess, Name, oci, Owner),
@@ -244,7 +249,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                     case lists:member(Connection, Connections) of
                         true ->
                             Resp = process_query(C#ddCmd.command, Connection),
-io:format(user, "View ~p~n", [V]),
+                            ?Debug("View ~p", [V]),
                             RespJson = jsx:encode([{<<"browse_data">>,
                                 [{<<"content">>, C#ddCmd.command}
                                  ,{<<"name">>, Name}
@@ -502,26 +507,27 @@ process_query({ok, #stmtResult{ stmtCols = Clms
                                , fetch_recs_async_fun       = fun(_Opts) ->
                                                                 FsmPid = self(),
                                                                 spawn(fun() ->
-                                                                    {{rows, Rows}, Completed} = StmtRef:fetch_rows(?DEFAULT_ROW_SIZE),
-                                                                    io:format(user, "{StmtRef ~p, Rows ~p, Completed ~p}~n", [StmtRef, Rows, Completed]),
-                                                                    FsmPid ! {StmtRef, Rows, Completed}
-                                                                end)
+                                                                    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+                                                                        {{rows, Rows}, Completed} ->
+                                                                            ?Debug("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
+                                                                            FsmPid ! {StmtRef, {Rows, Completed}};
+                                                                        {error, Error} -> {error, Error}
+                                                                    end
+                                                                end),
+                                                                ok
                                                               end
-                               , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
+                               , fetch_close_fun            = fun() -> ok end
                                , stmt_close_fun             = fun() -> StmtRef:close() end
-                               , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
-                                                                    Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
-                                                                end
+                               , filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> unchanged end
                                , update_cursor_prepare_fun  = fun(ChangeList) ->
                                                                     Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
                                                                 end
                                , update_cursor_execute_fun  = fun(Lock) ->
                                                                     Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                end                               %, fetch_recs_async_fun       = fun(_Opts) -> ok end
+                                                                end
                                %, fetch_close_fun            = fun() -> ok end
                                %, stmt_close_fun             = fun() -> ok end
                                %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
-                               %, update_cursor_prepare_fun  = fun(_ChangeList) -> ok end
                                %, update_cursor_execute_fun  = fun(_Lock) -> ok end
                                }),
     Connection:add_stmt_fsm(StmtRef, StmtFsm),
