@@ -125,7 +125,7 @@
       var activeCell = null;
       
       if (selectedRange){
-        activeRow = selectedRange.fromRow;
+        activeRow = Math.max(selectedRange.fromRow, 0);
         activeCell = Math.max(selectedRange.fromCell, 1);
       } else if (selectedCell){
         activeRow = selectedCell.row;
