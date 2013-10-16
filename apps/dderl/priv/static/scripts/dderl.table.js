@@ -427,9 +427,9 @@
         var self = this;
         var columnId = data.columnId;
         var reqObj = {histogram: {
-            connection : self._conn,
+            connection : dderlState.connection,
             statement  : self._stmt,
-            column_id : self._origcolumns[columnId]
+            column_id  : self._origcolumns[columnId]
         }};
 
         console.log('show histogram ' + JSON.stringify(data));
@@ -1552,15 +1552,28 @@
 
     _loadHistogram: function(histogram) {
         var self = this;
+        var title = " histogram";
+        for(var colId in self._origcolumns) {
+            if(self._origcolumns[colId] === histogram.column_id) {
+                var columns = self._grid.getColumns();
+                for(var i = 0; i < columns.length; ++i) {
+                    if(columns[i].field === colId) {
+                        title = columns[i].name + title;
+                        console.log(columns[i].name);
+                    }
+                }
+            }
+        }
         self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         $('<div>').appendTo(document.body)
             .histogramTable({
                 autoOpen       : false,
-                title          : this.options.title,
+                title          : title,
                 initialQuery   : this._cmd,
+                columnId       : histogram.column_id,
                 dderlStatement : this._stmt
             })
-            .histogramTable('open', histogram);
+            .histogramTable('open', histogram.rows);
     },
 
     _openErlangTermEditor: function(formattedString) {

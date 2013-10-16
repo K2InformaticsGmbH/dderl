@@ -446,6 +446,15 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     Rows = extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
+process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"histogram">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnId = proplists:get_value(<<"column_id">>, BodyJson, 0),
+    HistogramResult = Statement:get_histogram(ColumnId),
+    RespJson = jsx:encode([{<<"histogram">>, [{column_id, ColumnId},{rows, HistogramResult}]}]),
+    From ! {reply, RespJson},
+%    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
+    Priv;
 
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->

@@ -7,11 +7,13 @@
         _gdata    : null,
         _txtlen   : null,
         _cmd      : "",
+        _colId    : 1,
         _stmt     : "",
         _columns  : null,
 
-        _handlers : {queryResult : function(e, _result) { e.data._createHisto(_result); },
-                     updateData  : function(e, _result) { e.data._updatePlot(_result); }
+        _handlers : {queryResult     : function(e, _result) { e.data._createHisto(_result); },
+                     updateData      : function(e, _result) { e.data._updatePlot(_result); },
+                     histogramResult : function(e, _result) { e.data._reload(_result); }
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -41,6 +43,7 @@
             clear           : null,
             toolBarHeight   : 20,
             initialQuery    : "",
+            columnId        : 1,
             dderlStatement  : null,
             close           : function() {
                 $(this).dialog('destroy');
@@ -65,12 +68,14 @@
             if(self.options.title !== self._title) {self._title = self.options.title;}
             if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement};
             if(self.options.initialQuery != self._cmd) {self._cmd = self.options.initialQuery;}
+            if(self.options.columnId != self._colId) {self._colId = self.options.columnId;}
 
             self._plotDiv = $('<div>').appendTo(self.element);
             self._dlg = self.element.dialog(self.options);
 
-            for(var fun in self._handlers) {
-                self.element.on(fun, null, self, self._handlers[fun]);
+            // editor lock private to this table.
+            if(!self.options.slickopts.editorLock) {
+                self.options.slickopts.editorLock = new Slick.EditorLock();
             }
 
             // field for text width measurement in pixels
@@ -107,6 +112,11 @@
                 .appendTo(self.element);
 
             self._createSlickGrid();
+
+            // setting up the event handlers last to aid debuggin
+            for(var fun in self._handlers) {
+                self.element.on(fun, null, self, self._handlers[fun]);
+            }
         },
 
         _createDlgFooter : function() {
@@ -214,6 +224,17 @@
                 rows.push({"id":count,"op":"nop","value":value,"count":origRows[value]});
             }
             return {op: "rpl", focus: 0, rows: rows};
+        },
+
+        _reload: function(histogram) {
+            var self = this;
+            if(histogram.hasOwnProperty('rows')) {
+                self.appendRows(self._createGridRows(histogram.rows));
+            }
+        },
+
+        _ajax: function(url, data, resp, callback) {
+            ajaxCall(this, url, data, resp, callback);
         },
 
         _createSlickGrid: function() {
@@ -462,7 +483,7 @@
                 //
 
                 // update row styles
-                self._applyStyle();
+//                self._applyStyle();
             }
 
             //console.timeEnd('appendRows');
@@ -597,7 +618,13 @@
          */
         // NOTE: self is 'this' and 'this' is dom ;)
         _toolBarReload: function(self) {
-            self.buttonPress("restart");
+            var reqObj = {histogram: {
+                connection : dderlState.connection,
+                statement  : self._stmt,
+                column_id  : self._colId
+            }};
+
+            self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
         },
 
         _toolBarSkFrst: function(self) {
