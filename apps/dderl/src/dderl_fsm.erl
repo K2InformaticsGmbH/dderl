@@ -1251,6 +1251,9 @@ serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
 -spec serve_fwd(atom(), #state{}) -> #state{}.
 serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
     if
+        (BufCnt == 0) andalso (SN == filling) ->
+            ?Debug("~p waiting for the fetch to complete ~p", [SN, <<">">>]),
+            gui_nop(#gres{state=filling, loop= <<">">>}, State0);
         (BufCnt == 0) ->
             %% no data, serve empty gui
             State1 = prefetch(SN,State0),
@@ -1281,6 +1284,9 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
 -spec serve_ffwd(atom(), #state{}) -> #state{}.
 serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
     if
+        (BufCnt == 0) andalso (SN == filling) ->
+            ?Debug("~p waiting for fetch to complete ~p", [SN, <<">>">>]),
+            gui_nop(#gres{state=filling, loop= <<">>">>}, State0);
         (BufCnt == 0) ->
             %% no data, serve empty gui
             State1 = prefetch(SN,State0),
