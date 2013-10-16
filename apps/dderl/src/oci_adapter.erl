@@ -98,7 +98,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     case ErlOciSession of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
             ?Info("ErlOciSession ~p", [ErlOciSession]),
-            Con = #ddConn { id = erlang:phash2(make_ref())
+            Con = #ddConn { id       = proplists:get_value(<<"id">>, BodyJson)
                           , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner    = UserId
                           , adapter  = oci
