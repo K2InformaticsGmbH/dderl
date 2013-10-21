@@ -76,7 +76,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
             Priv;
-        {ok, {_,ConPid} = Connection} ->
+        {ok, {_,_ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             %% Id undefined if we are creating a new connection.
@@ -121,7 +121,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
             Priv;
-        {ok, {_,ConPid} = Connection} ->
+        {ok, {_,_ConPid} = Connection} ->
             ?Debug("session ~p", [Connection]),
             ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
             %% Id undefined if we are creating a new connection.
@@ -289,7 +289,7 @@ process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
     Priv;
 
 % open view by id
-process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
+process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"open_view">>, BodyJson}] = ReqBody,
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     case dderl_dal:get_view(Sess, ViewId) of
@@ -298,16 +298,32 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
             Priv;
         F ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
-            Resp = process_query(C#ddCmd.command, Sess),
-            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
-            RespJson = jsx:encode([{<<"open_view">>,
-                [{<<"content">>, C#ddCmd.command}
-                ,{<<"name">>, F#ddView.name}
-                ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-                ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-                ,{<<"view_id">>, F#ddView.id}]
-                ++ Resp
-            }]),
+            case C#ddCmd.conns of
+                local ->
+                    Resp = process_query(C#ddCmd.command, Sess),
+                    RespJson = jsx:encode([{<<"open_view">>,
+                                          [{<<"content">>, C#ddCmd.command}
+                                           ,{<<"name">>, F#ddView.name}
+                                           ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                                           ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                                           ,{<<"view_id">>, F#ddView.id}]
+                                            ++ Resp
+                                           }]);
+                _ ->
+                    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+                    case lists:member(Connection, Connections) of
+                        true ->
+                            Resp = process_query(C#ddCmd.command, Connection),
+                            RespJson = jsx:encode([{<<"open_view">>,
+                                [{<<"content">>, C#ddCmd.command}
+                                 ,{<<"name">>, F#ddView.name}
+                                 ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                                 ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                                 ,{<<"view_id">>, F#ddView.id}] ++ Resp}]);
+                        false ->
+                            RespJson = error_invalid_conn(Connection, Connections)
+                    end
+            end,
             From ! {reply, RespJson},
             Priv
     end;

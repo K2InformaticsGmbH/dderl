@@ -2111,7 +2111,7 @@
     // loading the required view
     openView: function(viewId) {
         // TODO: maybe here we need to set the position and the size.
-        var openViewData = {open_view: {view_id: viewId}};
+        var openViewData = {open_view: {connection: dderlState.connection, view_id: viewId}};
         this._ajax('/app/open_view', openViewData, 'open_view', 'openView');
     },
 
