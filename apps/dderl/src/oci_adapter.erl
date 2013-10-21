@@ -11,7 +11,7 @@
         , disconnect/1
         ]).
 
--record(priv, {connections = []}).
+-record(priv, {connections = [], stmts_info = []}).
 
 -spec init() -> ok.
 init() ->
@@ -403,9 +403,9 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                     Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
                 _ ->
                     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-                    case dderloci:exec(Query, Connection) of
-                        {ok, #stmtResult{} = StmtRslt} ->
-                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection),
+                    case dderloci:exec(Connection, Query) of
+                        {ok, #stmtResult{} = StmtRslt, TableName} ->
+                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
                             Statement:refresh_session_ctx(FsmCtx),
                             Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
                         _ ->
@@ -510,17 +510,17 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 process_query(Query, Connection) when is_tuple(Connection) ->
     case dderl_dal:is_local_query(Query) of
         true ->
-process_query(check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)), Query, Connection);
+            process_query(check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)), Query, Connection);
         _ ->
-process_query(check_funs(dderloci:exec(Query, Connection)), Query, Connection)
+            process_query(check_funs(dderloci:exec(Connection, Query)), Query, Connection)
     end.
 
 -spec process_query(term(), binary(), tuple()) -> list().
 process_query(ok, Query, Connection) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{stmtRef  = StmtRef, sortSpec = SortSpec, stmtCols = Clms} = StmtRslt}, Query, {oci_port, _, _} = Connection) ->
-    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection),
+process_query({ok, #stmtResult{stmtRef  = StmtRef, sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
+    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
     StmtFsm = dderl_fsm:start_link(FsmCtx),
     Connection:add_stmt_fsm(StmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
@@ -730,6 +730,12 @@ check_fun_vsn(_) ->
     false.
 
 -spec check_funs(term()) -> term().
+check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName}) ->
+    ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
+    if
+        ValidFuns -> {ok, StmtRslt, TableName};
+        true -> <<"Unsupported target database version">>
+    end;
 check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
@@ -739,13 +745,13 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
 check_funs(Error) ->
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple()) -> #fsmctx{}.
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary()) -> #fsmctx{}.
 generate_fsmctx_oci(#stmtResult{
                   stmtCols = Clms
                 , rowFun   = RowFun
                 , stmtRef  = StmtRef
                 , sortFun  = SortFun
-                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection) ->
+                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName) ->
     #fsmctx{id            = "what is it?"
            ,stmtCols      = Clms
            ,rowFun        = RowFun
@@ -772,10 +778,21 @@ generate_fsmctx_oci(#stmtResult{
             ,filter_and_sort_fun = fun(_FilterSpec, _SrtSpec, _Cols) -> unchanged end
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
-                        Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
+                        ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
+                        Row = hd(ChangeList),
+                        case dderloci:prepare_stmt(lists:nth(2, Row), Connection, Clms, TableName) of
+                            {ok, PrepStmt} ->
+                                {ok, PrepStmt};
+                            {error, Reason} ->
+                                {error, Reason}
+                        end
                 end
             ,update_cursor_execute_fun =
-                fun(Lock) ->
-                        Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                fun(_Lock, PrepStmt, ChangeList) ->
+                        Row = hd(ChangeList),
+                        Result = dderloci:execute_stmt(lists:nth(2, Row), PrepStmt, ChangeList, Clms),
+                        io:format("The result from the exec ~p~n", [Result]),
+                        []
+%%                        Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
                 end
            }.

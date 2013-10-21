@@ -298,16 +298,33 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
             {error, Else}            
     end.
 
--spec update_cursor_prepare(list(), #state{}) -> ok | {error, term()}.
+-spec update_cursor_prepare(list(), #state{}) -> ok | {ok, term()} | {error, term()}.
 update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf}}) ->
     case Ucpf(ChangeList) of
         %% driver session maps to imem_sec:update_cursor_prepare()
         %% driver session maps to imem_meta:update_cursor_prepare()
         ok ->
-            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]); 
-        {_, Error} -> 
+            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
+            ok;
+        {ok, UpdRef} ->
+            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
+            {ok, UpdRef};
+        {_, Error} ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
             {error, Error}
+    end.
+
+-spec update_cursor_execute(atom(), #state{}, term(), list()) -> list() | {error, term()}.
+update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}, UpdRef, ChangeList) ->
+    case Ucef(Lock, UpdRef, ChangeList) of
+        %% driver session maps to imem_sec:update_cursor_execute()
+        %% driver session maps to imem_meta:update_cursor_execute()
+        {_, Error} ->
+            ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
+            {error, Error};
+        ChangedKeys ->
+            ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
+            ChangedKeys
     end.
 
 -spec update_cursor_execute(atom(), #state{}) -> list() | {error, term()}.
@@ -315,7 +332,7 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
     case Ucef(Lock) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
-        {_, Error} -> 
+        {_, Error} ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
@@ -1879,6 +1896,33 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
         ok ->
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0) of
+                {_,ExecErr} ->
+                    ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
+                    {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
+                ChangedKeys ->
+                    {GuiCnt,GuiTop,GuiBot} = case Nav of
+                        raw ->  data_commit_raw(TableId,ChangedKeys,0,?RawMax,?RawMin);
+                        ind ->  data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,0,?IndMax,?IndMin)
+                    end,
+                    case {change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),GuiCnt} of
+                        {[],0} ->
+                            State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
+                            ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
+                            {NewSN,gui_replace_from(GuiTop0,GL,#gres{state=NewSN,focus=1},State1)};
+                        {[],_} ->
+                            State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
+                            ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
+                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1},State1)};
+                        {DL,_} ->
+                            ?Error("Dirty rows after commit~n~p",[DL]),
+                            Message = <<"Dirty rows after commit">>,
+                            State1 = reset_buf_counters(State0),
+                            {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1,message=Message},State1)}
+                    end
+            end;
+        {ok, UpdRef} ->
+            NewSN = data_commit_state_name(SN),
+            case update_cursor_execute(optimistic, State0, UpdRef, ChangeList) of
                 {_,ExecErr} ->
                     ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
