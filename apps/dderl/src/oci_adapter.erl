@@ -762,15 +762,16 @@ generate_fsmctx_oci(#stmtResult{
            ,fetch_recs_async_fun =
                 fun(_Opts) ->
                         FsmPid = self(),
-                        spawn(fun() ->
-                                      case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
-                                          {{rows, Rows}, Completed} ->
-                                              ?Debug("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
-                                              FsmPid ! {StmtRef, {Rows, Completed}};
-                                          {error, Error} ->
-                                              FsmPid ! {StmtRef, {error, Error}}
-                                      end
-                              end),
+                        spawn(
+                          fun() ->
+                                  case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+                                      {{rows, Rows}, Completed} ->
+                                          ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
+                                          FsmPid ! {StmtRef, {Rows, Completed}};
+                                      {error, Error} ->
+                                          FsmPid ! {StmtRef, {error, Error}}
+                                  end
+                          end),
                         ok
                 end
             ,fetch_close_fun = fun() -> ok end
@@ -779,20 +780,12 @@ generate_fsmctx_oci(#stmtResult{
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
-                        Row = hd(ChangeList),
-                        case dderloci:prepare_stmt(lists:nth(2, Row), Connection, Clms, TableName) of
-                            {ok, PrepStmt} ->
-                                {ok, PrepStmt};
-                            {error, Reason} ->
-                                {error, Reason}
-                        end
+                        dderloci_stmt:prepare(TableName, ChangeList, Connection, Clms)
                 end
             ,update_cursor_execute_fun =
-                fun(_Lock, PrepStmt, ChangeList) ->
-                        Row = hd(ChangeList),
-                        Result = dderloci:execute_stmt(lists:nth(2, Row), PrepStmt, ChangeList, Clms),
+                fun(_Lock, PrepStmt) ->
+                        Result = dderloci_stmt:execute(PrepStmt),
                         io:format("The result from the exec ~p~n", [Result]),
-                        []
-%%                        Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
+                        Result
                 end
            }.
