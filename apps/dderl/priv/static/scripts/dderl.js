@@ -39,7 +39,9 @@ var dderlState = {
     currentErrorAlert: null,
     dashboards: null,
     currentDashboard: null,
-    currentViews: null
+    currentViews: null,
+    currentWindows: new Array(),
+    saveDashboardCounter: 0
 }
 
 // generic dderlserver call interface
@@ -164,6 +166,7 @@ function requestDashboards() {
     });
 }
 
+//TODO: Check if this can be merged with the windows handler...
 function addToCurrentViews(tableView) {
     // Bind to the close event to remove it from the list.
     tableView._dlg.bind("dialogclose", function(event, ui) {
@@ -228,6 +231,59 @@ function addDashboard(dashboard) {
     dashboardList.appendChild(addedOption);
 }
 
+function checkTablesNotSaved() {
+    var tablesNotSaved, notSavedTitles, message;
+    tablesNotSaved = new Array();
+    notSavedTitles = "";
+    message = "";
+    if(dderlState.currentWindows.length === dderlState.currentViews.length) {
+        saveDashboard();
+    } else {
+        notSavedTitles += "<ul>"
+        for(var i = 0; i < dderlState.currentWindows.length; ++i) {
+            if(!dderlState.currentWindows[i]._viewId) {
+                tablesNotSaved.push(dderlState.currentWindows[i]);
+                notSavedTitles += "<li>" + dderlState.currentWindows[i].options.title + "</li>";
+            }
+        }
+        notSavedTitles += "</ul>"
+        message = "The following tables are not saved as views: <br>" + notSavedTitles;
+        $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>'+ message +'</p></div>').appendTo(document.body).dialog({
+            resizable: false,
+            width: 450,
+            height:220,
+            modal: true,
+            buttons: {
+                "Create views": function() {
+                    $( this ).dialog( "close" );
+                    dderlState.saveDashboardCounter += tablesNotSaved.length;
+                    for(var i = 0; i < tablesNotSaved.length; ++i) {
+                        tablesNotSaved[i].saveView();
+                    }
+                },
+                "Ignore tables": function() {
+                    $( this ).dialog( "close" );
+                    saveDashboard();
+                },
+                Cancel: function() {
+                    $( this ).dialog( "close" );
+                }
+            },
+            close : function() {
+                $(this).dialog('destroy');
+                $(this).remove();
+            }
+        });
+    }
+}
+
+function saveDashboardWithCounter() {
+    dderlState.saveDashboardCounter -= 1;
+    if(dderlState.saveDashboardCounter <= 0) {
+        saveDashboard();
+    }
+}
+
 function saveDashboard() {
     var name, dashboard, dashViews;
 
@@ -236,15 +292,17 @@ function saveDashboard() {
         alert_jq("Please select a name for the dashboard");
         return;
     }
+
     dashboard = findDashboard(name);
+    dashViews = getCurrentViews();
 
     if(dashboard === null) {
-        dashboard = new DDerl.Dashboard(-1, name, getCurrentViews());
+        dashboard = new DDerl.Dashboard(-1, name, dashViews);
         dashboard.save(function() {
             addDashboard(dashboard);
         });
     } else {
-        dashboard.updateViews(getCurrentViews());
+        dashboard.updateViews(dashViews);
         dashboard.save();
     }
 }
@@ -263,7 +321,7 @@ function createDashboardMenu(container) {
     saveButton.id = "dashboard-save";
     saveButton.value = "Save this dash";
     saveButton.onclick = function() {
-        saveDashboard();
+        checkTablesNotSaved();
     }
 
     // Default option creation
@@ -559,70 +617,6 @@ function create_ws(url)
     }
 }
 
-function edit_table()
-{
-    context = $('#tbl-opts').data('data');
-    edit_sql(context.tblDlg, context.content);
-}
-
-function save_table()
-{
-    context = $('#tbl-opts').data('data');
-    qStr = context.content.replace(/(\r\n|\n|\r)/gm," ");
-    var colnamesizes = new Array();
-    var cols = context.grid.getColumns();
-    // Column names and width
-    for(var idx = 0; idx < cols.length; ++idx)
-        if(cols[idx].name.length > 0)
-            colnamesizes[colnamesizes.length] = {name: cols[idx].name, width: cols[idx].width};
-    // Table width/height/position
-    var w = context.tblDlg.width();
-    var h = context.tblDlg.height();
-    var x = context.tblDlg.dialog('widget').position().left;
-    var y = context.tblDlg.dialog('widget').position().top;
-    var saveView = {save_view : {table_layout : {width : w,
-                                                height : h,
-                                                     y : y,
-                                                     x : x},
-                                column_layout : colnamesizes,
-                                         name : context.name,
-                                      content : qStr}
-                   };
-    ajaxCall(null,'/app/save_view',saveView,'save_view', function(data) {
-        if (data != "ok") {
-            alert_jq(data);
-        }
-    });
-}
-
-function save_as_table()
-{
-    context = $('#tbl-opts').data('data');
-    qStr = context.content.replace(/(\r\n|\n|\r)/gm," ");
-    undefinedTableIdx = 0;
-    $('<div><input type="text" value="'+context.name+'"/></div>')
-    .appendTo(document.body)
-    .dialog({
-        autoOpen: false,
-        height: 105,
-        width: 'auto',
-        modal: true,
-        resizable: false,
-        title: "Save SQL as",
-        close: function() {
-            $(this).dialog('destroy');
-            $(this).remove();
-        },
-        buttons: {
-            "Save": function() {
-                var fileName = $(this).children('input').val();
-                ajaxCall(null,'/app/save_file',{save: {file_name:fileName, file_content:qStr}},'save_file', null);
-                $(this).dialog('close');
-            }
-        }
-    }).dialog("open");
-}
-
 function beep()
 {
     var beepStorage = sessionStorage.getItem("beep-sound");
@@ -832,4 +826,13 @@ function addWindowFinder(table, title) {
     table._dlg.bind("dialogclose", function(event, ui) {
         windowsList.removeChild(li);
     });
+
+    table._dlg.bind("dialogclose", function(event, ui) {
+        var tablePos = dderlState.currentWindows.indexOf(table);
+        if(tablePos != -1) {
+            dderlState.currentWindows.splice(tablePos, 1);
+        }
+    });
+    // Add it to the global windows array
+    dderlState.currentWindows.push(table);
 }

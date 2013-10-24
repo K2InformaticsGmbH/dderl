@@ -63,6 +63,7 @@
                         commitResult    : function(e, _result) { e.data._checkCommitResult(_result); },
                         stmtCloseResult : function(e, _result) { e.data._checkStmtCloseResult(_result); },
                         saveViewResult  : function(e, _result) { e.data._checkSaveViewResult(_result); },
+                        newViewResult   : function(e, _result) { e.data._checkNewViewResult(_result); },
                         loadRows        : function(e, _result) { e.data._renderRows(_result); },
                         filterResult    : function(e, _result) { e.data._renderRows(_result); },
                         sortResult      : function(e, _result) { e.data._renderRows(_result); },
@@ -365,7 +366,17 @@
         if(this._viewId) {
             this._updateView(this._viewId, this.options.title);
         } else {
-            this._saveViewWithName(this.options.title, false);
+            this._saveNewView(this.options.title, false);
+        }
+    },
+
+    /*
+     * Exported save view doesn't allow updates.
+     */
+
+    saveView: function() {
+        if(!this._viewId) {
+            this._saveNewView(this.options.title, false);
         }
     },
 
@@ -422,6 +433,17 @@
         console.log('saving view '+JSON.stringify(saveView));
         self._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
+
+    _saveNewView: function(viewName, replace) {
+        var self = this;
+
+        saveView = self._getTableLayout(viewName);
+        saveView.save_view.replace = replace;
+
+        console.log('saving view '+JSON.stringify(saveView));
+        self._ajax('/app/save_view', saveView, 'save_view', 'newViewResult');
+    },
+
 
     _showHistogram: function(data) {
         var self = this;
@@ -1307,7 +1329,9 @@
         var self = this;
         self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
         if(_saveView === "ok") {
-            console.log('[AJAX] view saved!');
+             console.log('[AJAX] view saved!');
+        } else if(_saveView.hasOwnProperty('view_id')) {
+            console.log('[AJAX] view saved, id = ' + _saveView.view_id);
         } else if(_saveView.hasOwnProperty('need_replace')) {
             $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
                 resizable: false,
@@ -1317,6 +1341,39 @@
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
                         self._saveViewWithName(_saveView.need_replace, true);
+                    },
+                    Cancel: function() {
+                        $( this ).dialog( "close" );
+                    }
+                },
+                close : function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                }
+            });
+        } else if(_saveView.hasOwnProperty('error')) {
+            alert_jq('failed to save view!\n'+_saveView.error);
+        }
+    },
+    _checkNewViewResult: function(_saveView) {
+        var self = this;
+        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        if(_saveView === "ok") {
+             console.log('[AJAX] view saved!');
+        } else if(_saveView.hasOwnProperty('view_id')) {
+            self._viewId = _saveView.view_id;
+            addToCurrentViews(self);
+            console.log('[AJAX] view saved, id = ' + _saveView.view_id);
+            saveDashboardWithCounter();
+        } else if(_saveView.hasOwnProperty('need_replace')) {
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
+                resizable: false,
+                height:180,
+                modal: true,
+                buttons: {
+                    "Replace the view": function() {
+                        $( this ).dialog( "close" );
+                        self._saveNewView(_saveView.need_replace, true);
                     },
                     Cancel: function() {
                         $( this ).dialog( "close" );

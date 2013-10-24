@@ -15,24 +15,24 @@
 
 init() -> ok.
 
--spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> ok | need_replace.
-add_cmds_views(_, _, _, _, []) -> ok;
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> [ddEntityId() | need_replace].
+add_cmds_views(_, _, _, _, []) -> [];
 add_cmds_views(Sess, UserId, A, R, [{N,C,Con}|Rest]) ->
     add_cmds_views(Sess, UserId, A, R, [{N,C,Con,#viewstate{}}|Rest]);
 add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     case dderl_dal:get_view(Sess, N, A, UserId) of
         undefined ->
             Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
-            dderl_dal:add_view(Sess, UserId, N, Id, V),
-            add_cmds_views(Sess, UserId, A, Replace, Rest);
+            ViewId = dderl_dal:add_view(Sess, UserId, N, Id, V),
+            [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
         View ->
             if
                 Replace ->
                     dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
-                    dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
-                    add_cmds_views(Sess, UserId, A, Replace, Rest);
+                    ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
+                    [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
                 true ->
-                    need_replace
+                    [need_replace]
             end
     end.
 
@@ -101,10 +101,10 @@ process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     ReplaceView = proplists:get_value(<<"replace">>, BodyJson, false),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
     case add_cmds_views(Sess, UserId, imem, ReplaceView, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of 
-        ok ->
-            Res = jsx:encode([{<<"save_view">>,<<"ok">>}]);
-        need_replace ->
-            Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}])
+        [need_replace] ->
+            Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}]);
+        [ViewId] ->
+            Res = jsx:encode([{<<"save_view">>,[{<<"view_id">>, ViewId}]}])
     end,
     From ! {reply, Res};
 process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
