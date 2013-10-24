@@ -51,6 +51,9 @@
     // flag to avoid multiple calls to reorder
     _reorderCalled  : false,
 
+    // pointer to the link element with our entry in the windows list
+    _windowFinderTextLink: null,
+
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
                         openView        : function(e, _result) { e.data._openView(_result); },
@@ -1407,6 +1410,12 @@
         }
         this._setTitleHtml($('<span>').text(viewResult.name).addClass('table-title'));
         this.options.title = viewResult.name;
+        // Set the title and the click event.
+        if(this.options.title.length < 20) {
+            this._windowFinderTextLink.textContent = this.options.title;
+        } else {
+            this._windowFinderTextLink.textContent = this.options.title.substring(0, 17) + "...";
+        }
         console.log('>>>>> table '+viewResult.name+' '+viewResult.connection);
         if(viewResult.hasOwnProperty('error')) {
             alert_jq(viewResult.error);
@@ -1734,7 +1743,7 @@
         }
 
         // add this dialog to the window finder.
-        addWindowFinder(self, self.options.title);
+        self._windowFinderTextLink = addWindowFinder(self, self.options.title);
     },
 
     // context menus invocation for slickgrid

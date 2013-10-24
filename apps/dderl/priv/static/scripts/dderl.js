@@ -278,9 +278,10 @@ function checkTablesNotSaved() {
 }
 
 function saveDashboardWithCounter() {
-    dderlState.saveDashboardCounter -= 1;
-    if(dderlState.saveDashboardCounter <= 0) {
+    if(dderlState.saveDashboardCounter === 1) {
         saveDashboard();
+    } else if(dderlState.saveDashboardCounter > 0) {
+        dderlState.saveDashboardCounter -= 1;
     }
 }
 
@@ -835,4 +836,5 @@ function addWindowFinder(table, title) {
     });
     // Add it to the global windows array
     dderlState.currentWindows.push(table);
+    return link;
 }

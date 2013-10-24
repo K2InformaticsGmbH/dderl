@@ -6,7 +6,7 @@
 -include_lib("imem/include/imem_sql.hrl").
 -include_lib("sqlparse/src/sql_box.hrl").
 
--export([ process_cmd/5
+-export([ process_cmd/6
         , init/0
         , add_cmds_views/5
         , gui_resp/2
@@ -51,8 +51,8 @@ any_to_bin(C) when is_list(C) -> list_to_binary(C);
 any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
--spec process_cmd({[binary()], [{binary(), list()}]}, {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
-process_cmd({[<<"parse_stmt">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
+-spec process_cmd({[binary()], [{binary(), list()}]}, binary(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
+process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
@@ -85,14 +85,14 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
             ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
     end;
-process_cmd({[<<"get_query">>], ReqBody}, _Sess, _UserId, From, _Priv) ->
+process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,
     Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
     Query = "SELECT * FROM " ++ binary_to_list(Table),
     ?Debug("get query ~p~n", [Query]),
     Res = jsx:encode([{<<"qry">>,[{<<"name">>,Table},{<<"content">>,list_to_binary(Query)}]}]),
     From ! {reply, Res};
-process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
+process_cmd({[<<"save_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
@@ -100,14 +100,14 @@ process_cmd({[<<"save_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
     ReplaceView = proplists:get_value(<<"replace">>, BodyJson, false),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
-    case add_cmds_views(Sess, UserId, imem, ReplaceView, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of 
+    case add_cmds_views(Sess, UserId, Adapter, ReplaceView, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of 
         [need_replace] ->
             Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}]);
         [ViewId] ->
             Res = jsx:encode([{<<"save_view">>,[{<<"view_id">>, ViewId}]}])
     end,
     From ! {reply, Res};
-process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
+process_cmd({[<<"update_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
     [{<<"update_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
@@ -119,7 +119,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
     if
         %% System tables can't be overriden.
         Name =:= <<"All Views">> orelse Name =:= <<"All Tables">> ->
-            add_cmds_views(Sess, UserId, imem, true, [{Name, Query, undefined, ViewState}]),
+            add_cmds_views(Sess, UserId, Adapter, true, [{Name, Query, undefined, ViewState}]),
             Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
         true ->
             %% TODO: We need to pass the userid to provide authorization.
@@ -131,7 +131,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Sess, UserId, From, _Priv) ->
             end
     end,
     From ! {reply, Res};
-process_cmd({[<<"save_dashboard">>], ReqBody}, Sess, UserId, From, _Priv) ->
+process_cmd({[<<"save_dashboard">>], ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
     [{<<"dashboard">>, BodyJson}] = ReqBody,
     Id = proplists:get_value(<<"id">>, BodyJson, -1),
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
@@ -143,7 +143,7 @@ process_cmd({[<<"save_dashboard">>], ReqBody}, Sess, UserId, From, _Priv) ->
             Res = jsx:encode([{<<"save_dashboard">>, NewId}])
     end,
     From ! {reply, Res};
-process_cmd({[<<"dashboards">>], _ReqBody}, Sess, UserId, From, _Priv) ->
+process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
     case dderl_dal:get_dashboards(Sess, UserId) of
         [] ->
             ?Debug("No dashboards found for the user ~p", [UserId]),
@@ -155,7 +155,7 @@ process_cmd({[<<"dashboards">>], _ReqBody}, Sess, UserId, From, _Priv) ->
             ?Debug("dashboards as json ~s", [jsx:prettify(Res)])
     end,
     From ! {reply, Res};
-process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
+process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 

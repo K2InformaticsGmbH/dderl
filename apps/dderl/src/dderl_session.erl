@@ -248,9 +248,8 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
-
 % commands handled generically
-process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
+process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
@@ -258,7 +257,7 @@ process_call({[C], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} =
       C =:= <<"save_dashboard">>;
       C =:= <<"dashboards">> ->
     BodyJson = jsx:decode(ReqData),
-    try gen_adapter:process_cmd({[C], BodyJson}, Sess, UserId, From, undefined)
+    try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
@@ -313,3 +312,11 @@ get_apps_version([App|Rest], Deps) ->
                   ]
               },
     [AppInfo | get_apps_version(Rest, Deps)].
+
+-spec adapter_name(atom()) -> atom().
+adapter_name(imem_adapter) -> imem;
+adapter_name(oci_adapter) -> oci;
+adapter_name(gen_adapter) -> gen;
+adapter_name(AdaptMod) ->
+    [BinAdapter|_] = binary:split(atom_to_binary(AdaptMod, utf8), <<"_">>),
+    binary_to_existing_atom(BinAdapter, utf8).

@@ -321,7 +321,7 @@ process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
     Priv;
 
 % open view by id
-process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
+process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"open_view">>, BodyJson}] = ReqBody,
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     case dderl_dal:get_view(Sess, ViewId) of
@@ -330,16 +330,32 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, Priv) ->
             Priv;
         F ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
-            Resp = process_query(C#ddCmd.command, Sess),
-            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
-            RespJson = jsx:encode([{<<"open_view">>,
-                                    [{<<"content">>, C#ddCmd.command}
-                                     ,{<<"name">>, F#ddView.name}
-                                     ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-                                     ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-                                     ,{<<"view_id">>, F#ddView.id}]
-                                    ++ Resp
-                                   }]),
+            case C#ddCmd.conns of
+                local ->
+                    Resp = process_query(C#ddCmd.command, Sess),
+                    RespJson = jsx:encode([{<<"open_view">>,
+                                          [{<<"content">>, C#ddCmd.command}
+                                           ,{<<"name">>, F#ddView.name}
+                                           ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                                           ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                                           ,{<<"view_id">>, F#ddView.id}]
+                                            ++ Resp
+                                           }]);
+                _ ->
+                    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+                    case lists:member(Connection, Connections) of
+                        true ->
+                            Resp = process_query(C#ddCmd.command, Connection),
+                            RespJson = jsx:encode([{<<"open_view">>,
+                                [{<<"content">>, C#ddCmd.command}
+                                 ,{<<"name">>, F#ddView.name}
+                                 ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                                 ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                                 ,{<<"view_id">>, F#ddView.id}] ++ Resp}]);
+                        false ->
+                            RespJson = error_invalid_conn(Connection, Connections)
+                    end
+            end,
             From ! {reply, RespJson},
             Priv
     end;
@@ -574,15 +590,9 @@ process_query({ok, #stmtResult{ stmtCols = Clms
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
-process_query({error, {{Ex, M}, _Stacktrace} = Error}, _Query, Connection) ->
-    ?Error([{session, Connection}], "query error ~p", [Error]),
-    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                             lists:flatten(io_lib:format("~p", [M]))),
-            [{<<"error">>, Err}];
-process_query({error, {Ex,M}}, _Query, Connection) ->
-    ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-    Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
-                             lists:flatten(io_lib:format("~p", [M]))),
+process_query({error, {Code, Msg}}, _Query, Connection) when is_list(Msg) ->
+    ?Error([{session, Connection}], "query error ~p", [{Code, Msg}]),
+    Err = list_to_binary(Msg),
     [{<<"error">>, Err}];
 process_query(Error, _Query, Connection) ->
     ?Error([{session, Connection}], "query error ~p", [Error]),
