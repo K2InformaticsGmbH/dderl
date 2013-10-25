@@ -120,7 +120,6 @@ function disconnect_tab() {
             console.log('Request disconnect result ' + textStatus);
             dderlState.connection = null;
             dderlState.adapter = null;
-            resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
@@ -130,7 +129,6 @@ function disconnect_tab() {
             console.log('Request disconnect result ' + textStatus);
             dderlState.connection = null;
             dderlState.adapter = null;
-            resetPingTimer();
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
@@ -274,8 +272,6 @@ function connect_dlg()
                         Dlg.dialog("close");
                         //Setting up the global connection.
                         dderlState.connection = data;
-                        //Set the ping timer.
-                        resetPingTimer();
                         initDashboards();
                         show_qry_files(false);
                     }

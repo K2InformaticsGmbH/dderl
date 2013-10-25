@@ -49,6 +49,7 @@ function display_login()
                     var user = $('#user_login').val();
                     update_user_information(user);
                     $("#dialog-login").dialog("close");
+                    resetPingTimer();
                     connect_dlg();
                 } else if (data == "expired") {
                     var user = $('#user_login').val();
@@ -57,6 +58,7 @@ function display_login()
                     change_password(true);
                 } else {
                     dderlState.session = null;
+                    resetPingTimer();
                     alert('Login falied : ' + data);
                 }
             });
@@ -183,6 +185,7 @@ function change_password(shouldConnect)
                     ajaxCall(null,'/app/login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                         if(data == "ok") {
                             $("#dialog-change-password").dialog("close");
+                            resetPingTimer();
                             if(shouldConnect) {
                                 connect_dlg();
                             }

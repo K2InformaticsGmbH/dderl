@@ -375,8 +375,8 @@ function resetPingTimer() {
         clearTimeout(dderlState.pingTimer);
     }
 
-    //Stop ping if there is no connection/session.
-    if(!dderlState.connection || !dderlState.session) {
+    //Stop ping if there is no session.
+    if(!dderlState.session) {
         console.log("ping canceled");
         return;
     }
