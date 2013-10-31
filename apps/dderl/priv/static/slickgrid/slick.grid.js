@@ -1931,6 +1931,8 @@ if (typeof Slick === "undefined") {
         if (!getEditorLock().isActive() || getEditorLock().commitCurrentEdit()) {
           scrollRowIntoView(cell.row, false);
           setActiveCellInternal(getCellNode(cell.row, cell.cell), (cell.row === getDataLength()) || options.autoEdit);
+          // Added to not lose the focus after an edit terminated by a click on a different cell
+          setFocus();
         }
       }
     }

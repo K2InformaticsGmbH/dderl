@@ -225,6 +225,7 @@
           var bRange = new Slick.Range(activeRow, activeCell, activeRow+this.h-1, activeCell+this.w-1);
           this.markCopySelection([bRange]);
           _grid.getSelectionModel().setSelectedRanges([bRange]);
+          _grid.focus();
           this.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
         },
 
