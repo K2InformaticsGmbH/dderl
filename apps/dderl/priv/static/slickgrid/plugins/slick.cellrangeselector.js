@@ -98,6 +98,7 @@
             dd.range.end.cell
         )
       });
+      _grid.focus();
     }
 
     $.extend(this, {
