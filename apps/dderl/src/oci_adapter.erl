@@ -538,7 +538,6 @@ process_query(ok, Query, Connection) ->
 process_query({ok, #stmtResult{stmtRef  = StmtRef, sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
     StmtFsm = dderl_fsm:start_link(FsmCtx),
-    Connection:add_stmt_fsm(StmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = build_column_json(lists:reverse(Clms)),
     JSortSpec = build_srtspec_json(SortSpec),
@@ -580,7 +579,6 @@ process_query({ok, #stmtResult{ stmtCols = Clms
                                %, update_cursor_prepare_fun  = fun(_ChangeList) -> ok end
                                %, update_cursor_execute_fun  = fun(_Lock) -> ok end
                                }),
-    Connection:add_stmt_fsm(StmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = build_column_json(lists:reverse(Clms)),
     JSortSpec = build_srtspec_json(SortSpec),
