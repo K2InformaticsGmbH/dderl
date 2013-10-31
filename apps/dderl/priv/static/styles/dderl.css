@@ -122,6 +122,12 @@ button.menubutton
     z-index:99999;
 }
 
+/* dashboard save button */
+#dashboard-save {
+    position: relative;
+    left: 18px;
+}
+
 /* 
  * SlickGrid style extensions and overrides
  */
