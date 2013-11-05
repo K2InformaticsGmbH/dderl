@@ -11,6 +11,7 @@
         , add_cmds_views/5
         , gui_resp/2
         , build_resp_fun/3
+        , process_query/2
         ]).
 
 init() -> ok.
@@ -158,6 +159,10 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
+
+-spec process_query(binary(), tuple()) -> list().
+process_query(Query, Connection) ->
+    imem_adapter:process_query(Query, Connection).
 
 %%%%%%%%%%%%%%%
 

@@ -9,6 +9,7 @@
 -export([ init/0
         , process_cmd/5
         , disconnect/1
+        , process_query/2
         ]).
 
 -record(priv, {connections = []}).

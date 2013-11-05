@@ -203,7 +203,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
-                    true -> process_query(Query, Sess);
+                    true -> gen_adapter:process_query(Query, Sess);
                     _ -> process_query(Query, Connection)
                 end,
             From ! {reply, jsx:encode([{<<"query">>,R}])};
@@ -237,7 +237,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
-                    Resp = process_query(C#ddCmd.command, Sess),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
@@ -290,7 +290,7 @@ process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
             F = UserView
     end,
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = process_query(C#ddCmd.command, Sess),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -307,7 +307,7 @@ process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
 process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
     F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = process_query(C#ddCmd.command, Sess),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"system_views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -332,7 +332,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             case C#ddCmd.conns of
                 local ->
-                    Resp = process_query(C#ddCmd.command, Sess),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
                     RespJson = jsx:encode([{<<"open_view">>,
                                           [{<<"content">>, C#ddCmd.command}
                                            ,{<<"name">>, F#ddView.name}
@@ -523,62 +523,16 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
 -spec process_query(tuple(), tuple()) -> list().
-process_query(Query, Connection) when is_tuple(Connection) ->
-    case dderl_dal:is_local_query(Query) of
-        true ->
-            process_query(check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE)), Query, Connection);
-        _ ->
-            process_query(check_funs(dderloci:exec(Connection, Query)), Query, Connection)
-    end.
+process_query(Query, {oci_port, _, _} = Connection) ->
+    process_query(check_funs(dderloci:exec(Connection, Query)), Query, Connection).
 
 -spec process_query(term(), binary(), tuple()) -> list().
 process_query(ok, Query, Connection) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{stmtRef  = StmtRef, sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
+process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
     StmtFsm = dderl_fsm:start_link(FsmCtx),
-    ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-    Columns = build_column_json(lists:reverse(Clms)),
-    JSortSpec = build_srtspec_json(SortSpec),
-    ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
-    ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
-    [{<<"columns">>, Columns},
-     {<<"sort_spec">>, JSortSpec},
-     {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
-     {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
-process_query({ok, #stmtResult{ stmtCols = Clms
-                , rowFun   = RowFun
-                , stmtRef  = StmtRef
-                , sortFun  = SortFun
-                , sortSpec = SortSpec} = StmtRslt}, Query, Connection) ->
-    StmtFsm = dderl_fsm:start_link(
-                        #fsmctx{ id                         = "what is it?"
-                               , stmtCols                   = Clms
-                               , rowFun                     = RowFun
-                               , sortFun                    = SortFun
-                               , sortSpec                   = SortSpec
-                               , block_length               = ?DEFAULT_ROW_SIZE
-                               , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
-                               , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
-                               , stmt_close_fun             = fun() -> Connection:run_cmd(close, [StmtRef]) end
-                               , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
-                                                                    Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
-                                                                end
-                               , update_cursor_prepare_fun  = fun(ChangeList) ->
-                                                                    Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
-                                                                end
-                               , update_cursor_execute_fun  = fun(Lock) ->
-                                                                    Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                end
-                               , orig_qry                   = Query
-%, fetch_recs_async_fun       = fun(_Opts) -> ok end
-                               %, fetch_close_fun            = fun() -> ok end
-                               %, stmt_close_fun             = fun() -> ok end
-                               %, filter_and_sort_fun        = fun(_FilterSpec, _SrtSpec, _Cols) -> ok end
-                               %, update_cursor_prepare_fun  = fun(_ChangeList) -> ok end
-                               %, update_cursor_execute_fun  = fun(_Lock) -> ok end
-                               }),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = build_column_json(lists:reverse(Clms)),
     JSortSpec = build_srtspec_json(SortSpec),
