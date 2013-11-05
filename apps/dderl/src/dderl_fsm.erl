@@ -280,7 +280,7 @@ fetch_close(#state{ctx = #ctx{fetch_close_fun = Fcf}}=State) ->
     State#state{pfc=0}.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
-filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}, sql=Sql}) ->
+filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}}) ->
     case Fasf(FilterSpec, SortSpec, Cols) of
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
@@ -290,9 +290,6 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
         {_, Error} -> 
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Error]),
             {error, Error};
-        unchanged ->
-            ?Debug("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, unchanged]),
-            {ok, binary_to_list(Sql), Fasf};
         Else ->
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
             {error, Else}            
@@ -1725,7 +1722,7 @@ data_reorder(SN,ColOrder,#state{sortSpec=SortSpec,filterSpec=FilterSpec}=State0)
     State1 = State0#state{colOrder=ColOrder},
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
         {ok, NewSql, _} ->
-            gui_nop(#gres{state=SN}, State1#state{sql=list_to_binary(NewSql)});
+            gui_nop(#gres{state=SN}, State1#state{sql=NewSql});
         {error, _Error} ->
             gui_nop(#gres{state=SN,beep=true}, State1)
     end.    
@@ -1741,7 +1738,7 @@ data_filter(SN,?NoFilter,#state{nav=ind,srt=false,colOrder=ColOrder}=State0) ->
     State1 = gui_clear(ind_clear(State0#state{nav=raw})),
     case filter_and_sort(?NoFilter, ?NoSort, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end;
@@ -1750,7 +1747,7 @@ data_filter(SN,FilterSpec,#state{sortSpec=SortSpec,sortFun=SortFun,colOrder=ColO
     State1 = data_index(SortFun,FilterSpec,State0),
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end.
@@ -1766,7 +1763,7 @@ data_sort(SN,?NoSort,#state{filterSpec=?NoFilter,colOrder=ColOrder}=State0) ->
     State1 = gui_clear(ind_clear(State0#state{nav=raw,srt=false})),
     case filter_and_sort(?NoFilter, ?NoSort, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sortSpec=?NoSort, sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sortSpec=?NoSort, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end;    
@@ -1776,7 +1773,7 @@ data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
         {ok, NewSql, NewSortFun} ->
             ?Debug("data_sort NewSql=~p NewSortFun=~p", [NewSql,NewSortFun]),
             State1 = data_index(NewSortFun,FilterSpec,State0),
-            serve_top(SN, State1#state{sortSpec=SortSpec, sql=list_to_binary(NewSql)});
+            serve_top(SN, State1#state{sortSpec=SortSpec, sql=NewSql});
         {error, Error} ->
             Message = list_to_binary(io_lib:format("~p",[Error])),
             gui_nop(#gres{state=SN,beep=true,message=Message}, State0)
@@ -1789,7 +1786,7 @@ data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=Row
     ?Info("data_index Nav=~p Srt=~p", [Nav,Srt]),
     State1 = ind_clear(State0),
     CompleteFun = fun
-        ({Id,Op,RK},Acc) -> 
+        ({Id,Op,RK},Acc) ->
             ets:insert(TableId, raw_row_expand({Id,Op,RK}, RowFun)),
             Acc+1;
         (_,Acc) ->  

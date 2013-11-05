@@ -129,7 +129,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
     Ip     = proplists:get_value(<<"ip">>, BodyJson, <<>>),
     Port   = proplists:get_value(<<"port">>, BodyJson, <<>>),
     Schema = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    User   = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
     NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
     Type = get_connection_type(Ip),
@@ -738,7 +738,7 @@ generate_fsmctx_oci(#stmtResult{
                 end
             ,fetch_close_fun = fun() -> ok end
             ,stmt_close_fun  = fun() -> StmtRef:close() end
-            ,filter_and_sort_fun = fun(_FilterSpec, _SrtSpec, _Cols) -> unchanged end
+            ,filter_and_sort_fun = fun(_FilterSpec, _SrtSpec, _Cols) -> {ok, Query, SortFun} end
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
