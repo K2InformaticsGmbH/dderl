@@ -1,8 +1,9 @@
--name dderl@localhost
+-emu_args
+-name dderl@zhhapmop-sbsm01.it.bwns.ch
 -setcookie dderl
 -kernel inet_dist_listen_min 7000
 -kernel inet_dist_listen_max 7020
 -dderl port 443
 -imem tcp_port 8125
 -imem mnesia_schema_name dderlstag
--imem erl_cluster_mgr 'dderl@localhost'
+-imem erl_cluster_mgr \\'dderl@oltapmop-sbsm01.it.bwns.ch\\'
