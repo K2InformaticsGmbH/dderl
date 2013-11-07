@@ -86,6 +86,11 @@ function check_already_connected() {
 }
 
 function logout() {
+
+    if (!dderlState.session) {
+        return;
+    }
+
     var headers = new Object();
 
     if (dderlState.adapter != null) {
