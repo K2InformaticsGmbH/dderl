@@ -1738,7 +1738,7 @@ data_filter(SN,?NoFilter,#state{nav=ind,srt=false,colOrder=ColOrder}=State0) ->
     State1 = gui_clear(ind_clear(State0#state{nav=raw})),
     case filter_and_sort(?NoFilter, ?NoSort, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=NewSql});
+            serve_top(SN, State1#state{filterSpec=?NoFilter, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end;
@@ -1747,7 +1747,7 @@ data_filter(SN,FilterSpec,#state{sortSpec=SortSpec,sortFun=SortFun,colOrder=ColO
     State1 = data_index(SortFun,FilterSpec,State0),
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=NewSql});
+            serve_top(SN, State1#state{filterSpec=FilterSpec, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end.
