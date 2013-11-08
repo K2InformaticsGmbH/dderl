@@ -2,9 +2,9 @@
 
 -include("dderl.hrl").
 -include("gres.hrl").
+-include("dderl_sqlbox.hrl").
 
 -include_lib("imem/include/imem_sql.hrl").
--include_lib("sqlparse/src/sql_box.hrl").
 
 -export([ process_cmd/6
         , init/0
@@ -57,33 +57,49 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     ?Info("parsing ~p", [Sql]),
-    case (catch jsx:encode([{<<"parse_stmt">>, [
-        try
-            Box = sql_box:boxed(Sql),
-            ?Debug("--- Box --- ~n~p", [Box]),
-            {<<"sqlbox">>, box_to_json(Box)}
-        catch
-            _:ErrorBox -> {<<"boxerror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorBox])))}
-        end,
-        try
-            Pretty = sql_box:pretty(Sql),
-            {<<"pretty">>, list_to_binary(Pretty)}
-        catch
-            _:ErrorPretty -> {<<"prettyerror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorPretty])))}
-        end,
-        try
-            Flat = sql_box:flat(Sql),
-            {<<"flat">>, list_to_binary(Flat)}
-        catch
-            _:ErrorFlat -> {<<"flaterror">>, list_to_binary(lists:flatten(io_lib:format("~p", [ErrorFlat])))}
-        end
-    ]}])) of
-        ParseStmt when is_binary(ParseStmt) ->
-            ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
-            From ! {reply, ParseStmt};
-        Error ->
-            ?Error("parse_stmt error ~p~n", [Error]),
-            ReasonBin = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+    case sqlparse:parsetree(Sql) of
+        {ok, {[{ParseTree,_}|_], _}} ->
+            case sqlparse:fold(ParseTree) of
+                {error, Reason} ->
+                    ?Error("parse_stmt error in fold ~p~n", [Reason]),
+                    ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
+                    From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])};
+                Flat ->
+                    FlatTuple = {<<"flat">>, Flat},
+                    BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
+                        {error, BoxReason} ->
+                            ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
+                            {<<"boxerror">>, BoxReason};
+                        Box ->
+                            ?Info("The big box ~p", [Box]),
+                            {<<"sqlbox">>, box_to_json(Box)}
+                    catch
+                        Class:Error ->
+                            ?Error("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
+                            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
+                    end,
+                    PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
+                        {error, PrettyReason} ->
+                            ?Error("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
+                            {<<"prettyerror">>, PrettyReason};
+                        Pretty ->
+                            {<<"pretty">>, Pretty}
+                    catch
+                        Class1:Error1 ->
+                            ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
+                            {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
+                    end,
+                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple]}]),
+                    ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
+                    From ! {reply, ParseStmt}
+            end;
+        {parse_error, {PError, Tokens}} ->
+            ?Error("parse_stmt error in parsetree ~p~n", [{PError, Tokens}]),
+            ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [{PError, Tokens}])),
+            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])};
+        {lex_error, LError} ->
+            ?Error("lexer error in parsetree ~p~n", [LError]),
+            ReasonBin = iolist_to_binary(io_lib:format("Lexer error: ~p", [LError])),
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
     end;
 process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->

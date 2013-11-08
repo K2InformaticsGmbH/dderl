@@ -1148,11 +1148,11 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
 
 -spec gui_prepend(#gres{}, #state{}) -> #state{}.
 gui_prepend(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
-    Rows=rows_before(?RawMax, BL, State0),
-    case length(Rows) of
-        0 ->
-             gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
-        Cnt ->  
+    case rows_before(?RawMax, BL, State0) of
+        [] ->
+            gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
+        Rows ->
+            Cnt = length(Rows),
             NewGuiCnt = Cnt,
             NewGuiTop = hd(hd(Rows)),
             NewGuiBot = hd(lists:last(Rows)),

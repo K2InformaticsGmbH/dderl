@@ -436,17 +436,39 @@ format_status(_Opt, [_PDict, _State])   -> ok.
 -spec is_local_query(binary()) -> boolean().
 is_local_query(Qry) ->
     SysTabs = [erlang:atom_to_binary(Dt, utf8) || Dt <- [ddAdapter,ddInterface,ddConn,ddCmd,ddView,ddDash]],
+
+%   Example estructure for a query with joins and alias
+%   SELECT * from tab1 a INNER JOIN tab2 on a = b INNER JOIN tab3 on c = d, tab4 f, tab2, tab3 b INNER JOIN tab2 on a1 = b4, tab5 INNER JOIN tab2 on a1 = b4
+%   {select,[{hints,<<>>},
+%            {opt,<<>>},
+%            {fields,[<<"*">>]},
+%            {into,[]},
+%            {from,[{{as,<<"tab1">>,<<"a">>},
+%                    [{join_inner,<<"tab2">>,{on,{'=',<<"a">>,<<"b">>}}},
+%                     {join_inner,<<"tab3">>,{on,{'=',<<"c">>,<<"d">>}}}]},
+%                   {as,<<"tab4">>,<<"f">>},
+%                   <<"tab2">>,
+%                   {{as,<<"tab3">>,<<"b">>},
+%                    [{join_inner,<<"tab2">>,{on,{'=',<<"a1">>,<<"b4">>}}}]},
+%                   {<<"tab5">>,
+%                    [{join_inner,<<"tab2">>,{on,{'=',<<"a1">>,<<"b4">>}}}]}]},
+%            {where,{}},
+%            {'group by',[]},
+%            {having,{}},
+%            {'order by',[]}]}
+
     case sqlparse:parsetree(Qry) of
-        {ok, {[{{select, QOpts},_}|_], _Tokens}} ->
+        {ok, { [{{select, QOpts},_}|_ ], _Tokens}} ->
             case lists:keyfind(from, 1, QOpts) of
                 {from, Tables} ->
                     lists:foldl(fun(T,_) ->
                              Tab = case T of
+                                 {{_,T1,_}, _} when is_binary(T1) -> T1;
+                                 {T1, _} when is_binary(T1) -> T1;
                                  {_,T1,_} when is_binary(T1) -> T1;
                                  T when is_binary(T) -> T
                              end,
-                             HasSysTab = lists:member(Tab, SysTabs),
-                             if HasSysTab -> true; true -> false end
+                             lists:member(Tab, SysTabs)
                          end,
                          true,
                          Tables);
