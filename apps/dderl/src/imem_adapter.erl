@@ -495,6 +495,7 @@ process_query(Query, {_,ConPid}=Connection) ->
                                        , rowFun                     = RowFun
                                        , sortFun                    = SortFun
                                        , sortSpec                   = SortSpec
+                                       , orig_qry                   = Query
                                        , block_length               = ?DEFAULT_ROW_SIZE
                                        , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
                                        , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end

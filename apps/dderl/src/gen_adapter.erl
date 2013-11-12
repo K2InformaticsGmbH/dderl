@@ -63,7 +63,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                 {error, Reason} ->
                     ?Error("parse_stmt error in fold ~p~n", [Reason]),
                     ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
-                    From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])};
+                    From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
                 Flat ->
                     FlatTuple = {<<"flat">>, Flat},
                     BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
@@ -96,11 +96,11 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
         {parse_error, {PError, Tokens}} ->
             ?Error("parse_stmt error in parsetree ~p~n", [{PError, Tokens}]),
             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [{PError, Tokens}])),
-            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])};
+            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
         {lex_error, LError} ->
             ?Error("lexer error in parsetree ~p~n", [LError]),
             ReasonBin = iolist_to_binary(io_lib:format("Lexer error: ~p", [LError])),
-            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}]}])}
+            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])}
     end;
 process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"get_query">>,BodyJson}] = ReqBody,

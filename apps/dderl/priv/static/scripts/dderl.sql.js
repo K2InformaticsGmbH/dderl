@@ -403,7 +403,6 @@ function insertAtCursor(myField, myValue) {
         var error = ''
         if(_parsed.hasOwnProperty('error')) {
             alert_jq(_parsed.error);
-            return;
         }
 
         if(_parsed.hasOwnProperty('boxerror')) {
@@ -412,12 +411,6 @@ function insertAtCursor(myField, myValue) {
 
         if(_parsed.hasOwnProperty('prettyerror')) {
             error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
-        }
-
-        if(_parsed.hasOwnProperty('flaterror')) {
-            error += 'Flat Error - <br>' + _parsed.flaterror + '<br>';
-            alert_jq(error);
-            return;
         }
 
         var initOptions = {
