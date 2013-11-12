@@ -417,6 +417,38 @@ function show_qry_files(useSystem)
     .table('loadViews', useSystem);
 }
 
+function import_query()
+{
+    $('<form id="fileuploader" enctype="multipart/form-data" method="post" action="/app/upload"></form>')
+        .append($('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;">')
+                    .change(function() {
+                        uploadFile(this.files[0]);
+                    }))
+        .appendTo(document.body);
+    $("#fileToUpload").click();
+}
+
+function uploadFile(file) {
+    console.log(file);
+    var xhr = new XMLHttpRequest();
+    var fd = new FormData();
+    fd.append("fileToUpload", file);
+  
+    /* event listners */
+    xhr.upload.addEventListener("progress", function(e) {console.log("uploading...");}, false);
+    xhr.addEventListener("load", function(e) {
+            var fileObj = JSON.parse(e.target.responseText).upload;
+            console.log(fileObj);
+            StartSqlEditor(fileObj.name, fileObj.content);
+        }, false);
+    xhr.addEventListener("error", function(e) {console.log("upload error!");}, false);
+    xhr.addEventListener("abort", function(e) {console.log("upload cancled!");}, false);
+    /* Be sure to change the url below to the url of your upload server side script */
+    xhr.open("POST", "/app/upload");
+    xhr.setRequestHeader('dderl_sess', (dderlState.session != null ? '' + dderlState.session : ''));
+    xhr.send(fd);
+}
+
 function show_more_apps() {
     if($(".extra-app").css('display') === 'none') {
         $(".extra-app").css('display', '');

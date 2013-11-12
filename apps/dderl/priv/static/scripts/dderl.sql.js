@@ -8,6 +8,17 @@ $('<div>')
     .sql('open');
 }
 
+function StartSqlEditor(title, cmd) {
+$('<div>')
+    .appendTo(document.body)
+    .sql({autoOpen  : false,
+    title     : title,
+    cmdOwner  : null,
+    cmdFlat   : cmd,
+    })
+    .sql('open');
+}
+
 function insertAtCursor(myField, myValue) {
   //IE support
   if (document.selection) {
