@@ -1998,12 +1998,12 @@
             for(var i = 0; i < selRanges.length; ++i) {
                 for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
                     if(selRanges[i].fromCell === 0) {
+                        rids.push(this._gdata[ri].id);
                         if(this._gdata[ri].op !== 'ins') {
                             this._gdata[ri].op = 'del';
                         } else {
                             this._gdata.splice(ri, 1);
                         }
-                        rids.push(this._gdata[ri].id);
                     } else {
                         var cols = this._grid.getColumns();
                         var modifiedCells = [];
