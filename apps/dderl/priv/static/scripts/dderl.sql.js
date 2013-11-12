@@ -401,35 +401,46 @@ function insertAtCursor(myField, myValue) {
 
     _reloadParsedCmd: function(_parsed) {
         var error = ''
-        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>'+_parsed.boxerror+'<br>';
-        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>'+_parsed.prettyerror+'<br>';
-        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>'+_parsed.flaterror+'<br>';
+        if(_parsed.hasOwnProperty('error')) {
+            alert_jq(_parsed.error);
+            return;
+        }
 
-        if (error.length > 0) {
+        if(_parsed.hasOwnProperty('boxerror')) {
+            error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
+        }
+
+        if(_parsed.hasOwnProperty('prettyerror')) {
+            error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
+        }
+
+        if(_parsed.hasOwnProperty('flaterror')) {
+            error += 'Flat Error - <br>' + _parsed.flaterror + '<br>';
             alert_jq(error);
+            return;
+        }
+
+        var initOptions = {
+            title          : this._title,
+            autoOpen       : false,
+            dderlConn      : dderlState.connection,
+            dderlAdapter   : dderlState.adapter,
+            dderlStartBtn  : self._reloadBtn,
+            dderlCmdStrs   : this._history,
+            dderlSqlEditor : this._dlg
+        };
+        this._renderParsed(_parsed);
+        this._modCmd = this._cmdFlat;
+        if(null === this._cmdOwner) {
+            this._cmdOwner = $('<div>')
+                .appendTo(document.body)
+                .table(initOptions)
+                .table('cmdReload', this._modCmd, self._reloadBtn);
+        } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
+            this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
         } else {
-            var initOptions = {
-                title          : this._title,
-                autoOpen       : false,
-                dderlConn      : dderlState.connection,
-                dderlAdapter   : dderlState.adapter,
-                dderlStartBtn  : self._reloadBtn,
-                dderlCmdStrs   : this._history,
-                dderlSqlEditor : this._dlg
-            };
-            this._renderParsed(_parsed);
-            this._modCmd = this._cmdFlat;
-            if(null === this._cmdOwner) {
-                this._cmdOwner = $('<div>')
-                    .appendTo(document.body)
-                    .table(initOptions)
-                    .table('cmdReload', this._modCmd, self._reloadBtn);
-            } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
-                this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
-            } else {
-                this._cmdOwner.appendTo(document.body).table(initOptions)
-                    .table('cmdReload', this._modCmd, self._reloadBtn);
-            }
+            this._cmdOwner.appendTo(document.body).table(initOptions)
+                .table('cmdReload', this._modCmd, self._reloadBtn);
         }
     },
 

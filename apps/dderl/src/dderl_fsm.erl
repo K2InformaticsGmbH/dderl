@@ -1148,11 +1148,11 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
 
 -spec gui_prepend(#gres{}, #state{}) -> #state{}.
 gui_prepend(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
-    Rows=rows_before(?RawMax, BL, State0),
-    case length(Rows) of
-        0 ->
-             gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
-        Cnt ->  
+    case rows_before(?RawMax, BL, State0) of
+        [] ->
+            gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
+        Rows ->
+            Cnt = length(Rows),
             NewGuiCnt = Cnt,
             NewGuiTop = hd(hd(Rows)),
             NewGuiBot = hd(lists:last(Rows)),
@@ -1738,7 +1738,7 @@ data_filter(SN,?NoFilter,#state{nav=ind,srt=false,colOrder=ColOrder}=State0) ->
     State1 = gui_clear(ind_clear(State0#state{nav=raw})),
     case filter_and_sort(?NoFilter, ?NoSort, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=NewSql});
+            serve_top(SN, State1#state{filterSpec=?NoFilter, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end;
@@ -1747,7 +1747,7 @@ data_filter(SN,FilterSpec,#state{sortSpec=SortSpec,sortFun=SortFun,colOrder=ColO
     State1 = data_index(SortFun,FilterSpec,State0),
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
         {ok, NewSql, _} ->
-            serve_top(SN, State1#state{sql=NewSql});
+            serve_top(SN, State1#state{filterSpec=FilterSpec, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
     end.

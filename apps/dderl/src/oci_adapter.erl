@@ -683,12 +683,14 @@ error_invalid_conn(Connection, Connections) ->
 -spec check_fun_vsn(fun()) -> boolean().
 check_fun_vsn(Fun) when is_function(Fun)->
     {module, Mod} = erlang:fun_info(Fun, module),
+    ?Info("The module: ~p", [Mod]),
     [ModVsn] = proplists:get_value(vsn, Mod:module_info(attributes)),
-    ?Debug("The Module version: ~p~n", [ModVsn]),
+    ?Info("The Module version: ~p~n", [ModVsn]),
     {new_uniq, <<FunVsn:16/unit:8>>} = erlang:fun_info(Fun, new_uniq),
-    ?Debug("The function version: ~p~n", [FunVsn]),
+    ?Info("The function version: ~p~n", [FunVsn]),
     ModVsn =:= FunVsn;
-check_fun_vsn(_) ->
+check_fun_vsn(Something) ->
+    ?Error("Not a function ~p", [Something]),
     false.
 
 -spec check_funs(term()) -> term().
@@ -705,6 +707,7 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
         true -> <<"Unsupported target database version">>
     end;
 check_funs(Error) ->
+    ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
 -spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary()) -> #fsmctx{}.
@@ -728,8 +731,9 @@ generate_fsmctx_oci(#stmtResult{
                           fun() ->
                                   case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
                                       {{rows, Rows}, Completed} ->
-                                          ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, Rows, Completed]),
-                                          FsmPid ! {StmtRef, {Rows, Completed}};
+                                          RowsFixed = fix_row_format(Rows),
+                                          ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
+                                          FsmPid ! {StmtRef, {RowsFixed, Completed}};
                                       {error, Error} ->
                                           FsmPid ! {StmtRef, {error, Error}}
                                   end
@@ -738,7 +742,7 @@ generate_fsmctx_oci(#stmtResult{
                 end
             ,fetch_close_fun = fun() -> ok end
             ,stmt_close_fun  = fun() -> StmtRef:close() end
-            ,filter_and_sort_fun = fun(_FilterSpec, _SrtSpec, _Cols) -> {ok, Query, SortFun} end
+            ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(FilterSpec, SrtSpec, Cols, Query, Clms) end
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
@@ -747,7 +751,17 @@ generate_fsmctx_oci(#stmtResult{
             ,update_cursor_execute_fun =
                 fun(_Lock, PrepStmt) ->
                         Result = dderloci_stmt:execute(PrepStmt),
-                        io:format("The result from the exec ~p~n", [Result]),
+                        ?Info("The result from the exec ~p", [Result]),
                         Result
                 end
            }.
+
+-spec fix_row_format([list()]) -> [tuple()].
+fix_row_format([]) -> [];
+fix_row_format([Row | Rest]) ->
+    %% TODO: Only with row id for now that needs to be replaced by the table name i.e
+    %  rows [
+    %        {{temp,1,2,3},{}},
+    %        {{temp,4,5,6},{}}
+    %  ]
+    [{list_to_tuple(lists:reverse(Row)), {}} | fix_row_format(Rest)].
