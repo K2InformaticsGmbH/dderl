@@ -248,19 +248,6 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
-process_call({[<<"upload">>], ReqData}, _Adapter, From, State) ->
-    From ! {reply, jsx:encode([{<<"upload">>, 
-        case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
-            {match, [FileName]} -> [{<<"name">>, FileName}];
-            _ -> []
-        end ++
-        case re:run(ReqData, "\r\n\r\n(.*)\r\n\r\n[-a-zA-Z0-9]+", [{capture,[1],binary},dotall]) of
-            {match, [FileContent]} -> [{<<"content">>, FileContent}];
-            _ -> []
-        end
-    }])},
-    State;
-
 % commands handled generically
 process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;

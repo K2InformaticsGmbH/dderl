@@ -20,27 +20,50 @@ init({ssl, http}, Req, []) ->
     true ->
         {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req0),
         {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
-        ?Debug("DDerl {session, adapter} from header ~p", [{Session,Adapter}]),
-        case create_new_session(Session) of
-            {ok, {_,DDerlSessPid} = DderlSess} ->
-                if
-                    is_binary(Adapter) ->
-                        AdaptMod = list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
-                    true ->
-                        AdaptMod = undefined
-                end,
-                {Typ, Req3} = cowboy_req:path_info(Req2),
-                {ok, Body, Req4} = cowboy_req:body(Req3),
-                DderlSess:process_request(AdaptMod, Typ, Body, self()),
-                {loop, Req4, DDerlSessPid, 60000, hibernate};
-            {error, Reason} ->
-                ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
-                self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
-                {loop, Req2, Session, 5000, hibernate}
-        end;
+        {Typ, Req3} = cowboy_req:path_info(Req2),
+        %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
+        process_request(Session, Adapter, Req3, Typ);
     _ ->
         self() ! {reply, <<"{}">>},
         {loop, Req, <<>>, 5000, undefined}
+    end.
+
+%read_multipart(Req) -> read_multipart(Req, <<>>).
+%read_multipart({done, Req}, Body) -> {ok, Body, Req};
+%read_multipart({ok, Data, Req}, Body) ->
+%    read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
+
+process_request(_, _, Req, [<<"upload">>]) ->
+    %%{ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
+    {ok, ReqData, Req1} = cowboy_req:body(Req),
+    ?Info("Request ~p", [ReqData]),
+    Resp = {reply, jsx:encode([{<<"upload">>, 
+        case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
+            {match, [FileName]} -> [{<<"name">>, FileName}];
+            _ -> []
+        end ++
+        case re:run(ReqData, "\r\n\r\n(.*)\r\n\r\n[-a-zA-Z0-9]+", [{capture,[1],binary},dotall]) of
+            {match, [FileContent]} -> [{<<"content">>, FileContent}];
+            _ -> []
+        end
+    }])},
+    ?Info("Responding ~p", [Resp]),
+    self() ! Resp,
+    {loop, Req1, <<>>, 5000, hibernate};
+process_request(Session, Adapter, Req, Typ) ->
+    case create_new_session(Session) of
+        {ok, {_,DDerlSessPid} = DderlSess} ->
+            AdaptMod = if
+                is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
+                true -> undefined
+            end,
+            {ok, Body, Req1} = cowboy_req:body(Req),
+            DderlSess:process_request(AdaptMod, Typ, Body, self()),
+            {loop, Req1, DDerlSessPid, 60000, hibernate};
+        {error, Reason} ->
+            ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
+            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
+            {loop, Req, Session, 5000, hibernate}
     end.
 
 info({reply, Body}, Req, DDerlSessPid) ->
