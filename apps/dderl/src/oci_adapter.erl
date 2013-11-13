@@ -70,9 +70,11 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr   = proplists:get_value(<<"tnsstring">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
-    ErlOciSession = if Tnsstr =:= <<>> ->
-        case Port of
-            undefined -> {error, "Invalid port"};
+    if
+        Tnsstr =:= <<>> ->
+            case Port of
+            undefined ->
+                    ErlOciSession = {error, "Invalid port"};
             Port ->
                 NewTnsstr = list_to_binary(io_lib:format(
                     "(DESCRIPTION="
@@ -88,12 +90,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                         , binary_to_list(Service)])),
                 ?Info("session:open ~p", [{User, Password, NewTnsstr}]),
                 OciPort = oci_port:start_link([{logging, true}]),
-                OciPort:get_session(NewTnsstr, User, Password)
-        end;
-    true ->
-        ?Info("session:open ~p", [{User, Password, Tnsstr}]),
-        OciPort = oci_port:start_link([{logging, true}]),
-        OciPort:get_session(Tnsstr, User, Password)
+                ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
+            end;
+        true ->
+            ?Info("session:open ~p", [{User, Password, Tnsstr}]),
+            OciPort = oci_port:start_link([{logging, true}]),
+            ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
@@ -115,6 +117,10 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                     dderl_dal:add_connect(Sess, Con),
             From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(Connection))}])},
             Priv#priv{connections = [ErlOciSession|Connections]};
+        {error, {_Code, Msg}} = Error when is_list(Msg) ->
+            ?Error("DB connect error ~p", [Error]),
+            From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, list_to_binary(Msg)}]}])},
+            Priv;
         Error ->
             ?Error("DB connect error ~p", [Error]),
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
@@ -420,8 +426,8 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                 _ ->
                     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
                     case dderloci:exec(Connection, Query) of
-                        {ok, #stmtResult{} = StmtRslt, TableName} ->
-                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
+                        {ok, #stmtResult{} = StmtRslt, TableName, ContainRowId} ->
+                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName, ContainRowId),
                             Statement:refresh_session_ctx(FsmCtx),
                             Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
                         _ ->
@@ -530,8 +536,8 @@ process_query(Query, {oci_port, _, _} = Connection) ->
 process_query(ok, Query, Connection) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
-    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
+process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName, ContainRowId}, Query, {oci_port, _, _} = Connection) ->
+    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName, ContainRowId),
     StmtFsm = dderl_fsm:start_link(FsmCtx),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = build_column_json(lists:reverse(Clms)),
@@ -694,10 +700,10 @@ check_fun_vsn(Something) ->
     false.
 
 -spec check_funs(term()) -> term().
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName}) ->
+check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName, ContainRowId}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
-        ValidFuns -> {ok, StmtRslt, TableName};
+        ValidFuns -> {ok, StmtRslt, TableName, ContainRowId};
         true -> <<"Unsupported target database version">>
     end;
 check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
@@ -710,13 +716,13 @@ check_funs(Error) ->
     ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary()) -> #fsmctx{}.
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary(), boolean()) -> #fsmctx{}.
 generate_fsmctx_oci(#stmtResult{
                   stmtCols = Clms
                 , rowFun   = RowFun
                 , stmtRef  = StmtRef
                 , sortFun  = SortFun
-                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName) ->
+                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName, ContainRowId) ->
     #fsmctx{id            = "what is it?"
            ,stmtCols      = Clms
            ,rowFun        = RowFun
@@ -742,7 +748,7 @@ generate_fsmctx_oci(#stmtResult{
                 end
             ,fetch_close_fun = fun() -> ok end
             ,stmt_close_fun  = fun() -> StmtRef:close() end
-            ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(FilterSpec, SrtSpec, Cols, Query, Clms) end
+            ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(FilterSpec, SrtSpec, Cols, Query, Clms, ContainRowId) end
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
