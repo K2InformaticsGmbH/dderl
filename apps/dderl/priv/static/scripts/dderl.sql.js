@@ -8,7 +8,7 @@ $('<div>')
     .sql('open');
 }
 
-function StartSqlEditor(title, cmd) {
+function StartSqlEditorWithTitle(title, cmd) {
 $('<div>')
     .appendTo(document.body)
     .sql({autoOpen  : false,

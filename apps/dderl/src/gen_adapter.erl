@@ -71,8 +71,15 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
                             {<<"boxerror">>, BoxReason};
                         Box ->
-                            ?Info("The big box ~p", [Box]),
-                            {<<"sqlbox">>, box_to_json(Box)}
+                            ?Debug("The big box ~p", [Box]),
+                            try box_to_json(Box) of
+                                JsonBox ->
+                                    {<<"sqlbox">>, JsonBox}
+                            catch
+                                Class:Error ->
+                                    ?Error("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
+                                    {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
+                            end
                     catch
                         Class:Error ->
                             ?Error("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),

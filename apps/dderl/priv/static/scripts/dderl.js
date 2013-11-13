@@ -439,7 +439,7 @@ function uploadFile(file) {
     xhr.addEventListener("load", function(e) {
             var fileObj = JSON.parse(e.target.responseText).upload;
             console.log(fileObj);
-            StartSqlEditor(fileObj.name, fileObj.content);
+            StartSqlEditorWithTitle(fileObj.name, fileObj.content);
         }, false);
     xhr.addEventListener("error", function(e) {console.log("upload error!");}, false);
     xhr.addEventListener("abort", function(e) {console.log("upload cancled!");}, false);
