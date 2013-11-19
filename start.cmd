@@ -7,6 +7,7 @@ set erlpaths=-pa %CD%/apps/dderl/ebin -pa %deps%
 set kernelconfig=-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020
 set kernelconfigsrv=%kernelconfig% -kernel error_logger {file,\\\""%CD%/log/kernel.txt\\\""}
 set commonparams=%erlpaths% -emu_args -setcookie dderl -dderl port 443 -imem tcp_port 8125 -imem mnesia_schema_name dderlstag -s dderl
+set commonparamsnoapp=%erlpaths% -emu_args -setcookie dderl
 
 set name=-name dderl@%2
 set extra=-imem erl_cluster_mgr 'dderl@%3'
@@ -16,15 +17,21 @@ if not "%~2%~3" == "%~3%~2" (
         @echo Adding dderl service
         erlsrv.exe add dderl -c "DDErl Service" -stopaction "init:stop()." -debugtype new -w %CD% %name% -args "%kernelconfigsrv% %commonparams% %extra%"
     ) else if "%1" == "gui" (
-        @echo Starting dderl service
-        start /MAX werl.exe %name% %kernelconfig% %erlpaths% %commonparams% %extra%
+        @echo Starting dderl local GUI
+        start /MAX werl.exe %name% %kernelconfig% %commonparams% %extra%
     ) else if "%1" == "txt" (
-        @echo Starting dderl
-        erl.exe %name% %kernelconfig% %erlpaths% %commonparams% %extra%
+        @echo Starting dderl local TEXT
+        erl.exe %name% %kernelconfig% %commonparams% %extra%
     ) else (
         @echo "Bad Argument '%1' '%2' '%3'"
         @echo "usage: cmd //C start.cmd [add node_host cluster_host | remove | start | stop | list | gui node_host cluster_host | txt node_host cluster_host]"
     )
+) else if "%1" == "guit" (
+    @echo Starting dderl local GUI
+    start /MAX werl.exe -name dderlt@%2 %kernelconfig% %commonparamsnoapp%
+) else if "%1" == "txtt" (
+    @echo Starting dderl local TEXT
+    erl.exe -name dderlt@%2 %kernelconfig% %commonparamsnoapp%
 ) else if "%1" == "remove" (
     @echo Removing dderl service
    erlsrv.exe remove dderl
@@ -38,5 +45,13 @@ if not "%~2%~3" == "%~3%~2" (
     erlsrv.exe list dderl
 ) else (
     @echo "Bad Argument '%1'"
-    @echo "usage: cmd //C start.cmd (add node_host cluster_host | remove | start | stop | list | gui node_host cluster_host | txt node_host cluster_host)"
+    @echo "usage: cmd //C start.cmd add node_host cluster_host"
+    @echo "                         | remove"
+    @echo "                         | start"
+    @echo "                         | stop"
+    @echo "                         | list"
+    @echo "                         | gui node_host cluster_host"
+    @echo "                         | txt node_host cluster_host"
+    @echo "                         | guit node_host"
+    @echo "                         | txtt node_host"
 )
