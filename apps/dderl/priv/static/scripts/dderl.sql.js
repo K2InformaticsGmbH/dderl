@@ -456,9 +456,10 @@ function insertAtCursor(myField, myValue) {
      */
     _checkParsed: function(_parsed) {
         var error = ''
-        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>'+_parsed.boxerror+'<br>';
-        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>'+_parsed.prettyerror+'<br>';
-        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>'+_parsed.flaterror+'<br>';
+        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
+        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
+        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>' + _parsed.flaterror + '<br>';
+        if(_parsed.hasOwnProperty('error'))         error = 'Parser error - <br>' + _parsed.error + '<br>';
 
         if (error.length > 0)
             alert_jq(error);

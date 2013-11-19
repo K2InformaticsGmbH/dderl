@@ -495,6 +495,7 @@ disconnect(#priv{connections = Connections} = Priv) ->
 -spec gui_resp_cb_fun(binary(), {atom(), pid()}, pid()) -> fun().
 gui_resp_cb_fun(Cmd, Statement, From) ->
     Clms = Statement:get_columns(),
+    ?Info("The columns ~p", [Clms]),
     gen_adapter:build_resp_fun(Cmd, Clms, From).
 
 -spec sort_json_to_term(list()) -> [tuple()].
@@ -732,16 +733,17 @@ generate_fsmctx_oci(#stmtResult{
            ,block_length  = ?DEFAULT_ROW_SIZE
            ,fetch_recs_async_fun =
                 fun(_Opts) ->
-                        FsmPid = self(),
+                        %% TODO: change this to store the fsm ref in the stmt on dderloci, when dderloci is changed to a gen_server.
+                        FsmRef = {dderl_fsm, self()},
                         spawn(
                           fun() ->
                                   case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
                                       {{rows, Rows}, Completed} ->
                                           RowsFixed = fix_row_format(Rows),
                                           ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
-                                          FsmPid ! {StmtRef, {RowsFixed, Completed}};
+                                          FsmRef:rows({RowsFixed, Completed});
                                       {error, Error} ->
-                                          FsmPid ! {StmtRef, {error, Error}}
+                                          FsmRef:rows({error, Error})
                                   end
                           end),
                         ok
