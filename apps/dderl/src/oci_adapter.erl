@@ -739,7 +739,7 @@ generate_fsmctx_oci(#stmtResult{
                           fun() ->
                                   case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
                                       {{rows, Rows}, Completed} ->
-                                          RowsFixed = fix_row_format(Rows),
+                                          RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
                                           ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
                                           FsmRef:rows({RowsFixed, Completed});
                                       {error, Error} ->
@@ -764,12 +764,32 @@ generate_fsmctx_oci(#stmtResult{
                 end
            }.
 
--spec fix_row_format([list()]) -> [tuple()].
-fix_row_format([]) -> [];
-fix_row_format([Row | Rest]) ->
-    %% TODO: Only with row id for now that needs to be replaced by the table name i.e
+%%%%%%% This should be moved to dderloci %%%%%%%
+-spec fix_row_format([list()], [#stmtCol{}], boolean()) -> [tuple()].
+fix_row_format([], _, _) -> [];
+fix_row_format([Row | Rest], Columns, ContainRowId) ->
+    %% TODO: we have to add the table name at the start of the rows i.e
     %  rows [
     %        {{temp,1,2,3},{}},
     %        {{temp,4,5,6},{}}
     %  ]
-    [{list_to_tuple(lists:reverse(Row)), {}} | fix_row_format(Rest)].
+
+    %% TODO: Convert the types to imem types??
+    % db_to_io(Type, Prec, DateFmt, NumFmt, _StringFmt, Val),
+    % io_to_db(Item,Old,Type,Len,Prec,Def,false,Val) when is_binary(Val);is_list(Val)
+    if
+        ContainRowId ->
+            [RowId | RestRow] = lists:reverse(Row),
+            [{list_to_tuple([RowId | fix_null(RestRow, Columns)]), {}} | fix_row_format(Rest, Columns, ContainRowId)];
+        true ->
+            [{list_to_tuple(fix_null(lists:reverse(Row), Columns)), {}} | fix_row_format(Rest, Columns, ContainRowId)]
+    end.
+
+fix_null([], []) -> [];
+fix_null([<<Length:8, RestNum/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
+    <<Number:Length/binary, _Discarded/binary>> = RestNum,
+    [Number | fix_null(RestRow, RestCols)];
+fix_null([<<0, 0, 0, 0, 0, 0, 0>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
+    [<<>> | fix_null(RestRow, RestCols)];
+fix_null([Cell | RestRow], [#stmtCol{} | RestCols]) ->
+    [Cell | fix_null(RestRow, RestCols)].
