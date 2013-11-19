@@ -789,7 +789,7 @@ fix_null([], []) -> [];
 fix_null([<<Length:8, RestNum/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
     <<Number:Length/binary, _Discarded/binary>> = RestNum,
     [Number | fix_null(RestRow, RestCols)];
-fix_null([<<0, 0, 0, 0, 0, 0, 0>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
+fix_null([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
     [<<>> | fix_null(RestRow, RestCols)];
 fix_null([Cell | RestRow], [#stmtCol{} | RestCols]) ->
     [Cell | fix_null(RestRow, RestCols)].
