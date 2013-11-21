@@ -732,19 +732,13 @@ generate_fsmctx_oci(#stmtResult{
            ,orig_qry      = Query
            ,block_length  = ?DEFAULT_ROW_SIZE
            ,fetch_recs_async_fun =
-                fun(_Opts) ->
+                fun(Opts) ->
                         %% TODO: change this to store the fsm ref in the stmt on dderloci, when dderloci is changed to a gen_server.
                         FsmRef = {dderl_fsm, self()},
                         spawn(
                           fun() ->
-                                  case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
-                                      {{rows, Rows}, Completed} ->
-                                          RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
-                                          ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
-                                          FsmRef:rows({RowsFixed, Completed});
-                                      {error, Error} ->
-                                          FsmRef:rows({error, Error})
-                                  end
+                                  PushMode = lists:member({fetch_mode,push}, Opts),
+                                  fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId)
                           end),
                         ok
                 end
@@ -793,3 +787,18 @@ fix_null([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_D
     [<<>> | fix_null(RestRow, RestCols)];
 fix_null([Cell | RestRow], [#stmtCol{} | RestCols]) ->
     [Cell | fix_null(RestRow, RestCols)].
+
+fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId) ->
+    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+        {{rows, Rows}, Completed} ->
+            RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+            ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
+            FsmRef:rows({RowsFixed, Completed}),
+            if
+                Completed -> ok;
+                PushMode -> fetch_recs_async(FsmRef, StmtRef, true, Clms, ContainRowId);
+                true -> ok
+            end;
+        {error, Error} ->
+            FsmRef:rows({error, Error})
+    end.
