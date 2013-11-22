@@ -417,18 +417,22 @@ function show_qry_files(useSystem)
     .table('loadViews', useSystem);
 }
 
-function import_query()
-{
-    $('<form id="fileuploader" enctype="multipart/form-data" method="post" action="/app/upload"></form>')
-        .append($('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;">')
-                    .change(function() {
-                        uploadFile(this.files[0]);
-                    }))
-        .appendTo(document.body);
+function import_query() {
+    if ($("#fileuploader").length == 0) {
+        $('<form id="fileuploader" enctype="multipart/form-data" method="post" action="/app/upload"></form>')
+            .append($('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;" multiple>')
+                        .change(function() {
+                            for(var i = 0; i < this.files.length; ++i) {
+                                uploadFile(this.files[i]);
+                            }
+                        }))
+            .appendTo(document.body);
+    }
     $("#fileToUpload").click();
 }
 
 function uploadFile(file) {
+
     console.log(file);
     var xhr = new XMLHttpRequest();
     var fd = new FormData();
