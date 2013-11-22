@@ -566,7 +566,7 @@ filling({rows, {Recs,false}}, State0) ->
     State2 = if  
         (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
         true ->                     State1
-    end,    
+    end,
     {next_state, filling, State2};
 filling({rows, {Recs,true}}, State0) ->
     % receive and store data, close the fetch and switch state, no prefetch needed here
@@ -576,7 +576,6 @@ filling({rows, {Recs,true}}, State0) ->
 filling(Other, State) ->
     ?Info("filling -- unexpected event ~p", [Other]),
     {next_state, filling, State}.
-
 
 autofilling({button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
     State1 = reply_stack(autofilling, ReplyTo, State0),
@@ -842,7 +841,7 @@ aborted(Other, State) ->
 
 handle_event({button, <<">">>, ReplyTo}, empty, State0) ->
     State1 = fetch(none,none, State0#state{tailMode=false}),
-    ?Debug("empty stack '>'"),
+    ?Debug("empty stack '>' the fun ~p", [ReplyTo]),
     {next_state, filling, State1#state{stack={button,<<">">>,ReplyTo}}};
 handle_event({button, <<">">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
@@ -1518,8 +1517,32 @@ serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
             ?Debug("~p stack exec ~p", [tailing,<<"tail">>]),
             gui_append(#gres{state=tailing,loop= <<"tail">>,focus=-1},State0#state{stack=undefined,replyToFun=RT})
     end;
-serve_stack(SN , #state{stack=_Stack}=State) -> 
-    ?Debug("~p serve_stack nop~p", [SN,<<"...">>]),
+serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
+    if
+        (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
+        (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
+        (GuiCnt == 0) ->                                            % (re)initialize to buffer bottom
+            ?Debug("~p stack exec ~p", [autofilling,<<">|">>]),
+            serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
+        true ->
+            % serve new data at the bottom of the buffer, ask client to come back
+            ?Debug("Guicnt != 0 ~p", [autofilling,<<">|">>]),
+            gui_append(#gres{state = autofilling, loop = <<">|">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
+    end;
+serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, Target, ReplyTo}} = State) when is_integer(Target)->
+    if
+        (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
+        (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
+        (GuiCnt == 0) ->                                           % (re)initialize to buffer bottom
+            ?Debug("~p stack exec ~p", [integer_to_binary(Target)]),
+            serve_bot(filling, integer_to_binary(Target), State#state{stack = undefined, replyToFun = ReplyTo});
+        true ->
+            % serve new data at the bottom of the buffer, ask client to come back
+            ?Debug("Guicnt != 0 ~p", [integer_to_binary(Target)]),
+            gui_append(#gres{state = filling, loop = integer_to_binary(Target), focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
+    end;
+serve_stack(SN , #state{stack = Stack} = State) ->
+    ?Debug("~p serve_stack nop~p", [SN, Stack]),
     State.
 
 -spec rows_after(integer(), integer(), #state{}) -> list().

@@ -380,7 +380,16 @@ process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connec
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    Button = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
+    ButtonOrig = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
+    case ButtonOrig of
+        ButtonInt when is_integer(ButtonInt) ->
+            Button = ButtonInt;
+        ButtonBin when is_binary(ButtonBin) ->
+            case string:to_integer(binary_to_list(ButtonBin)) of
+                {error, _} -> Button = ButtonBin;
+                {Target, []} -> Button = Target
+            end
+    end,
     Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),
     Priv;
 process_cmd({[<<"update_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->

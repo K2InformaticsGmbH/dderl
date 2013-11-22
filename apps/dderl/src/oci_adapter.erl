@@ -434,7 +434,13 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                             From ! {reply, jsx:encode([{<<"button">>, [{<<"error">>, <<"unable to refresh the table">>}]}])}
                     end
             end;
-        Button ->
+        ButtonInt when is_integer(ButtonInt) ->
+            Statement:gui_req(button, ButtonInt, gui_resp_cb_fun(<<"button">>, Statement, From));
+        ButtonBin when is_binary(ButtonBin) ->
+            case string:to_integer(binary_to_list(ButtonBin)) of
+                {error, _} -> Button = ButtonBin;
+                {Target, []} -> Button = Target
+            end,
             Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From))
     end,
     Priv;
