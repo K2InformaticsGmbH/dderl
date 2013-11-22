@@ -216,7 +216,8 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
     case dderl_dal:get_connects(Sess, User) of
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
-        Connections ->
+        UnsortedConns ->
+            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) -> Name > Name2 end, UnsortedConns),
             ?Debug([{user, User}], "conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
                 lists:foldl(fun(C, Acc) ->
