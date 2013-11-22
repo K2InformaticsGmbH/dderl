@@ -399,7 +399,7 @@ function insertAtCursor(myField, myValue) {
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','reloadParsedCmd');
     },
 
-    _reloadParsedCmd: function(_parsed) {
+    _reloadParsedCmd: function(_parsed) { /*
         var error = ''
         if(_parsed.hasOwnProperty('error')) {
             alert_jq(_parsed.error);
@@ -411,7 +411,7 @@ function insertAtCursor(myField, myValue) {
 
         if(_parsed.hasOwnProperty('prettyerror')) {
             error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
-        }
+        }*/
 
         var initOptions = {
             title          : this._title,
@@ -454,7 +454,7 @@ function insertAtCursor(myField, myValue) {
     /*
      * ajaxCall success handlers
      */
-    _checkParsed: function(_parsed) {
+    _checkParsed: function(_parsed) { /*
         var error = ''
         if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
         if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
@@ -462,7 +462,7 @@ function insertAtCursor(myField, myValue) {
         if(_parsed.hasOwnProperty('error'))         error = 'Parser error - <br>' + _parsed.error + '<br>';
 
         if (error.length > 0)
-            alert_jq(error);
+            alert_jq(error);*/
     },
     _renderParsed: function(_parsed) {
         if(_parsed.hasOwnProperty('sqlbox')) {
