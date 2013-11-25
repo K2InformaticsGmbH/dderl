@@ -95,7 +95,8 @@
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
                        'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs'},
+                       'Save View As'   : '_saveViewAs',
+                       'Export Csv'     : '_exportCsv'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Hide'             : '_hide',
@@ -388,6 +389,33 @@
         if (null !== viewName) {
             this._saveViewWithName(viewName, false);
         }
+    },
+
+    _exportCsv: function() {        
+        var filename = this.options.title;
+        var csv_ext = /\.csv$/g;
+        if(!csv_ext.test(filename))
+            filename += '.csv';
+        var cmd_str = this._cmd;
+
+        var adapter = this._adapter;
+        var connection = this._conn;
+        var dderl_sess = (dderlState.session != null ? '' + dderlState.session : '');
+
+        $('<iframe>')
+            .on('load',function() {
+                var iframe = $(this);
+                var form = $('<form method="post" action="/app/download_query">')
+                    .append($('<input type="hidden" name="dderl_sess">').val(dderl_sess))
+                    .append($('<input type="hidden" name="connection">').val(connection))
+                    .append($('<input type="hidden" name="adapter">').val(adapter))
+                    .append($('<input type="hidden" name="fileToDownload">').val(filename))
+                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
+                $(this).contents().find('body').append(form);
+                form.submit();
+                setTimeout(function() {iframe.remove()}, 100);
+            })
+            .appendTo(document.body);
     },
 
     _getTableLayout: function(_viewName) {

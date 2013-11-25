@@ -23,19 +23,20 @@ init({ssl, http}, Req, []) ->
         {Typ, Req3} = cowboy_req:path_info(Req2),
         %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
         process_request(Session, Adapter, Req3, Typ);
-    _ ->
+    _Else ->
+        ?Error("DDerl request ~p, error ~p", [Req0, _Else]),
         self() ! {reply, <<"{}">>},
-        {loop, Req, <<>>, 5000, undefined}
+        {loop, Req, <<>>, 5000, hibernate}
     end.
 
-%read_multipart(Req) -> read_multipart(Req, <<>>).
-%read_multipart({done, Req}, Body) -> {ok, Body, Req};
-%read_multipart({ok, Data, Req}, Body) ->
-%    read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
+read_multipart(Req) -> read_multipart(Req, <<>>).
+read_multipart({done, Req}, Body) -> {ok, Body, Req};
+read_multipart({ok, Data, Req}, Body) ->
+    read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
 
 process_request(_, _, Req, [<<"upload">>]) ->
-    %%{ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
-    {ok, ReqData, Req1} = cowboy_req:body(Req),
+    {ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
+    %%{ok, ReqData, Req1} = cowboy_req:body(Req),
     ?Info("Request ~p", [ReqData]),
     Resp = {reply, jsx:encode([{<<"upload">>, 
         case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
@@ -50,16 +51,32 @@ process_request(_, _, Req, [<<"upload">>]) ->
     ?Info("Responding ~p", [Resp]),
     self() ! Resp,
     {loop, Req1, <<>>, 5000, hibernate};
+process_request(_, _, Req, [<<"download_query">>] = Typ) ->
+    {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
+    Session = proplists:get_value(<<"dderl_sess">>, ReqDataList, <<>>),
+    Adapter = proplists:get_value(<<"adapter">>, ReqDataList, <<>>),
+    FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
+    QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
+    Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
+    process_request_low(Session, Adapter, Req1
+                        , jsx:encode([{<<"download_query">>, [ {<<"connection">>, Connection}
+                                        , {<<"fileToDownload">>, FileToDownload}
+                                        , {<<"queryToDownload">>, QueryToDownload}
+                                        ]}])
+                        , Typ);
 process_request(Session, Adapter, Req, Typ) ->
+    {ok, Body, Req1} = cowboy_req:body(Req),
+    process_request_low(Session, Adapter, Req1, Body, Typ).
+
+process_request_low(Session, Adapter, Req, Body, Typ) ->
     case create_new_session(Session) of
         {ok, {_,DDerlSessPid} = DderlSess} ->
             AdaptMod = if
                 is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
                 true -> undefined
             end,
-            {ok, Body, Req1} = cowboy_req:body(Req),
             DderlSess:process_request(AdaptMod, Typ, Body, self()),
-            {loop, Req1, DDerlSessPid, 60000, hibernate};
+            {loop, Req, DDerlSessPid, 60000, hibernate};
         {error, Reason} ->
             ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
             self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
@@ -70,6 +87,13 @@ info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~s", [jsx:prettify(Body)]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
+info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
+    {ok, Req1} = reply_csv(FileName, Chunk, ChunkIdx, Req),
+    case ChunkIdx of
+        last -> {ok, Req1, DDerlSessPid};
+        single -> {ok, Req1, DDerlSessPid};
+        _ -> {loop, Req1, DDerlSessPid, hibernate}
+    end;
 info(Message, Req, State) ->
     ?Error("~p unknown message in loop ~p", [self(), Message]),
     {loop, Req, State, hibernate}.
@@ -112,13 +136,36 @@ reply_200_json(Body, EncryptedPid, Req) ->
         , {<<"dderl_sess">>, EncryptedPid}
         ], Body, Req).
 
+reply_csv(FileName, Chunk, ChunkIdx, Req) ->
+    case ChunkIdx of
+        first ->
+            {ok, Req1} = cowboy_req:chunked_reply(200, [
+                  {<<"content-encoding">>, <<"utf-8">>}
+                , {<<"content-type">>, <<"text/csv">>}
+                , {<<"Content-disposition">>, list_to_binary(["attachment;filename=", FileName])}
+                ], Req),
+            ok = cowboy_req:chunk(Chunk, Req1),
+            {ok, Req1};
+        single ->
+            {ok, Req1} = cowboy_req:chunked_reply(200, [
+                  {<<"content-encoding">>, <<"utf-8">>}
+                , {<<"content-type">>, <<"text/csv">>}
+                , {<<"Content-disposition">>, list_to_binary(["attachment;filename=", FileName])}
+                ], Req),
+            ok = cowboy_req:chunk(Chunk, Req1),
+            {ok, Req1};
+        _ ->
+            ok = cowboy_req:chunk(Chunk, Req),
+            {ok, Req}
+    end.
+
 -ifdef(DISP_REQ).
 display_req(Req) ->
     ?Info("-------------------------------------------------------"),
     ?Info("method     ~p~n", [element(1,cowboy_req:method(Req))]),
     ?Info("version    ~p~n", [element(1,cowboy_req:version(Req))]),
     ?Info("peer       ~p~n", [element(1,cowboy_req:peer(Req))]),
-    ?Info("peer_addr  ~p~n", [element(1,cowboy_req:peer_addr(Req))]),
+    %?Info("peer_addr  ~p~n", [element(1,cowboy_req:peer_addr(Req))]),
     ?Info("host       ~p~n", [element(1,cowboy_req:host(Req))]),
     ?Info("host_info  ~p~n", [element(1,cowboy_req:host_info(Req))]),
     ?Info("port       ~p~n", [element(1,cowboy_req:port(Req))]),
