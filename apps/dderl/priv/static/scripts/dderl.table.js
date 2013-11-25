@@ -399,7 +399,7 @@
         var cmd_str = this._cmd;
 
         var adapter = this._adapter;
-        var connection = this._conn;
+        var connection = dderlState.connection;
         var dderl_sess = (dderlState.session != null ? '' + dderlState.session : '');
 
         $('<iframe>')
@@ -413,7 +413,7 @@
                     .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
                 $(this).contents().find('body').append(form);
                 form.submit();
-                setTimeout(function() {iframe.remove()}, 100);
+                setTimeout(function() {iframe.remove()}, 1000);
             })
             .appendTo(document.body);
     },

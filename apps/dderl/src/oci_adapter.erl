@@ -484,12 +484,66 @@ process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
 %    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
     Priv;
 
+process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"download_query">>, BodyJson}] = ReqBody,
+    FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
+    Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
+    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    case dderloci:exec(Connection, Query) of
+        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _, ContainRowId} ->
+            ProducerPid = spawn(fun() ->
+                produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun)
+            end),
+            ?Debug("StmtRslt ~p", [Clms]),
+            Columns = build_column_csv(Clms),
+            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]),
+            From ! {reply_csv, FileName, Columns, first};
+        Error ->
+            ?Error([{session, Connection}], "query error ~p", [Error]),
+            Error = if is_binary(Error) -> Error;
+                true -> list_to_binary(lists:flatten(io_lib:format("~p", [Error])))
+            end,
+            From ! {reply_csv, FileName, Error, single}
+    end,
+    Priv;
+
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command '", CmdBin/binary, "' is unsupported">>}]}])},
     Priv.
+
+-spec build_column_csv([#stmtCol{}]) -> binary().
+build_column_csv(Cols) ->
+    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
+
+produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
+    case erlang:process_info(From) of
+        undefined ->
+            ?Error("Request aborted (response pid ~p invalid)", [From]),
+            StmtRef:close();
+        _ ->
+            produce_csv_rows_result(StmtRef:fetch_rows(?DEFAULT_ROW_SIZE), Clms, ContainRowId, From, StmtRef, RowFun)
+    end.
+
+produce_csv_rows_result({error, Error}, _Clms, _ContainRowId, From, StmtRef, _RowFun) ->
+    From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
+    StmtRef:close();
+produce_csv_rows_result({{rows, Rows}, false}, Clms, ContainRowId, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
+    RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+                             || Row <- [RowFun(R) || R <- RowsFixed]]),
+    ?Debug("Rows intermediate ~p", [CsvRows]),
+    From ! {reply_csv, <<>>, CsvRows, continue},
+    produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun);
+produce_csv_rows_result({{rows, Rows}, true}, Clms, ContainRowId, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
+    RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+                             || Row <- [RowFun(R) || R <- RowsFixed]]),
+    ?Debug("Rows last ~p", [CsvRows]),
+    From ! {reply_csv, <<>>, CsvRows, last},
+    StmtRef:close().
 
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->

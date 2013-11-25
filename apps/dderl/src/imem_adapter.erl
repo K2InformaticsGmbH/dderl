@@ -15,8 +15,6 @@
 
 -record(priv, {connections = []}).
 
--define(CSV_FIELD_SEP, ";").
-
 -spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(imem, <<"IMEM DB">>),
@@ -444,16 +442,16 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
-        {ok, #stmtResult{ stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
+        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
+            Columns = build_column_csv(Clms),
+            ?Debug("StmtRslt ~p", [Clms]),
+            From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
                 produce_csv_rows(Connection, From, StmtRef, RowFun)
             end),
             Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
-            ?Debug("StmtRslt ~p", [Clms]),
-            Columns = build_column_csv(Clms),
-            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]),
-            From ! {reply_csv, FileName, Columns, first};
+            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++

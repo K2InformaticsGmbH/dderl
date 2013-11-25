@@ -83,3 +83,7 @@
 % Function shortcuts
 -define(EncryptPid(__T), dderl:encrypt_id(__T)).
 -define(DecryptPid(__S), dderl:decrypt_id(__S)).
+
+% CSV Export
+-define(CSV_FIELD_SEP, ";").
+
