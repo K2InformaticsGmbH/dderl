@@ -839,11 +839,7 @@ function addWindowFinder(table, title) {
     var li = document.createElement("li");
 
     // Set the title and the click event.
-    if(title.length < 20) {
-        link.textContent = title;
-    } else {
-        link.textContent = title.substring(0, 17) + "...";
-    }
+    link.textContent = title;
     link.href = '#';
     link.onclick = function() {
         if(table && table._dlg && table._dlg.hasClass('ui-dialog-content')) {
@@ -854,13 +850,39 @@ function addWindowFinder(table, title) {
         }
     };
 
+    // Set the size of the dropdown if the size is bigger than the current one
+    // 9 px for each character, with a minimun of 100px
+    var titleSize = title.length * 9;
+    if(titleSize < 100) {
+        titleSize = 100;
+    }
+
+    if(windowsList.style.width) {
+        var currentRowSize = parseInt(windowsList.style.width, 10);
+        if(currentRowSize < titleSize) {
+            windowsList.style.width = titleSize + "px";
+        }
+    } else {
+        windowsList.style.width = titleSize + "px";
+    }
+
     // Append to the page.
     li.appendChild(link);
     windowsList.appendChild(li);
 
     // Bind to the close event to remove it from the list.
     table._dlg.bind("dialogclose", function(event, ui) {
+        var textChild = "";
         windowsList.removeChild(li);
+        // Set the size to the biggest element
+        var biggestChild = 100;
+        for(var i = 0; i < windowsList.children.length; ++i) {
+            sizeChild = windowsList.children[i].textContent.length * 9;
+            if(sizeChild > biggestChild) {
+                biggestChild = sizeChild;
+            }
+        }
+         windowsList.style.width = biggestChild + "px";
     });
 
     table._dlg.bind("dialogclose", function(event, ui) {
