@@ -5,7 +5,7 @@ function load_connections()
 {
     ajaxCall(null,'/app/adapters',{}, 'adapters', function(data) {
         var adapters = data;
-        for(var i=0; i<adapters.length; ++i)
+        for(var i=0; i < adapters.length; ++i)
             $('#adapter_list').append($('<option>', {
                 value: adapters[i].id,
                 text : adapters[i].fullName 
@@ -16,12 +16,17 @@ function load_connections()
             ajaxCall(null,'/app/connects',{}, 'connects', function(data) {
                 connects = data;
                 $('#connection_list').html('');
+                var connectsArray = new Array();
                 for(var id in connects) {
-                    $('#connection_list').append($('<option>', {
-                        value: id,
-                        text : connects[id].name
-                    }));
+                    connectsArray.push({value: id, text: connects[id].name});
                 }
+                connectsArray.sort(function(a, b) {
+                    return a.text == b.text ? 0: a.text < b.text ? -1 : 1;
+                });
+                for(var j = 0; j < connectsArray.length; ++j) {
+                    $('#connection_list').append($('<option>', connectsArray[j]));
+                }
+                $('#connection_list').sort();
                 set_owner_list($("#adapter_list").val());
             });
         }, 1);
@@ -74,19 +79,21 @@ function set_owner_list(adapter)
 function set_conns_list(adapter, owner)
 {
     $('#connection_list').empty();
-    for(var id in connects)
-        if(connects[id].adapter == adapter && connects[id].owner == owner)
-            $('#connection_list').append($('<option>', {
+    var connectsArray = new Array();
+    for(var id in connects) {
+        if(connects[id].adapter == adapter && connects[id].owner == owner) {
+            connectsArray.push({
                 value: id,
                 text : connects[id].name
-            }));
-    for(var id in connects)
-        if(connects[id].adapter == adapter && connects[id].owner == owner) {
-            $('#connection_list option[value="'+name+'"]').attr("selected","selected"); 
-            break;
-        } else if (owner.length == 0) {
-            break;
+            });
         }
+    }
+    connectsArray.sort(function(a, b) {
+        return a.text == b.text ? 0: a.text < b.text ? -1 : 1;
+    });
+    for(var i = 0; i < connectsArray.length; ++i) {
+        $('#connection_list').append($('<option>', connectsArray[i]));
+    }
     $('#connection_list').combobox();
     if($("#connection_list").children().length === 0) {
         $('#connection_list-input').val("");
