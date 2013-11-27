@@ -807,13 +807,13 @@ generate_fsmctx_oci(#stmtResult{
             ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(FilterSpec, SrtSpec, Cols, Query, Clms, ContainRowId) end
             ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
-                        ?Info("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
+                        ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
                         dderloci_stmt:prepare(TableName, ChangeList, Connection, Clms)
                 end
             ,update_cursor_execute_fun =
                 fun(_Lock, PrepStmt) ->
                         Result = dderloci_stmt:execute(PrepStmt),
-                        ?Info("The result from the exec ~p", [Result]),
+                        ?Debug("The result from the exec ~p", [Result]),
                         Result
                 end
            }.
@@ -852,7 +852,6 @@ fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId) ->
     case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
         {{rows, Rows}, Completed} ->
             RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
-            ?Info("StmtRef ~p, Rows ~p, Completed ~p", [StmtRef, RowsFixed, Completed]),
             FsmRef:rows({RowsFixed, Completed}),
             if
                 Completed -> ok;

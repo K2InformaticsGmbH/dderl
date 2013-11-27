@@ -301,10 +301,10 @@ update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = 
         %% driver session maps to imem_sec:update_cursor_prepare()
         %% driver session maps to imem_meta:update_cursor_prepare()
         ok ->
-            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
+            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
             ok;
         {ok, UpdRef} ->
-            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
+            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
             {ok, UpdRef};
         {_, Error} ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
@@ -320,7 +320,7 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
-            ?Info("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
+            ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
             ChangedKeys
     end.
 
@@ -333,7 +333,7 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
-            ?Info("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
+            ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
             ChangedKeys
     end.
 
@@ -1806,7 +1806,6 @@ data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
 data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=RowFun}=State0) ->
     FilterFun = filter_fun(FilterSpec),
     {Nav,Srt} = navigation_type(SortFun,FilterSpec),
-    ?Info("data_index Nav=~p Srt=~p", [Nav,Srt]),
     State1 = ind_clear(State0),
     CompleteFun = fun
         ({Id,Op,RK},Acc) ->
@@ -1949,7 +1948,6 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                     ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
                 ChangedKeys ->
-                    ?Info("The nav!! ~p", [Nav]),
                     {GuiCnt,GuiTop,GuiBot} = case Nav of
                         raw ->  data_commit_raw(TableId,ChangedKeys,0,?RawMax,?RawMin);
                         ind ->  data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,0,?IndMax,?IndMin)
@@ -2040,13 +2038,11 @@ data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
 -spec data_rollback_raw(integer(), list(), integer(), integer(), integer()) -> {integer(), integer(), integer()}.
 data_rollback_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(1,element(3,Row))==?NoKey)  ->
-    ?Info("are we inside rollback Row: ~p", [Row]),
     Id = element(1,Row),
     ets:delete(TableId,Id),    
     data_rollback_raw(TableId,ChangeList,GuiCnt,GuiTop,GuiBot);
 data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) ->
     Id = element(1,Row),
-    ?Debug("rollback replace ~p",[{Id,nop,element(3,Row)}]),
     ets:insert(TableId,{Id,nop,element(3,Row)}),    
     data_rollback_raw(TableId,ChangeList,GuiCnt+1,min(GuiTop,Id),max(GuiBot,Id)).
 
