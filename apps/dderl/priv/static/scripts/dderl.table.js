@@ -1488,6 +1488,7 @@
             if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
                 this._setSortSpecFromJson(this, _views.sort_spec);
             }
+            this._gridColumnsReorder();
             this.buttonPress(this._startBtn);
         }
         // If this is a view we add it to the current views
@@ -1531,6 +1532,7 @@
             }
             this._grid.setData([]);
             this._gdata = this._grid.getData();
+            this._gridColumnsReorder();
             this.buttonPress(this._startBtn);
         } else {
             console.log('[_renderTable] missing columns - '+_table);
@@ -1598,7 +1600,13 @@
         .appendTo(document.body)
         .table(baseOptions)
         .table('setColumns', _table.columns)
+        .table('callReorder')
         .table('buttonPress', '>');
+    },
+
+    callReorder: function() {
+        var self = this;
+        self._gridColumnsReorder();
     },
 
     _renderRows: function(_rows) {
