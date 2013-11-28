@@ -33,6 +33,7 @@
         ]).
 
 -export([ rows/2        %% incoming rows          [RowList,true] | [RowList,false] | [RowList,tail]    RowList=list(KeyTuples)
+        , rows_limit/3  %% limit of the rows that can be fetched in one request to the driver
         , gui_req/4     %% button <<"Button">> =  <<">">>
                         %%                        <<"|<">>
                         %%                        <<">>">>
@@ -249,6 +250,10 @@ rows({error, _} = Error, {?MODULE, Pid}) ->
 rows({Rows,Completed},{?MODULE,Pid}) -> 
     % ?Debug("rows ~p ~p", [length(Rows), Completed]),
     gen_fsm:send_event(Pid,{rows, {Rows,Completed}}).
+
+-spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
+rows_limit(NRows, Recs, {?MODULE, Pid}) ->
+    gen_fsm:send_event(Pid, {rows_limit, {NRows, Recs}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
@@ -643,6 +648,10 @@ autofilling({rows, {Recs,true}}, State0) ->
     % ?Debug("Rows received complete and tailing:~nState: ~p", [State0]),
     State1= data_append(tailing,{Recs,true},State0),
     {next_state, tailing, State1#state{pfc=0}};
+autofilling({rows_limit, {NRows, Recs}}, State0) ->
+    % revceive and store input from DB
+    State1 = data_append(filling,{Recs,false},State0),
+    {next_state, filling, State1#state{pfc=0}};
 autofilling(Other, State) ->
     ?Info("autofilling -- unexpected event ~p", [Other]),
     {next_state, autofilling, State}.
@@ -1529,6 +1538,8 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
             ?Debug("Guicnt != 0 ~p", [autofilling,<<">|">>]),
             gui_append(#gres{state = autofilling, loop = <<">|">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
+serve_stack(filling, #state{stack = {button, <<">|">>, ReplyTo}} = State) ->
+    serve_bot(filling, <<"">>, State#state{stack = undefined, replyToFun = ReplyTo});
 serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, Target, ReplyTo}} = State) when is_integer(Target)->
     if
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack

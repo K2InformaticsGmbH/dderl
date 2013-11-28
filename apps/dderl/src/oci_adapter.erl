@@ -555,7 +555,6 @@ disconnect(#priv{connections = Connections} = Priv) ->
 -spec gui_resp_cb_fun(binary(), {atom(), pid()}, pid()) -> fun().
 gui_resp_cb_fun(Cmd, Statement, From) ->
     Clms = Statement:get_columns(),
-    ?Info("The columns ~p", [Clms]),
     gen_adapter:build_resp_fun(Cmd, Clms, From).
 
 -spec sort_json_to_term(list()) -> [tuple()].
@@ -798,7 +797,7 @@ generate_fsmctx_oci(#stmtResult{
                         spawn(
                           fun() ->
                                   PushMode = lists:member({fetch_mode,push}, Opts),
-                                  fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId)
+                                  fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId, 0)
                           end),
                         ok
                 end
@@ -848,15 +847,19 @@ fix_null([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_D
 fix_null([Cell | RestRow], [#stmtCol{} | RestCols]) ->
     [Cell | fix_null(RestRow, RestCols)].
 
-fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId) ->
+%% Limit the number of rows returned to 10000.
+fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId, NRows) ->
     case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
         {{rows, Rows}, Completed} ->
             RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
-            FsmRef:rows({RowsFixed, Completed}),
+            NewNRows = NRows + length(RowsFixed),
             if
-                Completed -> ok;
-                PushMode -> fetch_recs_async(FsmRef, StmtRef, true, Clms, ContainRowId);
-                true -> ok
+                Completed -> FsmRef:rows({RowsFixed, Completed});
+                NewNRows >= 10000 -> FsmRef:rows_limit(NewNRows, RowsFixed);
+                PushMode ->
+                    FsmRef:rows({RowsFixed, Completed}),
+                    fetch_recs_async(FsmRef, StmtRef, true, Clms, ContainRowId, NewNRows);
+                true -> FsmRef:rows({RowsFixed, Completed})
             end;
         {error, Error} ->
             FsmRef:rows({error, Error})
