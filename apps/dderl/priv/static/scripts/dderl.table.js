@@ -813,7 +813,7 @@
         var sortGridHeight = (data.length + 2) * self.options.slickopts.rowHeight;
         self._sortDlg.height(sortGridHeight);
         //Lets put it where we have space...
-        smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['bottom','right','left','top','right']);
+        smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['center']);
     },
 
     _ajax: function(url, data, resp, callback) {
@@ -1008,7 +1008,7 @@
         self._fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
         self._fltrDlg.dialog("widget").appendTo("#main-body");
         //Lets put it where we have space...
-        smartDialogPosition($("#main-body"), this._dlg, self._fltrDlg, ['bottom','right','left','top','right']);
+        smartDialogPosition($("#main-body"), this._dlg, self._fltrDlg, ['center']);
 
         var applyFiltersFn = function(type) {
             var filterspec = self._filterSpec2Json(type);

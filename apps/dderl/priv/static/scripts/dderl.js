@@ -733,6 +733,9 @@ function smartDialogPosition(container, owner, self, checks)
             haveSpace = container.height() - ownerDlg.position().top - ownerDlg.height() > dlg.height();
             newPos = {at: 'left bottom', my : 'left top', of: ownerDlg};
             break;
+        case 'center':
+            haveSpace = false; // Only used as default.
+            newPos = {at: 'center top+60', my: 'center top', of: ownerDlg};
         }
 
         //The last check is the default pos.

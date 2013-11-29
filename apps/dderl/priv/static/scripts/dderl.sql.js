@@ -589,7 +589,7 @@ function insertAtCursor(myField, myValue) {
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
-            smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['left', 'right', 'top', 'bottom', 'right']);
+            smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['center']);
         } else {
             // TODO: Here we maximize unused space
         }
