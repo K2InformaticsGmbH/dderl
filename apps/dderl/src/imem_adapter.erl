@@ -589,7 +589,7 @@ process_query(Query, {_,ConPid}=Connection) ->
                                        }),
             Connection:add_stmt_fsm(StmtRef, StmtFsm),
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-            Columns = build_column_json(lists:reverse(Clms)),
+            Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
             ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
@@ -670,43 +670,6 @@ build_srtspec_json(SortSpecs) ->
 -spec build_column_csv([#stmtCol{}]) -> binary().
 build_column_csv(Cols) ->
     list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
-
--spec build_column_json([#stmtCol{}]) -> list().
-build_column_json(Cols) ->
-    build_column_json(Cols, [], length(Cols)).
-
--spec build_column_json([#stmtCol{}], list(), integer()) -> list().
-build_column_json([], JCols, _Counter) ->
-    [[{<<"id">>, <<"sel">>},
-      {<<"name">>, <<"">>},
-      {<<"field">>, <<"id">>},
-      {<<"behavior">>, <<"select">>},
-      {<<"cssClass">>, <<"cell-selection">>},
-      {<<"width">>, 38},
-      {<<"minWidth">>, 2},
-      {<<"cannotTriggerInsert">>, true},
-      {<<"resizable">>, true},
-      {<<"sortable">>, false},
-      {<<"selectable">>, false}] | JCols];
-build_column_json([C|Cols], JCols, Counter) ->
-    Nm = C#stmtCol.alias,
-    BinCounter = integer_to_binary(Counter),
-    Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
-    case C#stmtCol.type of
-        integer -> Type = <<"numeric">>;
-        float -> Type = <<"numeric">>;
-        decimal -> Type = <<"numeric">>;
-        _ -> Type = <<"text">>
-    end,
-    JC = [{<<"id">>, Nm1},
-          {<<"type">>, Type},
-          {<<"name">>, Nm},
-          {<<"field">>, Nm1},
-          {<<"resizable">>, true},
-          {<<"sortable">>, false},
-          {<<"selectable">>, true}],
-    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
-    build_column_json(Cols, [JCol | JCols], Counter - 1).
 
 -spec int(integer()) -> integer().
 int(C) when $0 =< C, C =< $9 -> C - $0;

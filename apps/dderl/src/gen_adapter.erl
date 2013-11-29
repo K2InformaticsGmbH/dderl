@@ -12,6 +12,7 @@
         , gui_resp/2
         , build_resp_fun/3
         , process_query/2
+        , build_column_json/1
         ]).
 
 init() -> ok.
@@ -277,3 +278,40 @@ build_resp_fun(Cmd, Clms, From) ->
             Resp -> From ! {reply, Resp}
         end
     end.
+
+-spec build_column_json([#stmtCol{}]) -> list().
+build_column_json(Cols) ->
+    build_column_json(Cols, [], length(Cols)).
+
+-spec build_column_json([#stmtCol{}], list(), integer()) -> list().
+build_column_json([], JCols, _Counter) ->
+    [[{<<"id">>, <<"sel">>},
+      {<<"name">>, <<"">>},
+      {<<"field">>, <<"id">>},
+      {<<"behavior">>, <<"select">>},
+      {<<"cssClass">>, <<"id-cell-selection">>},
+      {<<"width">>, 38},
+      {<<"minWidth">>, 2},
+      {<<"cannotTriggerInsert">>, true},
+      {<<"resizable">>, true},
+      {<<"sortable">>, false},
+      {<<"selectable">>, false}] | JCols];
+build_column_json([C|Cols], JCols, Counter) ->
+    Nm = C#stmtCol.alias,
+    BinCounter = integer_to_binary(Counter),
+    Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
+    case C#stmtCol.type of
+        integer -> Type = <<"numeric">>;
+        float -> Type = <<"numeric">>;
+        decimal -> Type = <<"numeric">>;
+        _ -> Type = <<"text">>
+    end,
+    JC = [{<<"id">>, Nm1},
+          {<<"type">>, Type},
+          {<<"name">>, Nm},
+          {<<"field">>, Nm1},
+          {<<"resizable">>, true},
+          {<<"sortable">>, false},
+          {<<"selectable">>, true}],
+    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
+    build_column_json(Cols, [JCol | JCols], Counter - 1).

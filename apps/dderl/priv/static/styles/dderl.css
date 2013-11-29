@@ -140,8 +140,16 @@ button.menubutton
   border-right-style: solid;*/
   background: #ECECEC;
   color: #8A8A8A;
-  text-align: right;
   font-size: 10px;
+}
+
+.id-cell-selection {
+  /*border-right-color: silver;
+  border-right-style: solid;*/
+  background: #ECECEC;
+  color: #8A8A8A;
+  font-size: 10px;
+  text-align: right;
 }
 
 .slick-cell.selected {

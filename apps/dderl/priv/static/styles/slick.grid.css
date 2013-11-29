@@ -104,10 +104,27 @@ classes should alter those!
 }
 
 .slick-group {
+  border-bottom: 2px solid silver;
 }
 
 .slick-group-toggle {
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
   display: inline-block;
+}
+
+.slick-group-toggle.expanded {
+  background: url(../media/collapse.gif) no-repeat center center;
+}
+
+.slick-group-toggle.collapsed {
+  background: url(../media/expand.gif) no-repeat center center;
+}
+
+.slick-group-totals {
+  color: gray;
+  background: white;
 }
 
 .slick-cell.highlighted {
