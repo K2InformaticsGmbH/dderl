@@ -2435,7 +2435,7 @@
     },
 
     _getGridHeight: function() {
-        var rows = this._grid.getData().length + 2;
+        var rows = this._gridDataView.getItems().length + 2;
         return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
     },
 
