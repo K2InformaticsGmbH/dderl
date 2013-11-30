@@ -2680,7 +2680,7 @@
                         }
 
                         var oldDlgHeight = dlg.height();
-                        var gHeight = self._getGridHeight() + 10;
+                        var gHeight = self._getGridHeight();
                         var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
                         if (dlg.height() > gHeight || gHeight < rWindowHeight) {
                             // if dialog is already bigger than height required by the table or
