@@ -522,6 +522,7 @@
         this._clmlay = null;
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
+        this._filters = null;
         this._ajax('/app/query', {query: {connection: dderlState.connection, qstr : this._cmd}}, 'query', 'queryResult');
         this._dlg.dialog("moveToTop");
     },

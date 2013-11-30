@@ -207,7 +207,17 @@
 
         function handleKeyDown(e) {
             var activeCell = _grid.getActiveCell();
-            if (activeCell && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey &&
+            if(e.ctrlKey && e.keyCode === 65) {
+                var maxRow = _grid.getDataLength() - 1;
+                _grid.setActiveCell(0, 1);
+                _ranges = [];
+                for(var i = 1; i < _grid.getColumns().length; ++i) {
+                    _ranges.push(createFullColRange(0, i, maxRow, i));
+                }
+                setSelectedRanges(_ranges);
+                e.preventDefault();
+                e.stopPropagation();
+            } else if (activeCell && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey &&
                 (e.which >= 37 && e.which <= 40)) {
                 _grid.getEditorLock().commitCurrentEdit();
 
