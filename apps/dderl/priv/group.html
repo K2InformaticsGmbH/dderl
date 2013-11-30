@@ -23,14 +23,9 @@
   </style>
 </head>
 <body>
-<div style="position:relative">
-  <div style="width:600px;">
-    <div class="grid-header" style="width:100%">
-      <label>SlickGrid</label>
-    </div>
-    <div id="myGrid" style="width:100%;height:500px;"></div>
-  </div>
-</div>
+<button onclick="dataView.setGrouping([])">Clear grouping</button>
+<button onclick="groupByColumn('title','/')">Group</button>
+<div id="myGrid" style="width:100%;height:900px;"></div>
 
 <script src="../static/scripts/jquery.min.js"></script>
 <script src="../static/scripts/jquery-ui.min.js"></script>
@@ -55,12 +50,7 @@ var data = [];
 var columns = [
   {id: "sel", name: "#", field: "num", cssClass: "cell-selection", width: 40, resizable: false, selectable: false, focusable: false },
   {id: "title", name: "Title", field: "title", width: 70, minWidth: 50, cssClass: "cell-title", sortable: true, editor: Slick.Editors.Text},
-  {id: "duration", name: "Duration", field: "duration", width: 70, sortable: true, groupTotalsFormatter: sumTotalsFormatter},
-  {id: "%", name: "% Complete", field: "percentComplete", width: 80, formatter: Slick.Formatters.PercentCompleteBar, sortable: true, groupTotalsFormatter: avgTotalsFormatter},
-  {id: "start", name: "Start", field: "start", minWidth: 60, sortable: true},
-  {id: "finish", name: "Finish", field: "finish", minWidth: 60, sortable: true},
-  {id: "cost", name: "Cost", field: "cost", width: 90, sortable: true, groupTotalsFormatter: sumTotalsFormatter},
-  {id: "effort-driven", name: "Effort Driven", width: 80, minWidth: 20, maxWidth: 80, cssClass: "cell-effort-driven", field: "effortDriven", formatter: Slick.Formatters.Checkmark, sortable: true}
+  {id: "duration", name: "Duration", field: "duration", width: 70, sortable: true}
 ];
 
 var options = {
@@ -68,155 +58,71 @@ var options = {
   editable: true
 };
 
-var sortcol = "title";
-var sortdir = 1;
-var percentCompleteThreshold = 0;
-var prevPercentCompleteThreshold = 0;
-
-function avgTotalsFormatter(totals, columnDef) {
-  var val = totals.avg && totals.avg[columnDef.field];
-  if (val != null) {
-    return "avg: " + Math.round(val) + "%";
-  }
-  return "";
-}
-
-function sumTotalsFormatter(totals, columnDef) {
-  var val = totals.sum && totals.sum[columnDef.field];
-  if (val != null) {
-    return "total: " + ((Math.round(parseFloat(val)*100)/100));
-  }
-  return "";
-}
-
-function myFilter(item, args) {
-  return item["percentComplete"] >= args.percentComplete;
-}
-
-function percentCompleteSort(a, b) {
-  return a["percentComplete"] - b["percentComplete"];
-}
-
-function comparer(a, b) {
-  var x = a[sortcol], y = b[sortcol];
-  return (x == y ? 0 : (x > y ? 1 : -1));
-}
-
-function groupByDuration() {
-  dataView.setGrouping({
-    getter: "duration",
-    formatter: function (g) {
-      return "Duration:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
-    },
-    aggregators: [
-      new Slick.Data.Aggregators.Avg("percentComplete"),
-      new Slick.Data.Aggregators.Sum("cost")
-    ],
-    aggregateCollapsed: false
-  });
-}
-
-function groupByDurationOrderByCount(aggregateCollapsed) {
-  dataView.setGrouping({
-    getter: "duration",
-    formatter: function (g) {
-      return "Duration:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
-    },
-    comparer: function (a, b) {
-      return a.count - b.count;
-    },
-    aggregators: [
-      new Slick.Data.Aggregators.Avg("percentComplete"),
-      new Slick.Data.Aggregators.Sum("cost")
-    ],
-    aggregateCollapsed: aggregateCollapsed
-  });
-}
-
-function groupByDurationEffortDriven() {
-  dataView.setGrouping([
-    {
-      getter: "duration",
-      formatter :function (g) {
-        return "Duration:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
-      },
-      aggregators: [
-        new Slick.Data.Aggregators.Sum("duration"),
-        new Slick.Data.Aggregators.Sum("cost")
-      ],
-      aggregateCollapsed: true
-    },
-    {
-      getter: "effortDriven",
-      formatter :function (g) {
-        return "Effort-Driven:  " + (g.value ? "True" : "False") + "  <span style='color:green'>(" + g.count + " items)</span>";
-      },
-      aggregators: [
-        new Slick.Data.Aggregators.Avg("percentComplete"),
-        new Slick.Data.Aggregators.Sum("cost")
-      ],
-      collapsed: true
+function groupByColumn(dataView,col,seperator) {
+    var getters = [];
+    var funcs = [];
+    var ldata = dataView.getItems();
+    var level = 0;
+    for (var r = 0; r < ldata.length; ++r) {
+        var curlength = ldata[r][col].split(seperator).length - 1;
+        if (level < curlength) level = curlength;
     }
-  ]);
-}
-
-function groupByDurationEffortDrivenPercent() {
-  dataView.setGrouping([
-    {
-      getter: "duration",
-      formatter: function (g) {
-        return "Duration:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
-      },
-      aggregators: [
-        new Slick.Data.Aggregators.Sum("duration"),
-        new Slick.Data.Aggregators.Sum("cost")
-      ],
-      aggregateCollapsed: true
-    },
-    {
-      getter: "effortDriven",
-      formatter: function (g) {
-        return "Effort-Driven:  " + (g.value ? "True" : "False") + "  <span style='color:green'>(" + g.count + " items)</span>";
-      },
-      aggregators :[
-        new Slick.Data.Aggregators.Sum("duration"),
-        new Slick.Data.Aggregators.Sum("cost")
-      ]
-    },
-    {
-      getter: "percentComplete",
-      formatter: function (g) {
-        return "% Complete:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
-      },
-      aggregators: [
-        new Slick.Data.Aggregators.Avg("percentComplete")
-      ],
-      aggregateCollapsed: true,
-      collapsed: true
+    for (var r = 0; r < ldata.length; ++r) {
+        var curlength = ldata[r][col].split(seperator).length - 1;
+        var parts = ldata[r][col].split(seperator);
+        for (var li = 0; li < level - curlength; ++li)
+            parts.splice(-1, 0, "");
+        ldata[r][col+'_grp'] = parts.join(seperator);
     }
-  ]);
+
+    for (var i = 0; i < level; i++) {          
+        funcs[funcs.length] = (function(idx) {   
+            return function(row) {
+                return row[col+'_grp'].split(seperator)[idx];
+            }
+        })(i);
+    }    
+    for(var i = 0; i < level; ++i) {
+        getters[getters.length] = {
+            getter: funcs[i],
+            formatter: function (g) {
+                return "" + g.value + " <span style='color:green'>(" + g.count + " items)</span>";
+            },
+            collapsed: false
+        };
+    }
+    dataView.setGrouping(getters);
 }
 
-function loadData(count) {
-  var someDates = ["01/01/2009", "02/02/2009", "03/03/2009"];
-  data = [];
+function loadData(data) {
   // prepare the data
-  for (var i = 0; i < count; i++) {
+  var Files = [
+    "SBS0/ENPLASYNCSTATE.QEF",
+    "SBS0/ENPLASYNC/RECENT.QEF",
+    "SBS0/ENPLASYNC/RECENT/MI.QEF",
+    "SBS0/ENPLASYNC/RECENT/MI2.QEF",
+    "SBS1/ALL/IND/PARTITIONS.QEF",
+    "SBS1/ALL/PRICEMODELS.QEF",
+    "SBS1/ALL/TABLES.QEF",
+    "SBS1/ALL/TABLES/LIST.QEF",
+    "SBS1/ALL/TAB/PARTITIONS.QEF",
+    "SBS1/BDETAIL.QEF",
+    "SBS1/DSS/BY/TIME.QEF",
+    "SBS1/DSS/BY/TIME/AND/MSISDN.QEF",
+    "SBS2/WARNING/RECENT.QEF",
+    "SBS2/WARNING/RECENT2.QEF"
+  ];
+
+  for (var i = 0; i < Files.length; i++) {
     var d = (data[i] = {});
 
     d["id"] = "id_" + i;
     d["num"] = i;
-    d["title"] = "Task " + i;
+    d["title"] = Files[i];
     d["duration"] = Math.round(Math.random() * 14);
-    d["percentComplete"] = Math.round(Math.random() * 100);
-    d["start"] = someDates[ Math.floor((Math.random()*2)) ];
-    d["finish"] = someDates[ Math.floor((Math.random()*2)) ];
-    d["cost"] = Math.round(Math.random() * 10000) / 100;
-    d["effortDriven"] = (i % 5 == 0);
   }
-  dataView.setItems(data);
+  //dataView.setItems(data);
 }
-
 
 $(".grid-header .ui-icon")
     .addClass("ui-state-default ui-corner-all")
@@ -228,48 +134,13 @@ $(".grid-header .ui-icon")
     });
 
 $(function () {
-  var groupItemMetadataProvider = new Slick.Data.GroupItemMetadataProvider();
-  dataView = new Slick.Data.DataView({
-    groupItemMetadataProvider: groupItemMetadataProvider,
-    inlineFilters: true
-  });
+  //var groupItemMetadataProvider = ;
+  dataView = new Slick.Data.DataView();
   grid = new Slick.Grid("#myGrid", dataView, columns, options);
 
   // register the group item metadata provider to add expand/collapse group handlers
-  grid.registerPlugin(groupItemMetadataProvider);
+  grid.registerPlugin(new Slick.Data.GroupItemMetadataProvider());
   grid.setSelectionModel(new Slick.CellSelectionModel());
-
-  var columnpicker = new Slick.Controls.ColumnPicker(columns, grid, options);
-
-
-  grid.onSort.subscribe(function (e, args) {
-    sortdir = args.sortAsc ? 1 : -1;
-    sortcol = args.sortCol.field;
-
-    if ($.browser.msie && $.browser.version <= 8) {
-      // using temporary Object.prototype.toString override
-      // more limited and does lexicographic sort only by default, but can be much faster
-
-      var percentCompleteValueFn = function () {
-        var val = this["percentComplete"];
-        if (val < 10) {
-          return "00" + val;
-        } else if (val < 100) {
-          return "0" + val;
-        } else {
-          return val;
-        }
-      };
-
-      // use numeric sort of % and lexicographic for everything else
-      dataView.fastSort((sortcol == "percentComplete") ? percentCompleteValueFn : sortcol, args.sortAsc);
-    }
-    else {
-      // using native sort with comparer
-      // preferred method but can be very slow in IE with huge datasets
-      dataView.sort(comparer, args.sortAsc);
-    }
-  });
 
   // wire up model events to drive the grid
   dataView.onRowCountChanged.subscribe(function (e, args) {
@@ -282,52 +153,9 @@ $(function () {
     grid.render();
   });
 
-
-  var h_runfilters = null;
-
-  // wire up the slider to apply the filter to the model
-  $("#pcSlider,#pcSlider2").slider({
-    "range": "min",
-    "slide": function (event, ui) {
-      Slick.GlobalEditorLock.cancelCurrentEdit();
-
-      if (percentCompleteThreshold != ui.value) {
-        window.clearTimeout(h_runfilters);
-        h_runfilters = window.setTimeout(filterAndUpdate, 10);
-        percentCompleteThreshold = ui.value;
-      }
-    }
-  });
-
-
-  function filterAndUpdate() {
-    var isNarrowing = percentCompleteThreshold > prevPercentCompleteThreshold;
-    var isExpanding = percentCompleteThreshold < prevPercentCompleteThreshold;
-    var renderedRange = grid.getRenderedRange();
-
-    dataView.setFilterArgs({
-      percentComplete: percentCompleteThreshold
-    });
-    dataView.setRefreshHints({
-      ignoreDiffsBefore: renderedRange.top,
-      ignoreDiffsAfter: renderedRange.bottom + 1,
-      isFilterNarrowing: isNarrowing,
-      isFilterExpanding: isExpanding
-    });
-    dataView.refresh();
-
-    prevPercentCompleteThreshold = percentCompleteThreshold;
-  }
-
   // initialize the model after all the events have been hooked up
-  dataView.beginUpdate();
-  dataView.setFilter(myFilter);
-  dataView.setFilterArgs({
-    percentComplete: percentCompleteThreshold
-  });
-  loadData(50);
-  groupByDurationEffortDrivenPercent();
-  dataView.endUpdate();
+  loadData(dataView.getItems(), 15);
+  groupByColumn(dataView,'title',/[#/]/);
 
   $("#gridContainer").resizable();
 })

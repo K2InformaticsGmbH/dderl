@@ -898,3 +898,39 @@ function addWindowFinder(table, title) {
     dderlState.currentWindows.push(table);
     return link;
 }
+
+function groupByColumn(dataView,col,seperator) {
+    var getters = [];
+    var funcs = [];
+    var ldata = dataView.getItems();
+    var level = 0;
+    for (var r = 0; r < ldata.length; ++r) {
+        var curlength = ldata[r][col].split(seperator).length - 1;
+        if (level < curlength) level = curlength;
+    }
+    for (var r = 0; r < ldata.length; ++r) {
+        var curlength = ldata[r][col].split(seperator).length - 1;
+        var parts = ldata[r][col].split(seperator);
+        for (var li = 0; li < level - curlength; ++li)
+            parts.splice(-1, 0, "");
+        ldata[r][col+'_grp'] = parts.join('/');
+    }
+
+    for (var i = 0; i < level; i++) {          
+        funcs[funcs.length] = (function(idx) {   
+            return function(row) {
+                return row[col+'_grp'].split('/')[idx];
+            }
+        })(i);
+    }    
+    for(var i = 0; i < level; ++i) {
+        getters[getters.length] = {
+            getter: funcs[i],
+            formatter: function (g) {
+                return "" + g.value + "<span class='slick-group-count'>(" + g.count + ")</span>";
+            },
+            collapsed: true
+        };
+    }
+    dataView.setGrouping(getters);
+}

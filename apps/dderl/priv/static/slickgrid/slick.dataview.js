@@ -478,6 +478,8 @@
       for (var i = 0, l = rows.length; i < l; i++) {
         r = rows[i];
         val = gi.getterIsAFn ? gi.getter(r) : r[gi.getter];
+        //if (val.length === 0)
+        //   return groups;
         group = groupsByVal[val];
         if (!group) {
           group = new Slick.Group();

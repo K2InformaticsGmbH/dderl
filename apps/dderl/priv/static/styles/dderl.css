@@ -149,7 +149,6 @@ button.menubutton
   background: #ECECEC;
   color: #8A8A8A;
   font-size: 10px;
-  text-align: right;
 }
 
 .slick-cell.selected {
@@ -505,4 +504,32 @@ div#main_footer {
 .demo-placeholder {
 	width: 100%;
 	height: 100%;
+}
+
+.slick-group-title {
+/*  font-weight: bold;*/
+  color: black;
+  font-size: 10px;
+}
+
+/*.slick-group-title[level='0'] {
+  font-weight: bold;
+  color: black;
+  font-size: 10px;
+}
+
+.slick-group-title[level='1'] {
+  font-weight: bold;
+  color: black;
+  font-size: 10px;
+}
+
+.slick-group-title[level='2'] {
+  font-weight: bold;
+  color: black;
+  font-size: 10px;
+}*/
+
+.slick-group-count {
+    color:grey;
 }

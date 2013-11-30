@@ -8,6 +8,7 @@
     _footerWidth    : 0,
     _grid           : null,
     _gdata          : null,
+    _gridDataView   : null,
     _txtlen         : null,
     _fnt            : null,
     _fntSz          : null,
@@ -107,7 +108,8 @@
                        'Sort ASC'         : '_sortAsc',
                        'Sort DESC'        : '_sortDesc',
                        'Sort Clear'       : '_sortClear',
-                       'Histogram'        : '_showHistogram'},
+                       'Histogram'        : '_showHistogram',
+                       'Toggle Grouping'  : '_toggleGrouping'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
                        'Edit'             : '_editErlangTerm',
@@ -311,7 +313,12 @@
                     if(_action === "Histogram") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
-                    } else {
+                    }
+                    else if(_action === "Toggle Grouping") {
+                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
+                                columnId: _columnId};
+                    }
+                    else {
                         data = this._grid.getSelectionModel().getSelectedRanges();
                     }
                 break;
@@ -475,7 +482,6 @@
         self._ajax('/app/save_view', saveView, 'save_view', 'newViewResult');
     },
 
-
     _showHistogram: function(data) {
         var self = this;
         var columnId = data.columnId;
@@ -487,6 +493,16 @@
 
         console.log('show histogram ' + JSON.stringify(data));
         self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
+    },
+
+    _toggleGrouping: function(data) {
+        var self = this;
+        var columnId = data.columnId;
+        console.log('show histogram ' + JSON.stringify(data));
+        if (self._gridDataView.getGrouping().length == 0)
+            groupByColumn(self._gridDataView,columnId,/[#-\/]/);
+        else
+            self._gridDataView.setGrouping([]);
     },
 
     // Open plot for this table
@@ -1148,11 +1164,15 @@
         var self = this;
 
         // building slickgrid
+        //
+        self._gridDataView = new Slick.Data.DataView();
+
         // a dummy column needed to be added to enable slickgrid to enable column re-order
-        self._grid = new Slick.Grid(self._tableDiv, [], [{id: "_"}], self.options.slickopts);
+        self._grid = new Slick.Grid(self._tableDiv, self._gridDataView, [{id: "_"}], self.options.slickopts);
         self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
         var copyManager = new Slick.CellExternalCopyManager();
         self._grid.registerPlugin(copyManager);
+        self._grid.registerPlugin(new Slick.Data.GroupItemMetadataProvider());
         copyManager.onPasteCells.subscribe($.proxy(self._gridPasteCells, self));
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
@@ -1166,7 +1186,17 @@
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
         self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
         self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
-        self._gdata = self._grid.getData();
+
+        // wire up model events to drive the grid
+        self._gridDataView.onRowCountChanged.subscribe(function (e, args) {
+          self._grid.updateRowCount();
+          self._grid.render();
+        });
+        self._gridDataView.onRowsChanged.subscribe(function (e, args) {
+          self._grid.invalidateRows(args.rows);
+          self._grid.render();
+        });
+        self._gdata = self._gridDataView.getItems();
     },
 
     _setupEventHandlers: function() {
@@ -1530,8 +1560,10 @@
             if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
                 this._setSortSpecFromJson(this, _table.sort_spec);
             }
-            this._grid.setData([]);
-            this._gdata = this._grid.getData();
+            this._gridDataView.beginUpdate();
+            this._gridDataView.setItems([]);
+            this._gridDataView.endUpdate();
+            this._gdata = this._gridDataView.getItems();
             this._gridColumnsReorder();
             this.buttonPress(this._startBtn);
         } else {
@@ -1788,15 +1820,16 @@
 
         var g           = args.grid;
         var cell        = g.getCellFromEvent(e);
+        var gdata       = g.getData().getItems();
 
         //Check if we are in a new row.
-        if(!g.getData()[cell.row]) {
+        if(!gdata[cell.row]) {
             return;
         }
         
         var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
-        var data        = g.getData()[cell.row][column.field];
+        var data        = gdata[cell.row][column.field];
         var gSelMdl     = g.getSelectionModel();
         var gSelecteds  = gSelMdl.getSelectedRanges();
         var activeCell  = g.getActiveCell();
@@ -2535,8 +2568,10 @@
         var needScroll = false;
         switch (_rows.op) {
             case "rpl": // replace
-                self._grid.setData(_rows.rows);
-                self._gdata = self._grid.getData();
+                self._gridDataView.beginUpdate();
+                self._gridDataView.setItems(_rows.rows);
+                self._gridDataView.endUpdate();
+                self._gdata = self._gridDataView.getItems();
                 computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
                 if(computedFocus < 0) computedFocus = 0;
                 if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;

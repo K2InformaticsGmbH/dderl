@@ -165,15 +165,22 @@
           }
       }
 
-      var availableRows = _grid.getData().length - activeRow;
+      var availableRows = _grid.getDataLength() - activeRow;
       var addRows = 0;
       if(availableRows < destH)
       {
         var d = _grid.getData();
+        if (_grid.getData() instanceof Slick.Data.DataView)
+            d = _grid.getData().getItems();
+
         for(addRows = 1; addRows <= destH - availableRows; addRows++) {
             d.push({});
         }
-        _grid.setData(d);
+
+        if (_grid.getData() instanceof Slick.Data.DataView)
+            _grid.getData().setItems(d);
+        else
+            _grid.setData(d);
         _grid.render();
       }
       var clipCommand = {
@@ -210,7 +217,12 @@
 
               if (desty < this.maxDestY && destx < this.maxDestX ) {
                 var nd = _grid.getCellNode(desty, destx);
-                var dt = _grid.getDataItem(desty);
+                var dt = null;
+                if (_grid.getData() instanceof Slick.Data.DataView)
+                    dt = _grid.getData().getItems()[desty];
+                else
+                    dt = _grid.getDataItem(desty);
+
                 this.oldValues[y][x] = dt[columns[destx]['id']];
                 if (oneCellToMultiple) {
                     this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
@@ -237,7 +249,11 @@
 
               if (desty < this.maxDestY && destx < this.maxDestX ) {
                 var nd = _grid.getCellNode(desty, destx);
-                var dt = _grid.getDataItem(desty);
+                var dt = null;
+                if (_grid.getData() instanceof Slick.Data.DataView)
+                    dt = _grid.getData().getItems()[desty];
+                else
+                    dt = _grid.getDataItem(desty);
                 if (oneCellToMultiple)
                   this.setDataItemValueForColumn(dt, columns[destx], this.oldValues[0][0]);
                 else
@@ -255,9 +271,14 @@
           
           if(addRows > 1){
             var d = _grid.getData();
+            if (_grid.getData() instanceof Slick.Data.DataView)
+                d = _grid.getData().getItems();
             for(; addRows > 1; addRows--)
               d.splice(d.length - 1, 1);
-            _grid.setData(d);
+            if (_grid.getData() instanceof Slick.Data.DataView)
+                _grid.getData().setItems(d);
+            else
+                _grid.setData(d);
             _grid.render();
           }
         }
@@ -293,6 +314,8 @@
             var columns = _grid.getColumns();
             var clipTextArr = [];
             var gridData = _grid.getData();
+            if (_grid.getData() instanceof Slick.Data.DataView)
+                gridData = _grid.getData().getItems();
 
             for (var rg = 0; rg < ranges.length; rg++){
                 var range = ranges[rg];
