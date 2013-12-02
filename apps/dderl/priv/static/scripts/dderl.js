@@ -41,7 +41,8 @@ var dderlState = {
     currentDashboard: null,
     currentViews: null,
     currentWindows: new Array(),
-    saveDashboardCounter: 0
+    saveDashboardCounter: 0,
+    connectionSelected: null
 }
 
 // generic dderlserver call interface

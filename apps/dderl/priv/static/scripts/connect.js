@@ -28,6 +28,9 @@ function load_connections()
                 }
                 $('#connection_list').sort();
                 set_owner_list($("#adapter_list").val());
+                if(dderlState && dderlState.connectionSelected) {
+                    setConnectValues(dderlState.connectionSelected);
+                }
             });
         }, 1);
     });
@@ -276,6 +279,7 @@ function connect_dlg()
                             'Error: '+data.error
                         );
                     } else {
+                        saveConnectValues($("#adapter_list").val(), $("#owners_list").val(), $("#connection_list").val());
                         Dlg.dialog("close");
                         //Setting up the global connection.
                         dderlState.connection = data;
@@ -335,6 +339,27 @@ function connect_dlg()
       }
       $('#con_name').html($(this).val().toUpperCase() + '&nbsp;');
     });
+}
+
+function saveConnectValues(adapter, owner, connection) {
+    dderlState.connectionSelected = {adapter: adapter, owner: owner, connection: connection};
+}
+
+function setConnectValues(selectedValues) {
+    $("#adapter_list").val(selectedValues.adapter);
+    var adapterText = $("#adapter_list option:selected").text();
+    $("#adapter_list-input").val(adapterText);
+    $("#adapter_list").change();
+
+    $("#owners_list").val(selectedValues.owner);
+    var ownerText = $("#owners_list option:selected").text();
+    $("#owners_list-input").val(ownerText);
+    $("#owners_list").change();
+
+    $("#connection_list").val(selectedValues.connection);
+    var selectedText = $("#connection_list option:selected").text();
+    $('#connection_list-input').val(selectedText);
+    load_login_form(selectedValues.connection);
 }
 
 function load_login_form(id) {
