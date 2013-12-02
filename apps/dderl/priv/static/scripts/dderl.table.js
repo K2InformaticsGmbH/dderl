@@ -48,6 +48,7 @@
     _editedText     : null,
     _editorEscaped  : false,
     _loop           : "",
+    _spinCounter    : null,
 
     // flag to avoid multiple calls to reorder
     _reorderCalled  : false,
@@ -175,6 +176,7 @@
 
         self._origcolumns = {};
         self._gdata = [];
+        self._spinCounter = 0;
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -834,6 +836,7 @@
     },
 
     _ajax: function(url, data, resp, callback) {
+        this._spinCounter += 1;
         if(this._dlg.hasClass('ui-dialog-content')) {
             this._setTitleHtml($(this._dlg.dialog('option', 'title')).addClass('table-title-wait'));
         }
@@ -1389,7 +1392,7 @@
     },
     _checkSaveViewResult: function(_saveView) {
         var self = this;
-        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        self.removeWheel();
         if(_saveView === "ok") {
              console.log('[AJAX] view saved!');
         } else if(_saveView.hasOwnProperty('view_id')) {
@@ -1419,7 +1422,7 @@
     },
     _checkNewViewResult: function(_saveView) {
         var self = this;
-        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        self.removeWheel();
         if(_saveView === "ok") {
              console.log('[AJAX] view saved!');
         } else if(_saveView.hasOwnProperty('view_id')) {
@@ -1603,7 +1606,7 @@
         }
 
 
-        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        this.removeWheel();
         var baseOptions = {
             autoOpen        : false,
             title           : _table.name,
@@ -1677,7 +1680,7 @@
 
     _reloadOnSuccess: function(result) {
         // received response clear wait wheel
-        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        this.removeWheel();
         if(result.hasOwnProperty('error')) {
             alert_jq(result.error);
         } else {
@@ -1699,7 +1702,7 @@
                 }
             }
         }
-        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        self.removeWheel();
         $('<div>').appendTo(document.body)
             .histogramTable({
                 autoOpen       : false,
@@ -1714,7 +1717,7 @@
     _openErlangTermEditor: function(formattedString) {
         var self = this;
         // received response clear wait wheel
-        self._setTitleHtml($(self._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        self.removeWheel();
 
         if(formattedString.hasOwnProperty('error')) {
             //If it is not an erlang term
@@ -2490,6 +2493,13 @@
         self._dlg.dialog('open');
     },
 
+    removeWheel : function()
+    {
+        if(this._spinCounter <= 0) {
+            this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        }
+    },
+
     // public function for loading rows
     // used by ajaxCall but can also be used directly
     appendRows: function(_rows)
@@ -2503,7 +2513,7 @@
         var firstChunk = (self._gdata.length === 0);
 
         // received response clear wait wheel
-        this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        self.removeWheel();
 
         // system actions (beep and others)
         if(_rows.beep) beep();

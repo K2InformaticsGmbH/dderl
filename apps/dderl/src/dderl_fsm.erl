@@ -648,7 +648,7 @@ autofilling({rows, {Recs,true}}, State0) ->
     % ?Debug("Rows received complete and tailing:~nState: ~p", [State0]),
     State1= data_append(tailing,{Recs,true},State0),
     {next_state, tailing, State1#state{pfc=0}};
-autofilling({rows_limit, {NRows, Recs}}, State0) ->
+autofilling({rows_limit, {_NRows, Recs}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(filling,{Recs,false},State0),
     {next_state, filling, State1#state{pfc=0}};
@@ -1277,7 +1277,7 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
     if
         (BufCnt == 0) andalso (SN == filling) ->
             ?Debug("~p waiting for the fetch to complete ~p", [SN, <<">">>]),
-            gui_nop(#gres{state=filling, loop= <<">">>}, State0);
+            State0#state{stack={button,<<">">>,ReplyTo}};
         (BufCnt == 0) ->
             %% no data, serve empty gui
             State1 = prefetch(SN,State0),

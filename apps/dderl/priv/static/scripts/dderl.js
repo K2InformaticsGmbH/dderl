@@ -54,14 +54,16 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     var self = _ref;
 
     // if data is JSON object format to string
-    if(_data == null) _data = JSON.stringify({});
-    else
+    if(_data == null) {
+        _data = JSON.stringify({});
+    } else {
         try {
             _data = JSON.stringify(_data);
         } catch (ex) {
             console.error(_data + ' is not JSON');
             throw(ex);
         }
+    }
 
     console.log('[AJAX] TX '+_url);
 
@@ -86,6 +88,11 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         {
             console.log('Request '+_url+' Result '+textStatus);
 
+            if(this && this.hasOwnProperty('_spinCounter') && this._dlg && this._dlg.hasClass('ui-dialog-content')) {
+                this._spinCounter -= 1;
+                this.removeWheel();
+            }
+
             // Save the session if the request was to log in.
             if(_url == '/app/login') {
                 var s = request.getResponseHeader('dderl_sess');
@@ -101,17 +108,19 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             else if(_data.hasOwnProperty(_resphead)) {
                 console.log('[AJAX] RX '+_resphead);
                 if(this.hasOwnProperty('context') && null == this.context) {
-                    if(null === _successevt)
+                    if(null === _successevt) {
                         console.log('no success callback for '+_url);
-                    else if($.isFunction(_successevt))
+                    } else if($.isFunction(_successevt)) {
                         _successevt(_data[_resphead]);
-                    else
+                    } else {
                         throw('unsupported success event '+_successevt+' for '+_url);
+                    }
                 } else {
-                    if(this._handlers.hasOwnProperty(_successevt))
+                    if(this._handlers.hasOwnProperty(_successevt)) {
                         this.element.trigger(_successevt, _data[_resphead]);
-                    else
+                    } else {
                         throw('unsupported success event '+_successevt+' for '+_url);
+                    }
                 }
             }
             else if(_data.hasOwnProperty('error')) {
@@ -126,6 +135,11 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         },
 
         error: function (request, textStatus, errorThrown) {
+            if(this.hasOwnProperty('_spinCounter')) {
+                this._spinCounter -= 1;
+                this.removeWheel();
+            }
+
             if(_url == '/app/ping') {
                 _successevt("error");
             } else {
