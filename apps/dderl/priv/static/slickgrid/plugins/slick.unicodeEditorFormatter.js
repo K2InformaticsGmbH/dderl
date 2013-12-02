@@ -44,6 +44,7 @@ function fromUnicodeLiteral(str)
                 "Checkmark": CheckmarkFormatter,
                 "AscDescSelect": AscDescSelectFormatter,
                 "BinStringText": BinStringTextFormatter,
+                "IdFormatter": IdFormatter,
             },
             "Editors": {
                 "ControlChars": ControlCharsEditor
@@ -68,6 +69,10 @@ function fromUnicodeLiteral(str)
             newValue = value.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         }
         return unicodeLiteral(newValue);
+    }
+
+    function IdFormatter(row, cell, value, columnDef, dataContext) {
+        return '<div style="text-align:right; width: 100%;">'+value.toString()+'</div>';
     }
 
     function ControlCharsEditor(args) {

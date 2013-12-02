@@ -501,8 +501,9 @@
         var self = this;
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
-        if (self._gridDataView.getGrouping().length == 0)
+        if (self._gridDataView.getGrouping().length == 0) {
             groupByColumn(self._gridDataView,columnId,/[#-\/]/);
+        }
         else
             self._gridDataView.setGrouping([]);
     },
@@ -1922,7 +1923,7 @@
         }
 
         var g           = args.grid;
-        var modifiedRow = g.getData()[args.row];
+        var modifiedRow = g.getData().getItems()[args.row];
         var cols        = g.getColumns();
         var updateJson  = {update_data: {connection  : this._conn,
                                          statement   : this._stmt,
@@ -2380,14 +2381,14 @@
     },
 
     _atBottom : function() {
-        return this._grid.getViewport().bottom >= this._grid.getData().length;
+        return this._grid.getViewport().bottom >= this._gdata.length;
     },
 
     _scrollNext : function() {
         var currentViewPort = this._grid.getViewport();
         //The viewport reports 2 more rows than the visible rows...
         var numberOfRows = currentViewPort.bottom - currentViewPort.top - 4;
-        var rowScrollTarget = Math.min(this._grid.getData().length, currentViewPort.bottom + numberOfRows);
+        var rowScrollTarget = Math.min(this._gdata.length, currentViewPort.bottom + numberOfRows);
         this._grid.scrollRowIntoView(rowScrollTarget);
     },
 
@@ -2454,6 +2455,7 @@
         var columns = _cols;
         var fldWidth = 0;
         self._origcolumns = {};
+        columns[0].formatter = Slick.Formatters.IdFormatter;
         for (var i = 1; i < columns.length; ++i) {
             if(columns[i].type == "numeric") {
                 columns[i].cssClass = "numeric";

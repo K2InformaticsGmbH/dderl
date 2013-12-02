@@ -149,7 +149,6 @@ button.menubutton
   background: #ECECEC;
   color: #8A8A8A;
   font-size: 10px;
-  text-align: right;
 }
 
 .slick-cell.selected {
@@ -511,6 +510,7 @@ div#main_footer {
 /*  font-weight: bold;*/
   color: black;
   font-size: 10px;
+  text-align: left;
 }
 
 /*.slick-group-title[level='0'] {
