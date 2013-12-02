@@ -149,6 +149,7 @@ button.menubutton
   background: #ECECEC;
   color: #8A8A8A;
   font-size: 10px;
+  text-align: right;
 }
 
 .slick-cell.selected {
