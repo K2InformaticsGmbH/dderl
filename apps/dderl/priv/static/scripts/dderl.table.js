@@ -312,15 +312,10 @@
         if($.isFunction(fun)) {
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram") {
+                    if(_action === "Histogram" || _action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
-                    }
-                    else if(_action === "Toggle Grouping") {
-                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
-                                columnId: _columnId};
-                    }
-                    else {
+                    } else {
                         data = this._grid.getSelectionModel().getSelectedRanges();
                     }
                 break;
@@ -503,9 +498,9 @@
         console.log('show histogram ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
             groupByColumn(self._gridDataView,columnId,/[#-\/]/);
-        }
-        else
+        } else {
             self._gridDataView.setGrouping([]);
+        }
     },
 
     // Open plot for this table
@@ -834,6 +829,11 @@
         self._sortDlg.height(sortGridHeight);
         //Lets put it where we have space...
         smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['center']);
+        setTimeout(function() {
+            var theSortButton = self._sortDlg.dialog("widget").find('button:contains("Sort")')
+            theSortButton.focus();
+            console.log(theSortButton);
+        }, 50);
     },
 
     _ajax: function(url, data, resp, callback) {
@@ -1056,6 +1056,12 @@
         for(var c in self._filters) {
             self._filters[c].inp.width(dW);
             self._filters[c].inp.height(dH);
+        }
+        for(var c in self._filters) {
+            setTimeout(function() {
+                self._filters[c].inp.focus();
+            }, 50);
+            break;
         }
     },
     _filterSpec2Json: function(type) {
