@@ -244,7 +244,9 @@ function insertAtCursor(myField, myValue) {
             .css('bottom', self.options.toolBarHeight+'px')
             .tabs()
             .on("tabsactivate", function(event, ui) {
-                var shouldReparse = false;                
+                var shouldReparse = false;
+                self._setTabFocus();
+
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
@@ -449,6 +451,24 @@ function insertAtCursor(myField, myValue) {
                     }));
         }
     },
+
+    _setTabFocus: function() {
+        var self = this;
+        var selected = self._editDiv.tabs("option", "active");
+
+        if(selected == 0) {
+            self._flatTb.focus();
+            textBox = self._flatTb[0];
+            textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+        } else if(selected == 1) {
+            self._prettyTb.focus();
+            textBox = self._prettyTb[0];
+            textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+        } else if(selected == 2) {
+            self._boxDiv.focus();
+        }
+    },
+
     ////////////////////////////
 
     /*
@@ -465,10 +485,18 @@ function insertAtCursor(myField, myValue) {
             alert_jq(error);*/
     },
     _renderParsed: function(_parsed) {
+        var textBox;
+
+        this._setTabFocus();
+
         if(_parsed.hasOwnProperty('sqlbox')) {
             this._boxJson = _parsed.sqlbox;
             this._boxDiv.html('');
             this._boxing(this._boxJson, this._boxDiv.width()).div.appendTo(this._boxDiv);
+        }
+        if(_parsed.hasOwnProperty('flat')) {
+            this._flatTb.val(_parsed.flat);
+            this._cmdFlat = this._flatTb.val();
         }
         if(_parsed.hasOwnProperty('pretty')) {
             this._prettyTb.val(_parsed.pretty);
@@ -476,11 +504,8 @@ function insertAtCursor(myField, myValue) {
             if(!this._cmdChanged) {
                 this._cmdChanged = true;
                 this._editDiv.tabs("option", "active", 1);
+                this._setTabFocus();
             }
-        }
-        if(_parsed.hasOwnProperty('flat')) {
-            this._flatTb.val(_parsed.flat);
-            this._cmdFlat = this._flatTb.val();
         }
     },
 
@@ -594,6 +619,7 @@ function insertAtCursor(myField, myValue) {
             // TODO: Here we maximize unused space
         }
         this._refreshHistoryBoxSize();
+        this._setTabFocus();
     },
 
     close: function() { this._dlg.dialog("close"); },

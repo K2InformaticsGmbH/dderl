@@ -79,6 +79,7 @@ function check_already_connected() {
         display_login();
     } else {
         dderlState.session = window.opener.dderlState.session;
+        dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
         var user = window.opener.$('#change-pswd-button').data("logged_in_user");
         update_user_information(user);
         connect_dlg();

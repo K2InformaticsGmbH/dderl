@@ -41,7 +41,8 @@ var dderlState = {
     currentDashboard: null,
     currentViews: null,
     currentWindows: new Array(),
-    saveDashboardCounter: 0
+    saveDashboardCounter: 0,
+    connectionSelected: null
 }
 
 // generic dderlserver call interface
@@ -559,7 +560,7 @@ function show_about_dlg()
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
                 p += '<p class="about-vsn">Version ' + version + '</p>';
-                p += '<p class="about-vsn">Gui Version 1.0.6</p>';
+                p += '<p class="about-vsn">Gui Version 1.0.7</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
