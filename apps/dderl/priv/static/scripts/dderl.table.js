@@ -502,7 +502,7 @@
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
-            groupByColumn(self._gridDataView,columnId,/[#-\/]/);
+            groupByColumn(self._gridDataView,columnId,/[#/-]/);
         }
         else
             self._gridDataView.setGrouping([]);
