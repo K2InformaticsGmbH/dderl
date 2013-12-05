@@ -499,7 +499,7 @@
         if (self._gridDataView.getGrouping().length == 0) {
             groupByColumn(self._gridDataView,columnId,/[#/-]/);
         }
-        else
+        else {
             self._gridDataView.setGrouping([]);
         }
     },
