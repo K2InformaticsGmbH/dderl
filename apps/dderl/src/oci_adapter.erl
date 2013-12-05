@@ -68,7 +68,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Type     = proplists:get_value(<<"type">>, BodyJson, <<>>),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
-    Tnsstr   = proplists:get_value(<<"tnsstring">>, BodyJson, <<>>),
+    Tnsstr   = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
     if
         Tnsstr =:= <<>> ->

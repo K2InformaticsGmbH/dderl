@@ -192,7 +192,7 @@ function connect_dlg()
       '      <tr><td align=right valign=center id="con_name">DB&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="service" class="text ui-widget-content ui-corner-all"/></td></tr></table>' +
       '         <table id="con_tns" width=100% border=0 cellpadding=0 cellspacing=0>' +
-      '      <tr><td valign=bottom colspan="2"><textarea id="tnsstring" class="text ui-widget-content ui-corner-all" rows=10 cols=41/></td></tr></table>' +
+      '      <tr><td valign=bottom colspan="2"><textarea id="tnsstr" class="text ui-widget-content ui-corner-all" rows=10 cols=41/></td></tr></table>' +
       '      </td></tr>' +
       '      <tr><td align=right valign=center>Username&nbsp;</td>' +
       '          <td valign=bottom><input type="text" id="user" class="text ui-widget-content ui-corner-all"/></td></tr>' +
@@ -251,7 +251,7 @@ function connect_dlg()
                                              type      :$('input:radio[name=db_type]:checked').val(),
                                              user      :$('#user').val(),
                                              password  :Password,
-                                             tnsstring :$('#tnsstring').val()}};
+                                             tnsstr    :$('#tnsstr').val()}};
 
                 if(NewPassword && urlConnect == '/app/connect_change_pswd') {
                     connectJson.connect.new_password = NewPassword;
@@ -370,7 +370,7 @@ function load_login_form(id) {
         $('#service').val(connects[id].service);
         $('#sid').val(connects[id].sid);
         $('#user').val(connects[id].user);
-        $('#tnsstring').val(connects[id].tnsstring);
+        $('#tnsstr').val(connects[id].tnsstr);
         $('input:radio[name=db_type][value='+connects[id].type+']').click();
         var conName = '';
         if(connects[id].hasOwnProperty('type')) {

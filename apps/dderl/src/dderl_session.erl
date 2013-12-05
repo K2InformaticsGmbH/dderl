@@ -233,7 +233,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Debug([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
+            ?Info([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
     State;
