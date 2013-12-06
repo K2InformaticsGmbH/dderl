@@ -13,6 +13,7 @@
         , build_resp_fun/3
         , process_query/2
         , build_column_json/1
+        , build_column_csv/1
         ]).
 
 init() -> ok.
@@ -315,3 +316,7 @@ build_column_json([C|Cols], JCols, Counter) ->
           {<<"selectable">>, true}],
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
+
+-spec build_column_csv([#stmtCol{}]) -> binary().
+build_column_csv(Cols) ->
+    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).

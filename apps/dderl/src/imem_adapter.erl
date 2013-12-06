@@ -443,14 +443,13 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
-            Columns = build_column_csv(Clms),
-            ?Debug("StmtRslt ~p", [Clms]),
+            Columns = gen_adapter:build_column_csv(Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
                 produce_csv_rows(Connection, From, StmtRef, RowFun)
             end),
             Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
+            Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
@@ -479,7 +478,7 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command '", CmdBin/binary, "' is unsupported">>}]}])},
     Priv.
 
-% dderl_fsm like row receive interface for erlimem_session compatibility
+% dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
 produce_csv_rows(Connection, From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
     receive
@@ -487,20 +486,20 @@ produce_csv_rows(Connection, From, StmtRef, RowFun) when is_function(RowFun) and
             case erlang:process_info(From) of
                 undefined -> ?Error("Request aborted (response pid ~p invalid)", [From]);
                 _ ->
-                    produce_csv_rows_recv_result(Data, Connection, From, StmtRef, RowFun)
+                    produce_csv_rows_result(Data, Connection, From, StmtRef, RowFun)
             end
     end.
 
-produce_csv_rows_recv_result({error, Error}, Connection, From, StmtRef, _RowFun) ->
+produce_csv_rows_result({error, Error}, Connection, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     Connection:run_cmd(close, [StmtRef]);
-produce_csv_rows_recv_result({Rows,false}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
+produce_csv_rows_result({Rows,false}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows intermediate ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(Connection, From, StmtRef, RowFun);
-produce_csv_rows_recv_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
+produce_csv_rows_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows last ~p", [CsvRows]),
@@ -665,11 +664,6 @@ build_srtspec_json(SortSpecs) ->
      , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
-
-
--spec build_column_csv([#stmtCol{}]) -> binary().
-build_column_csv(Cols) ->
-    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
 
 -spec int(integer()) -> integer().
 int(C) when $0 =< C, C =< $9 -> C - $0;

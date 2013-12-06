@@ -9,6 +9,8 @@
 -export([ init/0
         , process_cmd/5
         , disconnect/1
+        , rows/2
+        , rows_limit/3
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -426,8 +428,9 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                 _ ->
                     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
                     case dderloci:exec(Connection, Query) of
-                        {ok, #stmtResult{} = StmtRslt, TableName, ContainRowId} ->
-                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName, ContainRowId),
+                        {ok, #stmtResult{} = StmtRslt, TableName} ->
+                            dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, Statement),
+                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
                             Statement:refresh_session_ctx(FsmCtx),
                             Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
                         _ ->
@@ -490,14 +493,15 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     case dderloci:exec(Connection, Query) of
-        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _, ContainRowId} ->
+        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
+            Columns = gen_adapter:build_column_csv(Clms),
+            From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun)
+                produce_csv_rows(From, StmtRef, RowFun)
             end),
-            ?Debug("StmtRslt ~p", [Clms]),
-            Columns = build_column_csv(Clms),
-            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]),
-            From ! {reply_csv, FileName, Columns, first};
+            dderloci:add_fsm(StmtRef, {?MODULE, ProducerPid}),
+            dderloci:fetch_recs_async(StmtRef, [{fetch_mode, push}]),
+            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         Error ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Error = if is_binary(Error) -> Error;
@@ -514,36 +518,37 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command '", CmdBin/binary, "' is unsupported">>}]}])},
     Priv.
 
--spec build_column_csv([#stmtCol{}]) -> binary().
-build_column_csv(Cols) ->
-    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
-
-produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
-    case erlang:process_info(From) of
-        undefined ->
-            ?Error("Request aborted (response pid ~p invalid)", [From]),
-            StmtRef:close();
-        _ ->
-            produce_csv_rows_result(StmtRef:fetch_rows(?DEFAULT_ROW_SIZE), Clms, ContainRowId, From, StmtRef, RowFun)
+% dderl_fsm like row receive interface for compatibility
+rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
+rows_limit(_NRows, Rows, {?MODULE, Pid}) -> Pid ! {Rows, true}. %% Fake a completed to send the last cvs part.
+produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
+    receive
+        Data ->
+            case erlang:process_info(From) of
+                undefined ->
+                    ?Error("Request aborted (response pid ~p invalid)", [From]),
+                    dderloci:close(StmtRef);
+                _ ->
+                    produce_csv_rows_result(Data, From, StmtRef, RowFun)
+            end
     end.
 
-produce_csv_rows_result({error, Error}, _Clms, _ContainRowId, From, StmtRef, _RowFun) ->
+produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
-    StmtRef:close();
-produce_csv_rows_result({{rows, Rows}, false}, Clms, ContainRowId, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+    dderloci:close(StmtRef);
+produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
-                             || Row <- [RowFun(R) || R <- RowsFixed]]),
+                             || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows intermediate ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, continue},
-    produce_csv_rows(From, Clms, ContainRowId, StmtRef, RowFun);
-produce_csv_rows_result({{rows, Rows}, true}, Clms, ContainRowId, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+    produce_csv_rows(From, StmtRef, RowFun);
+produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
-                             || Row <- [RowFun(R) || R <- RowsFixed]]),
+                             || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows last ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, last},
-    StmtRef:close().
+    dderloci:close(StmtRef).
+
 
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->
@@ -596,9 +601,10 @@ process_query(Query, {oci_port, _, _} = Connection) ->
 process_query(ok, Query, Connection) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName, ContainRowId}, Query, {oci_port, _, _} = Connection) ->
-    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName, ContainRowId),
+process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection) ->
+    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
     StmtFsm = dderl_fsm:start_link(FsmCtx),
+    dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
     JSortSpec = build_srtspec_json(SortSpec),
@@ -723,10 +729,10 @@ check_fun_vsn(Something) ->
     false.
 
 -spec check_funs(term()) -> term().
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName, ContainRowId}) ->
+check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
-        ValidFuns -> {ok, StmtRslt, TableName, ContainRowId};
+        ValidFuns -> {ok, StmtRslt, TableName};
         true -> <<"Unsupported target database version">>
     end;
 check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
@@ -739,13 +745,13 @@ check_funs(Error) ->
     ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary(), boolean()) -> #fsmctx{}.
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary()) -> #fsmctx{}.
 generate_fsmctx_oci(#stmtResult{
                   stmtCols = Clms
                 , rowFun   = RowFun
                 , stmtRef  = StmtRef
                 , sortFun  = SortFun
-                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName, ContainRowId) ->
+                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName) ->
     #fsmctx{id            = "what is it?"
            ,stmtCols      = Clms
            ,rowFun        = RowFun
@@ -753,77 +759,19 @@ generate_fsmctx_oci(#stmtResult{
            ,sortSpec      = SortSpec
            ,orig_qry      = Query
            ,block_length  = ?DEFAULT_ROW_SIZE
-           ,fetch_recs_async_fun =
-                fun(Opts) ->
-                        %% TODO: change this to store the fsm ref in the stmt on dderloci, when dderloci is changed to a gen_server.
-                        FsmRef = {dderl_fsm, self()},
-                        spawn(
-                          fun() ->
-                                  PushMode = lists:member({fetch_mode,push}, Opts),
-                                  fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId, 0)
-                          end),
-                        ok
-                end
-            ,fetch_close_fun = fun() -> ok end
-            ,stmt_close_fun  = fun() -> StmtRef:close() end
-            ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(FilterSpec, SrtSpec, Cols, Query, Clms, ContainRowId) end
-            ,update_cursor_prepare_fun =
+           ,fetch_recs_async_fun = fun(Opts) -> dderloci:fetch_recs_async(StmtRef, Opts) end
+           ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
+           ,stmt_close_fun  = fun() -> dderloci:close(StmtRef) end
+           ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(StmtRef, FilterSpec, SrtSpec, Cols, Query) end
+           ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
                         dderloci_stmt:prepare(TableName, ChangeList, Connection, Clms)
                 end
-            ,update_cursor_execute_fun =
+           ,update_cursor_execute_fun =
                 fun(_Lock, PrepStmt) ->
                         Result = dderloci_stmt:execute(PrepStmt),
                         ?Debug("The result from the exec ~p", [Result]),
                         Result
                 end
            }.
-
-%%%%%%% This should be moved to dderloci %%%%%%%
--spec fix_row_format([list()], [#stmtCol{}], boolean()) -> [tuple()].
-fix_row_format([], _, _) -> [];
-fix_row_format([Row | Rest], Columns, ContainRowId) ->
-    %% TODO: we have to add the table name at the start of the rows i.e
-    %  rows [
-    %        {{temp,1,2,3},{}},
-    %        {{temp,4,5,6},{}}
-    %  ]
-
-    %% TODO: Convert the types to imem types??
-    % db_to_io(Type, Prec, DateFmt, NumFmt, _StringFmt, Val),
-    % io_to_db(Item,Old,Type,Len,Prec,Def,false,Val) when is_binary(Val);is_list(Val)
-    if
-        ContainRowId ->
-            [RowId | RestRow] = lists:reverse(Row),
-            [{list_to_tuple([RowId | fix_null(RestRow, Columns)]), {}} | fix_row_format(Rest, Columns, ContainRowId)];
-        true ->
-            [{list_to_tuple(fix_null(lists:reverse(Row), Columns)), {}} | fix_row_format(Rest, Columns, ContainRowId)]
-    end.
-
-fix_null([], []) -> [];
-fix_null([<<Length:8, RestNum/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
-    <<Number:Length/binary, _Discarded/binary>> = RestNum,
-    [Number | fix_null(RestRow, RestCols)];
-fix_null([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
-    [<<>> | fix_null(RestRow, RestCols)];
-fix_null([Cell | RestRow], [#stmtCol{} | RestCols]) ->
-    [Cell | fix_null(RestRow, RestCols)].
-
-%% Limit the number of rows returned to 10000.
-fetch_recs_async(FsmRef, StmtRef, PushMode, Clms, ContainRowId, NRows) ->
-    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
-        {{rows, Rows}, Completed} ->
-            RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
-            NewNRows = NRows + length(RowsFixed),
-            if
-                Completed -> FsmRef:rows({RowsFixed, Completed});
-                NewNRows >= 10000 -> FsmRef:rows_limit(NewNRows, RowsFixed);
-                PushMode ->
-                    FsmRef:rows({RowsFixed, Completed}),
-                    fetch_recs_async(FsmRef, StmtRef, true, Clms, ContainRowId, NewNRows);
-                true -> FsmRef:rows({RowsFixed, Completed})
-            end;
-        {error, Error} ->
-            FsmRef:rows({error, Error})
-    end.

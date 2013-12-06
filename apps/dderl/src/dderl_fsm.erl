@@ -963,7 +963,10 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId=TableId}=Stat
         end,
     Result = ets:foldl(IncrFun, [], TableId),
     {reply, Result, SN, State, infinity};
-handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{} = State) ->
+handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
+    %%Close the old statement
+    F = OldCtx#ctx.stmt_close_fun,
+    F(),
     #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
     State0 = State#state{bl        = BL
                    , gl            = gui_max(BL)
