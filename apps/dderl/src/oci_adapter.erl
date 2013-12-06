@@ -646,21 +646,13 @@ send_result_table_cmd(From, BinCmd, Results) ->
     end,
     ok.
 
--spec process_table_cmd(atom(), binary(), term(), [{atom(), pid()}]) -> term().
 process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     case lists:member(Connection, Connections) of
         true ->
-            case Connection:run_cmd(Cmd, [TableName]) of
-                ok ->
-                    ok;
-                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
-                    ?Error([{session, Connection}], "query error ~p", [Error]),
-                    {error, TableName};
-                {error, {Ex, M}} ->
-                    ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
-                    {error, TableName};
-                Error ->
+            case dderloci:run_table_cmd(Connection, Cmd, TableName) of
+                ok -> ok;
+                {error, Error} ->
                     ?Error([{session, Connection}], "query error ~p", [Error]),
                     {error, TableName}
             end;
