@@ -1103,7 +1103,7 @@
         } else {
             var cell    = ranges[0];
             var column  = self._grid.getColumns()[cell.fromCell];
-            var data    = self._gdata[cell.fromRow];
+            var data    = self._gridDataView.getItem(cell.fromRow);
             // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
             self._ajax('/app/browse_data',
                            { browse_data: {connection : dderlState.connection,
@@ -1831,17 +1831,17 @@
         e.preventDefault();
 
         var g           = args.grid;
+        g.getData().syncGridSelection(g, true);
         var cell        = g.getCellFromEvent(e);
         var gdata       = g.getData().getItems();
 
         //Check if we are in a new row.
-        if(!gdata[cell.row]) {
+        if(!g.getData().getItem(cell.row)) {
             return;
         }
         
         var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
-        var data        = gdata[cell.row][column.field];
         var gSelMdl     = g.getSelectionModel();
         var gSelecteds  = gSelMdl.getSelectedRanges();
         var activeCell  = g.getActiveCell();
