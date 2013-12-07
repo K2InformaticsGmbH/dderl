@@ -57,28 +57,29 @@
     _windowFinderTextLink: null,
 
     // private event handlers
-    _handlers       : { loadViews       : function(e, _result) { e.data._renderViews(_result); },
-                        openView        : function(e, _result) { e.data._openView(_result); },
-                        browseData      : function(e, _result) { e.data._renderNewTable(_result); },
-                        queryResult     : function(e, _result) { e.data._renderTable(_result); },
-                        tailResult      : function(e, _result) { e.data._checkTailResult(_result); },
-                        updateData      : function(e, _result) { e.data._checkUpdateResult(_result); },
-                        insertData      : function(e, _result) { e.data._insertResult(_result); },
-                        deleteData      : function(e, _result) { e.data._deleteResult(_result); },
-                        commitResult    : function(e, _result) { e.data._checkCommitResult(_result); },
-                        stmtCloseResult : function(e, _result) { e.data._checkStmtCloseResult(_result); },
-                        saveViewResult  : function(e, _result) { e.data._checkSaveViewResult(_result); },
-                        newViewResult   : function(e, _result) { e.data._checkNewViewResult(_result); },
-                        loadRows        : function(e, _result) { e.data._renderRows(_result); },
-                        filterResult    : function(e, _result) { e.data._renderRows(_result); },
-                        sortResult      : function(e, _result) { e.data._renderRows(_result); },
-                        reorderResult   : function(e, _result) { e.data._renderRows(_result); },
-                        truncateResult  : function(e, _result) { e.data._reloadOnSuccess(_result); },
-                        dropResult      : function(e, _result) { e.data._reloadOnSuccess(_result); },
-                        snapshotResult  : function(e, _result) { e.data._reloadOnSuccess(_result); },
-                        restoreResult   : function(e, _result) { e.data._reloadOnSuccess(_result); },
-                        histogramResult : function(e, _result) { e.data._loadHistogram(_result); },
-                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor(_result); }
+    _handlers       : { loadViews       : function(e, _result) { e.data._renderViews            (_result); },
+                        openView        : function(e, _result) { e.data._openView               (_result); },
+                        browseData      : function(e, _result) { e.data._renderNewTable         (_result); },
+                        queryResult     : function(e, _result) { e.data._renderTable            (_result); },
+                        tailResult      : function(e, _result) { e.data._checkTailResult        (_result); },
+                        updateData      : function(e, _result) { e.data._checkUpdateResult      (_result); },
+                        insertData      : function(e, _result) { e.data._insertResult           (_result); },
+                        deleteData      : function(e, _result) { e.data._deleteResult           (_result); },
+                        commitResult    : function(e, _result) { e.data._checkCommitResult      (_result); },
+                        stmtCloseResult : function(e, _result) { e.data._checkStmtCloseResult   (_result); },
+                        saveViewResult  : function(e, _result) { e.data._checkSaveViewResult    (_result); },
+                        newViewResult   : function(e, _result) { e.data._checkNewViewResult     (_result); },
+                        opViewResult    : function(e, _result) { e.data._operateViewResult      (_result); },
+                        loadRows        : function(e, _result) { e.data._renderRows             (_result); },
+                        filterResult    : function(e, _result) { e.data._renderRows             (_result); },
+                        sortResult      : function(e, _result) { e.data._renderRows             (_result); },
+                        reorderResult   : function(e, _result) { e.data._renderRows             (_result); },
+                        truncateResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        histogramResult : function(e, _result) { e.data._loadHistogram          (_result); },     
+                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -98,6 +99,8 @@
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
                        'Save View'      : '_saveView',
                        'Save View As'   : '_saveViewAs',
+                       'Rename View'    : '_renameView',
+                       'Delete View'    : '_deleteView',
                        'Export Csv'     : '_exportCsv'},
 
     // slick context menus
@@ -375,6 +378,31 @@
             this._updateView(this._viewId, this.options.title);
         } else {
             this._saveNewView(this.options.title, false);
+        }
+    },
+
+    /*
+     * Renaming a view
+     */
+    _renameView: function() {
+        if(this._viewId) {
+            var self = this;
+            var viewName = prompt("View new name",this.options.title);
+            console.log("saving "+this._viewId+" with name "+viewName);
+            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
+            self._ajax('/app/view_op', renameView, 'view_op', 'opViewResult');
+        }
+    },
+
+    /*
+     * Delete a view
+     */
+    _deleteView: function() {
+        if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+            var self = this;
+            console.log("deleting a view "+this._viewId+" with name "+this.options.title);
+            var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
+            self._ajax('/app/view_op', delView, 'view_op', 'opViewResult');
         }
     },
 
@@ -1428,6 +1456,15 @@
             alert_jq('failed to save view!\n'+_saveView.error);
         }
     },
+
+    _operateViewResult: function(_opView) {
+        if(_opView === "ok") {
+             console.log('[AJAX] view saved!');
+        } else {
+            alert_jq('Failed to modify view!\n'+_opView.error);
+        }
+    },
+
     _checkNewViewResult: function(_saveView) {
         var self = this;
         self.removeWheel();

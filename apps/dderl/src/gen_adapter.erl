@@ -133,6 +133,33 @@ process_cmd({[<<"save_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
             Res = jsx:encode([{<<"save_view">>,[{<<"view_id">>, ViewId}]}])
     end,
     From ! {reply, Res};
+process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
+    [{<<"view_op">>,BodyJson}] = ReqBody,
+    Operation = string:to_lower(binary_to_list(proplists:get_value(<<"operation">>, BodyJson, <<>>))),
+    ViewId = proplists:get_value(<<"view_id">>, BodyJson),
+    ?Info("view_op ~s for ~s", [Operation, ViewId]),
+    Res = case Operation of
+        "rename" ->
+            Name = proplists:get_value(<<"newname">>, BodyJson, <<>>),
+            case dderl_dal:rename_view(Sess, ViewId, Name) of
+                ok -> jsx:encode([{<<"view_op">>, <<"ok">>}]);
+                {error, Error} ->
+                    jsx:encode([{<<"view_op">>, [{<<"error">>
+                                                , iolist_to_binary(["View rename failed : ", io_lib:format("~p", [Error])])}
+                                                ]
+                                }])
+            end;
+        "delete" ->
+            case dderl_dal:delete_view(Sess, ViewId) of
+                ok -> jsx:encode([{<<"view_op">>, <<"ok">>}]);
+                {error, Error} ->
+                    jsx:encode([{<<"view_op">>, [{<<"error">>
+                                                , iolist_to_binary(["View delete failed : ", io_lib:format("~p", [Error])])}
+                                                ]
+                                }])
+            end
+    end,
+    From ! {reply, Res};
 process_cmd({[<<"update_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
     [{<<"update_view">>,BodyJson}] = ReqBody,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),

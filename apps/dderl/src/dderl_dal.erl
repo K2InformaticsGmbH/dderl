@@ -21,6 +21,8 @@
         ,update_command/8
         ,add_view/5
         ,update_view/4
+        ,rename_view/3
+        ,delete_view/2
         ,add_connect/2
         ,get_connects/2
         ,del_conn/2
@@ -59,6 +61,12 @@ add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_
 
 -spec update_view({atom(), pid()}, integer(), #viewstate{}, binary()) -> integer() | {error, binary()}.
 update_view(Sess, ViewId, ViewsState, Qry) when is_integer(ViewId) -> gen_server:call(?MODULE, {update_view, Sess, ViewId, ViewsState, Qry}).
+
+-spec rename_view({atom(), pid()}, integer(), binary()) -> ok | {error, term()}.
+rename_view(Sess, ViewId, ViewName) -> gen_server:call(?MODULE, {rename_view, Sess, ViewId, ViewName}).
+
+-spec delete_view({atom(), pid()}, integer()) -> integer() | {error, binary()}.
+delete_view(Sess, ViewId) -> gen_server:call(?MODULE, {delete_view, Sess, ViewId}).
 
 -spec get_adapters({atom(), pid()}) -> [#ddAdapter{}].
 get_adapters(Sess) -> gen_server:call(?MODULE, {get_adapters, Sess}).
@@ -223,6 +231,47 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
         _ ->
             ?Error("Unable to get the view to update ~p", [ViewId]),
             {reply, {error, <<"Unable to get the view to update">>}, State}
+    end;
+
+handle_call({rename_view, Sess, ViewId, ViewName}, _From, State) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                {[OldCmd], true} ->
+                    Sess:run_cmd(insert, [ddCmd, OldCmd#ddCmd{name = ViewName}]),
+                    Sess:run_cmd(insert, [ddView, OldView#ddView{name = ViewName}]),
+                    {reply, ok, State};
+                _ ->
+                    ?Error("Unable to get the command to rename ~p", [OldView#ddView.cmd]),
+                    {reply, {error, <<"Unable to find the command to rename">>}, State}
+            end;
+        _ ->
+            ?Error("Unable to get the view to rename ~p", [ViewId]),
+            {reply, {error, <<"Unable to find the view to rename">>}, State}
+    end;
+
+handle_call({delete_view, Sess, ViewId}, _From, State) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            case Sess:run_cmd(select, [ddView, [{#ddView{cmd=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                {[OldView], true} ->
+                    % Only one view with the command, so the command is also deleted
+                    case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                        {[OldCmd], true} ->
+                            ok = Sess:run_cmd(delete, [ddCmd, OldCmd#ddCmd.id]);
+                        _ -> ?Info("No command found to delete ~p", [OldView#ddView.cmd])
+                    end;
+                _ -> ok
+            end,
+            ok = Sess:run_cmd(delete, [ddView, OldView#ddView.id]),
+            {reply, ok, State};
+        _ ->
+            ?Error("Unable to get the view to delete ~p", [ViewId]),
+            {reply, {error, <<"Unable to find the view to delete">>}, State}
     end;
 
 handle_call({get_view, Sess, ViewId}, _From, #state{} = State) ->

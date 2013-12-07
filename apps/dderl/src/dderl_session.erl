@@ -254,6 +254,7 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"parse_stmt">>;
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
+      C =:= <<"view_op">>;
       C =:= <<"update_view">>;
       C =:= <<"save_dashboard">>;
       C =:= <<"dashboards">> ->
