@@ -949,11 +949,17 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId=TableId}=State) ->
+handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, rowFun=RowFun} = State) ->
     ?Debug("Getting the histogram of the column ~p", [ColumnId]),
-    IncrFun =
-        fun(Row, CountList) ->
-            Value = element(3 + ColumnId, Row),
+    HistoFun =
+        fun(RawRow, CountList) ->
+            case RawRow of
+                {_,_,RK} ->
+                    ExpandedRow = RowFun(RK),
+                    Value = lists:nth(ColumnId, ExpandedRow);
+                Row ->
+                    Value = element(3 + ColumnId, Row)
+            end,
             case proplists:get_value(Value, CountList) of
                 undefined ->
                     [{Value, 1} | CountList];
@@ -961,8 +967,9 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId=TableId}=Stat
                     lists:keyreplace(Value, 1, CountList, {Value, OldCount + 1})
             end
         end,
-    Result = ets:foldl(IncrFun, [], TableId),
-    {reply, Result, SN, State, infinity};
+    Result = ets:foldl(HistoFun, [], TableId),
+    ResultAsBin = [{Value, integer_to_binary(Count)} || {Value, Count} <- Result],
+    {reply, ResultAsBin, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,

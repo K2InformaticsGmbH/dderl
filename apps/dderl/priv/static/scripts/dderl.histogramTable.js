@@ -5,11 +5,13 @@
         _footerDiv: null,
         _grid     : null,
         _gdata    : null,
+        _gridDataView   : null,
         _txtlen   : null,
         _cmd      : "",
         _colId    : 1,
         _stmt     : "",
         _columns  : null,
+        _parent   : null,
 
         _handlers : {queryResult     : function(e, _result) { e.data._createHisto(_result); },
                      updateData      : function(e, _result) { e.data._updatePlot(_result); },
@@ -45,6 +47,7 @@
             initialQuery    : "",
             columnId        : 1,
             dderlStatement  : null,
+            parent          : null,
             close           : function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -70,8 +73,19 @@
             if(self.options.initialQuery != self._cmd) {self._cmd = self.options.initialQuery;}
             if(self.options.columnId != self._colId) {self._colId = self.options.columnId;}
 
+            if(self.options.parent != self._parent) {self._parent = self.options.parent;}
+
             self._plotDiv = $('<div>').appendTo(self.element);
-            self._dlg = self.element.dialog(self.options);
+            self._dlg = self.element.dialog(self.options).bind("dialogresize", function(event, ui) {
+                self._grid.resizeCanvas();
+                self._dlgResized = true;
+            })
+            .bind("dialogfocus", function(event, ui) {
+                self._grid.focus();
+            })
+            .bind("dialogbeforeclose", function(event, ui) {
+                self._grid.resetHeaderScroll();
+            });
 
             // editor lock private to this table.
             if(!self.options.slickopts.editorLock) {
@@ -211,6 +225,11 @@
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
             self._dlg.dialog("widget").appendTo("#main-body");
+            if(self._parent) {
+                smartDialogPosition($("#main-body"), self._parent, self._dlg, ['center']);
+            } else {
+                smartDialogPosition($("#main-body"), $("#main-body"), self._dlg, ['center']);
+            }
             self.setColumns();
             self.appendRows(self._createGridRows(rows));
         },
@@ -256,10 +275,10 @@
             self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
             self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
             self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
+*/
             self._grid.onClick.subscribe($.proxy(self._handleClick, self));
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
-*/
             self._gdata = self._grid.getData();
         },
 
@@ -274,6 +293,7 @@
                 {"id":"count","type":"numeric","name":"count","field":"count","resizable":true,"sortable":false,"selectable":true}];
             var fldWidth = 0;
             self._origcolumns = {};
+            columns[0].formatter = Slick.Formatters.IdFormatter;
             for (var i = 1; i < columns.length; ++i) {
                 if(columns[i].type == "numeric") {
                     columns[i].cssClass = "numeric";
@@ -289,23 +309,7 @@
                 self._origcolumns[columns[i].field] = i;
             }
 
-            // load the column layout if its was saved
-//            if(self._clmlay !== null) {
-            if(self._clmlay) {
-                for(var i = 1; i < columns.length; ++i) {
-                    for(var j = 0; j < self._clmlay.length; ++j) {
-                        if(columns[i].field === self._clmlay[j].name) {
-                            columns[i].width = self._clmlay[j].width;
-                            break;
-                        }
-                    }
-                }
-            }
             self._grid.setColumns(columns);
-
-            if(self._tbllay === null && !self._dlgResized) {
-                dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth() + 13), $(window).width()-dlg.offset().left-20));
-            }
             self._dlg.dialog('open');
         },
 
@@ -459,31 +463,7 @@
                         }
                     }
                 }
-                // If we are tailing we need to keep the editor
-                // TODO: Improve this design to avoid errors in edge cases.
-                // Note: it is not posible to call invalidate before checking for
-                //       the cell editor, since calling invalidate will destroy it.
-                if(self._grid.getCellEditor() && _rows.loop == "tail") {
-                    self._grid.invalidate();
-                    if(self._grid.getActiveCell().row < self._gdata.length) {
-                        self._grid.editActiveCell();
-                    }
-                } else if(self._pendingEditorCell && _rows.op == "ins") {
-                    self._grid.invalidate();
-                    self._grid.setActiveCell(self._pendingEditorCell.row + 1,
-                                             self._pendingEditorCell.cell);
-                    delete self._pendingEditorCell;
-                } else {
-                    self._grid.invalidate();
-                }
-
-                // loading of rows is the costliest of the operations
-                // compared to computing and adjusting the table width/height
-                // (so for now total time of function entry/exit is appromately equal to only row loading)
-                //
-
-                // update row styles
-//                self._applyStyle();
+                self._grid.invalidate();
             }
 
             //console.timeEnd('appendRows');
@@ -611,6 +591,68 @@
                                                     statement : this._stmt,
                                                     btn       : button
                                                    }}, 'button', 'updateData');
+        },
+
+        _handleClick: function(e, args) {
+            var self = this;
+            self._dlg.dialog("moveToTop");
+        },
+
+        // Recover the focus if the vieport gets a mouse event.
+        _handleMouseDown: function(e, args) {
+            console.log("handle mouse down");
+            var self = this;
+            // If the tale is disabled do not set the focus.
+            if(self._divDisable) {
+                return;
+            }
+
+            self._dlg.dialog("moveToTop");
+            if($.browser.msie) {
+                //Ie steals the focus to the scrollbar even after preventDefaults.
+                //Added the timer to get the focus back.
+                setTimeout(function() {
+                    self._grid.focus();
+                    var cellEditor = self._grid.getCellEditor();
+                    if(cellEditor && !cellEditor.isFocused()) {
+                        cellEditor.focus();
+                    }
+                    console.log("Focus set");
+                }, 50);
+            } else {
+                self._grid.focus();
+                var cellEditor = self._grid.getCellEditor();
+                if(cellEditor && !cellEditor.isFocused()) {
+                    cellEditor.focus();
+                }
+                console.log("Focus set");
+            }
+        },
+
+        _handleDragInit: function(e, args) {
+            e.stopImmediatePropagation();
+            var self = this;
+            self._dlg.dialog("moveToTop");
+            self._grid.focus();
+            console.log("Focus set");
+        },
+
+        _handleKeyDown: function(e, args) {
+            var keyCode = $.ui.keyCode;
+
+            // TODO: Review this, maybe it can be simplified.
+            if((e.keyCode >= 112 && e.keyCode <= 123) ||
+               $.inArray(e.keyCode, [keyCode.LEFT, keyCode.RIGHT, keyCode.UP,
+                                     keyCode.DOWN, keyCode.PAGE_UP, keyCode.PAGE_DOWN,
+                                     keyCode.CAPS_LOCK, keyCode.HOME, keyCode.END,
+                                     keyCode.INSERT, keyCode.TAB, keyCode.ENTER,
+                                     16, 17, 18, 225]) !== -1) {
+                // Checks for keys we handle different.
+                // 112-123 -> F1 - F12
+                // 16, 17, 18 -> shift, ctrl, alt
+                // 225 -> altgr on firefox ?
+                return;
+            }
         },
 
         /*
