@@ -1517,12 +1517,7 @@
         }
         this._setTitleHtml($('<span>').text(viewResult.name).addClass('table-title'));
         this.options.title = viewResult.name;
-        // Set the title and the click event.
-        if(this.options.title.length < 20) {
-            this._windowFinderTextLink.textContent = this.options.title;
-        } else {
-            this._windowFinderTextLink.textContent = this.options.title.substring(0, 17) + "...";
-        }
+        updateWindowTitle(this._windowFinderTextLink, this.options.title);
         console.log('>>>>> table '+viewResult.name+' '+viewResult.connection);
         if(viewResult.hasOwnProperty('error')) {
             alert_jq(viewResult.error);
@@ -1757,7 +1752,7 @@
                 dderlStatement : this._stmt,
                 parent         : this._dlg
             })
-            .histogramTable('open', histogram.rows);
+            .histogramTable('open', histogram.rows, histogram.total, histogram.state);
     },
 
     _openErlangTermEditor: function(formattedString) {

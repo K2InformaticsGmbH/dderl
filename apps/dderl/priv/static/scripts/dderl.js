@@ -850,6 +850,26 @@ function patch_jquery_ui() {
     });
 }
 
+function updateWindowTitle(link, title) {
+    var windowsList = document.getElementById("window-finder");
+    link.textContent = title;
+
+    // Set the size of the dropdown if the size is bigger than the current one
+    // 9 px for each character, with a minimun of 100px
+    var titleSize = title.length * 9;
+    if(titleSize < 100) {
+        titleSize = 100;
+    }
+    if(windowsList.style.width) {
+        var currentRowSize = parseInt(windowsList.style.width, 10);
+        if(currentRowSize < titleSize) {
+            windowsList.style.width = titleSize + "px";
+        }
+    } else {
+        windowsList.style.width = titleSize + "px";
+    }
+}
+
 function addWindowFinder(table, title) {
     // Create the elements.
     var windowsList = document.getElementById("window-finder");

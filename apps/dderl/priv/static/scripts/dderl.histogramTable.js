@@ -19,15 +19,7 @@
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
-                           '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
-                           '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
-                           '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
-                           'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
-                           '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
-                           '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                           '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                           '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
-                           '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' }},
+                           'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // These options will be used as defaults
         options: {
@@ -220,7 +212,7 @@
             }
         },
 
-        open: function(rows) {
+        open: function(rows, total, state) {
             var self = this;
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
@@ -231,16 +223,30 @@
                 smartDialogPosition($("#main-body"), $("#main-body"), self._dlg, ['center']);
             }
             self.setColumns();
-            self.appendRows(self._createGridRows(rows));
+            self.appendRows(self._createGridRows(rows, total, state));
+            addWindowFinder(self, self.options.title);
         },
 
-        _createGridRows: function(origRows) {
-            var rows, count;
+        moveAllToTop: function() {
+            var self = this;
+            self._dlg.dialog("moveToTop");
+        },
+        _createGridRows: function(origRows, total, state) {
+            var rows, count, self;
+            self = this;
             rows = [];
             count = 0;
+
+            self._tbTxtBox.val(total + ' ');
+            var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
+            for (var i = 0; i < tbClass.length; ++i) {
+                self._tbTxtBox.removeClass(tbClass[i]);
+            }
+            self._tbTxtBox.addClass('tb_'+ state);
+
             for(var value in origRows) {
                 ++count;
-                rows.push({"id":count,"op":"nop","value":value,"count":origRows[value]});
+                rows.push({"id":count, "op":"nop", "value":value, "count":origRows[value], "pct":(100 * origRows[value]/total).toString()});
             }
             return {op: "rpl", focus: 0, rows: rows};
         },
@@ -248,7 +254,7 @@
         _reload: function(histogram) {
             var self = this;
             if(histogram.hasOwnProperty('rows')) {
-                self.appendRows(self._createGridRows(histogram.rows));
+                self.appendRows(self._createGridRows(histogram.rows, histogram.total, histogram.state));
             }
         },
 
@@ -279,6 +285,7 @@
             self._grid.onClick.subscribe($.proxy(self._handleClick, self));
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
+            self._grid.onSort.subscribe($.proxy(self._handleSort, self));
             self._gdata = self._grid.getData();
         },
 
@@ -289,8 +296,10 @@
             // Column Data
             var columns = [
                 {"id":"sel","name":"","field":"id","behavior":"select","cssClass":"cell-selection","width":38,"minWidth":20,"cannotTriggerInsert":true,"resizable":false,"sortable":false,"selectable":false},
-                {"id":"value","type":"text","name":"value","field":"value","resizable":true,"sortable":false,"selectable":true},
-                {"id":"count","type":"numeric","name":"count","field":"count","resizable":true,"sortable":false,"selectable":true}];
+                {"id":"value","type":"text","name":"value","field":"value","resizable":true,"sortable":true,"selectable":true,"width":250},
+                {"id":"count","type":"numeric","name":"count","field":"count","resizable":true,"sortable":true,"selectable":true,"width":100},
+                {"id":"pct", "type":"numeric","name":"pct","field":"pct","resizable":true,"sortable":true,"selectable":true,"width":100}
+            ];
             var fldWidth = 0;
             self._origcolumns = {};
             columns[0].formatter = Slick.Formatters.IdFormatter;
@@ -299,13 +308,16 @@
                     columns[i].cssClass = "numeric";
                     columns[i].headerCssClass = "numeric";
                 }
-                columns[i].formatter = Slick.Formatters.BinStringText;
-                fldWidth = self._txtlen.text(columns[i].name).width()+25;
+                if(i == columns.length - 1) {
+                    columns[i].formatter = Slick.Formatters.Percent;
+                } else {
+                    columns[i].formatter = Slick.Formatters.BinStringText;
+                }
+                fldWidth = self._txtlen.text(columns[i].name).width()+45;
                 if(columns[i].hasOwnProperty('editor')) {
                     columns[i].editor = Slick.Editors.ControlChars;
                 }
-                columns[i].minWidth = 40;
-                columns[i].width    = fldWidth;
+                columns[i].minWidth = 50;
                 self._origcolumns[columns[i].field] = i;
             }
 
@@ -653,6 +665,22 @@
                 // 225 -> altgr on firefox ?
                 return;
             }
+        },
+
+        _handleSort: function(e, args) {
+            var self = this;
+            var field = args.sortCol.field;
+
+            self._gdata.sort(function(a, b){
+                var result = a[field] - b[field];
+                if(isNaN(result)) {
+                    result = (a[field] > b[field]) ? 1 : ((a[field] < b[field]) ? -1 : 0);
+                }
+                return args.sortAsc ? result : -result;
+            });
+
+            self._grid.invalidate();
+            self._grid.render();
         },
 
         /*

@@ -427,8 +427,8 @@ process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"histogram">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnId = proplists:get_value(<<"column_id">>, BodyJson, 0),
-    HistogramResult = Statement:get_histogram(ColumnId),
-    RespJson = jsx:encode([{<<"histogram">>, [{column_id, ColumnId},{rows, HistogramResult}]}]),
+    {Total, HistogramResult, SN} = Statement:get_histogram(ColumnId),
+    RespJson = jsx:encode([{<<"histogram">>, [{total, Total}, {column_id, ColumnId}, {rows, HistogramResult}, {state, SN}]}]),
     From ! {reply, RespJson},
 %    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
     Priv;

@@ -45,6 +45,7 @@ function fromUnicodeLiteral(str)
                 "AscDescSelect": AscDescSelectFormatter,
                 "BinStringText": BinStringTextFormatter,
                 "IdFormatter": IdFormatter,
+                "Percent": PercentFormatter,
             },
             "Editors": {
                 "ControlChars": ControlCharsEditor
@@ -73,6 +74,14 @@ function fromUnicodeLiteral(str)
 
     function IdFormatter(row, cell, value, columnDef, dataContext) {
         return '<div style="text-align:right; width: 100%;">'+value.toString()+'</div>';
+    }
+
+    function PercentFormatter(row, cell, value, columnDef, dataContext) {
+        if (value == null || value === "") {
+            return "0.00%";
+        } else {
+            return Number(value).toFixed(2) + "%";
+        }
     }
 
     function ControlCharsEditor(args) {
