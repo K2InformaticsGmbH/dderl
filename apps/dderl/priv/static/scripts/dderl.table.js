@@ -1754,7 +1754,8 @@
                 title          : title,
                 initialQuery   : this._cmd,
                 columnId       : histogram.column_id,
-                dderlStatement : this._stmt
+                dderlStatement : this._stmt,
+                parent         : this._dlg
             })
             .histogramTable('open', histogram.rows);
     },
@@ -2259,7 +2260,7 @@
         var delStyle = new Object();
         var updStyle = new Object();
         var cols = self._grid.getColumns();
-        for (var j=0;j<self._gdata.length; ++j)
+        for (var j = 0 ; j < self._gdata.length; ++j)
             switch (self._gdata[j].op) {
                 case 'del':
                     delStyle[j] = new Object();
@@ -2556,7 +2557,7 @@
         var self = this;
         var redraw = false;
         var c = self._grid.getColumns();
-        var firstChunk = (self._gdata.length === 0);
+        var firstChunk = (self._grid.getDataLength() === 0);
 
         // received response clear wait wheel
         self.removeWheel();
@@ -2623,11 +2624,11 @@
         var gvpH = gvp.bottom - gvp.top;
         var computedFocus = _rows.focus;
         var needScroll = false;
+        self._gdata = self._gridDataView.getItems();
+        self._gridDataView.beginUpdate();
         switch (_rows.op) {
             case "rpl": // replace
-                self._gridDataView.beginUpdate();
                 self._gridDataView.setItems(_rows.rows);
-                self._gridDataView.endUpdate();
                 self._gdata = self._gridDataView.getItems();
                 computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
                 if(computedFocus < 0) computedFocus = 0;
@@ -2637,12 +2638,14 @@
                 break;
             case "app": // append
                 for(var i=0; i < _rows.rows.length; ++i) {
-                    self._gdata.push(_rows.rows[i])
+                    self._gridDataView.addItem(_rows.rows[i]);
                 }
                 var nRowsMoved = self._gdata.length - _rows.keep;
                 if(nRowsMoved > 0) {
                     self._moveSelection(nRowsMoved);
-                    self._gdata.splice(0, nRowsMoved);
+                    for(var j = 0; j < nRowsMoved; ++j) {
+                        self._gridDataView.deleteItem(self._gdata[0].id);
+                    }
                     computedFocus = gvp.bottom - 4 - nRowsMoved;
                 } else {
                     computedFocus = gvp.bottom + Math.min(_rows.rows.length, gvpH - 4);
@@ -2653,12 +2656,18 @@
                 needScroll = true;
                 break;
             case "prp": // prepend
+                var nRowsDelete = self._gdata.length +  _rows.rows.length - _rows.keep;
+                if(nRowsDelete > 0) {
+                    var lastIndex = self._gdata.length - 1;
+                    for(var j = lastIndex; j > lastIndex - nRowsDelete; --j) {
+                        self._gridDataView.deleteItem(self._gdata[j].id);
+                    }
+                }
                 do {
-                    self._gdata.splice(0, 0, _rows.rows.pop());
+                    self._gridDataView.insertItem(0, _rows.rows.pop());
                 } while (_rows.rows.length > 0)
-                var nRowsUp = self._gdata.length - _rows.keep;
-                self._gdata.splice(_rows.keep, nRowsUp);
-                computedFocus = gvp.top - Math.min(_rows.rows.length, gvpH - 4) + nRowsUp;
+
+                computedFocus = gvp.top - Math.min(_rows.rows.length, gvpH - 4) + nRowsDelete;
                 if(computedFocus < 0) {
                     computedFocus = 0;
                 } else if(computedFocus > self._gdata.length - 1) {
@@ -2668,13 +2677,15 @@
                 needScroll = true;
                 break;
             case "clr": // delete all rows
-                self._gdata.splice(0, self._gdata.length);
+                self._gridDataView.setItems([]);
+                self._gdata = self._gridDataView.getItems();
                 redraw = true;
                 break;
             case "ins": // add rows to the end, keep all
                 console.log('ins');
-                for(var i=0; i < _rows.rows.length; ++i)
-                    self._gdata.push(_rows.rows[i]);
+                for(var i=0; i < _rows.rows.length; ++i) {
+                    self._gridDataView.addItem(_rows.rows[i]);
+                }
                 redraw = true;
                 break;
             case "nop": // no operation
@@ -2684,7 +2695,6 @@
                 console.log("unknown operation "+_rows.op);
                 break;
         }
-
         if(_rows.focus < 0) {
             computedFocus = self._gdata.length + _rows.focus;
             if(computedFocus < 0) computedFocus = 0;
@@ -2758,23 +2768,6 @@
                     }
                 }
             }
-            // If we are tailing we need to keep the editor
-            // TODO: Improve this design to avoid errors in edge cases.
-            // Note: it is not posible to call invalidate before checking for
-            //       the cell editor, since calling invalidate will destroy it.
-            if(self._grid.getCellEditor() && _rows.loop == "tail") {
-                self._grid.invalidate();
-                if(self._grid.getActiveCell().row < self._gdata.length) {
-                    self._grid.editActiveCell();
-                }
-            } else if(self._pendingEditorCell && _rows.op == "ins") {
-                self._grid.invalidate();
-                self._grid.setActiveCell(self._pendingEditorCell.row + 1,
-                                         self._pendingEditorCell.cell);
-                delete self._pendingEditorCell;
-            } else {
-                self._grid.invalidate();
-            }
 
             // 
             // loading of rows is the costliest of the operations
@@ -2782,10 +2775,26 @@
             // (so for now total time of function entry/exit is appromately equal to only row loading)
             //
 
+        }
+        // If we are tailing we need to keep the editor
+        // TODO: Improve this design to avoid errors in edge cases.
+        // Note: it is not posible to call endupdate before checking for
+        //       the cell editor, since calling endupdate will destroy it.
+        var cellEditor = self._grid.getCellEditor();
+        self._gridDataView.endUpdate();
+        if(redraw) {
             // update row styles
             self._applyStyle();
         }
-
+        if(cellEditor && _rows.loop == "tail") {
+            if(self._grid.getActiveCell().row < self._gdata.length) {
+                self._grid.editActiveCell();
+            }
+        } else if(self._pendingEditorCell && _rows.op == "ins") {
+            self._grid.setActiveCell(self._pendingEditorCell.row + 1,
+                                     self._pendingEditorCell.cell);
+            delete self._pendingEditorCell;
+        }
         //console.timeEnd('appendRows');
         //console.profileEnd('appendRows');
     }
