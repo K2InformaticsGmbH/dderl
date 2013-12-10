@@ -139,11 +139,12 @@ foldb(Ind, P, {select, List}) when is_list(List) ->
         {error, Reason} -> {error, Reason};
         _ -> fb(Ind, neItems(Res), select)
     end;
-foldb(_, _P, {hints,<<>>}) -> empty;
-foldb(_, _P, {opt,  <<>>}) -> empty;
-foldb(_, _P, {into,   _ }) -> empty;
-foldb(_, _P, {where,  {}}) -> empty;
-foldb(_, _P, {having, {}}) -> empty;
+foldb(_, _P, {hints,<<>>})               -> empty;
+foldb(_, _P, {opt,  <<>>})               -> empty;
+foldb(_, _P, {into,   _ })               -> empty;
+foldb(_, _P, {where,  {}})               -> empty;
+foldb(_, _P, {having, {}})               -> empty;
+foldb(_, _P, {'hierarchical query', {}}) -> empty;
 
 foldb(Ind, _P, T) when is_binary(T); is_atom(T) -> fb(Ind, [], T);
 
@@ -296,7 +297,7 @@ foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
             end
     end;
 foldb(Ind, _P, {Sli, List}) when is_list(List) ->       %% Sli from, 'group by', 'order by'
-    Res = [foldb(Ind+1, Sli, Li) || Li <- List],
+    Res = lists:flatten([foldb(Ind+1, Sli, Li) || Li <- List]),
     case check_error(Res) of
         {error, Reason} -> {error, Reason};
         _ ->
@@ -736,7 +737,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
         false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], Op), fb_coll(Ind, [], R)]
     end;
 
-foldb(_Ind, P, Term) ->
+foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, <<"Unrecognized parse tree term in foldb">>}.
 
@@ -799,7 +800,7 @@ test_sqlb(_) ->
 
 sqlb_loop(_, [], _, _, Private) -> Private;
 sqlb_loop(PrintParseTree, [Sql|Rest], N, Limit, Private) ->
-    case re:run(Sql, "(select\r|SELECT\r)", [global, {capture, [1], list}]) of
+    case re:run(Sql, "select", [global, {capture, all, list}, caseless]) of
         nomatch ->
             sqlb_loop(PrintParseTree, Rest, N+1, Limit, Private);
         _ ->
