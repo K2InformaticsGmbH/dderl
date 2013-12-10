@@ -522,12 +522,28 @@
 
     _toggleGrouping: function(data) {
         var self = this;
+        var seperator = /[#/-]/;
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
-            groupByColumn(self._gridDataView,columnId,/[#/-]/);
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
+                self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
+                function (row, cell, value, columnDef, dataContext) {
+                    var newValue;
+                    if (value == null) {
+                        newValue = "";
+                    } else {
+                        newValueParts = value.split(seperator);
+                        newValue = newValueParts[newValueParts.length - 1];
+                    }
+                    return newValue;
+                };
+            groupByColumn(self._gridDataView,columnId,seperator);
         }
         else {
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
+               self._grid.getColumns()[self._grid.getColumnIndex(columnId)].oldformatter;
             self._gridDataView.setGrouping([]);
         }
     },
@@ -1336,6 +1352,7 @@
         var viewInfo = self._getTableLayout("");
         self._clmlay = viewInfo.column_layout;
         self._tbllay = viewInfo.table_layout;
+        self._gridDataView.setGrouping([]);
         self.buttonPress("restart");
     },
 
