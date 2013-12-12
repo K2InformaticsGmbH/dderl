@@ -420,7 +420,7 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"paste_data">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ReceivedRows = proplists:get_value(<<"rows">>, BodyJson, []),
-    Rows = extract_modified_rows(ReceivedRows),
+    Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
 process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
@@ -531,20 +531,6 @@ sort_json_to_term([[{C,T}|_]|Sorts]) ->
         {error, _R} -> Index = C
     end,
     [{Index, if T -> <<"asc">>; true -> <<"desc">> end}|sort_json_to_term(Sorts)].
-
--spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
-extract_modified_rows([]) -> [];
-extract_modified_rows([ReceivedRow | Rest]) ->
-    case proplists:get_value(<<"rowid">>, ReceivedRow) of
-        undefined ->
-            RowId = undefined,
-            Op = ins;
-        RowId ->
-            Op = upd
-    end,
-    Cells = [{proplists:get_value(<<"cellid">>, Cell), proplists:get_value(<<"value">>, Cell)} || Cell <- proplists:get_value(<<"cells">>, ReceivedRow, [])],
-    Row = {RowId, Op, Cells},
-    [Row | extract_modified_rows(Rest)].
 
 -spec filter_json_to_term([{binary(), term()} | [{binary(), term()}]]) -> [{atom() | integer(), term()}].
 filter_json_to_term([{<<"undefined">>,[]}]) -> {'undefined', []};

@@ -14,6 +14,7 @@
         , process_query/2
         , build_column_json/1
         , build_column_csv/1
+        , extract_modified_rows/1
         ]).
 
 init() -> ok.
@@ -347,3 +348,17 @@ build_column_json([C|Cols], JCols, Counter) ->
 -spec build_column_csv([#stmtCol{}]) -> binary().
 build_column_csv(Cols) ->
     list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
+
+-spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
+extract_modified_rows([]) -> [];
+extract_modified_rows([ReceivedRow | Rest]) ->
+    case proplists:get_value(<<"rowid">>, ReceivedRow) of
+        RId when RId < 0 ->
+            RowId = undefined,
+            Op = ins;
+        RowId ->
+            Op = upd
+    end,
+    Cells = [{proplists:get_value(<<"cellid">>, Cell), proplists:get_value(<<"value">>, Cell)} || Cell <- proplists:get_value(<<"cells">>, ReceivedRow, [])],
+    Row = {RowId, Op, Cells},
+    [Row | extract_modified_rows(Rest)].
