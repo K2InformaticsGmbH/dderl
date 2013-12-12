@@ -353,7 +353,7 @@ build_column_csv(Cols) ->
 extract_modified_rows([]) -> [];
 extract_modified_rows([ReceivedRow | Rest]) ->
     case proplists:get_value(<<"rowid">>, ReceivedRow) of
-        RId when RId < 0 ->
+        undefined ->
             RowId = undefined,
             Op = ins;
         RowId ->

@@ -2025,7 +2025,7 @@
                 }
             }
             var rowId = parseInt(gridData[i].id);
-            if(rowId) {
+            if(rowId > 0) {
                 modifiedRows.push({rowid: rowId, cells: modifiedCells});
             } else {
                 rowsToRemove.push(i);

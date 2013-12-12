@@ -174,7 +174,7 @@
             d = _grid.getData().getItems();
 
         for(addRows = 1; addRows <= destH - availableRows; addRows++) {
-            d.push({id: addRows - 9999});
+            d.push({id: -addRows});
         }
 
         if (_grid.getData() instanceof Slick.Data.DataView)
