@@ -10,11 +10,6 @@
 -include("dderl.hrl").
 -include("dderl_sqlbox.hrl").
 
--ifdef(TEST).
--export([ sqlb_loop/5   %% needed for test interface (sql iterator)
-        ]).
--endif.
-
 -define(DefCollInd,3).  % First indentation level which will be collapsed by default
 
 -spec validate_children([#box{}]) -> ok | {error, binary()}.
@@ -841,18 +836,18 @@ test_sqlb(_) ->
     io:format(user, "=================================~n", []),
     io:format(user, "|     S Q L  B O X  T E S T     |~n", []),
     io:format(user, "=================================~n", []),
-    sql_test:parse_groups(fun ?MODULE:sqlb_loop/5, false).
+    sqlb_loop(false, ?TEST_SELECT_QUERIES, 0).
 
-sqlb_loop(_, [], _, _, Private) -> Private;
-sqlb_loop(PrintParseTree, [Sql|Rest], N, Limit, Private) ->
+sqlb_loop(_, [], _) -> ok;
+sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
     case re:run(Sql, "select", [global, {capture, all, list}, caseless]) of
         nomatch ->
-            sqlb_loop(PrintParseTree, Rest, N+1, Limit, Private);
+            sqlb_loop(PrintParseTree, Rest, N+1);
         _ ->
             io:format(user, "[~p]===============================~n", [N]),
                 NewPrivate = try
-                    io:format(user, "~p~n", [Sql]),
-                    ParseTree = sqlparse:parsetree(Sql),
+                    io:format(user, "~s~n", [Sql]),
+                    {ok, {[{ParseTree,_}|_],_}} = sqlparse:parsetree(Sql),
                     print_parse_tree(ParseTree),
                     % SqlBox = fold_tree(ParseTree, fun sqlb/6, []),
                     SqlBox = foldb(ParseTree),
@@ -860,12 +855,14 @@ sqlb_loop(PrintParseTree, [Sql|Rest], N, Limit, Private) ->
                     ?assertMatch(#box{ind=0},SqlBox),
                     ?assert(is_list(validate_box(SqlBox))),
                     FlatSql = (catch flat_from_box(SqlBox)),
-                    io:format(user, FlatSql ++ "~n", []),
-                    ?assertEqual(ParseTree, sqlparse:parsetree(FlatSql)),
+                    io:format(user, "~s~n", [FlatSql]),
+                    {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
+                    ?assertEqual(ParseTree, FlatSqlParseTree),
                     PrettySql = (catch pretty_from_box(SqlBox)),
-                    io:format(user, PrettySql ++ "~n", []),
+                    io:format(user, "~s~n", [PrettySql]),
                     PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
-                    ?assertEqual(ParseTree, sqlparse:parsetree(PrettySqlExp)),
+                    {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
+                    ?assertEqual(ParseTree, PrettySqlParseTree),
                     CleanSql = clean(Sql),
                     CleanPrettySqlExp = clean(PrettySqlExp),
                     case str_diff(CleanSql,CleanPrettySqlExp) of
@@ -873,18 +870,12 @@ sqlb_loop(PrintParseTree, [Sql|Rest], N, Limit, Private) ->
                         Diff ->
                             io:format(user, "Sql Difference: ~p~n", [Diff])
                     end,
-                    ?assertEqual(CleanSql,CleanPrettySqlExp),
-                    sql_test:update_counters(ParseTree, Private)
+                    ?assertEqual(CleanSql,CleanPrettySqlExp)
                 catch
                     Class:Reason ->  io:format(user,"Exception ~p:~p~n~p~n", [Class, Reason, erlang:get_stacktrace()]),
                     ?assert( true == "all tests completed")
                 end,
-                if
-                    (Limit =:= 1) ->
-                        NewPrivate;
-                    true ->
-                        sqlb_loop(PrintParseTree, Rest, N+1, Limit-1, NewPrivate)
-                end
+                sqlb_loop(PrintParseTree, Rest, N+1)
         end.
 
 validate_box([]) -> ok;

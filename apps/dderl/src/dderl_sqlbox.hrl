@@ -8,9 +8,8 @@
             , pick      = <<"">>
             }).
 
-
-
--define (TEST_SELECT,[
+-ifdef(TEST).
+-define (TEST_SELECT_QUERIES,[
 <<"select
  		a
  		||
@@ -1681,5 +1680,5 @@ select
 			2
 "
 ]).
-
+-endif. % TEST
 
