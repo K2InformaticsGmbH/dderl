@@ -2,6 +2,7 @@
 ## Eclipse
 #################
 
+apps/dderl/.eunit/
 apps/dderl/ebin/
 distdir/
 package

@@ -11,51 +11,78 @@
 -ifdef(TEST).
 -define (TEST_SELECT_QUERIES,[
 <<"select
- 		a
- 		||
- 		b
- 	from
- 		abc
+		a
+		||
+		b
+	from
+		abc
 ">>
 ,
 <<"select
- 		a
- 		||
- 		b
- 		||
- 		c
- 	from
- 		abc
- 	where
- 		d
- 		=
- 			e
- 			||
- 			f
+		a
+		||
+		b
+		||
+		c
+	from
+		abc
+	where
+		d
+		=
+			e
+			||
+			f
 ">>
 ,
 <<"select
- 		*
- 	from
- 		abc
- 	where
- 				a
- 				like
- 				'A%'
- 			and
- 				e
- 				=
- 				f
- 		or
- 			b 
- 			not like
- 			'AA%'
- 		or
- 			c 
- 			like
- 			'B%'
- 			escape
- 			'\'
+		*
+	from
+		abc
+	where
+				a
+				like
+				'A%'
+			and
+				e
+				=
+				f
+		or
+			b 
+			not like
+			'AA%'
+		or
+			c 
+			like
+			'B%'
+			escape
+			'\\'
+">>
+,
+<<"select
+		count
+			(
+				distinct a
+			)
+	from
+		def
+">>
+,
+<<"select
+		*
+	from
+		abc
+	where
+			a
+			=
+			'A'
+		start with
+			d
+			=
+			'pacid'
+		connect by prior
+			e
+			=
+			f
 ">>
 ,
 <<"select

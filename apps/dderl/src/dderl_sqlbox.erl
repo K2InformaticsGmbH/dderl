@@ -319,6 +319,24 @@ foldb(Ind, _P, {Sli, List}) when is_list(List) ->       %% Sli from, 'group by',
                     end
             end
     end;
+foldb(Ind, P, {'not', {like, L, R, Escape}}) ->
+    OptEscape = case Escape of
+        <<>> -> [];
+        _ -> [fb_coll(Ind+1, [], 'escape'), fb_coll(Ind+1, [], Escape)]
+    end,
+    case (binding(P) =< binding(like)) of
+        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], 'not like'), fb_coll(Ind+1, [], R) | OptEscape], <<>>);
+        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], 'not like'), fb_coll(Ind, [], R) | OptEscape]
+    end;
+foldb(Ind, P, {like, L, R, Escape}) ->
+    OptEscape = case Escape of
+        <<>> -> [];
+        _ -> [fb_coll(Ind+1, [], 'escape'), fb_coll(Ind+1, [], Escape)]
+    end,
+    case (binding(P) =< binding(like)) of
+        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], like), fb_coll(Ind+1, [], R) | OptEscape], <<>>);
+        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], like), fb_coll(Ind, [], R) | OptEscape]
+    end;
 foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
     Bo = binding(Op),
     Br = binding(R),
@@ -746,12 +764,6 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
         false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], Op), fb_coll(Ind, [], R)]
     end;
 
-foldb(Ind, P, {like, L, R, Escape}) ->
-    case (binding(P) =< binding(like)) of
-        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], like), fb_coll(Ind+1, [], R)], <<>>);
-        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], like), fb_coll(Ind, [], R)]
-    end;
-
 foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
@@ -836,7 +848,7 @@ test_sqlb(_) ->
     io:format(user, "=================================~n", []),
     io:format(user, "|     S Q L  B O X  T E S T     |~n", []),
     io:format(user, "=================================~n", []),
-    sqlb_loop(false, ?TEST_SELECT_QUERIES, 0).
+    sqlb_loop(false, ?TEST_SELECT_QUERIES, 1).
 
 sqlb_loop(_, [], _) -> ok;
 sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
@@ -845,21 +857,20 @@ sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
             sqlb_loop(PrintParseTree, Rest, N+1);
         _ ->
             io:format(user, "[~p]===============================~n", [N]),
-                NewPrivate = try
-                    io:format(user, "~s~n", [Sql]),
+                try
+                    io:format(user, "Orig:~n~s~n", [Sql]),
                     {ok, {[{ParseTree,_}|_],_}} = sqlparse:parsetree(Sql),
                     print_parse_tree(ParseTree),
                     % SqlBox = fold_tree(ParseTree, fun sqlb/6, []),
                     SqlBox = foldb(ParseTree),
-                    print_box(SqlBox),
                     ?assertMatch(#box{ind=0},SqlBox),
                     ?assert(is_list(validate_box(SqlBox))),
                     FlatSql = (catch flat_from_box(SqlBox)),
-                    io:format(user, "~s~n", [FlatSql]),
+                    io:format(user, "Flat:~n~s~n", [FlatSql]),
                     {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
                     ?assertEqual(ParseTree, FlatSqlParseTree),
                     PrettySql = (catch pretty_from_box(SqlBox)),
-                    io:format(user, "~s~n", [PrettySql]),
+                    io:format(user, "Pretty:~n~s~n", [PrettySql]),
                     PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
                     {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
                     ?assertEqual(ParseTree, PrettySqlParseTree),
@@ -870,7 +881,9 @@ sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
                         Diff ->
                             io:format(user, "Sql Difference: ~p~n", [Diff])
                     end,
-                    ?assertEqual(CleanSql,CleanPrettySqlExp)
+                    ?assertEqual(CleanSql,CleanPrettySqlExp),
+                    print_box(SqlBox),
+                    io:format(user, "~s~n", [jsx:prettify(jsx:encode(box_to_json(SqlBox)))])
                 catch
                     Class:Reason ->  io:format(user,"Exception ~p:~p~n~p~n", [Class, Reason, erlang:get_stacktrace()]),
                     ?assert( true == "all tests completed")
@@ -897,8 +910,8 @@ pretty_from_box_exp(#box{ind=Ind,name=Name,children=CH}) ->
 pretty_from_box_exp([Box|Boxes]) ->
     lists:flatten([pretty_from_box_exp(Box),pretty_from_box_exp(Boxes)]).
 
-print_parse_tree(_ParseTree) ->
-    io:format(user, "~p~n~n", [_ParseTree]),
+print_parse_tree(ParseTree) ->
+    io:format(user, "ParseTree:~n~p~n~n", [ParseTree]),
     ok.
 
 print_box(_Box) ->
