@@ -4,6 +4,7 @@
         , boxed_from_pt/1
         , flat_from_box/1
         , pretty_from_box/1
+        , box_to_json/1
         ]).
 
 -include("dderl.hrl").
@@ -71,7 +72,14 @@ pretty_from_box([Box|Boxes]) ->
 indent(Ind) -> lists:duplicate(Ind*2,32).
 
 boxed_from_pt(ParseTree) ->
-    foldb(ParseTree).
+    try
+        case foldb(ParseTree) of
+            {error, _} = Error -> Error;
+            Res -> {ok, Res}
+        end
+    catch
+        _:R -> {error, {R, erlang:get_stacktrace()}}
+    end.
 
 %% Operator Binding Power -------------------------------
 
@@ -157,8 +165,7 @@ foldb(Ind, P, {'as', {'fun',Fun,List}, Alias}) ->
             [BChild] = B#box.children,
             GChildren = BChild#box.children,
             {CF,[CL]} = lists:split(length(GChildren)-1,GChildren),
-            ECName=lists:flatten([binary_to_list(CL#box.name)," as ", binary_to_list(Alias)]),
-            NewGChildren = CF ++ [CL#box{name=list_to_binary(ECName)}],
+            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," as ",Alias])}],
             NewChild = BChild#box{children=NewGChildren},
             B#box{children=[NewChild]}
     end;
@@ -169,11 +176,9 @@ foldb(Ind, P, {'as', Item, Alias}) ->
             {error, Reason};
         B ->
             case B#box.children of
-                [] ->   EName=lists:flatten([binary_to_list(B#box.name)," as ", binary_to_list(Alias)]),
-                        B#box{name=list_to_binary(EName)};
+                [] ->   B#box{name=list_to_binary([B#box.name," as ",Alias])};
                 Ch ->   {CF,[CL]} = lists:split(length(Ch)-1,Ch),
-                        ECName=lists:flatten([binary_to_list(CL#box.name)," as ", binary_to_list(Alias)]),
-                        EChildren = CF ++ [CL#box{name=list_to_binary(ECName)}],
+                        EChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," as ",Alias])}],
                         B#box{children=EChildren}
             end
     end;
@@ -288,11 +293,9 @@ foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
         {error, Reason} -> {error, Reason};
         B ->
             case B#box.children of
-                [] ->   EName=lists:flatten([binary_to_list(B#box.name)," ", binary_to_list(Dir)]),
-                        B#box{name=list_to_binary(EName)};
+                [] ->   B#box{name=list_to_binary([B#box.name," ",Dir])};
                 Ch ->   {CF,[CL]} = lists:split(length(Ch)-1,Ch),
-                        ECName=lists:flatten([binary_to_list(CL#box.name)," ", binary_to_list(Dir)]),
-                        EChildren = [CF|[CL#box{name=list_to_binary(ECName)}]],
+                        EChildren = [CF|[CL#box{name=list_to_binary([CL#box.name," ",Dir])}]],
                         B#box{children=EChildren}
             end
     end;
@@ -739,7 +742,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
 
 foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
-    {error, <<"Unrecognized parse tree term in foldb">>}.
+    {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
 
 -spec fb_coll(integer(), tuple() | list(), binary()) -> #box{}.
 fb_coll(Ind, Child, Name) when is_tuple(Child) ->
@@ -767,6 +770,21 @@ foldb_commas(Boxes) ->
 check_error([]) -> no_errors;
 check_error([{error, Reason} | _Rest]) -> {error, Reason};
 check_error([_ | Rest]) -> check_error(Rest).
+
+-spec box_to_json(#box{}) -> [{binary(), term()}].
+box_to_json(Box) ->
+    [ {<<"ind">>, Box#box.ind}
+    , {<<"name">>, any_to_bin(Box#box.name)}
+    , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
+    , {<<"collapsed">>, Box#box.collapsed}
+    , {<<"error">>, Box#box.error}
+    , {<<"color">>, Box#box.color}
+    , {<<"pick">>, Box#box.pick}].
+
+-spec any_to_bin(term()) -> binary().
+any_to_bin(C) when is_list(C) -> list_to_binary(C);
+any_to_bin(C) when is_binary(C) -> C;
+any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
 -ifdef(TEST).
 -include_lib("sqlparse/src/sql_tests.hrl").

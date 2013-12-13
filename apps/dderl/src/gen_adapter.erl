@@ -40,21 +40,6 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
             end
     end.
 
--spec box_to_json(#box{}) -> [{binary(), term()}].
-box_to_json(Box) ->
-    [ {<<"ind">>, Box#box.ind}
-    , {<<"name">>, any_to_bin(Box#box.name)}
-    , {<<"children">>, [box_to_json(CB) || CB <- Box#box.children]}
-    , {<<"collapsed">>, Box#box.collapsed}
-    , {<<"error">>, Box#box.error}
-    , {<<"color">>, Box#box.color}
-    , {<<"pick">>, Box#box.pick}].
-
--spec any_to_bin(term()) -> binary().
-any_to_bin(C) when is_list(C) -> list_to_binary(C);
-any_to_bin(C) when is_binary(C) -> C;
-any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
-
 -spec process_cmd({[binary()], [{binary(), list()}]}, binary(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
@@ -75,7 +60,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             {<<"boxerror">>, BoxReason};
                         Box ->
                             ?Debug("The big box ~p", [Box]),
-                            try box_to_json(Box) of
+                            try dderl_sqlbox:box_to_json(Box) of
                                 JsonBox ->
                                     {<<"sqlbox">>, JsonBox}
                             catch
