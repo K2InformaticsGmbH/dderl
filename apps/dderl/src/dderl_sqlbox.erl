@@ -85,6 +85,7 @@ boxed_from_pt(ParseTree) ->
 
 binding(A) when is_binary(A) -> 190;
 binding('fun') -> 180;
+binding('||') -> 175;
 binding('*') -> 170;
 binding('/') -> 170;
 binding('+') -> 160;
@@ -284,6 +285,16 @@ foldb(Ind, _P, {list, List}) when is_list(List) ->
         {error, Reason} -> {error, Reason};
         _ ->
             case foldb_commas(Res) of
+                {error, Reason} -> {error, Reason};
+                Ch -> fb(Ind, Ch, <<>>)
+            end
+    end;
+foldb(Ind, _P, {'||', List}) when is_list(List) ->
+    Res = [foldb(Ind, '||', Li) || Li <- List],
+    case check_error(Res) of
+        {error, Reason} -> {error, Reason};
+        _ ->
+            case foldb_concat(Res) of
                 {error, Reason} -> {error, Reason};
                 Ch -> fb(Ind, Ch, <<>>)
             end
@@ -740,6 +751,12 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
         false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], Op), fb_coll(Ind, [], R)]
     end;
 
+foldb(Ind, P, {like, L, R, Escape}) ->
+    case (binding(P) =< binding(like)) of
+        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], like), fb_coll(Ind+1, [], R)], <<>>);
+        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], like), fb_coll(Ind, [], R)]
+    end;
+
 foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
@@ -765,6 +782,16 @@ foldb_commas(Boxes) when is_list(Boxes) ->
 foldb_commas(Boxes) ->
     ?Error("Invalid list for folding in commas ~p", [Boxes]),
     {error, <<"Invalid list for folding in commas">>}.
+
+-spec foldb_concat([#box{}]) -> list() | {error, binary()}.
+foldb_concat(Boxes) when is_list(Boxes) ->
+    validate_children(Boxes),
+    Comma = (hd(Boxes))#box{children=[],name=bStr(<<"||">>)},
+    [_|Result] = lists:flatten([[Comma,B] || B <- Boxes]),
+    Result;
+foldb_concat(Boxes) ->
+    ?Error("Invalid list for folding in '||' ~p", [Boxes]),
+    {error, <<"Invalid list for folding in '||'">>}.
 
 -spec check_error(list()) -> {error, binary()} | no_errors.
 check_error([]) -> no_errors;
