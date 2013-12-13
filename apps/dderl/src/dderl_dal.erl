@@ -32,6 +32,7 @@
         ,is_local_query/1
         ,save_dashboard/5
         ,get_dashboards/2
+        ,log_to_db/7
         ]).
 
 -record(state, { schema :: term()
@@ -552,3 +553,17 @@ internal_get_command(Sess, IdOrName) ->
       end,
   Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
   Cmd.
+
+-spec log_to_db(atom(), atom(), atom(), integer(), list(), binary(), list()) -> ok.
+log_to_db(Level,Module,Function,Line,Fields,Message,StackTrace)
+when is_atom(Level)
+    , is_atom(Module)
+    , is_atom(Function)
+    , is_integer(Line)
+    , is_list(Fields)
+    , is_binary(Message)
+    , is_list(StackTrace) ->
+    spawn(fun() ->
+        imem_meta:log_to_db(Level,Module,Function,Line,Fields,Message,StackTrace)
+    end),
+    ok.

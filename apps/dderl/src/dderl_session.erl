@@ -44,7 +44,7 @@ get_state({?MODULE, Pid}) ->
 process_request(undefined, Type, Body, ReplyPid, Ref) ->
     process_request(gen_adapter, Type, Body, ReplyPid, Ref);
 process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
-    ?Debug("request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
+    ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
     gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
 
 init(_Args) ->
@@ -269,7 +269,7 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
-    ?Debug([{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
+    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     NewCurrentPriv =
         try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
         catch Class:Error ->

@@ -207,22 +207,22 @@ refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) -> 
-    ?Debug("button ~p", [<<"restart">>]),
+    ?NoDbLog(debug, [], "button ~p", [<<"restart">>]),
     gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
 gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) -> 
-    ?Debug("button ~p", [<<">|">>]),
+    ?NoDbLog(debug, [], "button ~p", [<<">|">>]),
     gen_fsm:send_event(Pid,{button, <<">|">>, ReplyTo});
 gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) -> 
-    ?Debug("button ~p", [<<">|...">>]),
+    ?NoDbLog(debug, [], "button ~p", [<<">|...">>]),
     gen_fsm:send_event(Pid,{button, <<">|...">>, ReplyTo});
 gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) -> 
-    ?Debug("button ~p", [<<"...">>]),
+    ?NoDbLog(debug, [], "button ~p", [<<"...">>]),
     gen_fsm:send_event(Pid,{button, <<"...">>, ReplyTo});
 gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
-    % ?Debug("button ~p", [<<"tail">>]),
+    ?NoDbLog(debug, [], "button ~p", [<<"tail">>]),
     gen_fsm:send_event(Pid,{button, <<"tail">>, ReplyTo});
 gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) ->
-    ?Debug("~p ~p", [CommandStr,Parameter]),
+    ?NoDbLog(debug, [], "~p ~p", [CommandStr,Parameter]),
     gen_fsm:send_all_state_event(Pid,{CommandStr, Parameter, ReplyTo}).
 
 -spec row_with_key(integer(), {atom(), pid()}) -> tuple().
@@ -281,7 +281,7 @@ prefetch(_,State) ->                      State.
 -spec fetch_close(#state{}) -> #state{}.
 fetch_close(#state{ctx = #ctx{fetch_close_fun = Fcf}}=State) ->
     Result = Fcf(),
-    ?Debug("fetch_close -- ~p", [Result]),
+    ?NoDbLog(debug, [], "fetch_close -- ~p", [Result]),
     State#state{pfc=0}.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
@@ -290,7 +290,7 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
         {ok, NewSql, NewSortFun} ->
-            ?Debug("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
+            ?NoDbLog(debug, [], "filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
             {ok, NewSql, NewSortFun};
         {_, Error} -> 
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Error]),
@@ -508,7 +508,7 @@ filling({button, <<"restart">>, ReplyTo}, State0) ->
 filling({button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
     % too quick, defer request .. when we have the first block of data 
     State1 = reply_stack(filling, ReplyTo, State0),
-    ?Debug("filling stack ~p", [Button]),
+    ?NoDbLog(debug, [], "filling stack ~p", [Button]),
     {next_state, filling, State1#state{stack=Cmd}};
 filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % close fetch and clear buffers, schedule tail mode
@@ -527,13 +527,13 @@ filling({button, <<">|...">>, ReplyTo}=Cmd, State0) ->
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,true,State1),
     State3 = gui_clear(State2),
-    ?Debug("filling stack '>|...'"),
+    ?NoDbLog(debug, [], "filling stack '>|...'", []),
     {next_state, autofilling, State3#state{tailMode=true,tailLock=false,stack=Cmd}};
 filling({button, <<">|">>, ReplyTo}=Cmd, State0) ->
     % switch fetch .. push mode, defer answer .. bulk fetch completed 
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,none,State1),
-    ?Debug("filling stack '>|'"),
+    ?NoDbLog(debug, [], "filling stack '>|'", []),
     {next_state, autofilling, State2#state{stack=Cmd}};
 filling({rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
@@ -688,12 +688,12 @@ tailing({button, <<">|...">>, ReplyTo}, State0) ->
     {next_state, tailing, State2#state{tailLock=false}};
 tailing({button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
     State1 = reply_stack(tailing, ReplyTo, State0),
-    ?Debug("tailing stack 'tail'"),
+    ?NoDbLog(debug, [], "tailing stack 'tail'", []),
     {ok, NewTRef} = timer:send_after(?TAIL_TIMEOUT, cmd_stack_timeout),
     {next_state, tailing, State1#state{stack=Cmd, tRef=NewTRef}};
 tailing({button, <<"tail">>, ReplyTo}, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     % continue tailing
-    ?Debug("tailing button in state ~n~p guibot: ~p bufbot: ~p", [tailing, GuiBot, BufBot]),
+    ?NoDbLog(debug, [], "tailing button in state ~n~p guibot: ~p bufbot: ~p", [tailing, GuiBot, BufBot]),
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"tail">>, State1),
     {next_state, tailing, State2};
@@ -850,7 +850,7 @@ aborted(Other, State) ->
 
 handle_event({button, <<">">>, ReplyTo}, empty, State0) ->
     State1 = fetch(none,none, State0#state{tailMode=false}),
-    ?Debug("empty stack '>' the fun ~p", [ReplyTo]),
+    ?NoDbLog(debug, [], "empty stack '>' the fun ~p", [ReplyTo]),
     {next_state, filling, State1#state{stack={button,<<">">>,ReplyTo}}};
 handle_event({button, <<">">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
@@ -940,7 +940,7 @@ handle_event(Event, SN, State) ->
 %%          {stop, Reason, ReplyTo, NewStateData}
 %% --------------------------------------------------------------------
 handle_sync_event({"get_columns"}, _From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
-    ?Debug("get_columns ~p", [Columns]),
+    ?NoDbLog(debug, [], "get_columns ~p", [Columns]),
     {reply, Columns, SN, State, infinity};
 handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
@@ -1021,7 +1021,7 @@ handle_info({_Pid,{Rows,Completed}}, SN, State) ->
     {next_state, SN, State, infinity};
 handle_info(cmd_stack_timeout, tailing, #state{stack={button, <<"tail">>, RT}}=State) ->
     % we didn't get any new data to send, so we reply with nop.
-    ?Debug("Tail timeout, replying with nop"),
+    ?NoDbLog(debug, [], "Tail timeout, replying with nop", []),
     State1 = gui_nop(#gres{state=tailing, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
     {next_state, tailing, State1, infinity};
 handle_info(Unknown, SN, State) ->
@@ -1062,9 +1062,9 @@ gui_max(BL) -> 3 * BL.
 
 %% What is the return of a log ? -spec gui_response_log(#gres{}) -> ok.
 gui_response_log(#gres{sql= <<"">>}=Gres) ->
-    ?Debug("gui_response ~p", [Gres#gres{rows=[]}]);
+    ?NoDbLog(debug, [], "gui_response ~p", [Gres#gres{rows=[]}]);
 gui_response_log(Gres) ->
-    ?Debug("gui_response ~p", [Gres#gres.sql]).
+    ?NoDbLog(debug, [], "gui_response ~p", [Gres#gres.sql]).
 
 -spec gui_response(#gres{}, #state{}) -> #state{}.
 gui_response(#gres{state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql}=State0) ->
@@ -1110,12 +1110,12 @@ gui_close(GuiResult,State) ->
 
 -spec gui_nop(#gres{}, #state{}) -> #state{}.
 gui_nop(GuiResult,State) -> 
-    ?Debug("gui_nop () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
+    ?NoDbLog(debug, [], "gui_nop () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     gui_response(GuiResult#gres{operation= <<"nop">>},State).
 
 -spec gui_clear(#gres{}, #state{}) -> #state{}.
 gui_clear(GuiResult,#state{nav = Nav} = State0) ->
-    ?Debug("gui_clear () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
+    ?NoDbLog(debug, [], "gui_clear () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     case Nav of
         raw -> GuiBot = ?RawMin;
         ind -> GuiBot = ?IndMin
@@ -1171,7 +1171,7 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=raw,tableId=TableId,rowFun=RowF
         0 ->    {[],?RawMax,?RawMin};
         _ ->    {rows_for_ids(Ids,TableId,RowFun),hd(Ids),lists:last(Ids)}
     end,
-    ?Debug("gui_replace_until  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
+    ?NoDbLog(debug, [], "gui_replace_until  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt}, State1);
 gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
@@ -1181,7 +1181,7 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
         0 ->    {[],?IndMax,?IndMin};
         _ ->    {rows_for_keys(Keys,TableId),hd(Keys),Bot}
     end,
-    ?Debug("gui_replace_until  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
+    ?NoDbLog(debug, [], "gui_replace_until  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt},State1).
 
@@ -1250,15 +1250,15 @@ gui_append(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
             gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=NewGuiCnt}, State1)
     end;
 gui_append(GuiResult,#state{nav=raw,bl=BL,gl=GL,guiCnt=GuiCnt,guiBot=GuiBot}=State0) ->
-    ?Debug("GuiBot ~p", [GuiBot]),
+    ?NoDbLog(debug, [], "GuiBot ~p", [GuiBot]),
     Rows=rows_after(GuiBot, BL, State0),
-    ?Debug("Rows ~p", [Rows]),
+    ?NoDbLog(debug, [], "Rows ~p", [Rows]),
     Cnt = length(Rows),
     {NewGuiCnt,NewGuiTop,NewGuiBot} = case ids_before(GuiBot,min(GuiCnt-1,GL-Cnt-1),State0) of
         [] ->       {Cnt+1,GuiBot,hd(lists:last(Rows))};
         IdsKept ->  {length(IdsKept)+Cnt+1,hd(IdsKept),hd(lists:last(Rows))}
     end,
-    ?Debug("gui_append  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
+    ?NoDbLog(debug, [], "gui_append  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
     State1 = State0#state{guiCnt=NewGuiCnt,guiTop=NewGuiTop,guiBot=NewGuiBot},
     gui_response(GuiResult#gres{operation= <<"app">>,rows=Rows,keep=NewGuiCnt}, State1);
 gui_append(GuiResult,#state{nav=ind,bl=BL,tableId=TableId,guiCnt=0}=State0) ->
@@ -1460,7 +1460,7 @@ serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufC
 
 -spec serve_bot(atom(), binary(), #state{}) -> #state{}.
 serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol}=State0) ->
-    %?Debug("serve_bot  (~p ~p) ~p ~p ~p ~p", [SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot]),
+    ?NoDbLog(debug, [], "serve_bot  (~p ~p) ~p ~p ~p ~p", [SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
         (BufCnt == 0) ->
             %% no data, serve empty
@@ -1498,27 +1498,27 @@ serve_stack( _, #state{nav=ind,bufBot=B,guiBot=B}=State) ->
     State;
 serve_stack(completed, #state{stack={button,<<"<">>,RT}}=State0) ->
     % deferred button can be executed for backward button <<"<">> 
-    ?Debug("~p stack exec ~p", [completed,<<"<">>]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,<<"<">>]),
     serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(completed, #state{stack={button,<<"<<">>,RT}}=State0) ->
     % deferred button can be executed for backward button <<"<<">> 
-    ?Debug("~p stack exec ~p", [completed,<<"<<">>]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,<<"<<">>]),
     serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
-    ?Debug("~p stack exec ~p", [completed,_Button]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,_Button]),
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
 serve_stack(aborted, #state{stack={button,<<"<">>,RT}}=State0) ->
     % deferred button can be executed for backward button <<"<">> 
-    ?Debug("~p stack exec ~p", [aborted,<<"<">>]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,<<"<">>]),
     serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(aborted, #state{stack={button,<<"<<">>,RT}}=State0) ->
     % deferred button can be executed for backward button <<"<<">> 
-    ?Debug("~p stack exec ~p", [aborted,<<"<<">>]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,<<"<<">>]),
     serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(aborted, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
-    ?Debug("~p stack exec ~p", [aborted,_Button]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,_Button]),
     serve_bot(aborted,<<>>,State0#state{stack=undefined,replyToFun=RT});
 serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     case lists:member(GuiBot,keys_before(BufBot,BL-1,State0)) of
@@ -1536,14 +1536,14 @@ serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufBot=BufBot,guiBot=Gui
     end;
 serve_stack(SN, #state{bufCnt=BufCnt,stack={button,Target,RT}}=State0) when is_integer(Target), (BufCnt>=Target) ->
     % deferred target can be executed now
-    ?Debug("~p stack exec ~p", [SN,Target]),
+    ?NoDbLog(debug, [], "~p stack exec ~p", [SN,Target]),
     serve_target(SN,Target,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(tailing, #state{stack={button,<<">|...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
 serve_stack(tailing, #state{stack={button,<<"...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
 serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol,stack={button,<<"tail">>,RT},tailLock=TailLock,replyToFun=ReplyTo}=State0) ->
-    ?Debug("~p serve_stack ~p", [tailing,<<"tail">>]),
+    ?NoDbLog(debug, [], "~p serve_stack ~p", [tailing,<<"tail">>]),
     if
         TailLock -> 
             reply_stack(tailing, ReplyTo, State0);                  % tailing is cancelled
@@ -1554,7 +1554,7 @@ serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
             serve_bot(tailing,<<"tail">>,State0#state{stack=undefined,replyToFun=RT});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("~p stack exec ~p", [tailing,<<"tail">>]),
+            ?NoDbLog(debug, [], "~p stack exec ~p", [tailing,<<"tail">>]),
             gui_append(#gres{state=tailing,loop= <<"tail">>,focus=-1},State0#state{stack=undefined,replyToFun=RT})
     end;
 serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
@@ -1566,7 +1566,7 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
             serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("Guicnt != 0 ~p", [autofilling,<<">|">>]),
+            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<">|">>]),
             gui_append(#gres{state = autofilling, loop = <<">|">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
 serve_stack(filling, #state{stack = {button, <<">|">>, ReplyTo}} = State) ->
@@ -1576,7 +1576,7 @@ serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
         (GuiCnt == 0) ->                                           % (re)initialize to buffer bottom
-            ?Debug("~p stack exec ~p", [integer_to_binary(Target)]),
+            ?Debug("stack exec ~p", [integer_to_binary(Target)]),
             serve_bot(filling, integer_to_binary(Target), State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
@@ -1706,7 +1706,7 @@ data_clear(State) ->
 
 -spec raw_clear(#state{}) -> #state{}.
 raw_clear(#state{tableId=TableId}=State) -> 
-    ?Debug("raw_clear"),
+    ?NoDbLog(debug, [], "raw_clear", []),
     true = ets:delete_all_objects(TableId),    
     Default = #state{}, 
     set_buf_counters(State#state{ rawCnt = Default#state.rawCnt
@@ -1719,7 +1719,7 @@ raw_clear(#state{tableId=TableId}=State) ->
 
 -spec ind_clear(#state{}) -> #state{}.
 ind_clear(#state{indexId=IndexId}=State) -> 
-    ?Debug("ind_clear"),
+    ?NoDbLog(debug, [], "ind_clear", []),
     true = ets:delete_all_objects(IndexId),    
     Default = #state{}, 
     set_buf_counters(State#state{ indCnt = Default#state.indCnt
@@ -1729,7 +1729,7 @@ ind_clear(#state{indexId=IndexId}=State) ->
 
 -spec gui_clear(#state{}) -> #state{}.
 gui_clear(State) -> 
-    ?Debug("gui_clear"),
+    ?NoDbLog(debug, [], "gui_clear", []),
     Default = #state{}, 
     State#state{  guiCnt = Default#state.guiCnt
                 , guiTop = Default#state.guiTop         
@@ -1748,7 +1748,7 @@ data_append(SN, {Recs,_Complete},#state{nav=raw,tableId=TableId,rawCnt=RawCnt,ra
     NewRawCnt = RawCnt+Cnt,
     NewRawTop = min(RawTop,RawBot+1),   % initialized .. 1 and then changed only in delete or clear
     NewRawBot = RawBot+Cnt,
-    ?Debug("data_append count ~p bufBot ~p pfc ~p", [Cnt,NewRawBot,NewPfc]),
+    ?NoDbLog(debug, [], "data_append count ~p bufBot ~p pfc ~p", [Cnt,NewRawBot,NewPfc]),
     ets:insert(TableId, [list_to_tuple([I,nop|[R]])||{I,R}<-lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)]),
     serve_stack(SN, set_buf_counters(State0#state{pfc=NewPfc,rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot}));
 data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
@@ -1763,7 +1763,7 @@ data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
     RawRows = [raw_row_expand({I,nop,RK}, RowFun) || {I,RK} <- lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)],
     ets:insert(TableId, RawRows),
     IndRows = [?IndRec(R,SortFun) || R <- lists:filter(FilterFun,RawRows)],
-    ?Debug("data_append -IndRows- ~p", [IndRows]),
+    ?NoDbLog(debug, [], "data_append -IndRows- ~p", [IndRows]),
     FunCol = fun({X,_},{IT,IB,C}) ->  {IT,IB,(C orelse ((X>IT) and (X<IB)))}  end, 
     {_,_,Collision} = lists:foldl(FunCol, {GuiTop, GuiBot, false}, IndRows),    %% detect data collisions with gui content
     ets:insert(IndexId, IndRows),
@@ -1773,7 +1773,7 @@ data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
         _ ->    {ets:first(IndexId),ets:last(IndexId)}
     end,
     NewGuiCol = (GuiCol or Collision),    
-    ?Debug("data_append count ~p bufBot ~p pfc=~p stale=~p", [Cnt,NewRawBot,NewPfc,NewGuiCol]),
+    ?NoDbLog(debug, [], "data_append count ~p bufBot ~p pfc=~p stale=~p", [Cnt,NewRawBot,NewPfc,NewGuiCol]),
     serve_stack(SN, set_buf_counters(State0#state{ pfc=NewPfc
                                                 , rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot
                                                 , indCnt=NewIndCnt,indTop=NewIndTop,indBot=NewIndBot
@@ -1783,7 +1783,7 @@ data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
 
 -spec data_reorder(atom(), list(), #state{}) -> #state{}.
 data_reorder(SN,ColOrder,#state{sortSpec=SortSpec,filterSpec=FilterSpec}=State0) ->
-    ?Debug("data_sort ~p data_filter ~p col_order ~p", [SortSpec,FilterSpec,ColOrder]),
+    ?NoDbLog(debug, [], "data_sort ~p data_filter ~p col_order ~p", [SortSpec,FilterSpec,ColOrder]),
     State1 = State0#state{colOrder=ColOrder},
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
         {ok, NewSql, _} ->
@@ -1871,7 +1871,7 @@ data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=Row
         0 ->    {?IndMax,?IndMin};
         _ ->    {ets:first(IndexId),ets:last(IndexId)}
     end,
-    ?Debug("data_index nav=~p Srt=~p IndCnt=~p IndTop=~p IndBot=~p",[Nav,Srt,IndCnt,IndTop,IndBot]),
+    ?NoDbLog(debug, [], "data_index nav=~p Srt=~p IndCnt=~p IndTop=~p IndBot=~p",[Nav,Srt,IndCnt,IndTop,IndBot]),
     set_buf_counters(State1#state{nav=Nav,srt=Srt
         ,sortFun=SortFun,filterSpec=FilterSpec,filterFun=FilterFun
         ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).

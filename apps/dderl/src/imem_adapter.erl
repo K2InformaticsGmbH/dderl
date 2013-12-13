@@ -616,7 +616,7 @@ send_result_table_cmd(From, BinCmd, Results) ->
             BinTblError = list_to_binary(string:join(ListNames, ",")),
             [CmdSplit|_] = binary:split(BinCmd, <<"_">>),
             Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  BinTblError]),
-            ?Error("Error: ",  [Err]),
+            ?Error("Error: ~p",  [Err]),
             From ! {reply, jsx:encode([{BinCmd, [{<<"error">>, Err}]}])}
     end,
     ok.

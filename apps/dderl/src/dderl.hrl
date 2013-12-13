@@ -68,17 +68,25 @@
 
 -define(LOG_TAG, "_DDRL_").
 
--define(Debug(__M,__F,__A), lager:debug(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F,__A),     lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Debug(__F),         lager:debug(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
+-define(NoDbLog(__L,__M,__F,__A), lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
+-define(Log(__L,__M,__F,__A),
+    begin
+        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A),
+        dderl_dal:log_to_db(__L,?MODULE,element(2,element(2,process_info(self(), current_function))),?LINE,[]
+                           ,list_to_binary(io_lib:format(__F, __A))
+                           ,erlang:get_stacktrace())
+    end).
+-define(Debug(__M,__F,__A), ?Log(debug,__M,__F,__A)).
+-define(Info(__M,__F,__A),  ?Log(info,__M,__F,__A)).
+-define(Error(__M,__F,__A), ?Log(error,__M,__F,__A)).
 
--define(Info(__M,__F,__A),  lager:info(__M,  "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F,__A),      lager:info(      "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Info(__F),          lager:info(      "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
-
--define(Error(__M,__F,__A), lager:error(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F,__A),     lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Error(__F),         lager:error(     "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}])).
+% helper macro extension
+-define(Debug(__F,__A),     ?Debug([],__F,__A)).
+-define(Debug(__F),         ?Debug(__F,[])).
+-define(Info(__F,__A),      ?Info([],__F,__A)).
+-define(Info(__F),          ?Info(__F,[])).
+-define(Error(__F,__A),     ?Error([],__F,__A)).
+-define(Error(__F),         ?Error(__F,[])).
 
 % Function shortcuts
 -define(EncryptPid(__T), dderl:encrypt_id(__T)).

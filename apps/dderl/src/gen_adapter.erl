@@ -218,7 +218,7 @@ col2json([C|Cols], JCols, Counter) ->
 -spec gui_resp(#gres{}, [#stmtCol{}]) -> [{binary(), term()}].
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
-    ?Debug("processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
+    ?NoDbLog(debug, [], "processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
     % refer to erlimem/src/gres.hrl for the descriptions of the record fields
     [{<<"op">>,         Gres#gres.operation}
     ,{<<"cnt">>,        Gres#gres.cnt}

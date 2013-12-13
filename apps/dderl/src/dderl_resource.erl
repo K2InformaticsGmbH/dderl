@@ -84,7 +84,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
     end.
 
 info({reply, Body}, Req, DDerlSessPid) ->
-    ?Debug("reply ~n~s", [jsx:prettify(Body)]),
+    ?NoDbLog(debug, [], "reply ~n~s", [jsx:prettify(Body)]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
@@ -109,8 +109,8 @@ create_new_session(<<>>) ->
     {ok, DderlSess};
 create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
     try
-        {_, Pid} = DDerlSess = ?DecryptPid(DDerlSessStr),
-        ?Debug("existing session ~p", [DDerlSess]),
+        {_, Pid} = _DDerlSess = ?DecryptPid(DDerlSessStr),
+        %?Debug("existing session ~p", [DDerlSess]),
         case erlang:process_info(Pid) of
             undefined -> {error, <<"process not found">>};
             _ -> {ok, {dderl_session, Pid}}
