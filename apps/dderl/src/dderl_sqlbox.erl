@@ -10,7 +10,7 @@
 -include("dderl.hrl").
 -include("dderl_sqlbox.hrl").
 
--define(DefCollInd,3).  % First indentation level which will be collapsed by default
+-define(DefCollInd,10).  % First indentation level which will be collapsed by default
 
 -spec validate_children([#box{}]) -> ok | {error, binary()}.
 validate_children([]) -> ok;
@@ -141,7 +141,7 @@ foldb(Ind, P, {select, List}) when is_list(List) ->
     Res = [foldb(Ind+1, P, Sli) || Sli <- List],
     case check_error(Res) of
         {error, Reason} -> {error, Reason};
-        _ -> fb(Ind, neItems(Res), select)
+        _ -> mk_box(Ind, neItems(Res), select)
     end;
 foldb(_, _P, {hints,<<>>})               -> empty;
 foldb(_, _P, {opt,  <<>>})               -> empty;
@@ -150,7 +150,7 @@ foldb(_, _P, {where,  {}})               -> empty;
 foldb(_, _P, {having, {}})               -> empty;
 foldb(_, _P, {'hierarchical query', {}}) -> empty;
 
-foldb(Ind, _P, T) when is_binary(T); is_atom(T) -> fb(Ind, [], T);
+foldb(Ind, _P, T) when is_binary(T); is_atom(T) -> mk_box(Ind, [], T);
 
 %%TODO: Improve these ugly nested cases to check for errors.
 foldb(Ind, P, {'as', {'fun',Fun,List}, Alias}) ->
@@ -178,59 +178,59 @@ foldb(Ind, P, {'as', Item, Alias}) ->
                         B#box{children=EChildren}
             end
     end;
-foldb(Ind, _P, {hints, Hint}) -> fb(Ind, [], Hint);
-foldb(Ind, _P, {opt, Opt}) -> fb(Ind, [], Opt);
+foldb(Ind, _P, {hints, Hint}) -> mk_box(Ind, [], Hint);
+foldb(Ind, _P, {opt, Opt}) -> mk_box(Ind, [], Opt);
 
 foldb(Ind, _P, {where, WC}) ->
     case foldb(Ind+1, where, WC) of
         {error, Reason} ->
             {error, Reason};
         #box{name= <<>>, children=Children} ->
-            fb(Ind, Children, where);
+            mk_box(Ind, Children, where);
         Fold ->
-            fb(Ind, Fold, where)
+            mk_box(Ind, Fold, where)
     end;
 
 foldb(Ind, _P, {having, HC}) ->
     case foldb(Ind+1, having, HC) of
         {error, Reason} -> {error, Reason};
-        B -> fb(Ind, B, having)
+        B -> mk_box(Ind, B, having)
     end;
 
 foldb(Ind, P, {'fun', Fun, [B]}) when is_binary(B) ->
     case (binding(P) =< binding('list')) of
         true ->
-            Ch = [fb_coll(Ind+3, [], B)],
-            B0 = fb_coll(Ind+2, [], <<"(">>),
-            B1 = fb_coll(Ind+2, Ch, <<>>),
-            B2 = fb_coll(Ind+2, [], <<")">>),
-            fb(Ind, fb_coll(Ind+1, [B0,B1,B2], Fun),<<>>);
+            Ch = [mk_clspd_box(Ind+3, [], B)],
+            B0 = mk_clspd_box(Ind+2, [], <<"(">>),
+            B1 = mk_clspd_box(Ind+2, Ch, <<>>),
+            B2 = mk_clspd_box(Ind+2, [], <<")">>),
+            mk_box(Ind, mk_clspd_box(Ind+1, [B0,B1,B2], Fun),<<>>);
         false ->
-            Ch = [fb_coll(Ind+2, [], B)],
-            B0 = fb_coll(Ind+1, [], <<"(">>),
-            B1 = fb_coll(Ind+1, Ch, <<>>),
-            B2 = fb_coll(Ind+1, [], <<")">>),
-            fb_coll(Ind, [B0,B1,B2], Fun)
+            Ch = [mk_clspd_box(Ind+2, [], B)],
+            B0 = mk_clspd_box(Ind+1, [], <<"(">>),
+            B1 = mk_clspd_box(Ind+1, Ch, <<>>),
+            B2 = mk_clspd_box(Ind+1, [], <<")">>),
+            mk_clspd_box(Ind, [B0,B1,B2], Fun)
     end;
 foldb(Ind, P, {'fun', Fun, [A,B]}) when is_binary(A), is_binary(B) ->
     case (binding(P) =< binding('list')) of
         true ->
-            case foldb_commas([fb_coll(Ind+3, [], A),fb_coll(Ind+3, [], B)]) of
+            case foldb_commas([mk_clspd_box(Ind+3, [], A),mk_clspd_box(Ind+3, [], B)]) of
                 {error, Reason} -> {error, Reason};
                 Ch ->
-                    B0 = fb_coll(Ind+2, [], <<"(">>),
-                    B1 = fb_coll(Ind+2, Ch, <<>>),
-                    B2 = fb_coll(Ind+2, [], <<")">>),
-                    fb(Ind, fb_coll(Ind+1, [B0,B1,B2], Fun),<<>>)
+                    B0 = mk_clspd_box(Ind+2, [], <<"(">>),
+                    B1 = mk_clspd_box(Ind+2, Ch, <<>>),
+                    B2 = mk_clspd_box(Ind+2, [], <<")">>),
+                    mk_box(Ind, mk_clspd_box(Ind+1, [B0,B1,B2], Fun),<<>>)
             end;
         false ->
-            case foldb_commas([fb_coll(Ind+2, [], A),fb_coll(Ind+2, [], B)]) of
+            case foldb_commas([mk_clspd_box(Ind+2, [], A),mk_clspd_box(Ind+2, [], B)]) of
                 {error, Reason} -> {error, Reason};
                 Ch ->
-                    B0 = fb_coll(Ind+1, [], <<"(">>),
-                    B1 = fb_coll(Ind+1, Ch, <<>>),
-                    B2 = fb_coll(Ind+1, [], <<")">>),
-                    fb_coll(Ind, [B0,B1,B2], Fun)
+                    B0 = mk_clspd_box(Ind+1, [], <<"(">>),
+                    B1 = mk_clspd_box(Ind+1, Ch, <<>>),
+                    B2 = mk_clspd_box(Ind+1, [], <<")">>),
+                    mk_clspd_box(Ind, [B0,B1,B2], Fun)
             end
     end;
 foldb(Ind, P, {'fun', Fun, List}) ->
@@ -243,10 +243,10 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                     case foldb_commas(Res) of
                         {error, Reason} -> {error, Reason};
                         Ch ->
-                            B0 = fb(Ind+2, [], <<"(">>),
-                            B1 = fb(Ind+2, Ch, <<>>),
-                            B2 = fb(Ind+2, [], <<")">>),
-                            fb(Ind, fb(Ind+1, [B0,B1,B2], Fun),<<>>)
+                            B0 = mk_box(Ind+2, [], <<"(">>),
+                            B1 = mk_box(Ind+2, Ch, <<>>),
+                            B2 = mk_box(Ind+2, [], <<")">>),
+                            mk_box(Ind, mk_box(Ind+1, [B0,B1,B2], Fun),<<>>)
                     end
             end;
         false ->
@@ -257,10 +257,10 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                     case foldb_commas(Res) of
                         {error, Reason} -> {error, Reason};
                         Ch ->
-                            B0 = fb(Ind+1, [], <<"(">>),
-                            B1 = fb(Ind+1, Ch, <<>>),
-                            B2 = fb(Ind+1, [], <<")">>),
-                            fb(Ind, [B0,B1,B2], Fun)
+                            B0 = mk_box(Ind+1, [], <<"(">>),
+                            B1 = mk_box(Ind+1, Ch, <<>>),
+                            B2 = mk_box(Ind+1, [], <<")">>),
+                            mk_box(Ind, [B0,B1,B2], Fun)
                     end
             end
     end;
@@ -271,7 +271,7 @@ foldb(Ind, _P, {fields, List}) when is_list(List) ->    %% Sli from, 'group by',
         _ ->
             case foldb_commas(Res) of
                 {error, Reason} -> {error, Reason};
-                Ch -> fb(Ind, Ch, bStr(<<>>))
+                Ch -> mk_box(Ind, Ch, bStr(<<>>))
             end
     end;
 foldb(Ind, _P, {list, List}) when is_list(List) ->
@@ -281,7 +281,7 @@ foldb(Ind, _P, {list, List}) when is_list(List) ->
         _ ->
             case foldb_commas(Res) of
                 {error, Reason} -> {error, Reason};
-                Ch -> fb(Ind, Ch, <<>>)
+                Ch -> mk_box(Ind, Ch, <<>>)
             end
     end;
 foldb(Ind, _P, {'||', List}) when is_list(List) ->
@@ -291,7 +291,7 @@ foldb(Ind, _P, {'||', List}) when is_list(List) ->
         _ ->
             case foldb_concat(Res) of
                 {error, Reason} -> {error, Reason};
-                Ch -> fb(Ind, Ch, <<>>)
+                Ch -> mk_box(Ind, Ch, <<>>)
             end
     end;
 foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
@@ -315,27 +315,27 @@ foldb(Ind, _P, {Sli, List}) when is_list(List) ->       %% Sli from, 'group by',
                 Ch ->
                     case foldb_commas(Ch) of
                         {error, Reason} -> {error, Reason};
-                        ChCommas -> fb(Ind, ChCommas, Sli)
+                        ChCommas -> mk_box(Ind, ChCommas, Sli)
                     end
             end
     end;
 foldb(Ind, P, {'not', {like, L, R, Escape}}) ->
     OptEscape = case Escape of
         <<>> -> [];
-        _ -> [fb_coll(Ind+1, [], 'escape'), fb_coll(Ind+1, [], Escape)]
+        _ -> [mk_box(Ind+1, [], 'escape'), mk_box(Ind+1, [], Escape)]
     end,
     case (binding(P) =< binding(like)) of
-        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], 'not like'), fb_coll(Ind+1, [], R) | OptEscape], <<>>);
-        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], 'not like'), fb_coll(Ind, [], R) | OptEscape]
+        true ->     mk_box(Ind, [mk_box(Ind+1, [], L), mk_box(Ind+1, [], 'not like'), mk_box(Ind+1, [], R) | OptEscape], <<>>);
+        false ->    [mk_box(Ind, [], L), mk_box(Ind, [], 'not like'), mk_box(Ind, [], R) | OptEscape]
     end;
 foldb(Ind, P, {like, L, R, Escape}) ->
     OptEscape = case Escape of
         <<>> -> [];
-        _ -> [fb_coll(Ind+1, [], 'escape'), fb_coll(Ind+1, [], Escape)]
+        _ -> [mk_box(Ind+1, [], 'escape'), mk_box(Ind+1, [], Escape)]
     end,
     case (binding(P) =< binding(like)) of
-        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], like), fb_coll(Ind+1, [], R) | OptEscape], <<>>);
-        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], like), fb_coll(Ind, [], R) | OptEscape]
+        true ->     mk_box(Ind, [mk_box(Ind+1, [], L), mk_box(Ind+1, [], like), mk_box(Ind+1, [], R) | OptEscape], <<>>);
+        false ->    [mk_box(Ind, [], L), mk_box(Ind, [], like), mk_box(Ind, [], R) | OptEscape]
     end;
 foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
     Bo = binding(Op),
@@ -350,23 +350,23 @@ foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
                             case foldb(Ind+3, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    R0 = fb(Ind+2, [], <<"(">>),
-                                    R1 = fb(Ind+2, FR1, <<>>),
-                                    R2 = fb(Ind+2, [], <<")">>),
-                                    Fr = fb(Ind+1, [R0,R1,R2], <<>>),
-                                    fb(Ind, lists:flatten([Fl, Fr]), <<>>)
+                                    R0 = mk_box(Ind+2, [], <<"(">>),
+                                    R1 = mk_box(Ind+2, FR1, <<>>),
+                                    R2 = mk_box(Ind+2, [], <<")">>),
+                                    Fr = mk_box(Ind+1, [R0,R1,R2], <<>>),
+                                    mk_box(Ind, lists:flatten([Fl, Fr]), <<>>)
                             end;
                         Bo == Br ->
                             case foldb(Ind+1, Op, R) of
                                 {error, Reason} -> {error, Reason};
-                                Fr -> fb(Ind, lists:flatten([Fl, Fr]), <<>>)
+                                Fr -> mk_box(Ind, lists:flatten([Fl, Fr]), <<>>)
                             end;
                         true ->
                             case foldb(Ind+2, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    Fr = fb(Ind+1, FR1, <<>>),
-                                    fb(Ind, lists:flatten([Fl, Fr]), <<>>)
+                                    Fr = mk_box(Ind+1, FR1, <<>>),
+                                    mk_box(Ind, lists:flatten([Fl, Fr]), <<>>)
                             end
                     end
             end;
@@ -379,10 +379,10 @@ foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
                             case foldb(Ind+2, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    R0 = fb(Ind+1, [], <<"(">>),
-                                    R1 = fb(Ind+1, FR1, <<>>),
-                                    R2 = fb(Ind+1, [], <<")">>),
-                                    Fr = fb(Ind, [R0,R1,R2], <<>>),
+                                    R0 = mk_box(Ind+1, [], <<"(">>),
+                                    R1 = mk_box(Ind+1, FR1, <<>>),
+                                    R2 = mk_box(Ind+1, [], <<")">>),
+                                    Fr = mk_box(Ind, [R0,R1,R2], <<>>),
                                     lists:flatten([Fl, Fr])
                             end;
                         Bo == Br ->
@@ -394,7 +394,7 @@ foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
                             case foldb(Ind+1, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    Fr = fb(Ind, FR1, <<>>),
+                                    Fr = mk_box(Ind, FR1, <<>>),
                                     lists:flatten([Fl, Fr])
                             end
                     end
@@ -410,7 +410,7 @@ foldb(Ind, P, {Op, R}) when is_atom(Op), is_binary(R) ->
                     case foldb(Ind+1, Op, R) of
                         {error, Reason} -> {error, Reason};
                         Fr ->
-                            fb(Ind, [Fl, Fr], <<>>)
+                            mk_box(Ind, [Fl, Fr], <<>>)
                     end
             end;
         false ->
@@ -435,32 +435,32 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                             case foldb(Ind+3, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    L0 = fb(Ind+2, [], <<"(">>),
-                                    L1 = fb(Ind+2, FL1, <<>>),
-                                    L2 = fb(Ind+2, [], <<")">>),
-                                    Fl = fb(Ind+1, lists:flatten([L0,L1,L2]), <<>>),
+                                    L0 = mk_box(Ind+2, [], <<"(">>),
+                                    L1 = mk_box(Ind+2, FL1, <<>>),
+                                    L2 = mk_box(Ind+2, [], <<")">>),
+                                    Fl = mk_box(Ind+1, lists:flatten([L0,L1,L2]), <<>>),
                                     if
                                         Bo > Br ->
                                             case foldb(Ind+3, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+2, [], <<"(">>),
-                                                    R1 = fb(Ind+2, FR1, <<>>),
-                                                    R2 = fb(Ind+2, [], <<")">>),
-                                                    Fr = fb(Ind+1, [R0,R1,R2], <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    R0 = mk_box(Ind+2, [], <<"(">>),
+                                                    R1 = mk_box(Ind+2, FR1, <<>>),
+                                                    R2 = mk_box(Ind+2, [], <<")">>),
+                                                    Fr = mk_box(Ind+1, [R0,R1,R2], <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         Bo == Br ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
-                                                Fr -> fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                Fr -> mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         true ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind+1, FR1, <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    Fr = mk_box(Ind+1, FR1, <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end
                                     end
                             end;
@@ -473,23 +473,23 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                                             case foldb(Ind+3, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+2, [], <<"(">>),
-                                                    R1 = fb(Ind+2, FR1, <<>>),
-                                                    R2 = fb(Ind+2, [], <<")">>),
-                                                    Fr = fb(Ind+1, [R0,R1,R2], <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    R0 = mk_box(Ind+2, [], <<"(">>),
+                                                    R1 = mk_box(Ind+2, FR1, <<>>),
+                                                    R2 = mk_box(Ind+2, [], <<")">>),
+                                                    Fr = mk_box(Ind+1, [R0,R1,R2], <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         Bo == Br ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
-                                                Fr -> fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                Fr -> mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         true ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind+1, FR1, <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    Fr = mk_box(Ind+1, FR1, <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end
                                     end
                             end;
@@ -497,29 +497,29 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                             case foldb(Ind+2, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FlM ->
-                                    Fl = fb(Ind+1, FlM, <<>>),
+                                    Fl = mk_box(Ind+1, FlM, <<>>),
                                     if
                                         Bo > Br ->
                                             case foldb(Ind+3, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+2, [], <<"(">>),
-                                                    R1 = fb(Ind+2, FR1, <<>>),
-                                                    R2 = fb(Ind+2, [], <<")">>),
-                                                    Fr = fb(Ind+1, [R0,R1,R2], <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    R0 = mk_box(Ind+2, [], <<"(">>),
+                                                    R1 = mk_box(Ind+2, FR1, <<>>),
+                                                    R2 = mk_box(Ind+2, [], <<")">>),
+                                                    Fr = mk_box(Ind+1, [R0,R1,R2], <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         Bo == Br ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
-                                                Fr -> fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                Fr -> mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end;
                                         true ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind+1, FR1, <<>>),
-                                                    fb(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
+                                                    Fr = mk_box(Ind+1, FR1, <<>>),
+                                                    mk_box(Ind, lists:flatten([Fl,Fm,Fr]), <<>>)
                                             end
                                     end
                             end
@@ -534,19 +534,19 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                             case foldb(Ind+2, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    L0 = fb(Ind+1, [], <<"(">>),
-                                    L1 = fb(Ind+1, FL1, <<>>),
-                                    L2 = fb(Ind+1, [], <<")">>),
-                                    Fl = fb(Ind, [L0,L1,L2], <<>>),
+                                    L0 = mk_box(Ind+1, [], <<"(">>),
+                                    L1 = mk_box(Ind+1, FL1, <<>>),
+                                    L2 = mk_box(Ind+1, [], <<")">>),
+                                    Fl = mk_box(Ind, [L0,L1,L2], <<>>),
                                     if
                                         Bo > Br ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+1, [], <<"(">>),
-                                                    R1 = fb(Ind+1, FR1, <<>>),
-                                                    R2 = fb(Ind+1, [], <<")">>),
-                                                    Fr = fb(Ind, [R0,R1,R2], <<>>),
+                                                    R0 = mk_box(Ind+1, [], <<"(">>),
+                                                    R1 = mk_box(Ind+1, FR1, <<>>),
+                                                    R2 = mk_box(Ind+1, [], <<")">>),
+                                                    Fr = mk_box(Ind, [R0,R1,R2], <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end;
                                         Bo == Br ->
@@ -558,7 +558,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind, FR1, <<>>),
+                                                    Fr = mk_box(Ind, FR1, <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end
                                     end
@@ -572,10 +572,10 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+1, [], <<"(">>),
-                                                    R1 = fb(Ind+1, FR1, <<>>),
-                                                    R2 = fb(Ind+1, [], <<")">>),
-                                                    Fr = fb(Ind, [R0,R1,R2], <<>>),
+                                                    R0 = mk_box(Ind+1, [], <<"(">>),
+                                                    R1 = mk_box(Ind+1, FR1, <<>>),
+                                                    R2 = mk_box(Ind+1, [], <<")">>),
+                                                    Fr = mk_box(Ind, [R0,R1,R2], <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end;
                                         Bo == Br ->
@@ -587,7 +587,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind, FR1, <<>>),
+                                                    Fr = mk_box(Ind, FR1, <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end
                                     end
@@ -596,16 +596,16 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                             case foldb(Ind+1, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FlM ->
-                                    Fl = fb(Ind, FlM, <<>>),
+                                    Fl = mk_box(Ind, FlM, <<>>),
                                     if
                                         Bo > Br ->
                                             case foldb(Ind+2, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    R0 = fb(Ind+1, [], <<"(">>),
-                                                    R1 = fb(Ind+1, FR1, <<>>),
-                                                    R2 = fb(Ind+1, [], <<")">>),
-                                                    Fr = fb(Ind, [R0,R1,R2], <<>>),
+                                                    R0 = mk_box(Ind+1, [], <<"(">>),
+                                                    R1 = mk_box(Ind+1, FR1, <<>>),
+                                                    R2 = mk_box(Ind+1, [], <<")">>),
+                                                    Fr = mk_box(Ind, [R0,R1,R2], <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end;
                                         Bo == Br ->
@@ -617,7 +617,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_tuple(R) ->
                                             case foldb(Ind+1, Op, R) of
                                                 {error, Reason} -> {error, Reason};
                                                 FR1 ->
-                                                    Fr = fb(Ind, FR1, <<>>),
+                                                    Fr = mk_box(Ind, FR1, <<>>),
                                                     lists:flatten([Fl, FPOP, Fr])
                                             end
                                     end
@@ -640,23 +640,23 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_tuple(R) ->
                             case foldb(Ind+3, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    R0 = fb(Ind+2, [], <<"(">>),
-                                    R1 = fb(Ind+2, FR1, <<>>),
-                                    R2 = fb(Ind+2, [], <<")">>),
-                                    Fr = fb(Ind+1, [R0,R1,R2], <<>>),
-                                    fb(Ind, lists:flatten([Res, Fr]), <<>>)
+                                    R0 = mk_box(Ind+2, [], <<"(">>),
+                                    R1 = mk_box(Ind+2, FR1, <<>>),
+                                    R2 = mk_box(Ind+2, [], <<")">>),
+                                    Fr = mk_box(Ind+1, [R0,R1,R2], <<>>),
+                                    mk_box(Ind, lists:flatten([Res, Fr]), <<>>)
                             end;
                         Bo == Br ->
                             case foldb(Ind+1, Op, R) of
                                 {error, Reason} -> {error, Reason};
-                                Fr -> fb(Ind, lists:flatten([Res, Fr]), <<>>)
+                                Fr -> mk_box(Ind, lists:flatten([Res, Fr]), <<>>)
                             end;
                         true ->
                             case foldb(Ind+2, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    Fr = fb(Ind+1, FR1, <<>>),
-                                    fb(Ind, lists:flatten([Res, Fr]), <<>>)
+                                    Fr = mk_box(Ind+1, FR1, <<>>),
+                                    mk_box(Ind, lists:flatten([Res, Fr]), <<>>)
                             end
                     end
             end;
@@ -670,10 +670,10 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_tuple(R) ->
                             case foldb(Ind+2, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    R0 = fb(Ind+1, [], <<"(">>),
-                                    R1 = fb(Ind+1, FR1, <<>>),
-                                    R2 = fb(Ind+1, [], <<")">>),
-                                    Fr = fb(Ind, [R0,R1,R2], <<>>),
+                                    R0 = mk_box(Ind+1, [], <<"(">>),
+                                    R1 = mk_box(Ind+1, FR1, <<>>),
+                                    R2 = mk_box(Ind+1, [], <<")">>),
+                                    Fr = mk_box(Ind, [R0,R1,R2], <<>>),
                                     lists:flatten([Res, Fr])
                             end;
                         Bo == Br ->
@@ -685,7 +685,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_tuple(R) ->
                             case foldb(Ind+1, Op, R) of
                                 {error, Reason} -> {error, Reason};
                                 FR1 ->
-                                    Fr = fb(Ind, FR1, <<>>),
+                                    Fr = mk_box(Ind, FR1, <<>>),
                                     lists:flatten([Res, Fr])
                             end
                     end
@@ -706,23 +706,23 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_binary(R) ->
                             case foldb(Ind+3, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    L0 = fb(Ind+2, [], <<"(">>),
-                                    L1 = fb(Ind+2, FL1, <<>>),
-                                    L2 = fb(Ind+2, [], <<")">>),
-                                    Fl = fb(Ind+1, [L0,L1,L2], <<>>),
-                                    fb(Ind, lists:flatten([Fl, Res]), <<>>)
+                                    L0 = mk_box(Ind+2, [], <<"(">>),
+                                    L1 = mk_box(Ind+2, FL1, <<>>),
+                                    L2 = mk_box(Ind+2, [], <<")">>),
+                                    Fl = mk_box(Ind+1, [L0,L1,L2], <<>>),
+                                    mk_box(Ind, lists:flatten([Fl, Res]), <<>>)
                             end;
                         Bo == Bl ->
                             case foldb(Ind+1, Op, L) of
                                 {error, Reason} -> {error, Reason};
-                                Fl -> fb(Ind, lists:flatten([Fl, Res]), <<>>)
+                                Fl -> mk_box(Ind, lists:flatten([Fl, Res]), <<>>)
                             end;
                         true ->
                             case foldb(Ind+2, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    Fl = fb(Ind+1, FL1, <<>>),
-                                    fb(Ind, lists:flatten([Fl, Res]), <<>>)
+                                    Fl = mk_box(Ind+1, FL1, <<>>),
+                                    mk_box(Ind, lists:flatten([Fl, Res]), <<>>)
                             end
                     end
             end;
@@ -736,10 +736,10 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_binary(R) ->
                             case foldb(Ind+2, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    L0 = fb(Ind+1, [], <<"(">>),
-                                    L1 = fb(Ind+1, FL1, <<>>),
-                                    L2 = fb(Ind+1, [], <<")">>),
-                                    Fl = fb(Ind, [L0,L1,L2], <<>>),
+                                    L0 = mk_box(Ind+1, [], <<"(">>),
+                                    L1 = mk_box(Ind+1, FL1, <<>>),
+                                    L2 = mk_box(Ind+1, [], <<")">>),
+                                    Fl = mk_box(Ind, [L0,L1,L2], <<>>),
                                     lists:flatten([Fl, Res])
                             end;
                         Bo == Bl ->
@@ -751,7 +751,7 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_binary(R) ->
                             case foldb(Ind+1, Op, L) of
                                 {error, Reason} -> {error, Reason};
                                 FL1 ->
-                                    Fl = fb(Ind, FL1, <<>>),
+                                    Fl = mk_box(Ind, FL1, <<>>),
                                     lists:flatten([Fl, Res])
                             end
                     end
@@ -760,24 +760,24 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_tuple(L), is_binary(R) ->
 
 foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
     case (binding(P) =< binding('list')) of
-        true ->     fb(Ind, [fb_coll(Ind+1, [], L), fb_coll(Ind+1, [], Op), fb_coll(Ind+1, [], R)], <<>>);
-        false ->    [fb_coll(Ind, [], L), fb_coll(Ind, [], Op), fb_coll(Ind, [], R)]
+        true ->     mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], Op), mk_clspd_box(Ind+1, [], R)], <<>>);
+        false ->    [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], Op), mk_clspd_box(Ind, [], R)]
     end;
 
 foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
 
--spec fb_coll(integer(), tuple() | list(), binary()) -> #box{}.
-fb_coll(Ind, Child, Name) when is_tuple(Child) ->
-    fb_coll(Ind, [Child], Name);
-fb_coll(Ind, Children, Name) ->
+-spec mk_clspd_box(integer(), tuple() | list(), binary()) -> #box{}.
+mk_clspd_box(Ind, Child, Name) when is_record(Child, box) ->
+    mk_clspd_box(Ind, [Child], Name);
+mk_clspd_box(Ind, Children, Name) ->
     #box{ind = Ind, collapsed = true, children = Children, name = bStr(Name)}.
 
--spec fb(integer(), tuple() | list(), binary() | atom()) -> #box{}.
-fb(Ind, Child, Name) when is_tuple(Child) ->
-    fb(Ind, [Child], Name);
-fb(Ind, Children, Name) ->
+-spec mk_box(integer(), tuple() | list(), binary() | atom()) -> #box{}.
+mk_box(Ind, Child, Name) when is_record(Child, box) ->
+    mk_box(Ind, [Child], Name);
+mk_box(Ind, Children, Name) ->
     #box{ind = Ind, collapsed = (Ind >= ?DefCollInd), children = Children, name = bStr(Name)}.
 
 -spec foldb_commas([#box{}]) -> list() | {error, binary()}.
@@ -821,6 +821,12 @@ any_to_bin(C) when is_binary(C) -> C;
 any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
 -ifdef(TEST).
+
+-ifdef(DefCollInd).
+-undef(DefCollInd).
+-define(DefCollInd,10).
+-endif.
+
 -include_lib("sqlparse/src/sql_tests.hrl").
 %% TESTS ------------------------------------------------------------------
 
@@ -869,9 +875,9 @@ sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
                     io:format(user, "Flat:~n~s~n", [FlatSql]),
                     {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
                     ?assertEqual(ParseTree, FlatSqlParseTree),
-                    PrettySql = (catch pretty_from_box(SqlBox)),
-                    io:format(user, "Pretty:~n~s~n", [PrettySql]),
+                    %PrettySql = (catch pretty_from_box(SqlBox)),
                     PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
+                    io:format(user, "Pretty:~n~s~n", [PrettySqlExp]),
                     {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
                     ?assertEqual(ParseTree, PrettySqlParseTree),
                     CleanSql = clean(Sql),

@@ -16,6 +16,28 @@
 		b
 	from
 		abc
+	where
+				a
+				in
+					(
+						a
+						,
+						b
+						,
+						c
+					)
+			and
+				c
+				=
+				d
+			and
+				e
+				=
+				f
+		or
+			e
+			=
+			f
 ">>
 ,
 <<"select
@@ -47,11 +69,11 @@
 				=
 				f
 		or
-			b 
+			b
 			not like
 			'AA%'
 		or
-			c 
+			c
 			like
 			'B%'
 			escape
@@ -118,8 +140,8 @@
  			and
  			i
 ">>
- ,
- <<"
+,
+<<"
  select
  	/*+032*/
  		*
