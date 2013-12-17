@@ -79,6 +79,7 @@ boxed_from_pt(ParseTree) ->
 %% Operator Binding Power -------------------------------
 
 binding(A) when is_binary(A) -> 190;
+binding('prior') -> 185;
 binding('fun') -> 180;
 binding('||') -> 175;
 binding('*') -> 170;
@@ -102,6 +103,9 @@ binding('and') -> 120;
 binding('or') -> 100;
 binding('as') -> 90;
 binding('where') -> 88;
+binding('hierarchical query') -> 88;
+binding('start with') -> 88;
+binding('connect by') -> 88;
 binding('list') -> 85;
 binding('fields') -> 80;
 binding('into') -> 80;
@@ -132,7 +136,7 @@ bStr(A) when is_atom(A) -> atom_to_binary(A, utf8);
 bStr(B) when is_binary(B) -> B;
 bStr(C) ->
     ?Error("Expected atom or binary, got ~p", [C]),
-    {error, <<"Expected atom or binary">>}.
+    throw({error, iolist_to_binary(io_lib:format("Expected atom or binary, got ~p", [C]))}).
 
 foldb(ParseTree) ->
     foldb(0, undefined, ParseTree).
@@ -190,6 +194,40 @@ foldb(Ind, _P, {where, WC}) ->
         Fold ->
             mk_box(Ind, Fold, where)
     end;
+
+foldb(Ind, 'hierarchical query', {'start with', SW}) ->
+    case foldb(Ind+1, 'hierarchical query', SW) of
+        {error, Reason} ->
+            {error, Reason};
+        #box{name= <<>>, children=Children} ->
+            mk_box(Ind, Children, 'start with');
+        Fold ->
+            mk_box(Ind, Fold, 'start with')
+    end;
+foldb(Ind, _P, {prior, L}) ->
+    case foldb(Ind, 'prior', L) of
+        {error, Reason} ->
+            {error, Reason};
+        #box{} = Fold ->
+            mk_box(Ind-1, [Fold], 'prior')
+    end;
+foldb(Ind, 'hierarchical query', {'connect by', OptNoCycle, CB}) when is_binary(OptNoCycle) ->
+    ConnectBy = case OptNoCycle of
+        <<>>    -> 'connect by';
+        _       -> 'connect by nocycle'
+    end,
+    case foldb(Ind+1, 'connect by', CB) of
+        {error, Reason} ->
+            {error, Reason};
+        #box{name= <<>>, children=Children} ->
+            mk_box(Ind, Children, ConnectBy);
+        Fold ->
+            mk_box(Ind, Fold, ConnectBy)
+    end;
+foldb(Ind, _P, {'hierarchical query', {HQ1, HQ2}}) ->
+    HQ1Box = foldb(Ind, 'hierarchical query', HQ1),
+    HQ2Box = foldb(Ind, 'hierarchical query', HQ2),
+    mk_box(Ind, [HQ1Box, HQ2Box], <<"">>);
 
 foldb(Ind, _P, {having, HC}) ->
     case foldb(Ind+1, having, HC) of
@@ -318,24 +356,6 @@ foldb(Ind, _P, {Sli, List}) when is_list(List) ->       %% Sli from, 'group by',
                         ChCommas -> mk_box(Ind, ChCommas, Sli)
                     end
             end
-    end;
-foldb(Ind, P, {'not', {like, L, R, Escape}}) ->
-    OptEscape = case Escape of
-        <<>> -> [];
-        _ -> [mk_box(Ind+1, [], 'escape'), mk_box(Ind+1, [], Escape)]
-    end,
-    case (binding(P) =< binding(like)) of
-        true ->     mk_box(Ind, [mk_box(Ind+1, [], L), mk_box(Ind+1, [], 'not like'), mk_box(Ind+1, [], R) | OptEscape], <<>>);
-        false ->    [mk_box(Ind, [], L), mk_box(Ind, [], 'not like'), mk_box(Ind, [], R) | OptEscape]
-    end;
-foldb(Ind, P, {like, L, R, Escape}) ->
-    OptEscape = case Escape of
-        <<>> -> [];
-        _ -> [mk_box(Ind+1, [], 'escape'), mk_box(Ind+1, [], Escape)]
-    end,
-    case (binding(P) =< binding(like)) of
-        true ->     mk_box(Ind, [mk_box(Ind+1, [], L), mk_box(Ind+1, [], like), mk_box(Ind+1, [], R) | OptEscape], <<>>);
-        false ->    [mk_box(Ind, [], L), mk_box(Ind, [], like), mk_box(Ind, [], R) | OptEscape]
     end;
 foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
     Bo = binding(Op),
@@ -764,6 +784,45 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
         false ->    [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], Op), mk_clspd_box(Ind, [], R)]
     end;
 
+% REVISIT: Indentation level reduced for heirarchy
+foldb(Ind, P, {like, L, R, Escape}) when is_binary(L), is_binary(R) ->
+    case (binding(P) =< binding(like)) of
+        true ->
+            mk_box(Ind, [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), mk_clspd_box(Ind, [], R) |
+                case Escape of
+                    <<>> -> [];
+                    _ -> [mk_box(Ind, [], 'escape'), mk_box(Ind, [], Escape)]
+                end
+            ], <<>>);
+        false ->
+            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), mk_clspd_box(Ind, [], R) |
+                case Escape of
+                    <<>> -> [];
+                    _ -> [mk_box(Ind, [], 'escape'), mk_box(Ind, [], Escape)]
+                end
+            ]
+    end;
+
+foldb(Ind, P, {between, A, B, C}) ->
+    Childern = case {A, B, C} of
+        {A,B,C} when is_binary(A), is_binary(B), is_binary(C) ->
+            [ mk_clspd_box(Ind, [], A)
+            , mk_clspd_box(Ind, [], between)
+            , mk_clspd_box(Ind, [], B)
+            , mk_clspd_box(Ind, [], 'and')
+            , mk_clspd_box(Ind, [], C)];
+        _->
+            [ foldb(Ind, P, A)
+            , mk_clspd_box(Ind, [], between)
+            , foldb(Ind, P, B)
+            , mk_clspd_box(Ind, [], 'and')
+            , foldb(Ind, P, C)]
+    end,
+    case (binding(P) =< binding(between)) of
+        true    -> mk_box(Ind, Childern, <<>>);
+        false   -> Childern
+    end;
+
 foldb(_Ind, P, Term) ->    
     ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
@@ -850,52 +909,85 @@ sql_box_test_() ->
         }
     }.
 
+wait_processes(LoggerPid, Pids) ->
+    case [P || P <- Pids, erlang:process_info(P) =/= undefined] of
+        [] ->
+            LoggerPid ! done,
+            timer:sleep(10),
+            case erlang:process_info(LoggerPid) of
+                undefined -> ok;
+                _ ->
+                    timer:sleep(10),
+                    wait_processes(LoggerPid, [])
+            end;
+        RestPids ->
+            timer:sleep(1),
+            wait_processes(LoggerPid, RestPids)
+    end.
+
 test_sqlb(_) ->
     io:format(user, "=================================~n", []),
     io:format(user, "|     S Q L  B O X  T E S T     |~n", []),
     io:format(user, "=================================~n", []),
-    sqlb_loop(false, ?TEST_SELECT_QUERIES, 1).
+    LoggerPid = spawn(fun() -> log_process([]) end),
+    Pids = [spawn(fun() ->
+        Log = sqlb_loop(false, Sql),
+        LoggerPid ! {log, Idx, Log}
+    end) || {Idx, Sql} <- lists:zip(lists:seq(1, length(?TEST_SELECT_QUERIES)), ?TEST_SELECT_QUERIES)],
+    io:format(user, "Number of testing processes ~p~n", [length(Pids)]),
+    wait_processes(LoggerPid, Pids).
 
-sqlb_loop(_, [], _) -> ok;
-sqlb_loop(PrintParseTree, [Sql|Rest], N) ->
+log_process(Logs) ->
+    receive
+        {log, Idx, Log} ->
+            log_process([{Idx, Log}|Logs]);
+        done ->
+            lists:map(fun({Idx, Log}) ->
+                        io:format(user, "[~p]===============================~n", [Idx]),
+                        io:format(user, "~s~n", [lists:flatten(Log)])
+                      end
+                      , lists:sort(Logs))
+    end.
+
+sqlb_loop(PrintParseTree, Sql) ->
     case re:run(Sql, "select", [global, {capture, all, list}, caseless]) of
-        nomatch ->
-            sqlb_loop(PrintParseTree, Rest, N+1);
+        nomatch ->  "";
         _ ->
-            io:format(user, "[~p]===============================~n", [N]),
-                try
-                    io:format(user, "Orig:~n~s~n", [Sql]),
-                    {ok, {[{ParseTree,_}|_],_}} = sqlparse:parsetree(Sql),
-                    print_parse_tree(ParseTree),
-                    % SqlBox = fold_tree(ParseTree, fun sqlb/6, []),
-                    SqlBox = foldb(ParseTree),
-                    ?assertMatch(#box{ind=0},SqlBox),
-                    ?assert(is_list(validate_box(SqlBox))),
-                    FlatSql = (catch flat_from_box(SqlBox)),
-                    io:format(user, "Flat:~n~s~n", [FlatSql]),
-                    {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
-                    ?assertEqual(ParseTree, FlatSqlParseTree),
-                    %PrettySql = (catch pretty_from_box(SqlBox)),
-                    PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
-                    io:format(user, "Pretty:~n~s~n", [PrettySqlExp]),
-                    {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
-                    ?assertEqual(ParseTree, PrettySqlParseTree),
-                    CleanSql = clean(Sql),
-                    CleanPrettySqlExp = clean(PrettySqlExp),
-                    case str_diff(CleanSql,CleanPrettySqlExp) of
-                        same -> ok;
-                        Diff ->
-                            io:format(user, "Sql Difference: ~p~n", [Diff])
-                    end,
-                    ?assertEqual(CleanSql,CleanPrettySqlExp),
-                    print_box(SqlBox),
-                    io:format(user, "~s~n", [jsx:prettify(jsx:encode(box_to_json(SqlBox)))])
-                catch
-                    Class:Reason ->  io:format(user,"Exception ~p:~p~n~p~n", [Class, Reason, erlang:get_stacktrace()]),
-                    ?assert( true == "all tests completed")
+            try
+                Log1 = io_lib:format("Orig:~n~s~n", [Sql]),
+                {ok, {[{ParseTree,_}|_],_}} = sqlparse:parsetree(Sql),
+                Log2 = Log1 ++
+                if PrintParseTree =:= true ->
+                    print_parse_tree(ParseTree);
+                true -> ""
                 end,
-                sqlb_loop(PrintParseTree, Rest, N+1)
-        end.
+                SqlBox = foldb(ParseTree),
+                ?assertMatch(#box{ind=0},SqlBox),
+                ?assert(is_list(validate_box(SqlBox))),
+                FlatSql = (catch flat_from_box(SqlBox)),
+                Log3 = Log2 ++ io_lib:format("Flat:~n~s~n", [FlatSql]),
+                {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
+                ?assertEqual(ParseTree, FlatSqlParseTree),
+                PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
+                Log4 = Log3 ++ io_lib:format("Pretty:~n~s~n", [PrettySqlExp]),
+                {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
+                ?assertEqual(ParseTree, PrettySqlParseTree),
+                CleanSql = clean(Sql),
+                CleanPrettySqlExp = clean(PrettySqlExp),
+                Log5 = case str_diff(CleanSql,CleanPrettySqlExp) of
+                    same -> Log4;
+                    Diff ->
+                        Log4 ++ io_lib:format("Sql Difference: ~p~n", [Diff])
+                end,
+                ?assertEqual(CleanSql,CleanPrettySqlExp),
+                Log5
+                %print_box(SqlBox),
+                %io:format(user, "~s~n", [jsx:prettify(jsx:encode(box_to_json(SqlBox)))])
+            catch
+                Class:Reason ->
+                    io_lib:format("Exception ~p:~p~n~p~n", [Class, Reason, erlang:get_stacktrace()])
+            end
+    end.
 
 validate_box([]) -> ok;
 validate_box(#box{children=[]}) -> ok;
@@ -916,9 +1008,7 @@ pretty_from_box_exp(#box{ind=Ind,name=Name,children=CH}) ->
 pretty_from_box_exp([Box|Boxes]) ->
     lists:flatten([pretty_from_box_exp(Box),pretty_from_box_exp(Boxes)]).
 
-print_parse_tree(ParseTree) ->
-    io:format(user, "ParseTree:~n~p~n~n", [ParseTree]),
-    ok.
+print_parse_tree(ParseTree) -> io_lib:format("ParseTree:~n~p~n~n", [ParseTree]).
 
 print_box(_Box) ->
     io:format(user, "~p~n~n", [_Box]),
