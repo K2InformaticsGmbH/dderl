@@ -13,7 +13,7 @@
 -define(PERIOD, 1000).
 
 init(Transport, Req, Opts, Active) ->
-    ?Debug("init~n Transport: ~p~nRequest: ~p~nOpts: ~p~nActive: ~p~n",
+    ?NoDbLog(debug, [], "init~n Transport: ~p~nRequest: ~p~nOpts: ~p~nActive: ~p~n",
            [Transport, Req, Opts, Active]),
     TRef = erlang:send_after(?PERIOD, self(), refresh),
     {ok, Req, TRef}.
@@ -21,7 +21,7 @@ init(Transport, Req, Opts, Active) ->
 stream(<<"ping">>, Req, State) ->
     {reply, <<"pong">>, Req, State};
 stream(Data, Req, State) ->
-    ?Debug("unknown stream data received ~s~n", [Data]),
+    ?Info("unknown stream data received ~s~n", [Data]),
     {ok, Req, State}.
 
 info(refresh, Req, _) ->
@@ -29,11 +29,11 @@ info(refresh, Req, _) ->
     Time = get_time(),
     {reply, Time, Req, TRef};
 info(Info, Req, State) ->
-    ?Debug("message received ~p~n", [Info]),
+    ?NoDbLog(debug, [], "message received ~p~n", [Info]),
     {ok, Req, State}.
 
 terminate(_Req, TRef) ->
-    ?Debug("terminate~n"),
+    ?NoDbLog(debug, [], "terminate~n", []),
     is_reference(TRef) andalso erlang:cancel_timer(TRef),
     ok.
 
