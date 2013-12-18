@@ -7,9 +7,12 @@
 
 -include("dderl.hrl").
 -include("gres.hrl").
+-include_lib("imem/include/imem_sql.hrl").
 
+-ifndef(NoFilter).
 %% TODO driver should translate for the same effect
 -define(NoFilter,{undefined,[]}).   %% defn copied from imem_sql.hrl $$$
+-endif.
 
 -define(RawMax,99999999).
 -define(RawMin,0).
@@ -54,6 +57,7 @@
         , get_columns/1
         , get_query/1
         , get_histogram/2
+        , get_statistics/3
         , refresh_session_ctx/2
         ]).
 
@@ -243,6 +247,10 @@ get_query({?MODULE, Pid}) ->
 -spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_histogram(ColumnId, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}).
+
+%-spec get_statistics([pos_integer()], [integer()], tuple()) -> [tuple(), tuple()] | {error, binary()}.
+get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds, RowIds}).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -949,46 +957,63 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = raw, tableId = TableId, rowFun = RowFun} = State) ->
-    ?Debug("Getting the histogram of the column ~p nav raw", [ColumnId]),
-    HistoFun =
-        fun(RawRow, {Total, CountList}) ->
-            case RawRow of
+handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = TableId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+    ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
+    ?Info("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
+    Rows = ets:foldl(fun(Row, SelectRows) ->
+            RealRow = case Row of
+                {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
+                Row -> Row
+            end,
+            case RealRow of
                 {_,_,RK} ->
                     ExpandedRow = RowFun(RK),
-                    Value = lists:nth(ColumnId, ExpandedRow);
+                    case lists:member(lists:nth(1, Row), RowIds) of
+                        true -> [[lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds] | SelectRows];
+                        _ -> SelectRows
+                    end;
                 Row ->
-                    Value = element(3 + ColumnId, Row)
-            end,
-            case proplists:get_value(Value, CountList) of
-                undefined ->
-                    {Total + 1, [{Value, 1} | CountList]};
-                OldCount ->
-                    {Total + 1, lists:keyreplace(Value, 1, CountList, {Value, OldCount + 1})}
+                    case lists:member(element(1, Row), RowIds) of
+                        true -> [[element(3 + ColumnId, Row) || ColumnId <- ColumnIds] | SelectRows];
+                        _ -> SelectRows
+                    end
             end
+        end, [], TableId),
+    try
+        IntRows = [[binary_to_integer(I) || I <- Row] || Row <- Rows],
+        RowColumns = [[lists:nth(I,Rw) || Rw <- IntRows] || I <- lists:seq(1,length(lists:nth(1,IntRows)))],
+        Avgs = [lists:sum(C) / length(IntRows) || C <- RowColumns],
+        StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
+                Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
+                [math:sqrt(Sums / (length(Col) - 1)) | SD]
+            end, [], lists:zip(RowColumns, Avgs))),
+        StatsRowsZipped = lists:zip3(ColNames, Avgs, StdDevs),
+        StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
+        ?Debug("Stat Rows ~p", [StatsRows]),
+        {reply, {length(IntRows), [<<"column">>, <<"average">>, <<"std_dev">>], StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
+    catch
+        _:Error ->
+            {reply, {error, Error}, SN, State, infinity}
+    end;
+handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, rowFun = RowFun} = State) ->
+    ?Debug("Getting the histogram of the column ~p", [ColumnId]),
+    {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
+        RealRow = case Row of
+            {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
+            Row -> Row
         end,
-    {Total, Result} = ets:foldl(HistoFun, {0, []}, TableId),
-    ResultAsBin = [{Value, integer_to_binary(Count)} || {Value, Count} <- Result],
-    {reply, {Total, ResultAsBin, atom_to_binary(SN, utf8)}, SN, State, infinity};
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, indexId = IndexId, rowFun = RowFun} = State) ->
-    ?Debug("Getting the histogram of the column ~p nav idx", [ColumnId]),
-    HistoFun =
-        fun({_, Id}, {Total, CountList}) ->
-            case ets:lookup(TableId, Id) of
-                [{_,_,RK}] ->
-                    ExpandedRow = RowFun(RK),
-                    Value = lists:nth(ColumnId, ExpandedRow);
-                [Row] ->
-                    Value = element(3 + ColumnId, Row)
-            end,
-            case proplists:get_value(Value, CountList) of
-                undefined ->
-                    {Total + 1, [{Value, 1} | CountList]};
-                OldCount ->
-                    {Total + 1, lists:keyreplace(Value, 1, CountList, {Value, OldCount + 1})}
-            end
+        case RealRow of
+            {_,_,RK} ->
+                ExpandedRow = RowFun(RK),
+                Value = lists:nth(ColumnId, ExpandedRow);
+            Row ->
+                Value = element(3 + ColumnId, Row)
         end,
-    {Total, Result} = ets:foldl(HistoFun, {0, []}, IndexId),
+        case proplists:get_value(Value, CountList) of
+            undefined -> {Total+1, [{Value, 1} | CountList]};
+            OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
+        end
+    end, {0, []}, TableId),
     ResultAsBin = [{Value, integer_to_binary(Count)} || {Value, Count} <- Result],
     {reply, {Total, ResultAsBin, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->

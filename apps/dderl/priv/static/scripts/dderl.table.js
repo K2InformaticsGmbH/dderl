@@ -78,7 +78,8 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        histogramResult : function(e, _result) { e.data._loadHistogram          (_result); },     
+                        histogramResult : function(e, _result) { e.data._loadHistogram          (_result); },
+                        statsResult     : function(e, _result) { e.data._loadStats              (_result); },
                         editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); }
                       },
 
@@ -113,6 +114,7 @@
                        'Sort DESC'        : '_sortDesc',
                        'Sort Clear'       : '_sortClear',
                        'Histogram'        : '_showHistogram',
+                       'Statistics'       : '_showStatistics',
                        'Toggle Grouping'  : '_toggleGrouping'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
@@ -120,6 +122,7 @@
                        'Truncate Table'   : '_truncateTable',
                        'Drop Table'       : '_dropTable',
                        'Snapshot Table'   : '_snapshotTable',
+                       'Statistics'       : '_showStatistics',
                        'Restore Table'    : '_restoreTable'},
 
     // These options will be used as defaults
@@ -315,7 +318,8 @@
         if($.isFunction(fun)) {
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram" || _action === "Toggle Grouping") {
+                    if(_action === "Histogram" ||
+                       _action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
                     } else {
@@ -518,6 +522,37 @@
 
         console.log('show histogram ' + JSON.stringify(data));
         self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
+    },
+
+    _showStatistics: function(_ranges) {
+        var self = this;
+        var cellmin = _ranges[0].fromCell;
+        var cellmax = _ranges[0].toCell;
+        var rowmin = _ranges[0].fromRow;
+        var rowmax = _ranges[0].toCell;
+        for (var i = 0; i < _ranges.length; ++i) {
+            if (cellmin > _ranges[i].fromCell) cellmin = _ranges[i].fromCell;
+            if (cellmax < _ranges[i].toCell) cellmax = _ranges[i].toCell;
+            if (rowmin > _ranges[i].fromRow) rowmin = _ranges[i].fromRow;
+            if (rowmax < _ranges[i].toRow) rowmax = _ranges[i].toRow;
+        }
+        var cols = this._grid.getColumns();
+        var selcols = [];
+        for(var c = cellmin; c <= cellmax; ++c)
+            selcols[selcols.length] = self._origcolumns[cols[c].id];
+        var selrows = [];
+        for(var r = rowmin; r <= rowmax; ++r)
+            selrows[selrows.length] = self._gdata[r].id;
+
+        var reqObj = {statistics: {
+            connection  : dderlState.connection,
+            statement   : self._stmt,
+            columns     : selcols,
+            rowids      : selrows
+        }};
+
+        console.log('show statistics ' + JSON.stringify(reqObj));
+        self._ajax('/app/statistics', reqObj, 'statistics', 'statsResult');
     },
 
     _toggleGrouping: function(data) {
@@ -1761,15 +1796,34 @@
         }
         self.removeWheel();
         $('<div>').appendTo(document.body)
-            .histogramTable({
+            .statsTable({
                 autoOpen       : false,
                 title          : title,
                 initialQuery   : this._cmd,
                 columnId       : histogram.column_id,
+                columns        : histogram.cols,
                 dderlStatement : this._stmt,
                 parent         : this._dlg
             })
-            .histogramTable('open', histogram.rows, histogram.total, histogram.state);
+            .statsTable('open', histogram);
+    },
+
+    _loadStats: function(stats) {
+        var self = this;
+        var title = "Statistics";
+        console.log(stats);
+        self.removeWheel();
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                autoOpen       : false,
+                title          : title,
+                initialQuery   : this._cmd,
+                //columnId       : statshistogram.column_id,
+                columns        : stats.cols,
+                dderlStatement : this._stmt,
+                parent         : this._dlg
+            })
+            .statsTable('open', stats);
     },
 
     _openErlangTermEditor: function(formattedString) {

@@ -257,6 +257,8 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"view_op">>;
       C =:= <<"update_view">>;
       C =:= <<"save_dashboard">>;
+      C =:= <<"histogram">>;
+      C =:= <<"statistics">>;
       C =:= <<"dashboards">> ->
     BodyJson = jsx:decode(ReqData),
     try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)

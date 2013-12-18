@@ -1,5 +1,5 @@
 (function( $ ) {
-    $.widget("dderl.histogramTable", $.ui.dialog, {
+    $.widget("dderl.statsTable", $.ui.dialog, {
         _dlg      : null,
         _tableDiv : null,
         _footerDiv: null,
@@ -9,6 +9,7 @@
         _txtlen   : null,
         _cmd      : "",
         _colId    : 1,
+        _columns  : [],
         _stmt     : "",
         _columns  : null,
         _parent   : null,
@@ -18,8 +19,8 @@
                      histogramResult : function(e, _result) { e.data._reload(_result); }
                     },
 
-        _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
-                           'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
+        _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
+                           'textBox'  : {tip: '',       typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // These options will be used as defaults
         options: {
@@ -38,6 +39,7 @@
             toolBarHeight   : 20,
             initialQuery    : "",
             columnId        : 1,
+            columns         : [],
             dderlStatement  : null,
             parent          : null,
             close           : function() {
@@ -46,9 +48,7 @@
             },
 
             // slickgrid options default override
-            slickopts       : { editable: true,
-                                enableAddRow: true,
-                                enableColumnReorder: true,
+            slickopts       : { enableColumnReorder: true,
                                 enableCellNavigation: true,
                                 asyncEditorLoading: false,
                                 autoEdit: false,
@@ -64,6 +64,7 @@
             if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement};
             if(self.options.initialQuery != self._cmd) {self._cmd = self.options.initialQuery;}
             if(self.options.columnId != self._colId) {self._colId = self.options.columnId;}
+            if(self.options.columns != self._columns) {self._columns = self.options.columns;}
 
             if(self.options.parent != self._parent) {self._parent = self.options.parent;}
 
@@ -212,7 +213,7 @@
             }
         },
 
-        open: function(rows, total, state) {
+        open: function(stats) {
             var self = this;
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
@@ -223,7 +224,7 @@
                 smartDialogPosition($("#main-body"), $("#main-body"), self._dlg, ['center']);
             }
             self.setColumns();
-            self.appendRows(self._createGridRows(rows, total, state));
+            self.appendRows(self._createGridRows(stats));
             addWindowFinder(self, self.options.title);
         },
 
@@ -231,11 +232,12 @@
             var self = this;
             self._dlg.dialog("moveToTop");
         },
-        _createGridRows: function(origRows, total, state) {
+        _createGridRows: function(stats) {
             var rows, count, self;
             self = this;
             rows = [];
             count = 0;
+            var origRows = stats.rows, total = stats.total, state = stats.state;
 
             self._tbTxtBox.val(total + ' ');
             var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
@@ -244,17 +246,21 @@
             }
             self._tbTxtBox.addClass('tb_'+ state);
 
-            for(var value in origRows) {
-                ++count;
-                rows.push({"id":count, "op":"nop", "value":value, "count":origRows[value], "pct":(100 * origRows[value]/total).toString()});
+            if (stats.type == "stats") {
+                rows = origRows;
+            } else {
+                for(var value in origRows) {
+                    ++count;
+                    rows.push({"id":count, "op":"nop", "value":value, "count":origRows[value], "pct":(100 * origRows[value]/total).toString()});
+                }
             }
             return {op: "rpl", focus: 0, rows: rows};
         },
 
-        _reload: function(histogram) {
+        _reload: function(stats) {
             var self = this;
             if(histogram.hasOwnProperty('rows')) {
-                self.appendRows(self._createGridRows(histogram.rows, histogram.total, histogram.state));
+                self.appendRows(self._createGridRows(stats));
             }
         },
 
@@ -271,17 +277,7 @@
             self._grid.setSelectionModel(new Slick.CellRowColSelectionModel());
             var copyManager = new Slick.CellExternalCopyManager();
             self._grid.registerPlugin(copyManager);
-//            copyManager.onPasteCells.subscribe($.proxy(self._gridPasteCells, self));
 
-/*            self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
-            self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
-            self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
-            self._grid.onBeforeEditCell.subscribe($.proxy(self._gridBeforeEdit, self));
-            self._grid.onBeforeCellEditorDestroy.subscribe($.proxy(self._gridAfterEdit, self));
-            self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
-            self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
-            self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
-*/
             self._grid.onClick.subscribe($.proxy(self._handleClick, self));
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
@@ -294,34 +290,28 @@
             var dlg = self._dlg.dialog('widget');
 
             // Column Data
-            var columns = [
-                {"id":"sel","name":"","field":"id","behavior":"select","cssClass":"cell-selection","width":38,"minWidth":20,"cannotTriggerInsert":true,"resizable":false,"sortable":false,"selectable":false},
-                {"id":"value","type":"text","name":"value","field":"value","resizable":true,"sortable":true,"selectable":true,"width":250},
-                {"id":"count","type":"numeric","name":"count","field":"count","resizable":true,"sortable":true,"selectable":true,"width":100},
-                {"id":"pct", "type":"numeric","name":"pct","field":"pct","resizable":true,"sortable":true,"selectable":true,"width":100}
-            ];
             var fldWidth = 0;
             self._origcolumns = {};
-            columns[0].formatter = Slick.Formatters.IdFormatter;
-            for (var i = 1; i < columns.length; ++i) {
-                if(columns[i].type == "numeric") {
-                    columns[i].cssClass = "numeric";
-                    columns[i].headerCssClass = "numeric";
+            self._columns[0].formatter = Slick.Formatters.IdFormatter;
+            for (var i = 1; i < self._columns.length; ++i) {
+                if(self._columns[i].type == "numeric") {
+                    self._columns[i].cssClass = "numeric";
+                    self._columns[i].headerCssClass = "numeric";
                 }
-                if(i == columns.length - 1) {
-                    columns[i].formatter = Slick.Formatters.Percent;
+                if(i == self._columns.length - 1) {
+                    self._columns[i].formatter = Slick.Formatters.Percent;
                 } else {
-                    columns[i].formatter = Slick.Formatters.BinStringText;
+                    self._columns[i].formatter = Slick.Formatters.BinStringText;
                 }
-                fldWidth = self._txtlen.text(columns[i].name).width()+45;
-                if(columns[i].hasOwnProperty('editor')) {
-                    columns[i].editor = Slick.Editors.ControlChars;
+                fldWidth = self._txtlen.text(self._columns[i].name).width()+45;
+                if(self._columns[i].hasOwnProperty('editor')) {
+                    self._columns[i].editor = Slick.Editors.ControlChars;
                 }
-                columns[i].minWidth = 50;
-                self._origcolumns[columns[i].field] = i;
+                self._columns[i].minWidth = 50;
+                self._origcolumns[self._columns[i].field] = i;
             }
 
-            self._grid.setColumns(columns);
+            self._grid.setColumns(self._columns);
             self._dlg.dialog('open');
         },
 
@@ -697,34 +687,10 @@
             self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
         },
 
-        _toolBarSkFrst: function(self) {
-            self.buttonPress("|<");
-        },
-        _toolBarJmPrev: function(self) {
-            self.buttonPress("<<");
-        },
-        _toolBarGo2Prv: function(self) {
-            self.buttonPress("<");
-        },
         _toolBarTxtBox: function(self) {
             if(self.hasOwnProperty('_toolBarTxtBoxVal')) {
                 self.buttonPress(self._toolBarTxtBoxVal);
             }
-        },
-        _toolBarGo2Nex: function(self) {
-            self.buttonPress(">");
-        },
-        _toolBarJmNext: function(self) {
-            self.buttonPress(">>");
-        },
-        _toolBarSekEnd: function(self) {
-            self.buttonPress(">|");
-        },
-        _toolBarSkTail: function(self) {
-            self.buttonPress(">|...");
-        },
-        _toolBarSkipTl: function(self) {
-            self.buttonPress("...");
         }
     });
 }( jQuery ) );

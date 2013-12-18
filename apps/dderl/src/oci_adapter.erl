@@ -477,15 +477,6 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"histogram">>], ReqBody}, _Sess, _UserId, From, Priv) ->
-    [{<<"histogram">>, BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ColumnId = proplists:get_value(<<"column_id">>, BodyJson, 0),
-    {Total, HistogramResult, SN} = Statement:get_histogram(ColumnId),
-    RespJson = jsx:encode([{<<"histogram">>, [{total, Total}, {column_id, ColumnId}, {rows, HistogramResult}, {state, SN}]}]),
-    From ! {reply, RespJson},
-%    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
-    Priv;
 
 process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
