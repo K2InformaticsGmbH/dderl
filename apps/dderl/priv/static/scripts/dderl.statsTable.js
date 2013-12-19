@@ -1,21 +1,24 @@
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
-        _dlg      : null,
-        _tableDiv : null,
-        _footerDiv: null,
-        _grid     : null,
-        _gdata    : null,
-        _txtlen   : null,
-        _cmd      : "",
-        _colIds   : [],
-        _rowIds   : [],
-        _stmt     : "",
-        _columns  : null,
-        _parent   : null,
 
-        _handlers : {queryResult    : function(e, _result) { e.data._createHisto(_result); },
-                     updateData     : function(e, _result) { e.data._updatePlot(_result); },
-                     statsResult    : function(e, _result) { e.data._reload(_result); }
+        _dlg            : null,
+        _footerWidth    : 0,
+        _tableDiv       : null,
+        _footerDiv      : null,
+        _grid           : null,
+        _gdata          : null,
+        _txtlen         : null,
+        _cmd            : "",
+        _colIds         : [],
+        _rowIds         : [],
+        _stmt           : "",
+        _columns        : null,
+        _parent         : null,
+
+        _handlers : {queryResult        : function(e, _result) { e.data._createHisto(_result); },
+                     updateData         : function(e, _result) { e.data._updatePlot(_result); },
+                     statsResult        : function(e, _result) { e.data._reload(_result); },
+                     statsLoadResult    : function(e, _result) { e.data.open(_result); }
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -28,8 +31,9 @@
         // These options will be used as defaults
         options: {
             // dialog options default override
-            height          : 350,
-            width           : 520,
+            autoOpen        : false,
+            height          : 50,
+            width           : 100,
             minHeight       : 50,
             minWidth        : 100,
             resizable       : true,
@@ -73,16 +77,6 @@
             if(self.options.parent != self._parent) {self._parent = self.options.parent;}
 
             self._plotDiv = $('<div>').appendTo(self.element);
-            self._dlg = self.element.dialog(self.options).bind("dialogresize", function(event, ui) {
-                self._grid.resizeCanvas();
-                self._dlgResized = true;
-            })
-            .bind("dialogfocus", function(event, ui) {
-                self._grid.focus();
-            })
-            .bind("dialogbeforeclose", function(event, ui) {
-                self._grid.resetHeaderScroll();
-            });
 
             // editor lock private to this table.
             if(!self.options.slickopts.editorLock) {
@@ -109,6 +103,20 @@
             // toolbar container
             self._footerDiv = $('<div>').appendTo(self.element);
             self._createDlgFooter();
+
+            // create the dialog
+            self.options.minWidth = self._footerWidth;
+            self._dlg = self.element.dialog(self.options)
+                .bind("dialogresize", function(event, ui) {
+                    self._grid.resizeCanvas();
+                    self._dlgResized = true;
+                })
+                .bind("dialogfocus", function(event, ui) {
+                    self._grid.focus();
+                })
+                .bind("dialogbeforeclose", function(event, ui) {
+                    self._grid.resetHeaderScroll();
+                });
 
             // slickgrid container
             self._tableDiv = $('<div>')
@@ -251,6 +259,8 @@
             for(var i = 0; i < childs.length; ++i) {
                 totWidth += $(childs[i]).width();
             }
+
+            self._footerWidth = totWidth;
         },
 
         _init: function() {
@@ -364,8 +374,26 @@
             }
         },
 
+        load: function(type)
+        {
+            var self = this;
+            var reqObj = {};
+            reqObj[type] = {
+                connection  : dderlState.connection,
+                statement   : self._stmt,
+                column_ids  : self._colIds,
+                row_ids     : self._rowIds
+            };
+
+            self._ajax('/app/'+type, reqObj, type, 'statsLoadResult');
+        },
+
         open: function(stats) {
             var self = this;
+            if (stats.hasOwnProperty('error')) {
+                alert_jq(stats.error);
+                return;
+            }
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
             self._dlg.dialog("widget").appendTo("#main-body");
@@ -849,7 +877,7 @@
         // NOTE: self is 'this' and 'this' is dom ;)
         _toolBarReload: function(self) {
             var cmd = 'histogram';
-            if (self._rowIds.length >= 1)
+            if (self._rowIds != undefined && self._rowIds.length >= 1)
                 cmd = 'statistics';
 
             var reqObj = {};

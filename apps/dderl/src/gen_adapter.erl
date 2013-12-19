@@ -225,29 +225,34 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
     RowIds = proplists:get_value(<<"row_ids">>, BodyJson, 0),
-    {Total, Cols, StatsRows, SN} = Statement:get_statistics(ColumnIds, RowIds),
-    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
-              || C <- Cols],
-    ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
-    StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
-                              , cnt          = Total
-                              , toolTip      = <<"">>
-                              , message      = <<"">>
-                              , beep         = <<"">>
-                              , state        = SN
-                              , loop         = <<"">>
-                              , rows         = StatsRows
-                              , keep         = <<"">>
-                              , focus        = 0
-                              , sql          = <<"">>
-                              , disable      = <<"">>
-                              , promote      = <<"">>}
-        , ColRecs),
-    RespJson = jsx:encode([{<<"statistics">>, [ {type, <<"stats">>}
-                                              , {column_ids, ColumnIds}
-                                              , {row_ids, RowIds}
-                                              , {cols, build_column_json(lists:reverse(ColRecs))}
-                                              , {gres, StatsJson}]}]),
+    RespJson = case Statement:get_statistics(ColumnIds, RowIds) of
+        {error, Error, St} ->
+            ?Info("Stats error ~p~n~p", [Error, St]),
+            jsx:encode([{<<"statistics">>, [{error, Error}]}]);
+        {Total, Cols, StatsRows, SN} ->
+            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
+                      || C <- Cols],
+            ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
+            StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
+                                      , cnt          = Total
+                                      , toolTip      = <<"">>
+                                      , message      = <<"">>
+                                      , beep         = <<"">>
+                                      , state        = SN
+                                      , loop         = <<"">>
+                                      , rows         = StatsRows
+                                      , keep         = <<"">>
+                                      , focus        = 0
+                                      , sql          = <<"">>
+                                      , disable      = <<"">>
+                                      , promote      = <<"">>}
+                , ColRecs),
+            jsx:encode([{<<"statistics">>, [ {type, <<"stats">>}
+                                           , {column_ids, ColumnIds}
+                                           , {row_ids, RowIds}
+                                           , {cols, build_column_json(lists:reverse(ColRecs))}
+                                           , {gres, StatsJson}]}])
+    end,
     From ! {reply, RespJson};
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),

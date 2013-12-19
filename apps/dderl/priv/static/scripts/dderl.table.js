@@ -78,8 +78,6 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        histogramResult : function(e, _result) { e.data._loadHistogram          (_result); },
-                        statsResult     : function(e, _result) { e.data._loadStats              (_result); },
                         editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); }
                       },
 
@@ -514,14 +512,29 @@
     _showHistogram: function(data) {
         var self = this;
         var columnId = data.columnId;
-        var reqObj = {histogram: {
-            connection : dderlState.connection,
-            statement  : self._stmt,
-            column_ids : [self._origcolumns[columnId]]
-        }};
-
         console.log('show histogram ' + JSON.stringify(data));
-        self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
+
+        var title = " histogram";
+        for(var colId in self._origcolumns) {
+            if(self._origcolumns[colId] === columnId) {
+                var columns = self._grid.getColumns();
+                for(var i = 0; i < columns.length; ++i) {
+                    if(columns[i].field === colId) {
+                        title = columns[i].name + title;
+                        console.log(columns[i].name);
+                    }
+                }
+            }
+        }
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                title          : title,
+                initialQuery   : self._cmd,
+                columnIds      : [self._origcolumns[columnId]],
+                dderlStatement : self._stmt,
+                parent         : self._dlg
+            })
+            .statsTable('load', 'histogram');
     },
 
     _showStatistics: function(_ranges) {
@@ -544,15 +557,19 @@
         for(var r = rowmin; r <= rowmax; ++r)
             selrows[selrows.length] = self._gdata[r].id;
 
-        var reqObj = {statistics: {
-            connection  : dderlState.connection,
-            statement   : self._stmt,
-            column_ids  : selcols,
-            row_ids     : selrows
-        }};
+        var title = self.options.title + " statistics";
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                title          : title,
+                initialQuery   : self._cmd,
+                columnIds      : selcols,
+                rowIds         : selrows,
+                dderlStatement : self._stmt,
+                parent         : self._dlg
+            })
+            .statsTable('load', 'statistics');
 
-        console.log('show statistics ' + JSON.stringify(reqObj));
-        self._ajax('/app/statistics', reqObj, 'statistics', 'statsResult');
+        console.log('show statistics ' + JSON.stringify(_ranges));
     },
 
     _toggleGrouping: function(data) {
@@ -1778,51 +1795,6 @@
         } else {
             this._toolBarReload(this);
         }
-    },
-
-    _loadHistogram: function(histogram) {
-        var self = this;
-        var title = " histogram";
-        for(var colId in self._origcolumns) {
-            if(self._origcolumns[colId] === histogram.column_ids[0]) {
-                var columns = self._grid.getColumns();
-                for(var i = 0; i < columns.length; ++i) {
-                    if(columns[i].field === colId) {
-                        title = columns[i].name + title;
-                        console.log(columns[i].name);
-                    }
-                }
-            }
-        }
-        self.removeWheel();
-        $('<div>').appendTo(document.body)
-            .statsTable({
-                autoOpen       : false,
-                title          : title,
-                initialQuery   : this._cmd,
-                columnIds      : histogram.column_ids,
-                dderlStatement : this._stmt,
-                parent         : this._dlg
-            })
-            .statsTable('open', histogram);
-    },
-
-    _loadStats: function(stats) {
-        var self = this;
-        var title = "Statistics";
-        console.log(stats);
-        self.removeWheel();
-        $('<div>').appendTo(document.body)
-            .statsTable({
-                autoOpen       : false,
-                title          : title,
-                initialQuery   : this._cmd,
-                columnIds      : stats.column_ids,
-                rowIds         : stats.row_ids,
-                dderlStatement : this._stmt,
-                parent         : this._dlg
-            })
-            .statsTable('open', stats);
     },
 
     _openErlangTermEditor: function(formattedString) {

@@ -962,32 +962,46 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     {reply, Row, SN, State, infinity};
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = TableId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
-    ?Info("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
-    Rows = ets:foldl(fun(Row, SelectRows) ->
+    ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
+    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
             RealRow = case Row of
                 {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
                 Row -> Row
             end,
-            case RealRow of
+            CandidateRow = case RealRow of
                 {_,_,RK} ->
                     ExpandedRow = RowFun(RK),
                     case lists:member(lists:nth(1, ExpandedRow), RowIds) of
-                        true -> [[lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds] | SelectRows];
-                        _ -> SelectRows
+                        true -> [lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds];
+                        _ -> []
                     end;
                 Row ->
                     case lists:member(element(1, Row), RowIds) of
-                        true -> [[element(3 + ColumnId, Row) || ColumnId <- ColumnIds] | SelectRows];
-                        _ -> SelectRows
+                        true -> [element(3 + ColumnId, Row) || ColumnId <- ColumnIds];
+                        _ -> []
                     end
+            end,
+            if CandidateRow =:= []  -> SelectRows;
+                true ->
+                    lists:foldl(fun(Idx, SelRows) ->
+                        Candidate = lists:nth(Idx, CandidateRow),
+                        CandidateList = element(Idx, SelRows),
+                        case Candidate of
+                            <<>> -> SelRows;
+                            _ -> erlang:setelement(Idx,SelRows,CandidateList ++ [Candidate])
+                        end
+                    end,
+                    SelectRows,
+                    lists:seq(1, size(SelectRows)))
             end
-        end, [], TableId),
+        end
+        , list_to_tuple(lists:duplicate(length(ColNames), []))
+        , TableId)),
     try
-        IntRows = [[binary_to_integer(I) || I <- Row] || Row <- Rows],
-        RowColumns = [[lists:nth(I,Rw) || Rw <- IntRows] || I <- lists:seq(1,length(lists:nth(1,IntRows)))],
-        Totals  = [lists:sum(C) || C <- RowColumns],
-        Avgs    = [T / length(IntRows) || T <- Totals],
+        RowColumns = [[binary_to_integer(I) || I <- Row] || Row <- Rows],
         Counts  = [length(C) || C <- RowColumns],
+        Totals  = [lists:sum(C) || C <- RowColumns],
+        Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
         StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
                 Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
                 [math:sqrt(Sums / (length(Col) - 1)) | SD]
@@ -996,10 +1010,11 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
         StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
         ?Debug("Stat Rows ~p", [StatsRows]),
         StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
-        {reply, {length(IntRows), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
+        {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
     catch
         _:Error ->
-            {reply, {error, Error}, SN, State, infinity}
+            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
+                  , SN, State, infinity}
     end;
 handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, rowFun = RowFun} = State) ->
     ?Debug("Getting the histogram of the column ~p", [ColumnId]),
