@@ -5,30 +5,33 @@
         _footerDiv: null,
         _grid     : null,
         _gdata    : null,
-        _gridDataView   : null,
         _txtlen   : null,
         _cmd      : "",
-        _colId    : 1,
-        _columns  : [],
+        _colIds   : [],
+        _rowIds   : [],
         _stmt     : "",
         _columns  : null,
         _parent   : null,
 
-        _handlers : {queryResult     : function(e, _result) { e.data._createHisto(_result); },
-                     updateData      : function(e, _result) { e.data._updatePlot(_result); },
-                     histogramResult : function(e, _result) { e.data._reload(_result); }
+        _handlers : {queryResult    : function(e, _result) { e.data._createHisto(_result); },
+                     updateData     : function(e, _result) { e.data._updatePlot(_result); },
+                     statsResult    : function(e, _result) { e.data._reload(_result); }
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
                            'textBox'  : {tip: '',       typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
+
+        // slick context menus
+        _statsSlkHdrCnxtMnu  : {'Hide'      : '_hide',
+                                'UnHide'    : '_unhide'},
 
         // These options will be used as defaults
         options: {
             // dialog options default override
             height          : 350,
             width           : 520,
-            minHeight       : 250,
-            minWidth        : 350,
+            minHeight       : 50,
+            minWidth        : 100,
             resizable       : true,
             modal           : false,
             title           : "",
@@ -38,7 +41,8 @@
             clear           : null,
             toolBarHeight   : 20,
             initialQuery    : "",
-            columnId        : 1,
+            columnIds       : [1],
+            columnRows      : [1],
             columns         : [],
             dderlStatement  : null,
             parent          : null,
@@ -63,8 +67,8 @@
             if(self.options.title !== self._title) {self._title = self.options.title;}
             if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement};
             if(self.options.initialQuery != self._cmd) {self._cmd = self.options.initialQuery;}
-            if(self.options.columnId != self._colId) {self._colId = self.options.columnId;}
-            if(self.options.columns != self._columns) {self._columns = self.options.columns;}
+            if(self.options.columnIds != self._colIds) {self._colIds = self.options.columnIds;}
+            if(self.options.rowIds != self._rowIds) {self._rowIds = self.options.rowIds;}
 
             if(self.options.parent != self._parent) {self._parent = self.options.parent;}
 
@@ -119,11 +123,56 @@
                 .appendTo(self.element);
 
             self._createSlickGrid();
+            self._cnxtMenu('_statsSlkHdrCnxtMnu');
 
             // setting up the event handlers last to aid debuggin
             for(var fun in self._handlers) {
                 self.element.on(fun, null, self, self._handlers[fun]);
             }
+        },
+
+        _gridHeaderContextMenu: function(e, args) {
+            e.preventDefault();
+
+            // right click on non-column zone
+            if(args.column === undefined) return;
+
+            var g           = args.grid;
+            var col         = g.getColumnIndex(args.column.id);
+            var gSelMdl     = g.getSelectionModel();
+            var gSelecteds  = gSelMdl.getSelectedRanges();
+
+            var fullCols = [];
+            for(var i = 0; i < gSelecteds.length; ++i) {
+                if(gSelecteds[i].fullCol) {
+                    fullCols.push(gSelecteds[i]);
+                }
+            }
+
+            var found = false;
+            for(var i = 0; i < fullCols.length; ++i) {
+                if(fullCols[i].contains(0, col)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if(found) {
+                gSelMdl.setSelectedRanges(fullCols);
+            } else {
+                g.setActiveCell(0, col);
+                var lastRow = (g.getDataLength() === 0? 0 : g.getDataLength() -1);
+                var newSelection = new Slick.Range(0, col, lastRow, col);
+                newSelection.fullCol = true;
+                gSelMdl.setSelectedRanges([newSelection]);
+            }
+
+            this._statsSlkHdrCnxtMnu.dom
+                .css("top", e.clientY - 20)
+                .css("left", e.clientX - 10)
+                .data('cnxt', this)
+                .data('column-id', args.column.id)
+                .show();
         },
 
         _createDlgFooter : function() {
@@ -213,6 +262,108 @@
             }
         },
 
+        // create the context menu and add them to document.body
+        // only if they do not exist
+        // TODO: Create a context menu once per table instead of the global
+        //       to allow dynamic menu options depending on the column content.
+        _cnxtMenu: function(_menu) {
+            if($('#'+_menu).length === 0) {
+                var mnu = $('<ul>')
+                    .attr('id', _menu)
+                    .addClass("context_menu")
+                    .hide()
+                    .mouseleave(function(e) {
+                        var self = $('#'+_menu).data('cnxt');
+                        e.preventDefault();
+                        $(this).hide();
+                        self._grid.focus();
+                    })
+                    .appendTo(document.body);
+                for(var m in this[_menu]) {
+                    if($.type(this[_menu][m]) === "string") {
+                        $('<li>')
+                            .attr("action", m)
+                            .click(function(e) {
+                                var self = $('#'+_menu).data('cnxt');
+                                if(undefined != self) {
+                                    var columnId = null;
+                                    console.log('self title _cnxtMenu ' + self.options.title);
+                                    if(_menu === '_statsSlkHdrCnxtMnu') {
+                                        columnId = $('#'+_menu).data('column-id');
+                                    }
+                                    self[_menu].dom.hide();
+                                    self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
+                                }
+                            })
+                            .text(m)
+                            .appendTo(mnu);
+                    }
+                }
+                this[_menu].dom = mnu;
+            }
+        },
+
+        // delegate actions of context menu
+        _cnxtMenuAction: function(_menu, _action, _columnId) {
+            var funName = this[_menu][_action];
+            var fun = $.proxy(this[funName], this);
+            if($.isFunction(fun)) {
+                var data = this._grid.getSelectionModel().getSelectedRanges();
+                //console.log('applying fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+data);
+                fun(data);
+            } else {
+                throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu);
+            }
+        },
+
+        // columns hide/unhide
+        _hide: function(_ranges) {
+            var self = this;
+            var columns = self._grid.getColumns();
+            var toHide = {};
+            for (var i=0; i<_ranges.length; ++i) {
+                //Validate that id column is not on the selection.
+                if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0)  {
+                    for(var j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
+                        toHide[j] = true;
+                    }
+                }
+            }
+            var toHideArray = [];
+            for(var j in toHide) {
+                toHideArray[toHideArray.length] = parseInt(j);
+            }
+            toHideArray.sort(function(a,b) {return (a < b ? 1 : (a === b ? 0 : -1));});
+
+            if(!self.hasOwnProperty('_hiddenColumns')) {
+                self['_hiddenColumns'] = new Array();
+            }
+
+            for(var j=0; j < toHideArray.length; ++j) {
+                self._hiddenColumns.push(
+                    {
+                        idxCol: toHideArray[j],
+                        colContent: columns[toHideArray[j]]
+                    }
+                );
+                columns.splice(toHideArray[j],1);
+            }
+            self._grid.setColumns(columns);
+        },
+
+        _unhide: function(_ranges) {
+            var self = this;
+            if(self.hasOwnProperty('_hiddenColumns')) {
+                var columns = self._grid.getColumns();
+                while(self._hiddenColumns.length > 0) {
+                    var columnToAdd = self._hiddenColumns.pop();
+                    columns.splice(columnToAdd.idxCol, 0, columnToAdd.colContent);
+                }
+                self._grid.setColumns(columns);
+                delete self._hiddenColumns;
+            }
+        },
+
         open: function(stats) {
             var self = this;
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
@@ -223,8 +374,8 @@
             } else {
                 smartDialogPosition($("#main-body"), $("#main-body"), self._dlg, ['center']);
             }
-            self.setColumns();
-            self.appendRows(self._createGridRows(stats));
+            self.setColumns(stats.cols, stats.type != "stats");
+            self.appendRows(stats.gres);
             addWindowFinder(self, self.options.title);
         },
 
@@ -232,35 +383,11 @@
             var self = this;
             self._dlg.dialog("moveToTop");
         },
-        _createGridRows: function(stats) {
-            var rows, count, self;
-            self = this;
-            rows = [];
-            count = 0;
-            var origRows = stats.rows, total = stats.total, state = stats.state;
-
-            self._tbTxtBox.val(total + ' ');
-            var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
-            for (var i = 0; i < tbClass.length; ++i) {
-                self._tbTxtBox.removeClass(tbClass[i]);
-            }
-            self._tbTxtBox.addClass('tb_'+ state);
-
-            if (stats.type == "stats") {
-                rows = origRows;
-            } else {
-                for(var value in origRows) {
-                    ++count;
-                    rows.push({"id":count, "op":"nop", "value":value, "count":origRows[value], "pct":(100 * origRows[value]/total).toString()});
-                }
-            }
-            return {op: "rpl", focus: 0, rows: rows};
-        },
 
         _reload: function(stats) {
             var self = this;
-            if(histogram.hasOwnProperty('rows')) {
-                self.appendRows(self._createGridRows(stats));
+            if(stats.hasOwnProperty('gres')) {
+                self.appendRows(stats.gres);
             }
         },
 
@@ -278,6 +405,7 @@
             var copyManager = new Slick.CellExternalCopyManager();
             self._grid.registerPlugin(copyManager);
 
+            self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
             self._grid.onClick.subscribe($.proxy(self._handleClick, self));
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
@@ -285,33 +413,57 @@
             self._gdata = self._grid.getData();
         },
 
-        setColumns: function() {
+        /*
+         * SlickGrid interface
+         */
+        _getGridWidth: function() {
+            var columns = this._grid.getColumns();
+            var gWidth = 0;
+            for(var i=0;i<columns.length;++i)
+                gWidth += (1+columns[i].width);
+            return gWidth;
+        },
+
+        _getGridHeight: function() {
+            var rows = this._grid.getData().length + 2;
+            return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
+        },
+
+        setColumns: function(columns, hasPercent) {
             var self = this;
             var dlg = self._dlg.dialog('widget');
 
             // Column Data
             var fldWidth = 0;
             self._origcolumns = {};
-            self._columns[0].formatter = Slick.Formatters.IdFormatter;
-            for (var i = 1; i < self._columns.length; ++i) {
-                if(self._columns[i].type == "numeric") {
-                    self._columns[i].cssClass = "numeric";
-                    self._columns[i].headerCssClass = "numeric";
+            columns[0].formatter = Slick.Formatters.IdFormatter;
+            columns[0]['cannotTriggerInsert'] = true;
+            columns[0]['resizable']     = false;
+            columns[0]['sortable']      = false;
+            columns[0]['selectable']    = false;
+            for (var i = 1; i < columns.length; ++i) {
+                columns[i]['resizable']     = true;
+                columns[i]['sortable']      = true;
+                columns[i]['selectable']    = true;
+                if(columns[i].type == "numeric") {
+                    columns[i].cssClass = "numeric";
+                    columns[i].headerCssClass = "numeric";
                 }
-                if(i == self._columns.length - 1) {
-                    self._columns[i].formatter = Slick.Formatters.Percent;
+                if(i == columns.length - 1 && hasPercent) {
+                    columns[i].formatter = Slick.Formatters.Percent;
                 } else {
-                    self._columns[i].formatter = Slick.Formatters.BinStringText;
+                    columns[i].formatter = Slick.Formatters.BinStringText;
                 }
-                fldWidth = self._txtlen.text(self._columns[i].name).width()+45;
-                if(self._columns[i].hasOwnProperty('editor')) {
-                    self._columns[i].editor = Slick.Editors.ControlChars;
+                fldWidth = self._txtlen.text(columns[i].name).width()+45;
+                if(columns[i].hasOwnProperty('editor')) {
+                    columns[i].editor = Slick.Editors.ControlChars;
                 }
-                self._columns[i].minWidth = 50;
-                self._origcolumns[self._columns[i].field] = i;
+                columns[i].minWidth = 50;
+                self._origcolumns[columns[i].field] = i;
             }
 
-            self._grid.setColumns(self._columns);
+            self._grid.setColumns(columns);
+            self._columns = self._grid.getColumns();
             self._dlg.dialog('open');
         },
 
@@ -326,6 +478,25 @@
             var redraw = false;
             var c = self._grid.getColumns();
             var firstChunk = (self._gdata.length === 0);
+
+            if (_rows.hasOwnProperty('toolTip')) self._tbTxtBox.attr('title',_rows.toolTip);
+            if (_rows.hasOwnProperty('cnt')) self._tbTxtBox.val(_rows.cnt+' ');
+            if (_rows.hasOwnProperty('state')) self._tbTxtBox.addClass('tb_'+_rows.state);
+
+            if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec)) {
+                var fieldWidth = 0;
+                for(var i=0;i<c.length; ++i) {
+                    fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
+                    fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                    if(c[i].width < fieldWidth) {
+                        c[i].width = fieldWidth;
+                        if (c[i].width > self._MAX_ROW_WIDTH)
+                            c[i].width = self._MAX_ROW_WIDTH;
+                    }
+                }
+                self._grid.setColumns(c);
+                redraw = true;
+            }
 
             // focus change on gresp receive
             var gvp = self._grid.getViewport();
@@ -412,57 +583,56 @@
 
                 self._grid.resizeCanvas();
 
-                // only if the dialog don't have a predefined height/width
-                if(self._tbllay === null) {
-                    // since columns' width doesn't change after the first block we can skip this
-                    if (firstChunk) {
-                        var dlg = this._dlg.dialog('widget');
+                // since columns' width doesn't change after the first block we can skip this
+                if (firstChunk) {
+                    var dlg = this._dlg.dialog('widget');
 
-                        if (!self._dlgResized) {
-                            var gWidth = self._getGridWidth() + 13;
-                            var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
+                    if (!self._dlgResized) {
+                        var gWidth = self._getGridWidth() + 15;
+                        var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
 
-                            // Dialog width adjustment
-                            if (self._footerWidth > gWidth) {
-                                // table is smaller than the footer
-                                dlg.width(self._footerWidth);
-                            } else if (gWidth < rWindowWidth) {
-                                // table is smaller than the remaining window
+                        // Dialog width adjustment
+                        if (self._footerWidth > gWidth) {
+                            // table is smaller than the footer
+                            dlg.width(self._footerWidth);
+                        } else if (gWidth < rWindowWidth) {
+                            // table is smaller than the remaining window
+                            dlg.width(gWidth);
+                        } else {
+                            // table is bigger then the remaining window
+                            var orig_top = dlg.offset().top;
+                            var new_left = dlg.offset().left - gWidth + rWindowWidth;
+                            if(new_left > 0) {
+                                self._dlg.dialog("option", "position", [new_left, orig_top]);
                                 dlg.width(gWidth);
                             } else {
-                                // table is bigger then the remaining window
-                                var orig_top = dlg.offset().top;
-                                var new_left = dlg.offset().left - gWidth + rWindowWidth;
-                                if(new_left > 0) {
-                                    self._dlg.dialog("option", "position", [new_left, orig_top]);
-                                    dlg.width(gWidth);
-                                } else {
-                                    self._dlg.dialog("option", "position", [0, orig_top]);
-                                    dlg.width($(window).width() - 20);
-                                }
-                            }
-
-                            var oldDlgHeight = dlg.height();
-                            var gHeight = self._getGridHeight() + 10;
-                            var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
-                            if (dlg.height() > gHeight || gHeight < rWindowHeight) {
-                                // if dialog is already bigger than height required by the table or
-                                // if table height is less then remaining window height
-                                self._dlg.height(gHeight);
-                            } else {
-                                // if table height is still bigger than the remaining window height
-                                self._dlg.height(rWindowHeight);
-                            }
-
-                            if (oldDlgHeight != dlg.height()) {
-                                self._grid.resizeCanvas();
+                                self._dlg.dialog("option", "position", [0, orig_top]);
+                                dlg.width($(window).width() - 20);
                             }
                         }
-                        // adjusting the column to fill the rest of the window
-                        if((self._getGridWidth() + 18) < dlg.width()) {
-                            c[c.length - 1].width += (dlg.width()-self._getGridWidth()-18);
-                            self._grid.setColumns(c);
+
+                        var oldDlgHeight = dlg.height();
+                        var gHeight = self._getGridHeight();
+
+                        // available height for the window
+                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20;
+                        if (dlg.height() > gHeight || gHeight < rWindowHeight) {
+                            // if dialog is already bigger than height required by the table or
+                            // if table height is less then remaining window height
+                            self._dlg.height(gHeight);
+                        } else {
+                            // if table height is still bigger than the remaining window height
+                            self._dlg.height(rWindowHeight);
                         }
+
+                        if (oldDlgHeight != dlg.height()) {
+                            self._grid.resizeCanvas();
+                        }
+                    }
+                    // adjusting the last column to fill the rest of the window
+                    if((self._getGridWidth() + 18) < dlg.width()) {
+                        c[c.length - 1].width += (dlg.width()-self._getGridWidth()-18);
+                        self._grid.setColumns(c);
                     }
                 }
                 self._grid.invalidate();
@@ -678,13 +848,19 @@
          */
         // NOTE: self is 'this' and 'this' is dom ;)
         _toolBarReload: function(self) {
-            var reqObj = {histogram: {
-                connection : dderlState.connection,
-                statement  : self._stmt,
-                column_id  : self._colId
-            }};
+            var cmd = 'histogram';
+            if (self._rowIds.length >= 1)
+                cmd = 'statistics';
 
-            self._ajax('/app/histogram', reqObj, 'histogram', 'histogramResult');
+            var reqObj = {};
+            reqObj[cmd] = {
+                connection  : dderlState.connection,
+                statement   : self._stmt,
+                column_ids  : self._colIds,
+                row_ids     : self._rowIds
+            };
+
+            self._ajax('/app/'+cmd, reqObj, cmd, 'statsResult');
         },
 
         _toolBarTxtBox: function(self) {

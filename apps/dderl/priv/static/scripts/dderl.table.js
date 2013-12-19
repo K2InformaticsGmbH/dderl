@@ -314,8 +314,8 @@
     _cnxtMenuAction: function(_menu, _action, _columnId) {
         var funName = this[_menu][_action];
         var fun = $.proxy(this[funName], this);
-        var data = null;
         if($.isFunction(fun)) {
+            var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
                     if(_action === "Histogram" ||
@@ -517,7 +517,7 @@
         var reqObj = {histogram: {
             connection : dderlState.connection,
             statement  : self._stmt,
-            column_id  : self._origcolumns[columnId]
+            column_ids : [self._origcolumns[columnId]]
         }};
 
         console.log('show histogram ' + JSON.stringify(data));
@@ -547,8 +547,8 @@
         var reqObj = {statistics: {
             connection  : dderlState.connection,
             statement   : self._stmt,
-            columns     : selcols,
-            rowids      : selrows
+            column_ids  : selcols,
+            row_ids     : selrows
         }};
 
         console.log('show statistics ' + JSON.stringify(reqObj));
@@ -1784,7 +1784,7 @@
         var self = this;
         var title = " histogram";
         for(var colId in self._origcolumns) {
-            if(self._origcolumns[colId] === histogram.column_id) {
+            if(self._origcolumns[colId] === histogram.column_ids[0]) {
                 var columns = self._grid.getColumns();
                 for(var i = 0; i < columns.length; ++i) {
                     if(columns[i].field === colId) {
@@ -1800,8 +1800,7 @@
                 autoOpen       : false,
                 title          : title,
                 initialQuery   : this._cmd,
-                columnId       : histogram.column_id,
-                columns        : histogram.cols,
+                columnIds      : histogram.column_ids,
                 dderlStatement : this._stmt,
                 parent         : this._dlg
             })
@@ -1818,8 +1817,8 @@
                 autoOpen       : false,
                 title          : title,
                 initialQuery   : this._cmd,
-                //columnId       : statshistogram.column_id,
-                columns        : stats.cols,
+                columnIds      : stats.column_ids,
+                rowIds         : stats.row_ids,
                 dderlStatement : this._stmt,
                 parent         : this._dlg
             })

@@ -937,6 +937,9 @@ handle_event(Event, SN, State) ->
     ?Info("handle_event -- unexpected event ~p in state ~p~n", [Event,SN]),
     {next_state, SN, State}.
 
+zip5([],_,_,_,_) -> [];
+zip5([L1f|L1],[L2f|L2],[L3f|L3],[L4f|L4],[L5f|L5]) ->
+    [{L1f,L2f,L3f,L4f,L5f} | zip5(L1,L2,L3,L4,L5)].
 
 %% --------------------------------------------------------------------
 %% Func: handle_sync_event/4 handling sync "send_all_state_event""
@@ -968,7 +971,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
             case RealRow of
                 {_,_,RK} ->
                     ExpandedRow = RowFun(RK),
-                    case lists:member(lists:nth(1, Row), RowIds) of
+                    case lists:member(lists:nth(1, ExpandedRow), RowIds) of
                         true -> [[lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds] | SelectRows];
                         _ -> SelectRows
                     end;
@@ -982,15 +985,18 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
     try
         IntRows = [[binary_to_integer(I) || I <- Row] || Row <- Rows],
         RowColumns = [[lists:nth(I,Rw) || Rw <- IntRows] || I <- lists:seq(1,length(lists:nth(1,IntRows)))],
-        Avgs = [lists:sum(C) / length(IntRows) || C <- RowColumns],
+        Totals  = [lists:sum(C) || C <- RowColumns],
+        Avgs    = [T / length(IntRows) || T <- Totals],
+        Counts  = [length(C) || C <- RowColumns],
         StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
                 Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
                 [math:sqrt(Sums / (length(Col) - 1)) | SD]
             end, [], lists:zip(RowColumns, Avgs))),
-        StatsRowsZipped = lists:zip3(ColNames, Avgs, StdDevs),
+        StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
         StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
         ?Debug("Stat Rows ~p", [StatsRows]),
-        {reply, {length(IntRows), [<<"column">>, <<"average">>, <<"std_dev">>], StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
+        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
+        {reply, {length(IntRows), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
     catch
         _:Error ->
             {reply, {error, Error}, SN, State, infinity}
@@ -1014,8 +1020,11 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, ro
             OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
         end
     end, {0, []}, TableId),
-    ResultAsBin = [{Value, integer_to_binary(Count)} || {Value, Count} <- Result],
-    {reply, {Total, ResultAsBin, atom_to_binary(SN, utf8)}, SN, State, infinity};
+    ?Debug("Histo Rows ~p", [Result]),
+    HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
+    HistoColumns = [<<"value">>, <<"count">>, <<"pct">>],
+    {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,

@@ -197,55 +197,57 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
 process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"histogram">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ColumnId = proplists:get_value(<<"column_id">>, BodyJson, 0),
-    {Total, HistogramResult, SN} = Statement:get_histogram(ColumnId),
-    Columns = [ [ {<<"id">>, <<"sel">>}
-                , {<<"name">>, <<"">>}
-                , {<<"field">>, <<"id">>}
-                , {<<"behavior">>, <<"select">>}
-                , {<<"cssClass">>, <<"cell-selection">>}
-                , {<<"width">>, 38}, {<<"minWidth">>, 20}
-                , {<<"cannotTriggerInsert">>, true}, {<<"resizable">>, false}, {<<"sortable">>, false}, {<<"selectable">>, false}],
-                [ {<<"id">>, <<"value">>}
-                , {<<"type">>,<<"text">>}
-                , {<<"name">>, <<"value">>}, {<<"field">>, <<"value">>}
-                , {<<"resizable">>,<<"true">>}, {<<"sortable">>,true}, {<<"selectable">>,true}],
-                [ {<<"id">>, <<"count">>}
-                , {<<"type">>,<<"numeric">>}
-                , {<<"name">>, <<"count">>}, {<<"field">>, <<"count">>}
-                , {<<"resizable">>,<<"true">>}, {<<"sortable">>,true}, {<<"selectable">>,true}],
-                [ {<<"id">>, <<"pct">>}
-                , {<<"type">>,<<"numeric">>}
-                , {<<"name">>, <<"pct">>}, {<<"field">>, <<"pct">>}
-                , {<<"resizable">>,<<"true">>}, {<<"sortable">>,true}, {<<"selectable">>,true}]
-            ],
-    RespJson = jsx:encode([{<<"histogram">>, [{cols, Columns}, {total, Total}, {column_id, ColumnId}, {rows, HistogramResult}, {state, SN}]}]),
+    [ColumnId|_] = proplists:get_value(<<"column_ids">>, BodyJson, []),
+    {Total, Cols, HistoRows, SN} = Statement:get_histogram(ColumnId),
+    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"value">> -> text; true -> float end, readonly = true}
+              || C <- Cols],
+    HistoJson = gui_resp(#gres{ operation    = <<"rpl">>
+                              , cnt          = Total
+                              , toolTip      = <<"">>
+                              , message      = <<"">>
+                              , beep         = <<"">>
+                              , state        = SN
+                              , loop         = <<"">>
+                              , rows         = HistoRows
+                              , keep         = <<"">>
+                              , focus        = 0
+                              , sql          = <<"">>
+                              , disable      = <<"">>
+                              , promote      = <<"">>}
+        , ColRecs),
+    RespJson = jsx:encode([{<<"histogram">>, [ {type, <<"histo">>}
+                                              , {column_ids, [ColumnId]}
+                                              , {cols, build_column_json(lists:reverse(ColRecs))}
+                                              , {gres, HistoJson}]}]),
     From ! {reply, RespJson};
-%    Statement:gui_req(histogram, ColumnId, gui_resp_cb_fun(<<"histogram">>, Statement, From)),
 process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"statistics">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ColumnIds = proplists:get_value(<<"columns">>, BodyJson, []),
-    RowIds = proplists:get_value(<<"rowids">>, BodyJson, 0),
-    {Total, Cols, StatsResult, SN} = Statement:get_statistics(ColumnIds, RowIds),
-    % Columns = [ [ {<<"id">>, <<"sel">>}
-    %             , {<<"name">>, <<"">>}
-    %             , {<<"field">>, <<"id">>}
-    %             , {<<"behavior">>, <<"select">>}
-    %             , {<<"cssClass">>, <<"cell-selection">>}
-    %             , {<<"width">>, 38}, {<<"minWidth">>, 20}
-    %             , {<<"cannotTriggerInsert">>, true}, {<<"resizable">>, false}, {<<"sortable">>, false}, {<<"selectable">>, false}]
-    %             | [ [ {<<"id">>, <<"value">>}
-    %                 , {<<"type">>,<<"text">>}
-    %                 , {<<"name">>, C}, {<<"field">>, C}
-    %                 , {<<"resizable">>,<<"true">>}, {<<"sortable">>,true}, {<<"selectable">>,true}]
-    %               || C <- Cols]],
-    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true} || C <- Cols],
-    ?Info("statistics rows ~p, cols ~p", [StatsResult, ColRecs]),
-    StatsJson = r2jsn(StatsResult, col2json(ColRecs)),
+    ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
+    RowIds = proplists:get_value(<<"row_ids">>, BodyJson, 0),
+    {Total, Cols, StatsRows, SN} = Statement:get_statistics(ColumnIds, RowIds),
+    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
+              || C <- Cols],
+    ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
+    StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
+                              , cnt          = Total
+                              , toolTip      = <<"">>
+                              , message      = <<"">>
+                              , beep         = <<"">>
+                              , state        = SN
+                              , loop         = <<"">>
+                              , rows         = StatsRows
+                              , keep         = <<"">>
+                              , focus        = 0
+                              , sql          = <<"">>
+                              , disable      = <<"">>
+                              , promote      = <<"">>}
+        , ColRecs),
     RespJson = jsx:encode([{<<"statistics">>, [ {type, <<"stats">>}
+                                              , {column_ids, ColumnIds}
+                                              , {row_ids, RowIds}
                                               , {cols, build_column_json(lists:reverse(ColRecs))}
-                                              , {total, Total}, {rows, StatsJson}, {state, SN}]}]),
+                                              , {gres, StatsJson}]}]),
     From ! {reply, RespJson};
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
@@ -301,6 +303,7 @@ widest_cell_per_clm([R|Rows],V) ->
     [case {Re, Ve} of
         {Re, Ve} ->
             ReS = if
+                is_float(Re)    -> float_to_binary(Re,[{decimals,20},compact]);
                 is_atom(Re)     -> atom_to_binary(Re, utf8);
                 is_integer(Re)  -> integer_to_binary(Re);
                 %is_list(Re)     -> list_to_binary(Re);
@@ -320,8 +323,8 @@ r2jsn([[]], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([Row|Rows], JCols, NewRows) ->
     r2jsn(Rows, JCols, [
         [{C, case R of
-                R when is_float(R)      -> R;
                 R when is_integer(R)    -> R;
+                R when is_float(R)      -> float_to_binary(R,[{decimals,20},compact]);
                 R when is_atom(R)       -> atom_to_binary(R, utf8);
                 R when is_binary(R)     ->
                      %% check if it is a valid utf8
