@@ -9,8 +9,6 @@
 
 @import url('dderl.sql.css');
 
-@import url('jstree.css');
-
 body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }
 fieldset { padding:0; border:0; margin-top:25px; }
