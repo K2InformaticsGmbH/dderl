@@ -941,6 +941,13 @@ zip5([],_,_,_,_) -> [];
 zip5([L1f|L1],[L2f|L2],[L3f|L3],[L4f|L4],[L5f|L5]) ->
     [{L1f,L2f,L3f,L4f,L5f} | zip5(L1,L2,L3,L4,L5)].
 
+binary_to_number(Number) ->
+    try
+        binary_to_integer(Number)
+    catch
+        _:_ ->
+            binary_to_float(Number)
+    end.
 %% --------------------------------------------------------------------
 %% Func: handle_sync_event/4 handling sync "send_all_state_event""
 %% Returns: {next_state, NextSN, NextStateData}            |
@@ -998,7 +1005,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
         , list_to_tuple(lists:duplicate(length(ColNames), []))
         , TableId)),
     try
-        RowColumns = [[binary_to_integer(I) || I <- Row] || Row <- Rows],
+        RowColumns = [[binary_to_number(I) || I <- Row] || Row <- Rows],
         Counts  = [length(C) || C <- RowColumns],
         Totals  = [lists:sum(C) || C <- RowColumns],
         Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
