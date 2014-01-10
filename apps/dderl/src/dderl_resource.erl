@@ -105,7 +105,7 @@ terminate(_Reason, _Req, _State) ->
 -spec create_new_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
 create_new_session(<<>>) ->
     DderlSess = dderl_session:start(),
-    ?Info("new dderl session ~p from ~p", [DderlSess, self()]),
+    ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
     try

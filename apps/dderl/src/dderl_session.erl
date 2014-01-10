@@ -51,7 +51,7 @@ init(_Args) ->
     process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    ?Info("dderl_session ~p started!", [{dderl_session, Self}]),
+    ?Debug("dderl_session ~p started!", [{dderl_session, Self}]),
     {ok, #state{tref=TRef}}.
 
 handle_call(get_state, _From, State) ->
@@ -233,7 +233,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Info([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
+            ?Debug([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
     State;

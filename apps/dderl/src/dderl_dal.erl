@@ -388,7 +388,7 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
             {reply, {error, Error}, State};
         {ok, Sess} ->
             UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
-            ?Info("login accepted user ~p with id = ~p", [User, UserId]),
+            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
             {reply, {true, Sess, UserId}, State}
     end;
 

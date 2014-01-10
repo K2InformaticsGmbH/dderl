@@ -21,7 +21,7 @@ init(Transport, Req, Opts, Active) ->
 stream(<<"ping">>, Req, State) ->
     {reply, <<"pong">>, Req, State};
 stream(Data, Req, State) ->
-    ?Info("unknown stream data received ~s~n", [Data]),
+    ?Debug("unknown stream data received ~s~n", [Data]),
     {ok, Req, State}.
 
 info(refresh, Req, _) ->

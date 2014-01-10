@@ -56,6 +56,18 @@ init() ->
         , local}
     ]).
 
+-define(LogOci(__L,__T,__File,__Func,__Line,__Msg),
+    begin
+        lager:__L(__File, "[~s] {~s:~s:~p} ~s", [__T,__File,__Func,__Line,__Msg]),
+        dderl_dal:log_to_db(__L
+                            , list_to_atom(__File)
+                            , list_to_atom(__Func)
+                            , __Line
+                            , []
+                            , list_to_binary(__Msg)
+                            , [])
+    end).
+
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}) -> #priv{}.
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
@@ -72,6 +84,21 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr   = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
+    LogFun = fun
+                 ({Lvl, Tag, File, Func, Line, Msg}) ->
+                     case Lvl of
+                        dbg -> ?LogOci(debug,Tag,File,Func,Line,Msg);
+                        inf -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        ntc -> ?LogOci(error,Tag,File,Func,Line,Msg);
+                        err -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        wrn -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        crt -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        fat -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        unn -> ?LogOci(info,Tag,File,Func,Line,Msg)
+                     end;                     
+                 (Log) ->
+                    io:format(user, "Log in unsupported format ~p~n", [Log])
+             end,
     if
         Tnsstr =:= <<>> ->
             case Port of
@@ -91,12 +118,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                         , Port
                         , binary_to_list(Service)])),
                 ?Info("session:open ~p", [{User, Password, NewTnsstr}]),
-                OciPort = oci_port:start_link([{logging, true}]),
+                OciPort = oci_port:start_link([{logging, true}], LogFun),
                 ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
             end;
         true ->
             ?Info("session:open ~p", [{User, Password, Tnsstr}]),
-            OciPort = oci_port:start_link([{logging, true}]),
+            OciPort = oci_port:start_link([{logging, true}], LogFun),
             ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
