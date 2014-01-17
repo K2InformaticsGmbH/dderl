@@ -87,14 +87,14 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     LogFun = fun
                  ({Lvl, Tag, File, Func, Line, Msg}) ->
                      case Lvl of
-                        dbg -> ?LogOci(debug,Tag,File,Func,Line,Msg);
-                        inf -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        ntc -> ?LogOci(error,Tag,File,Func,Line,Msg);
-                        err -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        wrn -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        crt -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        fat -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        unn -> ?LogOci(info,Tag,File,Func,Line,Msg)
+                        debug       -> ?LogOci(debug,Tag,File,Func,Line,Msg);
+                        info        -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        notice      -> ?LogOci(info,Tag,File,Func,Line,Msg);
+                        error       -> ?LogOci(error,Tag,File,Func,Line,Msg);
+                        warn        -> ?LogOci(error,Tag,File,Func,Line,Msg);
+                        critical    -> ?LogOci(error,Tag,File,Func,Line,Msg);
+                        fatal       -> ?LogOci(error,Tag,File,Func,Line,Msg);
+                        unknown     -> ?LogOci(error,Tag,File,Func,Line,Msg)
                      end;                     
                  (Log) ->
                     io:format(user, "Log in unsupported format ~p~n", [Log])
