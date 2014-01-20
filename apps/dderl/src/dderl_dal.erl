@@ -39,10 +39,10 @@
                , sess :: {atom(), pid()}
     }).
 
--spec login(binary(), list()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+-spec login(binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 login(User, Password) -> gen_server:call(?MODULE, {login, User, Password}).
 
--spec change_password(binary(),list(),list())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+-spec change_password(binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword}).
 
 -spec add_adapter(atom(), binary()) -> ok.
@@ -92,13 +92,6 @@ save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {sa
 
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
 get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, Owner}).
-
--spec hexstr_to_bin(string()) -> binary().
-hexstr_to_bin(S) -> hexstr_to_bin(S, []).
-hexstr_to_bin([], Acc) -> list_to_binary(lists:reverse(Acc));
-hexstr_to_bin([X,Y|T], Acc) ->
-    {ok, [V], []} = io_lib:fread("~16u", [X,Y]),
-    hexstr_to_bin(T, [V | Acc]).
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
@@ -380,9 +373,8 @@ handle_call({get_adapters, Sess}, _From, State) ->
     {reply, Adapters, State};
 
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
-    BinPswd = hexstr_to_bin(Password),
     ?Debug("login for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd}) of
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password)}) of
         {error, Error} ->
             ?Error("login exception ~n~p~n", [Error]),
             {reply, {error, Error}, State};
@@ -393,10 +385,8 @@ handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) -
     end;
 
 handle_call({change_password, User, Password, NewPassword}, _From, #state{schema=SchemaName} = State) ->
-    BinPswd = hexstr_to_bin(Password),
-    BinNewPswd = hexstr_to_bin(NewPassword),
     ?Debug("changing password for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, BinPswd, BinNewPswd}) of
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
         {error, Error} ->
             ?Error("change password exception ~n~p~n", [Error]),
             {reply, {error, Error}, State};

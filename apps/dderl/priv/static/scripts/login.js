@@ -43,7 +43,7 @@ function display_login()
     $("#password_login").keypress(function(e) {
         if(e.which == 13) {
             var loginJson = {login: { user      :   $('#user_login').val(),
-                                      password  :   MD5($('#password_login').val())}};
+                                      password  :   $('#password_login').val()}};
             ajaxCall(null, '/app/login', loginJson, 'login', function(data) {
                 if(data == "ok") {
                     var user = $('#user_login').val();
@@ -55,7 +55,7 @@ function display_login()
                     var user = $('#user_login').val();
                     update_user_information(user);
                     $("#dialog-login").dialog("close");
-                    change_password(true);
+                    change_login_password(user, true);
                 } else {
                     dderlState.session = null;
                     resetPingTimer();
@@ -146,14 +146,8 @@ function process_logout() {
     display_login();
 }
 
-function change_password(shouldConnect)
+function change_login_password(loggedInUser, shouldConnect)
 {
-    var loggedInUser = $('#change-pswd-button').data("logged_in_user");
-    if(loggedInUser == undefined || loggedInUser.length == 0) {
-        login_first();
-        return;
-    }
-
     $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>User&nbsp;</td>' +
@@ -184,9 +178,9 @@ function change_password(shouldConnect)
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {
                         change_pswd: {
-                            user  :loggedInUser,
-                            password  :MD5($('#old_password_login').val()),
-                            new_password  :MD5($('#password_change_login').val())
+                            user  : loggedInUser,
+                            password  : $('#old_password_login').val(),
+                            new_password  : $('#password_change_login').val()
                         }};
                     ajaxCall(null,'/app/login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                         if(data == "ok") {

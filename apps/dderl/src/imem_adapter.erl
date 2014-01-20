@@ -58,10 +58,10 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Port     = proplists:get_value(<<"port">>, BodyJson, <<>>),
     Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
+    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Type = get_connection_type(Ip),
     ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, erlang:md5(Password)}),
     case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -106,11 +106,11 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
     Port   = proplists:get_value(<<"port">>, BodyJson, <<>>),
     Schema = proplists:get_value(<<"service">>, BodyJson, <<>>),
     User = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
+    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
+    NewPassword = proplists:get_value(<<"new_password">>, BodyJson, <<>>),
     Type = get_connection_type(Ip),
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password, NewPassword}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword)}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
@@ -142,6 +142,31 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             dderl_dal:add_connect(Sess, Con),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(Connection))}])},
             Priv#priv{connections = [Connection|Connections]}
+    end;
+
+process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    [{<<"change_pswd">>, BodyJson}] = ReqBody,
+    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    case lists:member(Connection, Connections) of
+        true ->
+            case erlimem:open(rpc, {node(), Schema}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
+                {error, Error} ->
+                    ?Error("change password exception ~n~p~n", [Error]),
+                    Err = iolist_to_binary(io_lib:format("~p", [Error])),
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,[{<<"error">>, Err}]}])},
+                    Priv;
+                {ok, SessRes} ->
+                    SessRes:close(),
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,<<"ok">>}])},
+                    Priv
+            end;
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
     end;
 
 process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
@@ -641,15 +666,6 @@ build_srtspec_json(SortSpecs) ->
      , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
-
--spec int(integer()) -> integer().
-int(C) when $0 =< C, C =< $9 -> C - $0;
-int(C) when $A =< C, C =< $F -> C - $A + 10;
-int(C) when $a =< C, C =< $f -> C - $a + 10.
-
--spec hexstr_to_list(list()) -> list().
-hexstr_to_list([]) -> [];
-hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
 
 -spec connect_to_erlimem(atom(), list(), binary(), binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
 connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->

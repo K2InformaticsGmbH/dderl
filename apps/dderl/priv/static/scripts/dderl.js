@@ -34,6 +34,8 @@ var dderlState = {
     session: null,
     adapter: null,
     connection: null,
+    connected_user: null,
+    service: null,
     ws: null,
     pingTimer: null,
     currentErrorAlert: null,
@@ -719,6 +721,21 @@ if (window.console && window.console.log && window.console.error) {
 } else {
     window['console'] = {log: function(){ }, error: function(){ }};
     console.log('dummy console is created');
+}
+
+function change_password(shouldConnect) {
+    var loggedInUser;
+    if(dderlState.connected_user && dderlState.connection) {
+        loggedInUser = dderlState.connected_user;
+        change_connect_password(loggedInUser);
+    } else {
+        loggedInUser = $('#change-pswd-button').data("logged_in_user");
+        if(loggedInUser == undefined || loggedInUser.length == 0) {
+            login_first();
+            return;
+        }
+        change_login_password(loggedInUser, shouldConnect);
+    }
 }
 
 function smartDialogPosition(container, owner, self, checks)
