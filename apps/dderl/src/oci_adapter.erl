@@ -203,6 +203,29 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             Priv#priv{connections = [Connection|Connections]}
     end;
 
+process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    [{<<"change_pswd">>, BodyJson}] = ReqBody,
+    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    case lists:member(Connection, Connections) of
+        true ->
+            case dderloci:change_password(Connection, User, Password, NewPassword) of
+                {error, Error} ->
+                    ?Error("change password exception ~n~p~n", [Error]),
+                    Err = iolist_to_binary(io_lib:format("~p", [Error])),
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,[{<<"error">>, Err}]}])},
+                    Priv;
+                ok ->
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,<<"ok">>}])},
+                    Priv
+            end;
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
+    end;
+
 process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
@@ -557,13 +580,13 @@ produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
 produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
-    ?Debug("Rows intermediate ~p", [CsvRows]),
+    ?Info("Rows intermediate ~p, sending to ~p with process_info ~p", [CsvRows, From,  process_info(From)]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(From, StmtRef, RowFun);
 produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
-    ?Debug("Rows last ~p", [CsvRows]),
+    ?Info("Rows last ~p, sending to ~p", [CsvRows, From]),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).
 
