@@ -781,7 +781,7 @@ generate_fsmctx_oci(#stmtResult{
            ,fetch_recs_async_fun = fun(Opts) -> dderloci:fetch_recs_async(StmtRef, Opts) end
            ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
            ,stmt_close_fun  = fun() -> dderloci:close(StmtRef) end
-           ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(StmtRef, FilterSpec, SrtSpec, Cols, Query) end
+           ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(StmtRef, Connection, FilterSpec, SrtSpec, Cols, Query) end
            ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
