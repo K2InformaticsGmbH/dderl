@@ -2819,6 +2819,7 @@
         //       the cell editor, since calling endupdate will destroy it.
         var cellEditor = self._grid.getCellEditor();
         self._gridDataView.endUpdate();
+        self._grid.invalidate();
         if(redraw) {
             // update row styles
             self._applyStyle();
