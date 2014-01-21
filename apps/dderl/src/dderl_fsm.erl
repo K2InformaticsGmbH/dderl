@@ -967,7 +967,11 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
-handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = TableId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+    case Nav of
+        raw -> TableUsed = TableId;
+        _ ->   TableUsed = IndexId
+    end,
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
     Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
@@ -982,9 +986,9 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
                         true -> [lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds];
                         _ -> []
                     end;
-                Row ->
-                    case lists:member(element(1, Row), RowIds) of
-                        true -> [element(3 + ColumnId, Row) || ColumnId <- ColumnIds];
+                _ ->
+                    case lists:member(element(1, RealRow), RowIds) of
+                        true -> [element(3 + ColumnId, RealRow) || ColumnId <- ColumnIds];
                         _ -> []
                     end
             end,
@@ -1003,7 +1007,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
             end
         end
         , list_to_tuple(lists:duplicate(length(ColNames), []))
-        , TableId)),
+        , TableUsed)),
     try
         RowColumns = [[binary_to_number(I) || I <- Row] || Row <- Rows],
         Counts  = [length(C) || C <- RowColumns],
@@ -1023,8 +1027,12 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{tableId = T
             {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
                   , SN, State, infinity}
     end;
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, rowFun = RowFun} = State) ->
-    ?Debug("Getting the histogram of the column ~p", [ColumnId]),
+handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun} = State) ->
+    case Nav of
+        raw -> TableUsed = TableId;
+        _ ->   TableUsed = IndexId
+    end,            
+    ?Info("Getting the histogram of the column ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
             {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
@@ -1034,14 +1042,14 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{tableId = TableId, ro
             {_,_,RK} ->
                 ExpandedRow = RowFun(RK),
                 Value = lists:nth(ColumnId, ExpandedRow);
-            Row ->
-                Value = element(3 + ColumnId, Row)
+            _ ->
+                Value = element(3 + ColumnId, RealRow)
         end,
         case proplists:get_value(Value, CountList) of
             undefined -> {Total+1, [{Value, 1} | CountList]};
             OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
         end
-    end, {0, []}, TableId),
+    end, {0, []}, TableUsed),
     ?Debug("Histo Rows ~p", [Result]),
     HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
     HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
