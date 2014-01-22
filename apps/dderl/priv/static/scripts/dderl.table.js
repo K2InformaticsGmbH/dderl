@@ -1917,6 +1917,12 @@
         
         var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
+
+        //Check if we are in the id column
+        if(column.field == "id") {
+            return;
+        }
+
         var gSelMdl     = g.getSelectionModel();
         var gSelecteds  = gSelMdl.getSelectedRanges();
         var activeCell  = g.getActiveCell();
