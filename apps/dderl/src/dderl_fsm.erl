@@ -1213,8 +1213,11 @@ gui_replace_from(Top,Limit,GuiResult,#state{nav=raw,tableId=TableId,rowFun=RowFu
     ?Debug("gui_replace_from  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt},State1);
-gui_replace_from(Top,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
-    Keys = [Top | keys_after(Top, Limit-1, State0)],
+gui_replace_from(Top,Limit,GuiResult,#state{nav=ind,tableId=TableId,indexId=IndexId}=State0) ->
+    case ets:lookup(IndexId, Top) of
+        [] -> Keys = keys_after(Top, Limit, State0);
+        _  -> Keys = [Top | keys_after(Top, Limit-1, State0)]
+    end,
     Cnt = length(Keys),
     {Rows,NewGuiTop,NewGuiBot} = case Cnt of
         0 ->    {[],?IndMax,?IndMin};
@@ -1238,8 +1241,11 @@ gui_replace_until(Bot,Limit,GuiResult,#state{nav=raw,tableId=TableId,rowFun=RowF
     ?NoDbLog(debug, [], "gui_replace_until  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
     State1 = State0#state{guiCnt=Cnt,guiTop=NewGuiTop,guiBot=NewGuiBot,guiCol=false},
     gui_response(GuiResult#gres{operation= <<"rpl">>,rows=Rows,keep=Cnt}, State1);
-gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId}=State0) ->
-    Keys = keys_before(Bot, Limit-1, State0) ++ [Bot],
+gui_replace_until(Bot,Limit,GuiResult,#state{nav=ind,tableId=TableId,indexId=IndexId}=State0) ->
+    case ets:lookup(IndexId, Bot) of
+        [] ->   Keys = keys_before(Bot, Limit, State0);
+        _  ->   Keys = keys_before(Bot, Limit-1, State0) ++ [Bot]
+    end,
     Cnt = length(Keys),
     {Rows,NewGuiTop,NewGuiBot} = case Cnt of
         0 ->    {[],?IndMax,?IndMin};
