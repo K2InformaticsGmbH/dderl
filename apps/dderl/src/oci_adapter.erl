@@ -418,6 +418,21 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             Priv
     end;
 
+% generate sql from table data
+process_cmd({[<<"get_sql">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"get_sql">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnIds = proplists:get_value(<<"columnIds">>, BodyJson, []),
+    RowIds = proplists:get_value(<<"rowIds">>, BodyJson, []),
+    Operation = proplists:get_value(<<"op">>, BodyJson, <<>>),
+    Columns = Statement:get_columns(),
+    Rows = [Statement:row_with_key(Id) || Id <- RowIds],
+    ?Info("The rows from the ids ~p", [Rows]),
+    Sql = generate_sql(Operation, Rows, Columns, ColumnIds),
+    Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}]}]),
+    From ! {reply, Response},
+    Priv;
+
 % events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
@@ -781,7 +796,10 @@ generate_fsmctx_oci(#stmtResult{
            ,fetch_recs_async_fun = fun(Opts) -> dderloci:fetch_recs_async(StmtRef, Opts) end
            ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
            ,stmt_close_fun  = fun() -> dderloci:close(StmtRef) end
-           ,filter_and_sort_fun = fun(FilterSpec, SrtSpec, Cols) -> dderloci:filter_and_sort(StmtRef, Connection, FilterSpec, SrtSpec, Cols, Query) end
+           ,filter_and_sort_fun =
+                fun(FilterSpec, SrtSpec, Cols) ->
+                        dderloci:filter_and_sort(StmtRef, Connection, FilterSpec, SrtSpec, Cols, Query)
+                end
            ,update_cursor_prepare_fun =
                 fun(ChangeList) ->
                         ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
@@ -794,3 +812,42 @@ generate_fsmctx_oci(#stmtResult{
                         Result
                 end
            }.
+
+-spec generate_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> binary().
+generate_sql(<<"upd">>, Rows, Columns, ColumnIds) ->
+    iolist_to_binary(generate_upd_sql(Rows, Columns, ColumnIds));
+generate_sql(<<"ins">>, Rows, Columns, ColumnIds) ->
+    iolist_to_binary(generate_ins_sql(Rows, Columns, ColumnIds)).
+
+-spec generate_ins_sql([tuple()], [], []) -> iolist().
+generate_ins_sql([], _, _) -> [];
+generate_ins_sql([Row], Columns, ColumnIds) -> 
+    [<<"insert into table (">>].
+
+-spec generate_upd_sql([tuple()], [#stmtCol{}], [integer()]) -> iolist().
+generate_upd_sql([], _, _) -> [];
+generate_upd_sql([Row], Columns, ColumnIds) ->
+    [<<"update table set ">>,
+     generate_set_value(Row, Columns, ColumnIds),
+     <<" where ">>,
+     generate_set_value(Row, Columns, [1])];
+generate_upd_sql([Row | Rest], Columns, ColumnIds) ->
+    [<<"update table set ">>,
+     generate_set_value(Row, Columns, ColumnIds),
+     <<" where ">>,
+     generate_set_value(Row, Columns, [1]),
+     <<";\n">>,
+     generate_upd_sql(Rest, Columns, ColumnIds)].
+
+-spec generate_set_value(tuple(), [#stmtCol{}], [integer()]) -> iolist().
+generate_set_value(_, _, []) -> <<>>;
+generate_set_value(Row, Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, Value];
+generate_set_value(Row, Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, Value, ", ", generate_set_value(Row, Columns, Rest)].

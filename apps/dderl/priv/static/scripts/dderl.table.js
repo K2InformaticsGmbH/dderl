@@ -78,7 +78,8 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); }
+                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); },
+                        getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -121,7 +122,9 @@
                        'Drop Table'       : '_dropTable',
                        'Snapshot Table'   : '_snapshotTable',
                        'Statistics'       : '_showStatistics',
-                       'Restore Table'    : '_restoreTable'},
+                       'Restore Table'    : '_restoreTable',
+                       'Update Sql'       : '_updateSql',
+                       'Insert Sql'       : '_insertSql'},
 
     // These options will be used as defaults
     options: {
@@ -570,6 +573,82 @@
             .statsTable('load', 'statistics');
 
         console.log('show statistics ' + JSON.stringify(_ranges));
+    },
+
+    _getSelectedArea: function(_ranges) {
+        var self = this;
+        var cellmin = _ranges[0].fromCell;
+        var cellmax = _ranges[0].toCell;
+        var rowmin = _ranges[0].fromRow;
+        var rowmax = _ranges[0].toCell;
+
+        for (var i = 0; i < _ranges.length; ++i) {
+            if (cellmin > _ranges[i].fromCell) cellmin = _ranges[i].fromCell;
+            if (cellmax < _ranges[i].toCell) cellmax = _ranges[i].toCell;
+            if (rowmin > _ranges[i].fromRow) rowmin = _ranges[i].fromRow;
+            if (rowmax < _ranges[i].toRow) rowmax = _ranges[i].toRow;
+        }
+
+        cellmin = Math.max(cellmin, 1);
+
+        var cols = this._grid.getColumns();
+
+        var selcols = [];
+        for(var c = cellmin; c <= cellmax; ++c) {
+            selcols[selcols.length] = self._origcolumns[cols[c].id];
+        }
+
+        var selrows = [];
+        for(var r = rowmin; r <= rowmax; ++r) {
+            selrows[selrows.length] = self._gdata[r].id;
+        }
+
+        return {selrows: selrows, selcols: selcols};
+    },
+
+    _updateSql: function(_ranges) {
+        this._getSql(_ranges, 'upd');
+    },
+
+    _insertSql: function(_ranges) {
+        this._getSql(_ranges, 'ins');
+    },
+
+    _getSql: function(_ranges, Op) {
+        var self = this;
+        var selectedArea = self._getSelectedArea(_ranges);
+
+        var getSql = {
+            get_sql: {
+                connection: dderlState.connection,
+                statement: self._stmt,
+                columnIds: selectedArea.selcols,
+                rowIds: selectedArea.selrows,
+                op: Op
+            }
+        };
+
+        self._ajax('/app/get_sql', getSql, 'get_sql', 'getSqlResult');
+    },
+
+    _openSqlEditor: function(sqlResult) {
+        var self = this;
+        // received response clear wait wheel
+        self.removeWheel();
+
+        if(sqlResult.hasOwnProperty('error')) {
+            alert_jq(sqlResult.error);
+        } else {
+            $('<div>')
+                .appendTo(document.body)
+                .sql({autoOpen  : false,
+                      title     : sqlResult.title,
+                      cmdOwner  : null,
+                      history   : this._cmdStrs,
+                      cmdFlat   : sqlResult.sql,
+                     })
+                .sql('open');
+        }
     },
 
     _toggleGrouping: function(data) {
