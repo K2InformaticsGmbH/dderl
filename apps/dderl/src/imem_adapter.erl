@@ -355,6 +355,21 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             Priv
     end;
 
+% generate sql from table data
+process_cmd({[<<"get_sql">>], ReqBody}, _Sess, _UserId, From, Priv) ->
+    [{<<"get_sql">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnIds = proplists:get_value(<<"columnIds">>, BodyJson, []),
+    RowIds = proplists:get_value(<<"rowIds">>, BodyJson, []),
+    Operation = proplists:get_value(<<"op">>, BodyJson, <<>>),
+    Columns = Statement:get_columns(),
+    TableName = Statement:get_table_name(),
+    Rows = [Statement:row_with_key(Id) || Id <- RowIds],
+    Sql = generate_sql(TableName, Operation, Rows, Columns, ColumnIds),
+    Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}, {<<"title">>, <<"Generated Sql">>}]}]),
+    From ! {reply, Response},
+    Priv;
+
 % events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
@@ -567,6 +582,7 @@ process_query(Query, {_,ConPid}=Connection) ->
                         , stmtRef  = StmtRef
                         , sortFun  = SortFun
                         , sortSpec = SortSpec} = StmtRslt} ->
+            TableName = extract_table_name(Query),
             StmtFsm = dderl_fsm:start_link(
                                 #fsmctx{ id                         = "what is it?"
                                        , stmtCols                   = Clms
@@ -574,6 +590,7 @@ process_query(Query, {_,ConPid}=Connection) ->
                                        , sortFun                    = SortFun
                                        , sortSpec                   = SortSpec
                                        , orig_qry                   = Query
+                                       , table_name                 = TableName
                                        , block_length               = ?DEFAULT_ROW_SIZE
                                        , fetch_recs_async_fun       = fun(Opts) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
                                        , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
@@ -718,3 +735,106 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     end;
 check_funs(Error) ->
     Error.
+
+-spec extract_table_name(binary()) -> binary().
+extract_table_name(Query) ->
+    case sqlparse:parsetree(Query) of
+        {ok,{[{{select, SelectSections},_}],_}} ->
+            {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
+            FirstTable;
+        _ ->
+            <<>>
+    end.
+
+-spec generate_sql(binary(), binary(), [tuple()], [#stmtCol{}], [integer()]) -> binary().
+generate_sql(TableName, <<"upd">>, Rows, Columns, ColumnIds) ->
+    iolist_to_binary(generate_upd_sql(TableName, Rows, Columns, ColumnIds));
+generate_sql(TableName, <<"ins">>, Rows, Columns, ColumnIds) ->
+    InsCols = generate_ins_cols(Columns, ColumnIds),
+    iolist_to_binary(generate_ins_sql(TableName, Rows, InsCols, Columns, ColumnIds)).
+
+-spec generate_ins_sql(binary(), [tuple()], iolist(), [#stmtCol{}], [integer()]) -> iolist().
+generate_ins_sql(_, [], _, _, _) -> [];
+generate_ins_sql(TableName, [Row], InsCols, Columns, ColumnIds) ->
+    [<<"insert into ">>, TableName, <<" (">>,
+     InsCols,
+     <<") values (">>,
+     generate_ins_values(Row, Columns, ColumnIds),
+     <<")">>];
+generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds) ->
+    [<<"insert into ">>, TableName, <<" (">>,
+     InsCols,
+     <<") values (">>,
+     generate_ins_values(Row, Columns, ColumnIds),
+     <<");\n">>,
+     generate_ins_sql(TableName, Rest, InsCols, Columns, ColumnIds)].
+
+-spec generate_ins_cols([#stmtCol{}], [integer()]) -> iolist().
+generate_ins_cols(_, []) -> [];
+generate_ins_cols(Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName];
+generate_ins_cols(Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName, ",", generate_ins_cols(Columns, Rest)].
+
+-spec generate_ins_values(tuple(), [#stmtCol{}], [integer()]) -> iolist().
+generate_ins_values(_, _, []) -> [];
+generate_ins_values(Row, Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value)];
+generate_ins_values(Row, Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value), ", ", generate_ins_values(Row, Columns, Rest)].
+
+-spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> iolist().
+generate_upd_sql(_, [], _, _) -> [];
+generate_upd_sql(TableName, [Row], Columns, ColumnIds) ->
+    [<<"update ">>, TableName, <<" set ">>,
+     generate_set_value(Row, Columns, ColumnIds),
+     <<" where ">>,
+     generate_set_value(Row, Columns, [1])];
+generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
+    [<<"update ">>, TableName, <<" set ">>,
+     generate_set_value(Row, Columns, ColumnIds),
+     <<" where ">>,
+     generate_set_value(Row, Columns, [1]),
+     <<";\n">>,
+     generate_upd_sql(TableName, Rest, Columns, ColumnIds)].
+
+-spec generate_set_value(tuple(), [#stmtCol{}], [integer()]) -> iolist().
+generate_set_value(_, _, []) -> [];
+generate_set_value(Row, Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    ?Info("The cols ~p", [Col]),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value)];
+generate_set_value(Row, Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    ?Info("The cols ~p", [Col]),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value), ", ", generate_set_value(Row, Columns, Rest)].
+
+-spec add_function_type(atom(), binary()) -> binary().
+add_function_type(_, <<>>) -> <<"NULL">>;
+add_function_type(integer, Value) -> Value;
+add_function_type(float, Value) -> Value;
+add_function_type(decimal, Value) -> Value;
+add_function_type(binary, Value) -> Value;
+add_function_type(boolean, Value) -> Value;
+add_function_type(timestamp, Value) ->
+    % TODO: Convert the value to the correct format if it was changed.
+    iolist_to_binary([<<"to_date('">>, Value, <<"', 'DD.MM.YYYY HH24:MI:SS')">>]);
+add_function_type(_, Value) ->
+    iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
+
+-spec escape_quotes(list()) -> list().
+escape_quotes([]) -> [];
+escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
+escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
