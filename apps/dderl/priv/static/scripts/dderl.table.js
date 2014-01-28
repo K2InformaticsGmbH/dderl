@@ -545,7 +545,7 @@
         var cellmin = _ranges[0].fromCell;
         var cellmax = _ranges[0].toCell;
         var rowmin = _ranges[0].fromRow;
-        var rowmax = _ranges[0].toCell;
+        var rowmax = _ranges[0].toRow;
         for (var i = 0; i < _ranges.length; ++i) {
             if (cellmin > _ranges[i].fromCell) cellmin = _ranges[i].fromCell;
             if (cellmax < _ranges[i].toCell) cellmax = _ranges[i].toCell;
@@ -554,11 +554,13 @@
         }
         var cols = this._grid.getColumns();
         var selcols = [];
-        for(var c = cellmin; c <= cellmax; ++c)
+        for(var c = cellmin; c <= cellmax; ++c) {
             selcols[selcols.length] = self._origcolumns[cols[c].id];
+        }
         var selrows = [];
-        for(var r = rowmin; r <= rowmax; ++r)
+        for(var r = rowmin; r <= rowmax; ++r) {
             selrows[selrows.length] = self._gdata[r].id;
+        }
 
         var title = self.options.title + " statistics";
         $('<div>').appendTo(document.body)
@@ -580,7 +582,7 @@
         var cellmin = _ranges[0].fromCell;
         var cellmax = _ranges[0].toCell;
         var rowmin = _ranges[0].fromRow;
-        var rowmax = _ranges[0].toCell;
+        var rowmax = _ranges[0].toRow;
 
         for (var i = 0; i < _ranges.length; ++i) {
             if (cellmin > _ranges[i].fromCell) cellmin = _ranges[i].fromCell;

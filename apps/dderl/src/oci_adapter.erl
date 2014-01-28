@@ -257,7 +257,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    ?Info("query ~p", [Query]),
+    ?Debug("query ~p", [Query]),
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
@@ -426,10 +426,10 @@ process_cmd({[<<"get_sql">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     RowIds = proplists:get_value(<<"rowIds">>, BodyJson, []),
     Operation = proplists:get_value(<<"op">>, BodyJson, <<>>),
     Columns = Statement:get_columns(),
+    TableName = Statement:get_table_name(),
     Rows = [Statement:row_with_key(Id) || Id <- RowIds],
-    ?Info("The rows from the ids ~p", [Rows]),
-    Sql = generate_sql(Operation, Rows, Columns, ColumnIds),
-    Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}]}]),
+    Sql = generate_sql(TableName, Operation, Rows, Columns, ColumnIds),
+    Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}, {<<"title">>, <<"Generated Sql">>}]}]),
     From ! {reply, Response},
     Priv;
 
@@ -752,11 +752,11 @@ error_invalid_conn(Connection, Connections) ->
 -spec check_fun_vsn(fun()) -> boolean().
 check_fun_vsn(Fun) when is_function(Fun)->
     {module, Mod} = erlang:fun_info(Fun, module),
-    ?Info("The module: ~p", [Mod]),
+    ?Debug("The module: ~p", [Mod]),
     [ModVsn] = proplists:get_value(vsn, Mod:module_info(attributes)),
-    ?Info("The Module version: ~p~n", [ModVsn]),
+    ?Debug("The Module version: ~p~n", [ModVsn]),
     {new_uniq, <<FunVsn:16/unit:8>>} = erlang:fun_info(Fun, new_uniq),
-    ?Info("The function version: ~p~n", [FunVsn]),
+    ?Debug("The function version: ~p~n", [FunVsn]),
     ModVsn =:= FunVsn;
 check_fun_vsn(Something) ->
     ?Error("Not a function ~p", [Something]),
@@ -792,6 +792,7 @@ generate_fsmctx_oci(#stmtResult{
            ,sortFun       = SortFun
            ,sortSpec      = SortSpec
            ,orig_qry      = Query
+           ,table_name    = TableName
            ,block_length  = ?DEFAULT_ROW_SIZE
            ,fetch_recs_async_fun = fun(Opts) -> dderloci:fetch_recs_async(StmtRef, Opts) end
            ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
@@ -813,41 +814,89 @@ generate_fsmctx_oci(#stmtResult{
                 end
            }.
 
--spec generate_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> binary().
-generate_sql(<<"upd">>, Rows, Columns, ColumnIds) ->
-    iolist_to_binary(generate_upd_sql(Rows, Columns, ColumnIds));
-generate_sql(<<"ins">>, Rows, Columns, ColumnIds) ->
-    iolist_to_binary(generate_ins_sql(Rows, Columns, ColumnIds)).
+-spec generate_sql(binary(), binary(), [tuple()], [#stmtCol{}], [integer()]) -> binary().
+generate_sql(TableName, <<"upd">>, Rows, Columns, ColumnIds) ->
+    iolist_to_binary(generate_upd_sql(TableName, Rows, Columns, ColumnIds));
+generate_sql(TableName, <<"ins">>, Rows, Columns, ColumnIds) ->
+    InsCols = generate_ins_cols(Columns, ColumnIds),
+    iolist_to_binary(generate_ins_sql(TableName, Rows, InsCols, Columns, ColumnIds)).
 
--spec generate_ins_sql([tuple()], [], []) -> iolist().
-generate_ins_sql([], _, _) -> [];
-generate_ins_sql([Row], Columns, ColumnIds) -> 
-    [<<"insert into table (">>].
+-spec generate_ins_sql(binary(), [tuple()], iolist(), [#stmtCol{}], [integer()]) -> iolist().
+generate_ins_sql(_, [], _, _, _) -> [];
+generate_ins_sql(TableName, [Row], InsCols, Columns, ColumnIds) ->
+    [<<"insert into ">>, TableName, <<" (">>,
+     InsCols,
+     <<") values (">>,
+     generate_ins_values(Row, Columns, ColumnIds),
+     <<")">>];
+generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds) ->
+    [<<"insert into ">>, TableName, <<" (">>,
+     InsCols,
+     <<") values (">>,
+     generate_ins_values(Row, Columns, ColumnIds),
+     <<");\n">>,
+     generate_ins_sql(TableName, Rest, InsCols, Columns, ColumnIds)].
 
--spec generate_upd_sql([tuple()], [#stmtCol{}], [integer()]) -> iolist().
-generate_upd_sql([], _, _) -> [];
-generate_upd_sql([Row], Columns, ColumnIds) ->
-    [<<"update table set ">>,
+-spec generate_ins_cols([#stmtCol{}], [integer()]) -> iolist().
+generate_ins_cols(_, []) -> [];
+generate_ins_cols(Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName];
+generate_ins_cols(Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName, ",", generate_ins_cols(Columns, Rest)].
+
+-spec generate_ins_values(tuple(), [#stmtCol{}], [integer()]) -> iolist().
+generate_ins_values(_, _, []) -> [];
+generate_ins_values(Row, Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value)];
+generate_ins_values(Row, Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value), ", ", generate_ins_values(Row, Columns, Rest)].
+
+-spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> iolist().
+generate_upd_sql(_, [], _, _) -> [];
+generate_upd_sql(TableName, [Row], Columns, ColumnIds) ->
+    [<<"update ">>, TableName, <<" set ">>,
      generate_set_value(Row, Columns, ColumnIds),
      <<" where ">>,
      generate_set_value(Row, Columns, [1])];
-generate_upd_sql([Row | Rest], Columns, ColumnIds) ->
-    [<<"update table set ">>,
+generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
+    [<<"update ">>, TableName, <<" set ">>,
      generate_set_value(Row, Columns, ColumnIds),
      <<" where ">>,
      generate_set_value(Row, Columns, [1]),
      <<";\n">>,
-     generate_upd_sql(Rest, Columns, ColumnIds)].
+     generate_upd_sql(TableName, Rest, Columns, ColumnIds)].
 
 -spec generate_set_value(tuple(), [#stmtCol{}], [integer()]) -> iolist().
-generate_set_value(_, _, []) -> <<>>;
+generate_set_value(_, _, []) -> [];
 generate_set_value(Row, Columns, [ColId]) ->
     Col = lists:nth(ColId, Columns),
     ColName = Col#stmtCol.alias,
     Value = element(3 + ColId, Row),
-    [ColName, <<" = ">>, Value];
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value)];
 generate_set_value(Row, Columns, [ColId | Rest]) ->
     Col = lists:nth(ColId, Columns),
     ColName = Col#stmtCol.alias,
     Value = element(3 + ColId, Row),
-    [ColName, <<" = ">>, Value, ", ", generate_set_value(Row, Columns, Rest)].
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value), ", ", generate_set_value(Row, Columns, Rest)].
+
+-spec add_function_type(atom(), binary()) -> binary().
+add_function_type(_, <<>>) -> <<"NULL">>;
+add_function_type('SQLT_NUM', Value) -> Value;
+add_function_type('SQLT_DAT', Value) ->
+    % TODO: Convert the value to the correct format if it was changed.
+    iolist_to_binary([<<"to_date('">>, Value, <<"', 'DD.MM.YYYY HH24:MI:SS')">>]);
+add_function_type(_, Value) ->
+    iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
+
+-spec escape_quotes(list()) -> list().
+escape_quotes([]) -> [];
+escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
+escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].

@@ -56,6 +56,7 @@
         , row_with_key/2
         , get_columns/1
         , get_query/1
+        , get_table_name/1
         , get_histogram/2
         , get_statistics/3
         , refresh_session_ctx/2
@@ -76,6 +77,7 @@
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
                 , orig_qry
+                , table_name
                 }).
 
 -record(state,  { %% fsm combined state
@@ -183,6 +185,7 @@ fsm_ctx(#fsmctx{ id                         = Id
                , update_cursor_prepare_fun  = Ucpf
                , update_cursor_execute_fun  = Ucef
                , orig_qry                   = Qry
+               , table_name                 = TableName
                }) ->
     #ctx{ id                        = Id
         , bl                        = BL
@@ -197,6 +200,7 @@ fsm_ctx(#fsmctx{ id                         = Id
         , update_cursor_prepare_fun = Ucpf
         , update_cursor_execute_fun = Ucef
         , orig_qry                  = Qry
+        , table_name                = TableName
         }.
 
 -spec stop({atom(), pid()}) -> ok.
@@ -243,6 +247,10 @@ get_columns({?MODULE, Pid}) ->
 -spec get_query({atom(), pid()}) -> binary().
 get_query({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_query).
+
+-spec get_table_name({atom(), pid()}) -> binary().
+get_table_name({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, get_table_name).
 
 -spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_histogram(ColumnId, {?MODULE, Pid}) ->
@@ -963,6 +971,9 @@ handle_sync_event({"get_columns"}, _From, SN, #state{ctx=#ctx{stmtCols=Columns}}
 handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
     {reply, Qry, SN, State, infinity};
+handle_sync_event(get_table_name, _From, SN, #state{ctx=#ctx{table_name=TableName}}=State) ->
+    ?Debug("get_table_name ~p", [TableName]),
+    {reply, TableName, SN, State, infinity};
 handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=State) ->
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
