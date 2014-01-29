@@ -612,6 +612,12 @@ function insertAtCursor(myField, myValue) {
         this._setTabFocus();
     },
 
+    setFlatCmd: function(cmd) {
+        var self = this;
+        self._modCmd = cmd;
+        this._flatTb.val(cmd);
+    },
+
     close: function() { this._dlg.dialog("close"); },
 
     showCmd: function(cmd) {

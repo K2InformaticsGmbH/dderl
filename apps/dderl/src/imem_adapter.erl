@@ -741,7 +741,13 @@ extract_table_name(Query) ->
     case sqlparse:parsetree(Query) of
         {ok,{[{{select, SelectSections},_}],_}} ->
             {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
-            FirstTable;
+            case FirstTable of
+                {as, Tab, _Alias} -> Tab;
+                {{as, Tab, _Alias}, _} -> Tab;
+                {Tab, _} -> Tab;
+                Tab when is_binary(Tab) -> Tab;
+                _ -> <<>>
+            end;
         _ ->
             <<>>
     end.
@@ -831,7 +837,7 @@ add_function_type(boolean, Value) -> Value;
 add_function_type(timestamp, Value) ->
     ImemDatetime = imem_datatype:io_to_datetime(Value),
     NewValue = imem_datatype:datetime_to_io(ImemDatetime),
-    iolist_to_binary([<<"to_date('">>, NewValue, <<"', 'DD.MM.YYYY HH24:MI:SS')">>]);
+    iolist_to_binary([<<"to_date('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS')">>]);
 add_function_type(_, Value) ->
     iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
 

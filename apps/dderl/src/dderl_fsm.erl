@@ -248,7 +248,7 @@ get_columns({?MODULE, Pid}) ->
 get_query({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_query).
 
--spec get_table_name({atom(), pid()}) -> binary().
+-spec get_table_name({atom(), pid()}) -> term().
 get_table_name({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_table_name).
 

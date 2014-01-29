@@ -426,7 +426,13 @@ process_cmd({[<<"get_sql">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     RowIds = proplists:get_value(<<"rowIds">>, BodyJson, []),
     Operation = proplists:get_value(<<"op">>, BodyJson, <<>>),
     Columns = Statement:get_columns(),
-    TableName = Statement:get_table_name(),
+    case Statement:get_table_name() of
+        {as, Tab, _Alias} -> TableName = Tab;
+        {{as, Tab, _Alias}, _} -> TableName = Tab;
+        {Tab, _} -> TableName = Tab;
+        Tab when is_binary(Tab) -> TableName = Tab;
+        _ -> TableName = <<>>
+    end,
     Rows = [Statement:row_with_key(Id) || Id <- RowIds],
     Sql = generate_sql(TableName, Operation, Rows, Columns, ColumnIds),
     Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}, {<<"title">>, <<"Generated Sql">>}]}]),
@@ -779,7 +785,7 @@ check_funs(Error) ->
     ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), binary()) -> #fsmctx{}.
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), term()) -> #fsmctx{}.
 generate_fsmctx_oci(#stmtResult{
                   stmtCols = Clms
                 , rowFun   = RowFun
@@ -893,7 +899,7 @@ add_function_type('SQLT_NUM', Value) -> Value;
 add_function_type('SQLT_DAT', Value) ->
     ImemDatetime = imem_datatype:io_to_datetime(Value),
     NewValue = imem_datatype:datetime_to_io(ImemDatetime),
-    iolist_to_binary([<<"to_date('">>, NewValue, <<"', 'DD.MM.YYYY HH24:MI:SS')">>]);
+    iolist_to_binary([<<"to_date('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS')">>]);
 add_function_type(_, Value) ->
     iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
 

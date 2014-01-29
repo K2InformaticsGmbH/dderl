@@ -635,21 +635,29 @@
 
     _openSqlEditor: function(sqlResult) {
         var self = this;
+        var width = 500;
         // received response clear wait wheel
         self.removeWheel();
 
         if(sqlResult.hasOwnProperty('error')) {
             alert_jq(sqlResult.error);
         } else {
+            var split = sqlResult.sql.split("\n");
+            if((split.length > 0) && ((split[0].length * 8) > width)) {
+                width = split[0].length * 8;
+                if(width > 1000) {
+                    width = 1000;
+                }
+            }
             $('<div>')
                 .appendTo(document.body)
                 .sql({autoOpen  : false,
                       title     : sqlResult.title,
+                      width     : width,
                       cmdOwner  : null,
-                      history   : this._cmdStrs,
-                      cmdFlat   : sqlResult.sql,
+                      history   : this._cmdStrs
                      })
-                .sql('open');
+                .sql('open').sql('setFlatCmd', sqlResult.sql);
         }
     },
 
