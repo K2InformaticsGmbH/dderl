@@ -663,7 +663,7 @@
 
     _toggleGrouping: function(data) {
         var self = this;
-        var seperator = /[#/-]/;
+        var seperator = /[#/.\\]/;
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
