@@ -1608,6 +1608,17 @@ serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiB
                     gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
         true ->     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
     end;
+serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiTop}=State0) ->
+    if
+        (BufTop == GuiTop) -> State0#state{tailLock=true}; % No new data, keep the stack
+        true ->
+            case lists:member(GuiTop, keys_after(BufTop,BL-1,State0)) of
+                false ->
+                    gui_prepend(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
+                true ->
+                    State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
+            end
+    end;
 serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     case lists:member(GuiBot,keys_before(BufBot,GL-1,State0)) of
         false ->    % deferred forward can be executed now

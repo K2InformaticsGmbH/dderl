@@ -57,7 +57,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                     BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
                         {error, BoxReason} ->
                             ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
-                            {<<"boxerror">>, BoxReason};
+                            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
                         Box ->
                             ?Debug("The big box ~p", [Box]),
                             try dderl_sqlbox:box_to_json(Box) of
