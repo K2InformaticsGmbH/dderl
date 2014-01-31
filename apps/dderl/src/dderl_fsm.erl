@@ -220,6 +220,9 @@ gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) ->
 gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) -> 
     ?NoDbLog(debug, [], "button ~p", [<<">|">>]),
     gen_fsm:send_event(Pid,{button, <<">|">>, ReplyTo});
+gui_req(button, <<"more">>, ReplyTo, {?MODULE,Pid}) ->
+    ?NoDbLog(debug, [], "button ~p", [<<"more">>]),
+    gen_fsm:send_event(Pid,{button, <<"more">>, ReplyTo});
 gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) -> 
     ?NoDbLog(debug, [], "button ~p", [<<">|...">>]),
     gen_fsm:send_event(Pid,{button, <<">|...">>, ReplyTo});
@@ -539,7 +542,7 @@ filling({button, <<"...">>, ReplyTo}, State0) ->
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
 filling({button, <<">|...">>, ReplyTo}=Cmd, State0) ->
-    % switch fetch .. push mode and schedule tail mode, defer answer .. bulk fetch completed 
+    % switch fetch .. push mode and schedule tail mode, defer answer .. bulk fetch completed
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,true,State1),
     State3 = gui_clear(State2),
@@ -551,6 +554,11 @@ filling({button, <<">|">>, ReplyTo}=Cmd, State0) ->
     State2 = fetch(push,none,State1),
     ?NoDbLog(debug, [], "filling stack '>|'", []),
     {next_state, autofilling, State2#state{stack=Cmd}};
+filling({button, <<"more">>, ReplyTo}, State0) ->
+    % switch fetch .. push mode, defer answer .. bulk fetch completed
+    State1 = reply_stack(filling, ReplyTo, State0),
+    State2 = serve_bot(filling, <<"">>, State1#state{stack = undefined, replyToFun = ReplyTo}),
+    {next_state, filling, State2};
 filling({rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
     State1 = data_append(filling, {Recs,false},State0),
@@ -648,6 +656,17 @@ autofilling({button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) -
             % already waiting for end of fetch, keep command on stack
             State1 = reply_stack(autofilling, ReplyTo, State0),
             ?Debug("autofilling stack '>|'"),
+            {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
+    end;
+autofilling({button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
+    if
+        (TailMode == true) ->
+            % too late .. revoke tail mode now
+            State1 = gui_nop(#gres{state=autofilling,beep=true},State0#state{replyToFun=ReplyTo}),
+            {next_state, autofilling, State1};
+        true ->
+            % already waiting for end of fetch, keep command on stack
+            State1 = reply_stack(autofilling, ReplyTo, State0),
             {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
     end;
 autofilling({rows, {Recs,false}}, State0) ->
@@ -788,6 +807,11 @@ completed({button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
     State1 = gui_nop(#gres{state=completed,beep=true},State1),
     {next_state, completed, State1};
 completed({button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
+    % jump .. buffer bottom
+    State1 = reply_stack(completed, ReplyTo, State0),
+    State2 = gui_replace_until(BufBot,BL,#gres{state=completed},State1),
+    {next_state, completed, State2};
+completed({button, <<"more">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
     % jump .. buffer bottom
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,BL,#gres{state=completed},State1),
@@ -1649,6 +1673,18 @@ serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
             ?NoDbLog(debug, [], "~p stack exec ~p", [tailing,<<"tail">>]),
             gui_append(#gres{state=tailing,loop= <<"tail">>,focus=-1},State0#state{stack=undefined,replyToFun=RT})
     end;
+serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<"more">>, ReplyTo}} = State) ->
+    if
+        (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
+        (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
+        (GuiCnt == 0) ->                                            % (re)initialize to buffer bottom
+            ?Debug("~p stack exec ~p", [autofilling,<<"more">>]),
+            serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
+        true ->
+            % serve new data at the bottom of the buffer, ask client to come back
+            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<"more">>]),
+            gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
+    end;
 serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
     if
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
@@ -1658,10 +1694,10 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
             serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<">|">>]),
-            gui_append(#gres{state = autofilling, loop = <<">|">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
+            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<"more">>]),
+            gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
-serve_stack(filling, #state{stack = {button, <<">|">>, ReplyTo}} = State) ->
+serve_stack(filling, #state{stack = {button, <<"more">>, ReplyTo}} = State) ->
     serve_bot(filling, <<"">>, State#state{stack = undefined, replyToFun = ReplyTo});
 serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, Target, ReplyTo}} = State) when is_integer(Target)->
     if

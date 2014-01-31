@@ -498,7 +498,7 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                     Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
                 _ ->
                     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-                    case dderloci:exec(Connection, Query) of
+                    case dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount()) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, Statement),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
@@ -554,7 +554,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    case dderloci:exec(Connection, Query) of
+    case dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount()) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(Clms),
             From ! {reply_csv, FileName, Columns, first},
@@ -643,7 +643,7 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 
 -spec process_query(tuple(), tuple()) -> list().
 process_query(Query, {oci_port, _, _} = Connection) ->
-    process_query(check_funs(dderloci:exec(Connection, Query)), Query, Connection).
+    process_query(check_funs(dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount())), Query, Connection).
 
 -spec process_query(term(), binary(), tuple()) -> list().
 process_query(ok, Query, Connection) ->

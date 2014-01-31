@@ -33,6 +33,7 @@
         ,save_dashboard/5
         ,get_dashboards/2
         ,log_to_db/7
+        ,get_maxrowcount/0
         ]).
 
 -record(state, { schema :: term()
@@ -92,6 +93,10 @@ save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {sa
 
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
 get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, Owner}).
+
+-spec get_maxrowcount() -> integer().
+get_maxrowcount() ->
+    imem_meta:get_config_hlk(ddConfig, {imem,imem_sql,rownumDefaultLimit}, ?MODULE, [node()], 10000).
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
