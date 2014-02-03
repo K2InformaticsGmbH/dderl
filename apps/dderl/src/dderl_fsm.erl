@@ -54,6 +54,7 @@
                         %% filter FilterSpec   =  {'and',[{Col1,["ValueA".."ValueN"]}, {Col2,["ValueX"]}]}
                         %% sort   GuiSortSpec  =  [{Col1,'asc'}..{ColN,'desc'}]
         , row_with_key/2
+        , get_count/1
         , get_columns/1
         , get_query/1
         , get_table_name/1
@@ -240,6 +241,10 @@ gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) 
 row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) -> 
     % ?Debug("row_with_key ~p", [RowId]),
     gen_fsm:sync_send_all_state_event(Pid,{"row_with_key", RowId}).
+
+-spec get_count({atom(), pid()}) -> integer().
+get_count({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, get_count).
 
 %% the return tuple type #stmtcol{}. but is not imported
 -spec get_columns({atom(), pid()}) -> [tuple()].
@@ -992,6 +997,9 @@ binary_to_number(Number) ->
 handle_sync_event({"get_columns"}, _From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
     ?NoDbLog(debug, [], "get_columns ~p", [Columns]),
     {reply, Columns, SN, State, infinity};
+handle_sync_event(get_count, _From, SN, #state{bufCnt = Count} = State) ->
+    ?NoDbLog(debug, [], "get_count ~p", [Count]),
+    {reply, Count, SN, State, infinity};
 handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
     {reply, Qry, SN, State, infinity};
@@ -1181,19 +1189,19 @@ gui_response(#gres{state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,d
 -spec gres(atom(), integer(), list(), binary(), integer(), boolean(), #gres{}) -> #gres{}.
 gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0) ->
     Disable = case DirtyCount of
-        0 ->    
+        0 ->
             [{<<"commit">>,<<"nothing to commit">>},{<<"rollback">>,<<"nothing to rollback">>}|Gres0#gres.disable];
-        _ ->    
+        _ ->
             Gres0#gres.disable
-    end,    
+    end,
     Promo = if
         (SN == aborted) ->
             [{<<"restart">>,<<"restart to see more data">>}|Gres0#gres.promote];
         (GuiCol) ->
             [{<<"restart">>,<<"refresh to see correct sorting">>}|Gres0#gres.promote];
-        true ->    
+        true ->
             Gres0#gres.promote
-    end,    
+    end,
     SNbin = list_to_binary(atom_to_list(SN)),
     TTbin = list_to_binary(ToolTip),
     Gres0#gres{state=SNbin,cnt=Cnt,toolTip=TTbin,sql=Sql,disable=empty_override(Disable),promote=empty_override(Promo)}.
