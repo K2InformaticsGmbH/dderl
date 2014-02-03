@@ -227,7 +227,6 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     if
         IsView ->
             {#ddView{name=Name,owner=Owner},#ddCmd{}=OldC,_} = element(3, R),
-            Name = element(5, R),
             V = dderl_dal:get_view(Sess, Name, imem, Owner),
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
