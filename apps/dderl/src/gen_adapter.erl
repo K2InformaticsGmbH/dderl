@@ -123,7 +123,7 @@ process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
     [{<<"view_op">>,BodyJson}] = ReqBody,
     Operation = string:to_lower(binary_to_list(proplists:get_value(<<"operation">>, BodyJson, <<>>))),
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
-    ?Info("view_op ~s for ~s", [Operation, ViewId]),
+    ?Info("view_op ~s for ~p", [Operation, ViewId]),
     Res = case Operation of
         "rename" ->
             Name = proplists:get_value(<<"newname">>, BodyJson, <<>>),
