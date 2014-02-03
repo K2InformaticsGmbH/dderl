@@ -268,7 +268,10 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
     end,
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
+process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
+      Cmd =:= [<<"connect">>];
+      Cmd =:= [<<"connect_change_pswd">>];
+      Cmd =:= [<<"disconnect">>] ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
@@ -280,12 +283,24 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
                 CurrentPriv
         end,
     case proplists:is_defined(Adapter, AdaptPriv) of
-        true ->
-            NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
-        false ->
-            NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv]
+        true -> NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
+        false -> NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv]
     end,
-    State#state{adapt_priv = NewAdaptPriv}.
+    State#state{adapt_priv = NewAdaptPriv};
+
+process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
+    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
+    BodyJson = jsx:decode(ReqData),
+    spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId) end),
+    State.
+
+spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId) ->
+    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
+    try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
+    catch Class:Error ->
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
+    end.
 
 -spec jsq(term()) -> term().
 jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
