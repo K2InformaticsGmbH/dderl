@@ -532,8 +532,9 @@ filling({button, <<"restart">>, ReplyTo}, State0) ->
 filling({button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
     % too quick, defer request .. when we have the first block of data 
     State1 = reply_stack(filling, ReplyTo, State0),
+    State2 = prefetch(filling,State1),
     ?NoDbLog(debug, [], "filling stack ~p", [Button]),
-    {next_state, filling, State1#state{stack=Cmd}};
+    {next_state, filling, State2#state{stack=Cmd}};
 filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % close fetch and clear buffers, schedule tail mode
     State1 = reply_stack(filling, ReplyTo, State0),
@@ -583,11 +584,11 @@ filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
     NewGuiBot = State1#state.guiBot,
-    State2 = if  
-        (Button == <<">">>) ->          prefetch(filling,State1);
-        (Button == <<">>">>) ->         prefetch(filling,State1);
-        (Button == <<"<">>) ->          prefetch(filling,State1);
-        (Button == <<"<<">>) ->         prefetch(filling,State1);
+    State2 = if
+        (Button == <<">">>) ->      prefetch(filling,State1);
+        (Button == <<">>">>) ->     prefetch(filling,State1);
+        (Button == <<"<">>) ->      prefetch(filling,State1);
+        (Button == <<"<<">>) ->     prefetch(filling,State1);
         (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
         true ->                     State1
     end,    
@@ -597,7 +598,7 @@ filling({rows, {Recs,false}}, State0) ->
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
     NewGuiBot = State1#state.guiBot,
-    State2 = if  
+    State2 = if
         (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
         true ->                     State1
     end,
@@ -1421,7 +1422,8 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
     if
         (BufCnt == 0) andalso (SN == filling) ->
             ?Debug("~p waiting for the fetch to complete ~p", [SN, <<">">>]),
-            State0#state{stack={button,<<">">>,ReplyTo}};
+            State1 = prefetch(SN, State0),
+            State1#state{stack={button,<<">">>,ReplyTo}};
         (BufCnt == 0) ->
             %% no data, serve empty gui
             State1 = prefetch(SN,State0),
@@ -1454,7 +1456,8 @@ serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,gui
     if
         (BufCnt == 0) andalso (SN == filling) ->
             ?Debug("~p waiting for fetch to complete ~p", [SN, <<">>">>]),
-            gui_nop(#gres{state=filling, loop= <<">>">>}, State0);
+            State1 = prefetch(SN, State0),
+            State1#state{stack={button,<<">>">>,ReplyTo}};
         (BufCnt == 0) ->
             %% no data, serve empty gui
             State1 = prefetch(SN,State0),
@@ -1606,6 +1609,14 @@ serve_stack(SN, #state{tRef=TRef} = State) when TRef =/= undefined ->
 serve_stack( _, #state{stack=undefined}=State) -> 
     % no stack, nothing .. do
     State;
+serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,guiCol=true,stack={button,Button,RT}}=State0) when
+      Button =:= <<">">>;
+      Button =:= <<">>">>;
+      Button =:= <<">|">>;
+      Button =:= <<">|...">>;
+      Button =:= <<"more">> ->
+    ?NoDbLog(debug, [], "~p stack exec ~p when guiCol true", [completed,Button]),
+    serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
 serve_stack( _, #state{nav=ind,bufBot=B,guiBot=B}=State) -> 
     % gui is current at the end of the buffer, no new interesting data, nothing .. do
     State;
@@ -1693,7 +1704,7 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
             ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<"more">>]),
             gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
-serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
+serve_stack(_SN, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
     if
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
