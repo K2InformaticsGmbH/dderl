@@ -11,6 +11,7 @@
         , disconnect/1
         , rows/2
         , rows_limit/3
+        , get_count/1
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -582,6 +583,7 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
 % dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
 rows_limit(_NRows, Rows, {?MODULE, Pid}) -> Pid ! {Rows, true}. %% Fake a completed to send the last cvs part.
+get_count({?MODULE, _Pid}) -> 0. %% Fake count 0 since it is always requested before sending the rows.
 produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
     receive
         Data ->
