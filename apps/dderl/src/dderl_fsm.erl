@@ -271,7 +271,7 @@ get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
     gen_fsm:send_all_state_event(Pid, Error);
-rows({Rows,Completed},{?MODULE,Pid}) -> 
+rows({Rows,Completed},{?MODULE,Pid}) ->
     % ?Debug("rows ~p ~p", [length(Rows), Completed]),
     gen_fsm:send_event(Pid,{rows, {Rows,Completed}}).
 
@@ -280,13 +280,13 @@ rows_limit(NRows, Recs, {?MODULE, Pid}) ->
     gen_fsm:send_event(Pid, {rows_limit, {NRows, Recs}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
-fetch(FetchMode,TailMode, #state{ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
+fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
         {FM,none} ->      [{fetch_mode,FM}];
         {FM,TM} ->        [{fetch_mode,FM},{tail_mode,TM}]
     end,
-    case Fraf(Opts) of
+    case Fraf(Opts, Count) of
         %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
         %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
         ok -> 
@@ -1103,8 +1103,9 @@ handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _Fro
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,
     F(),
+    State0 = data_clear(State),
     #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
-    State0 = State#state{bl        = BL
+    State1 = State0#state{bl        = BL
                    , gl            = gui_max(BL)
                    , ctx           = Ctx
                    , stmtColsCount = length(StmtCols)
@@ -1113,7 +1114,8 @@ handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _Fro
                    , sortSpec      = SortSpec
                    , replyToFun    = ReplyTo
                    },
-    {reply, ok, SN, State0, infinity};
+    State2 = fetch(none,none,State1#state{pfc=0}),
+    {reply, ok, SN, State2, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 

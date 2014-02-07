@@ -11,7 +11,6 @@
         , disconnect/1
         , rows/2
         , rows_limit/3
-        , get_count/1
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -489,33 +488,34 @@ process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connec
 % gui button events
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
     [{<<"button">>,BodyJson}] = ReqBody,
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    FsmStmt = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     case proplists:get_value(<<"btn">>, BodyJson, <<">">>) of
         <<"restart">> ->
-            Query = Statement:get_query(),
+            Query = FsmStmt:get_query(),
             case dderl_dal:is_local_query(Query) of
                 true ->
-                    Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
+                    FsmStmt:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, FsmStmt, From));
                 _ ->
                     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
                     case dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount()) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
-                            dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, Statement),
+                            dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
-                            Statement:refresh_session_ctx(FsmCtx),
-                            Statement:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, Statement, From));
+                            FsmStmt:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, FsmStmt, From)),
+                            FsmStmt:get_count(),
+                            FsmStmt:refresh_session_ctx(FsmCtx);
                         _ ->
                             From ! {reply, jsx:encode([{<<"button">>, [{<<"error">>, <<"unable to refresh the table">>}]}])}
                     end
             end;
         ButtonInt when is_integer(ButtonInt) ->
-            Statement:gui_req(button, ButtonInt, gui_resp_cb_fun(<<"button">>, Statement, From));
+            FsmStmt:gui_req(button, ButtonInt, gui_resp_cb_fun(<<"button">>, FsmStmt, From));
         ButtonBin when is_binary(ButtonBin) ->
             case string:to_integer(binary_to_list(ButtonBin)) of
                 {error, _} -> Button = ButtonBin;
                 {Target, []} -> Button = Target
             end,
-            Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From))
+            FsmStmt:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, FsmStmt, From))
     end,
     Priv;
 process_cmd({[<<"update_data">>], ReqBody}, _Sess, _UserId, From, Priv) ->
@@ -562,7 +562,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv) ->
                 produce_csv_rows(From, StmtRef, RowFun)
             end),
             dderloci:add_fsm(StmtRef, {?MODULE, ProducerPid}),
-            dderloci:fetch_recs_async(StmtRef, [{fetch_mode, push}]),
+            dderloci:fetch_recs_async(StmtRef, [{fetch_mode, push}], 0),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         Error ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
@@ -583,7 +583,6 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv) ->
 % dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
 rows_limit(_NRows, Rows, {?MODULE, Pid}) -> Pid ! {Rows, true}. %% Fake a completed to send the last cvs part.
-get_count({?MODULE, _Pid}) -> 0. %% Fake count 0 since it is always requested before sending the rows.
 produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
     receive
         Data ->
@@ -602,13 +601,11 @@ produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
 produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
-    ?Info("Rows intermediate ~p, sending to ~p with process_info ~p", [CsvRows, From,  process_info(From)]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(From, StmtRef, RowFun);
 produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
                              || Row <- [RowFun(R) || R <- Rows]]),
-    ?Info("Rows last ~p, sending to ~p", [CsvRows, From]),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).
 
@@ -801,7 +798,7 @@ generate_fsmctx_oci(#stmtResult{
            ,orig_qry      = Query
            ,table_name    = TableName
            ,block_length  = ?DEFAULT_ROW_SIZE
-           ,fetch_recs_async_fun = fun(Opts) -> dderloci:fetch_recs_async(StmtRef, Opts) end
+           ,fetch_recs_async_fun = fun(Opts, Count) -> dderloci:fetch_recs_async(StmtRef, Opts, Count) end
            ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
            ,stmt_close_fun  = fun() -> dderloci:close(StmtRef) end
            ,filter_and_sort_fun =
