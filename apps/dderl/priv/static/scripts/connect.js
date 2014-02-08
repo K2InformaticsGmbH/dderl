@@ -202,6 +202,7 @@ function connect_dlg()
       '          <td valign=bottom><input type="text" id="user" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=left valign=center><input type="checkbox" id="secure" value="1">&nbsp;Secure</td>' +
       '  </table>' +
       '</div>')
     .appendTo(document.body)
@@ -247,6 +248,7 @@ function connect_dlg()
                 }
 
                 var connectJson = {connect: {name      :connName,
+                                             secure    :$('#secure').is(':checked'),
                                              ip        :$('#ip').val(),
                                              port      :$('#port').val(),
                                              service   :$('#service').val(),

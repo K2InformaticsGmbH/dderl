@@ -8,8 +8,8 @@
                   sasl,
                   os_mon,
                   lager,
-                  erlimem,
                   ranch,
+                  erlimem,
                   imem,
                   sqlparse
                  ]},

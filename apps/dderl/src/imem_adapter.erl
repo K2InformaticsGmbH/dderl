@@ -54,14 +54,15 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
     process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Ip       = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port     = proplists:get_value(<<"port">>, BodyJson, <<>>),
-    Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
-    Type = get_connection_type(Ip),
-    ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, erlang:md5(Password)}),
+    Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
+    Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
+    Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
+    Schema      = proplists:get_value(<<"service">>, BodyJson, <<>>),
+    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password    = proplists:get_value(<<"password">>, BodyJson, <<>>),
+    Type        = get_connection_type(Ip),
+    ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User, Secure}]),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password)}),
     case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -102,15 +103,16 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefine
     process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
 process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
-    Ip     = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port   = proplists:get_value(<<"port">>, BodyJson, <<>>),
-    Schema = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
+    Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
+    Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
+    Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
+    Schema      = proplists:get_value(<<"service">>, BodyJson, <<>>),
+    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password    = proplists:get_value(<<"password">>, BodyJson, <<>>),
     NewPassword = proplists:get_value(<<"new_password">>, BodyJson, <<>>),
-    Type = get_connection_type(Ip),
+    Type        = get_connection_type(Ip),
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword)}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword)}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
@@ -683,18 +685,19 @@ build_srtspec_json(SortSpecs) ->
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
--spec connect_to_erlimem(atom(), list(), binary(), binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
-connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
+-spec connect_to_erlimem(atom(), list(), binary(), atom(),  binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
+connect_to_erlimem(rpc, _Ip, Port, _Secure, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
         AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type rpc"}
     end;
-connect_to_erlimem(tcp, Ip, Port, Schema, Credentials) ->
+connect_to_erlimem(tcp, Ip, Port, Secure, Schema, Credentials) ->
+    SSL = if Secure =:= true -> [ssl]; true -> [] end,
     try binary_to_integer(Port) of
-        IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema}, Credentials)
+        IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema, SSL}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type tcp"}
     end;
-connect_to_erlimem(Type, _Ip, _Port, Schema, Credentials) ->
+connect_to_erlimem(Type, _Ip, _Port, _Secure, Schema, Credentials) ->
     erlimem:open(Type, {Schema}, Credentials).
 
 -spec get_connection_type(binary()) -> atom().

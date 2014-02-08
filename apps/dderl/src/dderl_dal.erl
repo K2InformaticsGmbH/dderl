@@ -100,35 +100,38 @@ get_maxrowcount() ->
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
-    ?Debug("starting...~n"),
+    ?Info("starting...~n"),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
     ?Debug("started!~n~p", [Result]),
     Result.
 
 init([SchemaName]) ->
-    Cred = {<<>>, <<>>},
-    case erlimem:open(local, {SchemaName}, Cred) of
-    {ok, Sess} ->
-        %lager:set_loglevel(lager_console_backend, debug),
-        build_tables_on_boot(Sess, [
-              {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
-            , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
-            , {ddConn, record_info(fields, ddConn), ?ddConn, #ddConn{}}
-            , {ddCmd, record_info(fields, ddCmd), ?ddCmd, #ddCmd{}}
-            , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
-            , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
-        ]),
-        ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
-        Sess:run_cmd(insert, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
-        % Initializing adapters (all the *_adapter modules compiled with dderl)
-        %  doesn't include dynamically built adapters
-        {ok, AdaptMods} = application:get_key(dderl, modules),
-        Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter$") =/= nomatch],
-        [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
-        ?Info("adapters ~p", [Adapters]),
-        {ok, #state{sess=Sess, schema=SchemaName}};
-    {error, Reason} ->
-        {stop, Reason}
+    case erlimem:open(local, {SchemaName}, {<<>>, <<>>}) of
+        {ok, Sess} ->
+            %lager:set_loglevel(lager_console_backend, debug),
+            build_tables_on_boot(Sess, [
+                  {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
+                , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
+                , {ddConn, record_info(fields, ddConn), ?ddConn, #ddConn{}}
+                , {ddCmd, record_info(fields, ddCmd), ?ddCmd, #ddCmd{}}
+                , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
+                , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
+            ]),
+            ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
+            Sess:run_cmd(insert, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
+            % Initializing adapters (all the *_adapter modules compiled with dderl)
+            %  doesn't include dynamically built adapters
+            {ok, AdaptMods} = application:get_key(dderl, modules),
+            Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter$") =/= nomatch],
+            [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
+            ?Info("adapters ~p", [Adapters]),
+            {ok, #state{sess=Sess, schema=SchemaName}};
+        {error, Reason} ->
+             ?Error("Failed to start : ~p", [Reason]),
+            {stop, Reason};
+        Else ->
+             ?Error("Failed to start : ~p", [Else]),
+             {stop, Else}
     end.
 
 -spec build_tables_on_boot({atom(), pid()}, [tuple()]) -> ok.
