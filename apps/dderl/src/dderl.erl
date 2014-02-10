@@ -14,6 +14,7 @@
 
 %% API.
 start() ->
+    ssl:start(),
     ok = application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},
                                                {lager_file_backend, [{file, "log/error.log"},
@@ -32,13 +33,13 @@ start() ->
     ok = application:set_env(sasl, sasl_error_logger, false),
     ok = application:start(sasl),
     ok = application:start(os_mon),
-	ok = application:start(crypto),
+	%ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
-    ok = application:start(erlimem),
-    ok = application:start(sqlparse),% maybe already started by imem 
-    ok = application:start(imem),
-	ok = application:start(dderl).
+    erlimem:start(),
+    application:start(sqlparse),% maybe already started by imem 
+    imem:start(),
+	ok = application:start(?MODULE).
 
 
 init(_Transport, Req, []) ->
