@@ -1491,8 +1491,8 @@
     _toolBarReload: function(self) {
         console.log('['+self.options.title+']'+' reloading '+self._cmd);
         var viewInfo = self._getTableLayout("");
-        self._clmlay = viewInfo.column_layout;
-        self._tbllay = viewInfo.table_layout;
+        self._clmlay = viewInfo.save_view.column_layout;
+        self._tbllay = viewInfo.save_view.table_layout;
         self._gridDataView.setGrouping([]);
         self.buttonPress("restart");
     },
