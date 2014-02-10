@@ -2736,7 +2736,7 @@
             }
         }
 
-        if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && self._clmlay === null) {
+        if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && !self._clmlay) {
             var fieldWidth = 0;
             for(var i=0;i<c.length; ++i) {
                 fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
@@ -2848,7 +2848,7 @@
             self._grid.resizeCanvas();
 
             // only if the dialog don't have a predefined height/width
-            if(self._tbllay === null) {
+            if(!self._tbllay) {
                 // since columns' width doesn't change after the first block we can skip this
                 if (firstChunk) {
                     var dlg = this._dlg.dialog('widget');
