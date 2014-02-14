@@ -608,6 +608,11 @@ if (typeof Slick === "undefined") {
           }
 
           var reorderedIds = $headers.sortable("toArray");
+          // Check added to fix the id column to the first position
+          if(getColumnIndex(reorderedIds[0].replace(uid, "")) != 0) {
+            setColumns(columns);
+            return;
+          }
           var reorderedColumns = [];
           for (var i = 0; i < reorderedIds.length; i++) {
             reorderedColumns.push(columns[getColumnIndex(reorderedIds[i].replace(uid, ""))]);
