@@ -180,13 +180,16 @@ function insertAtCursor(myField, myValue) {
         self._boxBg     = 'rgb(240,255,240)';
 
         var sqlKeyHandle = function(e, self, _cmd) {
-            if(e.type == "keydown" && (e.keyCode || e.which) == 9) {
-              e.preventDefault();
-              insertAtCursor(self, "  ");
+            if(e.type == "keydown") {
+                if((e.keyCode || e.which) == 9) {
+                    e.preventDefault();
+                    insertAtCursor(self, "  ");
+                }
+
+                var that = e.data;
+                _cmd = $(self).val();
+                that._modCmd = _cmd;
             }
-            var that = e.data;
-            _cmd = $(self).val();
-            that._modCmd = _cmd;
         };
 
         self._flatTb =
@@ -247,6 +250,8 @@ function insertAtCursor(myField, myValue) {
                 var shouldReparse = false;
                 self._setTabFocus();
 
+                console.log("en tab activate the cmd " + self._modCmd);
+                console.log(self);
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
@@ -401,20 +406,7 @@ function insertAtCursor(myField, myValue) {
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','reloadParsedCmd');
     },
 
-    _reloadParsedCmd: function(_parsed) { /*
-        var error = ''
-        if(_parsed.hasOwnProperty('error')) {
-            alert_jq(_parsed.error);
-        }
-
-        if(_parsed.hasOwnProperty('boxerror')) {
-            error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
-        }
-
-        if(_parsed.hasOwnProperty('prettyerror')) {
-            error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
-        }*/
-
+    _reloadParsedCmd: function(_parsed) {
         var initOptions = {
             title          : this._title,
             autoOpen       : false,
@@ -474,6 +466,7 @@ function insertAtCursor(myField, myValue) {
     /*
      * ajaxCall success handlers
      */
+      // TODO: Enable error display when they are minimal
     _checkParsed: function(_parsed) { /*
         var error = ''
         if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
@@ -509,22 +502,20 @@ function insertAtCursor(myField, myValue) {
         }
     },
 
-    _leaf_box: function (collapsed, nametxt, alltxt, children, maxwidth) {
-        var bx = $('<div>')
-            .addClass('boxParent')
-            .width(maxwidth);
+    _leaf_box: function (bx, collapsed, nametxt, alltxt, children, maxwidth, parent) {
+        var self = this;
         var edit = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .addClass('boxEdit')
             .width(maxwidth)
             .attr('rows', 2)
             .val(alltxt);
-        nametxt = (nametxt.length === 0 ? "" : nametxt);
         var name = $('<span>')
             .addClass('boxName')
             .text(nametxt);
     
-        bx.append(edit)
+        bx.append(edit);
         bx.append(name);
+        bx.data("oldText", alltxt);
 
         var childrendiv = null;
         if(children.length > 0) {
@@ -534,13 +525,29 @@ function insertAtCursor(myField, myValue) {
             bx.append(childrendiv);
         }
     
-        for(var i = 0; i < children.length; ++i)
+        for(var i = 0; i < children.length; ++i) {
             childrendiv.append(children[i]);
+        }
     
         edit.dblclick(function(e) {
             e.preventDefault();
             e.stopPropagation();
             edit.css('display','none');
+            if(bx.data("oldText") != edit.val()) {
+                bx.data("oldText", edit.val());
+                name.text(edit.val());
+                nametxt = edit.val();
+                alltxt = edit.val();
+                // delete all the children.
+                if(childrendiv) {
+                    console.log(childrendiv);
+                    childrendiv.remove();
+                }
+                if(parent) {
+                    var updateFunc = parent.data("updateFunc");
+                    updateFunc();
+                }
+            }
             name.css('display','inline');
             if(childrendiv) childrendiv.css('display','inline');
         });
@@ -559,31 +566,55 @@ function insertAtCursor(myField, myValue) {
             if(childrendiv) childrendiv.css('display','none');
         }
 
-        if (nametxt.length === 0)
+        if (nametxt.length === 0) {
             bx.dblclick(dblClkFn);
-        else
+        } else {
             name.dblclick(dblClkFn);
-    
+        }
+
+        bx.data("updateFunc", function() {
+            var childText;
+            alltxt = nametxt;
+            for(var i = 0; i < children.length; ++i) {
+                childText = children[i].data("oldText");
+                alltxt += (' ' + childText);
+            }
+            bx.data("oldText", alltxt);
+            edit.val(alltxt);
+
+            if(parent) {
+                var updateFunc = parent.data("updateFunc");
+                updateFunc();
+            } else {
+                // This is the root, update the cmd
+                console.log("this is the root " + nametxt);
+                console.log("the new text " + alltxt);
+                console.log(self);
+                self._modCmd = alltxt;
+            }
+        });
+
         return bx;
     },
     
-    _boxing: function(box, maxwidth) {
+    _boxing: function(box, maxwidth, parent) {
         var children = new Array();
         var alltext = box.name;
         var allChildCollapsed = true;
-        if(box.children.length > 0)
-            for (var i = 0; i<box.children.length; ++i) {
-                Res = this._boxing(box.children[i], maxwidth-20);
-                children.push(Res.div);
-                alltext += (' ' + Res.text);
-                if (!box.children[i].collapsed) allChildCollapsed = false;
+        var res;
+        var bx = $('<div>')
+            .addClass('boxParent')
+            .width(maxwidth);
+        for (var i = 0; i < box.children.length; ++i) {
+            res = this._boxing(box.children[i], maxwidth-20, bx);
+            children.push(res.div);
+            alltext += (' ' + res.text);
+            if (!box.children[i].collapsed) {
+                allChildCollapsed = false;
             }
-        console.log(alltext);
-        var collapsed = box.collapsed;
-        if(allChildCollapsed && box.name.length === 0)
-            collapsed = true;
-        return {div : this._leaf_box(collapsed, box.name, alltext, children, maxwidth-20),
-                text: alltext};
+        }
+        var collapsed = box.collapsed || (allChildCollapsed && box.name.length === 0);
+        return {div : this._leaf_box(bx, collapsed, box.name, alltext, children, maxwidth-20, parent), text: alltext};
     },
 
     _createDlg: function() {
