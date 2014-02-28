@@ -118,7 +118,7 @@ init([SchemaName]) ->
                 , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
             ]),
             ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
-            Sess:run_cmd(insert, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
+            Sess:run_cmd(write, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
             % Initializing adapters (all the *_adapter modules compiled with dderl)
             %  doesn't include dynamically built adapters
             {ok, AdaptMods} = application:get_key(dderl, modules),
@@ -158,7 +158,7 @@ handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, _
                  , command   = Cmd
                  , conns     = Conn
                  , opts      = Opts},
-    Sess:run_cmd(insert, [ddCmd, NewCmd]),
+    Sess:run_cmd(write, [ddCmd, NewCmd]),
     {reply, Id, State};
 
 handle_call({add_command, undefined, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
@@ -202,8 +202,8 @@ handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
                      , owner    = Owner
                      , cmd      = CmdId
                      , state    = ViewsState},
-    Sess:run_cmd(insert, [ddView, NewView]),
-    ?Debug("add_view inserted ~p", [NewView]),
+    Sess:run_cmd(write, [ddView, NewView]),
+    ?Debug("add_view written ~p", [NewView]),
     {reply, Id, State};
 
 handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
@@ -227,8 +227,8 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
                                Cmd#ddCmd.opts},
             handle_call(UpdateCmdParams, From, State),
             NewView = OldView#ddView{state=ViewsState},
-            Sess:run_cmd(insert, [ddView, NewView]),
-            ?Debug("update_view inserted ~p", [NewView]),
+            Sess:run_cmd(write, [ddView, NewView]),
+            ?Debug("update_view written ~p", [NewView]),
             {reply, ViewId, State};
         _ ->
             ?Error("Unable to get the view to update ~p", [ViewId]),
@@ -242,8 +242,8 @@ handle_call({rename_view, Sess, ViewId, ViewName}, _From, State) ->
         {[OldView], true} ->
             case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
                 {[OldCmd], true} ->
-                    Sess:run_cmd(insert, [ddCmd, OldCmd#ddCmd{name = ViewName}]),
-                    Sess:run_cmd(insert, [ddView, OldView#ddView{name = ViewName}]),
+                    Sess:run_cmd(write, [ddCmd, OldCmd#ddCmd{name = ViewName}]),
+                    Sess:run_cmd(write, [ddView, OldView#ddView{name = ViewName}]),
                     {reply, ok, State};
                 _ ->
                     ?Error("Unable to get the command to rename ~p", [OldView#ddView.cmd]),
@@ -319,7 +319,7 @@ handle_call({save_dashboard, Sess, Owner, -1, Name, Views}, From, State) ->
     end;
 handle_call({save_dashboard, Sess, Owner, DashId, Name, Views}, _From, State) ->
     NewDash = #ddDash{id = DashId, name = Name, owner = Owner, views = Views},
-    Sess:run_cmd(insert, [ddDash, NewDash]),
+    Sess:run_cmd(write, [ddDash, NewDash]),
     ?Debug("dashboard saved ~p", [NewDash]),
     {reply, DashId, State};
 
@@ -424,8 +424,8 @@ handle_cast({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, S
             ?Info("add_connect adding new id ~p", [NewId]),
             NewCon = Con#ddConn{id=NewId}
     end,
-    Sess:run_cmd(insert, [ddConn, NewCon]),
-    ?Debug("add_connect inserted ~p", [NewCon]),
+    Sess:run_cmd(write, [ddConn, NewCon]),
+    ?Debug("add_connect written ~p", [NewCon]),
     {noreply, State};
 handle_cast({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, State) ->
     case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
@@ -433,7 +433,7 @@ handle_cast({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, State
                                          , ['$_']}]]) of
         {[#ddConn{owner = Owner}], true} ->
             %% The same owner, save old view as it is.
-            Sess:run_cmd(insert, [ddConn, Con]);
+            Sess:run_cmd(write, [ddConn, Con]);
         {[#ddConn{owner = OldOwner} = OldCon], true} ->
             %% It is not the same owner, save a copy if there is some difference.
             %% TODO: Validate authorization before saving.
@@ -454,8 +454,8 @@ handle_cast({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, State
 
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Adp = #ddAdapter{id=Id,fullName=FullName},
-    Sess:run_cmd(insert, [ddAdapter, Adp]),
-    ?Debug("add_adapter inserted ~p", [Adp]),
+    Sess:run_cmd(write, [ddAdapter, Adp]),
+    ?Debug("add_adapter written ~p", [Adp]),
     {noreply, State};
 handle_cast({init_adapter, Adapter}, State) ->
     spawn(fun() ->

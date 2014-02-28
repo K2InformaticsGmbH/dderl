@@ -30,7 +30,19 @@ init() ->
                                  }),
     gen_adapter:add_cmds_views(undefined, system, imem, true, [
         { <<"All Tables">>
-        , <<"select name(qname),size as rows, memory, nodef(expiry) as expires, nodef(tte) as expires_after from all_tables, ddSize where name = element(2,qname) and size <> undefined order by qname asc">>
+        , <<"select
+                name(qname),
+                size as rows,
+                memory,
+                nodef(expiry) as expires,
+                nodef(tte) as expires_after
+            from
+                all_tables,
+                ddSize
+            where
+                name = element(2, qname) and size <> to_atom('undefined')
+            order by
+                qname asc">>
         , remote},
         { <<"All Views">>
         , <<"select
@@ -41,8 +53,8 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
-                and c.adapters = \"[imem]\"
-                and (c.owner = user or c.owner = system)
+                and c.adapters = to_list('[imem]')
+                and (c.owner = user or c.owner = to_atom('system'))
             order by
                 v.name,
                 c.owner">>
