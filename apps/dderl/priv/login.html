@@ -15,14 +15,14 @@
                     <li><a id="files-list-button" href="#" onclick='show_qry_files(true)'>Tables and Views</a></li>
                     <li><a id="files-list-button" href="#" onclick='import_query()'>Import Query</a></li>
                     <li><a id="change-pswd-button" href="#" onclick='change_password(false)'>Change Password</a></li>
-                    <li><a id="about-dderl-button" href="#" onclick='show_about_dlg()'>About</a></li>
-                    <li><a id="disconnect-button" href="#" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="logout-dderl-button" href="#" onclick='logout()'>Log out</a></li>
+                    <li><a id="about-dderl-button" onclick='show_about_dlg()'>About</a></li>
+                    <li><a id="disconnect-button" onclick='disconnect_tab()'>Disconnect</a></li>
+                    <li><a id="logout-dderl-button" onclick='logout()'>Log out</a></li>
                 </ul>
             </li>
-            <li><a id="connect-button" href="#" onclick='new_connection_tab()'>New Connection</a></li>
+            <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
             <li><a id="test-button" href="#" onclick='StartSqlEditor()'>New Query</a></li>
-            <li><a href="#">Window</a>
+            <li><a>Window</a>
                 <ul id="window-finder" class="sub_menu">
                 </ul>
             </li>
@@ -38,7 +38,10 @@
         <div id="dashboard-menu">
         </div>
     </div>
-    <div id="main-body">
+    <div ng-app="dderlAngularApp">
+      <div id="main-body">
+      </div>
+      <div ng-view id="angular-view"></div>
     </div>
     <div id="main_footer">
         <a id="login-button" href="#" onclick='logout()'></a>
@@ -76,6 +79,12 @@
     <script src="../static/flot/jquery.flot.time.js"></script>
     <script src="/bullet.js"></script>
 
+    <script src="../static/angular-1.2.12/angular.js"></script>
+    <script src="../static/angular-1.2.12/angular-route.js"></script>
+    <script src="../static/ace-01.08.2014/ace.js"></script>
+    <script src="../static/ace-01.08.2014/ext-language_tools.js"></script>
+    <script src="../static/ui-ace-0.1.0/ui-ace.js"></script>
+
     <script src="../static/scripts/login.js"></script>
     <script src="../static/scripts/dderl.js"></script>
     <script src="../static/scripts/connect.js"></script>
@@ -86,7 +95,9 @@
     <script src="../static/scripts/dderl.statsTable.js"></script>
     <script src="../static/scripts/dderl.dashboard.js"></script>
     <script src="../static/scripts/dderl.dashView.js"></script>
-    <script src="../static/scripts/dderl.dashView.js"></script>
+    <script src="../static/scripts/dderl.appController.js"></script>
+    <script src="../static/scripts/dderl.sqlboxController.js"></script>
+    <script src="../static/scripts/dderl.aceController.js"></script>
 
     <script language='javascript'>        
         $(document).ready(function() {

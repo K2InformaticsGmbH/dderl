@@ -185,7 +185,7 @@ function insertAtCursor(myField, myValue) {
                     e.preventDefault();
                     insertAtCursor(self, "  ");
                 }
-
+            } else if(e.type == "keyup" || e.type == "paste" || e.type == "blur") {
                 var that = e.data;
                 _cmd = $(self).val();
                 that._modCmd = _cmd;
@@ -209,10 +209,14 @@ function insertAtCursor(myField, myValue) {
             })
             .val(self._cmdPretty);
 
-        self._boxDiv =
-            $('<div>')
-            .addClass('sql_text_box')
-            .css('font-family', self._fnt);
+        if(is_ace_editor() || is_angular_boxing()) {
+            self._boxDiv = $("#boxdiv");
+        } else {
+            self._boxDiv =
+                $('<div>')
+                .addClass('sql_text_box')
+                .css('font-family', self._fnt);
+        }
 
         self._editDiv =
             $('<div>')
@@ -249,9 +253,6 @@ function insertAtCursor(myField, myValue) {
             .on("tabsactivate", function(event, ui) {
                 var shouldReparse = false;
                 self._setTabFocus();
-
-                console.log("en tab activate the cmd " + self._modCmd);
-                console.log(self);
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
@@ -298,8 +299,9 @@ function insertAtCursor(myField, myValue) {
     _setupEventHandlers: function() {
         // make this as context to private event handler functions
         // and register for named events
-        for(var fun in this._handlers)
+        for(var fun in this._handlers) {
             this.element.on(fun, null, this, this._handlers[fun]);
+        }
     },
 
     _createDlgFooter: function() {
@@ -478,14 +480,26 @@ function insertAtCursor(myField, myValue) {
             alert_jq(error);*/
     },
     _renderParsed: function(_parsed) {
-        var textBox;
+        var boxResult;
 
         this._setTabFocus();
 
         if(_parsed.hasOwnProperty('sqlbox')) {
+            console.log(this._boxJson);
             this._boxJson = _parsed.sqlbox;
-            this._boxDiv.html('');
-            this._boxing(this._boxJson, this._boxDiv.width()).div.appendTo(this._boxDiv);
+            if(is_angular_boxing()) {
+                set_boxing(this._boxJson);
+            } else if (is_ace_editor()) {
+                if(_parsed.hasOwnProperty('pretty')) {
+                    set_sql_content(_parsed.pretty);
+                } else if(_parsed.hasOwnProperty('flat')) {
+                    set_sql_content(_parsed.flat);
+                }
+            } else {
+                boxResult = this._boxing(this._boxJson, this._boxDiv.width(), null, this._boxDiv[0]);
+                this._boxDiv.html('');
+                boxResult.div.appendTo(this._boxDiv);
+            }
         }
         if(_parsed.hasOwnProperty('flat')) {
             this._flatTb.val(_parsed.flat);
@@ -597,7 +611,7 @@ function insertAtCursor(myField, myValue) {
         return bx;
     },
     
-    _boxing: function(box, maxwidth, parent) {
+    _boxing: function(box, maxwidth, parent, oldBox) {
         var children = new Array();
         var alltext = box.name;
         var allChildCollapsed = true;
@@ -606,7 +620,7 @@ function insertAtCursor(myField, myValue) {
             .addClass('boxParent')
             .width(maxwidth);
         for (var i = 0; i < box.children.length; ++i) {
-            res = this._boxing(box.children[i], maxwidth-20, bx);
+            res = this._boxing(box.children[i], maxwidth-20, bx, oldBox ? oldBox.children[i] : oldBox);
             children.push(res.div);
             alltext += (' ' + res.text);
             if (!box.children[i].collapsed) {
@@ -614,7 +628,13 @@ function insertAtCursor(myField, myValue) {
             }
         }
         var collapsed = box.collapsed || (allChildCollapsed && box.name.length === 0);
-        return {div : this._leaf_box(bx, collapsed, box.name, alltext, children, maxwidth-20, parent), text: alltext};
+        var myRes = {div : this._leaf_box(bx, collapsed, box.name, alltext, children, maxwidth-20, parent), text: alltext};
+        if(myRes.div.data("oldText") == $(oldBox).data("oldText")) {
+            console.log("match " + myRes.div.data("oldText"));
+        } else {
+            console.log("no match " + myRes.div.data("oldText") + " - " + $(oldBox).data("oldText"));
+        }
+        return myRes;
     },
 
     _createDlg: function() {
@@ -626,6 +646,7 @@ function insertAtCursor(myField, myValue) {
             .dialog(self.options)
             .bind("dialogresizestop", function(event, ui) {
                 self._refreshHistoryBoxSize();
+                resize_ace_editor();
             });
     },
  

@@ -1945,6 +1945,7 @@
                 self._dlgResized = true;
             })
             .bind("dialogfocus", function(event, ui) {
+                set_panel_columns(self._grid.getColumns());
                 // If the table is disabled do not set the focus.
                 if(self._divDisable) {
                     return;

@@ -338,6 +338,10 @@ input.editor-text {
     top:0;
     /*background-color: lightblue;*/
 }
+.boxAceEditor {
+    height:100%;
+    width:100%;
+}
 
 .ui-widget-header {
     background: #cccccc/*{bgColorHeader}*/ url(../media/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
@@ -352,6 +356,16 @@ div#main-body {
     right: 0px;
     bottom: 14px;
     background:#F0F0FF
+}
+
+div#angular-panel {
+    position:absolute;
+    overflow: auto;
+    top: 23px;
+    width: 250px;
+    right: 0px;
+    bottom: 14px;
+    background:#FFDDAA
 }
 
 div#main_footer {

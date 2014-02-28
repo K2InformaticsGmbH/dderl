@@ -895,7 +895,6 @@ function addWindowFinder(table, title) {
 
     // Set the title and the click event.
     link.textContent = title;
-    link.href = '#';
     link.onclick = function() {
         if(table && table._dlg && table._dlg.hasClass('ui-dialog-content')) {
             table.moveAllToTop();
