@@ -48,8 +48,8 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
-                and c.adapters = \"[oci]\"
-                and (c.owner = user or c.owner = system)
+                and c.adapters = to_list('[oci]')
+                and (c.owner = user or c.owner = to_atom('system'))
             order by
                 v.name,
                 c.owner">>
