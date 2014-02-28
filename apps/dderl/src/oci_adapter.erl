@@ -56,9 +56,9 @@ init() ->
         , local}
     ]).
 
--define(LogOci(__L,__T,__File,__Func,__Line,__Msg),
+-define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
-        lager:__L(__File, "[~s] {~s:~s:~p} ~s", [__T,__File,__Func,__Line,__Msg]),
+        lager:__L(__File, "{~s:~s:~p} ~s", [__File,__Func,__Line,__Msg]),
         dderl_dal:log_to_db(__L
                             , list_to_atom(__File)
                             , list_to_atom(__Func)
@@ -85,16 +85,16 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Tnsstr   = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
     LogFun = fun
-                 ({Lvl, Tag, File, Func, Line, Msg}) ->
+                 ({Lvl, File, Func, Line, Msg}) ->
                      case Lvl of
-                        debug       -> ?LogOci(debug,Tag,File,Func,Line,Msg);
-                        info        -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        notice      -> ?LogOci(info,Tag,File,Func,Line,Msg);
-                        error       -> ?LogOci(error,Tag,File,Func,Line,Msg);
-                        warn        -> ?LogOci(error,Tag,File,Func,Line,Msg);
-                        critical    -> ?LogOci(error,Tag,File,Func,Line,Msg);
-                        fatal       -> ?LogOci(error,Tag,File,Func,Line,Msg);
-                        unknown     -> ?LogOci(error,Tag,File,Func,Line,Msg)
+                        debug       -> ?LogOci(debug,File,Func,Line,Msg);
+                        info        -> ?LogOci(info,File,Func,Line,Msg);
+                        notice      -> ?LogOci(info,File,Func,Line,Msg);
+                        error       -> ?LogOci(error,File,Func,Line,Msg);
+                        warn        -> ?LogOci(error,File,Func,Line,Msg);
+                        critical    -> ?LogOci(error,File,Func,Line,Msg);
+                        fatal       -> ?LogOci(error,File,Func,Line,Msg);
+                        unknown     -> ?LogOci(error,File,Func,Line,Msg)
                      end;                     
                  (Log) ->
                     io:format(user, "Log in unsupported format ~p~n", [Log])
@@ -231,7 +231,7 @@ process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connectio
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
     case lists:member(Connection, Connections) of
         true ->
-            Connection:close(),
+            Connection:close(port_close),
             RestConnections = lists:delete(Connection, Connections),
             From ! {reply, jsx:encode([{<<"disconnect">>, <<"ok">>}])},
             Priv#priv{connections = RestConnections};
