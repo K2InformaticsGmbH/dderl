@@ -1,1 +1,3 @@
-<div id="boxdiv" class="boxAceEditor" ui-ace="aceconfig" ng-model="content"></div>
+<div>
+  <div ng-repeat="child in boxEditors" id={{child.id}} class="boxAceEditor" ui-ace="child.aceconfig" ng-model="child.content"></div>
+</div>

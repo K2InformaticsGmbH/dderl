@@ -209,8 +209,12 @@ function insertAtCursor(myField, myValue) {
             })
             .val(self._cmdPretty);
 
-        if(is_ace_editor() || is_angular_boxing()) {
+        if(is_angular_boxing()) {
             self._boxDiv = $("#boxdiv");
+        } else if(is_ace_editor()) {
+            var boxDivId = create_ace_editor(self);
+            self._boxBg = 'rgb(255, 255, 255)';
+            self._boxDiv = $("#" + boxDivId);
         } else {
             self._boxDiv =
                 $('<div>')
@@ -281,6 +285,11 @@ function insertAtCursor(myField, myValue) {
 
         // setting up the event handlers last to aid debugging
         self._setupEventHandlers();
+    },
+
+    getEditor: function() {
+        var self = this;
+        self._editDiv.find('#tabbox').append(self._boxDiv);
     },
 
     _init: function() {
@@ -491,9 +500,9 @@ function insertAtCursor(myField, myValue) {
                 set_boxing(this._boxJson);
             } else if (is_ace_editor()) {
                 if(_parsed.hasOwnProperty('pretty')) {
-                    set_sql_content(_parsed.pretty);
+                    set_sql_content(this._boxDiv.attr('id'), _parsed.pretty);
                 } else if(_parsed.hasOwnProperty('flat')) {
-                    set_sql_content(_parsed.flat);
+                    set_sql_content(this._boxDiv.attr('id'), _parsed.flat);
                 }
             } else {
                 boxResult = this._boxing(this._boxJson, this._boxDiv.width(), null, this._boxDiv[0]);
@@ -646,7 +655,7 @@ function insertAtCursor(myField, myValue) {
             .dialog(self.options)
             .bind("dialogresizestop", function(event, ui) {
                 self._refreshHistoryBoxSize();
-                resize_ace_editor();
+                resize_ace_editor(self._boxDiv.attr('id'));
             });
     },
  
