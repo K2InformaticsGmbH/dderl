@@ -110,8 +110,10 @@
                 alert_jq("We are really sorry, but we don't support your current browser version.");
             }
 
-            $(window).on('beforeunload', function() { 
-                return "You will lose all unsaved data, are you sure you want to continue?";
+            $(window).on('beforeunload', function() {
+                if(dderlState.connection) {
+                    return "You will lose all unsaved data, are you sure you want to continue?";
+                }
             });
             //beep(); // beep test
         });
