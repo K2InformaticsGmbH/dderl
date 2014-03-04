@@ -35,8 +35,8 @@ function create_ace_editor(ownerDlg) {
                     editor.renderer.updateFull();
                 }
             },
-            onChange: function(e) {
-                // TODO: Probably we want to set the cmd back....
+            onChange: function(e, editor) {
+                ownerDlg._modCmd = editor.getSession().getValue();
             }
         }
         collectionScope.boxEditors.push({id: uniqueId, content: "", aceconfig: aceconfig, ownerDlg: ownerDlg});

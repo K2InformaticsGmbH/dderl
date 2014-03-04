@@ -339,10 +339,11 @@ function insertAtCursor(myField, myValue) {
                 var _btnTxt = $(this).text();
                 var fName = self._toolsBtns[_btnTxt].clk;
                 var f = $.proxy(self[fName], self);
-                if($.isFunction(f))
+                if($.isFunction(f)) {
                     f();
-                else
+                } else {
                     throw('['+self.options.title+'] toolbar '+_btnTxt+' has unimplimented cb '+fName);
+                }
             };
 
             var inph = self.options.toolBarHeight;
