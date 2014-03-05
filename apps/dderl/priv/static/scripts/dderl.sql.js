@@ -469,7 +469,11 @@ function insertAtCursor(myField, myValue) {
             textBox = self._prettyTb[0];
             textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
         } else if(selected == 2) {
-            self._boxDiv.focus();
+            if(is_ace_editor()) {
+                self.setAceFocus();
+            } else {
+                self._boxDiv.focus();
+            }
         }
     },
 
@@ -493,18 +497,12 @@ function insertAtCursor(myField, myValue) {
         var boxResult;
 
         this._setTabFocus();
-
-        if(_parsed.hasOwnProperty('sqlbox')) {
+        //TODO: pass the boxing to the ace editor for sections.
+        if(_parsed.hasOwnProperty('sqlbox') && !is_ace_editor()) {
             console.log(this._boxJson);
             this._boxJson = _parsed.sqlbox;
             if(is_angular_boxing()) {
                 set_boxing(this._boxJson);
-            } else if (is_ace_editor()) {
-                if(_parsed.hasOwnProperty('pretty')) {
-                    set_sql_content(this._boxDiv.attr('id'), _parsed.pretty);
-                } else if(_parsed.hasOwnProperty('flat')) {
-                    set_sql_content(this._boxDiv.attr('id'), _parsed.flat);
-                }
             } else {
                 boxResult = this._boxing(this._boxJson, this._boxDiv.width(), null, this._boxDiv[0]);
                 this._boxDiv.html('');
@@ -514,6 +512,9 @@ function insertAtCursor(myField, myValue) {
         if(_parsed.hasOwnProperty('flat')) {
             this._flatTb.val(_parsed.flat);
             this._cmdFlat = this._flatTb.val();
+            if (is_ace_editor() && !(_parsed.hasOwnProperty('pretty'))) {
+                set_sql_content(this._boxDiv.attr('id'), _parsed.flat);
+            }
         }
         if(_parsed.hasOwnProperty('pretty')) {
             this._prettyTb.val(_parsed.pretty);
@@ -522,6 +523,9 @@ function insertAtCursor(myField, myValue) {
                 this._cmdChanged = true;
                 this._editDiv.tabs("option", "active", 1);
                 this._setTabFocus();
+            }
+            if (is_ace_editor()) {
+                set_sql_content(this._boxDiv.attr('id'), _parsed.pretty);
             }
         }
     },

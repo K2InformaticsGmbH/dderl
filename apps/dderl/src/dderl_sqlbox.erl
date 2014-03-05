@@ -5,6 +5,7 @@
         , flat_from_box/1
         , pretty_from_box/1
         , box_to_json/1
+        , foldb/3
         ]).
 
 -include("dderl.hrl").
@@ -332,6 +333,17 @@ foldb(Ind, _P, {'||', List}) when is_list(List) ->
                 Ch -> mk_box(Ind, Ch, <<>>)
             end
     end;
+foldb(Ind, _P, {{'fun', Fun, List}, Dir}) when is_binary(Dir) ->
+    case foldb(Ind, 'order by', {'fun',Fun,List}) of
+        {error, Reason} -> {error, Reason};
+        B ->
+            [BChild] = B#box.children,
+            GChildren = BChild#box.children,
+            {CF,[CL]} = lists:split(length(GChildren)-1,GChildren),
+            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," ",Dir])}],
+            NewChild = BChild#box{children=NewGChildren},
+            B#box{children=[NewChild]}
+    end;
 foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
     case foldb(Ind, 'order by', Item) of
         {error, Reason} -> {error, Reason};
@@ -339,7 +351,7 @@ foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
             case B#box.children of
                 [] ->   B#box{name=list_to_binary([B#box.name," ",Dir])};
                 Ch ->   {CF,[CL]} = lists:split(length(Ch)-1,Ch),
-                        EChildren = [CF|[CL#box{name=list_to_binary([CL#box.name," ",Dir])}]],
+                        EChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," ",Dir])}],
                         B#box{children=EChildren}
             end
     end;

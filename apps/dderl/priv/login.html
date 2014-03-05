@@ -10,28 +10,28 @@
 <body>
     <div id="main-menu-bar" class = "menubar">
         <ul class="dropdown menubar">
-            <li><a href="#">Query Server</a>
+            <li><a>Query Server</a>
                 <ul class="sub_menu">
-                    <li><a id="files-list-button" href="#" onclick='show_qry_files(true)'>Tables and Views</a></li>
-                    <li><a id="files-list-button" href="#" onclick='import_query()'>Import Query</a></li>
-                    <li><a id="change-pswd-button" href="#" onclick='change_password(false)'>Change Password</a></li>
+                    <li><a id="files-list-button" onclick='show_qry_files(true)'>Tables and Views</a></li>
+                    <li><a id="files-list-button" onclick='import_query()'>Import Query</a></li>
+                    <li><a id="change-pswd-button" onclick='change_password(false)'>Change Password</a></li>
                     <li><a id="about-dderl-button" onclick='show_about_dlg()'>About</a></li>
                     <li><a id="disconnect-button" onclick='disconnect_tab()'>Disconnect</a></li>
                     <li><a id="logout-dderl-button" onclick='logout()'>Log out</a></li>
                 </ul>
             </li>
             <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
-            <li><a id="test-button" href="#" onclick='StartSqlEditor()'>New Query</a></li>
+            <li><a id="newsql-button" onclick='StartSqlEditor()'>New Query</a></li>
             <li><a>Window</a>
                 <ul id="window-finder" class="sub_menu">
                 </ul>
             </li>
-            <li><a id="tbl-opts" href="#" style="display:none">Options</a>
+            <li><a id="tbl-opts" style="display:none">Options</a>
                 <ul class="sub_menu">
-                     <li><a id="table-edit-query" href="#" onclick='edit_table()'>Edit Query</a></li>
-                     <li><a id="table-save" href="#" onclick='save_table()'>Save</a></li>
-                     <li><a id="table-save-as" href="#" onclick='save_as_table()'>Save As</a></li>
-                     <li><a id="table-export" href="#">Export Rows</a></li>
+                     <li><a id="table-edit-query" onclick='edit_table()'>Edit Query</a></li>
+                     <li><a id="table-save" onclick='save_table()'>Save</a></li>
+                     <li><a id="table-save-as" onclick='save_as_table()'>Save As</a></li>
+                     <li><a id="table-export">Export Rows</a></li>
                 </ul>
             </li>
         </ul>

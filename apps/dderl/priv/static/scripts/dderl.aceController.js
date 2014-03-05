@@ -1,6 +1,6 @@
-ace.require("ace/ext/language_tools");
-
 function aceController($scope) {
+    var langTools = ace.require("ace/ext/language_tools");
+
     $scope.boxEditors = [];
 
     // Model flag to indicate to the externall functions
@@ -33,6 +33,10 @@ function create_ace_editor(ownerDlg) {
                 collectionScope.getEditorScope(uniqueId).editorRedraw = function() {
                     editor.resize();
                     editor.renderer.updateFull();
+                }
+
+                ownerDlg.setAceFocus = function() {
+                    editor.focus();
                 }
             },
             onChange: function(e, editor) {
