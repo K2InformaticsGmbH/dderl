@@ -10,7 +10,7 @@ set commonparams=%erlpaths% -emu_args -setcookie dderl -dderl port 443 -imem tcp
 set commonparamsnoapp=%erlpaths% -emu_args -setcookie dderl
 
 set name=-name dderl@%2
-set extra=-imem erl_cluster_mgr 'dderl@%3'
+set extra=-imem erl_cluster_mgrs ['dderl@%3']
 if not "%~2%~3" == "%~3%~2" (
     @echo Cmd '%1' name '%name%' extra '%extra%'
     if "%1" == "add" (
