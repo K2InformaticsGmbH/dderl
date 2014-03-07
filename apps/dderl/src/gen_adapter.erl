@@ -116,7 +116,7 @@ process_cmd({[<<"save_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
         [need_replace] ->
             Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}]);
         [ViewId] ->
-            Res = jsx:encode([{<<"save_view">>,[{<<"view_id">>, ViewId}]}])
+            Res = jsx:encode([{<<"save_view">>,[{<<"name">>, Name}, {<<"view_id">>, ViewId}]}])
     end,
     From ! {reply, Res};
 process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->

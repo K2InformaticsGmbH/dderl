@@ -1597,7 +1597,10 @@
         if(_saveView === "ok") {
              console.log('[AJAX] view saved!');
         } else if(_saveView.hasOwnProperty('view_id')) {
-            console.log('[AJAX] view saved, id = ' + _saveView.view_id);
+            console.log('[AJAX] view saved, id = ' + _saveView.view_id + ' and name ' + _saveView.name);
+            self._viewId = _saveView.view_id;
+            self.options.title = _saveView.name;
+            self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
         } else if(_saveView.hasOwnProperty('need_replace')) {
             $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
                 resizable: false,
