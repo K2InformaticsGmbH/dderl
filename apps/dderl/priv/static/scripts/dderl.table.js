@@ -78,7 +78,7 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        editErlangTerm  : function(e, _result) { e.data._openErlangTermEditor   (_result); },
+                        editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
                         getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); }
                       },
 
@@ -1346,14 +1346,18 @@
             var cell = _ranges[0];
             var columnField = self._grid.getColumns()[cell.fromCell].field;
             var stringToFormat = self._gdata[cell.fromRow][columnField];
+            var data = self._gridDataView.getItem(cell.fromRow);
             self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-            self._ajax('/app/format_erlang_term', {
-                format_erlang_term: {
+            self._ajax('/app/edit_term_or_view', {
+                edit_term_or_view: {
+                    connection : dderlState.connection,
+                    statement : self._stmt,
+                    row : data.id,
                     erlang_term: stringToFormat,
                     expansion_level: "auto",
                     force: false
                 }
-            }, 'format_erlang_term', 'editErlangTerm');
+            }, 'edit_term_or_view', 'editTermOrView');
         }
     },
 
@@ -1886,6 +1890,23 @@
             alert_jq(result.error);
         } else {
             this._toolBarReload(this);
+        }
+    },
+
+    _openTermOrViewEditor: function(cmdOrString) {
+        var self =  this;
+        if(cmdOrString.isView === true) {
+            $('<div>')
+                .appendTo(document.body)
+                .sql({autoOpen  : false,
+                      title     : cmdOrString.title,
+                      cmdOwner  : null,
+                      history   : [],
+                      cmdFlat   : cmdOrString.cmd,
+                     })
+                .sql('open');
+        } else {
+            self._openErlangTermEditor(cmdOrString);
         }
     },
 

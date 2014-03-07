@@ -270,6 +270,53 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     end,
     Priv;
 
+process_cmd({[<<"edit_term_or_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
+    [{<<"edit_term_or_view">>, BodyJson}] = ReqBody,
+    StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Row = proplists:get_value(<<"row">>, BodyJson, 0),
+    R = Statement:row_with_key(Row),
+    ?Debug("Row with key ~p",[R]),
+    Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
+    IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
+    case lists:member(Connection, Connections) of
+        true ->
+            if
+                IsView ->
+                    {_, #ddView{}, #ddCmd{}=OldC} = element(3, R),
+                    C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
+                    From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                                [{<<"isView">>, true}
+                                                ,{<<"title">>, StringToFormat}
+                                                ,{<<"cmd">>, C#ddCmd.command}]
+                                               }])};
+                true ->
+                    ?Debug("The string to format: ~p", [StringToFormat]),
+                    case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
+                        <<"auto">> -> ExpandLevel = auto;
+                        ExpandLevel -> ok
+                    end,
+                    Force = proplists:get_value(<<"force">>, BodyJson, false),
+                    ?Debug("Forced value: ~p", [Force]),
+                    case erlformat:format(StringToFormat, ExpandLevel, Force) of
+                        {error, ErrorInfo} ->
+                            ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
+                            From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                                        [
+                                                         {<<"error">>, <<"Invalid erlang term">>},
+                                                         {<<"originalText">>, StringToFormat}
+                                                        ]}])};
+                        Formatted ->
+                            ?Debug("The formatted text: ~p", [Formatted]),
+                            From ! {reply, jsx:encode([{<<"edit_term_or_view">>, Formatted}])}
+                    end
+            end;
+        false ->
+            From ! {reply, error_invalid_conn(Connection, Connections)}
+    end,
+    Priv;
+
 process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
