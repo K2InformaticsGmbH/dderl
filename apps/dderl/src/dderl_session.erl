@@ -259,7 +259,8 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"save_dashboard">>;
       C =:= <<"histogram">>;
       C =:= <<"statistics">>;
-      C =:= <<"dashboards">> ->
+      C =:= <<"dashboards">>;
+      C =:= <<"edit_term_or_view">> ->
     BodyJson = jsx:decode(ReqData),
     try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
     catch Class:Error ->
