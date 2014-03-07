@@ -342,7 +342,7 @@
         }
     },
 
-    _editCmd: function(cmd) {
+    _editCmd: function() {
         var self = this;
         if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
             self._divSqlEditor.dialog("moveToTop");
@@ -1789,6 +1789,7 @@
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
+            this._openFailedSql(_table.name, _table.content);
             return;
         }
 
@@ -1896,18 +1897,22 @@
     _openTermOrViewEditor: function(cmdOrString) {
         var self =  this;
         if(cmdOrString.isView === true) {
-            $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : cmdOrString.title,
-                      cmdOwner  : null,
-                      history   : [],
-                      cmdFlat   : cmdOrString.cmd,
-                     })
-                .sql('open');
+            self._openFailedSql(cmdOrString.title, cmdOrString.cmd);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
+    },
+
+    _openFailedSql: function(title, cmd) {
+        $('<div>')
+            .appendTo(document.body)
+            .sql({autoOpen  : false,
+                  title     : title,
+                  cmdOwner  : null,
+                  history   : [],
+                  cmdFlat   : cmd,
+                 })
+            .sql('open');
     },
 
     _openErlangTermEditor: function(formattedString) {
@@ -1980,23 +1985,6 @@
             .bind("dialogbeforeclose", function(event, ui) {
                 self._grid.resetHeaderScroll();
             });
-/*            bind("dialogdrag", function(event, ui) {
-                var dlg = self._dlg.dialog('widget');
-                var wDlg = dlg.width();
-                var hDlg = dlg.height();
-                var xDlg = dlg.position().left;
-                var yDlg = dlg.position().top;
-
-                var wBody = $("#main-body").width();
-                var hBody = $("#main-body").height();
-
-                if(wBody - (xDlg + wDlg) < 20) {
-                    $("#main-body").width(wBody + 30);
-                }
-                if(hBody - (yDlg + hDlg) < 20) {
-                    $("#main-body").height(hBody + 30);
-                }
-            });*/
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
         if(self.options.position.length === undefined) {
