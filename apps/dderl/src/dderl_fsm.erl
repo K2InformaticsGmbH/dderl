@@ -2176,8 +2176,8 @@ data_commit_state_name(SN) ->
 
 -spec data_commit_raw(integer(), list(), integer(), integer(), integer()) -> tuple().
 data_commit_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
-data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(1,NK)==?NoKey)  ->
-    ets:delete(TableId,Id),    
+data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(2,NK)==?NoKey)  ->
+    ets:delete(TableId,Id),
     data_commit_raw(TableId,ChangedKeys,GuiCnt,GuiTop,GuiBot);
 data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) ->
     ets:insert(TableId,{Id,nop,NK}),    
@@ -2185,7 +2185,7 @@ data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) ->
 
 -spec data_commit_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> tuple().
 data_commit_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
-data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(1,NK)==?NoKey)  ->
+data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(2,NK)==?NoKey)  ->
     [OldRow] = ets:lookup(TableId,Id),
     ets:delete(IndexId,?IndKey(OldRow,SortFun)),
     ets:delete(TableId,Id),    
@@ -2228,7 +2228,7 @@ data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
 
 -spec data_rollback_raw(integer(), list(), integer(), integer(), integer()) -> {integer(), integer(), integer()}.
 data_rollback_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
-data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(1,element(3,Row))==?NoKey)  ->
+data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(2,element(3,Row))==?NoKey)  ->
     Id = element(1,Row),
     ets:delete(TableId,Id),    
     data_rollback_raw(TableId,ChangeList,GuiCnt,GuiTop,GuiBot);
@@ -2239,7 +2239,7 @@ data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) ->
 
 -spec data_rollback_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> {integer(), tuple(), tuple()}.
 data_rollback_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
-data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(1,element(3,Row))==?NoKey) ->
+data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(2,element(3,Row))==?NoKey) ->
     Id = element(1,Row),
     ets:delete(TableId,Id),    
     data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangeList,GuiCnt,GuiTop,GuiBot);
