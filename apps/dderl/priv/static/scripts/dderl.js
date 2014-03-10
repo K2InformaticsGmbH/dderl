@@ -426,10 +426,11 @@ function show_qry_files(useSystem)
     $('<div>')
     .appendTo(document.body)
     .table({
-        autoOpen    : false,
-        dderlConn   : dderlState.connection,
-        dderlAdapter: dderlState.adapter,
-        title       : "All Views"
+        autoOpen     : false,
+        dderlConn    : dderlState.connection,
+        dderlAdapter : dderlState.adapter,
+        title        : "All Views",
+        dderlStartBtn: ">|"
     })
     .table('loadViews', useSystem);
 }

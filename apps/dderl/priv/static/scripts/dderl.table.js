@@ -1874,11 +1874,17 @@
 
             // command back request
             if(_rows.loop.length > 0 && !self._divDisable) {
-                if (self._grid.getCellEditor()) {
-                    self._loop = _rows.loop;
+                var tmpLoop;
+                if(_rows.loop === ">" && self.options.title === "All Views") {
+                    tmpLoop = ">|";
                 } else {
-                    console.log(rowsCount+' rows received, retrying '+_rows.loop);
-                    this.buttonPress(_rows.loop);
+                    tmpLoop = _rows.loop;
+                }
+
+                if (self._grid.getCellEditor()) {
+                    self._loop = tmpLoop;
+                } else {
+                    self.buttonPress(tmpLoop);
                 }
             }
         }
