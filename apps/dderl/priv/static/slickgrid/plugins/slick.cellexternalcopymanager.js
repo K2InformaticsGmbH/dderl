@@ -32,8 +32,8 @@
     var _clearCopyTI = 0;
     
     var keyCodes = {
-      'C':67,
-      'V':86
+        'C':67,
+        'V':86
     }
 
     function init(grid) {
@@ -304,9 +304,25 @@
           }
         }
         
-        if (e.which == keyCodes.C && (e.ctrlKey || e.metaKey)) {    // CTRL + C
-          ranges = _grid.getSelectionModel().getSelectedRanges();
-          if (ranges.length != 0) {
+        ranges = _grid.getSelectionModel().getSelectedRanges();
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.which) {
+            case keyCodes.C:
+                process_copy(e, args, ranges, dderlState.copyMode);
+                return false;
+            case keyCodes.V:
+                var ta = _createTextBox('');
+                setTimeout(function(){
+                    _decodeTabularData(_grid, ta);
+                }, 100);
+                return false;
+            }
+        }
+      }
+    }
+
+    function process_copy(e, args, ranges, copyMode) {
+        if (ranges.length != 0) {
             _copiedRanges = ranges;
             markCopySelection(ranges);
             _self.onCopyCells.notify({ranges: ranges});
@@ -314,31 +330,62 @@
             var columns = _grid.getColumns();
             var clipTextArr = [];
             var gridData = _grid.getData();
-            if (_grid.getData() instanceof Slick.Data.DataView)
+            if (_grid.getData() instanceof Slick.Data.DataView) {
                 gridData = _grid.getData().getItems();
+            }
 
-            for (var rg = 0; rg < ranges.length; rg++){
+            // Find the bounding range
+            var boundRange = new Slick.Range(ranges[0].fromRow, ranges[0].fromCell, ranges[0].toRow, ranges[0].toCell);
+            for (var rg = 1; rg < ranges.length; ++rg) {
                 var range = ranges[rg];
-                var fromCellSafe = Math.max(range.fromCell, 1);
-                var clipTextRows = [];
-                for (var i=range.fromRow; i < range.toRow+1 ; i++){
-                    var clipTextCells = [];
-                    for (var j=fromCellSafe; j< range.toCell+1 ; j++){
-                        var cellValue = gridData[i][columns[j].field];
-                        clipTextCells.push(escapeNewLines(cellValue));
+                boundRange.fromRow = Math.min(range.fromRow, boundRange.fromRow);
+                boundRange.fromCell = Math.min(range.fromCell, boundRange.fromCell);
+                boundRange.toRow = Math.max(range.toRow, boundRange.toRow);
+                boundRange.toCell = Math.max(range.toCell, boundRange.toCell);
+            }
+            boundRange.fromCell = Math.max(ranges[0].fromCell, 1);
+
+            // Find the used columns
+            var usedCols = [];
+            for (var colpos = boundRange.fromCell; colpos <= boundRange.toCell; colpos++) {
+                for (var rg = 0; rg < ranges.length; ++rg) {
+                    if (colpos >= ranges[rg].fromCell && colpos <= ranges[rg].toCell) {
+                        usedCols.push(colpos);
+                        break;
                     }
-                    clipTextRows.push(clipTextCells.join("\t"));
-                }
-                clipTextArr.push(clipTextRows.join("\r\n"));
-                if (clipTextRows.length === 1 && ranges.length > 1 && rg < ranges.length - 1) {
-                    clipTextArr.push("\r\n");
                 }
             }
+
+            if (copyMode === "header") {
+                var headerColumns = [];
+                for (var k = 0; k < usedCols.length; ++k) {
+                    headerColumns.push(columns[usedCols[k]].name);
+                }
+                clipTextArr.push(headerColumns.join("\t"));
+                clipTextArr.push("\r\n");
+            }
+
+            var clipTextRows = [];
+            for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
+                var clipTextCells = [];
+                for (var j = 0; j < usedCols.length; ++j) {
+                    var cellValue = "";
+                    for(var rg = 0; rg < ranges.length; ++rg) {
+                        if(ranges[rg].contains(i, usedCols[j])) {
+                            cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                            break;
+                        }
+                    }
+                    clipTextCells.push(cellValue);
+                }
+                clipTextRows.push(clipTextCells.join("\t"));
+            }
+            clipTextArr.push(clipTextRows.join("\r\n"));
+
             var clipText = clipTextArr.join('');
             var $focus = $(_grid.getActiveCellNode());
 
             var ta = _createTextBox(clipText);
-
             ta.focus();
             
             setTimeout(function(){
@@ -350,21 +397,7 @@
                     $focus.removeAttr('tabIndex');
                 }
             }, 100);
-
-            return false;
-          }
         }
-
-        if (e.which == keyCodes.V && (e.ctrlKey || e.metaKey)) {    // CTRL + V
-            var ta = _createTextBox('');
-            
-            setTimeout(function(){
-                _decodeTabularData(_grid, ta);
-            }, 100);
-            
-            return false;
-        }
-      }
     }
 
     function markCopySelection(ranges) {

@@ -44,7 +44,8 @@ var dderlState = {
     currentViews: null,
     currentWindows: new Array(),
     saveDashboardCounter: 0,
-    connectionSelected: null
+    connectionSelected: null,
+    copyMode: "normal"             // normal, header, json
 }
 
 // generic dderlserver call interface

@@ -2316,6 +2316,26 @@
             if(this._grid.getCellEditor()) {
                 this._grid.getCellEditor().moveCaretToEnd();
             }
+        } else if(e.ctrlKey || e.metaKey) {
+            if(e.keyCode === 72) {
+                e.stopImmediatePropagation();
+                if(dderlState.copyMode === "normal" || dderlState.copyMode === "json") {
+                    dderlState.copyMode = "header";
+                    console.log("header copy activated");
+                } else {
+                    dderlState.copyMode = "normal";
+                    console.log("header copy deactivated");
+                }
+            } else if(e.keyCode === 74) {
+                e.stopImmediatePropagation();
+                if(dderlState.copyMode === "normal" || dderlState.copyMode === "header") {
+                    dderlState.copyMode = "json";
+                    console.log("json copy activated");
+                } else {
+                    dderlState.copyMode = "normal";
+                    console.log("json copy deactivated");
+                }
+            }
         } else if((e.keyCode >= 112 && e.keyCode <= 123) ||
                   $.inArray(e.keyCode, [keyCode.LEFT, keyCode.RIGHT, keyCode.UP,
                                         keyCode.DOWN, keyCode.PAGE_UP, keyCode.PAGE_DOWN,
