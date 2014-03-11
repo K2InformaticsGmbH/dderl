@@ -283,8 +283,10 @@
                 .mouseleave(function(e) {
                     var self = $('#'+_menu).data('cnxt');
                     e.preventDefault();
-                    $(this).hide();
-                    self._grid.focus();
+                    if($(this).is(':visible')) {
+                        $(this).hide();
+                        self._grid.focus();
+                    }
                 })
                 .appendTo(document.body);
             for(var m in this[_menu]) {
@@ -1244,9 +1246,7 @@
             self._filters[c].inp.height(dH);
         }
         for(var c in self._filters) {
-            setTimeout(function() {
-                self._filters[c].inp.focus();
-            }, 50);
+            self._filters[c].inp.focus();
             break;
         }
     },
