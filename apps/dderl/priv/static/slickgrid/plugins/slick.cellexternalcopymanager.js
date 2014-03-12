@@ -329,10 +329,6 @@
             
             var columns = _grid.getColumns();
             var clipTextArr = [];
-            var gridData = _grid.getData();
-            if (_grid.getData() instanceof Slick.Data.DataView) {
-                gridData = _grid.getData().getItems();
-            }
 
             // Find the bounding range
             var boundRange = new Slick.Range(ranges[0].fromRow, ranges[0].fromCell, ranges[0].toRow, ranges[0].toCell);
@@ -365,24 +361,13 @@
                 clipTextArr.push("\r\n");
             }
 
-            var clipTextRows = [];
-            for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
-                var clipTextCells = [];
-                for (var j = 0; j < usedCols.length; ++j) {
-                    var cellValue = "";
-                    for(var rg = 0; rg < ranges.length; ++rg) {
-                        if(ranges[rg].contains(i, usedCols[j])) {
-                            cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
-                            break;
-                        }
-                    }
-                    clipTextCells.push(cellValue);
-                }
-                clipTextRows.push(clipTextCells.join("\t"));
+            var clipText = "";
+            if (copyMode === "json") {
+                clipText = jsonFromBoundRange(ranges, boundRange, columns, usedCols)
+            } else {
+                clipTextArr.push(textFromBoundRange(ranges, boundRange, columns, usedCols));
+                clipText = clipTextArr.join('');
             }
-            clipTextArr.push(clipTextRows.join("\r\n"));
-
-            var clipText = clipTextArr.join('');
             var $focus = $(_grid.getActiveCellNode());
 
             var ta = _createTextBox(clipText);
@@ -398,6 +383,57 @@
                 }
             }, 100);
         }
+    }
+
+    function jsonFromBoundRange(ranges, boundRange, columns, usedCols) {
+        var rowObjects, clipTextCells;
+
+        var gridData = _grid.getData();
+        if (_grid.getData() instanceof Slick.Data.DataView) {
+            gridData = _grid.getData().getItems();
+        }
+
+        rowObjects = [];
+        for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
+            clipTextCells = {};
+            for (var j = 0; j < usedCols.length; ++j) {
+                clipTextCells[columns[usedCols[j]].name] = null;
+                for(var rg = 0; rg < ranges.length; ++rg) {
+                    if(ranges[rg].contains(i, usedCols[j])) {
+                        clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        break;
+                    }
+                }
+            }
+            rowObjects.push(clipTextCells);
+        }
+        return JSON.stringify(rowObjects);
+      }
+
+    function textFromBoundRange(ranges, boundRange, columns, usedCols) {
+        var clipTextRows, clipTextCells, cellValue;
+
+        var gridData = _grid.getData();
+        if (_grid.getData() instanceof Slick.Data.DataView) {
+            gridData = _grid.getData().getItems();
+        }
+
+        clipTextRows = [];
+        for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
+            clipTextCells = [];
+            for (var j = 0; j < usedCols.length; ++j) {
+                cellValue = "";
+                for(var rg = 0; rg < ranges.length; ++rg) {
+                    if(ranges[rg].contains(i, usedCols[j])) {
+                        cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        break;
+                    }
+                }
+                clipTextCells.push(cellValue);
+            }
+            clipTextRows.push(clipTextCells.join("\t"));
+        }
+        return clipTextRows.join("\r\n");
     }
 
     function markCopySelection(ranges) {
