@@ -339,7 +339,7 @@
                 boundRange.toRow = Math.max(range.toRow, boundRange.toRow);
                 boundRange.toCell = Math.max(range.toCell, boundRange.toCell);
             }
-            boundRange.fromCell = Math.max(ranges[0].fromCell, 1);
+            boundRange.fromCell = Math.max(boundRange.fromCell, 1);
 
             // Find the used columns
             var usedCols = [];
