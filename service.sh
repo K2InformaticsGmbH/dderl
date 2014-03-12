@@ -63,6 +63,9 @@ case $1 in
     "list" )
         erlsrv.exe list dderl
         ;;
+    "attach" )
+        start //MAX werl.exe -name remoteattach@localhost $kernelconfig -setcookie dderl -eval "net_adm:ping('dderl@localhost')"
+        ;;
     *)
         erlsrv.exe list dderl
         echo
