@@ -309,6 +309,8 @@
             switch (e.which) {
             case keyCodes.C:
                 process_copy(e, args, ranges, dderlState.copyMode);
+                // Reset the copy mode to normal after a operation.
+                dderlState.copyMode = "normal";
                 return false;
             case keyCodes.V:
                 var ta = _createTextBox('');
