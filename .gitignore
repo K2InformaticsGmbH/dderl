@@ -2,6 +2,7 @@
 ## Eclipse
 #################
 
+dderl.debug.*
 apps/dderl/.eunit/
 apps/dderl/ebin/
 distdir/
