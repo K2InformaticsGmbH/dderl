@@ -37,6 +37,7 @@
 
     // start button
     _startBtn       : null,
+    _doneBtn        : null,
     _cmdStrs        : null,
     _divSqlEditor   : null,
 
@@ -173,6 +174,7 @@
         dderlTbllay       : null,
         dderlViewId       : null,
         dderlStartBtn     : '>',
+        dderlDoneBtn      : null,
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
     },
@@ -198,6 +200,7 @@
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
         if(self.options.dderlViewId     !== self._viewId)   self._viewId    = self.options.dderlViewId;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
+        if(self.options.dderlDoneBtn    !== self._doneBtn)  self._doneBtn   = self.options.dderlDoneBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
         if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
             self._divSqlEditor = self.options.dderlSqlEditor;
@@ -452,7 +455,7 @@
                     .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
                 $(this).contents().find('body').append(form);
                 form.submit();
-                setTimeout(function() {iframe.remove()}, 1000);
+                setTimeout(function() {iframe.remove();}, 500);
             })
             .appendTo(document.body);
     },
@@ -1701,37 +1704,42 @@
     },
 
     _renderViews: function(_views) {
-        this._cmd    = _views.content;
-        this._stmt   = _views.statement;
-        this._conn   = _views.connection;
-        this._viewId = _views.view_id;
+        var self = this;
+        self._cmd    = _views.content;
+        self._stmt   = _views.statement;
+        self._conn   = _views.connection;
+        self._viewId = _views.view_id;
         if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
-            this._clmlay = _views.column_layout;
+            self._clmlay = _views.column_layout;
         }
         if(_views.hasOwnProperty('table_layout')  && _views.table_layout.hasOwnProperty('x')) {
-            this._tbllay = _views.table_layout;
+            self._tbllay = _views.table_layout;
             // Set the options.
-            this.options.width = this._tbllay.width;
-            this.options.height = this._tbllay.height;
-            this.options.position = [this._tbllay.x, this._tbllay.y];
+            self.options.width = self._tbllay.width;
+            self.options.height = self._tbllay.height;
+            self.options.position = [self._tbllay.x, self._tbllay.y];
 
             // Override default dialog options.
-            this._dlg.dialog("option", "position", this.options.position);
-            this._dlg.dialog("option", "width", this.options.width);
-            this._dlg.dialog("option", "height", this.options.height);
+            self._dlg.dialog("option", "position", self.options.position);
+            self._dlg.dialog("option", "width", self.options.width);
+            self._dlg.dialog("option", "height", self.options.height);
         }
-        this._setTitleHtml($('<span>').text(_views.name).addClass('table-title'));
-        this.options.title = _views.name;
+        self._setTitleHtml($('<span>').text(_views.name).addClass('table-title'));
+        self.options.title = _views.name;
         console.log('>>>>> table '+_views.name+' '+_views.connection);
         if(_views.hasOwnProperty('error')) {
             alert_jq(_views.error);
         } else {
-            this.setColumns(_views.columns);
+            self.setColumns(_views.columns);
             if(_views.hasOwnProperty('sort_spec') && !$.isEmptyObject(_views.sort_spec)) {
-                this._setSortSpecFromJson(this, _views.sort_spec);
+                self._setSortSpecFromJson(self, _views.sort_spec);
             }
-            this._gridColumnsReorder();
-            this.buttonPress(this._startBtn);
+            self._gridColumnsReorder();
+            self.buttonPress(self._startBtn);
+            if(_views.name === "All Views" && self._startBtn === ">|") {
+                // Make sure to not hang if it is the first load.
+                setTimeout(function() {self.buttonPress(self._startBtn);}, 50);
+            }
         }
         // If this is a view we add it to the current views
         addToCurrentViews(this);
@@ -2969,6 +2977,12 @@
             self._grid.setActiveCell(self._pendingEditorCell.row + 1,
                                      self._pendingEditorCell.cell);
             delete self._pendingEditorCell;
+        }
+
+        if(self._doneBtn && _rows.state === "completed") {
+            var tmpDoneBtn = self._doneBtn;
+            self._doneBtn = null;
+            setTimeout(function() {self.buttonPress(tmpDoneBtn);}, 50);
         }
         //console.timeEnd('appendRows');
         //console.profileEnd('appendRows');
