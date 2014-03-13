@@ -1,5 +1,8 @@
 #!/bin/bash
 
+cmd=$0
+argscount=$#
+
 function usage {
     echo "usage: $1 add node_host cluster_host"
     echo "       $1 remove"
@@ -12,39 +15,54 @@ function usage {
     echo "       $1 txtt node_host"
 }
 
+function path2win {
+    eval $1=$(echo "${!1}" | sed 's/^\(\/\)\(.\)\(\/\)/\2:\//')
+}
+
+function check_arg_count {
+    if [ $argscount -le $1 ]; then
+        echo "Missing arguments; got $argscount"
+        usage $cmd
+        exit 0
+    fi
+}
+
 deps=''
 for dir in $PWD/deps/*/
 do
     dir=${dir%*/}
     dr=$PWD/deps/${dir##*/}/ebin
-    dr=$(echo "$dr" | sed 's/\/c\//c:\\/' | sed 's/\//\\/g')
+    path2win dr
     deps="$deps $dr"
 done
 
 # augment pwd to the front of all paths
 dderlebin=$PWD/apps/dderl/ebin
-dderlebin=$(echo "$dderlebin" | sed 's/\/c\//c:\\/' | sed 's/\//\\/g')
+path2win dderlebin
 erlpaths="-pa $dderlebin -pa $deps"
+kernellogfile=$PWD/log/kernel.txt
+path2win kernellogfile
 kernelconfig="-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020"
-kernelconfigsrv="$kernelconfig -kernel error_logger {file,\\\"""$PWD/log/kernel.txt\\\"""}"
+kernelconfigsrv="$kernelconfig -kernel error_logger {file,\\\"""$kernellogfile\\\"""}"
 commonparams="$erlpaths -emu_args -setcookie dderl -dderl port 443 -imem tcp_port 8125 -imem mnesia_schema_name dderlstag -s dderl"
 commonparamsnoapp="$erlpaths -emu_args -setcookie dderl"
 
 name="-name dderl@$2"
 extra="-imem erl_cluster_mgrs ['dderl@$3']"
 
-echo $PWD
-
 case $1 in
     "gui" )
-        echo "Starting dderl local GUI with 'start /MAX werl.exe -name dderlt@$2 $kernelconfig $commonparams'"
-        start //MAX werl.exe -name dderlg@$2 $kernelconfig $commonparams
+        check_arg_count 1
+        echo "Starting dderl local GUI with 'start /MAX werl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
+        start //MAX werl.exe -name dderlg@$2 $kernelconfig $commonparams $extra
         ;;
     "txt" )
-        echo "Starting dderl local TEXT with 'erl.exe -name dderlt@$2 $kernelconfig $commonparams'"
-        erl.exe -name dderlt@$2 $kernelconfig $commonparams
+        check_arg_count 1
+        echo "Starting dderl local TEXT with 'erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
+        erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra
         ;;
     "add" )
+        check_arg_count 2
         echo "Adding dderl service erlsrv.exe add dderl -c \"DDErl Service\" -stopaction \"init:stop().\" -debugtype new -w $PWD $name -args \"$kernelconfigsrv $commonparams $extra\""
         erlsrv.exe add dderl -c "DDErl Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $commonparams $extra"
         ;;
@@ -60,7 +78,7 @@ case $1 in
         echo Stoping dderl service
         erlsrv.exe stop dderl
         ;;
-    "list" )
+    "list" )kernellogfile
         erlsrv.exe list dderl
         ;;
     "attach" )
@@ -87,6 +105,6 @@ case $1 in
         erlsrv.exe list dderl
         echo
         echo Bad Argument : "'"$1"'"
-        usage $0
+        usage $cmd
         ;;
 esac
