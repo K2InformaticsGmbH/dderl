@@ -64,7 +64,24 @@ case $1 in
         erlsrv.exe list dderl
         ;;
     "attach" )
-        start //MAX werl.exe -name remoteattach@localhost $kernelconfig -setcookie dderl -eval "net_adm:ping('dderl@localhost')"
+        node=$(erlsrv.exe list dderl | grep -re "Name:" | awk '{print $2}')
+        node=$(echo $node | awk '{print $1}')
+        host=(${node//\@/ })
+        host=${host[1]}
+        args=$(erlsrv.exe list dderl | grep -re "Args:")
+        args=(${args// / })
+        idx=0
+        cookie=''
+        for i in "${args[@]}"; do
+            if [ "${args[$idx]}" == "-setcookie" ]; then
+                cookie=${args[$[idx+1]]}
+                break
+            fi
+            idx=$[idx+1]
+        done
+        echo 
+        echo "Connecting local node start //MAX werl.exe -name remoteattach@$host $kernelconfig -setcookie $cookie -eval \"net_adm:ping('$node')\""
+        start //MAX werl.exe -name remoteattach@$host $kernelconfig -setcookie $cookie -eval "net_adm:ping('$node')"
         ;;
     *)
         erlsrv.exe list dderl
