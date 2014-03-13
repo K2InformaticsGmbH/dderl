@@ -1386,6 +1386,7 @@
         self._grid.onBeforeCellEditorDestroy.subscribe($.proxy(self._gridAfterEdit, self));
         self._grid.onAddNewRow.subscribe($.proxy(self._gridAddNewRow, self));
         self._grid.onColumnsReordered.subscribe($.proxy(self._gridColumnsReorder, self));
+        self._grid.onColumnsResized.subscribe($.proxy(self._gridColumnsResize, self));
         self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
         self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
@@ -2423,6 +2424,11 @@
         var reorderData = {reorder: {statement   : self._stmt,
                                      column_order: columnsPos}};
         self._ajax('app/reorder', reorderData, 'reorder', 'reorderResult');
+    },
+
+    _gridColumnsResize: function() {
+        var self = this;
+        self._grid.invalidate();
     },
 
     _applyStyle: function() {
