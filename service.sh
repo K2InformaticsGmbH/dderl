@@ -78,7 +78,7 @@ case $1 in
         echo Stoping dderl service
         erlsrv.exe stop dderl
         ;;
-    "list" )kernellogfile
+    "list" )
         erlsrv.exe list dderl
         ;;
     "attach" )
