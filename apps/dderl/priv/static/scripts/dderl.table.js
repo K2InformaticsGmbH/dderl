@@ -2919,13 +2919,13 @@
                                 dlg.width(gWidth);
                             } else {
                                 self._dlg.dialog("option", "position", [0, orig_top]);
-                                dlg.width($(window).width() - 20);
+                                dlg.width($(window).width() - 40);
                             }
                         }
 
                         var oldDlgHeight = dlg.height();
                         var gHeight = self._getGridHeight();
-                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-20; // available height for the window
+                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for the window
                         if (dlg.height() > gHeight || gHeight < rWindowHeight) {
                             // if dialog is already bigger than height required by the table or
                             // if table height is less then remaining window height
