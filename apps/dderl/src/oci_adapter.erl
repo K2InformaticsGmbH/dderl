@@ -48,6 +48,7 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
+                and c.name not like '%.%'
                 and c.adapters = to_list('[oci]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by

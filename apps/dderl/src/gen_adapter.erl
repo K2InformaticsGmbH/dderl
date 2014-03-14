@@ -264,16 +264,15 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
     ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
-    if
-        IsView ->
-            {_, #ddView{}, #ddCmd{}=OldC} = element(3, R),
+    case {IsView, element(3, R)} of
+        {true, {_, #ddView{}, #ddCmd{}=OldC}} ->
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                         [{<<"isView">>, true}
                                          ,{<<"title">>, StringToFormat}
                                          ,{<<"cmd">>, C#ddCmd.command}]
                                        }])};
-        true ->
+        _ ->
             ?Debug("The string to format: ~p", [StringToFormat]),
             case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
                 <<"auto">> -> ExpandLevel = auto;

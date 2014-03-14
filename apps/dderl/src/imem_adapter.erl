@@ -52,6 +52,7 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
+                and c.name not like '%.%'
                 and c.adapters = to_list('[imem]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by
@@ -235,7 +236,11 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     R = Statement:row_with_key(Row),
     ?Debug("Row with key ~p",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
-    IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
+    IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables) andalso
+        case element(3, R) of
+            {_,#ddView{},#ddCmd{}} -> true;
+            _ -> false
+        end,
     ?Debug("browse_data (view ~p) ~p - ~p", [IsView, Tables, {R, Col}]),
     if
         IsView ->
