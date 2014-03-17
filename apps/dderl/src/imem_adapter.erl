@@ -214,7 +214,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
-    ?Info("query ~p", [Query]),
+    ?Debug("query ~p", [Query]),
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
@@ -834,13 +834,11 @@ generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
 generate_set_value(_, _, []) -> [];
 generate_set_value(Row, Columns, [ColId]) ->
     Col = lists:nth(ColId, Columns),
-    ?Info("The cols ~p", [Col]),
     ColName = Col#stmtCol.alias,
     Value = element(3 + ColId, Row),
     [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value)];
 generate_set_value(Row, Columns, [ColId | Rest]) ->
     Col = lists:nth(ColId, Columns),
-    ?Info("The cols ~p", [Col]),
     ColName = Col#stmtCol.alias,
     Value = element(3 + ColId, Row),
     [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value), ", ", generate_set_value(Row, Columns, Rest)].

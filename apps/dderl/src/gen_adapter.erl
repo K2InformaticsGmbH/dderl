@@ -44,7 +44,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
-    ?Info("parsing ~p", [Sql]),
+    ?Debug("parsing ~p", [Sql]),
     case sqlparse:parsetree(Sql) of
         {ok, {[{ParseTree,_}|_], _}} ->
             case sqlparse:fold(ParseTree) of
@@ -227,7 +227,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     RowIds = proplists:get_value(<<"row_ids">>, BodyJson, 0),
     RespJson = case Statement:get_statistics(ColumnIds, RowIds) of
         {error, Error, St} ->
-            ?Info("Stats error ~p~n~p", [Error, St]),
+            ?Error("Stats error ~p~n~p", [Error, St]),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
             ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}

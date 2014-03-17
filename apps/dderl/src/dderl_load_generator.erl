@@ -61,8 +61,6 @@ init(#state{n_tables = NTables,
             n_rows = NRows,
             n_columns = NColumns,
             ins_delay = InsDelay} = State) ->
-    ?Info("load_generator starting config: ~p", [State]),
-    %% TODO: keep state on a db so we can resume load
     Tables = create_names("temp@", NTables),
     TablesPid = [{spawn_link(
                     fun() ->
@@ -84,7 +82,6 @@ handle_info(_Info, State) ->
 	{noreply, State}.
 
 terminate(_Reason, State) ->
-    ?Info("load_generator terminating state: ~p", [State]),
     ok.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.

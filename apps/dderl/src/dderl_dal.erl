@@ -529,7 +529,6 @@ is_local_query(Qry) ->
             ?Error("SQL parser error ~p", [Error]),
             false;
         _ ->
-            ?Info("non select query ~p", [Qry]),
             false
     end.
 

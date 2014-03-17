@@ -211,7 +211,7 @@ stop({?MODULE,Pid}) ->
 -spec refresh_session_ctx(#fsmctx{}, {atom(), pid()}) -> ok.
 refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
     Ctx = fsm_ctx(FsmCtx),
-    ?Info("Refreshing the session ctx"),
+    ?Debug("Refreshing the session ctx"),
     gen_fsm:sync_send_all_state_event(Pid, {refresh_ctx, Ctx}).
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
@@ -368,7 +368,6 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
 
 -spec navigation_type(fun(), {atom() | integer(), term()}) -> {raw | ind, boolean()}.
 navigation_type(SortFun,FilterSpec) ->
-    ?Info("The fun ~p, the filterspec ~p", [SortFun, FilterSpec]),
     case catch (SortFun(1)) of
         ?NoSortFunResult ->
             case FilterSpec of 
@@ -1144,7 +1143,7 @@ handle_info(Unknown, SN, State) ->
 %% Returns: any
 %% --------------------------------------------------------------------
 terminate(Reason, _SN, #state{ctx=Ctx}) -> 
-    ?Info("fsm ~p terminating reason: ~p", [self(), Reason]),
+    ?Debug("fsm ~p terminating reason: ~p", [self(), Reason]),
     F= Ctx#ctx.stmt_close_fun,
     F().
 

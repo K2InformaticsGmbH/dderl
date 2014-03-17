@@ -37,7 +37,7 @@ read_multipart({ok, Data, Req}, Body) ->
 process_request(_, _, Req, [<<"upload">>]) ->
     {ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
     %%{ok, ReqData, Req1} = cowboy_req:body(Req),
-    ?Info("Request ~p", [ReqData]),
+    ?Debug("Request ~p", [ReqData]),
     Resp = {reply, jsx:encode([{<<"upload">>, 
         case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
             {match, [FileName]} -> [{<<"name">>, FileName}];
@@ -48,7 +48,7 @@ process_request(_, _, Req, [<<"upload">>]) ->
             _ -> []
         end
     }])},
-    ?Info("Responding ~p", [Resp]),
+    ?Debug("Responding ~p", [Resp]),
     self() ! Resp,
     {loop, Req1, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"download_query">>] = Typ) ->
