@@ -30,13 +30,13 @@ init() ->
                                              {service, xe}]
                                  }),
     gen_adapter:add_cmds_views(undefined, system, oci, true, [
-        { <<"Users.sql">>
+        { <<"Remote Users">>
         , <<"select USERNAME from ALL_USERS">>
         , remote },
-        { <<"Tables.sql">>
+        { <<"Remote Tables">>
         , <<"select concat(OWNER,concat('.', TABLE_NAME)) as QUALIFIED_TABLE_NAME from ALL_TABLES where OWNER=user order by TABLE_NAME">>
         , remote },
-        { <<"Views.sql">>
+        { <<"Remote Views">>
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
         , remote },
         { <<"All Views">>
@@ -48,7 +48,8 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
-                and c.name not like '%.%'
+                and v.name not like '%.%'
+                and v.name <> 'All Views'
                 and c.adapters = to_list('[oci]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by
@@ -56,6 +57,8 @@ init() ->
                 c.owner">>
         , local}
     ]).
+%                and (c.conns = to_atom('remote') or is_member(:ddConn.id, c.conns))
+
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
