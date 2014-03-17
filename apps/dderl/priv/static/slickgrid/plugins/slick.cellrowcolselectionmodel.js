@@ -158,20 +158,24 @@
         function handleOnHeaderClick(e, data) {
             if (data.column) {
                 if (typeof data.column.id != "undefined") {
+                    var gvp = _grid.getViewport();
+                    var gvpMid = Math.floor((gvp.top + gvp.bottom)/2);
+
                     var col = _grid.getColumnIndex(data.column.id);
                     var maxRow = _grid.getDataLength() - 1;
                     _grid.getEditorLock().commitCurrentEdit();
+                    var activeCell = _grid.getActiveCell();
 
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                         if(col === 0) {
-                            _grid.setActiveCell(0, 1);
+                            _grid.setActiveCell(gvpMid, 1);
                             _ranges = [];
                             var range = new Slick.Range(0, 1, maxRow, _grid.getColumns().length - 1);
                             range.fullCol = true;
                             _ranges.push(range);
                             setSelectedRanges(_ranges);
                         } else {
-                            _grid.setActiveCell(0, col);
+                            _grid.setActiveCell(gvpMid, col);
                             setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
                         }
                     } else if(col !== 0) {
@@ -179,14 +183,13 @@
                             return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
                         });
                         if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
-                            _grid.setActiveCell(0, col);
+                            _grid.setActiveCell(gvpMid, col);
                             _ranges.push(createFullColRange(0, col, maxRow, col));
                         } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
                             _ranges = $.grep(_ranges, function (o, i) {
                                 return !(col === _ranges[i].fromCell || col === _ranges[i].toCell);
                             });
                         } else if (e.shiftKey) {
-                            var activeCell = _grid.getActiveCell();
                             if(activeCell) {
                                 var from = Math.min(activeCell.cell, col);
                                 var to = Math.max(activeCell.cell, col);
