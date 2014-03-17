@@ -1467,10 +1467,14 @@ serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,gui
         (GuiCnt == 0) ->
             %% (re)initialize buffer
             serve_bot(SN,<<"">>,State0);
+        (GuiBot == BufBot) andalso (SN == completed) ->
+            serve_bot(SN,<<>>,State0);
         true ->
             NewGuiBot = key_times_2(GuiBot,State0),
-            if 
-                (Nav == ind) andalso (NewGuiBot == undefined) -> 
+            if
+                (Nav == ind) andalso (NewGuiBot == undefined) andalso (SN == completed) ->
+                    serve_bot(SN,<<>>,State0);
+                (Nav == ind) andalso (NewGuiBot == undefined) ->
                     %% jump leads outside of index table, target double buffer size
                     State1 = prefetch(SN,State0),
                     ?Debug("~p stack ~p", [SN,<<">>">>]),
@@ -1479,7 +1483,7 @@ serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,gui
                     %% requested jump is possible within existing buffer, do it
                     gui_replace_until(NewGuiBot,BL,#gres{state=SN},State0);
                 (Nav == raw) andalso (SN == filling) ->
-                    %% jump is not possible in existing buffer, target 
+                    %% jump is not possible in existing buffer, target
                     State1 = prefetch(SN,State0),
                     ?Debug("~p stack ~p", [SN,NewGuiBot]),
                     State1#state{stack={button,NewGuiBot,ReplyTo}};
@@ -1504,7 +1508,7 @@ serve_bwd(SN,#state{srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,guiTop=Gui
             State1 = prefetch(SN,State0),       
             ?Debug("~p stack ~p", [SN,<<"<">>]),
             State1#state{stack={button,<<"<">>,ReplyTo}};
-        (GuiTop == BufTop)  ->
+        (GuiTop == BufTop) ->
             %% we are at the top of the buffer, cannot go backward
             gui_nop(#gres{state=SN,beep=true},State0);
         true ->
@@ -1608,10 +1612,10 @@ serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCn
 serve_stack(SN, #state{tRef=TRef} = State) when TRef =/= undefined ->
     timer:cancel(TRef),
     serve_stack(SN, State#state{tRef = undefined});
-serve_stack( _, #state{stack=undefined}=State) -> 
+serve_stack( _, #state{stack=undefined}=State) ->
     % no stack, nothing .. do
     State;
-serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,guiCol=true,stack={button,Button,RT}}=State0) when
+serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,stack={button,Button,RT}}=State0) when
       Button =:= <<">">>;
       Button =:= <<">>">>;
       Button =:= <<">|">>;
