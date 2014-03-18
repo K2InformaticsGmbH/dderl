@@ -387,7 +387,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     case dderl_dal:get_view(Sess, ViewId) of
         undefined ->
-            From ! {reply, jsx:encode([{<<"error">>, <<"View not found">>}])},
+            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, <<"View not found">>}]}])},
             Priv;
         F ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),

@@ -899,7 +899,7 @@ function addWindowFinder(table, title) {
     // Set the title and the click event.
     link.textContent = title;
     link.onclick = function() {
-        if(table && table._dlg && table._dlg.hasClass('ui-dialog-content')) {
+        if(table && table._dlg && table._dlg.hasClass('ui-dialog-content') && table._dlg.dialog("isOpen") === true) {
             table.moveAllToTop();
         } else {
             // In case we have a invalid entry it is removed.

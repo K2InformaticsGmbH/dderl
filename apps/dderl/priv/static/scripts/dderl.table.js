@@ -1602,8 +1602,14 @@
              console.log('[AJAX] view saved!');
         } else if(_saveView.hasOwnProperty('view_id')) {
             console.log('[AJAX] view saved, id = ' + _saveView.view_id + ' and name ' + _saveView.name);
-            self._viewId = _saveView.view_id;
             self.options.title = _saveView.name;
+            if(!self._viewId) {
+                self._viewId = _saveView.view_id;
+                addToCurrentViews(self);
+            } else {
+                self._viewId = _saveView.view_id;
+            }
+            updateWindowTitle(self._windowFinderTextLink, self.options.title);
             self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
         } else if(_saveView.hasOwnProperty('need_replace')) {
             $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
@@ -2472,10 +2478,8 @@
     },
 
     // loading the required view
-    openView: function(viewId) {
-        // TODO: maybe here we need to set the position and the size.
-        var openViewData = {open_view: {connection: dderlState.connection, view_id: viewId}};
-        this._ajax('/app/open_view', openViewData, 'open_view', 'openView');
+    openView: function(viewResult) {
+        this._openView(viewResult);
     },
 
     // loading rows

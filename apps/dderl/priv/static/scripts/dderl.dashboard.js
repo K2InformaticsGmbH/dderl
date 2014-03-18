@@ -67,16 +67,25 @@
 
         function openViews() {
             for(var i = 0; i < views.length; ++i) {
-                $('<div>')
-                    .appendTo(document.body)
-                    .table({
-                        autoOpen    : false,
-                        dderlConn   : dderlState.connection,
-                        dderlAdapter: dderlState.adapter,
-                        title       : "New view",
-                        dderlTbllay : views[i].getLayout(),
-                    })
-                    .table('openView', views[i].getId());
+
+                var openViewData = {open_view: {connection: dderlState.connection, view_id: views[i].getId()}};
+
+                ajaxCall(null, '/app/open_view', openViewData, 'open_view', (function(pos) { return function(viewResult) {
+                    if(viewResult.hasOwnProperty('error')) {
+                        alert_jq(viewResult.error);
+                    } else {
+                        $('<div>')
+                            .appendTo(document.body)
+                            .table({
+                                autoOpen    : false,
+                                dderlConn   : dderlState.connection,
+                                dderlAdapter: dderlState.adapter,
+                                title       : viewResult.name,
+                                dderlTbllay : views[pos].getLayout(),
+                            })
+                            .table('openView', viewResult);
+                    }
+                }})(i));
             }
         }
 
