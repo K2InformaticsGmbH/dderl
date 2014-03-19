@@ -272,7 +272,12 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
       Cmd =:= [<<"connect">>];
       Cmd =:= [<<"connect_change_pswd">>];
-      Cmd =:= [<<"disconnect">>] ->
+      Cmd =:= [<<"disconnect">>];
+      Cmd =:= [<<"query">>];
+      Cmd =:= [<<"browse_data">>];
+      Cmd =:= [<<"views">>];
+      Cmd =:= [<<"system_views">>];
+      Cmd =:= [<<"open_view">>] ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
