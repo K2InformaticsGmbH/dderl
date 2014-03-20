@@ -68,7 +68,11 @@
         function openViews() {
             for(var i = 0; i < views.length; ++i) {
 
-                var openViewData = {open_view: {connection: dderlState.connection, view_id: views[i].getId()}};
+                var openViewData = {open_view: {
+                    connection: dderlState.connection,
+                    view_id: views[i].getId(),
+                    conn_id: dderlState.connectionSelected.connection
+                }};
 
                 ajaxCall(null, '/app/open_view', openViewData, 'open_view', (function(pos) { return function(viewResult) {
                     if(viewResult.hasOwnProperty('error')) {

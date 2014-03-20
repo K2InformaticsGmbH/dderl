@@ -11,7 +11,7 @@
         , add_cmds_views/5
         , gui_resp/2
         , build_resp_fun/3
-        , process_query/2
+        , process_query/3
         , build_column_json/1
         , build_column_csv/1
         , extract_modified_rows/1
@@ -298,9 +298,13 @@ process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
--spec process_query(binary(), tuple()) -> list().
-process_query(Query, Connection) ->
-    imem_adapter:process_query(Query, Connection).
+% TODO: Change this to params
+%-spec process_query(binary(), tuple(), list()) -> list().
+%process_query(Query, Connection, Params) ->
+%    imem_adapter:process_query(Query, Connection, Params).
+-spec process_query(binary(), tuple(), binary()) -> list().
+process_query(Query, Connection, ConnId) ->
+    imem_adapter:process_query(Query, Connection, ConnId).
 
 %%%%%%%%%%%%%%%
 

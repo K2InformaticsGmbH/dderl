@@ -50,6 +50,7 @@ init() ->
                 c.id = v.cmd
                 and v.name not like '%.%'
                 and v.name <> 'All Views'
+                and (c.conns = to_atom('remote') or is_member(:ddConn.id, c.conns))
                 and c.adapters = to_list('[oci]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by
@@ -57,8 +58,6 @@ init() ->
                 c.owner">>
         , local}
     ]).
-%                and (c.conns = to_atom('remote') or is_member(:ddConn.id, c.conns))
-
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
@@ -261,11 +260,12 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     ?Debug("query ~p", [Query]),
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
-                    true -> gen_adapter:process_query(Query, Sess);
+                    true -> gen_adapter:process_query(Query, Sess, ConnId);
                     _ -> process_query(Query, Connection)
                 end,
             From ! {reply, jsx:encode([{<<"query">>,R}])};
@@ -278,6 +278,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     Row = proplists:get_value(<<"row">>, BodyJson, 0),
     Col = proplists:get_value(<<"col">>, BodyJson, 0),
     R = Statement:row_with_key(Row),
@@ -298,7 +299,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
@@ -340,7 +341,9 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     Priv;
 
 % views
-process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
+process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv) ->
+    [{<<"views">>,BodyJson}] = ReqBody,
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     %% TODO: This should be replaced by dashboard.
     case dderl_dal:get_view(Sess, <<"All Views">>, oci, UserId) of
         undefined ->
@@ -351,7 +354,7 @@ process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
             F = UserView
     end,
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -365,10 +368,12 @@ process_cmd({[<<"views">>], _}, Sess, UserId, From, Priv) ->
     Priv;
 
 %  system views
-process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
+process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv) ->
+    [{<<"system_views">>,BodyJson}] = ReqBody,
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"system_views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -384,6 +389,7 @@ process_cmd({[<<"system_views">>], _}, Sess, _UserId, From, Priv) ->
 % open view by id
 process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
     [{<<"open_view">>, BodyJson}] = ReqBody,
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     case dderl_dal:get_view(Sess, ViewId) of
         undefined ->
@@ -393,7 +399,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             case C#ddCmd.conns of
                 local ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
                     RespJson = jsx:encode([{<<"open_view">>,
                                           [{<<"content">>, C#ddCmd.command}
                                            ,{<<"name">>, F#ddView.name}

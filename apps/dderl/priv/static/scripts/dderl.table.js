@@ -712,7 +712,10 @@
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
         this._filters = null;
-        this._ajax('/app/query', {query: {connection: dderlState.connection, qstr : this._cmd}}, 'query', 'queryResult');
+        this._ajax('/app/query', {query: {
+            connection: dderlState.connection, qstr : this._cmd,
+            conn_id: dderlState.connectionSelected.connection
+        }}, 'query', 'queryResult');
         this._dlg.dialog("moveToTop");
     },
 
@@ -1295,6 +1298,7 @@
             // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
             self._ajax('/app/browse_data',
                            { browse_data: {connection : dderlState.connection,
+                                              conn_id : dderlState.connectionSelected.connection,
                                             statement : self._stmt,
                                                   row : data.id, //cell.fromRow,
                                                   col : this._origcolumns[column.field]}},
@@ -2471,9 +2475,9 @@
     // loading the views table
     loadViews: function(useSystem) {
         if(useSystem){
-            this._ajax('/app/system_views', null, 'system_views', 'loadViews');
+            this._ajax('/app/system_views', {system_views: { conn_id: dderlState.connectionSelected.connection}}, 'system_views', 'loadViews');
         } else {
-            this._ajax('/app/views', null, 'views', 'loadViews');
+            this._ajax('/app/views', {views: { conn_id: dderlState.connectionSelected.connection}}, 'views', 'loadViews');
         }
     },
 

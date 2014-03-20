@@ -198,8 +198,7 @@ process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
     State;
 
-process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    ?Debug([{user, User}], "ping from session ~p", [Sess]),
+process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
     State;
 
