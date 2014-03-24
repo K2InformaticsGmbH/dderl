@@ -32,13 +32,13 @@ init() ->
     gen_adapter:add_cmds_views(undefined, system, oci, true, [
         { <<"Remote Users">>
         , <<"select USERNAME from ALL_USERS">>
-        , remote },
+        , [] },
         { <<"Remote Tables">>
         , <<"select concat(OWNER,concat('.', TABLE_NAME)) as QUALIFIED_TABLE_NAME from ALL_TABLES where OWNER=user order by TABLE_NAME">>
-        , remote },
+        , [] },
         { <<"Remote Views">>
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
-        , remote },
+        , [] },
         { <<"All Views">>
         , <<"select
                 c.owner,
@@ -49,8 +49,7 @@ init() ->
             where
                 c.id = v.cmd
                 and v.name not like '%.%'
-                and v.name <> 'All Views'
-                and (c.conns = to_atom('remote') or is_member(:ddConn.id, c.conns))
+                and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
                 and c.adapters = to_list('[oci]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by
@@ -146,8 +145,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                           , schm    = binary_to_atom(Service, utf8)
                           },
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-                    dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect">>,list_to_binary(?EncryptPid(Connection))}])},
+            case dderl_dal:add_connect(Sess, Con) of
+                {error, Msg} ->
+                    From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
+                ConnId ->
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+            end,
             Priv#priv{connections = [ErlOciSession|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
             ?Error("DB connect error ~p", [Error]),
@@ -201,8 +204,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                           , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(Connection))}])},
+            case dderl_dal:add_connect(Sess, Con) of
+                {error, Msg} ->
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
+                ConnId ->
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+            end,
             Priv#priv{connections = [Connection|Connections]}
     end;
 

@@ -42,7 +42,7 @@ init() ->
             where
                 name = element(2, qname) and size <> to_atom('undefined')
             order by 1 asc">>
-        , remote},
+        , []},
         { <<"All Views">>
         , <<"select
                 c.owner,
@@ -53,8 +53,7 @@ init() ->
             where
                 c.id = v.cmd
                 and c.name not like '%.%'
-                and v.name <> 'All Views'
-                and (c.conns = to_atom('remote') or is_member(:ddConn.id, c.conns))
+                and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
                 and c.adapters = to_list('[imem]')
                 and (c.owner = user or c.owner = to_atom('system'))
             order by
@@ -109,8 +108,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                           , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect">>, list_to_binary(?EncryptPid(Connection))}])},
+            case dderl_dal:add_connect(Sess, Con) of
+                {error, Msg} ->
+                    From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
+                ConnId ->
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+            end,
             Priv#priv{connections = [Connection|Connections]}
     end;
 process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefined) ->
@@ -155,8 +158,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                           , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            dderl_dal:add_connect(Sess, Con),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, list_to_binary(?EncryptPid(Connection))}])},
+            case dderl_dal:add_connect(Sess, Con) of
+                {error, Msg} ->
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
+                ConnId ->
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+            end,
             Priv#priv{connections = [Connection|Connections]}
     end;
 
@@ -453,8 +460,8 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv) ->
             Button = ButtonInt;
         ButtonBin when is_binary(ButtonBin) ->
             case string:to_integer(binary_to_list(ButtonBin)) of
-                {error, _} -> Button = ButtonBin;
-                {Target, []} -> Button = Target
+                {Target, []} -> Button = Target;
+                _ -> Button = ButtonBin
             end
     end,
     Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),

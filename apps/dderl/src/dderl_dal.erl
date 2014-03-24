@@ -18,7 +18,7 @@
         ,change_password/3
         ,add_adapter/2
         ,add_command/7
-        ,update_command/8
+        ,update_command/7
         ,add_view/5
         ,update_view/4
         ,rename_view/3
@@ -49,14 +49,14 @@ change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change
 -spec add_adapter(atom(), binary()) -> ok.
 add_adapter(Id, FullName)           -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 
--spec add_connect({atom(), pid()} | undefined, #ddConn{}) -> ok.
-add_connect(Sess, #ddConn{} = Conn) -> gen_server:cast(?MODULE, {add_connect, Sess, Conn}).
+-spec add_connect({atom(), pid()} | undefined, #ddConn{}) -> integer() | {error, binary()}.
+add_connect(Sess, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Sess, Conn}).
 
--spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), atom(), term()) -> ddEntityId().
+-spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), list() | undefined, term()) -> ddEntityId().
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
 
--spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), atom(), binary(), binary(), atom(), term()) -> ddEntityId().
-update_command(Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}).
+-spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), atom(), binary(), binary(), term()) -> ddEntityId().
+update_command(Sess, Id, Owner, Adapter, Name, Cmd, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}).
 
 -spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
 add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
@@ -109,14 +109,16 @@ init([SchemaName]) ->
     case erlimem:open(local, {SchemaName}, {<<>>, <<>>}) of
         {ok, Sess} ->
             %lager:set_loglevel(lager_console_backend, debug),
-            build_tables_on_boot(Sess, [
+            TablesToBuild =  [
                   {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
                 , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
                 , {ddConn, record_info(fields, ddConn), ?ddConn, #ddConn{}}
                 , {ddCmd, record_info(fields, ddCmd), ?ddCmd, #ddCmd{}}
                 , {ddView, record_info(fields, ddView), ?ddView, #ddView{}}
                 , {ddDash, record_info(fields, ddDash), ?ddDash, #ddDash{}}
-            ]),
+            ],
+            ?Debug("tables to build: ~p", [TablesToBuild]),
+            build_tables_on_boot(Sess, TablesToBuild),
             ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
             Sess:run_cmd(write, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
             % Initializing adapters (all the *_adapter modules compiled with dderl)
@@ -141,22 +143,63 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
-handle_call({update_command, undefined, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
-    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
-handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, undefined, Opts}, From, State) ->
-    case is_local_query(Cmd) of
-        true -> Conn = local;
-        false -> Conn = remote
+handle_call({add_connect, undefined, Con}, From, #state{sess=Sess} = State) ->
+    handle_call({add_connect, Sess, Con}, From, State);
+handle_call({add_connect, Sess, #ddConn{schm = undefined} = Con}, From, #state{schema = SchemaName} = State) ->
+    handle_call({add_connect, Sess, Con#ddConn{schm = SchemaName}}, From, State);
+handle_call({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, _From, State) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
+                                         , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',Owner}]
+                                         , ['$3']}]]) of
+        {[Id|_], true} ->
+            ?Info("add_connect replacing id ~p", [Id]),
+            NewCon = Con#ddConn{id=Id};
+        _ ->
+            Id = erlang:phash2(make_ref()),
+            ?Info("add_connect adding new id ~p", [Id]),
+            NewCon = Con#ddConn{id=Id}
     end,
-    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
-handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
+    Sess:run_cmd(write, [ddConn, NewCon]),
+    ?Info("add_connect written ~p", [NewCon]),
+    {reply, Id, State};
+handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From, State) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
+                                         , [{'=:=', '$1', OldId}]
+                                         , ['$_']}]]) of
+        {[#ddConn{owner = Owner}], true} ->
+            %% The same owner, save old connection as it is.
+            Sess:run_cmd(write, [ddConn, Con]),
+            {reply, OldId, State};
+        {[#ddConn{owner = OldOwner} = OldCon], true} ->
+            %% It is not the same owner, save a copy if there is some difference.
+            %% TODO: Validate authorization before saving.
+            case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
+                true ->
+                    %% If the connection is not changed then do not save a copy.
+                    {reply, OldId, State};
+                false ->
+                    handle_call({add_connect, Sess, Con#ddConn{id = undefined}}, From, State)
+            end;
+        {[], true} ->
+            %% Connection with id not found, adding a new one.
+            Sess:run_cmd(insert, [ddConn, Con]),
+            {reply, OldId, State};
+        Result ->
+            ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
+            {reply, {error, <<"Error saving the connection">>}, State}
+    end;
+
+handle_call({update_command, undefined, Id, Owner, Adapter, Name, Cmd, Opts}, From, #state{sess=Sess} = State) ->
+    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}, From, State);
+handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}, _From, State) ->
     ?Debug("update command ~p replacing id ~p", [Name, Id]),
+    {[Conns|_], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, conns = '$1', _='_'}, [], ['$1']}]]),
     NewCmd = #ddCmd { id     = Id
                  , name      = Name
                  , owner     = Owner
                  , adapters  = [Adapter]
                  , command   = Cmd
-                 , conns     = Conn
+                 , conns     = Conns
                  , opts      = Opts},
     Sess:run_cmd(write, [ddCmd, NewCmd]),
     {reply, Id, State};
@@ -166,7 +209,7 @@ handle_call({add_command, undefined, Owner, Adapter, Name, Cmd, Conn, Opts}, Fro
 handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, undefined, Opts}, From, State) ->
     case is_local_query(Cmd) of
         true -> Conn = local;
-        false -> Conn = remote
+        false -> Conn = []
     end,
     handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
 handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
@@ -223,7 +266,6 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
                                Adapter,
                                Cmd#ddCmd.name,
                                Qry,
-                               Cmd#ddCmd.conns,
                                Cmd#ddCmd.opts},
             handle_call(UpdateCmdParams, From, State),
             NewView = OldView#ddView{state=ViewsState},
@@ -407,50 +449,6 @@ handle_call({change_password, User, Password, NewPassword}, _From, #state{schema
 handle_call(Req,From,State) ->
     ?Info("unknown call req ~p from ~p~n", [Req, From]),
     {reply, ok, State}.
-
-handle_cast({add_connect, undefined, Con}, #state{sess=Sess} = State) ->
-    handle_cast({add_connect, Sess, Con}, State);
-handle_cast({add_connect, Sess, #ddConn{schm = undefined} = Con}, #state{schema = SchemaName} = State) ->
-    handle_cast({add_connect, Sess, Con#ddConn{schm = SchemaName}}, State);
-handle_cast({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, State) ->
-    case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
-                                         , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',Owner}]
-                                         , ['$3']}]]) of
-        {[Id|_], true} ->
-            ?Info("add_connect replacing id ~p", [Id]),
-            NewCon = Con#ddConn{id=Id};
-        _ ->
-            NewId = erlang:phash2(make_ref()),
-            ?Info("add_connect adding new id ~p", [NewId]),
-            NewCon = Con#ddConn{id=NewId}
-    end,
-    Sess:run_cmd(write, [ddConn, NewCon]),
-    ?Debug("add_connect written ~p", [NewCon]),
-    {noreply, State};
-handle_cast({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, State) ->
-    case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
-                                         , [{'=:=', '$1', OldId}]
-                                         , ['$_']}]]) of
-        {[#ddConn{owner = Owner}], true} ->
-            %% The same owner, save old view as it is.
-            Sess:run_cmd(write, [ddConn, Con]);
-        {[#ddConn{owner = OldOwner} = OldCon], true} ->
-            %% It is not the same owner, save a copy if there is some difference.
-            %% TODO: Validate authorization before saving.
-            case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
-                true ->
-                    %% If the connection is not changed then do not save a copy.
-                    ok;
-                false ->
-                    handle_cast({add_connect, Sess, Con#ddConn{id = undefined}}, State)
-            end;
-        {[], true} ->
-            %% Connection with id not found, adding a new one.
-            Sess:run_cmd(insert, [ddConn, Con]);
-        Result ->
-            ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result])
-    end,
-    {noreply, State};
 
 handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     Adp = #ddAdapter{id=Id,fullName=FullName},

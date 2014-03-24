@@ -479,13 +479,14 @@
         var h = this._dlg.dialog('widget').height();
         var x = this._dlg.dialog('widget').position().left;
         var y = this._dlg.dialog('widget').position().top;
-        return {save_view : {table_layout : {width : w,
-                                            height : h,
-                                                 y : y,
-                                                 x : x},
-                            column_layout : colnamesizes,
-                                     name : _viewName,
-                                  content : this._cmd}
+        return {save_view : {table_layout  : {width : w,
+                                             height : h,
+                                                  y : y,
+                                                  x : x},
+                             conn_id       : dderlState.connectionSelected.connection,
+                             column_layout : colnamesizes,
+                             name          : _viewName,
+                             content       : this._cmd}
                };
     },
 

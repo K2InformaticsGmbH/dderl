@@ -283,9 +283,9 @@ function connect_dlg()
                             'Error: '+data.error
                         );
                     } else {
-                        saveConnectValues($("#adapter_list").val(), $("#owners_list").val(), $("#connection_list").val());
+                        saveConnectValues($("#adapter_list").val(), $("#owners_list").val(), data.conn_id);
                         //Setting up the global connection.
-                        dderlState.connection = data;
+                        dderlState.connection = data.conn;
                         dderlState.connected_user = $('#user').val();
                         dderlState.service = $('#service').val();
                         Dlg.dialog("close");
@@ -407,7 +407,8 @@ function change_connect_password(loggedInUser)
 }
 
 function saveConnectValues(adapter, owner, connection) {
-    dderlState.connectionSelected = {adapter: adapter, owner: owner, connection: connection};
+    var connStr = connection + "";
+    dderlState.connectionSelected = {adapter: adapter, owner: owner, connection: connStr};
 }
 
 function setConnectValues(selectedValues) {

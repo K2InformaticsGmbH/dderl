@@ -32,7 +32,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
         View ->
             if
                 Replace ->
-                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, Con, []),
+                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, []),
                     ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
                     [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
                 true ->
@@ -106,13 +106,18 @@ process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
     From ! {reply, Res};
 process_cmd({[<<"save_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
+    ConnIdBin = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
+    case string:to_integer(binary_to_list(ConnIdBin)) of
+        {ConnId, []} -> Conns = [ConnId];
+        _ -> Conns = undefined
+    end,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, <<>>),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, <<>>),
     ReplaceView = proplists:get_value(<<"replace">>, BodyJson, false),
     ?Info("save_view for ~p layout ~p", [Name, TableLay]),
-    case add_cmds_views(Sess, UserId, Adapter, ReplaceView, [{Name, Query, undefined, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of 
+    case add_cmds_views(Sess, UserId, Adapter, ReplaceView, [{Name, Query, Conns, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of
         [need_replace] ->
             Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}]);
         [ViewId] ->
@@ -158,6 +163,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) 
     if
         %% System tables can't be overriden.
         Name =:= <<"All Views">> orelse Name =:= <<"All Tables">> ->
+            %% TODO: This should indicate that a new view has been saved and should replace it in the gui.
             add_cmds_views(Sess, UserId, Adapter, true, [{Name, Query, undefined, ViewState}]),
             Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
         true ->
