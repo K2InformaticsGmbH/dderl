@@ -48,13 +48,13 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
-                and v.name not like '%.%'
-                and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
                 and c.adapters = to_list('[oci]')
                 and (c.owner = user or c.owner = to_atom('system'))
+                and (c.conns = to_atom('local') or c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
+                and (v.owner = user or v.name like '%.*' or not (v.name like '%.%')) 
             order by
-                v.name,
-                c.owner">>
+                2 asc,
+                1 asc">>
         , local}
     ]).
 
@@ -149,7 +149,8 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
                 ConnId ->
-                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                    Owner = dderl_dal:get_name(Sess, UserId),
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [ErlOciSession|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
@@ -208,7 +209,8 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
                 ConnId ->
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                    Owner = dderl_dal:get_name(Sess, UserId),
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;

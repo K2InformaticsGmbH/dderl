@@ -283,7 +283,7 @@ function connect_dlg()
                             'Error: '+data.error
                         );
                     } else {
-                        saveConnectValues($("#adapter_list").val(), $("#owners_list").val(), data.conn_id);
+                        saveConnectValues($("#adapter_list").val(), data.owner, data.conn_id);
                         //Setting up the global connection.
                         dderlState.connection = data.conn;
                         dderlState.connected_user = $('#user').val();

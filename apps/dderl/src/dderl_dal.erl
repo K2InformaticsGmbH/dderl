@@ -34,6 +34,7 @@
         ,get_dashboards/2
         ,log_to_db/7
         ,get_maxrowcount/0
+        ,get_name/2
         ]).
 
 -record(state, { schema :: term()
@@ -93,6 +94,9 @@ save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {sa
 
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
 get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, Owner}).
+
+-spec get_name({atom(), pid()}, ddEntityId()) -> binary().
+get_name(Sess, UserId) -> gen_server:call(?MODULE, {get_name, Sess, UserId}).
 
 -spec get_maxrowcount() -> integer().
 get_maxrowcount() ->
@@ -421,6 +425,11 @@ handle_call({get_adapters, Sess}, _From, State) ->
     ?Debug("get_adapters"),
     {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
     {reply, Adapters, State};
+
+handle_call({get_name, Sess, UserId}, _From, State) when is_integer(UserId) ->
+    {reply, Sess:run_cmd(admin_exec, [imem_account, get_name, [UserId]]), State};
+handle_call({get_name, _Sess, UserId}, _From, State) ->
+    {reply, UserId, State};
 
 handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
     ?Debug("login for user ~p", [User]),

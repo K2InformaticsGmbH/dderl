@@ -47,7 +47,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     ?Debug("parsing ~p", [Sql]),
     case sqlparse:parsetree(Sql) of
         {ok, {[{ParseTree,_}|_], _}} ->
-            case sqlparse:fold(ParseTree) of
+            case sqlparse:pt_to_string(ParseTree) of
                 {error, Reason} ->
                     ?Error("parse_stmt error in fold ~p~n", [Reason]),
                     ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
