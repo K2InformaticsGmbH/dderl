@@ -28,7 +28,7 @@ init() ->
                                              {port, <<>>},
                                              {type, local}]
                                  }),
-    gen_adapter:add_cmds_views(undefined, system, imem, true, [
+    [_, ViewId] = gen_adapter:add_cmds_views(undefined, system, imem, true, [
         { <<"Remote Tables">>
         , <<"select
                 to_name(qname),
@@ -52,14 +52,16 @@ init() ->
                 ddCmd as c
             where
                 c.id = v.cmd
-                and c.adapters = to_list('[imem]')
-                and (c.conns = to_atom('local') or c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
-                and (v.owner = user or v.name like '%.*' or not (v.name like '%.%'))
+                and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
+                and (c.owner = user or c.owner = to_atom('system'))
             order by
                 2 asc,
                 1 asc">>
         , local}
-    ]).
+    ]),
+    View = dderl_dal:get_view(undefined, ViewId),
+    %% TODO: This should be added on the load of the other adapter but we don't know the id...
+    dderl_dal:add_adapter_to_cmd(undefined, View#ddView.cmd, oci).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}) -> #priv{}.
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->

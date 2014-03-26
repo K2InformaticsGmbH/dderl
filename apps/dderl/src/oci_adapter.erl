@@ -38,24 +38,7 @@ init() ->
         , [] },
         { <<"Remote Views">>
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
-        , [] },
-        { <<"All Views">>
-        , <<"select
-                c.owner,
-                v.name
-            from
-                ddView as v,
-                ddCmd as c
-            where
-                c.id = v.cmd
-                and c.adapters = to_list('[oci]')
-                and (c.owner = user or c.owner = to_atom('system'))
-                and (c.conns = to_atom('local') or c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
-                and (v.owner = user or v.name like '%.*' or not (v.name like '%.%')) 
-            order by
-                2 asc,
-                1 asc">>
-        , local}
+        , [] }
     ]).
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),

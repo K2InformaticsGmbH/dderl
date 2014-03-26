@@ -32,7 +32,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
         View ->
             if
                 Replace ->
-                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, []),
+                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, N, C, []),
                     ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
                     [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
                 true ->
