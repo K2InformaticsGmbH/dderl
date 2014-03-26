@@ -2739,7 +2739,7 @@
     appendRows: function(_rows)
     {
         //console.time('appendRows');
-        //console.profile('appendRows');
+        //console.profile();
 
         var self = this;
         var redraw = false;
@@ -2990,7 +2990,7 @@
             setTimeout(function() {self.buttonPress(tmpDoneBtn);}, 50);
         }
         //console.timeEnd('appendRows');
-        //console.profileEnd('appendRows');
+        //console.profileEnd();
     }
 
   });

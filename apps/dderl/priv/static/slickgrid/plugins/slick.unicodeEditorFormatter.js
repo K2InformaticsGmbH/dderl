@@ -69,16 +69,7 @@ function fromUnicodeLiteral(str)
         } else {
             newValue = value.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         }
-        newValue = unicodeLiteral(newValue);
-        var txtWidth = $('#txtlen').text(newValue).width() + 25
-        if(columnDef.width < txtWidth) {
-            var tempDiv = document.createElement("div");
-            tempDiv.setAttribute("title", value);
-            tempDiv.innerHTML = unicodeLiteral(newValue);
-            return tempDiv.outerHTML;
-        } else {
-            return  newValue;
-        }
+        return unicodeLiteral(newValue);
     }
 
     function IdFormatter(row, cell, value, columnDef, dataContext) {
