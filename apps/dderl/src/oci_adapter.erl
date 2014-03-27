@@ -257,7 +257,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
-                    true -> gen_adapter:process_query(Query, Sess, ConnId);
+                    true -> gen_adapter:process_query(Query, Sess, {ConnId, oci});
                     _ -> process_query(Query, Connection)
                 end,
             From ! {reply, jsx:encode([{<<"query">>,R}])};
@@ -291,7 +291,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
@@ -346,7 +346,7 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv) ->
             F = UserView
     end,
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -365,7 +365,7 @@ process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv) ->
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"system_views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -391,7 +391,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             case C#ddCmd.conns of
                 local ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
                     RespJson = jsx:encode([{<<"open_view">>,
                                           [{<<"content">>, C#ddCmd.command}
                                            ,{<<"name">>, F#ddView.name}

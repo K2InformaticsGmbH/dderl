@@ -304,13 +304,13 @@ process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
-% TODO: Change this to params
+% TODO: Change this to params as list
 %-spec process_query(binary(), tuple(), list()) -> list().
 %process_query(Query, Connection, Params) ->
 %    imem_adapter:process_query(Query, Connection, Params).
--spec process_query(binary(), tuple(), binary()) -> list().
-process_query(Query, Connection, ConnId) ->
-    imem_adapter:process_query(Query, Connection, ConnId).
+-spec process_query(binary(), tuple(), {binary(), atom()}) -> list().
+process_query(Query, Connection, Params) ->
+    imem_adapter:process_query(Query, Connection, Params).
 
 %%%%%%%%%%%%%%%
 
