@@ -2763,7 +2763,8 @@
                 for(var btn in self._toolbarButtons) {
                     var tbBtnObj = self._toolbarButtons[btn];
                     var btnElm = self[tbBtnObj.dom];
-                    if (!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) {
+                    if ((!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) ||
+                        (dderlState.adapter === "oci" && (btn === ">|..." || btn === "..."))) {
                         btnElm
                             .button('disable')
                             .attr('title', _rows.disable[btn]);
