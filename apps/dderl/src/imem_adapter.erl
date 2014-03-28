@@ -28,7 +28,7 @@ init() ->
                                              {port, <<>>},
                                              {type, local}]
                                  }),
-    [_, ViewId] = gen_adapter:add_cmds_views(undefined, system, imem, true, [
+    SystemViews = [
         { <<"Remote Tables">>
         , <<"select
                 to_name(qname),
@@ -59,10 +59,18 @@ init() ->
                 2 asc,
                 1 asc">>
         , local}
-    ]),
-    View = dderl_dal:get_view(undefined, ViewId),
+    ],
     %% TODO: This should be added on the load of the other adapter but we don't know the id...
-    dderl_dal:add_adapter_to_cmd(undefined, View#ddView.cmd, oci).
+    AddViewResult = gen_adapter:add_cmds_views(undefined, system, imem, false, SystemViews),
+    case lists:member(need_replace, AddViewResult) of
+        true ->
+            View = dderl_dal:get_view(undefined, <<"All Views">>, imem, system),
+            dderl_dal:add_adapter_to_cmd(undefined, View#ddView.cmd, oci);
+        _ ->
+            [_, ViewId] = AddViewResult,
+            View = dderl_dal:get_view(undefined, ViewId),
+            dderl_dal:add_adapter_to_cmd(undefined, View#ddView.cmd, oci)
+    end.
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}) -> #priv{}.
 process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined) ->
@@ -113,9 +121,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
@@ -164,9 +175,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId},  {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, NewConn#ddConn.id},  {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;

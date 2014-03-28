@@ -29,7 +29,7 @@ init() ->
                                              {type, <<"DB Name">>},
                                              {service, xe}]
                                  }),
-    gen_adapter:add_cmds_views(undefined, system, oci, true, [
+    gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>
         , <<"select USERNAME from ALL_USERS">>
         , [] },
@@ -131,9 +131,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [ErlOciSession|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
@@ -191,9 +194,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;

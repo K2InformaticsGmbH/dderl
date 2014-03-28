@@ -169,7 +169,7 @@ handle_call({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, _
     end,
     Sess:run_cmd(write, [ddConn, NewCon]),
     ?Info("add_connect written ~p", [NewCon]),
-    {reply, Id, State};
+    {reply, NewCon, State};
 handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From, State) ->
     case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
                                          , [{'=:=', '$1', OldId}]
@@ -177,21 +177,21 @@ handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From,
         {[#ddConn{owner = Owner}], true} ->
             %% The same owner, save old connection as it is.
             Sess:run_cmd(write, [ddConn, Con]),
-            {reply, OldId, State};
+            {reply, Con, State};
         {[#ddConn{owner = OldOwner} = OldCon], true} ->
             %% It is not the same owner, save a copy if there is some difference.
             %% TODO: Validate authorization before saving.
             case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
                 true ->
                     %% If the connection is not changed then do not save a copy.
-                    {reply, OldId, State};
+                    {reply, OldCon, State};
                 false ->
                     handle_call({add_connect, Sess, Con#ddConn{id = undefined}}, From, State)
             end;
         {[], true} ->
             %% Connection with id not found, adding a new one.
             Sess:run_cmd(insert, [ddConn, Con]),
-            {reply, OldId, State};
+            {reply, Con, State};
         Result ->
             ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
             {reply, {error, <<"Error saving the connection">>}, State}
@@ -238,8 +238,13 @@ handle_call({add_adapter_to_cmd, undefined, CmdId, Adapter}, From, #state{sess=S
     handle_call({add_adapter_to_cmd, Sess, CmdId, Adapter}, From, State);
 handle_call({add_adapter_to_cmd, Sess, Id, Adapter}, _From, State) ->
     {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
-    NewCmd = Cmd#ddCmd{adapters = [Adapter|Cmd#ddCmd.adapters]},
-    Sess:run_cmd(write, [ddCmd, NewCmd]),
+    case lists:member(Adapter, Cmd#ddCmd.adapters) of
+        false ->
+            NewAdapters = [Adapter|Cmd#ddCmd.adapters];
+        true ->
+            NewAdapters = Cmd#ddCmd.adapters
+    end,
+    Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     {reply, Id, State};
 
 handle_call({add_view, undefined, Owner, Name, CmdId, ViewsState}, From, #state{sess=Sess} = State) ->
