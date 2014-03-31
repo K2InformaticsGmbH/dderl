@@ -430,6 +430,7 @@ build_column_json([C|Cols], JCols, Counter) ->
         integer -> Type = <<"numeric">>;
         float -> Type = <<"numeric">>;
         decimal -> Type = <<"numeric">>;
+        'SQLT_NUM' -> Type = <<"numeric">>;
         _ -> Type = <<"text">>
     end,
     JC = [{<<"id">>, Nm1},

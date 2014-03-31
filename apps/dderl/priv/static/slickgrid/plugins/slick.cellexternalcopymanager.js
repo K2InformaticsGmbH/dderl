@@ -395,6 +395,9 @@
             gridData = _grid.getData().getItems();
         }
 
+        var counter = 0;
+        var numericIdList = {};
+        var currentId = "";
         rowObjects = [];
         for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
             clipTextCells = {};
@@ -402,15 +405,41 @@
                 clipTextCells[columns[usedCols[j]].name] = null;
                 for(var rg = 0; rg < ranges.length; ++rg) {
                     if(ranges[rg].contains(i, usedCols[j])) {
-                        clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        if(columns[usedCols[j]].type === "numeric") {
+                            currentId = uniqueid() + counter.toString();
+                            ++counter;
+                            numericIdList[currentId] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                            clipTextCells[columns[usedCols[j]].name] = currentId;
+                        } else {
+                            clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        }
                         break;
                     }
                 }
             }
             rowObjects.push(clipTextCells);
         }
-        return JSON.stringify(rowObjects);
-      }
+        var result = JSON.stringify(rowObjects, undefined, 4);
+        for(currentId in numericIdList) {
+            result = result.replace("\"" + currentId + "\"", numericIdList[currentId])
+        }
+        return result;
+    }
+
+    function uniqueid() {
+        // always start with a letter (for DOM friendlyness)
+        var idstr=String.fromCharCode(Math.floor((Math.random()*25)+65));
+        do {
+            // between numbers and characters (48 is 0 and 90 is Z (42-48 = 90)
+            var ascicode=Math.floor((Math.random()*42)+48);
+            if (ascicode<58 || ascicode>64){
+                // exclude all chars between : (58) and @ (64)
+                idstr+=String.fromCharCode(ascicode);
+            }
+        } while (idstr.length<32);
+
+        return (idstr);
+    }
 
     function textFromBoundRange(ranges, boundRange, columns, usedCols) {
         var clipTextRows, clipTextCells, cellValue;
