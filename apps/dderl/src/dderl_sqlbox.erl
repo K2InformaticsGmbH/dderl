@@ -80,6 +80,7 @@ boxed_from_pt(ParseTree) ->
 %% Operator Binding Power -------------------------------
 
 binding(A) when is_binary(A) -> 190;
+binding('param') -> 190;
 binding('prior') -> 185;
 binding('fun') -> 180;
 binding('||') -> 175;
@@ -156,6 +157,7 @@ foldb(_, _P, {having, {}})               -> empty;
 foldb(_, _P, {'hierarchical query', {}}) -> empty;
 
 foldb(Ind, _P, T) when is_binary(T); is_atom(T) -> mk_box(Ind, [], T);
+foldb(Ind, _P, {param, T}) -> mk_box(Ind, [], T);
 
 %%TODO: Improve these ugly nested cases to check for errors.
 foldb(Ind, P, {'as', {'fun',Fun,List}, Alias}) ->

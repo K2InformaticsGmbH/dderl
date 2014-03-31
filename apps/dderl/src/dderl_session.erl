@@ -105,7 +105,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             ?Debug("login successful for ~p", [User]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
             State#state{sess=Sess, user=User, user_id=UserId};
-        {_, {error, {Exception, "Password expired. Please change it" = M}}} ->
+        {_, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->
             ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
             State;

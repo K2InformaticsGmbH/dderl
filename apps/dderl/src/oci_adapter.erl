@@ -29,7 +29,7 @@ init() ->
                                              {type, <<"DB Name">>},
                                              {service, xe}]
                                  }),
-    gen_adapter:add_cmds_views(undefined, system, oci, true, [
+    gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>
         , <<"select USERNAME from ALL_USERS">>
         , [] },
@@ -38,24 +38,7 @@ init() ->
         , [] },
         { <<"Remote Views">>
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
-        , [] },
-        { <<"All Views">>
-        , <<"select
-                c.owner,
-                v.name
-            from
-                ddView as v,
-                ddCmd as c
-            where
-                c.id = v.cmd
-                and c.adapters = to_list('[oci]')
-                and (c.owner = user or c.owner = to_atom('system'))
-                and (c.conns = to_atom('local') or c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
-                and (v.owner = user or v.name like '%.*' or not (v.name like '%.%')) 
-            order by
-                2 asc,
-                1 asc">>
-        , local}
+        , [] }
     ]).
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
@@ -148,9 +131,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [ErlOciSession|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
@@ -208,9 +194,12 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
                     From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                ConnId ->
-                    Owner = dderl_dal:get_name(Sess, UserId),
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, ConnId}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                NewConn ->
+                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
+                        system -> Owner = <<"system">>;
+                        Owner -> Owner
+                    end,
+                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
@@ -274,7 +263,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     case lists:member(Connection, Connections) of
         true ->
             R = case dderl_dal:is_local_query(Query) of
-                    true -> gen_adapter:process_query(Query, Sess, ConnId);
+                    true -> gen_adapter:process_query(Query, Sess, {ConnId, oci});
                     _ -> process_query(Query, Connection)
                 end,
             From ! {reply, jsx:encode([{<<"query">>,R}])};
@@ -308,7 +297,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
             ?Debug("Cmd ~p Name ~p", [C#ddCmd.command, Name]),
             case C#ddCmd.conns of
                 'local' ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, C#ddCmd.command}
                          ,{<<"name">>, Name}
@@ -363,7 +352,7 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv) ->
             F = UserView
     end,
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -382,7 +371,7 @@ process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv) ->
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system),
     C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
     ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
     RespJson = jsx:encode([{<<"system_views">>,
         [{<<"content">>, C#ddCmd.command}
@@ -408,7 +397,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             case C#ddCmd.conns of
                 local ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, ConnId),
+                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}),
                     RespJson = jsx:encode([{<<"open_view">>,
                                           [{<<"content">>, C#ddCmd.command}
                                            ,{<<"name">>, F#ddView.name}

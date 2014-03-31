@@ -32,7 +32,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
         View ->
             if
                 Replace ->
-                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, A, N, C, []),
+                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, N, C, []),
                     ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
                     [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
                 true ->
@@ -304,13 +304,13 @@ process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
 
-% TODO: Change this to params
+% TODO: Change this to params as list
 %-spec process_query(binary(), tuple(), list()) -> list().
 %process_query(Query, Connection, Params) ->
 %    imem_adapter:process_query(Query, Connection, Params).
--spec process_query(binary(), tuple(), binary()) -> list().
-process_query(Query, Connection, ConnId) ->
-    imem_adapter:process_query(Query, Connection, ConnId).
+-spec process_query(binary(), tuple(), {binary(), atom()}) -> list().
+process_query(Query, Connection, Params) ->
+    imem_adapter:process_query(Query, Connection, Params).
 
 %%%%%%%%%%%%%%%
 

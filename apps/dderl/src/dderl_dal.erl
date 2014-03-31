@@ -18,7 +18,7 @@
         ,change_password/3
         ,add_adapter/2
         ,add_command/7
-        ,update_command/7
+        ,update_command/6
         ,add_view/5
         ,update_view/4
         ,rename_view/3
@@ -35,6 +35,7 @@
         ,log_to_db/7
         ,get_maxrowcount/0
         ,get_name/2
+        ,add_adapter_to_cmd/3
         ]).
 
 -record(state, { schema :: term()
@@ -56,8 +57,8 @@ add_connect(Sess, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Se
 -spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), list() | undefined, term()) -> ddEntityId().
 add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
 
--spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), atom(), binary(), binary(), term()) -> ddEntityId().
-update_command(Sess, Id, Owner, Adapter, Name, Cmd, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}).
+-spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), binary(), binary(), term()) -> ddEntityId().
+update_command(Sess, Id, Owner, Name, Cmd, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Name, Cmd, Opts}).
 
 -spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
 add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
@@ -97,6 +98,9 @@ get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, O
 
 -spec get_name({atom(), pid()}, ddEntityId()) -> binary().
 get_name(Sess, UserId) -> gen_server:call(?MODULE, {get_name, Sess, UserId}).
+
+-spec add_adapter_to_cmd({atom(), pid()} | undefined, ddEntityId(), atom()) -> ok | {error, binary()}.
+add_adapter_to_cmd(Sess, CmdId, Adapter) -> gen_server:call(?MODULE, {add_adapter_to_cmd, Sess, CmdId, Adapter}).
 
 -spec get_maxrowcount() -> integer().
 get_maxrowcount() ->
@@ -165,7 +169,7 @@ handle_call({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, _
     end,
     Sess:run_cmd(write, [ddConn, NewCon]),
     ?Info("add_connect written ~p", [NewCon]),
-    {reply, Id, State};
+    {reply, NewCon, State};
 handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From, State) ->
     case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
                                          , [{'=:=', '$1', OldId}]
@@ -173,37 +177,37 @@ handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From,
         {[#ddConn{owner = Owner}], true} ->
             %% The same owner, save old connection as it is.
             Sess:run_cmd(write, [ddConn, Con]),
-            {reply, OldId, State};
+            {reply, Con, State};
         {[#ddConn{owner = OldOwner} = OldCon], true} ->
             %% It is not the same owner, save a copy if there is some difference.
             %% TODO: Validate authorization before saving.
             case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
                 true ->
                     %% If the connection is not changed then do not save a copy.
-                    {reply, OldId, State};
+                    {reply, OldCon, State};
                 false ->
                     handle_call({add_connect, Sess, Con#ddConn{id = undefined}}, From, State)
             end;
         {[], true} ->
             %% Connection with id not found, adding a new one.
             Sess:run_cmd(insert, [ddConn, Con]),
-            {reply, OldId, State};
+            {reply, Con, State};
         Result ->
             ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
             {reply, {error, <<"Error saving the connection">>}, State}
     end;
 
-handle_call({update_command, undefined, Id, Owner, Adapter, Name, Cmd, Opts}, From, #state{sess=Sess} = State) ->
-    handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}, From, State);
-handle_call({update_command, Sess, Id, Owner, Adapter, Name, Cmd, Opts}, _From, State) ->
+handle_call({update_command, undefined, Id, Owner, Name, Sql, Opts}, From, #state{sess=Sess} = State) ->
+    handle_call({update_command, Sess, Id, Owner, Name, Sql, Opts}, From, State);
+handle_call({update_command, Sess, Id, Owner, Name, Sql, Opts}, _From, State) ->
     ?Debug("update command ~p replacing id ~p", [Name, Id]),
-    {[Conns|_], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, conns = '$1', _='_'}, [], ['$1']}]]),
+    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
     NewCmd = #ddCmd { id     = Id
                  , name      = Name
                  , owner     = Owner
-                 , adapters  = [Adapter]
-                 , command   = Cmd
-                 , conns     = Conns
+                 , adapters  = Cmd#ddCmd.adapters
+                 , command   = Sql
+                 , conns     = Cmd#ddCmd.conns
                  , opts      = Opts},
     Sess:run_cmd(write, [ddCmd, NewCmd]),
     {reply, Id, State};
@@ -228,6 +232,19 @@ handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, S
                  , opts      = Opts},
     Sess:run_cmd(insert, [ddCmd, NewCmd]),
     ?Debug("add_command inserted ~p", [NewCmd]),
+    {reply, Id, State};
+
+handle_call({add_adapter_to_cmd, undefined, CmdId, Adapter}, From, #state{sess=Sess} = State) ->
+    handle_call({add_adapter_to_cmd, Sess, CmdId, Adapter}, From, State);
+handle_call({add_adapter_to_cmd, Sess, Id, Adapter}, _From, State) ->
+    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
+    case lists:member(Adapter, Cmd#ddCmd.adapters) of
+        false ->
+            NewAdapters = [Adapter|Cmd#ddCmd.adapters];
+        true ->
+            NewAdapters = Cmd#ddCmd.adapters
+    end,
+    Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     {reply, Id, State};
 
 handle_call({add_view, undefined, Owner, Name, CmdId, ViewsState}, From, #state{sess=Sess} = State) ->
@@ -262,12 +279,10 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
             Cmd = internal_get_command(Sess, OldView#ddView.cmd),
             ?Debug("The old cmd ~p", [Cmd]),
             %% TODO: Handle multiple adapters.
-            [Adapter] = Cmd#ddCmd.adapters,
             UpdateCmdParams = {update_command,
                                Sess,
                                Cmd#ddCmd.id,
                                Cmd#ddCmd.owner,
-                               Adapter,
                                Cmd#ddCmd.name,
                                Qry,
                                Cmd#ddCmd.opts},
@@ -322,6 +337,8 @@ handle_call({delete_view, Sess, ViewId}, _From, State) ->
             {reply, {error, <<"Unable to find the view to delete">>}, State}
     end;
 
+handle_call({get_view, undefined, ViewId}, From, #state{sess = Sess} = State) ->
+    handle_call({get_view, Sess, ViewId}, From, State);
 handle_call({get_view, Sess, ViewId}, _From, #state{} = State) ->
     ?Debug("get view by id ~p", [ViewId]),
     case Sess:run_cmd(select, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
@@ -338,9 +355,8 @@ handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess}
 handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
     ?Debug("get_view ~p", [Name]),
     {Views, true} = Sess:run_cmd(select, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    %% TODO: Add support to multiples adapters.
-    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters=[Adapter], _='_'}, [], ['$_']}]])} || V <- Views],
-    Result = [V || {V, {C, true}} <- ListResult, C =/= []],
+    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters='$1', _='_'}, [], ['$1']}]])} || V <- Views],
+    Result = [V || {V, {[C], true}} <- ListResult, lists:member(Adapter, C)],
     if
         length(Result) > 0 ->
             %% TODO: How can we discriminate to ignore the correct one?
@@ -385,9 +401,9 @@ handle_call({get_connects, Sess, User}, _From, State) ->
              end
             || C <- Cons];
         true ->
-            lists:foldl(fun(C,Acc) ->        
+            lists:foldl(fun(C,Acc) ->
                 HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
-                if (HavePerm == true)   ->
+                if (HavePerm == true) ->
                         [if
                              is_integer(C#ddConn.owner) ->
                                  C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
