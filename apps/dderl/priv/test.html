@@ -1,43 +1,77 @@
 <html>
 	<head>
+        <link rel="stylesheet" href="./static/styles/dderl.css" type="text/css"/>
 	</head>
-    <script language="javascript" src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <script language="javascript" src="http://code.jquery.com/ui/1.8.24/jquery-ui.min.js"></script>
 	<body>
+        <div id='dash'></div>
+        <script src="./static/scripts/jquery.min.js"></script>
+        <script src="./static/scripts/jquery-ui.min.js"></script>
         <script>
             (function( $ ) {
-                $.widget( "nmk.progressbar", $.ui.dialog, {
-                //$.widget( "nmk.progressbar", {
-                	options: {
-                		title: ""
-                	},
-                	_create: function() {
-                		this.element.addClass( "progressbar" );
-                		this._update();
-                	},
-                	_setOption: function( key, value ) {
-                        $.ui.dialog.prototype._setOption.call(this, key, value)
-                		this.options[ key ] = value;
-                		this._update();
-                
-                        //this._super('_setOption', key, value);
-                        //$.Widget.prototype._setOption.apply(this, arguments);
-                	},
-                	_update: function() {
-                		var progress = this.options.title + "%";
-                		this.element.text( progress );
-                	}
+                function addDash(value)
+                {
+                    var inp = $('<div>').appendTo('#dashes');
+                    $('<input>')
+                        .val(value)
+                        .attr('type', 'text')
+                        .button()
+                        .addClass('tb_completed')
+                        .css('width', '100px')
+                        .css('height', '20px')
+                        .css('text-align', 'right')
+                        .css('padding', '0')
+                        .css('margin', '0px -1px 0px 0px')
+                        .appendTo(inp);
+                    $('<button>')
+                        .text('Remove')
+                        .button({icons: {primary: 'ui-icon-close'}, text: false})
+                        .css('height', '20px')
+                        .click(function(e) {
+                                inp.remove();
+                            })
+                        .appendTo(inp);
+                    $('<button>')
+                        .text('Update')
+                        .button({icons: {primary: 'ui-icon-pencil'}, text: false})
+                        .css('height', '20px')
+                        .appendTo(inp);
+                    inp.buttonset();
+                }
+
+                $(document).ready(function() {
+                    var inp = $('<div>').appendTo('#dash');
+                    var i = $('<input>')
+                        .attr('type', 'text')
+                        .button()
+                        .addClass('tb_empty')
+                        .css('width', '100px')
+                        .css('height', '20px')
+                        .css('text-align', 'right')
+                        .css('padding', '0')
+                        .css('margin', '0px -1px 0px 0px')
+                        .appendTo(inp);
+                    $('<button>')
+                        .text('Save this Dash')
+                        .button({icons: {primary: 'ui-icon-disk'}, text: false})
+                        .css('height', '20px')
+                        .click(function() {
+                                addDash(i.val());
+                            })
+                        .appendTo(inp);
+                    $('<button>')
+                        .text('Show Others')
+                        .button({icons: {primary: 'ui-icon-triangle-1-s'}, text: false})
+                        .css('height', '20px')
+                        .click(function(e) {
+                                $('#dashes').toggle();
+                            })
+                        .appendTo(inp);
+                    inp.buttonset();
+                    $('<div>')
+                        .attr('id', 'dashes')
+                        .appendTo('#dash');
                 });
             } ( jQuery ) );
-            $(document).ready(function() {
-                $('<div>')
-                    .appendTo(document.body)
-                    .progressbar({
-                        title       : "0"
-                    })
-                    //.progressbar('option', 'title', "100");
-            });
         </script>
 	</body>
 </html>
-
