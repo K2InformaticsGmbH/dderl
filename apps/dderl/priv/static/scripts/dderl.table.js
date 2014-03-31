@@ -2821,6 +2821,9 @@
                 computedFocus = gvp.bottom + _rows.rows.length - 2 * gvpH;
                 if(computedFocus < 0) computedFocus = 0;
                 if(computedFocus > self._gdata.length - 1) computedFocus = self._gdata.length - 1;
+                if(_rows.focus === 0) {
+                    computedFocus = self._gdata.length - 1;
+                }
                 redraw = true;
                 needScroll = true;
                 break;
