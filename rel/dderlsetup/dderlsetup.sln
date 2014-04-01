@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "dderlsetup", "dderlsetup.vdproj", "{721FCB63-7D63-4166-94AF-1D2804479845}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Default = Debug|Default
+		Release|Default = Release|Default
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{721FCB63-7D63-4166-94AF-1D2804479845}.Debug|Default.ActiveCfg = Debug
+		{721FCB63-7D63-4166-94AF-1D2804479845}.Debug|Default.Build.0 = Debug
+		{721FCB63-7D63-4166-94AF-1D2804479845}.Release|Default.ActiveCfg = Release
+		{721FCB63-7D63-4166-94AF-1D2804479845}.Release|Default.Build.0 = Release
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
