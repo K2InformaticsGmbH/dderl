@@ -93,8 +93,8 @@
 @goto :EOF
 
 :attach
-@for /f "usebackq" %%I in (`hostname`) do @set hostname=%%I
-start "%node_name% attach" %werl% -boot "%clean_boot_script%" -remsh %node_name%@%hostname% -sname console -setcookie %erlang_cookie%
+@for /f "delims=@ tokens=1,2" %%I in ("%name%") do @set host=%%J
+start "%node_name% attach" %werl% -boot "%clean_boot_script%" -remsh %name% -name console@%host% -setcookie %erlang_cookie%
 @goto :EOF
 
 :upgrade
