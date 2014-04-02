@@ -104,7 +104,7 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) -> gen_server:call(?MODULE, {add_adapte
 
 -spec get_maxrowcount() -> integer().
 get_maxrowcount() ->
-    imem_meta:get_config_hlk(ddConfig, {imem,imem_sql,rownumDefaultLimit}, ?MODULE, [node()], 10000).
+    imem_meta:get_config_hlk(ddConfig, {imem, imem_sql_expr, rownumDefaultLimit}, imem_sql_expr, [node()], 10000).
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
