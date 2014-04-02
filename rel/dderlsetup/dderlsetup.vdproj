@@ -93,6 +93,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0233257C4E5F4389BF655D07EBE1876F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_024A653F0F17499387EC6F3E1A31F468"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2296,6 +2302,12 @@
         "Entry"
         {
         "MsmKey" = "8:_46DCF6A6235242158E6B7F8B356DB260"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -9044,6 +9056,26 @@
             "TargetName" = "8:otp_internal.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0233257C4E5F4389BF655D07EBE1876F"
+            {
+            "SourcePath" = "8:..\\dderl\\bin\\dderl.ico"
+            "TargetName" = "8:dderl.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -16404,6 +16436,26 @@
             "TargetName" = "8:angular-cookies.min.js"
             "Tag" = "8:"
             "Folder" = "8:_E655A703E5CA44158216961630AF45B9"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_470B38BE90674C40A820B7D0BCF1B38D"
+            {
+            "SourcePath" = "8:..\\dderl\\bin\\banner.jpg"
+            "TargetName" = "8:banner.jpg"
+            "Tag" = "8:"
+            "Folder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -39181,7 +39233,7 @@
             "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
             "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
             "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
-            "Icon" = "8:_72ECB4E5600241EA87B67DA6484FF146"
+            "Icon" = "8:_0233257C4E5F4389BF655D07EBE1876F"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_819A9F35D5174DBEB9AC9CB8D76D87DE"
@@ -39195,7 +39247,7 @@
             "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
             "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
             "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
-            "Icon" = "8:_72ECB4E5600241EA87B67DA6484FF146"
+            "Icon" = "8:_0233257C4E5F4389BF655D07EBE1876F"
             "Feature" = "8:"
             }
         }
@@ -39225,7 +39277,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "UpdateText"
@@ -39269,7 +39322,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39312,7 +39366,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39334,7 +39389,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "CopyrightWarning"
@@ -39382,7 +39438,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "InstallAllUsersVisible"
@@ -39426,7 +39483,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "CopyrightWarning"
@@ -39474,7 +39532,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39496,7 +39555,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39527,7 +39587,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "ShowProgress"
@@ -39571,7 +39632,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "ShowProgress"
