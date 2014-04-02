@@ -79,8 +79,8 @@ handle_info(logout, #state{user = User} = State) ->
 handle_info(invalid_credentials, #state{} = State) ->
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, invalid_credentials, State};
-handle_info({'EXIT', Pid, normal}, #state{user = User} = State) ->
-    ?Debug("Received normal exit from ~p for ~p", [Pid, User]),
+handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
+    %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
 handle_info(Info, #state{user = User} = State) ->
     ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),

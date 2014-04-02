@@ -43,7 +43,7 @@ init() ->
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
-        lager:__L(__File, "{~s:~s:~p} ~s", [__File,__Func,__Line,__Msg]),
+        lager:__L(__File, "{~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg]),
         dderl_dal:log_to_db(__L
                             , list_to_atom(__File)
                             , list_to_atom(__Func)
@@ -63,11 +63,19 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
         try list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)))
         catch _:_ -> undefined
         end,
-    Service  = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    Type     = proplists:get_value(<<"type">>, BodyJson, <<>>),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = proplists:get_value(<<"password">>, BodyJson, <<>>),
-    Tnsstr   = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
+    Service   = proplists:get_value(<<"service">>, BodyJson, <<>>),
+    Type      = proplists:get_value(<<"type">>, BodyJson, <<>>),
+    User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password  = proplists:get_value(<<"password">>, BodyJson, <<>>),
+    Tnsstr    = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
+    Defaults  = imem_meta:get_config_hlk(ddConfig, {dderl, ?MODULE, nls_lang}, ?MODULE, [node()],
+                                         [{<<"languange">>, <<"GERMAN">>},
+                                          {<<"territory">>, <<"SWITZERLAND">>},
+                                          {<<"charset">>, <<"AL32UTF8">>}]),
+    Language  = get_value_empty_default(<<"languange">>, BodyJson, Defaults),
+    Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
+    Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
+    NLS_LANG   = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
     ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
     LogFun = fun
                  ({Lvl, File, Func, Line, Msg}) ->
@@ -103,12 +111,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                         , Port
                         , binary_to_list(Service)])),
                 ?Info("session:open ~p", [{User, Password, NewTnsstr}]),
-                OciPort = oci_port:start_link([{logging, true}], LogFun),
+                OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
                 ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
             end;
         true ->
             ?Info("session:open ~p", [{User, Password, Tnsstr}]),
-            OciPort = oci_port:start_link([{logging, true}], LogFun),
+            OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
             ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
@@ -124,6 +132,9 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                                        , {type,     Type}
                                        , {user,     User}
                                        , {tnsstr,   Tnsstr}
+                                       , {languange,Language}
+                                       , {territory,Territory}
+                                       , {charset,  Charset}
                                        ]
                           , schm    = binary_to_atom(Service, utf8)
                           },
@@ -148,60 +159,6 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
             Priv
-    end;
-
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefined) ->
-    process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []});
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv) ->
-    [{<<"connect">>,BodyJson}] = ReqBody,
-    Ip     = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port   = proplists:get_value(<<"port">>, BodyJson, <<>>),
-    Schema = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User   = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)))),
-    NewPassword = list_to_binary(hexstr_to_list(binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)))),
-    Type = get_connection_type(Ip),
-    ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Schema, {User, Password, NewPassword}),
-    case ResultConnect of
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
-            Priv;
-        {error, Error} ->
-            ?Error("DB connect error ~p", [Error]),
-            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
-            Priv;
-        {ok, Connection} when is_tuple(Connection) ->
-            ?Debug("session ~p", [Connection]),
-            ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            %% Id undefined if we are creating a new connection.
-            Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
-                          , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner   = UserId
-                          , adapter = oci
-                          , access  = [ {ip,   Ip}
-                                       , {port, Port}
-                                       , {type, Type}
-                                       , {user, User}
-                                       ]
-                          , schm    = binary_to_atom(Schema, utf8)
-                          },
-            ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            case dderl_dal:add_connect(Sess, Con) of
-                {error, Msg} ->
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                NewConn ->
-                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
-                        system -> Owner = <<"system">>;
-                        Owner -> Owner
-                    end,
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
-            end,
-            Priv#priv{connections = [Connection|Connections]}
     end;
 
 process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv) ->
@@ -726,35 +683,6 @@ build_srtspec_json(SortSpecs) ->
        ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
      } || {SP,AscDesc} <- SortSpecs].
 
--spec int(integer()) -> integer().
-int(C) when $0 =< C, C =< $9 -> C - $0;
-int(C) when $A =< C, C =< $F -> C - $A + 10;
-int(C) when $a =< C, C =< $f -> C - $a + 10.
-
--spec hexstr_to_list(list()) -> list().
-hexstr_to_list([]) -> [];
-hexstr_to_list([X,Y|T]) -> [int(X)*16 + int(Y) | hexstr_to_list(T)].
-
--spec connect_to_erlimem(atom(), list(), binary(), binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
-connect_to_erlimem(rpc, _Ip, Port, Schema, Credentials) ->
-    try binary_to_existing_atom(Port, utf8) of
-        AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
-    catch _:_ -> {error, "Invalid port for connection type rpc"}
-    end;
-connect_to_erlimem(tcp, Ip, Port, Schema, Credentials) ->
-    try binary_to_integer(Port) of
-        IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema}, Credentials)
-    catch _:_ -> {error, "Invalid port for connection type tcp"}
-    end;
-connect_to_erlimem(Type, _Ip, _Port, Schema, Credentials) ->
-    erlimem:open(Type, {Schema}, Credentials).
-
--spec get_connection_type(binary()) -> atom().
-get_connection_type(<<"local_sec">>) -> local_sec;
-get_connection_type(<<"local">>) -> local;
-get_connection_type(<<"rpc">>) -> rpc;
-get_connection_type(_Ip) -> tcp.
-
 -spec error_invalid_conn({atom(), pid()}, [{atom(), pid()}]) -> term().
 error_invalid_conn(Connection, Connections) ->
     Err = <<"Trying to process a query with an unowned connection">>,
@@ -913,3 +841,9 @@ add_function_type(_, Value) ->
 escape_quotes([]) -> [];
 escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
 escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
+
+get_value_empty_default(Key, Proplist, Defaults) ->
+    case proplists:get_value(Key, Proplist, <<>>) of
+        <<>> -> proplists:get_value(Key, Defaults, <<>>);
+        Value -> Value
+    end.

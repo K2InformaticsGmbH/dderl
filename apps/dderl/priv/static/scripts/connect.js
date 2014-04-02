@@ -202,8 +202,9 @@ function connect_dlg()
       '          <td valign=bottom><input type="text" id="user" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=left valign=center><input type="checkbox" id="secure" value="1">&nbsp;Secure</td>' +
+      '      <tr><td align=left valign=center><input type="checkbox" id="secure" value="1">&nbsp;Secure</td></tr>' +
       '  </table>' +
+      '  <input type="hidden" id="languange"><input type="hidden" id="territory"><input type="hidden" id="charset">' +
       '</div>')
     .appendTo(document.body)
     .dialog({
@@ -255,7 +256,10 @@ function connect_dlg()
                                              type      :$('input:radio[name=db_type]:checked').val(),
                                              user      :$('#user').val(),
                                              password  :Password,
-                                             tnsstr    :$('#tnsstr').val()}};
+                                             tnsstr    :$('#tnsstr').val(),
+                                             languange :$('#languange').val(),
+                                             territory :$('#territory').val(),
+                                             charset   :$('#charset').val()}};
 
                 if(NewPassword && urlConnect == '/app/connect_change_pswd') {
                     connectJson.connect.new_password = NewPassword;
@@ -437,6 +441,9 @@ function load_login_form(id) {
         $('#sid').val(connects[id].sid);
         $('#user').val(connects[id].user);
         $('#tnsstr').val(connects[id].tnsstr);
+        $('#languange').val(connects[id].language);
+        $('#territory').val(connects[id].territory);
+        $('#charset').val(connects[id].charset);
         $('input:radio[name=db_type][value='+connects[id].type+']').click();
         var conName = '';
         if(connects[id].hasOwnProperty('type')) {
