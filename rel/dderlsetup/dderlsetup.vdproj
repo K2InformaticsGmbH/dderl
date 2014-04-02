@@ -2505,12 +2505,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_4D6C1018BC9F44A9A7F9919FDEB630EB"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_4D915777E982406A92923BACAE923CA2"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5752,12 +5746,6 @@
         "Entry"
         {
         "MsmKey" = "8:_A78CA072DD5F4C989ED61FB5F795750D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_A7B15949180541A8958725A8F54D2E79"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -17110,26 +17098,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4D6C1018BC9F44A9A7F9919FDEB630EB"
-            {
-            "SourcePath" = "8:..\\dderl\\etc\\vm.args"
-            "TargetName" = "8:vm.args"
-            "Tag" = "8:"
-            "Folder" = "8:_7AD05DA7D48344BCAB698F37467D69D8"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4D915777E982406A92923BACAE923CA2"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ace-01.08.2014\\snippets\\protobuf.js"
@@ -27936,26 +27904,6 @@
             "TargetName" = "8:gen.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A7B15949180541A8958725A8F54D2E79"
-            {
-            "SourcePath" = "8:..\\dderl\\etc\\app.config"
-            "TargetName" = "8:app.config"
-            "Tag" = "8:"
-            "Folder" = "8:_7AD05DA7D48344BCAB698F37467D69D8"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -39050,17 +38998,6 @@
                             }
                         }
                     }
-                    "{9EF0B969-E518-4E46-987F-47570745A589}:_7AD05DA7D48344BCAB698F37467D69D8"
-                    {
-                    "Name" = "8:etc"
-                    "AlwaysCreate" = "11:FALSE"
-                    "Condition" = "8:"
-                    "Transitive" = "11:FALSE"
-                    "Property" = "8:_5A4FDEA37FC94BB4A374DAF1A7F9101D"
-                        "Folders"
-                        {
-                        }
-                    }
                     "{9EF0B969-E518-4E46-987F-47570745A589}:_A82CE1684B474354BC362D137CA5CBC9"
                     {
                     "Name" = "8:erts-5.10.1"
@@ -39113,7 +39050,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DDErl"
         "ProductCode" = "8:{FC06376B-40B1-42DA-B1B2-F43185F95200}"
-        "PackageCode" = "8:{A7E45D5C-268E-4CC1-9C24-05AADBD2E078}"
+        "PackageCode" = "8:{4330676F-3941-413E-9F07-E1119DA08E14}"
         "UpgradeCode" = "8:{3A840EDF-B90B-472D-8F70-4F729712E45A}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -39233,18 +39170,32 @@
         }
         "Shortcut"
         {
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_819A9F35D5174DBEB9AC9CB8D76D87DE"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_254C6DD92C764499A18C7BF08A50739E"
             {
-            "Name" = "8:DDErl"
-            "Arguments" = "8:console"
-            "Description" = "8:"
+            "Name" = "8:DDErl Attach"
+            "Arguments" = "8:attach"
+            "Description" = "8:Attach a remote-shell to DDErl service"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
             "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
             "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
             "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
-            "Icon" = "8:"
+            "Icon" = "8:_72ECB4E5600241EA87B67DA6484FF146"
+            "Feature" = "8:"
+            }
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_819A9F35D5174DBEB9AC9CB8D76D87DE"
+            {
+            "Name" = "8:DDErl"
+            "Arguments" = "8:console"
+            "Description" = "8:Starts DDErl as frontend application"
+            "ShowCmd" = "3:1"
+            "IconIndex" = "3:0"
+            "Transitive" = "11:FALSE"
+            "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
+            "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
+            "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
+            "Icon" = "8:_72ECB4E5600241EA87B67DA6484FF146"
             "Feature" = "8:"
             }
         }
