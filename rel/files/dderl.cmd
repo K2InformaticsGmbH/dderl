@@ -22,6 +22,9 @@
 @rem extract erlang cookie from vm.args
 @for /f "usebackq tokens=1-2" %%I in (`findstr /b \-setcookie "%vm_args%"`) do @set erlang_cookie=%%J
 
+::@rem extract node name from vm.args
+::@for /f "usebackq tokens=1-2" %%I in (`findstr /b \-node "%vm_args%"`) do @set node=%%J
+
 @set erts_bin=%node_root%\erts-%erts_version%\bin
 
 @set service_name=%node_name%_%release_version%
@@ -68,7 +71,8 @@
 @goto :EOF
 
 :console
-@start "%node_name% console" %werl% -boot "%node_boot_script%" -config "%sys_config%" -args_file "%vm_args%" -sname %node_name%
+@start "%node_name% console" %werl% -boot "%node_boot_script%" -config "%sys_config%" -args_file "%vm_args%"
+::start "%node_name% console %werl% -boot %node_boot_script% -config %sys_config% -args_file %vm_args% -sname %node_name%"
 @goto :EOF
 
 :query

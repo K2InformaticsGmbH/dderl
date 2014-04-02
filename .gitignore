@@ -16,6 +16,7 @@ priv/static/log/
 rel/agustin/
 rel/bikram/
 rel/stefan/
+rel/dderl*
 snapshot/
 log/
 *.pydevproject
