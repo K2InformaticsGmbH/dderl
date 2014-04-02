@@ -154,6 +154,10 @@ function insertAtCursor(myField, myValue) {
 
         // dialog elements
 
+        // Set the sql to 50%, 60% of the parent window
+        self.options.width = $(window).width() * 0.4;
+        self.options.height = $(window).height() * 0.5;
+
         // field for text width measurement in pixels
         // added to document.body once
         if($('#txtlen').length === 0) {
