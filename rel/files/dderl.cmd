@@ -22,8 +22,21 @@
 @rem extract erlang cookie from vm.args
 @for /f "usebackq tokens=1-2" %%I in (`findstr /b \-setcookie "%vm_args%"`) do @set erlang_cookie=%%J
 
-::@rem extract node name from vm.args
-::@for /f "usebackq tokens=1-2" %%I in (`findstr /b \-node "%vm_args%"`) do @set node=%%J
+@rem extract node name from vm.args
+@for /f "usebackq tokens=1-2" %%I in (`findstr /b \-name "%vm_args%"`) do @set name=%%J
+@if %name%=="" (
+    @set nodenamearg=-sname %node_name%
+) else (
+    @set nodenamearg=-name %name%
+)
+
+@set vm_t_args=%releases_dir%\%release_version%\vm_t.args
+@set vm_t1_args=%releases_dir%\%release_version%\vm_t1.args
+@echo.> "%vm_t1_args%"
+@for /f "usebackq tokens=*" %%I in (`findstr /v [#] "%vm_args%"`) do @echo %%I >> "%vm_t1_args%"
+@echo.> "%vm_t_args%"
+@for /f "usebackq tokens=*" %%I in (`findstr /v \-name "%vm_t1_args%"`) do @echo %%I >> "%vm_t_args%"
+@del /f /q "%vm_t1_args%"
 
 @set erts_bin=%node_root%\erts-%erts_version%\bin
 
@@ -54,7 +67,7 @@
 @set description=Erlang node %node_name% in %node_root%
 @set start_erl=%node_root%\bin\start_erl.cmd
 @set args= ++ %node_name% ++ %node_root%
-@%erlsrv% add %service_name% -c "%description%" -sname %node_name% -w "%node_root%" -m "%start_erl%" -args "%args%" -stopaction "init:stop()."
+@%erlsrv% add %service_name% -c "%description%" %nodenamearg% -w "%node_root%" -m "%start_erl%" -args "%args%" -stopaction "init:stop()."
 @goto :EOF
 
 :uninstall
@@ -72,7 +85,6 @@
 
 :console
 @start "%node_name% console" %werl% -boot "%node_boot_script%" -config "%sys_config%" -args_file "%vm_args%"
-::start "%node_name% console %werl% -boot %node_boot_script% -config %sys_config% -args_file %vm_args% -sname %node_name%"
 @goto :EOF
 
 :query
@@ -81,8 +93,8 @@
 @goto :EOF
 
 :attach
-@for /f "usebackq" %%I in (`hostname`) do @set hostname=%%I
-start "%node_name% attach" %werl% -boot "%clean_boot_script%" -remsh %node_name%@%hostname% -sname console -setcookie %erlang_cookie%
+@for /f "delims=@ tokens=1,2" %%I in ("%name%") do @set host=%%J
+start "%node_name% attach" %werl% -boot "%clean_boot_script%" -remsh %name% -name console@%host% -setcookie %erlang_cookie%
 @goto :EOF
 
 :upgrade

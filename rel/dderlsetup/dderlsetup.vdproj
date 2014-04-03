@@ -93,6 +93,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0233257C4E5F4389BF655D07EBE1876F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_024A653F0F17499387EC6F3E1A31F468"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2301,6 +2307,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_4752FE28AD86463489DBF35D4C5CAC80"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2500,12 +2512,6 @@
         "Entry"
         {
         "MsmKey" = "8:_4D6A8358488F4FE6B93CB0D8C25C3D77"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_4D6C1018BC9F44A9A7F9919FDEB630EB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -5391,12 +5397,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9D6F0E4A2B8A49779F6081824CEF9091"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_9D8F3A70AF6A42CC90B61B38FBD64D44"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5752,12 +5752,6 @@
         "Entry"
         {
         "MsmKey" = "8:_A78CA072DD5F4C989ED61FB5F795750D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_A7B15949180541A8958725A8F54D2E79"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -9056,6 +9050,26 @@
             "TargetName" = "8:otp_internal.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0233257C4E5F4389BF655D07EBE1876F"
+            {
+            "SourcePath" = "8:..\\dderl\\bin\\dderl.ico"
+            "TargetName" = "8:dderl.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -16430,6 +16444,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_470B38BE90674C40A820B7D0BCF1B38D"
+            {
+            "SourcePath" = "8:..\\dderl\\bin\\banner.jpg"
+            "TargetName" = "8:banner.jpg"
+            "Tag" = "8:"
+            "Folder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4752FE28AD86463489DBF35D4C5CAC80"
             {
             "SourcePath" = "8:..\\dderl\\lib\\asn1-2.0.1\\ebin\\asn1ct_name.beam"
@@ -17096,26 +17130,6 @@
             "TargetName" = "8:lager_file_backend.beam"
             "Tag" = "8:"
             "Folder" = "8:_E4CB0CDC963848D594A838AA6173C61D"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4D6C1018BC9F44A9A7F9919FDEB630EB"
-            {
-            "SourcePath" = "8:..\\dderl\\etc\\vm.args"
-            "TargetName" = "8:vm.args"
-            "Tag" = "8:"
-            "Folder" = "8:_7AD05DA7D48344BCAB698F37467D69D8"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -26730,26 +26744,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D6F0E4A2B8A49779F6081824CEF9091"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\ebin\\flash_policy.beam"
-            "TargetName" = "8:flash_policy.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_4C2F0607B43147149AFE8B0D9D5846EB"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D8F3A70AF6A42CC90B61B38FBD64D44"
             {
             "SourcePath" = "8:..\\dderl\\lib\\jsx-1.4.2\\ebin\\jsx.beam"
@@ -27936,26 +27930,6 @@
             "TargetName" = "8:gen.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A7B15949180541A8958725A8F54D2E79"
-            {
-            "SourcePath" = "8:..\\dderl\\etc\\app.config"
-            "TargetName" = "8:app.config"
-            "Tag" = "8:"
-            "Folder" = "8:_7AD05DA7D48344BCAB698F37467D69D8"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -37687,6 +37661,17 @@
                 {
                 }
             }
+            "{1525181F-901A-416C-8A58-119130FE478E}:_B306B7F303254D4E81DD91DBEFAE3494"
+            {
+            "Name" = "8:#1915"
+            "AlwaysCreate" = "11:TRUE"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Property" = "8:AppDataFolder"
+                "Folders"
+                {
+                }
+            }
             "{3C67513D-01DD-4637-8A68-80971EB9504F}:_EB9C8DF9440F4FCFB9B5160EDEE9B11B"
             {
             "DefaultLocation" = "8:[ProgramFiles64Folder][Manufacturer]\\[ProductName]"
@@ -39050,17 +39035,6 @@
                             }
                         }
                     }
-                    "{9EF0B969-E518-4E46-987F-47570745A589}:_7AD05DA7D48344BCAB698F37467D69D8"
-                    {
-                    "Name" = "8:etc"
-                    "AlwaysCreate" = "11:FALSE"
-                    "Condition" = "8:"
-                    "Transitive" = "11:FALSE"
-                    "Property" = "8:_5A4FDEA37FC94BB4A374DAF1A7F9101D"
-                        "Folders"
-                        {
-                        }
-                    }
                     "{9EF0B969-E518-4E46-987F-47570745A589}:_A82CE1684B474354BC362D137CA5CBC9"
                     {
                     "Name" = "8:erts-5.10.1"
@@ -39113,7 +39087,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DDErl"
         "ProductCode" = "8:{FC06376B-40B1-42DA-B1B2-F43185F95200}"
-        "PackageCode" = "8:{A7E45D5C-268E-4CC1-9C24-05AADBD2E078}"
+        "PackageCode" = "8:{199437D5-EB12-4120-85C1-E013916AE3DB}"
         "UpgradeCode" = "8:{3A840EDF-B90B-472D-8F70-4F729712E45A}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -39135,7 +39109,7 @@
         "SearchPath" = "8:"
         "UseSystemSearchPath" = "11:TRUE"
         "TargetPlatform" = "3:1"
-        "PreBuildEvent" = "8:"
+        "PreBuildEvent" = "8:cd $(ProjectDir)\\..\\\r\nrd /s /q dderl\r\ncd ..\r\nrebar clean compile generate"
         "PostBuildEvent" = "8:"
         "RunPostBuildEvent" = "3:0"
         }
@@ -39233,18 +39207,32 @@
         }
         "Shortcut"
         {
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_819A9F35D5174DBEB9AC9CB8D76D87DE"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_254C6DD92C764499A18C7BF08A50739E"
             {
-            "Name" = "8:DDErl"
-            "Arguments" = "8:console"
-            "Description" = "8:"
+            "Name" = "8:DDErl Attach"
+            "Arguments" = "8:attach"
+            "Description" = "8:Attach a remote-shell to DDErl service"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
             "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
             "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
             "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
-            "Icon" = "8:"
+            "Icon" = "8:_0233257C4E5F4389BF655D07EBE1876F"
+            "Feature" = "8:"
+            }
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_819A9F35D5174DBEB9AC9CB8D76D87DE"
+            {
+            "Name" = "8:DDErl"
+            "Arguments" = "8:console"
+            "Description" = "8:Starts DDErl as frontend application"
+            "ShowCmd" = "3:1"
+            "IconIndex" = "3:0"
+            "Transitive" = "11:FALSE"
+            "Target" = "8:_7605ABE42BF148C8903FA7CC96DA11CF"
+            "Folder" = "8:_05E6125A9D3B4A0797E157FA154BED80"
+            "WorkingFolder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
+            "Icon" = "8:_0233257C4E5F4389BF655D07EBE1876F"
             "Feature" = "8:"
             }
         }
@@ -39274,7 +39262,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "UpdateText"
@@ -39318,7 +39307,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39361,7 +39351,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39383,7 +39374,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "CopyrightWarning"
@@ -39431,7 +39423,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "InstallAllUsersVisible"
@@ -39475,7 +39468,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "CopyrightWarning"
@@ -39523,7 +39517,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39545,7 +39540,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -39576,7 +39572,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "ShowProgress"
@@ -39620,7 +39617,8 @@
                             "Type" = "3:8"
                             "ContextData" = "8:Bitmap"
                             "Attributes" = "3:4"
-                            "Setting" = "3:1"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
                             "UsePlugInResources" = "11:TRUE"
                             }
                             "ShowProgress"
