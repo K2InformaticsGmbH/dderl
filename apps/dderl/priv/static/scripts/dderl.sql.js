@@ -148,6 +148,7 @@ function insertAtCursor(myField, myValue) {
             if(self.options.title === null) {
                 self.options.title = 'Query'+DEFAULT_COUNTER+'.sql';
                 ++DEFAULT_COUNTER;
+                self._isDefaultTitle = true;
             }
             self._title = self.options.title;
         }
@@ -332,6 +333,12 @@ function insertAtCursor(myField, myValue) {
         self._footerWidth = self._addBtngrpToDiv(self._footerDiv);
     },
 
+    _setTitle: function(newTitle) {
+        var self = this;
+        self._title = self.options.title = newTitle;
+        self._dlg.dialog('option', 'title', newTitle);
+    },
+
     _addBtngrpToDiv: function(toolDiv) {
         var self = this;
 
@@ -423,6 +430,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _reloadParsedCmd: function(_parsed) {
+        this._renderParsed(_parsed);
         var initOptions = {
             title          : this._title,
             autoOpen       : false,
@@ -432,7 +440,6 @@ function insertAtCursor(myField, myValue) {
             dderlCmdStrs   : this._history,
             dderlSqlEditor : this._dlg
         };
-        this._renderParsed(_parsed);
         this._modCmd = this._cmdFlat;
         if(null === this._cmdOwner) {
             this._cmdOwner = $('<div>')
@@ -498,39 +505,43 @@ function insertAtCursor(myField, myValue) {
             alert_jq(error);*/
     },
     _renderParsed: function(_parsed) {
-        var boxResult;
+        var boxResult, self = this;
 
-        this._setTabFocus();
+        self._setTabFocus();
         //TODO: pass the boxing to the ace editor for sections.
         if(_parsed.hasOwnProperty('sqlbox') && !is_ace_editor()) {
-            console.log(this._boxJson);
-            this._boxJson = _parsed.sqlbox;
+            console.log(self._boxJson);
+            self._boxJson = _parsed.sqlbox;
             if(is_angular_boxing()) {
-                set_boxing(this._boxJson);
+                set_boxing(self._boxJson);
             } else {
-                boxResult = this._boxing(this._boxJson, this._boxDiv.width(), null, this._boxDiv[0]);
-                this._boxDiv.html('');
-                boxResult.div.appendTo(this._boxDiv);
+                boxResult = self._boxing(self._boxJson, self._boxDiv.width(), null, self._boxDiv[0]);
+                self._boxDiv.html('');
+                boxResult.div.appendTo(self._boxDiv);
             }
         }
         if(_parsed.hasOwnProperty('flat')) {
-            this._flatTb.val(_parsed.flat);
-            this._cmdFlat = this._flatTb.val();
+            self._flatTb.val(_parsed.flat);
+            self._cmdFlat = self._flatTb.val();
             if (is_ace_editor() && !(_parsed.hasOwnProperty('pretty'))) {
-                set_sql_content(this._boxDiv.attr('id'), _parsed.flat);
+                set_sql_content(self._boxDiv.attr('id'), _parsed.flat);
             }
         }
         if(_parsed.hasOwnProperty('pretty')) {
-            this._prettyTb.val(_parsed.pretty);
-            this._cmdPretty = this._prettyTb.val();
-            if(!this._cmdChanged) {
-                this._cmdChanged = true;
-                this._editDiv.tabs("option", "active", 1);
-                this._setTabFocus();
+            self._prettyTb.val(_parsed.pretty);
+            self._cmdPretty = self._prettyTb.val();
+            if(!self._cmdChanged) {
+                self._cmdChanged = true;
+                self._editDiv.tabs("option", "active", 1);
+                self._setTabFocus();
             }
             if (is_ace_editor()) {
-                set_sql_content(this._boxDiv.attr('id'), _parsed.pretty);
+                set_sql_content(self._boxDiv.attr('id'), _parsed.pretty);
             }
+        }
+        if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
+            self._setTitle(_parsed.sqlTitle);
+            self._isDefaultTitle = false;
         }
     },
 
@@ -670,7 +681,7 @@ function insertAtCursor(myField, myValue) {
  
     // translations to default dialog behavior
     open: function() {
-        this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
+        this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
