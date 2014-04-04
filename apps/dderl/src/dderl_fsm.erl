@@ -2076,13 +2076,13 @@ data_update_row({Id,Op,Fields}, _ColCount, #state{tableId=TableId}=State0) when 
 data_update_row({_,ins,Fields}, ColCount, #state{nav=raw,tableId=TableId,rawCnt=RawCnt,rawBot=RawBot,guiCnt=GuiCnt,dirtyTop=DT0,dirtyCnt=DC0}=State0) ->
     Id = RawBot+1,          
     ?Debug("insert fields ~p", [Fields]),
-    RowAsList = [Id,ins,{?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
+    RowAsList = [Id,ins,{{}, ?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
     ets:insert(TableId, list_to_tuple(RowAsList)),
     {[[Id,ins|lists:nthtail(3, RowAsList)]],State0#state{rawCnt=RawCnt+1,rawBot=Id,guiCnt=GuiCnt+1,dirtyTop=min(DT0,Id),dirtyBot=Id,dirtyCnt=DC0+1}};
 data_update_row({_,ins,Fields}, ColCount, #state{nav=ind,tableId=TableId,rawCnt=RawCnt,rawBot=RawBot,guiCnt=GuiCnt,dirtyTop=DT0,dirtyCnt=DC0}=State0) ->
     Id = RawBot+1,          
     ?Debug("insert fields ~p", [Fields]),
-    RowAsList = [Id,ins,{?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
+    RowAsList = [Id,ins,{{}, ?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
     ets:insert(TableId, list_to_tuple(RowAsList)),    
     {[[Id,ins|lists:nthtail(3, RowAsList)]],State0#state{rawCnt=RawCnt+1,rawBot=Id,guiCnt=GuiCnt+1,dirtyTop=min(DT0,Id),dirtyBot=Id,dirtyCnt=DC0+1}}.
 
