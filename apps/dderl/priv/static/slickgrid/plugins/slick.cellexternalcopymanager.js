@@ -406,15 +406,17 @@
                 clipTextCells[columns[usedCols[j]].name] = null;
                 for(var rg = 0; rg < ranges.length; ++rg) {
                     if(ranges[rg].contains(i, usedCols[j])) {
-                        if(columns[usedCols[j]].type === "numeric") {
-                            currentId = uniqueid() + counter.toString();
-                            ++counter;
-                            numericIdList[currentId] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
-                            clipTextCells[columns[usedCols[j]].name] = currentId;
-                        } else {
-                            clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        if(gridData[i][columns[usedCols[j]].field] !== "'$not_a_value'") {
+                            if(columns[usedCols[j]].type === "numeric") {
+                                currentId = uniqueid() + counter.toString();
+                                ++counter;
+                                numericIdList[currentId] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                                clipTextCells[columns[usedCols[j]].name] = currentId;
+                            } else {
+                                clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                            }
+                            isRowEmpty = false;
                         }
-                        isRowEmpty = false;
                         break;
                     }
                 }
@@ -461,8 +463,10 @@
                 cellValue = "";
                 for(var rg = 0; rg < ranges.length; ++rg) {
                     if(ranges[rg].contains(i, usedCols[j])) {
-                        cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
-                        isRowEmpty = false;
+                        if(gridData[i][columns[usedCols[j]].field] !== "'$not_a_value'") {
+                            cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                            isRowEmpty = false;
+                        }
                         break;
                     }
                 }
