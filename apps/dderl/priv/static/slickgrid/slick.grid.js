@@ -2641,10 +2641,10 @@ if (typeof Slick === "undefined") {
       if (pos) {
         var isAddNewRow = (pos.row == getDataLength());
         scrollRowIntoView(pos.row, !isAddNewRow);
-        setActiveCellInternal(getCellNode(pos.row, pos.cell), isAddNewRow || options.autoEdit);
+        setActiveCellInternal(getCellNode(pos.row, pos.cell), options.autoEdit);
         activePosX = pos.posX;
       } else {
-        setActiveCellInternal(getCellNode(activeRow, activeCell), (activeRow == getDataLength()) || options.autoEdit);
+        setActiveCellInternal(getCellNode(activeRow, activeCell), options.autoEdit);
       }
     }
 
