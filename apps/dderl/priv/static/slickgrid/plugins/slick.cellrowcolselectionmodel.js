@@ -163,19 +163,20 @@
 
                     var col = _grid.getColumnIndex(data.column.id);
                     var maxRow = _grid.getDataLength() - 1;
+                    var newActiveRowPos = Math.max(Math.min(gvpMid, maxRow), 0);
                     _grid.getEditorLock().commitCurrentEdit();
                     var activeCell = _grid.getActiveCell();
 
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                         if(col === 0) {
-                            _grid.setActiveCell(gvpMid, 1);
+                            _grid.setActiveCell(newActiveRowPos, 1);
                             _ranges = [];
                             var range = new Slick.Range(0, 1, maxRow, _grid.getColumns().length - 1);
                             range.fullCol = true;
                             _ranges.push(range);
                             setSelectedRanges(_ranges);
                         } else {
-                            _grid.setActiveCell(gvpMid, col);
+                            _grid.setActiveCell(newActiveRowPos, col);
                             setSelectedRanges([createFullColRange(0, col, maxRow, col)]);
                         }
                     } else if(col !== 0) {
@@ -183,7 +184,7 @@
                             return (col === _ranges[i].fromCell || col === _ranges[i].toCell);
                         });
                         if (matches.length === 0 && (e.ctrlKey || e.metaKey)) {
-                            _grid.setActiveCell(gvpMid, col);
+                            _grid.setActiveCell(newActiveRowPos, col);
                             _ranges.push(createFullColRange(0, col, maxRow, col));
                         } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
                             _ranges = $.grep(_ranges, function (o, i) {
