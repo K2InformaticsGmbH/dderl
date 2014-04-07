@@ -401,6 +401,7 @@
         rowObjects = [];
         for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
             clipTextCells = {};
+            var isRowEmpty = true;
             for (var j = 0; j < usedCols.length; ++j) {
                 clipTextCells[columns[usedCols[j]].name] = null;
                 for(var rg = 0; rg < ranges.length; ++rg) {
@@ -413,11 +414,14 @@
                         } else {
                             clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
                         }
+                        isRowEmpty = false;
                         break;
                     }
                 }
             }
-            rowObjects.push(clipTextCells);
+            if(!isRowEmpty) {
+                rowObjects.push(clipTextCells);
+            }
         }
         var result = JSON.stringify(rowObjects, undefined, 4);
         for(currentId in numericIdList) {
@@ -452,17 +456,21 @@
         clipTextRows = [];
         for (var i = boundRange.fromRow; i <= boundRange.toRow ; ++i) {
             clipTextCells = [];
+            var isRowEmpty = true;
             for (var j = 0; j < usedCols.length; ++j) {
                 cellValue = "";
                 for(var rg = 0; rg < ranges.length; ++rg) {
                     if(ranges[rg].contains(i, usedCols[j])) {
                         cellValue = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
+                        isRowEmpty = false;
                         break;
                     }
                 }
                 clipTextCells.push(cellValue);
             }
-            clipTextRows.push(clipTextCells.join("\t"));
+            if(!isRowEmpty) {
+                clipTextRows.push(clipTextCells.join("\t"));
+            }
         }
         return clipTextRows.join("\r\n");
     }
