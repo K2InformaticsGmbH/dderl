@@ -763,12 +763,6 @@ generate_sql(TableName, <<"ins">>, Rows, Columns, ColumnIds) ->
 
 -spec generate_ins_sql(binary(), [tuple()], iolist(), [#stmtCol{}], [integer()]) -> iolist().
 generate_ins_sql(_, [], _, _, _) -> [];
-generate_ins_sql(TableName, [Row], InsCols, Columns, ColumnIds) ->
-    [<<"insert into ">>, TableName, <<" (">>,
-     InsCols,
-     <<") values (">>,
-     generate_ins_values(Row, Columns, ColumnIds),
-     <<")">>];
 generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds) ->
     [<<"insert into ">>, TableName, <<" (">>,
      InsCols,
@@ -779,10 +773,6 @@ generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds) ->
 
 -spec generate_ins_cols([#stmtCol{}], [integer()]) -> iolist().
 generate_ins_cols(_, []) -> [];
-generate_ins_cols(Columns, [ColId]) ->
-    Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
-    [ColName];
 generate_ins_cols(Columns, [ColId | Rest]) ->
     Col = lists:nth(ColId, Columns),
     ColName = Col#stmtCol.alias,
@@ -801,11 +791,6 @@ generate_ins_values(Row, Columns, [ColId | Rest]) ->
 
 -spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> iolist().
 generate_upd_sql(_, [], _, _) -> [];
-generate_upd_sql(TableName, [Row], Columns, ColumnIds) ->
-    [<<"update ">>, TableName, <<" set ">>,
-     generate_set_value(Row, Columns, ColumnIds),
-     <<" where ">>,
-     generate_set_value(Row, Columns, [1])];
 generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
     [<<"update ">>, TableName, <<" set ">>,
      generate_set_value(Row, Columns, ColumnIds),

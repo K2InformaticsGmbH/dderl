@@ -873,11 +873,6 @@ generate_ins_values(Row, Columns, [ColId | Rest]) ->
 
 -spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()]) -> iolist().
 generate_upd_sql(_, [], _, _) -> [];
-generate_upd_sql(TableName, [Row], Columns, ColumnIds) ->
-    [<<"update ">>, TableName, <<" set ">>,
-     generate_set_value(Row, Columns, ColumnIds),
-     <<" where ">>,
-     generate_set_value(Row, Columns, [1])];
 generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
     [<<"update ">>, TableName, <<" set ">>,
      generate_set_value(Row, Columns, ColumnIds),
@@ -888,11 +883,6 @@ generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds) ->
 
 -spec generate_set_value(tuple(), [#stmtCol{}], [integer()]) -> iolist().
 generate_set_value(_, _, []) -> [];
-generate_set_value(Row, Columns, [ColId]) ->
-    Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
-    Value = element(3 + ColId, Row),
-    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value)];
 generate_set_value(Row, Columns, [ColId | Rest]) ->
     Col = lists:nth(ColId, Columns),
     ColName = Col#stmtCol.alias,
