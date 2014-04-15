@@ -6,8 +6,12 @@ Release history with new or improved features and bugfixes
 Version 1.0.7 (Release Date TBD)
 =======================================
 * Generalized erlang term editor, now it support any text in read only format
+* Implemented copy in JSON format and including the header
+* Added dashboard functionality
+* Integrated ACE editor for sql queries with syntax highlighting
 * Improved ctrl+click selection to not clear the selection in case of small mouse drags
 * Minimum size of columns set to fixed 40 pixels instead of proportional to the column name
+
 
 Version 1.0.6 (Release Date 04.09.2013)
 =======================================
