@@ -681,6 +681,8 @@ function beep()
     if (beepStorage) {
         // Reuse existing Data URL from sessionStorage
         beep.setAttribute("src", beepStorage);
+        beep.load();
+        beep.play();
     } else if (typeof(FileReader) === "function" && beep.currentSrc) { //I.E. 9 doesn't support FileReader
         // Create XHR and FileReader objects
         var xhr = new XMLHttpRequest();
@@ -711,9 +713,9 @@ function beep()
         }, false);
         // Send XHR
         xhr.send();
+        beep.load();
+        beep.play();
     }
-    beep.load();
-    beep.play();
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
