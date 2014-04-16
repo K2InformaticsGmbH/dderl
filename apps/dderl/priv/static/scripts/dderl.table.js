@@ -1146,7 +1146,7 @@
                 var strs = [];
                 for(s in self._filters[c].vals) strs.push(s);
                 if($.browser.msie) {
-                    self._filters[c].inp.val(strs.join('\n\r'));
+                    self._filters[c].inp.val(strs.join('\r\n'));
                 } else {
                     self._filters[c].inp.val(strs.join('\n'));
                 }
@@ -1187,7 +1187,7 @@
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
             if($.browser.msie) {
-                self._filters[c].inp.val(strs.join('\n\r'));
+                self._filters[c].inp.val(strs.join('\r\n'));
             } else {
                 self._filters[c].inp.val(strs.join('\n'));
             }
