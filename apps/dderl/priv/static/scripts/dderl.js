@@ -681,7 +681,7 @@ function beep()
     if (beepStorage) {
         // Reuse existing Data URL from sessionStorage
         beep.setAttribute("src", beepStorage);
-    } else if (typeof(FileReader) === "function") { //I.E. 9 doesn't support FileReader
+    } else if (typeof(FileReader) === "function" && beep.currentSrc) { //I.E. 9 doesn't support FileReader
         // Create XHR and FileReader objects
         var xhr = new XMLHttpRequest();
         var fileReader = new FileReader();
