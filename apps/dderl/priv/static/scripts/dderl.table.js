@@ -1246,7 +1246,7 @@
         }
         self._fltrDlg.dialog('option', 'buttons', buttons);
 
-        var dH = self._fltrDlg.height() / fCount - 30;
+        var dH = self._fltrDlg.height() / fCount - 21;
         var dW = self._fltrDlg.width() - 30;
         for(var c in self._filters) {
             self._filters[c].inp.width(dW);
