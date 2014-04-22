@@ -678,10 +678,21 @@ error_invalid_conn() ->
 
 -spec build_srtspec_json([{integer()| binary(), boolean()}]) -> list().
 build_srtspec_json(SortSpecs) ->
-    [{if is_integer(SP) -> integer_to_binary(SP); true -> SP end
-     , [{<<"id">>, if is_integer(SP) -> SP; true -> -1 end}
-       ,{<<"asc">>, if AscDesc =:= <<"asc">> -> true; true -> false end}]
-     } || {SP,AscDesc} <- SortSpecs].
+    [build_srtspec_json(SP, AscDesc) || {SP, AscDesc} <- SortSpecs].
+
+build_srtspec_json(SP, <<"asc">>) ->
+    build_srtspec_json(SP, true);
+build_srtspec_json(SP, <<"desc">>) ->
+    build_srtspec_json(SP, false);
+build_srtspec_json(SP, IsAsc) when is_integer(SP) ->
+    {integer_to_binary(SP), [{<<"id">>, SP}, {<<"asc">>, IsAsc}]};
+build_srtspec_json(SP, IsAsc) when is_binary(SP) ->
+    case string:to_integer(binary_to_list(SP)) of
+        {SPInt, []} ->
+            {SP, [{<<"id">>, SPInt}, {<<"asc">>, IsAsc}]};
+        _ ->
+            {SP, [{<<"id">>, -1}, {<<"asc">>, IsAsc}]}
+    end.
 
 -spec error_invalid_conn({atom(), pid()}, [{atom(), pid()}]) -> term().
 error_invalid_conn(Connection, Connections) ->
