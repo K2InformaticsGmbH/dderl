@@ -1640,11 +1640,23 @@
         }
     },
 
-    _operateViewResult: function(_opView) {
-        if(_opView === "ok") {
+    _operateViewResult: function(opView) {
+        if(opView.hasOwnProperty('error')) {
+            alert_jq('Failed to modify view!\n'+ opView.error);
+        } else if(opView  === "ok") {
              console.log('[AJAX] view saved!');
+        } else if(opView.hasOwnProperty('op')) {
+            if(opView.op === "rename") {
+                this._setTitleHtml($('<span>').text(opView.newname).addClass('table-title'));
+                console.log('[AJAX] view renamed!');
+            } else if(opView.op === "delete") {
+                this._dlg.dialog('close');
+                console.log('[AJAX] view deleted!');
+            } else {
+                alert_jq('Invalid response from server, trying to modify the view');
+            }
         } else {
-            alert_jq('Failed to modify view!\n'+_opView.error);
+            alert_jq('Invalid response from server, trying to modify the view');
         }
     },
 
