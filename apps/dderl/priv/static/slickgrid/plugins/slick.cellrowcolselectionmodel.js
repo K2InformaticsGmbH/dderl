@@ -221,8 +221,22 @@
                 setSelectedRanges(_ranges);
                 e.preventDefault();
                 e.stopPropagation();
-            } else if (activeCell && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey &&
-                (e.which >= 37 && e.which <= 40)) {
+            } else if(activeCell && (e.which == 36)) { // home
+                _ranges = [new Slick.Range(activeCell.row, 1)];
+                _grid.setActiveCell(activeCell.row, 1);
+                _grid.scrollCellIntoView(activeCell.row, 1);
+                setSelectedRanges(_ranges);
+                e.preventDefault();
+                e.stopPropagation();
+            }  else if(activeCell && (e.which == 35)) { // end
+                _ranges = [new Slick.Range(activeCell.row, _grid.getColumns().length - 1)];
+                _grid.setActiveCell(activeCell.row, _grid.getColumns().length - 1);
+                _grid.scrollCellIntoView(activeCell.row, _grid.getColumns().length - 1);
+                setSelectedRanges(_ranges);
+                e.preventDefault();
+                e.stopPropagation();
+            }else if (activeCell && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey &&
+                       (e.which >= 37 && e.which <= 40)) {
                 _grid.getEditorLock().commitCurrentEdit();
 
                 if(_ranges.length !== 1 || !_ranges[0].contains(activeCell.row, activeCell.cell)) {
