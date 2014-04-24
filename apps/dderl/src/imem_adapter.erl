@@ -906,10 +906,14 @@ add_function_type(float, Value) -> Value;
 add_function_type(decimal, Value) -> Value;
 add_function_type(binary, Value) -> Value;
 add_function_type(boolean, Value) -> Value;
-add_function_type(timestamp, Value) ->
+add_function_type(datetime, Value) ->
     ImemDatetime = imem_datatype:io_to_datetime(Value),
     NewValue = imem_datatype:datetime_to_io(ImemDatetime),
     iolist_to_binary([<<"to_date('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS')">>]);
+add_function_type(timestamp, Value) ->
+    ImemDatetime = imem_datatype:io_to_timestamp(Value),
+    NewValue = imem_datatype:timestamp_to_io(ImemDatetime),
+    iolist_to_binary([<<"to_timestamp('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS.FF6')">>]);
 add_function_type(_, Value) ->
     iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
 
