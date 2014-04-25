@@ -44,49 +44,63 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
-    ?Debug("parsing ~p", [Sql]),
+    ?Info("parsing ~p", [Sql]),
     if
         Sql =:= [] ->
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"Empty sql string">>}, {<<"flat">>, <<>>}]}])};
         true ->
             case sqlparse:parsetree(Sql) of
-                {ok, {[{ParseTree,_}|_], _}} ->
-                    case sqlparse:pt_to_string(ParseTree) of
+                {ok, {ParseTrees, _}} ->
+                    case ptlist_to_string(ParseTrees) of
                         {error, Reason} ->
-                            ?Error("parse_stmt error in fold ~p~n", [Reason]),
+                            ?Info("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
                             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
+                        {multiple, _Flat, FirstPT} ->
+                            SqlTitle = get_sql_title(FirstPT),
+                            FlatTuple = {<<"flat">>, Sql},
+                            BoxTuple = {<<"boxerror">>, <<"multiple statements not supported by the box">>},
+                            PrettyTuple = {<<"prettyerror">>, <<"pretty print doesn't support mulple statements">>},
+                            case SqlTitle of
+                                <<>> ->
+                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple]}]);
+                                _ ->
+                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
+                            end,
+                            ?Info("Json -- ~s", [jsx:prettify(ParseStmt)]),
+                            From ! {reply, ParseStmt};
                         Flat ->
+                            [{ParseTree, _} | _] = ParseTrees,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
                                            {error, BoxReason} ->
-                                               ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
+                                               ?Info("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
                                            {ok, Box} ->
-                                               ?Debug("The box ~p", [Box]),
+                                               ?Info("The box ~p", [Box]),
                                                try dderl_sqlbox:box_to_json(Box) of
                                                    JsonBox ->
                                                        {<<"sqlbox">>, JsonBox}
                                                catch
                                                    Class:Error ->
-                                                       ?Error("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
+                                                       ?Info("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
                                                        {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                                end
                                        catch
                                            Class:Error ->
-                                               ?Error("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
+                                               ?Info("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                        end,
                             PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
                                               {error, PrettyReason} ->
-                                                  ?Error("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
+                                                  ?Info("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
                                                   {<<"prettyerror">>, PrettyReason};
                                               Pretty ->
                                                   {<<"pretty">>, Pretty}
                                           catch
                                               Class1:Error1 ->
-                                                  ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
+                                                  ?Info("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
                                                   {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
                                           end,
                             case SqlTitle of
@@ -95,7 +109,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                 _ ->
                                     ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
                             end,
-                            ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
+                            ?Info("Json -- ~s", [jsx:prettify(ParseStmt)]),
                             From ! {reply, ParseStmt}
                     end;
                 {parse_error, {PError, Tokens}} ->
@@ -479,3 +493,7 @@ get_sql_title({select, Args}) ->
     <<"from ", Result/binary>> = sqlparse:pt_to_string(From),
     Result;
 get_sql_title(_) -> <<>>.
+
+%% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
+ptlist_to_string([{ParseTree,_}]) -> sqlparse:pt_to_string(ParseTree);
+ptlist_to_string([{FirstPT,_} | _]) -> {mulitple, sqlparse:pt_to_string(FirstPT), FirstPT}.
