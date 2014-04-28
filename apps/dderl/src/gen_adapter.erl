@@ -44,7 +44,6 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
-    ?Info("parsing ~p", [Sql]),
     if
         Sql =:= [] ->
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"Empty sql string">>}, {<<"flat">>, <<>>}]}])};
@@ -53,7 +52,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                 {ok, {ParseTrees, _}} ->
                     case ptlist_to_string(ParseTrees) of
                         {error, Reason} ->
-                            ?Info("parse_stmt error in fold ~p~n", [Reason]),
+                            ?Error("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
                             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
                         {multiple, _Flat, FirstPT} ->
@@ -67,7 +66,6 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                 _ ->
                                     ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
                             end,
-                            ?Info("Json -- ~s", [jsx:prettify(ParseStmt)]),
                             From ! {reply, ParseStmt};
                         Flat ->
                             [{ParseTree, _} | _] = ParseTrees,
@@ -75,32 +73,32 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
                                            {error, BoxReason} ->
-                                               ?Info("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
+                                               ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
                                            {ok, Box} ->
-                                               ?Info("The box ~p", [Box]),
+                                               %% ?Debug("The box ~p", [Box]),
                                                try dderl_sqlbox:box_to_json(Box) of
                                                    JsonBox ->
                                                        {<<"sqlbox">>, JsonBox}
                                                catch
                                                    Class:Error ->
-                                                       ?Info("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
+                                                       ?Error("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
                                                        {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                                end
                                        catch
                                            Class:Error ->
-                                               ?Info("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
+                                               ?Error("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                        end,
                             PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
                                               {error, PrettyReason} ->
-                                                  ?Info("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
+                                                  ?Error("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
                                                   {<<"prettyerror">>, PrettyReason};
                                               Pretty ->
                                                   {<<"pretty">>, Pretty}
                                           catch
                                               Class1:Error1 ->
-                                                  ?Info("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
+                                                  ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
                                                   {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
                                           end,
                             case SqlTitle of
@@ -109,7 +107,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                 _ ->
                                     ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
                             end,
-                            ?Info("Json -- ~s", [jsx:prettify(ParseStmt)]),
+                            %% ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
                             From ! {reply, ParseStmt}
                     end;
                 {parse_error, {PError, Tokens}} ->
