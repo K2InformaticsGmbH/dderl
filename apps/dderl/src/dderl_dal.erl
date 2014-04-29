@@ -287,7 +287,20 @@ handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
                                Qry,
                                Cmd#ddCmd.opts},
             handle_call(UpdateCmdParams, From, State),
-            NewView = OldView#ddView{state=ViewsState},
+            case ViewsState of
+                #viewstate{table_layout=[], column_layout=[]} ->
+                    NewView = OldView;
+                #viewstate{table_layout=[]} ->
+                    #viewstate{table_layout=OldTableLay} = OldView#ddView.state,
+                    NewState = ViewsState#viewstate{table_layout=OldTableLay},
+                    NewView = OldView#ddView{state=NewState};
+                #viewstate{column_layout=[]} ->
+                    #viewstate{column_layout=OldColumLay} = OldView#ddView.state,
+                    NewState = ViewsState#viewstate{column_layout=OldColumLay},
+                    NewView = OldView#ddView{state=NewState};
+                #viewstate{} ->
+                    NewView = OldView#ddView{state=ViewsState}
+            end,
             Sess:run_cmd(write, [ddView, NewView]),
             ?Debug("update_view written ~p", [NewView]),
             {reply, ViewId, State};

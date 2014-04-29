@@ -426,6 +426,10 @@
         }
     },
 
+    getViewId: function() {
+        return this._viewId;
+    },
+
     _saveViewAs: function() {
         var viewName = prompt("View name",this.options.title);
         if (null !== viewName) {
@@ -492,8 +496,8 @@
 
     _updateView: function(viewId, viewName) {
         var self = this;
-        saveView = self._getTableLayout(viewName);
-        updateView = {update_view : saveView.save_view};
+        var saveView = self._getTableLayout(viewName);
+        var updateView = {update_view : saveView.save_view};
         updateView.update_view.view_id = viewId;
         self._ajax('/app/update_view', updateView, 'update_view', 'saveViewResult');
     },
@@ -501,7 +505,7 @@
     _saveViewWithName: function(_viewName, replace) {
         var self = this;
 
-        saveView = self._getTableLayout(_viewName);
+        var saveView = self._getTableLayout(_viewName);
         saveView.save_view.replace = replace;
 
         console.log('saving view '+JSON.stringify(saveView));

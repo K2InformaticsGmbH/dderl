@@ -80,11 +80,15 @@ function insertAtCursor(myField, myValue) {
                             self._checkParsed(_parsed);
                             self._renderParsed(_parsed);
                         },
-                        reloadParsedCmd : function(e, _parsed) {
-                            var self = e.data;
-                            self._reloadParsedCmd(_parsed);
-                        }
+                        reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd     (_parsed); },
+                        saveViewResult  : function(e, _result) { e.data._saveViewResult (_result); }
                       },
+
+    // Dialog context menus
+    _sqlTtlCnxtMnu  : {
+                       'Save View'      : '_saveView',
+                       'Save View As'   : '_saveViewAs'
+    },
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
                        'Execute fetch first block'  : { typ : 'btn', icn : 'play',          clk : '_toolBarTblReload'       },
@@ -288,6 +292,8 @@ function insertAtCursor(myField, myValue) {
         self._createDlgFooter();
         self._createDlg();
 
+        self._createContextMenus();
+
         // setting up the event handlers last to aid debugging
         self._setupEventHandlers();
     },
@@ -307,6 +313,145 @@ function insertAtCursor(myField, myValue) {
         if (undefined != self._cmdFlat && self._cmdFlat.length > 0) {
             self._modCmd = self._cmdFlat;
             ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
+        }
+    },
+
+    _createContextMenus: function() {
+        var self = this;
+
+        self._cnxtMenu('_sqlTtlCnxtMnu');  // header context menu
+    },
+
+    // create the context menu and add them to document.body
+    // only if they do not exist
+    // TODO: Create a context menu once per table instead of the global
+    //       to allow dynamic menu options depending on the column content.
+    _cnxtMenu: function(_menu) {
+        if($('#'+_menu).length === 0) {
+            var mnu = $('<ul>')
+                .attr('id', _menu)
+                .addClass("context_menu")
+                .hide()
+                .mouseleave(function(e) {
+                    var self = $('#'+_menu).data('cnxt');
+                    e.preventDefault();
+                    if($(this).is(':visible')) {
+                        $(this).hide();
+//                        self._grid.focus();   <- where should we return the focus ?
+                    }
+                })
+                .appendTo(document.body);
+            for(var m in this[_menu]) {
+                if($.type(this[_menu][m]) === "string") {
+                    $('<li>')
+                        .attr("action", m)
+                        .click(function(e) {
+                            var self = $('#'+_menu).data('cnxt');
+                            if(undefined != self) {
+                                console.log('self title _cnxtMenu ' + self.options.title);
+                                self[_menu].dom.hide();
+                                self._cnxtMenuAction(_menu, $(this).attr("action"));
+                            }
+                        })
+                        .text(m)
+                        .appendTo(mnu);
+                }
+            }
+            this[_menu].dom = mnu;
+        }
+    },
+
+    // delegate actions of context menu
+    _cnxtMenuAction: function(_menu, _action) {
+        var funName = this[_menu][_action];
+        var fun = $.proxy(this[funName], this);
+        if($.isFunction(fun)) {
+            fun();
+        } else {
+            throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu);
+        }
+    },
+
+    /*
+     * Saving a table
+     */
+    _saveView: function() {
+        var viewId = this._getOwnerViewId();
+        if(viewId) {
+            this._updateView(viewId, this._title);
+        } else {
+            this._saveViewWithName(this._title, false);
+        }
+    },
+
+    _saveViewAs: function() {
+        var viewName = prompt("View name",this.options.title);
+        if (null !== viewName) {
+            this._saveViewWithName(viewName, false);
+        }
+    },
+
+    _getSaveStructure: function(viewName) {
+        var self = this;
+        return {
+            save_view : {
+                conn_id       : dderlState.connectionSelected.connection,
+                name          : viewName,
+                content       : self._modCmd
+            }
+        };
+    },
+
+    _updateView: function(viewId, viewName) {
+        var self = this;
+        var saveView = self._getSaveStructure(viewName);
+        var updateView = {update_view : saveView.save_view};
+        updateView.update_view.view_id = viewId;
+        ajaxCall(self, '/app/update_view', updateView, 'update_view', 'saveViewResult');
+    },
+
+    _saveViewWithName: function(viewName, replace) {
+        var self = this;
+        var saveView =  self._getSaveStructure(viewName);
+        saveView.save_view.replace = replace;
+        ajaxCall(self, '/app/save_view', saveView, 'save_view', 'saveViewResult');
+    },
+
+    _getOwnerViewId: function() {
+        if(null != this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
+            return this._cmdOwner.table('getViewId');
+        }
+        return null;
+    },
+
+    _saveViewResult: function(_saveView) {
+        var self = this;
+        if(_saveView === "ok") {
+            console.log('[AJAX] view saved!');
+        } else if(_saveView.hasOwnProperty('view_id')) {
+            console.log('[AJAX] view saved, id = ' + _saveView.view_id + ' and name ' + _saveView.name);
+            self._setTitle(_saveView.name);
+        } else if(_saveView.hasOwnProperty('need_replace')) {
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
+                resizable: false,
+                height:180,
+                modal: true,
+                buttons: {
+                    "Replace the view": function() {
+                        $( this ).dialog( "close" );
+                        self._saveViewWithName(_saveView.need_replace, true);
+                    },
+                    Cancel: function() {
+                        $( this ).dialog( "close" );
+                    }
+                },
+                close : function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                }
+            });
+        } else if(_saveView.hasOwnProperty('error')) {
+            alert_jq('failed to save view!\n'+_saveView.error);
         }
     },
 
@@ -336,7 +481,15 @@ function insertAtCursor(myField, myValue) {
     _setTitle: function(newTitle) {
         var self = this;
         self._title = self.options.title = newTitle;
-        self._dlg.dialog('option', 'title', newTitle);
+        var newTitleHtml = $('<span>').text(newTitle).addClass('table-title');
+        self._dlg.dialog('option', 'title', newTitleHtml[0].outerHTML);
+        self._dlg.dialog("widget").find(".table-title").click(function(e) {
+            self._sqlTtlCnxtMnu.dom
+                .css("top", e.clientY - 10)
+                .css("left", e.clientX)
+                .data('cnxt', self)
+                .show();
+        });
     },
 
     _addBtngrpToDiv: function(toolDiv) {
@@ -677,6 +830,9 @@ function insertAtCursor(myField, myValue) {
                 self._refreshHistoryBoxSize();
                 resize_ace_editor(self._boxDiv.attr('id'));
             });
+
+        // Update title to add context menu handlers.
+        self._setTitle(self.options.title);
     },
  
     // translations to default dialog behavior
