@@ -117,6 +117,14 @@ init([SchemaName]) ->
     case erlimem:open(local, {SchemaName}, {<<>>, <<>>}) of
         {ok, Sess} ->
             %lager:set_loglevel(lager_console_backend, debug),
+            {ok, Vsn} = application:get_key(dderl,vsn),
+            case code:lib_dir(dderl) of                
+                {error,bad_name} -> ?Info("Application not running from installation", []);
+                LibDir ->
+                    ConfigPath = filename:join([LibDir,"..","..","releases",Vsn]),
+                    ?Info("Adding system schema: ~p", [ConfigPath]),
+                    Sess:run_cmd(create_sys_conf, [ConfigPath])
+            end,
             TablesToBuild =  [
                   {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
                 , {ddInterface, record_info(fields, ddInterface), ?ddInterface, #ddInterface{}}
