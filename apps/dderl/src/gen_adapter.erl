@@ -11,7 +11,7 @@
         , add_cmds_views/5
         , gui_resp/2
         , build_resp_fun/3
-        , process_query/3
+        , process_query/4
         , build_column_json/1
         , build_column_csv/1
         , extract_modified_rows/1
@@ -331,9 +331,9 @@ process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
 %-spec process_query(binary(), tuple(), list()) -> list().
 %process_query(Query, Connection, Params) ->
 %    imem_adapter:process_query(Query, Connection, Params).
--spec process_query(binary(), tuple(), {binary(), atom()}) -> list().
-process_query(Query, Connection, Params) ->
-    imem_adapter:process_query(Query, Connection, Params).
+-spec process_query(binary(), tuple(), {binary(), atom()}, pid()) -> list().
+process_query(Query, Connection, Params, SessPid) ->
+    imem_adapter:process_query(Query, Connection, Params, SessPid).
 
 %%%%%%%%%%%%%%%
 

@@ -271,17 +271,12 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
       Cmd =:= [<<"connect">>];
       Cmd =:= [<<"connect_change_pswd">>];
-      Cmd =:= [<<"disconnect">>];
-      Cmd =:= [<<"query">>];
-      Cmd =:= [<<"browse_data">>];
-      Cmd =:= [<<"views">>];
-      Cmd =:= [<<"system_views">>];
-      Cmd =:= [<<"open_view">>] ->
+      Cmd =:= [<<"disconnect">>] ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     NewCurrentPriv =
-        try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
+        try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
@@ -296,15 +291,17 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
-    spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId) end),
+    Self = self(),
+    spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self) end),
     State.
 
-spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId) ->
+spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
-    try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv)
+    try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
+            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
+            error
     end.
 
 -spec jsq(term()) -> term().

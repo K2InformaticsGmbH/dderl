@@ -31,7 +31,7 @@
 %% erlimem_fsm interface
 
 -export([ start/1
-        , start_link/1
+        , start_link/2
         , stop/1
         ]).
 
@@ -166,10 +166,10 @@ start(#fsmctx{} = FsmCtx) ->
 	{ok,Pid} = gen_fsm:start(?MODULE,Ctx,[]),
     {?MODULE,Pid}.
 
--spec start_link(#fsmctx{}) -> {atom(), pid()}.
-start_link(#fsmctx{} = FsmCtx) ->
+-spec start_link(#fsmctx{}, pid()) -> {atom(), pid()}.
+start_link(#fsmctx{} = FsmCtx, SessPid) ->
     Ctx = fsm_ctx(FsmCtx),
-	{ok, Pid} = gen_fsm:start_link(?MODULE,Ctx,[]),
+	{ok, Pid} = gen_fsm:start_link(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
 -spec fsm_ctx(#fsmctx{}) -> #ctx{}.
@@ -463,13 +463,15 @@ reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=TRef}=State0) ->
 %%          {stop, StopReason}
 %% --------------------------------------------------------------------
 
-init(#ctx{ bl                           = BL
+init({#ctx{} = Ctx, SessPid}) ->
+    true = link(SessPid),
+    #ctx{ bl                            = BL
          , replyToFun                   = ReplyTo
          , stmtCols                     = StmtCols
          , rowFun                       = RowFun
          , sortFun                      = SortFun
          , sortSpec                     = SortSpec
-         }=Ctx) ->
+         } = Ctx,
     TableId=ets:new(raw, [ordered_set]),        %% {Id,Op,Keys,Col1,Col2,...Coln}
     IndexId=ets:new(ind, [ordered_set]),        %% {{SortFun(Keys),Id},Id}
     FilterSpec = ?NoFilter, 
