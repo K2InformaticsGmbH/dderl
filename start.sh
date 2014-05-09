@@ -1,6 +1,8 @@
 #!/bin/bash
 cd apps/dderl
 
+# Parameters:  NodeID ClusterID IMEMPort DDERLPort
+
 unamestr=`uname`
 if [[ "$unamestr" == 'Linux' ]]; then
     exename=erl
