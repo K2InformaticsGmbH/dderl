@@ -283,6 +283,37 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                            , {gres, StatsJson}]}])
     end,
     From ! {reply, RespJson};
+process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"statistics_full">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
+    RespJson = case Statement:get_statistics(ColumnIds) of
+        {error, Error, St} ->
+            ?Error("Stats error ~p~n~p", [Error, St]),
+            jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
+        {Total, Cols, StatsRows, SN} ->
+            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
+                      || C <- Cols],
+            StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
+                                      , cnt          = Total
+                                      , toolTip      = <<"">>
+                                      , message      = <<"">>
+                                      , beep         = <<"">>
+                                      , state        = SN
+                                      , loop         = <<"">>
+                                      , rows         = StatsRows
+                                      , keep         = <<"">>
+                                      , focus        = 0
+                                      , sql          = <<"">>
+                                      , disable      = <<"">>
+                                      , promote      = <<"">>}
+                , ColRecs),
+            jsx:encode([{<<"statistics_full">>, [ {type, <<"stats">>}
+                                           , {column_ids, ColumnIds}
+                                           , {cols, build_column_json(lists:reverse(ColRecs))}
+                                           , {gres, StatsJson}]}])
+    end,
+    From ! {reply, RespJson};
 
 process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
     [{<<"edit_term_or_view">>, BodyJson}] = ReqBody,

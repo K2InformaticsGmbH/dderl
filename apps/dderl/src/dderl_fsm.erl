@@ -59,6 +59,7 @@
         , get_query/1
         , get_table_name/1
         , get_histogram/2
+        , get_statistics/2
         , get_statistics/3
         , refresh_session_ctx/2
         ]).
@@ -264,9 +265,14 @@ get_table_name({?MODULE, Pid}) ->
 get_histogram(ColumnId, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}).
 
+-spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
+get_statistics(ColumnIds, {?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds}).
+
 %-spec get_statistics([pos_integer()], [integer()], tuple()) -> [tuple(), tuple()] | {error, binary()}.
 get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds, RowIds}).
+
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -1012,6 +1018,58 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
+handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+    case Nav of
+        raw -> TableUsed = TableId;
+        _ ->   TableUsed = IndexId
+    end,
+    ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
+    ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
+    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
+            RealRow = case Row of
+                {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
+                Row -> Row
+            end,
+            CandidateRow = case RealRow of
+                {_,_,RK} ->
+                    ExpandedRow = RowFun(RK),
+                    [lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds];
+                _ ->
+                    [element(3 + ColumnId, RealRow) || ColumnId <- ColumnIds]
+            end,
+            lists:foldl(
+              fun(Idx, SelRows) ->
+                      Candidate = lists:nth(Idx, CandidateRow),
+                      CandidateList = element(Idx, SelRows),
+                      case Candidate of
+                          <<>> -> SelRows;
+                          _ -> erlang:setelement(Idx,SelRows,CandidateList ++ [Candidate])
+                      end
+              end,
+              SelectRows,
+              lists:seq(1, size(SelectRows)))
+        end
+        , list_to_tuple(lists:duplicate(length(ColNames), []))
+        , TableUsed)),
+    try
+        RowColumns = [[binary_to_number(I) || I <- Row] || Row <- Rows],
+        Counts  = [length(C) || C <- RowColumns],
+        Totals  = [lists:sum(C) || C <- RowColumns],
+        Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
+        StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
+                Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
+                [math:sqrt(Sums / (length(Col) - 1)) | SD]
+            end, [], lists:zip(RowColumns, Avgs))),
+        StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
+        StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
+        ?Debug("Stat Rows ~p", [StatsRows]),
+        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
+        {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
+    catch
+        _:Error ->
+            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
+                  , SN, State, infinity}
+    end;
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;

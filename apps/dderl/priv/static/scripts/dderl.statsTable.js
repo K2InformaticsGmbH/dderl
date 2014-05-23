@@ -14,6 +14,7 @@
         _stmt           : "",
         _columns        : null,
         _parent         : null,
+        _type           : 'statistics',
 
         _handlers : {queryResult        : function(e, _result) { e.data._createHisto(_result); },
                      updateData         : function(e, _result) { e.data._updatePlot(_result); },
@@ -378,6 +379,9 @@
         {
             var self = this;
             var reqObj = {};
+
+            self._type = type;
+
             reqObj[type] = {
                 connection  : dderlState.connection,
                 statement   : self._stmt,
@@ -876,9 +880,7 @@
          */
         // NOTE: self is 'this' and 'this' is dom ;)
         _toolBarReload: function(self) {
-            var cmd = 'histogram';
-            if (self._rowIds != undefined && self._rowIds.length >= 1)
-                cmd = 'statistics';
+            var cmd = self._type;
 
             var reqObj = {};
             reqObj[cmd] = {

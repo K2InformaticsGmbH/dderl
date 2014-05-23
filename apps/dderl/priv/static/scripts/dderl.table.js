@@ -114,7 +114,7 @@
                        'Sort DESC'        : '_sortDesc',
                        'Sort Clear'       : '_sortClear',
                        'Histogram'        : '_showHistogram',
-                       'Statistics'       : '_showStatistics',
+                       'Statistics'       : '_showStatisticsFull',
                        'Toggle Grouping'  : '_toggleGrouping'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filter',
@@ -583,6 +583,35 @@
                 parent         : self._dlg
             })
             .statsTable('load', 'statistics');
+
+        console.log('show statistics ' + JSON.stringify(_ranges));
+    },
+
+    _showStatisticsFull: function(_ranges) {
+        var self = this;
+
+        var cellmin = _ranges[0].fromCell;
+        var cellmax = _ranges[0].toCell;
+        for (var i = 0; i < _ranges.length; ++i) {
+            if (cellmin > _ranges[i].fromCell) cellmin = _ranges[i].fromCell;
+            if (cellmax < _ranges[i].toCell) cellmax = _ranges[i].toCell;
+        }
+        var cols = this._grid.getColumns();
+        var selcols = [];
+        for(var c = cellmin; c <= cellmax; ++c) {
+            selcols[selcols.length] = self._origcolumns[cols[c].id];
+        }
+
+        var title = self.options.title + " statistics";
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                title          : title,
+                initialQuery   : self._cmd,
+                columnIds      : selcols,
+                dderlStatement : self._stmt,
+                parent         : self._dlg
+            })
+            .statsTable('load', 'statistics_full');
 
         console.log('show statistics ' + JSON.stringify(_ranges));
     },

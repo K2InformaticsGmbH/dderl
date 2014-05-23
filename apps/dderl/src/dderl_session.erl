@@ -258,6 +258,7 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"save_dashboard">>;
       C =:= <<"histogram">>;
       C =:= <<"statistics">>;
+      C =:= <<"statistics_full">>;
       C =:= <<"dashboards">>;
       C =:= <<"edit_term_or_view">> ->
     BodyJson = jsx:decode(ReqData),
