@@ -122,8 +122,13 @@ init([SchemaName]) ->
                 {error,bad_name} -> ?Info("Application not running from installation", []);
                 LibDir ->
                     ConfigPath = filename:join([LibDir,"..","..","releases",Vsn]),
-                    ?Info("Adding system schema: ~p", [ConfigPath]),
-                    Sess:run_cmd(create_sys_conf, [ConfigPath])
+                    case filelib:is_dir(ConfigPath) of
+                        true ->
+                            ?Info("Adding system schema: ~p", [ConfigPath]),
+                            Sess:run_cmd(create_sys_conf, [ConfigPath]);
+                        false ->
+                            ?Info("Application not running from installation", [])
+                    end
             end,
             TablesToBuild =  [
                   {ddAdapter, record_info(fields, ddAdapter), ?ddAdapter, #ddAdapter{}}
