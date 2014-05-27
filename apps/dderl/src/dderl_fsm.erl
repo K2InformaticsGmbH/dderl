@@ -993,6 +993,36 @@ binary_to_number(Number) ->
         _:_ ->
             binary_to_float(Number)
     end.
+
+-spec bin_to_number(binary()) -> integer() | float() | {error, binary()}.
+bin_to_number(NumberBin) ->
+    NumberString = binary_to_list(NumberBin),
+    case string:to_integer(NumberString) of
+        {Integer, []} -> Integer;
+        _ ->
+            case string:to_float(NumberString) of
+                {Float, []} -> Float;
+                _ -> {error, <<"Not a number">>}
+            end
+    end.
+
+-spec stats_add_row([{integer(), number(), number()}], [binary()]) -> [tuple()].
+stats_add_row([], _) -> [];
+stats_add_row([{Count, Sum, Squares} = Result | RestResult], [Element | RestRow]) ->
+    case bin_to_number(Element) of
+        {error, _} -> [Result | stats_add_row(RestResult, RestRow)];
+        Number -> [{Count+1, Sum+Number, Squares + Number*Number} | stats_add_row(RestResult, RestRow)]
+    end.
+
+-spec format_stat_rows([binary()], [{integer(), number(), number()}], pos_integer()) -> list().
+format_stat_rows([], _, _) -> [];
+format_stat_rows([ColName | RestColNames], [{0, _, _} | RestResult], Idx) ->
+    [[Idx, nop, ColName, 0, 0, 0, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares} | RestResult], Idx) ->
+    Average = Sum/Count,
+    StdDev = math:sqrt((Squares - Sum*Sum/Count) /(Count -1)),
+    [[Idx, nop, ColName, Count, Sum, Average, StdDev]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
+
 %% --------------------------------------------------------------------
 %% Func: handle_sync_event/4 handling sync "send_all_state_event""
 %% Returns: {next_state, NextSN, NextStateData}            |
@@ -1025,51 +1055,28 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
     end,
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
-    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
-            RealRow = case Row of
-                {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
-                Row -> Row
-            end,
-            CandidateRow = case RealRow of
-                {_,_,RK} ->
-                    ExpandedRow = RowFun(RK),
-                    [lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds];
-                _ ->
-                    [element(3 + ColumnId, RealRow) || ColumnId <- ColumnIds]
-            end,
-            lists:foldl(
-              fun(Idx, SelRows) ->
-                      Candidate = lists:nth(Idx, CandidateRow),
-                      CandidateList = element(Idx, SelRows),
-                      case Candidate of
-                          <<>> -> SelRows;
-                          _ -> erlang:setelement(Idx,SelRows,CandidateList ++ [Candidate])
-                      end
-              end,
-              SelectRows,
-              lists:seq(1, size(SelectRows)))
-        end
-        , list_to_tuple(lists:duplicate(length(ColNames), []))
-        , TableUsed)),
-    try
-        RowColumns = [[binary_to_number(I) || I <- Row] || Row <- Rows],
-        Counts  = [length(C) || C <- RowColumns],
-        Totals  = [lists:sum(C) || C <- RowColumns],
-        Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
-        StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
-                Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
-                [math:sqrt(Sums / (length(Col) - 1)) | SD]
-            end, [], lists:zip(RowColumns, Avgs))),
-        StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
-        StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
-        ?Debug("Stat Rows ~p", [StatsRows]),
-        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
-        {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
-    catch
-        _:Error ->
-            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
-                  , SN, State, infinity}
-    end;
+
+    StatsFun =
+        fun(Row, Results) -> %% Result = [{0,0,0} ... (for each col)]
+                case Row of
+                    {_, Id} ->
+                        RealRow = lists:nth(1, ets:lookup(TableId, Id));
+                    Row ->
+                        RealRow = Row
+                end,
+                case RealRow of
+                    {_,_,RK} ->
+                        ExpandedRow = RowFun(RK),
+                        FilteredRow = [lists:nth(ColumnId, ExpandedRow) || ColumnId <- ColumnIds];
+                    _ ->
+                        FilteredRow = [element(3 + ColumnId, RealRow) || ColumnId <- ColumnIds]
+                end,
+                stats_add_row(Results, FilteredRow)
+        end,
+    StatsRows = format_stat_rows(ColNames, ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0}), TableUsed), 1),
+    ?Debug("Stat Rows ~p", [StatsRows]),
+    StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
+    {reply, {15, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;

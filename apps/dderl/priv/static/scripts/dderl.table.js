@@ -572,7 +572,7 @@
             selrows[selrows.length] = self._gdata[r].id;
         }
 
-        var title = self.options.title + " statistics";
+        var title = self.options.title + " statistics (selected range)";
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : title,
@@ -602,7 +602,7 @@
             selcols[selcols.length] = self._origcolumns[cols[c].id];
         }
 
-        var title = self.options.title + " statistics";
+        var title = self.options.title + " statistics (full column)";
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : title,
