@@ -1991,39 +1991,36 @@
 
     _openErlangTermEditor: function(formattedString) {
         var self = this;
+        var title = "Erlang term editor";
+        var readOnly = false;
+        var content = formattedString;
+
         // received response clear wait wheel
         self.removeWheel();
 
         if(formattedString.hasOwnProperty('error')) {
-            //If it is not an erlang term
-            self.disableDialog();
-            var thisIsMyEditor = $('<div>')
-                .appendTo(document.body)
-                .termEditor(
-                    {
-                        autoOpen  : false,
-                        title     : "Text editor (Read Only)",
-                        termOwner : self,
-                        readOnly  : true,
-                        container : self._divDisable,
-                        term      : formattedString.originalText
-                    }
-                ).termEditor('open');
-        } else {
-            self.disableDialog();
-            var thisIsMyEditor = $('<div>')
-                .appendTo(document.body)
-                .termEditor(
-                    {
-                        autoOpen  : false,
-                        title     : "Erlang term editor",
-                        termOwner : self,
-                        readOnly  : false,
-                        container : self._divDisable,
-                        term      : formattedString
-                    }
-                ).termEditor('open');
+            title = "Text editor (Read Only)";
+            readOnly = true;
+            content = formattedString.originalText;
+        } else if(formattedString.isJson === true) {
+            title = "Json editor";
+            readOnly = false;
+            content = formattedString.formattedJson;
         }
+
+        self.disableDialog();
+        var thisIsMyEditor = $('<div>')
+                .appendTo(document.body)
+                .termEditor(
+                    {
+                        autoOpen  : false,
+                        title     : title,
+                        termOwner : self,
+                        readOnly  : readOnly,
+                        container : self._divDisable,
+                        term      : content
+                    }
+                ).termEditor('open');
     },
     ////////////////////////////
 

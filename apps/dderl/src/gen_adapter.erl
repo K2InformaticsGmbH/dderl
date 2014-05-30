@@ -334,24 +334,7 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
                                        }])};
         _ ->
             ?Debug("The string to format: ~p", [StringToFormat]),
-            case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
-                <<"auto">> -> ExpandLevel = auto;
-                ExpandLevel -> ok
-            end,
-            Force = proplists:get_value(<<"force">>, BodyJson, false),
-            ?Debug("Forced value: ~p", [Force]),
-            case erlformat:format(StringToFormat, ExpandLevel, Force) of
-                {error, ErrorInfo} ->
-                    ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
-                    From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
-                                                [
-                                                 {<<"error">>, <<"Invalid erlang term">>},
-                                                 {<<"originalText">>, StringToFormat}
-                                                ]}])};
-                Formatted ->
-                    ?Debug("The formatted text: ~p", [Formatted]),
-                    From ! {reply, jsx:encode([{<<"edit_term_or_view">>, Formatted}])}
-            end
+            format_json_or_term(jsx:is_json(StringToFormat), StringToFormat, From, BodyJson)
     end;
 
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
@@ -367,6 +350,33 @@ process_query(Query, Connection, Params, SessPid) ->
     imem_adapter:process_query(Query, Connection, Params, SessPid).
 
 %%%%%%%%%%%%%%%
+
+-spec format_json_or_term(boolean(), binary(), pid(), term()) -> term().
+format_json_or_term(true, StringToFormat, From, _) ->
+    Formatted = jsx:prettify(StringToFormat),
+    From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                [{<<"isJson">>, true},
+                                 {<<"formattedJson">>, Formatted}]
+                               }])};
+format_json_or_term(_, StringToFormat, From, BodyJson) ->
+    case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
+        <<"auto">> -> ExpandLevel = auto;
+        ExpandLevel -> ok
+    end,
+    Force = proplists:get_value(<<"force">>, BodyJson, false),
+    ?Debug("Forced value: ~p", [Force]),
+    case erlformat:format(StringToFormat, ExpandLevel, Force) of
+        {error, ErrorInfo} ->
+            ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
+            From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                        [
+                                         {<<"error">>, <<"Invalid erlang term">>},
+                                         {<<"originalText">>, StringToFormat}
+                                        ]}])};
+        Formatted ->
+            ?Debug("The formatted text: ~p", [Formatted]),
+            From ! {reply, jsx:encode([{<<"edit_term_or_view">>, Formatted}])}
+    end.
 
 -spec col2json([#stmtCol{}]) -> [binary()].
 col2json(Cols) -> col2json(lists:reverse(Cols), [], length(Cols)).
