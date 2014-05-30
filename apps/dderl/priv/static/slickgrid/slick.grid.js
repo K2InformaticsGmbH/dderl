@@ -1935,7 +1935,7 @@ if (typeof Slick === "undefined") {
       if ((activeCell != cell.cell || activeRow != cell.row) && canCellBeActive(cell.row, cell.cell)) {
         if (!getEditorLock().isActive() || getEditorLock().commitCurrentEdit()) {
           scrollRowIntoView(cell.row, false);
-          setActiveCellInternal(getCellNode(cell.row, cell.cell), (cell.row === getDataLength()) || options.autoEdit);
+          setActiveCellInternal(getCellNode(cell.row, cell.cell), options.autoEdit);
           // Added to not lose the focus after an edit terminated by a click on a different cell
           setFocus();
         }
@@ -2697,7 +2697,7 @@ if (typeof Slick === "undefined") {
     }
 
     function canCellBeSelected(row, cell) {
-      if (row >= getDataLength() || row < 0 || cell >= columns.length || cell < 0) {
+      if (row >= (getDataLength()+1) || row < 0 || cell >= columns.length || cell < 0) {
         return false;
       }
 
