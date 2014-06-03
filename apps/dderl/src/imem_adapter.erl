@@ -622,25 +622,21 @@ filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
+
+-spec add_param(boolean(), [tuple()], tuple()) -> [tuple()].
+add_param(false, Params, _ParamToAdd) -> Params;
+add_param(true, Params, ParamToAdd) -> [ParamToAdd | Params].
+
 -spec process_query(binary(), tuple(), {binary(), atom()}, pid()) -> list().
 %TODO: Make this more flexible to include a variable number of parameters.
 process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
     SupportedParams = [<<":ddConn.id">>, <<":ddAdapter.id">>],
     QueryParams = dderloci_utils:get_params(Query),
-    case lists:member(<<":ddConn.id">>, QueryParams) of
-        true ->
-            Params0 = [{<<":ddConn.id">>,<<"integer">>,<<"0">>,[ConnId]}];
-        false ->
-            Params0 = []
-    end,
-    case lists:member(<<":ddAdapter.id">>, QueryParams) of
-        true ->
-            Params1 = [{<<":ddAdapter.id">>,<<"atom">>,<<"0">>,[atom_to_binary(Adapter, utf8)]} | Params0];
-        false ->
-            Params1 = Params0
-    end,
-    case QueryParams -- SupportedParams of
+    InvalidParams = [Param || Param <- QueryParams, lists:member(Param, SupportedParams) =/= true],
+    case InvalidParams of
         [] ->
+            Params0 = add_param(lists:member(<<":ddConn.id">>, QueryParams), [], {<<":ddConn.id">>,<<"integer">>,<<"0">>,[ConnId]}),
+            Params1 = add_param(lists:member(<<":ddAdapter.id">>, QueryParams), Params0, {<<":ddAdapter.id">>,<<"atom">>,<<"0">>,[atom_to_binary(Adapter, utf8)]}),
             process_query(Query, Connection, Params1, SessPid);
         _ ->
             [{<<"error">>, <<"Only :ddConn.id and :ddAdapter.id are implemented as parameter values">>}]
