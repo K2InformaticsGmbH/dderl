@@ -438,6 +438,12 @@ function load_login_form(id) {
         $('#ip').val(connects[id].ip);
         $('#port').val(connects[id].port);
         $('#service').val(connects[id].service);
+        secureCheckbox = document.getElementById("secure");
+        if(connects[id].secure === true || connects[id].secure.toLowerCase() === "true") {
+            secureCheckbox.checked = true;
+        } else {
+            secureCheckbox.checked = false;
+        }
         $('#sid').val(connects[id].sid);
         $('#user').val(connects[id].user);
         $('#tnsstr').val(connects[id].tnsstr);

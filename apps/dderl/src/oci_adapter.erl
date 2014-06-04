@@ -27,7 +27,9 @@ init() ->
                                              {user, <<"scott">>},
                                              {port, 1521},
                                              {type, <<"DB Name">>},
-                                             {service, xe}]
+                                             {service, xe},
+                                             {secure, false}
+                                            ]
                                  }),
     gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>
@@ -65,6 +67,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
         end,
     Service   = proplists:get_value(<<"service">>, BodyJson, <<>>),
     Type      = proplists:get_value(<<"type">>, BodyJson, <<>>),
+    Secure    = proplists:get_value(<<"secure">>, BodyJson, false),
     User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password  = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Tnsstr    = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
@@ -130,6 +133,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                                        , {port,     Port}
                                        , {service,  Service}
                                        , {type,     Type}
+                                       , {secure,   Secure}
                                        , {user,     User}
                                        , {tnsstr,   Tnsstr}
                                        , {languange,Language}

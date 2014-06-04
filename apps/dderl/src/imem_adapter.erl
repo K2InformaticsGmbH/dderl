@@ -26,7 +26,9 @@ init() ->
                                  , access = [{ip, <<"local">>},
                                              {user, <<"admin">>},
                                              {port, <<>>},
-                                             {type, local}]
+                                             {type, local},
+                                             {secure, false}
+                                            ]
                                  }),
     SystemViews = [
         { <<"Remote Tables">>
@@ -110,11 +112,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                           , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner   = UserId
                           , adapter = imem
-                          , access  = [ {ip,   Ip}
-                                       , {port, Port}
-                                       , {type, Type}
-                                       , {user, User}
-                                       ]
+                          , access  = [{ip,     Ip}
+                                      ,{port,   Port}
+                                      ,{type,   Type}
+                                      ,{user,   User}
+                                      ,{secure, Secure}
+                                      ]
                           , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
@@ -168,6 +171,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                                        , {port, Port}
                                        , {type, Type}
                                        , {user, User}
+                                       , {secure, Secure}
                                        ]
                           , schm    = binary_to_atom(Schema, utf8)
                           },
