@@ -93,7 +93,9 @@ function fromUnicodeLiteral(str)
             $input = $("<INPUT type=text class='editor-text' />")
                 .appendTo(args.container)
                 .bind("keydown.nav", function (e) {
-                    if (e.keyCode === $.ui.keyCode.LEFT || e.keyCode === $.ui.keyCode.RIGHT) {
+                    if (e.keyCode === $.ui.keyCode.LEFT || e.keyCode === $.ui.keyCode.RIGHT ||
+                        e.keyCode === $.ui.keyCode.HOME || e.keyCode === $.ui.keyCode.END ||
+                        e.keyCode === 65) {  // Needed to not exit on ctrl + a
                         e.stopImmediatePropagation();
                     }
                 })
