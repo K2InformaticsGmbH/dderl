@@ -2198,7 +2198,9 @@
         var selRanges = this._grid.getSelectionModel().getSelectedRanges();
         for(var i=0; i < selRanges.length; ++i)
             for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
-                this._gdata[ri].op = 'upd';
+                if(this._gdata[ri].op !== 'ins') {
+                    this._gdata[ri].op = 'upd';
+                }
             }
         this._applyStyle();
     },
@@ -2328,16 +2330,20 @@
             e.stopImmediatePropagation();
             // Delete all rows from the selected range
             var selRanges = this._grid.getSelectionModel().getSelectedRanges();
-            var rids = [];
-            var modifiedRows = [];
+            var rids, modifiedRows, rowsToRemove;
+            rids = [];
+            modifiedRows = [];
+            rowsToRemove = [];
             for(var i = 0; i < selRanges.length; ++i) {
-                for(var ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
+                for(ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
                     if(selRanges[i].fromCell === 0) {
                         rids.push(this._gdata[ri].id);
                         if(this._gdata[ri].op !== 'ins') {
                             this._gdata[ri].op = 'del';
                         } else {
-                            this._gdata.splice(ri, 1);
+                            if(rowsToRemove.indexOf(ri) == -1) {
+                                rowsToRemove.push(ri);
+                            }
                         }
                     } else {
                         var cols = this._grid.getColumns();
@@ -2349,21 +2355,33 @@
                         var rowId = parseInt(this._gdata[ri].id);
                         if(rowId) {
                             modifiedRows.push({rowid: rowId, cells: modifiedCells});
-                            this._gdata[ri].op = 'upd';
+                            if(this._gdata[ri].op !== 'ins') {
+                                this._gdata[ri].op = 'upd';
+                            }
                         }
                     }
                 }
             }
 
-            // Delete args.row
-            var deleteJson = {delete_row: {statement : this._stmt,
-                                           rowids    : rids}};
-            this._ajax('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+            rowsToRemove.sort(function(a, b) {
+                return b - a;
+            });
+            for(var i = 0; i < rowsToRemove.length; ++i) {
+                this._gdata.splice(rowsToRemove[i], 1);
+            }
 
-            var pasteJson = {paste_data: {connection : this._conn,
-                                                      statement  : this._stmt,
-                                                      rows       : modifiedRows}};
-            this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
+            if(rids.length !== 0) {
+                var deleteJson = {delete_row: {statement : this._stmt,
+                                               rowids    : rids}};
+                this._ajax('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+            }
+
+            if(modifiedRows.length !== 0) {
+                var pasteJson = {paste_data: {connection : this._conn,
+                                              statement  : this._stmt,
+                                              rows       : modifiedRows}};
+                this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
+            }
 
             this._applyStyle();
 
