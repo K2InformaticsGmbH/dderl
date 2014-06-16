@@ -92,8 +92,104 @@
         editor.destroy();
       }
     }
-    
-    
+
+    function readImagesFromEditable(element, cb) {
+        var findImages = function() {
+            var allImgs = $(element).find('img');
+            if(allImgs || allImgs.length !== 0) {
+                return getImageData(allImgs[0].src, function(data) {
+                    document.body.removeChild(element);
+                    cb(data);
+                });
+            } else {
+                document.body.removeChild(element);
+                return cb('');
+            }
+        };
+        return setTimeout(findImages, 10);
+    }
+
+    function getImageData(src, cb) {
+        var loader;
+        loader = new Image();
+        loader.onload = function() {
+            var canvas, ctx, dataURL;
+            canvas = document.createElement('canvas');
+            canvas.width = loader.width;
+            canvas.height = loader.height;
+            ctx = canvas.getContext('2d');
+            ctx.drawImage(loader, 0, 0, canvas.width, canvas.height);
+            dataURL = null;
+            try {
+                dataURL = canvas.toDataURL('image/png');
+                return cb(dataURL);
+            } catch (_error) {
+                return cb('');
+            }
+        };
+        return loader.src = src;
+    }
+
+    function _createDivPaste() {
+        div = document.createElement('div');
+        console.log(div);
+        div.contentEditable = true;
+        document.body.appendChild(div);
+        div.focus();
+        $(div).css({
+            width: 1,
+            height: 1,
+            position: 'fixed',
+            left: -100,
+            overflow: 'hidden'
+        }).on('paste', function(ev) {
+            var clipboardData, item, reader, text, _i, _len, _ref, _ref1, _ref2, _ref3,
+            _this = this;
+            _ref = ev.originalEvent;
+            if (_ref != null && _ref.clipboardData != null) {
+                clipboardData = _ref.clipboardData;
+                if (clipboardData.items) {
+                    _ref1 = clipboardData.items;
+                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                        item = _ref1[_i];
+                        if (item.type.match(/^image\//)) {
+                            reader = new FileReader();
+                            reader.onload = function(event) {
+                                _decodeTabularData(event.target.result, true);
+                            };
+                            reader.readAsDataURL(item.getAsFile());
+                        } else if(item.type === 'text/plain') {
+                            item.getAsString(function(string) {
+                                _decodeTabularData(string, false);
+                            });
+                        }
+                    }
+                } else {
+                    if (clipboardData.types.length) {
+                        text = clipboardData.getData('Text');
+                        if (text != null && text.length) {
+                            _decodeTabularData(text, false);
+                        }
+                    } else {
+                        readImagesFromEditable(div, function(data) {
+                            _decodeTabularData(data, true);
+                        });
+                    }
+                }
+            }
+            if (clipboardData = window.clipboardData) {
+                text = clipboardData.getData('Text');
+                if (text != null && text.length) {
+                    _decodeTabularData(text, false);
+                } else {
+                    readImagesFromEditable(div, function(data) {
+                        _decodeTabularData(data, true);
+                    });
+                }
+            }
+        });
+    }
+
     function _createTextBox(innerText){
       var ta = document.createElement('textarea');
       ta.style.position = 'absolute';
@@ -106,16 +202,17 @@
       return ta;
     }
     
-    function _decodeTabularData(_grid, ta){
+    function _decodeTabularData(clipText, isImage){
       var columns = _grid.getColumns();
-      var clipText = ta.value;
-      var clipRows = clipText.split(/[\n\f\r]/);
-      var clippedRange = [];
-      
-      document.body.removeChild(ta);
+      var clipRows = [clipText];
+      var clippedRange = [[clipText]];
 
-      for (var i=0; i<clipRows.length; i++) {
-          clippedRange[i] = clipRows[i].split("\t");
+      if(!isImage) {
+          clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
+          clippedRange = [];
+          for (var i = 0; i < clipRows.length; i++) {
+              clippedRange[i] = clipRows[i].split("\t");
+          }
       }
 
       var selectedCell = _grid.getActiveCell();
@@ -313,10 +410,7 @@
                 dderlState.copyMode = "normal";
                 return false;
             case keyCodes.V:
-                var ta = _createTextBox('');
-                setTimeout(function(){
-                    _decodeTabularData(_grid, ta);
-                }, 100);
+                _createDivPaste();
                 return false;
             }
         }

@@ -1387,18 +1387,22 @@
             var cell = _ranges[0];
             var columnField = self._grid.getColumns()[cell.fromCell].field;
             var stringToFormat = self._gdata[cell.fromRow][columnField];
-            var data = self._gridDataView.getItem(cell.fromRow);
-            self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-            self._ajax('/app/edit_term_or_view', {
-                edit_term_or_view: {
-                    connection : dderlState.connection,
-                    statement : self._stmt,
-                    row : data.id,
-                    erlang_term: stringToFormat,
-                    expansion_level: "auto",
-                    force: false
-                }
-            }, 'edit_term_or_view', 'editTermOrView');
+            if(stringToFormat.lastIndexOf("data:image", 0) === 0) {// Check if it is a base64 image.
+                self._openImageEditor(stringToFormat);
+            } else {
+                var data = self._gridDataView.getItem(cell.fromRow);
+                self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
+                self._ajax('/app/edit_term_or_view', {
+                    edit_term_or_view: {
+                        connection : dderlState.connection,
+                        statement : self._stmt,
+                        row : data.id,
+                        erlang_term: stringToFormat,
+                        expansion_level: "auto",
+                        force: false
+                    }
+                }, 'edit_term_or_view', 'editTermOrView');
+            }
         }
     },
 
@@ -1987,6 +1991,29 @@
                   cmdFlat   : cmd,
                  })
             .sql('open');
+    },
+
+    _openImageEditor: function(dataImg) { // Data image encoded as base64 string
+        var self = this;
+        var title = "Image editor (read only)";
+
+        $('<div><img src="'+dataImg+'"></div>')
+            .appendTo(document.body)
+            .dialog(
+                { // dialog options default override
+                    width           : 'auto',
+                    minHeight       : 50,
+                    minWidth        : 100,
+                    resizable       : true,
+                    modal           : false,
+                    title           : title,
+                    clear           : null,
+                    focus           : function(e,ui) {},
+                    close           : function() {
+                        $(this).dialog('destroy');
+                        $(this).remove();
+                    }
+                });
     },
 
     _openErlangTermEditor: function(formattedString) {
