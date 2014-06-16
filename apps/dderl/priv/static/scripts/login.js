@@ -74,7 +74,7 @@ function update_user_information(user) {
 }
 
 function check_already_connected() {
-    if(!window.opener || !window.opener.dderlState.session ||
+    if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
        !window.opener.$('#change-pswd-button').data("logged_in_user")) {
         display_login();
     } else {
