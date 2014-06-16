@@ -439,7 +439,7 @@ function load_login_form(id) {
         $('#port').val(connects[id].port);
         $('#service').val(connects[id].service);
         secureCheckbox = document.getElementById("secure");
-        if(connects[id].secure === true || connects[id].secure.toLowerCase() === "true") {
+        if(connects[id].secure != null && (connects[id].secure === true || connects[id].secure.toLowerCase() === "true")) {
             secureCheckbox.checked = true;
         } else {
             secureCheckbox.checked = false;
