@@ -12,11 +12,14 @@
 
 %% API.
 
-check_file(F) ->
-    PrivDir = case code:priv_dir(dderl) of
+get_priv_dir() ->
+    case code:priv_dir(dderl) of
         {error, bad_name} -> "priv";
         PDir -> PDir
-    end,
+    end.
+
+check_file(F) ->
+    PrivDir = get_priv_dir(),
     File = filename:join([PrivDir, F]),
     IsFile = filelib:is_file(File),
     if IsFile =:= true -> ok;
@@ -26,19 +29,14 @@ check_file(F) ->
     File.
 
 start(_Type, _Args) ->
+    PrivDir = get_priv_dir(),
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
             {"/ws", bullet_handler, [{handler, dderl_stream}]},
             {"/app/[...]", dderl_resource, []},
-            {"/bullet.js", cowboy_static, [
-                {directory, {priv_dir, bullet, []}},
-                {file, "bullet.js"}
-            ]},
-            {"/[...]", cowboy_static, [
-                {directory, {priv_dir, dderl, []}},
-                {mimetypes, {fun mimetypes:path_to_mimes/2, default}}
-            ]}
+            {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
+            {"/[...]", cowboy_static, {dir, PrivDir}}
 		]}
 	]),
 

@@ -36,9 +36,9 @@ start() ->
     ok = application:set_env(sasl, sasl_error_logger, false),
     ok = application:start(sasl),
     ok = application:start(os_mon),
-	%ok = application:start(crypto),
-	ok = application:start(ranch),
-	ok = application:start(cowboy),
+    ok = application:start(ranch),
+    ok = application:start(cowlib),
+    ok = application:start(cowboy),
     erlimem:start(),
     application:start(sqlparse),% maybe already started by imem 
     imem:start(),

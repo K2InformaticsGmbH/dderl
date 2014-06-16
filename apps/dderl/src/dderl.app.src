@@ -9,6 +9,7 @@
                   os_mon,
                   lager,
                   ranch,
+                  cowlib,
                   erlimem,
                   imem,
                   sqlparse
