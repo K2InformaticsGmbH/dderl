@@ -159,9 +159,9 @@ function insertAtCursor(myField, myValue) {
 
         // dialog elements
 
-        // Set the sql to 40%, 50% of the parent window
+        // Set the sql to 40% of the parent window
         self.options.width = $(window).width() * 0.4;
-        self.options.height = $(window).height() * 0.5;
+        self.options.height = $(window).height() * 0.4;
 
         // field for text width measurement in pixels
         // added to document.body once
@@ -688,7 +688,13 @@ function insertAtCursor(myField, myValue) {
                 self._editDiv.tabs("option", "active", 1);
                 self._setTabFocus();
                 var nlines = _parsed.pretty.split("\n").length;
-                self._dlg.dialog("option", "height", Math.round(nlines * 16.8) + 62);
+                var dialogPos = self._dlg.dialog("widget").position();
+                var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
+                var distanceToBottom = $(window).height() - (dialogPos.top + newDialogHeight) - 30;
+                if(distanceToBottom < 0) {
+                    self._dlg.dialog("option", "position", [dialogPos.left, dialogPos.top + distanceToBottom]);
+                }
+                self._dlg.dialog("option", "height", newDialogHeight);
             }
             if (is_ace_editor()) {
                 set_sql_content(self._boxDiv.attr('id'), _parsed.pretty);
