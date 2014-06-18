@@ -50,6 +50,7 @@
     _editorEscaped  : false,
     _loop           : "",
     _spinCounter    : null,
+    _imagePreview   : null,
 
     // flag to avoid multiple calls to reorder
     _reorderCalled  : false,
@@ -1433,6 +1434,8 @@
         self._grid.onClick.subscribe($.proxy(self._handleClick, self));
         self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
         self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
+        self._grid.onMouseEnter.subscribe($.proxy(self._handleMouseEnter, self));
+        self._grid.onMouseLeave.subscribe($.proxy(self._handleMouseLeave, self));
 
         // wire up model events to drive the grid
         self._gridDataView.onRowCountChanged.subscribe(function (e, args) {
@@ -2508,6 +2511,47 @@
         self._dlg.dialog("moveToTop");
         self._grid.focus();
         console.log("Focus set");
+    },
+
+    _handleMouseEnter: function(e, args) {
+        var self = this;
+        var g = args.grid;
+        var cell = g.getCellFromEvent(e);
+        var row = g.getData().getItem(cell.row);
+
+        //Check if we are in a new row.
+        if(!row) {
+            return;
+        }
+        var value = row[g.getColumns()[cell.cell].field];
+        if(typeof(value.lastIndexOf) === "function" && value.lastIndexOf("data:image", 0) === 0) {
+            self._removeImgPreview();
+            self._addImgPreview(value, e.clientY + 5, e.clientX + 5);
+        }
+    },
+
+    _handleMouseLeave: function(e, args) {
+        var self = this;
+        self._removeImgPreview();
+    },
+
+    _addImgPreview: function(value, top, left) {
+        var self = this;
+        self._imagePreview = $('<div><img src="'+value+'"></div>')
+            .css("position", "absolute")
+            .css("z-index", 99999)
+            .css("top", top)
+            .css("left", left)
+            .appendTo("#main-body")
+            .show();
+    },
+
+    _removeImgPreview: function() {
+        var self = this;
+        if(self._imagePreview) {
+            self._imagePreview.remove();
+            self._imagePreview = null;
+        }
     },
 
     _gridColumnsReorder: function() {
