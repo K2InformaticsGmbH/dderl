@@ -2524,7 +2524,7 @@
             return;
         }
         var value = row[g.getColumns()[cell.cell].field];
-        if(typeof(value.lastIndexOf) === "function" && value.lastIndexOf("data:image", 0) === 0) {
+        if(value && typeof(value.lastIndexOf) === "function" && value.lastIndexOf("data:image", 0) === 0) {
             self._removeImgPreview();
             self._addImgPreview(value, e.clientY + 5, e.clientX + 5);
         }

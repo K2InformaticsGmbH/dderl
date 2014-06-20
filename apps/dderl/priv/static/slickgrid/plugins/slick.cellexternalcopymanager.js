@@ -155,12 +155,16 @@
                         if (item.type.match(/^image\//)) {
                             reader = new FileReader();
                             reader.onload = function(event) {
-                                _decodeTabularData(event.target.result, true);
+                                setTimeout(function() {
+                                    _decodeTabularData(event.target.result, true)
+                                }, 1);
                             };
                             reader.readAsDataURL(item.getAsFile());
                         } else if(item.type === 'text/plain') {
                             item.getAsString(function(string) {
-                                _decodeTabularData(string, false);
+                                setTimeout(function() {
+                                    _decodeTabularData(string, false);
+                                }, 1);
                             });
                         }
                     }
@@ -168,7 +172,9 @@
                     if (clipboardData.types.length) {
                         text = clipboardData.getData('Text');
                         if (text != null && text.length) {
-                            _decodeTabularData(text, false);
+                            setTimeout(function() {
+                                _decodeTabularData(text, false);
+                            }, 1);
                         }
                     } else {
                         readImagesFromEditable(div, function(data) {
@@ -180,7 +186,9 @@
             if (clipboardData = window.clipboardData) {
                 text = clipboardData.getData('Text');
                 if (text != null && text.length) {
-                    _decodeTabularData(text, false);
+                    setTimeout(function() {
+                        _decodeTabularData(text, false);
+                    }, 1);
                 } else {
                     readImagesFromEditable(div, function(data) {
                         _decodeTabularData(data, true);
