@@ -213,7 +213,13 @@
         }
 
         // initialize the array containing the history if was not set in the options
-        if(!self._cmdStrs) self._cmdStrs = [];
+        if(!self._cmdStrs) {
+            self._cmdStrs = [];
+        }
+        // add the initial sql query to the history
+        if(self._cmd) {
+            self._addToEditorHistory(self._cmd);
+        }
 
         // dialog elements
 
@@ -1815,13 +1821,11 @@
             return;
         }
         if(_table.hasOwnProperty('error')) {
-            console.error('[_renderTable] missing statement - '+_table);
             this._dlg.dialog('close');
             alert_jq(_table.error);
             return;
         }
         if(!_table.hasOwnProperty('statement')) {
-            console.error('[_renderTable] missing statement handle - '+_table);
             this._dlg.dialog('close');
             alert_jq('missing statement handle');
             return;

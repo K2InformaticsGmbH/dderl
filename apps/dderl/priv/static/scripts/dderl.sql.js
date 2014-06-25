@@ -80,8 +80,8 @@ function insertAtCursor(myField, myValue) {
                             self._checkParsed(_parsed);
                             self._renderParsed(_parsed);
                         },
-                        reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd     (_parsed); },
-                        saveViewResult  : function(e, _result) { e.data._saveViewResult (_result); }
+                        reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd (_parsed); },
+                        saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); }
                       },
 
     // Dialog context menus
@@ -560,6 +560,7 @@ function insertAtCursor(myField, myValue) {
      * Toolbar callbak functions
      */
     _toolBarValidate: function() {
+        this._addToHistory(this._modCmd);
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
     },
     _toolBarTblReload: function() {
@@ -578,18 +579,20 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
-        self._reloadBtn = button;
+        this._reloadBtn = button;
+        this._addToHistory(this._modCmd);
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','reloadParsedCmd');
     },
 
     _reloadParsedCmd: function(_parsed) {
+        var self = this;
         this._renderParsed(_parsed);
         var initOptions = {
             title          : this._title,
             autoOpen       : false,
             dderlConn      : dderlState.connection,
             dderlAdapter   : dderlState.adapter,
-            dderlStartBtn  : self._reloadBtn,
+            dderlStartBtn  : this._reloadBtn,
             dderlCmdStrs   : this._history,
             dderlSqlEditor : this._dlg
         };
