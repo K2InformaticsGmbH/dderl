@@ -178,12 +178,7 @@ foldb(Ind, P, {'as', Item, Alias}) ->
         {error, Reason} ->
             {error, Reason};
         B ->
-            case B#box.children of
-                [] ->   B#box{name=list_to_binary([B#box.name," as ",Alias])};
-                Ch ->   {CF,[CL]} = lists:split(length(Ch)-1,Ch),
-                        EChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," as ",Alias])}],
-                        B#box{children=EChildren}
-            end
+            append_alias(B, Alias)
     end;
 foldb(Ind, _P, {hints, Hint}) -> mk_box(Ind, [], Hint);
 foldb(Ind, _P, {opt, Opt}) -> mk_box(Ind, [], Opt);
@@ -872,6 +867,14 @@ foldb_concat(Boxes) when is_list(Boxes) ->
 foldb_concat(Boxes) ->
     ?Error("Invalid list for folding in '||' ~p", [Boxes]),
     {error, <<"Invalid list for folding in '||'">>}.
+
+-spec append_alias(#box{}, binary()) -> #box{}.
+append_alias(#box{children = []} = B, Alias) ->
+    B#box{name=list_to_binary([B#box.name," as ",Alias])};
+append_alias(#box{children = Ch} = B, Alias) ->
+    {CF,[CL]} = lists:split(length(Ch)-1,Ch),
+    EChildren = CF ++ [append_alias(CL, Alias)],
+    B#box{children=EChildren}.
 
 -spec check_error(list()) -> {error, binary()} | no_errors.
 check_error([]) -> no_errors;
