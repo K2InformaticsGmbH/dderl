@@ -211,18 +211,25 @@
     }
     
     function _decodeTabularData(clipText, isImage){
-      var columns = _grid.getColumns();
       var clipRows = [clipText];
       var clippedRange = [[clipText]];
 
       if(!isImage) {
           clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
+          var last = clipRows.pop();
+          if(last) {
+              clipRows.push(last);
+          }
           clippedRange = [];
           for (var i = 0; i < clipRows.length; i++) {
               clippedRange[i] = clipRows[i].split("\t");
           }
       }
+      _processTabularData(clippedRange);
+    }
 
+    function _processTabularData(clippedRange) {
+      var columns = _grid.getColumns();
       var selectedCell = _grid.getActiveCell();
       var ranges = _grid.getSelectionModel().getSelectedRanges();
       var selectedRange = ranges && ranges.length ? ranges[0] : null;   // pick only one selection
@@ -282,14 +289,15 @@
             d.push({id: -addRows});
         }
 
-        if (_grid.getData() instanceof Slick.Data.DataView)
-            _grid.getData().setItems(d);
-        else
-            _grid.setData(d);
-        _grid.render();
+          if (_grid.getData() instanceof Slick.Data.DataView) {
+              _grid.getData().setItems(d);
+          } else {
+              _grid.setData(d);
+          }
+          _grid.render();
       }
-      var clipCommand = {
 
+      var clipCommand = {
         isClipboardCommand: true,
         clippedRange: clippedRange,
         oldValues: [],
@@ -310,40 +318,56 @@
         w: 0,
 
         execute: function() {
-          this.h=0;
-          for (var y = 0; y < destH; y++){
-            this.oldValues[y] = [];
-            this.w=0;
-            this.h++;
-            for (var x = 0; x < destW; x++){
-              this.w++;
-              var desty = activeRow + y;
-              var destx = activeCell + x;
+            var self = this;
+            this.h=0;
+            self.processRows(destW, activeRow, activeCell, destH, 0, function() {
+                var bRange = new Slick.Range(activeRow, activeCell, activeRow + self.h-1, activeCell + self.w-1);
+                self.markCopySelection([bRange]);
+                _grid.getSelectionModel().setSelectedRanges([bRange]);
+                _grid.focus();
+                self.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
+            });
+        },
 
-              if (desty < this.maxDestY && destx < this.maxDestX ) {
-                var nd = _grid.getCellNode(desty, destx);
-                var dt = null;
-                if (_grid.getData() instanceof Slick.Data.DataView)
-                    dt = _grid.getData().getItems()[desty];
-                else
-                    dt = _grid.getDataItem(desty);
+        processRows : function(destW, activeRow, activeCell, limit, y, cb) {
+            //We need to process max 50 rows to not block the gui.
+            var self = this;
+            var batchLimit = y + Math.min(limit - y, 50);
+            for(; y < batchLimit; ++y) {
+                this.oldValues[y] = [];
+                this.w=0;
+                this.h++;
+                for (var x = 0; x < destW; x++) {
+                    this.w++;
+                    var desty = activeRow + y;
+                    var destx = activeCell + x;
 
-                this.oldValues[y][x] = dt[columns[destx]['id']];
-                if (oneCellToMultiple) {
-                    this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
-                } else {
-                    this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                    if (desty < this.maxDestY && destx < this.maxDestX ) {
+                        var nd = _grid.getCellNode(desty, destx);
+                        var dt = null;
+                        if (_grid.getData() instanceof Slick.Data.DataView)
+                            dt = _grid.getData().getItems()[desty];
+                        else
+                            dt = _grid.getDataItem(desty);
+
+                        this.oldValues[y][x] = dt[columns[destx]['id']];
+                        if (oneCellToMultiple) {
+                            this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
+                        } else {
+                            this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                        }
+                        _grid.updateCell(desty, destx);
+                    }
                 }
-                _grid.updateCell(desty, destx);
-              }
             }
-          }
 
-          var bRange = new Slick.Range(activeRow, activeCell, activeRow+this.h-1, activeCell+this.w-1);
-          this.markCopySelection([bRange]);
-          _grid.getSelectionModel().setSelectedRanges([bRange]);
-          _grid.focus();
-          this.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
+            if(y < limit) {
+                setTimeout(function() {
+                    self.processRows(destW, activeRow, activeCell, limit, y, cb);
+                }, 1);
+            } else {
+                cb();
+            }
         },
 
         undo: function() {
@@ -389,12 +413,11 @@
         }
       };
 
-      if(_options.clipboardCommandHandler) {
-        _options.clipboardCommandHandler(clipCommand);
-      }
-      else {
-        clipCommand.execute();
-      }
+        if(_options.clipboardCommandHandler) {
+            _options.clipboardCommandHandler(clipCommand);
+        } else {
+            clipCommand.execute();
+        }
     }
 
     function handleKeyDown(e, args) {
