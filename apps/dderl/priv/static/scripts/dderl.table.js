@@ -230,6 +230,7 @@
                 $('<span>')
                 .attr('id', 'txtlen')
                 .css('visibility', 'hidden')
+                .css('display', 'none')
                 .css('font-family', self._fnt)
                 .css('font-size', self._fntSz)
                 .appendTo(document.body);

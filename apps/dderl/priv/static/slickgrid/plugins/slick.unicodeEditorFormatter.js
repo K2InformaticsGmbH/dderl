@@ -66,10 +66,13 @@ function fromUnicodeLiteral(str)
         var newValue;
         if (value == null) {
             newValue = "";
+        } else if(value.length > 100) {
+            newValue = value.substring(0, 200) + "...";
+            newValue = newValue.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         } else {
             newValue = value.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         }
-        return unicodeLiteral(newValue);
+        return newValue;
     }
 
     function IdFormatter(row, cell, value, columnDef, dataContext) {
