@@ -1018,6 +1018,9 @@ stats_add_row([{Count, Sum, Squares} = Result | RestResult], [Element | RestRow]
 format_stat_rows([], _, _) -> [];
 format_stat_rows([ColName | RestColNames], [{0, _, _} | RestResult], Idx) ->
     [[Idx, nop, ColName, 0, 0, 0, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{1, Sum, _} | RestResult], Idx) ->
+    Average = Sum,
+    [[Idx, nop, ColName, 1, Sum, Average, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
 format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares} | RestResult], Idx) ->
     Average = Sum/Count,
     StdDev = math:sqrt((Squares - Sum*Sum/Count) /(Count -1)),
@@ -1073,10 +1076,11 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
                 end,
                 stats_add_row(Results, FilteredRow)
         end,
-    StatsRows = format_stat_rows(ColNames, ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0}), TableUsed), 1),
-    ?Debug("Stat Rows ~p", [StatsRows]),
+    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0}), TableUsed),
+    MaxCount = element(1, lists:max(StatsResult)),
+    StatsRows = format_stat_rows(ColNames, StatsResult, 1),
     StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
-    {reply, {15, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
+    {reply, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
@@ -1125,7 +1129,10 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
         Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
         StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
                 Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
-                [math:sqrt(Sums / (length(Col) - 1)) | SD]
+                if
+                    length(Col) < 2 -> [0 | SD];
+                    true -> [math:sqrt(Sums / (length(Col) - 1)) | SD]
+                end
             end, [], lists:zip(RowColumns, Avgs))),
         StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
         StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
