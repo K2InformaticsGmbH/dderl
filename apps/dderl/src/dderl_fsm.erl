@@ -1724,7 +1724,9 @@ serve_stack(aborted, #state{stack={button,_Button,RT}}=State0) ->
     ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,_Button]),
     serve_bot(aborted,<<>>,State0#state{stack=undefined,replyToFun=RT});
 serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
-    case lists:member(GuiBot,keys_before(BufBot,BL-1,State0)) of
+    KeysBefore = keys_before(BufBot,BL-1,State0),
+    IsMember = KeysBefore == [] orelse lists:member(GuiBot, keys_before(BufBot,BL-1,State0)),
+    case IsMember of
         false ->    % deferred forward can be executed now
                     ?Debug("~p stack exec ~p", [SN,<<">">>]),
                     gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
