@@ -262,11 +262,7 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"dashboards">>;
       C =:= <<"edit_term_or_view">> ->
     BodyJson = jsx:decode(ReqData),
-    try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
-    catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
-    end,
+    spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;
 
 process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
@@ -303,6 +299,13 @@ spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
             error
+    end.
+
+spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) ->
+    try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
+    catch Class:Error ->
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
     end.
 
 -spec jsq(term()) -> term().
