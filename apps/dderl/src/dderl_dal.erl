@@ -43,64 +43,349 @@
     }).
 
 -spec login(binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-login(User, Password) -> gen_server:call(?MODULE, {login, User, Password}).
+login(User, Password) ->
+    ?Debug("login for user ~p", [User]),
+    {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password)}) of
+        {error, Error} ->
+            ?Error("login exception ~n~p~n", [Error]),
+            {error, Error};
+        {ok, Sess} ->
+            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
+            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
+            {true, Sess, UserId}
+    end.
 
 -spec change_password(binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-change_password(User, Password, NewPassword) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword}).
+change_password(User, Password, NewPassword) ->
+    ?Debug("changing password for user ~p", [User]),
+    {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
+        {error, Error} ->
+            ?Error("change password exception ~n~p~n", [Error]),
+            {error, Error};
+        {ok, Sess} ->
+            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
+            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
+            {true, Sess, UserId}
+    end.
 
 -spec add_adapter(atom(), binary()) -> ok.
-add_adapter(Id, FullName)           -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
+add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
 
 -spec add_connect({atom(), pid()} | undefined, #ddConn{}) -> integer() | {error, binary()}.
-add_connect(Sess, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Sess, Conn}).
+add_connect(undefined, #ddConn{} = Conn) ->
+    gen_server:call(?MODULE, {add_connect, Conn});
+add_connect(Sess, #ddConn{schm = undefined} = Conn) ->
+    {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
+    add_connect(Sess, Conn#ddConn{schm = SchemaName});
+add_connect(Sess, #ddConn{id = undefined, owner = Owner} = Conn) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
+                                         , [{'=:=','$1',Conn#ddConn.name},{'=:=','$2',Owner}]
+                                         , ['$3']}]]) of
+        {[Id|_], true} ->
+            ?Info("add_connect replacing id ~p", [Id]),
+            NewCon = Conn#ddConn{id=Id};
+        _ ->
+            Id = erlang:phash2(make_ref()),
+            ?Info("add_connect adding new id ~p", [Id]),
+            NewCon = Conn#ddConn{id=Id}
+    end,
+    Sess:run_cmd(write, [ddConn, NewCon]),
+    ?Info("add_connect written ~p", [NewCon]),
+    NewCon;
+add_connect(Sess, #ddConn{id = OldId, owner = Owner} = Conn) ->
+    case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
+                                         , [{'=:=', '$1', OldId}]
+                                         , ['$_']}]]) of
+        {[#ddConn{owner = Owner}], true} ->
+            %% The same owner, save old connection as it is.
+            Sess:run_cmd(write, [ddConn, Conn]),
+            Conn;
+        {[#ddConn{owner = OldOwner} = OldCon], true} ->
+            %% It is not the same owner, save a copy if there is some difference.
+            %% TODO: Validate authorization before saving.
+            case compare_connections(OldCon, Conn#ddConn{owner = OldOwner}) of
+                true ->
+                    %% If the connection is not changed then do not save a copy.
+                    OldCon;
+                false ->
+                    add_connect(Sess, Conn#ddConn{id = undefined})
+            end;
+        {[], true} ->
+            %% Connection with id not found, adding a new one.
+            Sess:run_cmd(insert, [ddConn, Conn]),
+            Conn;
+        Result ->
+            ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
+            {error, <<"Error saving the connection">>}
+    end.
 
 -spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), list() | undefined, term()) -> ddEntityId().
-add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) -> gen_server:call(?MODULE, {add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}).
+add_command(undefined, Owner, Adapter, Name, Cmd, Conn, Opts) ->
+    gen_server:call(?MODULE, {add_command, Owner, Adapter, Name, Cmd, Conn, Opts});
+add_command(Sess, Owner, Adapter, Name, Cmd, undefined, Opts) ->
+    case is_local_query(Cmd) of
+        true -> Conn = local;
+        false -> Conn = []
+    end,
+    add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts);
+add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts) ->
+    Id = erlang:phash2(make_ref()),
+    ?Debug("add_command ~p new id ~p", [Name, Id]),
+    NewCmd = #ddCmd { id     = Id
+                 , name      = Name
+                 , owner     = Owner
+                 , adapters  = [Adapter]
+                 , command   = Cmd
+                 , conns     = Conn
+                 , opts      = Opts},
+    Sess:run_cmd(insert, [ddCmd, NewCmd]),
+    ?Debug("add_command inserted ~p", [NewCmd]),
+    Id.
 
 -spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), binary(), binary(), term()) -> ddEntityId().
-update_command(Sess, Id, Owner, Name, Cmd, Opts) -> gen_server:call(?MODULE, {update_command, Sess, Id, Owner, Name, Cmd, Opts}).
+update_command(undefined, Id, Owner, Name, Sql, Opts) -> gen_server:call(?MODULE, {update_command, Id, Owner, Name, Sql, Opts});
+update_command(Sess, Id, Owner, Name, Sql, Opts) ->
+    ?Debug("update command ~p replacing id ~p", [Name, Id]),
+    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
+    NewCmd = #ddCmd { id     = Id
+                 , name      = Name
+                 , owner     = Owner
+                 , adapters  = Cmd#ddCmd.adapters
+                 , command   = Sql
+                 , conns     = Cmd#ddCmd.conns
+                 , opts      = Opts},
+    Sess:run_cmd(write, [ddCmd, NewCmd]),
+    Id.
+
 
 -spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
-add_view(Sess, Owner, Name, CmdId, ViewsState) -> gen_server:call(?MODULE, {add_view, Sess, Owner, Name, CmdId, ViewsState}).
+add_view(undefined, Owner, Name, CmdId, ViewsState) ->
+    gen_server:call(?MODULE, {add_view, Owner, Name, CmdId, ViewsState});
+add_view(Sess, Owner, Name, CmdId, ViewsState) -> 
+    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd = CmdId, id='$1', owner=Owner, _='_'}
+                                            , []
+                                            , ['$1']}]]) of
+        {[Id0|_], true} ->
+            ?Debug("add_view ~p replacing id ~p ~p~n", [Name, Id0, Owner]),
+            Id0;
+        _ ->
+            Id1 = erlang:phash2(make_ref()),
+            ?Debug("add_view ~p new id ~p", [Name, Id1]),
+            Id1
+    end,
+    NewView = #ddView { id      = Id
+                     , name     = Name
+                     , owner    = Owner
+                     , cmd      = CmdId
+                     , state    = ViewsState},
+    Sess:run_cmd(write, [ddView, NewView]),
+    ?Debug("add_view written ~p", [NewView]),
+    Id.
 
 -spec update_view({atom(), pid()}, integer(), #viewstate{}, binary()) -> integer() | {error, binary()}.
-update_view(Sess, ViewId, ViewsState, Qry) when is_integer(ViewId) -> gen_server:call(?MODULE, {update_view, Sess, ViewId, ViewsState, Qry}).
+update_view(Sess, ViewId, ViewsState, Qry) when is_integer(ViewId) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            ?Debug("The oldView ~p and the session ~p", [OldView, Sess]),
+            Cmd = internal_get_command(Sess, OldView#ddView.cmd),
+            ?Debug("The old cmd ~p", [Cmd]),
+            %% TODO: Handle multiple adapters.
+            update_command(Sess, Cmd#ddCmd.id, Cmd#ddCmd.owner, Cmd#ddCmd.name, Qry, Cmd#ddCmd.opts),
+            case ViewsState of
+                #viewstate{table_layout=[], column_layout=[]} ->
+                    NewView = OldView;
+                #viewstate{table_layout=[]} ->
+                    #viewstate{table_layout=OldTableLay} = OldView#ddView.state,
+                    NewState = ViewsState#viewstate{table_layout=OldTableLay},
+                    NewView = OldView#ddView{state=NewState};
+                #viewstate{column_layout=[]} ->
+                    #viewstate{column_layout=OldColumLay} = OldView#ddView.state,
+                    NewState = ViewsState#viewstate{column_layout=OldColumLay},
+                    NewView = OldView#ddView{state=NewState};
+                #viewstate{} ->
+                    NewView = OldView#ddView{state=ViewsState}
+            end,
+            Sess:run_cmd(write, [ddView, NewView]),
+            ?Debug("update_view written ~p", [NewView]),
+            ViewId;
+        _ ->
+            ?Error("Unable to get the view to update ~p", [ViewId]),
+            {error, <<"Unable to get the view to update">>}
+    end.
 
--spec rename_view({atom(), pid()}, integer(), binary()) -> ok | {error, term()}.
-rename_view(Sess, ViewId, ViewName) -> gen_server:call(?MODULE, {rename_view, Sess, ViewId, ViewName}).
+-spec rename_view({atom(), pid()}, integer(), binary()) -> ok | {error, binary()}.
+rename_view(Sess, ViewId, ViewName) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                {[OldCmd], true} ->
+                    Sess:run_cmd(write, [ddCmd, OldCmd#ddCmd{name = ViewName}]),
+                    Sess:run_cmd(write, [ddView, OldView#ddView{name = ViewName}]),
+                    ok;
+                _ ->
+                    ?Error("Unable to get the command to rename ~p", [OldView#ddView.cmd]),
+                    {error, <<"Unable to find the command to rename">>}
+            end;
+        _ ->
+            ?Error("Unable to get the view to rename ~p", [ViewId]),
+            {error, <<"Unable to find the view to rename">>}
+    end.
 
 -spec delete_view({atom(), pid()}, integer()) -> integer() | {error, binary()}.
-delete_view(Sess, ViewId) -> gen_server:call(?MODULE, {delete_view, Sess, ViewId}).
+delete_view(Sess, ViewId) ->
+    %% TODO: At the moment the command and the view always have the same owner.
+    %%       Check for authorization.
+    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
+        {[OldView], true} ->
+            case Sess:run_cmd(select, [ddView, [{#ddView{cmd=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                {[OldView], true} ->
+                    % Only one view with the command, so the command is also deleted
+                    case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
+                        {[OldCmd], true} ->
+                            ok = Sess:run_cmd(delete, [ddCmd, OldCmd#ddCmd.id]);
+                        _ -> ?Info("No command found to delete ~p", [OldView#ddView.cmd])
+                    end;
+                _ -> ok
+            end,
+            ok = Sess:run_cmd(delete, [ddView, OldView#ddView.id]),
+            ok;
+        _ ->
+            ?Error("Unable to get the view to delete ~p", [ViewId]),
+            {error, <<"Unable to find the view to delete">>}
+    end.
 
 -spec get_adapters({atom(), pid()}) -> [#ddAdapter{}].
-get_adapters(Sess) -> gen_server:call(?MODULE, {get_adapters, Sess}).
+get_adapters(Sess) ->
+    ?Debug("get_adapters"),
+    {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
+    Adapters.
 
 -spec get_connects({atom(), pid()}, binary()) -> [#ddConn{}].
-get_connects(Sess, User) -> gen_server:call(?MODULE, {get_connects, Sess, User}).
+get_connects(Sess, User) ->
+    {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
+    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
+    NewCons =
+        if HasAll ->
+            [if
+                 is_integer(C#ddConn.owner) ->
+                     C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
+                 true -> C
+             end
+            || C <- Cons];
+        true ->
+            lists:foldl(fun(C,Acc) ->
+                HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
+                if (HavePerm == true) ->
+                        [if
+                             is_integer(C#ddConn.owner) ->
+                                 C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
+                             true -> C
+                         end
+                        | Acc];
+                   true -> Acc
+                end
+            end,
+            [],
+            Cons)
+    end,
+    ?Debug("get_connects for ~p user -- ~p", [User, NewCons]),
+    NewCons.
 
 -spec del_conn({atom(), pid()}, ddEntityId()) -> ok | no_permission.
-del_conn(Sess, ConId) -> gen_server:call(?MODULE, {del_conn, Sess, ConId}).
+del_conn(Sess, ConId) ->
+    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
+    if HasAll ->
+        ok = Sess:run_cmd(delete, [ddConn, ConId]),
+        ?Info("del_conn connection ~p deleted", [ConId]),
+        ok;
+    true ->
+        case Sess:run_cmd(have_permission, [{ConId, use}]) of
+        true ->
+            ok = Sess:run_cmd(delete, [ddConn, ConId]),
+            ?Info("del_conn connection ~p deleted", [ConId]),
+            ok;
+        _ ->
+            ?Error("del_conn no permission to delete connection ~p", [ConId]),
+            no_permission
+        end
+    end.
 
 -spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
-get_command(Sess, IdOrName) -> gen_server:call(?MODULE, {get_command, Sess, IdOrName}).
+get_command(Sess, IdOrName) -> internal_get_command(Sess, IdOrName).
 
 -spec get_view({atom(), pid()}, ddEntityId()) -> #ddView{} | undefined.
-get_view(Sess, ViewId) -> gen_server:call(?MODULE, {get_view, Sess, ViewId}).
+get_view(undefined, ViewId) -> gen_server:call(?MODULE, {get_view, ViewId});
+get_view(Sess, ViewId) ->
+    ?Debug("get view by id ~p", [ViewId]),
+    case Sess:run_cmd(select, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
+        {[View], true} ->
+            View;
+        Result ->
+            ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
+            View = undefined
+    end,
+    View.
 
 -spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
-get_view(Sess, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Sess, Name, Adapter, Owner}).
+get_view(undefined, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Name, Adapter, Owner});
+get_view(Sess, Name, Adapter, Owner) -> 
+    ?Debug("get_view ~p", [Name]),
+    {Views, true} = Sess:run_cmd(select, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
+    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters='$1', _='_'}, [], ['$1']}]])} || V <- Views],
+    Result = [V || {V, {[C], true}} <- ListResult, lists:member(Adapter, C)],
+    if
+        length(Result) > 0 ->
+            %% TODO: How can we discriminate to ignore the correct one?
+            [View | _Ignored] = Result;
+        true ->
+            View = undefined
+    end,
+    View.
 
 -spec save_dashboard({atom(), pid()}, ddEntityId(), integer(), binary(), list()) -> integer() | {error, binary()}.
-save_dashboard(Sess, Owner, DashId, Name, Views) -> gen_server:call(?MODULE, {save_dashboard, Sess, Owner, DashId, Name, Views}).
+save_dashboard(Sess, Owner, -1, Name, Views) ->
+    NewId = erlang:phash2(make_ref()),
+    case Sess:run_cmd(select, [ddDash, [{#ddDash{id=NewId, name='$1', _='_'}, [], ['$1']}]]) of
+        {[DashName], true} ->
+            ?Debug("Save dashboard colision saving the dashboard ~p with id ~p", [DashName, NewId]),
+            save_dashboard(Sess, Owner, -1, Name, Views);
+        _ ->
+            save_dashboard(Sess, Owner, NewId, Name, Views)
+    end;
+save_dashboard(Sess, Owner, DashId, Name, Views) ->
+    NewDash = #ddDash{id = DashId, name = Name, owner = Owner, views = Views},
+    Sess:run_cmd(write, [ddDash, NewDash]),
+    ?Debug("dashboard saved ~p", [NewDash]),
+    DashId.
 
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
-get_dashboards(Sess, Owner) -> gen_server:call(?MODULE, {get_dashboards, Sess, Owner}).
+get_dashboards(Sess, Owner) ->
+    {Dashboards, true} = Sess:run_cmd(select, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]),
+    Dashboards.
 
 -spec get_name({atom(), pid()}, ddEntityId()) -> binary().
-get_name(Sess, UserId) -> gen_server:call(?MODULE, {get_name, Sess, UserId}).
+get_name(Sess, UserId) when is_integer(UserId) -> Sess:run_cmd(admin_exec, [imem_account, get_name, [UserId]]);
+get_name(_Sess, UserId) -> UserId.
 
 -spec add_adapter_to_cmd({atom(), pid()} | undefined, ddEntityId(), atom()) -> ok | {error, binary()}.
-add_adapter_to_cmd(Sess, CmdId, Adapter) -> gen_server:call(?MODULE, {add_adapter_to_cmd, Sess, CmdId, Adapter}).
+add_adapter_to_cmd(undefined, CmdId, Adapter) ->
+    gen_server:call(?MODULE, {add_adapter_to_cmd, CmdId, Adapter});
+add_adapter_to_cmd(Sess, CmdId, Adapter) ->
+    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = CmdId, _='_'}, [], ['$_']}]]),
+    case lists:member(Adapter, Cmd#ddCmd.adapters) of
+        false ->
+            NewAdapters = [Adapter|Cmd#ddCmd.adapters];
+        true ->
+            NewAdapters = Cmd#ddCmd.adapters
+    end,
+    Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
+    CmdId.
 
 -spec get_maxrowcount() -> integer().
 get_maxrowcount() ->
@@ -164,338 +449,26 @@ build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
-handle_call({add_connect, undefined, Con}, From, #state{sess=Sess} = State) ->
-    handle_call({add_connect, Sess, Con}, From, State);
-handle_call({add_connect, Sess, #ddConn{schm = undefined} = Con}, From, #state{schema = SchemaName} = State) ->
-    handle_call({add_connect, Sess, Con#ddConn{schm = SchemaName}}, From, State);
-handle_call({add_connect, Sess, #ddConn{id = undefined, owner = Owner} = Con}, _From, State) ->
-    case Sess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
-                                         , [{'=:=','$1',Con#ddConn.name},{'=:=','$2',Owner}]
-                                         , ['$3']}]]) of
-        {[Id|_], true} ->
-            ?Info("add_connect replacing id ~p", [Id]),
-            NewCon = Con#ddConn{id=Id};
-        _ ->
-            Id = erlang:phash2(make_ref()),
-            ?Info("add_connect adding new id ~p", [Id]),
-            NewCon = Con#ddConn{id=Id}
-    end,
-    Sess:run_cmd(write, [ddConn, NewCon]),
-    ?Info("add_connect written ~p", [NewCon]),
-    {reply, NewCon, State};
-handle_call({add_connect, Sess, #ddConn{id = OldId, owner = Owner} = Con}, From, State) ->
-    case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
-                                         , [{'=:=', '$1', OldId}]
-                                         , ['$_']}]]) of
-        {[#ddConn{owner = Owner}], true} ->
-            %% The same owner, save old connection as it is.
-            Sess:run_cmd(write, [ddConn, Con]),
-            {reply, Con, State};
-        {[#ddConn{owner = OldOwner} = OldCon], true} ->
-            %% It is not the same owner, save a copy if there is some difference.
-            %% TODO: Validate authorization before saving.
-            case compare_connections(OldCon, Con#ddConn{owner = OldOwner}) of
-                true ->
-                    %% If the connection is not changed then do not save a copy.
-                    {reply, OldCon, State};
-                false ->
-                    handle_call({add_connect, Sess, Con#ddConn{id = undefined}}, From, State)
-            end;
-        {[], true} ->
-            %% Connection with id not found, adding a new one.
-            Sess:run_cmd(insert, [ddConn, Con]),
-            {reply, Con, State};
-        Result ->
-            ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
-            {reply, {error, <<"Error saving the connection">>}, State}
-    end;
+handle_call({add_connect, Conn}, _From, #state{sess=Sess} = State) ->
+    {reply, add_connect(Sess, Conn), State};
 
-handle_call({update_command, undefined, Id, Owner, Name, Sql, Opts}, From, #state{sess=Sess} = State) ->
-    handle_call({update_command, Sess, Id, Owner, Name, Sql, Opts}, From, State);
-handle_call({update_command, Sess, Id, Owner, Name, Sql, Opts}, _From, State) ->
-    ?Debug("update command ~p replacing id ~p", [Name, Id]),
-    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
-    NewCmd = #ddCmd { id     = Id
-                 , name      = Name
-                 , owner     = Owner
-                 , adapters  = Cmd#ddCmd.adapters
-                 , command   = Sql
-                 , conns     = Cmd#ddCmd.conns
-                 , opts      = Opts},
-    Sess:run_cmd(write, [ddCmd, NewCmd]),
-    {reply, Id, State};
+handle_call({update_command, Id, Owner, Name, Sql, Opts}, _From, #state{sess=Sess} = State) ->
+    {reply, update_command(Sess, Id, Owner, Name, Sql, Opts), State};
 
-handle_call({add_command, undefined, Owner, Adapter, Name, Cmd, Conn, Opts}, From, #state{sess=Sess} = State) ->
-    handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
-handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, undefined, Opts}, From, State) ->
-    case is_local_query(Cmd) of
-        true -> Conn = local;
-        false -> Conn = []
-    end,
-    handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, From, State);
-handle_call({add_command, Sess, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, State) ->
-    Id = erlang:phash2(make_ref()),
-    ?Debug("add_command ~p new id ~p", [Name, Id]),
-    NewCmd = #ddCmd { id     = Id
-                 , name      = Name
-                 , owner     = Owner
-                 , adapters  = [Adapter]
-                 , command   = Cmd
-                 , conns     = Conn
-                 , opts      = Opts},
-    Sess:run_cmd(insert, [ddCmd, NewCmd]),
-    ?Debug("add_command inserted ~p", [NewCmd]),
-    {reply, Id, State};
+handle_call({add_command, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess} = State) ->
+    {reply, add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts), State};
 
-handle_call({add_adapter_to_cmd, undefined, CmdId, Adapter}, From, #state{sess=Sess} = State) ->
-    handle_call({add_adapter_to_cmd, Sess, CmdId, Adapter}, From, State);
-handle_call({add_adapter_to_cmd, Sess, Id, Adapter}, _From, State) ->
-    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
-    case lists:member(Adapter, Cmd#ddCmd.adapters) of
-        false ->
-            NewAdapters = [Adapter|Cmd#ddCmd.adapters];
-        true ->
-            NewAdapters = Cmd#ddCmd.adapters
-    end,
-    Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
-    {reply, Id, State};
+handle_call({add_adapter_to_cmd, CmdId, Adapter}, _From, #state{sess=Sess} = State) ->
+    {reply, add_adapter_to_cmd(Sess, CmdId, Adapter), State};
 
-handle_call({add_view, undefined, Owner, Name, CmdId, ViewsState}, From, #state{sess=Sess} = State) ->
-    handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, From, State);
-handle_call({add_view, Sess, Owner, Name, CmdId, ViewsState}, _From, State) ->
-    Id = case Sess:run_cmd(select, [ddView, [{#ddView{name=Name, cmd = CmdId, id='$1', owner=Owner, _='_'}
-                                            , []
-                                            , ['$1']}]]) of
-        {[Id0|_], true} ->
-            ?Debug("add_view ~p replacing id ~p ~p~n", [Name, Id0, Owner]),
-            Id0;
-        _ ->
-            Id1 = erlang:phash2(make_ref()),
-            ?Debug("add_view ~p new id ~p", [Name, Id1]),
-            Id1
-    end,
-    NewView = #ddView { id      = Id
-                     , name     = Name
-                     , owner    = Owner
-                     , cmd      = CmdId
-                     , state    = ViewsState},
-    Sess:run_cmd(write, [ddView, NewView]),
-    ?Debug("add_view written ~p", [NewView]),
-    {reply, Id, State};
+handle_call({add_view, Owner, Name, CmdId, ViewsState}, _From, #state{sess=Sess} = State) ->
+    {reply, add_view(Sess, Owner, Name, CmdId, ViewsState), State};
 
-handle_call({update_view, Sess, ViewId, ViewsState, Qry}, From, State) ->
-    %% TODO: At the moment the command and the view always have the same owner.
-    %%       Check for authorization.
-    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
-        {[OldView], true} ->
-            ?Debug("The oldView ~p and the session ~p", [OldView, Sess]),
-            Cmd = internal_get_command(Sess, OldView#ddView.cmd),
-            ?Debug("The old cmd ~p", [Cmd]),
-            %% TODO: Handle multiple adapters.
-            UpdateCmdParams = {update_command,
-                               Sess,
-                               Cmd#ddCmd.id,
-                               Cmd#ddCmd.owner,
-                               Cmd#ddCmd.name,
-                               Qry,
-                               Cmd#ddCmd.opts},
-            handle_call(UpdateCmdParams, From, State),
-            case ViewsState of
-                #viewstate{table_layout=[], column_layout=[]} ->
-                    NewView = OldView;
-                #viewstate{table_layout=[]} ->
-                    #viewstate{table_layout=OldTableLay} = OldView#ddView.state,
-                    NewState = ViewsState#viewstate{table_layout=OldTableLay},
-                    NewView = OldView#ddView{state=NewState};
-                #viewstate{column_layout=[]} ->
-                    #viewstate{column_layout=OldColumLay} = OldView#ddView.state,
-                    NewState = ViewsState#viewstate{column_layout=OldColumLay},
-                    NewView = OldView#ddView{state=NewState};
-                #viewstate{} ->
-                    NewView = OldView#ddView{state=ViewsState}
-            end,
-            Sess:run_cmd(write, [ddView, NewView]),
-            ?Debug("update_view written ~p", [NewView]),
-            {reply, ViewId, State};
-        _ ->
-            ?Error("Unable to get the view to update ~p", [ViewId]),
-            {reply, {error, <<"Unable to get the view to update">>}, State}
-    end;
+handle_call({get_view, ViewId}, _From, #state{sess = Sess} = State) ->
+    {reply, get_view(Sess, ViewId), State};
 
-handle_call({rename_view, Sess, ViewId, ViewName}, _From, State) ->
-    %% TODO: At the moment the command and the view always have the same owner.
-    %%       Check for authorization.
-    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
-        {[OldView], true} ->
-            case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
-                {[OldCmd], true} ->
-                    Sess:run_cmd(write, [ddCmd, OldCmd#ddCmd{name = ViewName}]),
-                    Sess:run_cmd(write, [ddView, OldView#ddView{name = ViewName}]),
-                    {reply, ok, State};
-                _ ->
-                    ?Error("Unable to get the command to rename ~p", [OldView#ddView.cmd]),
-                    {reply, {error, <<"Unable to find the command to rename">>}, State}
-            end;
-        _ ->
-            ?Error("Unable to get the view to rename ~p", [ViewId]),
-            {reply, {error, <<"Unable to find the view to rename">>}, State}
-    end;
-
-handle_call({delete_view, Sess, ViewId}, _From, State) ->
-    %% TODO: At the moment the command and the view always have the same owner.
-    %%       Check for authorization.
-    case Sess:run_cmd(select, [ddView, [{#ddView{id=ViewId, _='_'}, [], ['$_']}]]) of
-        {[OldView], true} ->
-            case Sess:run_cmd(select, [ddView, [{#ddView{cmd=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
-                {[OldView], true} ->
-                    % Only one view with the command, so the command is also deleted
-                    case Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=OldView#ddView.cmd, _='_'}, [], ['$_']}]]) of
-                        {[OldCmd], true} ->
-                            ok = Sess:run_cmd(delete, [ddCmd, OldCmd#ddCmd.id]);
-                        _ -> ?Info("No command found to delete ~p", [OldView#ddView.cmd])
-                    end;
-                _ -> ok
-            end,
-            ok = Sess:run_cmd(delete, [ddView, OldView#ddView.id]),
-            {reply, ok, State};
-        _ ->
-            ?Error("Unable to get the view to delete ~p", [ViewId]),
-            {reply, {error, <<"Unable to find the view to delete">>}, State}
-    end;
-
-handle_call({get_view, undefined, ViewId}, From, #state{sess = Sess} = State) ->
-    handle_call({get_view, Sess, ViewId}, From, State);
-handle_call({get_view, Sess, ViewId}, _From, #state{} = State) ->
-    ?Debug("get view by id ~p", [ViewId]),
-    case Sess:run_cmd(select, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
-        {[View], true} ->
-            View;
-        Result ->
-            ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
-            View = undefined
-    end,
-    {reply, View, State};
-
-handle_call({get_view, undefined, Name, Adapter, Owner}, From, #state{sess=Sess} = State) ->
-    handle_call({get_view, Sess, Name, Adapter, Owner}, From, State);
-handle_call({get_view, Sess, Name, Adapter, Owner}, _From, State) ->
-    ?Debug("get_view ~p", [Name]),
-    {Views, true} = Sess:run_cmd(select, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters='$1', _='_'}, [], ['$1']}]])} || V <- Views],
-    Result = [V || {V, {[C], true}} <- ListResult, lists:member(Adapter, C)],
-    if
-        length(Result) > 0 ->
-            %% TODO: How can we discriminate to ignore the correct one?
-            [View | _Ignored] = Result;
-        true ->
-            View = undefined
-    end,
-    {reply, View, State};
-
-handle_call({get_command, Sess, IdOrName}, _From, State) ->
-    Cmd = internal_get_command(Sess, IdOrName),
-    {reply, Cmd, State};
-
-handle_call({save_dashboard, Sess, Owner, -1, Name, Views}, From, State) ->
-    NewId = erlang:phash2(make_ref()),
-    case Sess:run_cmd(select, [ddDash, [{#ddDash{id=NewId, name='$1', _='_'}, [], ['$1']}]]) of
-        {[DashName], true} ->
-            ?Debug("Save dashboard colision saving the dashboard ~p with id ~p", [DashName, NewId]),
-            handle_call({save_dashboard, Sess, Owner, -1, Name, Views}, From, State);
-        _ ->
-            handle_call({save_dashboard, Sess, Owner, NewId, Name, Views}, From, State)
-    end;
-handle_call({save_dashboard, Sess, Owner, DashId, Name, Views}, _From, State) ->
-    NewDash = #ddDash{id = DashId, name = Name, owner = Owner, views = Views},
-    Sess:run_cmd(write, [ddDash, NewDash]),
-    ?Debug("dashboard saved ~p", [NewDash]),
-    {reply, DashId, State};
-
-handle_call({get_dashboards, Sess, Owner}, _From, State) ->
-    {Dashboards, true} = Sess:run_cmd(select, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]),
-    {reply, Dashboards, State};
-
-handle_call({get_connects, Sess, User}, _From, State) ->
-    {Cons, true} = Sess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
-    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
-    NewCons =
-        if HasAll ->
-            [if
-                 is_integer(C#ddConn.owner) ->
-                     C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
-                 true -> C
-             end
-            || C <- Cons];
-        true ->
-            lists:foldl(fun(C,Acc) ->
-                HavePerm = Sess:run_cmd(have_permission, [{C#ddConn.id, use}]),
-                if (HavePerm == true) ->
-                        [if
-                             is_integer(C#ddConn.owner) ->
-                                 C#ddConn{owner = Sess:run_cmd(admin_exec, [imem_account, get_name, [C#ddConn.owner]])};
-                             true -> C
-                         end
-                        | Acc];
-                   true -> Acc
-                end
-            end,
-            [],
-            Cons)
-    end,
-    ?Debug("get_connects for ~p user -- ~p", [User, NewCons]),
-    {reply, NewCons, State};
-
-handle_call({del_conn, Sess, ConId}, _From, State) ->
-    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
-    if HasAll ->
-        ok = Sess:run_cmd(delete, [ddConn, ConId]),
-        ?Info("del_conn connection ~p deleted", [ConId]),
-        {reply, ok, State};
-    true ->
-        case Sess:run_cmd(have_permission, [{ConId, use}]) of
-        true ->
-            ok = Sess:run_cmd(delete, [ddConn, ConId]),
-            ?Info("del_conn connection ~p deleted", [ConId]),
-            {reply, ok, State};
-        _ ->
-             ?Error("del_conn no permission to delete connection ~p", [ConId]),
-             {reply, no_permission, State}
-        end
-    end;
-
-handle_call({get_adapters, Sess}, _From, State) ->
-    ?Debug("get_adapters"),
-    {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
-    {reply, Adapters, State};
-
-handle_call({get_name, Sess, UserId}, _From, State) when is_integer(UserId) ->
-    {reply, Sess:run_cmd(admin_exec, [imem_account, get_name, [UserId]]), State};
-handle_call({get_name, _Sess, UserId}, _From, State) ->
-    {reply, UserId, State};
-
-handle_call({login, User, Password}, _From, #state{schema=SchemaName} = State) ->
-    ?Debug("login for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password)}) of
-        {error, Error} ->
-            ?Error("login exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, Sess} ->
-            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
-            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
-            {reply, {true, Sess, UserId}, State}
-    end;
-
-handle_call({change_password, User, Password, NewPassword}, _From, #state{schema=SchemaName} = State) ->
-    ?Debug("changing password for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
-        {error, Error} ->
-            ?Error("change password exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, Sess} ->
-            UserId = Sess:run_cmd(admin_exec, [imem_account, get_id_by_name, [User]]),
-            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
-            {reply, {true, Sess, UserId}, State}
-    end;
+handle_call({get_view, Name, Adapter, Owner}, _From, #state{sess=Sess} = State) ->
+    {reply, get_view(Sess, Name, Adapter, Owner), State};
 
 handle_call(Req,From,State) ->
     ?Info("unknown call req ~p from ~p~n", [Req, From]),
