@@ -53,12 +53,12 @@ extra="-imem erl_cluster_mgrs ['dderl@$3']"
 
 case $1 in
     "gui" )
-        check_arg_count 1
+        check_arg_count 2
         echo "Starting dderl local GUI with 'start /MAX werl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
         start //MAX werl.exe -name dderlg@$2 $kernelconfig $commonparams $extra
         ;;
     "txt" )
-        check_arg_count 1
+        check_arg_count 2
         echo "Starting dderl local TEXT with 'erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
         erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra
         ;;
