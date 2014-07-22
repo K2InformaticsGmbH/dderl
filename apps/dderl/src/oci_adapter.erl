@@ -45,7 +45,7 @@ init() ->
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
-        lager:__L(__File, "{~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg]),
+        lager:__L(__File, "[" ++ ?LOG_TAG ++ "] {~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg]),
         dderl_dal:log_to_db(__L
                             , list_to_atom(__File)
                             , list_to_atom(__Func)
@@ -79,13 +79,12 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
     NLS_LANG   = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
-    ?Info("session:open ~p", [{IpAddr, Port, Service, Type, User, Password, Tnsstr}]),    
     LogFun = fun
                  ({Lvl, File, Func, Line, Msg}) ->
                      case Lvl of
                         debug       -> ?LogOci(debug,File,Func,Line,Msg);
-                        info        -> ?LogOci(info,File,Func,Line,Msg);
-                        notice      -> ?LogOci(info,File,Func,Line,Msg);
+                        info        -> ?LogOci(debug,File,Func,Line,Msg);
+                        notice      -> ?LogOci(debug,File,Func,Line,Msg);
                         error       -> ?LogOci(error,File,Func,Line,Msg);
                         warn        -> ?LogOci(error,File,Func,Line,Msg);
                         critical    -> ?LogOci(error,File,Func,Line,Msg);
@@ -113,18 +112,18 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                         [ binary_to_list(IpAddr)
                         , Port
                         , binary_to_list(Service)])),
-                ?Info("session:open ~p", [{User, Password, NewTnsstr}]),
+                ?Debug("session:open ~p", [{User, Password, NewTnsstr}]),
                 OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
                 ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
             end;
         true ->
-            ?Info("session:open ~p", [{User, Password, Tnsstr}]),
+            ?Debug("session:open ~p", [{User, Password, Tnsstr}]),
             OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
             ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
-            ?Info("ErlOciSession ~p", [ErlOciSession]),
+            ?Debug("ErlOciSession ~p", [ErlOciSession]),
             Con = #ddConn { id       = proplists:get_value(<<"id">>, BodyJson)
                           , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner    = UserId
