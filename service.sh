@@ -2,9 +2,10 @@
 
 cmd=$0
 argscount=$#
-
+node_host=host_node
+cluster_host=host_cluster
 function usage {
-    echo "usage: $1 add node_host cluster_host"
+    echo "usage: $1 add"
     echo "       $1 remove"
     echo "       $1 start"
     echo "       $1 stop"
@@ -14,12 +15,14 @@ function usage {
     echo "       $1 txt"
     echo "       $1 guit"
     echo "       $1 txtt"
+    echo "default arguments node_host = $node_host"
+    echo "                  cluster_host = $cluster_host"
 }
 
 if [ "$1" == "gui" ] ||
    [ "$1" == "txt" ] ||
    [ "$1" == "add" ]; then
-    service_generic.sh $1 ZHHAPMOP-SBSM01.it.bwns.ch OLTAPMOP-SBSM01.it.bwns.ch
+    service_generic.sh $1 $node_host $cluster_host
 elif [ "$1" == "remove" ] ||
      [ "$1" == "start" ] ||
      [ "$1" == "stop" ] ||
