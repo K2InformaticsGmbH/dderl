@@ -9,6 +9,7 @@ function usage {
     echo "       $1 start"
     echo "       $1 stop"
     echo "       $1 list"
+    echo "       $1 attach"
     echo "       $1 gui node_host cluster_host"
     echo "       $1 txt node_host cluster_host"
     echo "       $1 guit node_host"
@@ -104,7 +105,9 @@ case $1 in
     *)
         erlsrv.exe list dderl
         echo
-        echo Bad Argument : "'"$1"'"
+        if [ ! -z "$1" -a "$1" != " " ]; then
+            echo Bad Argument : "'"$1"'"
+        fi
         usage $cmd
         ;;
 esac
