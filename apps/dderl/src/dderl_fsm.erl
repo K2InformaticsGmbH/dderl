@@ -1654,7 +1654,7 @@ serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufC
     end.
 
 -spec serve_bot(atom(), binary(), #state{}) -> #state{}.
-serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol}=State0) ->
+serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,bufTop=BufTop,guiTop=GuiTop,guiCol=GuiCol}=State0) ->
     ?NoDbLog(debug, [], "serve_bot  (~p ~p) ~p ~p ~p ~p", [SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
         (BufCnt == 0) ->
@@ -1666,7 +1666,10 @@ serve_bot(SN, Loop, #state{nav=Nav,bl=BL,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCn
             gui_replace_until(BufBot,BL,#gres{state=SN,loop=Loop,focus=-1},State0); 
         (GuiCol == true) ->
             %% dirty index view, must refresh anyways    
-            gui_replace_until(BufBot,BL,#gres{state=SN,loop=Loop,focus=-1},State0); 
+            gui_replace_until(BufBot,BL,#gres{state=SN,loop=Loop,focus=-1},State0);
+        (GuiTop > BufTop) andalso (GuiCnt < BL) ->
+            %% prepend incomplete gui buffer
+            gui_replace_until(BufBot,BL,#gres{state=SN,loop=Loop,focus=-1},State0);
         (GuiBot == BufBot) ->
             %% gui is already there, noting .. do       
             gui_nop(#gres{state=SN,loop=Loop,focus=-1},State0); 
