@@ -12,8 +12,6 @@ function usage {
     echo "       $1 attach"
     echo "       $1 gui node_host cluster_host"
     echo "       $1 txt node_host cluster_host"
-    echo "       $1 guit node_host"
-    echo "       $1 txtt node_host"
 }
 
 function path2win {
@@ -55,12 +53,24 @@ case $1 in
     "gui" )
         check_arg_count 2
         echo "Starting dderl local GUI with 'start /MAX werl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
-        start //MAX werl.exe -name dderlg@$2 $kernelconfig $commonparams $extra
+        unamestr=`uname`
+        if [[ "$unamestr" == 'Linux' ]]; then
+            exename=erl
+        else
+            exename='start //MAX werl.exe'
+        fi
+        $exename -name dderlg@$2 $kernelconfig $commonparams $extra
         ;;
     "txt" )
         check_arg_count 2
         echo "Starting dderl local TEXT with 'erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
-        erl.exe -name dderlt@$2 $kernelconfig $commonparams $extra
+        unamestr=`uname`
+        if [[ "$unamestr" == 'Linux' ]]; then
+            exename=erl
+        else
+            exename=erl.exe
+        fi
+        $exename -name dderlt@$2 $kernelconfig $commonparams $extra
         ;;
     "add" )
         check_arg_count 2

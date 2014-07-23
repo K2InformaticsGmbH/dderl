@@ -1,9 +1,11 @@
 #!/bin/bash
 
+# Change below to use specific hosts
+node_host=127.0.0.1
+cluster_host=127.0.0.1
+
 cmd=$0
 argscount=$#
-node_host=host_node
-cluster_host=host_cluster
 function usage {
     echo "usage: $1 add"
     echo "       $1 remove"
@@ -13,8 +15,6 @@ function usage {
     echo "       $1 attach"
     echo "       $1 gui"
     echo "       $1 txt"
-    echo "       $1 guit"
-    echo "       $1 txtt"
     echo "default arguments node_host = $node_host"
     echo "                  cluster_host = $cluster_host"
 }
