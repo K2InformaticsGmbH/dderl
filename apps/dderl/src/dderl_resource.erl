@@ -78,7 +78,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             DderlSess:process_request(AdaptMod, Typ, Body, self()),
             {loop, Req, DDerlSessPid, 3600000, hibernate};
         {error, Reason} ->
-            ?Error("session ~p doesn't exists (~p)", [Session, Reason]),
+            ?Error("session ~p doesn't exist (~p)", [Session, Reason]),
             self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
             {loop, Req, Session, 5000, hibernate}
     end.
@@ -88,6 +88,7 @@ info({reply, Body}, Req, DDerlSessPid) ->
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
+    ?Info("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     {ok, Req1} = reply_csv(FileName, Chunk, ChunkIdx, Req),
     case ChunkIdx of
         last -> {ok, Req1, DDerlSessPid};
