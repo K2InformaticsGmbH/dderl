@@ -84,15 +84,14 @@ add_connect(Sess, #ddConn{id = undefined, owner = Owner} = Conn) ->
                                          , [{'=:=','$1',Conn#ddConn.name},{'=:=','$2',Owner}]
                                          , ['$3']}]]) of
         {[Id|_], true} ->
-            ?Info("add_connect replacing id ~p", [Id]),
-            NewCon = Conn#ddConn{id=Id};
+            NewCon = Conn#ddConn{id=Id},
+            ?Info("replacing connection ~p", [NewCon]);
         _ ->
             Id = erlang:phash2(make_ref()),
-            ?Info("add_connect adding new id ~p", [Id]),
-            NewCon = Conn#ddConn{id=Id}
+            NewCon = Conn#ddConn{id=Id},
+            ?Info("adding new connection ~p", [NewCon])
     end,
     Sess:run_cmd(write, [ddConn, NewCon]),
-    ?Info("add_connect written ~p", [NewCon]),
     NewCon;
 add_connect(Sess, #ddConn{id = OldId, owner = Owner} = Conn) ->
     case Sess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
@@ -425,14 +424,13 @@ init([SchemaName]) ->
             ],
             ?Debug("tables to build: ~p", [TablesToBuild]),
             build_tables_on_boot(Sess, TablesToBuild),
-            ?Info("tables ~p created", [[ddAdapter, ddInterface, ddConn, ddCmd, ddView, ddDash]]),
             Sess:run_cmd(write, [ddInterface, #ddInterface{id = ddjson, fullName = <<"DDerl">>}]),
             % Initializing adapters (all the *_adapter modules compiled with dderl)
             %  doesn't include dynamically built adapters
             {ok, AdaptMods} = application:get_key(dderl, modules),
             Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter$") =/= nomatch],
             [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
-            ?Info("adapters ~p", [Adapters]),
+            ?Info("Available adapters ~p", [Adapters]),
             {ok, #state{sess=Sess, schema=SchemaName}};
         {error, Reason} ->
              ?Error("Failed to start : ~p", [Reason]),
@@ -445,8 +443,7 @@ init([SchemaName]) ->
 -spec build_tables_on_boot({atom(), pid()}, [tuple()]) -> ok.
 build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
-    ?Info("creating table ~p", [N]),
-    Sess:run_cmd(create_check_table, [N, {Cols, Types, Default}, []]),
+    Sess:run_cmd(init_create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
 
 handle_call({add_connect, Conn}, _From, #state{sess=Sess} = State) ->
