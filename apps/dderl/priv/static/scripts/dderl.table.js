@@ -2029,6 +2029,7 @@
         var title = "Erlang term editor";
         var readOnly = false;
         var content = formattedString;
+        var isJson = false;
 
         // received response clear wait wheel
         self.removeWheel();
@@ -2038,6 +2039,7 @@
             readOnly = true;
             content = formattedString.originalText;
         } else if(formattedString.isJson === true) {
+            isJson = true;
             title = "Json editor";
             readOnly = false;
             content = formattedString.formattedJson;
@@ -2053,7 +2055,8 @@
                         termOwner : self,
                         readOnly  : readOnly,
                         container : self._divDisable,
-                        term      : content
+                        term      : content,
+                        isJson    : isJson
                     }
                 ).termEditor('open');
     },
