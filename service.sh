@@ -22,17 +22,17 @@ function usage {
 if [ "$1" == "gui" ] ||
    [ "$1" == "txt" ] ||
    [ "$1" == "add" ]; then
-    service_generic.sh $1 $node_host $cluster_host
+    ./service_generic.sh $1 $node_host $cluster_host
 elif [ "$1" == "remove" ] ||
      [ "$1" == "start" ] ||
      [ "$1" == "stop" ] ||
      [ "$1" == "list" ] ||
      [ "$1" == "attach" ]; then
-    service_generic.sh $1
+    ./service_generic.sh $1
 else
     usage $cmd
     echo ---------------
     echo Generic usage :
     echo
-    service_generic.sh
+    ./service_generic.sh
 fi

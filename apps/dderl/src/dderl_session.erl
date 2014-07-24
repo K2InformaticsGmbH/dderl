@@ -183,6 +183,24 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     end,
     State;
 
+process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, #state{} = State) ->
+    [{<<"format_json_to_save">>, BodyJson}] = jsx:decode(ReqData),
+    StringToFormat = proplists:get_value(<<"json_string">>, BodyJson, <<>>),
+    case jsx:is_json(StringToFormat) of
+        true ->
+            Formatted = jsx:encode(jsx:decode(StringToFormat)),
+            ?Debug("The formatted text: ~p", [Formatted]),
+            From ! {reply, jsx:encode([{<<"format_json_to_save">>, Formatted}])};
+        _ ->
+            ?Error("Error trying to format the json string ~p~n", [StringToFormat]),
+            From ! {reply, jsx:encode([{<<"format_json_to_save">>,
+                                        [
+                                            {<<"error">>, <<"Invalid json string">>},
+                                            {<<"originalText">>, StringToFormat}
+                                        ]}])}
+    end,
+    State;
+
 process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     case application:get_key(dderl, applications) of
         undefined -> Deps = [];

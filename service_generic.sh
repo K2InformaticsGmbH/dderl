@@ -52,13 +52,13 @@ extra="-imem erl_cluster_mgrs ['dderl@$3']"
 case $1 in
     "gui" )
         check_arg_count 2
-        echo "Starting dderl local GUI with 'start /MAX werl.exe -name dderlt@$2 $kernelconfig $commonparams $extra'"
         unamestr=`uname`
         if [[ "$unamestr" == 'Linux' ]]; then
             exename=erl
         else
-            exename='start //MAX werl.exe'
+            exename=werl.exe
         fi
+        echo "Starting dderl local GUI with '$exename -name dderlt@$2 $kernelconfig $commonparams $extra'"
         $exename -name dderlg@$2 $kernelconfig $commonparams $extra
         ;;
     "txt" )

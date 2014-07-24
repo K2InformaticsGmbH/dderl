@@ -12,6 +12,7 @@
         _fnt            : null,
         _currentExpLvl  : -1,
         _tabDefault     : "    ",
+        _isJson         : false,
 
         _handlers       : {
             updateTextArea      : function(e, _result) { e.data._updateTextArea(_result); },
@@ -59,6 +60,7 @@
             if(self.options.termOwner   !== self._termOwner)   self._termOwner = self.options.termOwner;
             if(self.options.term        !== self._term)        self._term      = self.options.term;
             if(self.options.container   !== self._container)   self._container = self.options.container;
+            if(self.options.isJson      !== self._isJson)      self._isJson    = self.options.isJson;
 
             // dialog elements
 
@@ -294,13 +296,23 @@
             console.log('cb _saveChanges: the new term: ' + self._editText.val());
             var stringToFormat = unescapeNewLines(self._editText.val());
             var expansionWithAuto = (self._currentExpLvl < 0)? "auto": self._currentExpLvl;
-            ajaxCall(self, '/app/format_erlang_term', {
-                format_erlang_term: {
-                    erlang_term: stringToFormat,
-                    expansion_level: expansionWithAuto,
-                    force: false
-                }
-            }, 'format_erlang_term', 'saveChangesResponse');
+            if(self._isJson) {
+                ajaxCall(self, '/app/format_json_to_save', {
+                    format_json_to_save: {
+                        json_string: stringToFormat,
+                        expansion_level: expansionWithAuto,
+                        force: false
+                    }
+                }, 'format_json_to_save', 'saveChangesResponse');
+            } else {
+                ajaxCall(self, '/app/format_erlang_term', {
+                    format_erlang_term: {
+                        erlang_term: stringToFormat,
+                        expansion_level: expansionWithAuto,
+                        force: false
+                    }
+                }, 'format_erlang_term', 'saveChangesResponse');
+            }
         },
         _abortChanges: function(self) {
             console.log('['+self.options.title+'] cb _abortChanges');
