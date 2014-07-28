@@ -393,6 +393,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_084AF253138F46F88DC998DFE38931EF"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_08801975655643539B9B4FE7325B11E5"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5266,6 +5272,12 @@
         "Entry"
         {
         "MsmKey" = "8:_6EC573EB13A7404CBEFD550EAC7C3465"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_6EE014B1D3D146B6B09B6E02BF05E240"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -13666,6 +13678,26 @@
             "TargetName" = "8:scad.js"
             "Tag" = "8:"
             "Folder" = "8:_366F3151C2004B0AB6E7C9D0DEAB5E31"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_084AF253138F46F88DC998DFE38931EF"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\priv\\cert\\imem.crt"
+            "TargetName" = "8:imem.crt"
+            "Tag" = "8:"
+            "Folder" = "8:_66A3DE4E3C5047858E9D08AE62742388"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -29926,6 +29958,26 @@
             "TargetName" = "8:observer_traceoptions_wx.beam"
             "Tag" = "8:"
             "Folder" = "8:_CAAC88D8386F4041AA0782F6E762E60A"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6EE014B1D3D146B6B09B6E02BF05E240"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\priv\\cert\\imem.key"
+            "TargetName" = "8:imem.key"
+            "Tag" = "8:"
+            "Folder" = "8:_66A3DE4E3C5047858E9D08AE62742388"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -54855,6 +54907,28 @@
                                     "Property" = "8:_B853C45900684F458A0D365D0A59C961"
                                         "Folders"
                                         {
+                                        }
+                                    }
+                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_A58A02C67B124F48A2390A240AD04054"
+                                    {
+                                    "Name" = "8:priv"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_0FAEEF076EF6427F8272134F540045B5"
+                                        "Folders"
+                                        {
+                                            "{9EF0B969-E518-4E46-987F-47570745A589}:_66A3DE4E3C5047858E9D08AE62742388"
+                                            {
+                                            "Name" = "8:cert"
+                                            "AlwaysCreate" = "11:FALSE"
+                                            "Condition" = "8:"
+                                            "Transitive" = "11:FALSE"
+                                            "Property" = "8:_9BF77F16BF664C70ADC600C3415CCEFB"
+                                                "Folders"
+                                                {
+                                                }
+                                            }
                                         }
                                     }
                                 }
