@@ -635,7 +635,7 @@ add_param(true, Params, ParamToAdd) -> [ParamToAdd | Params].
 %TODO: Make this more flexible to include a variable number of parameters.
 process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
     SupportedParams = [<<":ddConn.id">>, <<":ddAdapter.id">>],
-    QueryParams = dderloci_utils:get_params(Query),
+    QueryParams = get_params(Query),
     InvalidParams = [Param || Param <- QueryParams, lists:member(Param, SupportedParams) =/= true],
     case InvalidParams of
         [] ->
@@ -921,3 +921,18 @@ add_function_type(_, Value) ->
 escape_quotes([]) -> [];
 escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
 escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
+
+-spec get_params(binary()) -> [binary()].
+get_params(Sql) ->
+    case sqlparse:parsetree(Sql) of
+        {ok,{[{ParseTree,_}],_}} ->
+            Pred = fun(P,Ctx) ->
+                           case P of
+                               {param, Param} -> [Param|Ctx];
+                               _ -> Ctx
+                           end
+                   end,
+            sqlparse:foldtd(Pred,[],ParseTree);
+        _ ->
+            []
+    end.
