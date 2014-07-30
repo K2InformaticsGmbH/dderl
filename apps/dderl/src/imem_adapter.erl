@@ -656,7 +656,7 @@ process_query(Query, {_,ConPid}=Connection, Params, SessPid) ->
                         , sortFun  = SortFun
                         , sortSpec = SortSpec} = StmtRslt} ->
             TableName = extract_table_name(Query),
-            StmtFsm = dderl_fsm:start_link(
+            StmtFsm = dderl_fsm:start(
                                 #fsmctx{ id                         = "what is it?"
                                        , stmtCols                   = Clms
                                        , rowFun                     = RowFun
@@ -667,7 +667,15 @@ process_query(Query, {_,ConPid}=Connection, Params, SessPid) ->
                                        , block_length               = ?DEFAULT_ROW_SIZE
                                        , fetch_recs_async_fun       = fun(Opts, _) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
                                        , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
-                                       , stmt_close_fun             = fun() -> Connection:run_cmd(close, [StmtRef]) end
+                                       , stmt_close_fun             = fun() ->
+                                                                              try Connection:run_cmd(close, [StmtRef])
+                                                                              catch
+                                                                                  exit:{noproc,_} ->
+                                                                                      ?Debug("Fsm terminated after the connection was closed");
+                                                                                  Class:Error ->
+                                                                                      ?Error("Error trying to terminate the statement ~p:~p, ~n~p", [Class, Error, erlang:get_stacktrace()])
+                                                                              end
+                                                                      end
                                        , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
                                                                             Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
                                                                         end

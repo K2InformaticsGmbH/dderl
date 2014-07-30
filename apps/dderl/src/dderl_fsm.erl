@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% erlimem_fsm interface
 
--export([ start/1
+-export([ start/2
         , start_link/2
         , stop/1
         ]).
@@ -161,10 +161,10 @@
 %% External functions
 %% ====================================================================
 
--spec start(#fsmctx{}) -> {atom(), pid()}.
-start(#fsmctx{} = FsmCtx) ->
+-spec start(#fsmctx{}, pid()) -> {atom(), pid()}.
+start(#fsmctx{} = FsmCtx, SessPid) ->
     Ctx = fsm_ctx(FsmCtx),
-	{ok,Pid} = gen_fsm:start(?MODULE,Ctx,[]),
+	{ok,Pid} = gen_fsm:start(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
 -spec start_link(#fsmctx{}, pid()) -> {atom(), pid()}.
@@ -470,6 +470,7 @@ reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=TRef}=State0) ->
 %% --------------------------------------------------------------------
 
 init({#ctx{} = Ctx, SessPid}) ->
+    process_flag(trap_exit, true),
     true = link(SessPid),
     #ctx{ bl                            = BL
          , replyToFun                   = ReplyTo
@@ -492,7 +493,7 @@ init({#ctx{} = Ctx, SessPid}) ->
                  , sortSpec                     = SortSpec
                  , replyToFun                   = ReplyTo
                  },
-    State1 = data_index(SortFun,FilterSpec,State0),           
+    State1 = data_index(SortFun,FilterSpec,State0),
     {ok, empty, reset_buf_counters(State1)}.
 
 %% --------------------------------------------------------------------
@@ -1207,6 +1208,9 @@ handle_info(cmd_stack_timeout, tailing, #state{stack={button, <<"tail">>, RT}}=S
     ?NoDbLog(debug, [], "Tail timeout, replying with nop", []),
     State1 = gui_nop(#gres{state=tailing, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
     {next_state, tailing, State1, infinity};
+handle_info({'EXIT', _Pid, Reason} = ExitMsg, _SN, State) ->
+    ?Debug("~p received exit message ~p", [self(), ExitMsg]),
+    {stop, Reason, State};
 handle_info(Unknown, SN, State) ->
     ?Info("unknown handle info ~p", [Unknown]),
     {next_state, SN, State, infinity}.
@@ -1731,7 +1735,7 @@ serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiB
     IsMember = KeysBefore == [] orelse lists:member(GuiBot, keys_before(BufBot,BL-1,State0)),
     case IsMember of
         false ->    % deferred forward can be executed now
-                    ?Debug("~p stack exec ~p", [SN,<<">">>]),
+                    ?NoDbLog(debug, [], "~p stack exec ~p", [SN,<<">">>]),
                     gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
         true ->     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
     end;

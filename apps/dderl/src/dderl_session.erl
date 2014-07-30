@@ -70,12 +70,12 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
-handle_info(die, #state{user=_User}=State) ->
-    ?Error([{user, _User}], "terminating session idle for ~p ms", [?SESSION_IDLE_TIMEOUT]),
-    {stop, timeout, State};
+handle_info(die, #state{user=User}=State) ->
+    ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
+    {stop, normal, State};
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
-    {stop, logout, State};
+    {stop, normal, State};
 handle_info(invalid_credentials, #state{} = State) ->
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, invalid_credentials, State};
@@ -87,7 +87,7 @@ handle_info(Info, #state{user = User} = State) ->
     {noreply, State}.
 
 terminate(Reason, #state{user=User} = State) ->
-    ?Info([{user, User}], "~p terminating ~p session for ~p", [?MODULE, {self(), User}, Reason]),
+    ?Info([{user, User}], "~p ~p terminating, reason ~p", [?MODULE, {self(), User}, Reason]),
     logout(State).
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
@@ -97,12 +97,13 @@ format_status(_Opt, [_PDict, State]) -> State.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
+%    dderl_req_handler:get_params(ReqData, <<"login">>, 
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:login(User, Password) of
         {true, Sess, UserId} ->
-            ?Debug("login successful for ~p", [User]),
+            ?Info("login successful for ~p", [{self(), User}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
             State#state{sess=Sess, user=User, user_id=UserId};
         {_, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->

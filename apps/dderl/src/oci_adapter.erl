@@ -582,7 +582,7 @@ produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) 
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->
     ?Debug("closing the connections ~p", [Connections]),
-    [Connection:close() || Connection <- Connections],
+    [Connection:close(port_close) || Connection <- Connections],
     Priv#priv{connections = []}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -618,7 +618,7 @@ process_query(ok, Query, Connection, _SessPid) ->
     [{<<"result">>, <<"ok">>}];
 process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection, SessPid) ->
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
-    StmtFsm = dderl_fsm:start_link(FsmCtx, SessPid),
+    StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
     dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
     Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
