@@ -88,7 +88,7 @@ info({reply, Body}, Req, DDerlSessPid) ->
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
-    ?Info("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
+    ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     {ok, Req1} = reply_csv(FileName, Chunk, ChunkIdx, Req),
     case ChunkIdx of
         last -> {ok, Req1, DDerlSessPid};

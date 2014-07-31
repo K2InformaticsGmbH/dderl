@@ -143,30 +143,42 @@
             left: -100,
             overflow: 'hidden'
         }).on('paste', function(ev) {
-            var clipboardData, item, reader, text, _i, _len, _ref, _ref1, _ref2, _ref3,
-            _this = this;
-            _ref = ev.originalEvent;
+            var clipboardData,
+                item = null,
+                reader, text, _i, _len,
+                _ref = ev.originalEvent;
+
             if (_ref != null && _ref.clipboardData != null) {
                 clipboardData = _ref.clipboardData;
-                if (clipboardData.items) {
-                    _ref1 = clipboardData.items;
-                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                        item = _ref1[_i];
-                        if (item.type.match(/^image\//)) {
-                            reader = new FileReader();
-                            reader.onload = function(event) {
-                                setTimeout(function() {
-                                    _decodeTabularData(event.target.result, true)
-                                }, 1);
-                            };
-                            reader.readAsDataURL(item.getAsFile());
-                        } else if(item.type === 'text/plain') {
-                            item.getAsString(function(string) {
-                                setTimeout(function() {
-                                    _decodeTabularData(string, false);
-                                }, 1);
-                            });
+                if (clipboardData.items) {                    
+                    var _ref1 = clipboardData.items;
+                    // Find items by type priority
+                    // text > image
+                    // rest of item types are ignored for now
+                    for (_i = 0, _len = _ref1.length; _i < _len; _i++)
+                        if(_ref1[_i].type === 'text/plain') {
+                            item = _ref1[_i];
+                            break;
                         }
+                    for (_i = 0, _len = _ref1.length; _i < _len && item == null; _i++)
+                        if(_ref1[_i].type.match(/^image\//)) {
+                            item = _ref1[_i];
+                            break;
+                        }
+                    if (item != null && item.type.match(/^image\//)) {
+                        reader = new FileReader();
+                        reader.onload = function(event) {
+                            setTimeout(function() {
+                                _decodeTabularData(event.target.result, true)
+                            }, 1);
+                        };
+                        reader.readAsDataURL(item.getAsFile());
+                    } else if(item != null && item.type === 'text/plain') {
+                        item.getAsString(function(string) {
+                            setTimeout(function() {
+                                _decodeTabularData(string, false);
+                            }, 1);
+                        });
                     }
                 } else {
                     if (clipboardData.types.length) {
@@ -184,16 +196,16 @@
                 }
             }
             if (clipboardData = window.clipboardData) {
-                text = clipboardData.getData('Text');
-                if (text != null && text.length) {
-                    setTimeout(function() {
+                setTimeout(function() {
+                    text = clipboardData.getData('Text');
+                    if (text != null && text.length) {
                         _decodeTabularData(text, false);
-                    }, 1);
-                } else {
-                    readImagesFromEditable(div, function(data) {
-                        _decodeTabularData(data, true);
-                    });
-                }
+                    } else {
+                        readImagesFromEditable(div, function(data) {
+                            _decodeTabularData(data, true);
+                        });
+                    }
+                }, 1);
             }
         });
     }
