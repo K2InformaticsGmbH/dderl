@@ -78,7 +78,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             DderlSess:process_request(AdaptMod, Typ, Body, self()),
             {loop, Req, DDerlSessPid, 3600000, hibernate};
         {error, Reason} ->
-            ?Error("session ~p doesn't exist (~p)", [Session, Reason]),
+            ?Info("session ~p doesn't exist (~p), from ~s:~p", [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
             self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
             {loop, Req, Session, 5000, hibernate}
     end.
