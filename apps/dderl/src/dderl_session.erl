@@ -34,7 +34,7 @@
 -spec start() -> {dderl_session, pid()}.
 start() ->
     {ok, Pid} = gen_server:start(?MODULE, [], []),
-    {?MODULE, Pid}.
+    {dderl_session, Pid}.
 
 -spec get_state({atom(), pid()}) -> #state{}.
 get_state({?MODULE, Pid}) ->
@@ -51,7 +51,7 @@ init(_Args) ->
     process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    ?Debug("~p started!", [{?MODULE, Self}]),
+    ?Debug("dderl_session ~p started!", [{dderl_session, Self}]),
     {ok, #state{tref=TRef}}.
 
 handle_call(get_state, _From, State) ->
