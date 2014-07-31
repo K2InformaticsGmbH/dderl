@@ -37,7 +37,8 @@ start(_Type, _Args) ->
 		{'_', [
             {"/", dderl, []},
             {"/ws", bullet_handler, [{handler, dderl_stream}]},
-            {"/app/[...]", dderl_resource, []},
+            {"/app/sbs/[...]", web_req_resource, [sbs]},
+            {"/app/[...]", web_req_resource, [dderl]},
             {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
             {"/sbs/", cowboy_static, {file, SbsAppDir ++ "/index.html"}},
             {"/sbs/bower_components/[...]", cowboy_static, {dir, SbsBower}},

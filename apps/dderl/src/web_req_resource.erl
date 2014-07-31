@@ -1,9 +1,9 @@
 %% @doc POST ajax handler.
--module(dderl_resource).
+-module(web_req_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
 -behaviour(cowboy_loop_handler).
- 
+
 -include("dderl.hrl").
 
 -export([init/3]).
@@ -13,7 +13,7 @@
 
 %-define(DISP_REQ, 1).
 
-init({ssl, http}, Req, []) ->
+init({ssl, http}, Req, [AppId]) ->
     display_req(Req),
     {_Method, Req0} = cowboy_req:method(Req),
     case cowboy_req:has_body(Req0) of
@@ -22,7 +22,7 @@ init({ssl, http}, Req, []) ->
         {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
         {Typ, Req3} = cowboy_req:path_info(Req2),
         %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
-        process_request(Session, Adapter, Req3, Typ);
+        process_request(Session, Adapter, Req3, Typ, AppId);
     _Else ->
         ?Error("DDerl request ~p, error ~p", [Req0, _Else]),
         self() ! {reply, <<"{}">>},
@@ -34,11 +34,11 @@ read_multipart({done, Req}, Body) -> {ok, Body, Req};
 read_multipart({ok, Data, Req}, Body) ->
     read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
 
-process_request(_, _, Req, [<<"upload">>]) ->
+process_request(_, _, Req, [<<"upload">>], dderl) ->
     {ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
     %%{ok, ReqData, Req1} = cowboy_req:body(Req),
     ?Debug("Request ~p", [ReqData]),
-    Resp = {reply, jsx:encode([{<<"upload">>, 
+    Resp = {reply, jsx:encode([{<<"upload">>,
         case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
             {match, [FileName]} -> [{<<"name">>, FileName}];
             _ -> []
@@ -51,7 +51,7 @@ process_request(_, _, Req, [<<"upload">>]) ->
     ?Debug("Responding ~p", [Resp]),
     self() ! Resp,
     {loop, Req1, <<>>, 5000, hibernate};
-process_request(_, _, Req, [<<"download_query">>] = Typ) ->
+process_request(_, _, Req, [<<"download_query">>] = Typ, dderl) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
     Session = proplists:get_value(<<"dderl_sess">>, ReqDataList, <<>>),
     Adapter = proplists:get_value(<<"adapter">>, ReqDataList, <<>>),
@@ -64,24 +64,22 @@ process_request(_, _, Req, [<<"download_query">>] = Typ) ->
                                         , {<<"queryToDownload">>, QueryToDownload}
                                         ]}])
                         , Typ);
-process_request(Session, Adapter, Req, Typ) ->
+process_request(Session, Adapter, Req, Typ, AppId) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
-    process_request_low(Session, Adapter, Req1, Body, Typ).
+    process_request_low(create_new_session(Session, AppId), Adapter, Req1, Body, Typ).
 
-process_request_low(Session, Adapter, Req, Body, Typ) ->
-    case create_new_session(Session) of
-        {ok, {_,DDerlSessPid} = DderlSess} ->
-            AdaptMod = if
-                is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
-                true -> undefined
-            end,
-            DderlSess:process_request(AdaptMod, Typ, Body, self()),
-            {loop, Req, DDerlSessPid, 3600000, hibernate};
-        {error, Reason} ->
-            ?Error("session ~p doesn't exist (~p)", [Session, Reason]),
-            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
-            {loop, Req, Session, 5000, hibernate}
-    end.
+process_request_low({ok, {_,SessPid} = Session}, Adapter, Req, Body, Typ) ->
+    AdaptMod = get_adapter_mod(Adapter),
+    Session:process_request(AdaptMod, Typ, Body, self()),
+    {loop, Req, SessPid, 3600000, hibernate};
+process_request_low({error, Reason, Session}, _Adapter, Req, _Body, _Typ) ->
+    {{Ip, Port}, Req2} = cowboy_req:peer(Req),
+    ?Info("session ~p doesn't exist (~p), from ~s:~p", [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+    self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
+    {loop, Req2, Session, 5000, hibernate}.
+
+get_adapter_mod(Adapter) when is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
+get_adapter_mod(_) -> undefined.
 
 info({reply, Body}, Req, DDerlSessPid) ->
     ?NoDbLog(debug, [], "reply ~n~s", [jsx:prettify(Body)]),
@@ -103,24 +101,27 @@ terminate(_Reason, _Req, _State) ->
 	ok.
 
 %% Helper functions
--spec create_new_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
-create_new_session(<<>>) ->
+-spec create_new_session(binary() | list(), atom()) -> {ok, {atom(), pid()}} | {error, term()}.
+create_new_session(<<>>, dderl) ->
     DderlSess = dderl_session:start(),
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
-create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
+create_new_session(<<>>, sbs) ->
+    SbsSess = sbs_session:start(),
+    ?Debug("new sbs session ~p from ~p", [SbsSess, self()]),
+    {ok, SbsSess};
+create_new_session(SessStr, _AppId) when is_list(SessStr) ->
     try
-        {_, Pid} = _DDerlSess = ?DecryptPid(DDerlSessStr),
-        %?Debug("existing session ~p", [DDerlSess]),
+        {SessionMod, Pid} = ?DecryptPid(SessStr),
         case erlang:process_info(Pid) of
-            undefined -> {error, <<"process not found">>};
-            _ -> {ok, {dderl_session, Pid}}
+            undefined -> {error, <<"process not found">>, list_to_binary(SessStr)};
+            _ -> {ok, {SessionMod, Pid}}
         end
     catch
         Error:Reason ->  {error, {Error, Reason}}
     end;
-create_new_session(S) when is_binary(S) -> create_new_session(binary_to_list(S));
-create_new_session(_) -> create_new_session(<<>>).
+create_new_session(S, AppId) when is_binary(S) -> create_new_session(binary_to_list(S), AppId);
+create_new_session(_, AppId) -> create_new_session(<<>>, AppId).
 
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),

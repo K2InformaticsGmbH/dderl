@@ -1,5 +1,4 @@
--module(dderl_session).
--author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
+-module(sbs_session).
 
 -behavior(gen_server).
 
@@ -21,11 +20,8 @@
         ]).
 
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
-%%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
--record(state, {
-        adapt_priv = [] :: list()
-        , tref :: timer:tref()
+-record(state, {tref :: timer:tref()
         , user = <<>> :: binary()
         , user_id :: ddEntityId()
         , sess :: {atom, pid()}
@@ -97,7 +93,7 @@ format_status(_Opt, [_PDict, State]) -> State.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
-%    dderl_req_handler:get_params(ReqData, <<"login">>, 
+%    dderl_req_handler:get_params(ReqData, <<"login">>,
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
@@ -160,50 +156,8 @@ process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
     self() ! logout,
     NewState;
 
-process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = State) ->
-    [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
-    StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
-    ?Debug("The string to format: ~p", [StringToFormat]),
-    case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
-        <<"auto">> -> ExpandLevel = auto;
-        ExpandLevel -> ok
-    end,
-    Force = proplists:get_value(<<"force">>, BodyJson, false),
-    ?Debug("Forced value: ~p", [Force]),
-    case erlformat:format(StringToFormat, ExpandLevel, Force) of
-        {error, ErrorInfo} ->
-            ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
-            From ! {reply, jsx:encode([{<<"format_erlang_term">>,
-                                        [
-                                            {<<"error">>, <<"Invalid erlang term">>},
-                                            {<<"originalText">>, StringToFormat}
-                                        ]}])};
-        Formatted ->
-            ?Debug("The formatted text: ~p", [Formatted]),
-            From ! {reply, jsx:encode([{<<"format_erlang_term">>, Formatted}])}
-    end,
-    State;
-
-process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, #state{} = State) ->
-    [{<<"format_json_to_save">>, BodyJson}] = jsx:decode(ReqData),
-    StringToFormat = proplists:get_value(<<"json_string">>, BodyJson, <<>>),
-    case jsx:is_json(StringToFormat) of
-        true ->
-            Formatted = jsx:encode(jsx:decode(StringToFormat)),
-            ?Debug("The formatted text: ~p", [Formatted]),
-            From ! {reply, jsx:encode([{<<"format_json_to_save">>, Formatted}])};
-        _ ->
-            ?Error("Error trying to format the json string ~p~n", [StringToFormat]),
-            From ! {reply, jsx:encode([{<<"format_json_to_save">>,
-                                        [
-                                            {<<"error">>, <<"Invalid json string">>},
-                                            {<<"originalText">>, StringToFormat}
-                                        ]}])}
-    end,
-    State;
-
 process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
-    case application:get_key(dderl, applications) of
+    case application:get_key(sbs, applications) of
         undefined -> Deps = [];
         {ok, Deps} -> Deps
     end,
@@ -213,7 +167,7 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     State;
 
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
-    ?Error("Request from a not logged in user: ~n~p", [Req]),
+    ?Info("Request from a not logged in user: ~n~p", [Req]),
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
     State;
 
@@ -221,130 +175,27 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
     State;
 
-process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    Res = jsx:encode([{<<"adapters">>,
-            [ [{<<"id">>, jsq(A#ddAdapter.id)}
-              ,{<<"fullName">>, A#ddAdapter.fullName}]
-            || A <- dderl_dal:get_adapters(Sess)]}]),
-    ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
-    From ! {reply, Res},
-    State;
-
-process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    case dderl_dal:get_connects(Sess, User) of
-        [] ->
-            From ! {reply, jsx:encode([{<<"connects">>,[]}])};
-        UnsortedConns ->
-            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) -> Name > Name2 end, UnsortedConns),
-            ?Debug([{user, User}], "conections ~p", [Connections]),
-            Res = jsx:encode([{<<"connects">>,
-                lists:foldl(fun(C, Acc) ->
-                    [{integer_to_binary(C#ddConn.id), [
-                            {<<"name">>, C#ddConn.name}
-                          , {<<"adapter">>, jsq(C#ddConn.adapter)}
-                          , {<<"service">>, jsq(C#ddConn.schm)}
-                          , {<<"owner">>, jsq(C#ddConn.owner)}
-                          ] ++
-                          [{atom_to_binary(N, utf8), jsq(V)} || {N,V} <- C#ddConn.access]
-                     } | Acc]
-                end,
-                [],
-                Connections)
-            }]),
-            ?Debug([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
-            From ! {reply, Res}
-    end,
-    State;
-
-process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
-    ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
-    ?Info([{user, User}], "connection to delete ~p", [ConId]),
-    Resp = case dderl_dal:del_conn(Sess, ConId) of
-        ok -> <<"success">>;
-        Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
-    end,
-    From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
-    State;
-
-% commands handled generically
-process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
-      C =:= <<"parse_stmt">>;
-      C =:= <<"get_query">>;
-      C =:= <<"save_view">>;
-      C =:= <<"view_op">>;
-      C =:= <<"update_view">>;
-      C =:= <<"save_dashboard">>;
-      C =:= <<"histogram">>;
-      C =:= <<"statistics">>;
-      C =:= <<"statistics_full">>;
-      C =:= <<"dashboards">>;
-      C =:= <<"edit_term_or_view">>;
-      C =:= <<"get_contracts">>;
-      C =:= <<"get_gt_kvstore">>;
-      C =:= <<"get_gelt_kvstore">> ->
+process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
     BodyJson = jsx:decode(ReqData),
-    spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
-    State;
-
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
-      Cmd =:= [<<"connect">>];
-      Cmd =:= [<<"connect_change_pswd">>];
-      Cmd =:= [<<"disconnect">>] ->
-    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
-    BodyJson = jsx:decode(ReqData),
-    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
-    NewCurrentPriv =
-        try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, self())
-        catch Class:Error ->
-                ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-                From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
-                CurrentPriv
-        end,
-    case proplists:is_defined(Adapter, AdaptPriv) of
-        true -> NewAdaptPriv = lists:keyreplace(Adapter, 1, AdaptPriv, {Adapter, NewCurrentPriv});
-        false -> NewAdaptPriv = [{Adapter, NewCurrentPriv} | AdaptPriv]
-    end,
-    State#state{adapt_priv = NewAdaptPriv};
-
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
-    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
-    BodyJson = jsx:decode(ReqData),
-    Self = self(),
-    spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self) end),
+    spawn_link(fun() -> spawn_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State.
 
-spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
-    try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
-    catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
-            error
-    end.
-
-spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) ->
+spawn_process_call(Adapter, From, C, BodyJson, Sess, UserId) ->
     try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
     end.
 
--spec jsq(term()) -> term().
-jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
-jsq(OtherTypes) -> OtherTypes.
-
 -spec logout(#state{}) -> #state{}.
-logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
-    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
-    State#state{adapt_priv = []};
+logout(#state{sess = undefined} = State) -> State;
 logout(#state{sess = Sess} = State) ->
     try Sess:close()
     catch Class:Error ->
             ?Error("Error trying to close the session ~p ~p:~p~n~p~n",
                    [Sess, Class, Error, erlang:get_stacktrace()])
     end,
-    logout(State#state{sess = undefined}).
+    State#state{sess = undefined}.
 
 -spec get_apps_version([{atom(), list(), list()}], [atom()]) -> [{binary(), list()}].
 get_apps_version([], _Deps) -> [];
