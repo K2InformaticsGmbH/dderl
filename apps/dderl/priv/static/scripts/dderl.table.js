@@ -2262,18 +2262,21 @@
         var rowsToRemove = new Array();
         for(var i = range.fromRow; i <= range.toRow; ++i) {
             var modifiedCells = new Array();
-            for(var j = fromCellSafe; j <= toCellSafe; ++j) {
-                var cellValue = gridData[i][cols[j].field];
-                if(cellValue != null) {
-                    modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
+            var gridData_i = gridData[i];
+            if (gridData_i != undefined) {
+                for(var j = fromCellSafe; j <= toCellSafe; ++j) {
+                    var cellValue = gridData_i[cols[j].field];
+                    if(cellValue != null) {
+                        modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
+                    }
                 }
-            }
-            var rowId = parseInt(gridData[i].id);
-            if(rowId > 0) {
-                modifiedRows.push({rowid: rowId, cells: modifiedCells});
-            } else {
-                rowsToRemove.push(i);
-                modifiedRows.push({cells: modifiedCells});
+                var rowId = parseInt(gridData_i.id);
+                if(rowId > 0) {
+                    modifiedRows.push({rowid: rowId, cells: modifiedCells});
+                } else {
+                    rowsToRemove.push(i);
+                    modifiedRows.push({cells: modifiedCells});
+                }
             }
         }
         var pasteJson = {paste_data: {connection : this._conn,
@@ -2283,7 +2286,7 @@
 
         // Update all rows from the selected range
         for(var i = range.fromRow; i <= range.toRow; ++i) {
-            gridData[i].op = 'upd';
+            if (gridData[i] != undefined) gridData[i].op = 'upd';
         }
 
         // Remove rows that will be later added by the server
