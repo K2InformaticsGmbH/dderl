@@ -279,7 +279,10 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"statistics">>;
       C =:= <<"statistics_full">>;
       C =:= <<"dashboards">>;
-      C =:= <<"edit_term_or_view">> ->
+      C =:= <<"edit_term_or_view">>;
+      C =:= <<"get_contracts">>;
+      C =:= <<"get_gt_kvstore">>;
+      C =:= <<"get_gelt_kvstore">> ->
     BodyJson = jsx:decode(ReqData),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;

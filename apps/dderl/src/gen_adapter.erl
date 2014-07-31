@@ -337,6 +337,27 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
             format_json_or_term(jsx:is_json(StringToFormat), StringToFormat, From, BodyJson)
     end;
 
+%% SBS requests to get from the key value store.
+process_cmd({[<<"get_gt_kvstore">>], ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
+    [{<<"get_gt_kvstore">>, BodyJson}] = ReqBody,
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    C = dderl_dal:get_gt_kvstore(Sess, UserId, Key),
+    From ! {reply, jsx:encode([{<<"get_gt_kvstore">>,  C}])};
+
+%% SBS requests to get from the key value store.
+process_cmd({[<<"get_contracts">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
+    C = dderl_dal:get_contracts(Sess, UserId),
+    From ! {reply, jsx:encode([{<<"get_contracts">>,  C}])};
+
+process_cmd({[<<"get_gelt_kvstore">>], ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
+    [{<<"get_gelt_kvstore">>, BodyJson}] = ReqBody,
+    KeyStart = proplists:get_value(<<"key_start">>, BodyJson, <<>>),
+    KeyEnd = proplists:get_value(<<"key_end">>, BodyJson, <<>>),
+    C = dderl_dal:get_gelt_kvstore(Sess, UserId, KeyStart, KeyEnd),
+    From ! {reply, jsx:encode([{<<"get_gelt_kvstore">>,  C}])};
+
+%%% END SBS requests --- This should go to imem adapter.
+
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.

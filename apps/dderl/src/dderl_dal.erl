@@ -36,6 +36,9 @@
         ,get_maxrowcount/0
         ,get_name/2
         ,add_adapter_to_cmd/3
+        ,get_contracts/2
+        ,get_gt_kvstore/3
+        ,get_gelt_kvstore/4
         ]).
 
 -record(state, { schema :: term()
@@ -385,6 +388,21 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) ->
     end,
     Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     CmdId.
+
+-spec get_gt_kvstore({atom(), pid()}, ddEntityId(), binary()) -> list().
+get_gt_kvstore(Sess, UserId, Key) ->
+    {ok, Result} = Sess:run_cmd(admin_exec, [imem_dal_skvh, readGT, [UserId, <<"MBSNT">>, <<"kvpair">>, Key, 100]]),
+    Result.
+
+-spec get_gelt_kvstore({atom(), pid()}, ddEntityId(), binary(), binary()) -> list().
+get_gelt_kvstore(Sess, UserId, KeyStart, KeyEnd) ->
+    {ok, Result} = Sess:run_cmd(admin_exec, [imem_dal_skvh, readGELT, [UserId, <<"MBSNT">>, <<"kvpair">>, KeyStart, KeyEnd, 100]]),
+    Result.
+
+-spec get_contracts({atom(), pid()}, ddEntityId()) -> list().
+get_contracts(Sess, UserId) ->
+    {ok, Contracts} = Sess:run_cmd(admin_exec, [imem_dal_skvh, readGT, [UserId, <<"MBSNT">>, <<"kvpair">>, <<"[\"IPCON\"]">>, 100]]),
+    Contracts.
 
 -spec get_maxrowcount() -> integer().
 get_maxrowcount() ->

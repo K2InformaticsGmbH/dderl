@@ -30,12 +30,18 @@ check_file(F) ->
 
 start(_Type, _Args) ->
     PrivDir = get_priv_dir(),
+    SbsBaseDir = PrivDir ++ "/../../../deps/sbs_gui",
+    SbsBower = SbsBaseDir ++ "/bower_components",
+    SbsAppDir = SbsBaseDir ++ "/app",
     Dispatch = cowboy_router:compile([
 		{'_', [
             {"/", dderl, []},
             {"/ws", bullet_handler, [{handler, dderl_stream}]},
             {"/app/[...]", dderl_resource, []},
             {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
+            {"/sbs/", cowboy_static, {file, SbsAppDir ++ "/index.html"}},
+            {"/sbs/bower_components/[...]", cowboy_static, {dir, SbsBower}},
+            {"/sbs/[...]", cowboy_static, {dir, SbsAppDir}},
             {"/[...]", cowboy_static, {dir, PrivDir}}
 		]}
 	]),
