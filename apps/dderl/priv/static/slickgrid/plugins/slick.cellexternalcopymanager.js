@@ -332,7 +332,7 @@
         processRows : function(destW, activeRow, activeCell, limit, y, cb) {
             //We need to process max 50 rows to not block the gui.
             var self = this;
-            var batchLimit = y + Math.min(limit - y, 50);
+            var batchLimit = y + Math.min(limit - y, 10);
             for(; y < batchLimit; ++y) {
                 this.oldValues[y] = [];
                 this.w=0;
@@ -364,7 +364,7 @@
             if(y < limit) {
                 setTimeout(function() {
                     self.processRows(destW, activeRow, activeCell, limit, y, cb);
-                }, 1);
+                }, 5);
             } else {
                 cb();
             }
