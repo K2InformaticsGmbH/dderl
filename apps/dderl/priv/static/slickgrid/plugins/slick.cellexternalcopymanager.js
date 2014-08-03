@@ -130,9 +130,14 @@
         return loader.src = src;
     }
 
+    function getTime() {
+        var d = new Date();
+        return (d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + '.' + d.getMilliseconds());
+    }
+
     function _createDivPaste() {
         div = document.createElement('div');
-        console.log(div);
+//        console.log(div);
         div.contentEditable = true;
         document.body.appendChild(div);
         div.focus();
@@ -147,7 +152,6 @@
                 item = null,
                 reader, text, _i, _len,
                 _ref = ev.originalEvent;
-
             if (_ref != null && _ref.clipboardData != null) {
                 clipboardData = _ref.clipboardData;
                 if (clipboardData.items) {                    
@@ -174,14 +178,17 @@
                         };
                         reader.readAsDataURL(item.getAsFile());
                     } else if(item != null && item.type === 'text/plain') {
+//console.log(getTime() + " Reading clipboard");
                         item.getAsString(function(string) {
                             setTimeout(function() {
+//console.log(getTime() + " Grid loading started");
                                 _decodeTabularData(string, false);
                             }, 1);
                         });
                     }
                 } else {
                     if (clipboardData.types.length) {
+//console.log(getTime() + " Reading clipboard");
                         text = clipboardData.getData('Text');
                         if (text != null && text.length) {
                             setTimeout(function() {
@@ -196,9 +203,11 @@
                 }
             }
             if (clipboardData = window.clipboardData) {
+//console.log(getTime() + " Reading clipboard");
+                text = clipboardData.getData('Text');
                 setTimeout(function() {
-                    text = clipboardData.getData('Text');
                     if (text != null && text.length) {
+//console.log(getTime() + " Grid loading started");
                         _decodeTabularData(text, false);
                     } else {
                         readImagesFromEditable(div, function(data) {
@@ -222,22 +231,40 @@
       return ta;
     }
     
-    function _decodeTabularData(clipText, isImage){
-      var clipRows = [clipText];
-      var clippedRange = [[clipText]];
+    function _decodeTabularData(clipText, isImage) {
+        var clipRows = [clipText];
+        var clippedRange = [[clipText]];
+        
+        if(!isImage) {
+            clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
+            var last = clipRows.pop();
+            if(last)
+                clipRows.push(last);
+//console.log(getTime() + " Row Split complete");
+            setTimeout(function() {
+                processRowsInGroups(clipRows);
+            }, 1);
+        } else {
+            _processTabularData(clippedRange);
+        }
+    }
 
-      if(!isImage) {
-          clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
-          var last = clipRows.pop();
-          if(last) {
-              clipRows.push(last);
-          }
-          clippedRange = [];
-          for (var i = 0; i < clipRows.length; i++) {
-              clippedRange[i] = clipRows[i].split("\t");
-          }
-      }
-      _processTabularData(clippedRange);
+    function processRowsInGroups(clpRows) {
+        var newClpRows = [];
+        clpdRange = [];
+        if (clpRows.length > 100) {
+            newClpRows = clpRows.splice(0, 100);
+//console.log(getTime() + " Row processing");
+            setTimeout(function() {
+                processRowsInGroups(clpRows);
+            }, 1);
+        } else {
+//console.log(getTime() + " Last Row processing");
+            newClpRows = clpRows;
+        }
+        for (var i = 0; i < newClpRows.length; i++)
+            clpdRange[i] = newClpRows[i].split("\t");
+        _processTabularData(clpdRange);
     }
 
     function _processTabularData(clippedRange) {
@@ -362,13 +389,15 @@
                         else
                             dt = _grid.getDataItem(desty);
 
-                        this.oldValues[y][x] = dt[columns[destx]['id']];
-                        if (oneCellToMultiple) {
-                            this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
-                        } else {
-                            this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                        if (dt != undefined) {
+                            this.oldValues[y][x] = dt[columns[destx]['id']];
+                            if (oneCellToMultiple) {
+                                this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
+                            } else {
+                                this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                            }
+                            _grid.updateCell(desty, destx);
                         }
-                        _grid.updateCell(desty, destx);
                     }
                 }
             }
