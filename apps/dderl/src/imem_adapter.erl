@@ -645,7 +645,7 @@ process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
         _ ->
             [{<<"error">>, <<"Only :ddConn.id and :ddAdapter.id are implemented as parameter values">>}]
     end;
-process_query(Query, {_,ConPid}=Connection, Params, SessPid) ->
+process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, Params)) of
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
@@ -654,7 +654,7 @@ process_query(Query, {_,ConPid}=Connection, Params, SessPid) ->
                         , rowFun   = RowFun
                         , stmtRef  = StmtRef
                         , sortFun  = SortFun
-                        , sortSpec = SortSpec} = StmtRslt} ->
+                        , sortSpec = SortSpec} = _StmtRslt} ->
             TableName = extract_table_name(Query),
             StmtFsm = dderl_fsm:start(
                                 #fsmctx{ id                         = "what is it?"
