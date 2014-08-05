@@ -344,6 +344,15 @@ process_cmd({[<<"get_gt_kvstore">>], ReqBody}, _Adapter, Sess, UserId, From, _Pr
     C = dderl_dal:get_gt_kvstore(Sess, UserId, Key),
     From ! {reply, jsx:encode([{<<"get_gt_kvstore">>,  C}])};
 
+process_cmd({[<<"get_objects">>], ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
+    [{<<"get_objects">>, BodyJson}] = ReqBody,
+    Channel = proplists:get_value(<<"channel">>, BodyJson, <<>>),
+    Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    Limit = proplists:get_value(<<"limit">>, BodyJson, 100),
+    C = dderl_dal:get_objects(Sess, UserId, Channel, Table, Key, Limit),
+    From ! {reply, jsx:encode([{<<"get_objects">>,  C}])};
+
 %% SBS requests to get from the key value store.
 process_cmd({[<<"get_contracts">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
     C = dderl_dal:get_contracts(Sess, UserId),
