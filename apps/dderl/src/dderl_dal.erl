@@ -401,10 +401,8 @@ get_objects(Sess, UserId, Channel, Table, <<>>, Limit) ->
 get_objects(Sess, UserId, Channel, <<>>, Key, Limit) ->
     {ok, All} = Sess:run_cmd(admin_exec, [imem_dal_skvh, readGT, [UserId, Channel, <<"key">>, Key, Limit]]),
     Filtered = [binary_to_list(ToFilter) || ToFilter <- All, length(imem_datatype:io_to_term(ToFilter)) =:= 1],
-    ?Info("Filtered ~p~n", [Filtered]),
     FilteredNewLine = list_to_binary(string:join(Filtered, "\n")),
     {ok, Result} = Sess:run_cmd(admin_exec, [imem_dal_skvh, read, [UserId, Channel, <<"kvpair">>, FilteredNewLine]]),
-    ?Info("Result ~p~n", [Result]),
     Result;
 get_objects(Sess, UserId, Channel, Table, Key, Limit) ->
     {ok, Result} = Sess:run_cmd(admin_exec, [imem_dal_skvh, readGT, [UserId, <<"ACCOUNT">>, <<"key">>, Key, Limit]]),
@@ -426,9 +424,8 @@ get_maxrowcount() ->
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
-    ?Info("starting...~n"),
     Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
-    ?Debug("started!~n~p", [Result]),
+    ?Info("Started! ~n~p", [Result]),
     Result.
 
 init([SchemaName]) ->
