@@ -128,6 +128,12 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
+                if(_url == '/app/ping' && _data.error === "Session is not valid") {
+                    dderlState.connection = null;
+                    dderlState.adapter = null;
+                    dderlState.session = null;
+                    resetPingTimer();
+                }
                 if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }

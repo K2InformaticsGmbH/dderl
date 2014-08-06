@@ -213,7 +213,7 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     State;
 
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
-    ?Error("Request from a not logged in user: ~n~p", [Req]),
+    ?Debug("Request from a not logged in user: ~n~p", [Req]),
     From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
     State;
 
