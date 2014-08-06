@@ -93,8 +93,21 @@ process_call({[C], ReqData}, From, #state{sess=Sess, user_id=UserId} = State) ->
     State.
 
 spawn_process_call(From, C, BodyJson, Sess, UserId) ->
-    try gen_adapter:process_cmd({[C], BodyJson}, gen, Sess, UserId, From, undefined)
+    try process_cmd({[C], BodyJson}, Sess, UserId, From, undefined)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
     end.
+
+process_cmd({[<<"get_objects">>], ReqBody}, Sess, _UserId, From, _Priv) ->
+    [{<<"get_objects">>, BodyJson}] = ReqBody,
+    Channel = proplists:get_value(<<"channel">>, BodyJson, <<>>),
+    Table = proplists:get_value(<<"table">>, BodyJson, <<>>),
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    Limit = proplists:get_value(<<"limit">>, BodyJson, 100),
+    C = sbs_dal:get_objects(Sess, Channel, Table, Key, Limit),
+    From ! {reply, jsx:encode([{<<"get_objects">>,  C}])};
+
+process_cmd({Cmd, _BodyJson}, _Sess, _UserId, From, _Priv) ->
+    ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
+    From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
