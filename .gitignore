@@ -2,7 +2,7 @@
 ## Eclipse
 #################
 
-apps/dderl/priv/static/angular-1.2.12/docs
+priv/static/angular-1.2.12/docs
 dderl.debug.*
 apps/dderl/.eunit/
 apps/dderl/ebin/
