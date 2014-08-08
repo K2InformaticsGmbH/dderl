@@ -127,6 +127,8 @@ distdir/$(PKG_ID): distdir/$(CLONEDIR)/$(MANIFEST_FILE)
 	$(call build_clean_dir)
 
 distdir/$(PKG_ID).tar.gz: distdir/$(PKG_ID)
+	ln -s ../../src/ distdir/$(PKG_ID)/apps/dderl/src
+	ln -s ../../priv/ distdir/$(PKG_ID)/apps/dderl/priv
 	tar -C distdir -czf distdir/$(PKG_ID).tar.gz $(PKG_ID)
 
 dist: distdir/$(PKG_ID).tar.gz
@@ -151,8 +153,6 @@ pkgdist: distdir/$(PKG_ID).tar.gz
 
 pkgrpm:
 	ln -s distdir package
-	ln -s ../../src/ distdir/$(PKG_ID)/apps/dderl/src
-	ln -s ../../priv/ distdir/$(PKG_ID)/apps/dderl/priv
 	$(MAKE) -C package -f $(PKG_ID)/deps/node_package/Makefile
 
 package: pkgdist pkgrpm
