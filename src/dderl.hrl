@@ -64,7 +64,9 @@
 
 -define(ddDash, [integer, atom, userid, binstr, list]).
 
+-ifndef(LOG_TAG).
 -define(LOG_TAG, "_DDRL_").
+-endif.
 
 -define(NoDbLog(__L,__M,__F,__A), lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
 -define(Log(__L,__M,__F,__A),
