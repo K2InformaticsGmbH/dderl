@@ -30,15 +30,14 @@ check_file(F) ->
 
 start(_Type, _Args) ->
     PrivDir = get_priv_dir(),
+    {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
+io:format(user, "MasterPaths ~p~n", [MasterUrlRoutePaths]),
     Dispatch = cowboy_router:compile([
-		{'_', [
-            % sbs roues
-            {"/app/sbs/[...]", sbs_resource, []},
-            {"/sbs/", cowboy_static, {file, "app/index.html"}},
-            {"/sbs/bower_components/[...]", cowboy_static, {dir, "bower_components"}},
-            {"/sbs/[...]", cowboy_static, {dir, "app"}},
+		{'_',
+            % sbs routes
+            MasterUrlRoutePaths ++
             % default routes
-            {"/", dderl, []},
+            [{"/", dderl, []},
             {"/ws", bullet_handler, [{handler, dderl_stream}]},
             {"/app/[...]", dderl_resource, []},
             {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
