@@ -1,4 +1,4 @@
-REPO 		?= dderl
+REPO 			?= dderl
 PKG_BUILD 		 = 1
 BASE_DIR    	 = $(shell pwd)
 ERLANG_BIN  	 = $(shell dirname $(shell which erl))
@@ -24,22 +24,6 @@ generate: compile
 	rebar generate $(OVERLAY_VARS)
 
 rel: deps compile generate
-
-rel_agustin: deps compile
-	(cd rel && rebar generate target_dir=agustin overlay_vars=vars/agustin_vars.config)
-rel_bikram: deps compile
-	(cd rel && rebar generate target_dir=bikram overlay_vars=vars/bikram_vars.config)
-rel_stefan: deps compile
-	(cd rel && rebar generate target_dir=stefan overlay_vars=vars/stefan_vars.config)
-rel_olt: deps compile
-	(cd rel && rebar generate target_dir=olt overlay_vars=vars/olt_vars.config)
-rel_zhh: deps compile
-	(cd rel && rebar generate target_dir=zhh overlay_vars=vars/zhh_vars.config)
-
-rel_all: rel rel_agustin rel_bikram rel_stafen rel_olt rel_zhh
-
-relclean:
-	rm -rf rel/agustin rel/bikram rel/stefan rel/olt rel/zhh
 
 APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
 	   xmerl webtool snmp public_key mnesia eunit syntax_tools compiler
@@ -167,6 +151,8 @@ pkgdist: distdir/$(PKG_ID).tar.gz
 
 pkgrpm:
 	ln -s distdir package
+	ln -s ../../src/ distdir/$(PKG_ID)/apps/dderl/src
+	ln -s ../../priv/ distdir/$(PKG_ID)/apps/dderl/priv
 	$(MAKE) -C package -f $(PKG_ID)/deps/node_package/Makefile
 
 package: pkgdist pkgrpm
