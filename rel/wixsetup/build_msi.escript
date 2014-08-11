@@ -143,7 +143,23 @@ create_wxs(Root) ->
         "   <WixVariable Id='WixUIBannerBmp' Value='banner493x58.jpg' />\n"
         "   <WixVariable Id='WixUIDialogBmp' Value='dialog493x312.jpg' />\n"
         "   <UIRef Id='WixUI_Mondo' />\n"
-        "   <UIRef Id='WixUI_ErrorProgressText' />\n\n"
+        "   <UIRef Id='WixUI_ErrorProgressText' />\n\n"),
+
+    [Item] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
+                                       , guid=undefined, _='_'}
+                                 , [], ['$_']}]),
+
+    ok = file:write(FileH,
+        "   <CustomAction Id='InstallService' FileKey='"++Item#item.id++"'"
+                " ExeCommand='install' Execute='commit' />\n"
+        "   <CustomAction Id='StartService' FileKey='"++Item#item.id++"'"
+                " ExeCommand='start' Execute='commit' />\n"),
+
+    ok = file:write(FileH,
+        "   <InstallExecuteSequence>\n"
+        "      <Custom Action='InstallService' After='InstallFiles' />\n"
+        "      <Custom Action='StartService' Before='InstallFiles' />\n"
+        "   </InstallExecuteSequence>\n\n"
         "</Product>\n"
         "</Wix>"),
     ok = file:close(FileH),
@@ -218,7 +234,7 @@ get_id(Type, F, Dir)
   when Type =:= component;
        Type =:= file;
        Type =:= dir ->
-    Id = "id_"++?H(filename:join([Dir, F])),
+    Id = "id_"++?H({Type, filename:join([Dir, F])}),
     {ok, FI} = file:read_file_info(filename:join([Dir, F])),
     case dets:lookup(?TAB, Id) of
         [] ->
@@ -247,7 +263,7 @@ get_id(undefined, Field, undefined) when is_list(Field) ->
     Id = "id_"++?H(Field),
     case dets:lookup(?TAB, Id) of
         [] ->
-            Item = #item{id = Id},
+            Item = #item{id = Id, name = Field},
             ok = dets:insert(?TAB, Item),
             {ok, Item#item.id};
         [#item{} = Item] ->
@@ -257,7 +273,7 @@ get_id(undefined, Field, undefined) ->
     Id = "id_"++?H(Field),
     case dets:lookup(?TAB, Id) of
         [] ->
-            Item = #item{id = Id, guid = uuid()},
+            Item = #item{id = Id, name = Field, guid = uuid()},
             ok = dets:insert(?TAB, Item),
             {ok, Item#item.guid};
         [#item{} = Item] -> {ok, Item#item.guid}
