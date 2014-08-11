@@ -50,9 +50,10 @@ var WshShell = new ActiveXObject("WScript.Shell");
 var FileSys = new ActiveXObject("Scripting.FileSystemObject");
 
 if (action == "install") {
-    WshShell.Exec(dderlCmdPath + ' install');
 }
 else if (action == "commit") {
+    WshShell.Exec(dderlCmdPath + ' install');
+    MsgBox("Service installed");
     WshShell.Exec(dderlCmdPath + ' start');
 }
 else if (action == "uninstall") {
