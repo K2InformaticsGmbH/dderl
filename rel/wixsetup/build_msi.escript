@@ -139,7 +139,9 @@ create_wxs(Root) ->
     build_features(FileH),
 
     ok = file:write(FileH,
-        "   <WixVariable Id='WixUIBannerBmp' Value='banner.jpg' />\n"
+        "   <WixVariable Id='WixUILicenseRtf' Value='License.rtf' />\n"
+        "   <WixVariable Id='WixUIBannerBmp' Value='banner493x58.jpg' />\n"
+        "   <WixVariable Id='WixUIDialogBmp' Value='dialog493x312.jpg' />\n"
         "   <UIRef Id='WixUI_Mondo' />\n"
         "   <UIRef Id='WixUI_ErrorProgressText' />\n\n"
         "</Product>\n"
