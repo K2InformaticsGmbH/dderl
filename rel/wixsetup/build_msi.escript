@@ -3,8 +3,6 @@
 %%! -smp enable -sname build_msi -mnesia debug verbose
 -include_lib("kernel/include/file.hrl").
 
--define(PRODUCT_GUID, "80D1D993-AAAD-4F38-A5EE-84428476E69F").
--define(UPGRADE_GUID, "C20627C5-BE87-471D-BC11-3F63E6BF09B8").
 -define(COMPANY, "K2 Informatics GmbH").
 -define(PRODUCT, "DDErl").
 -define(VERSION, "1.0.7").
@@ -20,7 +18,7 @@
 -define(TRACE,  io:format("TRACE ~p~n", [?LINE])).
 
 -record(item, { id
-              , type % file | component
+              , type % file | dir | component
               , guid
               , name
               , path
@@ -77,7 +75,8 @@ rebar_generate(Root) ->
     ok = file:set_cwd(CurDir).
 
 create_wxs(Root) ->
-    {ok, FileH} = file:open(filename:join([Root, "rel", "wixsetup", ?WXSFILE])
+    {ok, FileH} = file:open(filename:join([Root, "rel"
+                                           , "wixsetup", ?WXSFILE])
                             , [write, raw]),
     {ok, PRODUCT_GUID} = get_id(undefined, 'PRODUCT_GUID', undefined),
     {ok, UPGRADE_GUID} = get_id(undefined, 'UPGRADE_GUID', undefined),
@@ -120,14 +119,17 @@ create_wxs(Root) ->
         "       </Directory>\n"
         "     </Directory>\n"),
 
-    {RegId, RegGuId} = get_id(component, "dderl", filename:join([Root,"rel"])),
+    {RegId, RegGuId} = get_id(component, "dderl"
+                              , filename:join([Root,"rel"])),
     ok = file:write(FileH,
         "     <Directory Id='ProgramMenuFolder' Name='Programs'>\n"
-        "        <Directory Id='"++RegId++"' Name='"?PRODUCT" "?VERSION"'>\n"
+        "        <Directory Id='"++RegId++"'"
+                                " Name='"?PRODUCT" "?VERSION"'>\n"
         "           <Component Id='"++RegId++"' Guid='"++RegGuId++"'>\n"
         "               <RemoveFolder Id='"++RegId++"' On='uninstall' />\n"
-        "               <RegistryValue Root='HKCU' Key='Software\\[Manufacturer]\\[ProductName]'"
-                                            " Type='string' Value='' KeyPath='yes' />\n"
+        "               <RegistryValue Root='HKCU'"
+                            " Key='Software\\[Manufacturer]\\[ProductName]'"
+                            " Type='string' Value='' KeyPath='yes' />\n"
         "           </Component>\n"
         "       </Directory>\n"
         "     </Directory>\n\n"),
@@ -145,23 +147,56 @@ create_wxs(Root) ->
         "   <UIRef Id='WixUI_Mondo' />\n"
         "   <UIRef Id='WixUI_ErrorProgressText' />\n\n"),
 
-    [Item] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
+    %% Service Installation
+    [Comp] = dets:select(?TAB, [{#item{type=component
+                                       , name="dderl.cmd", _='_'}
+                                 , [], ['$_']}]),
+    [CItm] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
                                        , guid=undefined, _='_'}
                                  , [], ['$_']}]),
 
+    % Custom actions service install and start
+    %  must run after InstallFiles step is 'comitted'
+    % Custom actions service stop and uninstall
+    %  must run immediately and before InstallValidate
+    %  step to ensure that installed files are not
+    %  removed and DDErl service is stopped before
+    %  uninstalling process detecets and warns
     ok = file:write(FileH,
-        "   <CustomAction Id='InstallService' FileKey='"++Item#item.id++"'"
-                " ExeCommand='install' Execute='commit' />\n"
-        "   <CustomAction Id='StartService' FileKey='"++Item#item.id++"'"
-                " ExeCommand='start' Execute='commit' />\n"),
+        "   <CustomAction Id='InstallService' FileKey='"++CItm#item.id++"'\n"
+        "                 ExeCommand='install' Execute='commit' />\n"
+        "   <CustomAction Id='StartService' FileKey='"++CItm#item.id++"'\n"
+        "                 ExeCommand='start' Execute='commit' />\n"
+        "   <CustomAction Id='UnInstallService' FileKey='"++CItm#item.id++"'\n"
+        "                 ExeCommand='uninstall' Execute='immediate' />\n"
+        "   <CustomAction Id='StopService' FileKey='"++CItm#item.id++"'\n"
+        "                 ExeCommand='stop' Execute='immediate' />\n\n"
+                   ),
 
+    % Sequence of custom action is important to ensure
+    %  service is installed before started and stopped
+    %  before uninstalling
+    % Also ComponentId = # is used to identify the service
+    %  controlling script is executed in correct execution path
+    %  2 - Uninstalling
+    %  3 - Installing
+    %  Ref http://wix.tramontana.co.hu/tutorial/com-expression-syntax-miscellanea/expression-syntax
     ok = file:write(FileH,
         "   <InstallExecuteSequence>\n"
-        "      <Custom Action='InstallService' After='InstallFiles' />\n"
-        "      <Custom Action='StartService' Before='InstallFiles' />\n"
-        "   </InstallExecuteSequence>\n\n"
+        "      <Custom Action='StopService' Before='InstallValidate'>"
+                "$"++Comp#item.id++"=2</Custom>\n"
+        "      <Custom Action='UnInstallService' Before='InstallValidate'>"
+                "$"++Comp#item.id++"=2</Custom>\n"
+        "      <Custom Action='InstallService' After='InstallFiles'>"
+                "$"++Comp#item.id++"=3</Custom>\n"
+        "      <Custom Action='StartService' After='InstallFiles'>"
+                "$"++Comp#item.id++"=3</Custom>\n"
+        "   </InstallExecuteSequence>\n\n"),
+
+    ok = file:write(FileH,
         "</Product>\n"
         "</Wix>"),
+
     ok = file:close(FileH),
     {ok, CurDir} = file:get_cwd(),
     ok = file:set_cwd(filename:join([Root,"rel", "wixsetup"])),
@@ -218,12 +253,15 @@ build_features(FileH) ->
                     " Description='The complete package.'"
                     " Level='1' ConfigurableDirectory='INSTALLDIR'>\n"),
     ok = file:write(FileH,
-        "      <Feature Id='MainProgram' Title='"?PRODUCT" "?VERSION" service'"
+        "      <Feature Id='MainProgram' Title='"?PRODUCT" "
+                                                ?VERSION" service'"
                     " Description='The service.' Level='1'>\n"),
     dets:sync(?TAB),
     dets:traverse(?TAB,
                   fun(#item{type=component, id = Id}) ->
-                          ok = file:write(FileH, "         <ComponentRef Id='"++Id++"' />\n"),
+                          ok = file:write(FileH
+                                          , "         <ComponentRef Id='"
+                                          ++Id++"' />\n"),
                           continue;
                      (_) -> continue
                   end),
@@ -253,6 +291,16 @@ get_id(Type, F, Dir)
                 dir -> {ok, Item#item.id}
             end;
         [#item{name = F, path = Dir, file_info = FI} = Item] ->
+            case Type of
+                component -> {Item#item.id, Item#item.guid};
+                file -> {ok, Item#item.id};
+                dir -> {ok, Item#item.id}
+            end;
+        [#item{name = F, path = Dir} = I] ->
+            Item = I#item{guid = if Type =:= component -> uuid();
+                                    true -> undefined end
+                          , file_info = FI},
+            ok = dets:insert(?TAB, Item),
             case Type of
                 component -> {Item#item.id, Item#item.guid};
                 file -> {ok, Item#item.id};
