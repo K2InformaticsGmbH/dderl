@@ -192,3 +192,8 @@ pip-log.txt
 # Release gurbage
 apps/dderl/priv
 apps/dderl/src
+rel/wixsetup/*.wixobj
+rel/wixsetup/*.wixpdb
+rel/wixsetup/*.wxs
+rel/wixsetup/*.dets
+rel/wixsetup/*.msi
