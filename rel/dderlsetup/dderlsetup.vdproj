@@ -57,6 +57,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_00DCF0F77D934A188E18B81E48156B93"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_00E4A4F534CC4F6F89B5890626305D44"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -106,6 +112,12 @@
         "Entry"
         {
         "MsmKey" = "8:_01BC1689C046466DB66138AC378907E1"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_01CF55BF74364ADD88B524C69C7BFBCE"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -465,6 +477,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0A21C769B41441FA8AA66CC0F7080F5D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_0A47A858B94D4838B0EB7A66A257C5DE"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -586,6 +604,12 @@
         "Entry"
         {
         "MsmKey" = "8:_0C5BC2B4CAF7401CB97209466322E5B9"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_0C7B94ABA8A94010A00F0F2277F83F02"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -729,12 +753,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_100F90FE7DAC4D34A4EF7DAC4401DEA0"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_100FCAC8A66F4A9DA6A799DEC62C1A55"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -766,12 +784,6 @@
         "Entry"
         {
         "MsmKey" = "8:_1126AF15D6AC404DB10FEB1033C7B0A5"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_1129FF0941D64E3485A85E6A589A0CA0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -1839,6 +1851,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_2829FCE9402346B0A41E5EE148804DB0"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_28984613C85A4C26A99C1082359EC96C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2199,6 +2217,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_30AEB1B40DB845E2831DCFE568AF05C0"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_30C0C0CA18CE4859AADCA3D8AB5ACAD2"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2547,6 +2571,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_37D6053F39CD4BFDB236E5A63C6C922D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_37F3FE88111244708F611F8DE22D86B2"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2763,12 +2793,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_3C5FB83BE45D4A4890D733C48B6B3E9F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_3C6E03F106E3478AA9CDEE9F7A6DA104"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2926,6 +2950,12 @@
         "Entry"
         {
         "MsmKey" = "8:_3FCB367D4D2F46A78E763E6A7C4849D7"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_4010557D7EB24D4593F73AED3F150933"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -3094,6 +3124,12 @@
         "Entry"
         {
         "MsmKey" = "8:_4418ACCC4CC24D47ABD30D28EE5074D3"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_446F18F1F40146C0ADBA513D6BC5D5D4"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -3304,6 +3340,12 @@
         "Entry"
         {
         "MsmKey" = "8:_47BA21CD1C4546FAA5B6478E0CFA31CE"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_480EE2296AB94C4B9E3CF525F4D0F927"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -3616,6 +3658,12 @@
         "Entry"
         {
         "MsmKey" = "8:_4E54D6FCFFB44E49BC0D6F6153DF68BA"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_4E73FF2378EE41AFAEBF22778CE98102"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -3981,12 +4029,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_550C9A0AEA974468AB4F9068314B2C8F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_5521E289558A4F35BE768FE35CBC3FC3"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -4042,12 +4084,6 @@
         "Entry"
         {
         "MsmKey" = "8:_55C8B9028C0F43A9B109EF7591E0C7AA"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_55FE78BF235340E995A74C09980115E0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -4281,6 +4317,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_59E610EF68044D66ADF797226AE61109"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_59F8420E9C4A468495448193BD7F15AC"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -4366,12 +4408,6 @@
         "Entry"
         {
         "MsmKey" = "8:_5BBD587146644FAE9AE27911AB363414"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_5BC5247A03414F47810559ACF8F5FACA"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -4528,12 +4564,6 @@
         "Entry"
         {
         "MsmKey" = "8:_5E4EF1E242B447F6AE4DBAE04456ABD9"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_5E9B7D6C2D6345B6AFFCF57B7EB541A8"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -4701,12 +4731,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_623278228EF04189A8E650FF8884448D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_623BCEF232184294ACB9834BEF87B033"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -4750,18 +4774,6 @@
         "Entry"
         {
         "MsmKey" = "8:_62CD924BEF5B4D9DAD5A1ED51D17FB2B"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_62FDAC5CE4FB425EB5A324CE5B7B7B5E"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_631DB03DFB4441DC8E7A4BDCE7C6B2BB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -4971,12 +4983,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_66D6D4FD06B74BF7B54C3284963F212C"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_671A110EB9174E41B5DA0294493CED56"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5038,6 +5044,12 @@
         "Entry"
         {
         "MsmKey" = "8:_69183F98E8E64B4E8CB1251142561A81"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_694B76C8785F4B1BB821EF1B6942CABD"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -5259,12 +5271,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_6E9382358D204AD891113E096A17334F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_6EBB87CBE2234B69854C92A16A451CE1"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5320,12 +5326,6 @@
         "Entry"
         {
         "MsmKey" = "8:_6F568A2D2B6B49048F4F8D0D864F2CBA"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_6F5D429D8F3042E7886212A05A89D260"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -5559,12 +5559,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_73A4CA79FFFA4CB389E372AF77675556"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_73AF2A2911A14157B4DD07C4D07C0DEC"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5608,6 +5602,12 @@
         "Entry"
         {
         "MsmKey" = "8:_74865D2093764557AECD7F00A5B05CD0"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7489BB0A44C747C1A1EBB1A754477E0B"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -5709,12 +5709,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_764E5D3A530A4FAB8A694DACD0F014C6"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_7659B050DD364B89823C1C5880B6F040"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -5770,6 +5764,12 @@
         "Entry"
         {
         "MsmKey" = "8:_77A7563E16214424A540D3905CE47057"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_77BBC467FFB64649918F2523A68B398D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -5992,12 +5992,6 @@
         "Entry"
         {
         "MsmKey" = "8:_7BEDD1DF33674057BE9A3452FE873D0B"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_7C00239A820147C6A74376327B3F69C0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -6483,6 +6477,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_86F0E0BE3D924E5C8D041953D3F9600E"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_86F99DCAD21A46E6A9FDCB07B10B3F39"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -6597,6 +6597,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_8890B4D09B0144A4A7976C2C4B922FC5"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_8896B49EA0A944439EDCC3F048FEAF4E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -6639,6 +6645,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_88FE194493424C9FABAA1D4016E8EB7A"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_8911B785344940A3AB905D90227FE586"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -6669,6 +6681,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_89981F7EB188435EBDC7DC121C2EFB2A"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_89AA85B318424614AFAA43A1C9B032FC"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -6681,7 +6699,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_89F1542B329843839F6C11AE9293ED45"
+        "MsmKey" = "8:_89B39EC28E7B4784BCA261E13F1DFE6C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -7161,6 +7179,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_9438469ADE14465D9A25C8BDB40FE056"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_945D2E2212B84EBB886C8E03F1F36742"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -7377,6 +7401,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_98081251C4ED4F5384B6A6D9193F704D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_981E328DD44F4286959ADE1AB19A62D7"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -7414,6 +7444,12 @@
         "Entry"
         {
         "MsmKey" = "8:_98FB8E8D27EA4387A1E772E5B8B8B187"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_9931BBC3EC0D40419759E163FCE816E5"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -7539,12 +7575,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9BC5C5A6DD1F4DC48D41400AF8698297"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_9BF1BAB772D4450B84A881FFABE6D21F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -7564,6 +7594,12 @@
         "Entry"
         {
         "MsmKey" = "8:_9C24390562154137A40AC13EFBF581E9"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_9C5EEE1A0F324B0C9D4C34661DA5CC9B"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -7593,12 +7629,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9CEE6C7FDD8C46139BC9CEAB9AE73205"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_9D206C91638A44BF8EED496E06F2865E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -7611,13 +7641,13 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_9D45843692A14E568E51AA55682FA0DA"
+        "MsmKey" = "8:_9D4CA2E3B7E043ECB83ECE04A7E042A2"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_9D4CA2E3B7E043ECB83ECE04A7E042A2"
+        "MsmKey" = "8:_9D65B256665D427597A6005A8974052F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -7959,12 +7989,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_A3ACA73C70444CC78BB390C45CF6E4DF"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_A3BEC62FBAA44D248B8360513716B4EB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -8086,6 +8110,12 @@
         "Entry"
         {
         "MsmKey" = "8:_A6A446221E6C424F95B2C1A66D9B6989"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_A6B6025A58F74142850CF02E3F2174D4"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -8493,12 +8523,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_AF0F07BF172F4ACA8C7020FF99EB5BA1"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_AF360BF4CC934C4297D1103425305734"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -8680,6 +8704,12 @@
         "Entry"
         {
         "MsmKey" = "8:_B3596526C58F467091D6BF41C948D579"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_B35E8A28A10F41EAB66728C207493407"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -8943,12 +8973,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_B9AA2E0EF7814DA2B1B8C1E55C46F6DD"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_B9E12753243F4691BE5B4D2BABBCE698"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -9111,12 +9135,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_BDA7F9C6DCFA4941830D957FF5006A9D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_BDDE6C81274E427E9420E074B91476A4"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -9171,6 +9189,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_BFA3900EEF74443EA73C58A2FA84712F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_C039EB7557DA49DDBCF9D91C4FE5909B"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -9208,6 +9232,12 @@
         "Entry"
         {
         "MsmKey" = "8:_C0BFCF345DF54EF9969D7409800E8867"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_C1258335E5B24B168AF4AA83DE327772"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -9273,6 +9303,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_C2D8233C8C4D4291B15CA9AEDD2BF4A8"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_C3698ACB7C50429B97C17F48E060ECA6"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -9327,12 +9363,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_C4191FD036A049CA83C061B6BB83EB4E"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_C431283818234E9F97952B1A9EA13A33"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -9370,12 +9400,6 @@
         "Entry"
         {
         "MsmKey" = "8:_C506DD96D08F4BEFA025065A42ABE2B6"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_C512B3524CF54778B53C728CA24BCA55"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -9712,12 +9736,6 @@
         "Entry"
         {
         "MsmKey" = "8:_CCF43212AE21419EB65033C5BAC6BCED"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_CD0BBA18E40C482D9E18E6C321989E7C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -10083,6 +10101,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_D4C195D663D346C69D232B48FDA1520D"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_D4DF8EDDFD344F598931304140362B73"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -10102,6 +10126,12 @@
         "Entry"
         {
         "MsmKey" = "8:_D5B5711638364818BE32FA3AFBC8CCA7"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D5CD7A9184D84B96897C26850AE180D4"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -10185,7 +10215,19 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_D800856CF5BF4A609F2FF7058DF6AFC1"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_D805472962B8404F991B81A9091B5D77"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D822AB42A19D4D31AF3C0942C68FCCEB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -10222,12 +10264,6 @@
         "Entry"
         {
         "MsmKey" = "8:_D8C2B351376A4DC487A523086FA3B279"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_D8CE48BC12E94A0E832C781623EDB0C5"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -10587,12 +10623,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_DF1E475DC2824D19AC39FCA29E426B0A"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_DF299EC16A2B4F1F926C3196182F3816"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -10857,6 +10887,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_E44A3162E6EF43CAAAC983521CFF4C5F"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_E47207D994954BC1B78722292E6C5233"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -10983,6 +11019,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_E647A7E02ADC4E86B24EE92E7CBC04F9"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_E6639A229B5D4F7692B66CA3607AD1FB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -11031,6 +11073,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_E73F64FD0D4D4F009136BD4CDDF58650"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_E75958F2B40D42E8A214810E3A8270DB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -11062,12 +11110,6 @@
         "Entry"
         {
         "MsmKey" = "8:_E87DDC1071034A30A0BE2F8D7016FF2E"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_E889DC5E95984F4CA2A34D89ABC0608C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -11140,12 +11182,6 @@
         "Entry"
         {
         "MsmKey" = "8:_EA863C344AC74DDFB43712C047F978E1"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_EA9DB35C9E1E4B949E5ADF7A3272C5CB"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -11283,6 +11319,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_ECC5765F9FB24678A727BA8F75569BCD"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_ECC90A1F515C4360B037A49314D20A82"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -11404,6 +11446,12 @@
         "Entry"
         {
         "MsmKey" = "8:_EF8C82BE2B98455C90432F1104123319"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_EF8F92E5F36D422F89E928511E5AB83D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -11985,12 +12033,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_FC587CA0F1894501B6D52B6833CEAF4A"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_FC6DB26554B5476B83D32B523D7CDD89"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -12064,6 +12106,12 @@
         "Entry"
         {
         "MsmKey" = "8:_FDA7618F16BC40BE8CF2D4359C2FDBDC"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_FDD6140E4A274E7CA00919DE3A0E051B"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -12211,6 +12259,12 @@
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_446F18F1F40146C0ADBA513D6BC5D5D4"
+        "MsmSig" = "8:_UNDEFINED"
+        }
     }
     "Configurations"
     {
@@ -12312,10 +12366,10 @@
             "ComponentsUrl" = "8:"
                 "Items"
                 {
-                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.0,Profile=Client"
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Net.Client.3.5"
                     {
-                    "Name" = "8:Microsoft .NET Framework 4 Client Profile (x86 and x64)"
-                    "ProductCode" = "8:.NETFramework,Version=v4.0,Profile=Client"
+                    "Name" = "8:.NET Framework 3.5 SP1 Client Profile"
+                    "ProductCode" = "8:Microsoft.Net.Client.3.5"
                     }
                     "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Windows.Installer.3.1"
                     {
@@ -12367,19 +12421,19 @@
     {
         "CustomAction"
         {
-            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_9F98E8D2FAC44AC3B2C29023F7A9CC86"
+            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_496EC12B90784939A933050184EEA855"
             {
-            "Name" = "8:custaction.js"
+            "Name" = "8:Primary output from ClusterConfiguration (Active)"
             "Condition" = "8:"
-            "Object" = "8:_60039CF589FD442B959092794339AD8D"
-            "FileType" = "3:3"
+            "Object" = "8:_446F18F1F40146C0ADBA513D6BC5D5D4"
+            "FileType" = "3:1"
             "InstallAction" = "3:1"
             "Arguments" = "8:"
-            "EntryPoint" = "8:"
+            "EntryPoint" = "8:Install"
             "Sequence" = "3:1"
-            "Identifier" = "8:_9994CD40_CF3E_4FAD_A3EA_17DCECA3FB64"
-            "InstallerClass" = "11:FALSE"
-            "CustomActionData" = "8:[TARGETDIR]|install"
+            "Identifier" = "8:_DF5110E0_B6A7_4D28_AF57_8CE81F5AF3EF"
+            "InstallerClass" = "11:TRUE"
+            "CustomActionData" = "8:/nodeName=\"[NODENAME]\" /cookie=\"[COOKIE]\" /clusterManager=\"[CLUSTERMANAGER]\"  /nodeType=\"[NODETYPE]\" /dderlInterface=\"[DDERLINTERFACE]\" /imemInterface=\"[IMEMINTERFACE]\" /imemSchema=\"[IMEMSCHEMA]\" /targetdir=\"[TARGETDIR]\\\""
             }
             "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_AC514CB95F20482EBE41D55603DC377F"
             {
@@ -12424,7 +12478,7 @@
                 {
                 "Name" = "8:.NET Framework"
                 "Message" = "8:[VSDNETMSG]"
-                "FrameworkVersion" = "8:.NETFramework,Version=v4.0,Profile=Client"
+                "FrameworkVersion" = "8:.NETFramework,Version=v3.5,Profile=Client"
                 "AllowLaterVersions" = "11:FALSE"
                 "InstallUrl" = "8:http://go.microsoft.com/fwlink/?LinkId=131000"
                 }
@@ -12558,6 +12612,26 @@
             "TargetName" = "8:CONTRIBUTING.md"
             "Tag" = "8:"
             "Folder" = "8:_2212AB2FB8F3407E982A14BA9D5CADA3"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_00DCF0F77D934A188E18B81E48156B93"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_app.beam"
+            "TargetName" = "8:imem_app.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -12738,6 +12812,26 @@
             "TargetName" = "8:wxFlexGridSizer.beam"
             "Tag" = "8:"
             "Folder" = "8:_C8BE8F4EC2B043D3B21B8E8E44500B28"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_01CF55BF74364ADD88B524C69C7BFBCE"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_purge.beam"
+            "TargetName" = "8:imem_purge.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -13932,6 +14026,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0A21C769B41441FA8AA66CC0F7080F5D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_statement.beam"
+            "TargetName" = "8:imem_statement.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0A47A858B94D4838B0EB7A66A257C5DE"
             {
             "SourcePath" = "8:..\\dderl\\lib\\wx-1.0\\ebin\\wxStatusBar.beam"
@@ -14338,6 +14452,26 @@
             "TargetName" = "8:wxChoicebook.beam"
             "Tag" = "8:"
             "Folder" = "8:_C8BE8F4EC2B043D3B21B8E8E44500B28"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0C7B94ABA8A94010A00F0F2277F83F02"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_account.beam"
+            "TargetName" = "8:imem_account.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -14812,26 +14946,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_100F90FE7DAC4D34A4EF7DAC4401DEA0"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_purge.beam"
-            "TargetName" = "8:imem_purge.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_100FCAC8A66F4A9DA6A799DEC62C1A55"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ace-01.08.2014\\theme-dreamweaver.js"
@@ -14938,26 +15052,6 @@
             "TargetName" = "8:SNMP-MPD-MIB.bin"
             "Tag" = "8:"
             "Folder" = "8:_BA0AA9F5EAD3488687732EF5E7A1E327"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1129FF0941D64E3485A85E6A589A0CA0"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_if.beam"
-            "TargetName" = "8:imem_if.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -18512,6 +18606,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2829FCE9402346B0A41E5EE148804DB0"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_dal_skvh.beam"
+            "TargetName" = "8:imem_dal_skvh.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_28984613C85A4C26A99C1082359EC96C"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_en-nz.js"
@@ -19712,6 +19826,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_30AEB1B40DB845E2831DCFE568AF05C0"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_seco.beam"
+            "TargetName" = "8:imem_seco.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_30C0C0CA18CE4859AADCA3D8AB5ACAD2"
             {
             "SourcePath" = "8:..\\dderl\\lib\\sasl-2.3.1\\ebin\\sasl_report.beam"
@@ -20872,6 +21006,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_37D6053F39CD4BFDB236E5A63C6C922D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_proll.beam"
+            "TargetName" = "8:imem_proll.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_37F3FE88111244708F611F8DE22D86B2"
             {
             "SourcePath" = "8:..\\dderl\\lib\\kernel-2.16.1\\include\\file.hrl"
@@ -21592,26 +21746,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3C5FB83BE45D4A4890D733C48B6B3E9F"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_select.beam"
-            "TargetName" = "8:imem_sql_select.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3C6E03F106E3478AA9CDEE9F7A6DA104"
             {
             "SourcePath" = "8:..\\dderl\\lib\\mnesia-4.8\\ebin\\mnesia_bup.beam"
@@ -22138,6 +22272,26 @@
             "TargetName" = "8:nl.msg"
             "Tag" = "8:"
             "Folder" = "8:_D223C9EB1C85403FB69EE1A0A5F6DBF3"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4010557D7EB24D4593F73AED3F150933"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sup.beam"
+            "TargetName" = "8:imem_sup.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -23412,6 +23566,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_480EE2296AB94C4B9E3CF525F4D0F927"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_mnesia_tests.beam"
+            "TargetName" = "8:imem_mnesia_tests.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4840532C97C345CBABC95CA54AA3C2E8"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\media\\header-bg.gif"
@@ -24438,6 +24612,26 @@
             "TargetName" = "8:mod_esi.beam"
             "Tag" = "8:"
             "Folder" = "8:_B12B03FA3F27430B872AB105979C00F4"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4E73FF2378EE41AFAEBF22778CE98102"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_monitor.beam"
+            "TargetName" = "8:imem_monitor.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -25652,26 +25846,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_550C9A0AEA974468AB4F9068314B2C8F"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_seco.beam"
-            "TargetName" = "8:imem_seco.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5521E289558A4F35BE768FE35CBC3FC3"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ui-ace-0.1.0\\ui-ace.js"
@@ -25858,26 +26032,6 @@
             "TargetName" = "8:FAQ.md"
             "Tag" = "8:"
             "Folder" = "8:_2212AB2FB8F3407E982A14BA9D5CADA3"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_55FE78BF235340E995A74C09980115E0"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_dal_skvh_load.beam"
-            "TargetName" = "8:imem_dal_skvh_load.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -26652,6 +26806,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_59E610EF68044D66ADF797226AE61109"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql.beam"
+            "TargetName" = "8:imem_sql.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_59F8420E9C4A468495448193BD7F15AC"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_fr-mg.js"
@@ -26938,26 +27112,6 @@
             "TargetName" = "8:webtool.app"
             "Tag" = "8:"
             "Folder" = "8:_DA7FDB57C3814C2388570DCE80877D31"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5BC5247A03414F47810559ACF8F5FACA"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sup.beam"
-            "TargetName" = "8:imem_sup.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -27478,26 +27632,6 @@
             "TargetName" = "8:OTP-REG.bin"
             "Tag" = "8:"
             "Folder" = "8:_941EF26DB39046C3B2B5413F1FAD7280"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5E9B7D6C2D6345B6AFFCF57B7EB541A8"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sec.beam"
-            "TargetName" = "8:imem_sec.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -28052,26 +28186,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_623278228EF04189A8E650FF8884448D"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_statement.beam"
-            "TargetName" = "8:imem_statement.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_623BCEF232184294ACB9834BEF87B033"
             {
             "SourcePath" = "8:..\\dderl\\lib\\wx-1.0\\ebin\\wxDataObject.beam"
@@ -28218,46 +28332,6 @@
             "TargetName" = "8:ext-textarea.js"
             "Tag" = "8:"
             "Folder" = "8:_B2D721834E5547E4A63EF324609E83C8"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_62FDAC5CE4FB425EB5A324CE5B7B7B5E"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_account.beam"
-            "TargetName" = "8:imem_sql_account.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_631DB03DFB4441DC8E7A4BDCE7C6B2BB"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_datatype.beam"
-            "TargetName" = "8:imem_datatype.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -28952,26 +29026,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_66D6D4FD06B74BF7B54C3284963F212C"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_dal_skvh.beam"
-            "TargetName" = "8:imem_dal_skvh.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_671A110EB9174E41B5DA0294493CED56"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_en-pk.js"
@@ -29178,6 +29232,26 @@
             "TargetName" = "8:crashdump_viewer.beam"
             "Tag" = "8:"
             "Folder" = "8:_CAAC88D8386F4041AA0782F6E762E60A"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_694B76C8785F4B1BB821EF1B6942CABD"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_table.beam"
+            "TargetName" = "8:imem_sql_table.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -29912,26 +29986,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6E9382358D204AD891113E096A17334F"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_cache.beam"
-            "TargetName" = "8:imem_cache.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6EBB87CBE2234B69854C92A16A451CE1"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ace-01.08.2014\\mode-erlang.js"
@@ -30118,26 +30172,6 @@
             "TargetName" = "8:wxNotifyEvent.beam"
             "Tag" = "8:"
             "Folder" = "8:_C8BE8F4EC2B043D3B21B8E8E44500B28"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6F5D429D8F3042E7886212A05A89D260"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem.app"
-            "TargetName" = "8:imem.app"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -30912,26 +30946,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_73A4CA79FFFA4CB389E372AF77675556"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_monitor.beam"
-            "TargetName" = "8:imem_monitor.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_73AF2A2911A14157B4DD07C4D07C0DEC"
             {
             "SourcePath" = "8:..\\dderl\\lib\\wx-1.0\\ebin\\wxLogNull.beam"
@@ -31078,6 +31092,26 @@
             "TargetName" = "8:comment_yellow.gif"
             "Tag" = "8:"
             "Folder" = "8:_BB3BE74C3A6D4E529B2FB6C2D7624CC7"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7489BB0A44C747C1A1EBB1A754477E0B"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_import.beam"
+            "TargetName" = "8:imem_import.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -31412,26 +31446,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_764E5D3A530A4FAB8A694DACD0F014C6"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_app.beam"
-            "TargetName" = "8:imem_app.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7659B050DD364B89823C1C5880B6F040"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ace-01.08.2014\\ext-old_ie.js"
@@ -31618,6 +31632,26 @@
             "TargetName" = "8:binary.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_77BBC467FFB64649918F2523A68B398D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_datatype.beam"
+            "TargetName" = "8:imem_datatype.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -32358,26 +32392,6 @@
             "TargetName" = "8:cowboy_router.beam"
             "Tag" = "8:"
             "Folder" = "8:_AD0D63E2978C41689087007BA209619D"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7C00239A820147C6A74376327B3F69C0"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_test.beam"
-            "TargetName" = "8:imem_test.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -33992,6 +34006,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_86F0E0BE3D924E5C8D041953D3F9600E"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_role.beam"
+            "TargetName" = "8:imem_role.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_86F99DCAD21A46E6A9FDCB07B10B3F39"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_ar-tn.js"
@@ -34372,6 +34406,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8890B4D09B0144A4A7976C2C4B922FC5"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_meta.beam"
+            "TargetName" = "8:imem_meta.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8896B49EA0A944439EDCC3F048FEAF4E"
             {
             "SourcePath" = "8:..\\dderl\\lib\\os_mon-2.2.11\\ebin\\os_mon_sysinfo.beam"
@@ -34512,6 +34566,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_88FE194493424C9FABAA1D4016E8EB7A"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sec.beam"
+            "TargetName" = "8:imem_sec.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8911B785344940A3AB905D90227FE586"
             {
             "SourcePath" = "8:..\\dderl\\lib\\gs-1.5.15.2\\priv\\tcl\\lib\\tcl8.5\\encoding\\macIceland.enc"
@@ -34612,6 +34686,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_89981F7EB188435EBDC7DC121C2EFB2A"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_test.beam"
+            "TargetName" = "8:imem_test.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_89AA85B318424614AFAA43A1C9B032FC"
             {
             "SourcePath" = "8:..\\dderl\\lib\\snmp-4.23.1\\ebin\\snmp_shadow_table.beam"
@@ -34652,12 +34746,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_89F1542B329843839F6C11AE9293ED45"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_89B39EC28E7B4784BCA261E13F1DFE6C"
             {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_insert.beam"
-            "TargetName" = "8:imem_sql_insert.beam"
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_server.beam"
+            "TargetName" = "8:imem_server.beam"
             "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -36252,6 +36346,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9438469ADE14465D9A25C8BDB40FE056"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\jpparse-0.0.1\\ebin\\jpparse.app"
+            "TargetName" = "8:jpparse.app"
+            "Tag" = "8:"
+            "Folder" = "8:_EAAF601D9AF149179B8570A95401D577"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_945D2E2212B84EBB886C8E03F1F36742"
             {
             "SourcePath" = "8:..\\dderl\\lib\\stdlib-1.19.1\\ebin\\log_mf_h.beam"
@@ -36972,6 +37086,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_98081251C4ED4F5384B6A6D9193F704D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem.app"
+            "TargetName" = "8:imem.app"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_981E328DD44F4286959ADE1AB19A62D7"
             {
             "SourcePath" = "8:..\\dderl\\lib\\asn1-2.0.1\\ebin\\asn1rt.beam"
@@ -37098,6 +37232,26 @@
             "TargetName" = "8:epmd.exe"
             "Tag" = "8:"
             "Folder" = "8:_EBF4B06EF180433D8E8A58BE5BD4878C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9931BBC3EC0D40419759E163FCE816E5"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_select.beam"
+            "TargetName" = "8:imem_sql_select.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -37512,26 +37666,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9BC5C5A6DD1F4DC48D41400AF8698297"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_role.beam"
-            "TargetName" = "8:imem_role.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9BF1BAB772D4450B84A881FFABE6D21F"
             {
             "SourcePath" = "8:..\\dderl\\lib\\inets-5.9.4\\ebin\\http_chunk.beam"
@@ -37598,6 +37732,26 @@
             "TargetName" = "8:wxGridCellStringRenderer.beam"
             "Tag" = "8:"
             "Folder" = "8:_C8BE8F4EC2B043D3B21B8E8E44500B28"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9C5EEE1A0F324B0C9D4C34661DA5CC9B"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem.beam"
+            "TargetName" = "8:imem.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -37692,26 +37846,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9CEE6C7FDD8C46139BC9CEAB9AE73205"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_if_sys_conf.beam"
-            "TargetName" = "8:imem_if_sys_conf.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D206C91638A44BF8EED496E06F2865E"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\ace-01.08.2014\\theme-merbivore_soft.js"
@@ -37752,12 +37886,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D45843692A14E568E51AA55682FA0DA"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D4CA2E3B7E043ECB83ECE04A7E042A2"
             {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql.beam"
-            "TargetName" = "8:imem_sql.beam"
+            "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_fa.js"
+            "TargetName" = "8:angular-locale_fa.js"
             "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
+            "Folder" = "8:_BADDDD4C0C3248859A0AFE662C22CA68"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -37772,12 +37906,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D4CA2E3B7E043ECB83ECE04A7E042A2"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9D65B256665D427597A6005A8974052F"
             {
-            "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_fa.js"
-            "TargetName" = "8:angular-locale_fa.js"
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_if.beam"
+            "TargetName" = "8:imem_if.beam"
             "Tag" = "8:"
-            "Folder" = "8:_BADDDD4C0C3248859A0AFE662C22CA68"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -38912,26 +39046,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A3ACA73C70444CC78BB390C45CF6E4DF"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_import.beam"
-            "TargetName" = "8:imem_import.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A3BEC62FBAA44D248B8360513716B4EB"
             {
             "SourcePath" = "8:..\\dderl\\lib\\sasl-2.3.1\\ebin\\misc_supp.beam"
@@ -39338,6 +39452,26 @@
             "TargetName" = "8:wxPreviewFrame.beam"
             "Tag" = "8:"
             "Folder" = "8:_C8BE8F4EC2B043D3B21B8E8E44500B28"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A6B6025A58F74142850CF02E3F2174D4"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\sext-1.2-3-ga982a17\\ebin\\sext.beam"
+            "TargetName" = "8:sext.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_BAD965B874BD4E13920456AD139C50B3"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -40692,26 +40826,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_AF0F07BF172F4ACA8C7020FF99EB5BA1"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_table.beam"
-            "TargetName" = "8:imem_sql_table.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_AF360BF4CC934C4297D1103425305734"
             {
             "SourcePath" = "8:..\\dderl\\lib\\stdlib-1.19.1\\include\\erl_bits.hrl"
@@ -41318,6 +41432,26 @@
             "TargetName" = "8:gstk_port_handler.beam"
             "Tag" = "8:"
             "Folder" = "8:_81B5DB96696A4EA29ABE64E19D8F8A76"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B35E8A28A10F41EAB66728C207493407"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\jpparse-0.0.1\\ebin\\jsonpath_lex.beam"
+            "TargetName" = "8:jsonpath_lex.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_EAAF601D9AF149179B8570A95401D577"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -42192,26 +42326,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B9AA2E0EF7814DA2B1B8C1E55C46F6DD"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_test_writer.beam"
-            "TargetName" = "8:imem_test_writer.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B9E12753243F4691BE5B4D2BABBCE698"
             {
             "SourcePath" = "8:..\\dderl\\lib\\mnesia-4.8\\ebin\\mnesia.appup"
@@ -42752,26 +42866,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_BDA7F9C6DCFA4941830D957FF5006A9D"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_funs.beam"
-            "TargetName" = "8:imem_sql_funs.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_BDDE6C81274E427E9420E074B91476A4"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_fr-yt.js"
@@ -42952,6 +43046,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_BFA3900EEF74443EA73C58A2FA84712F"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_json.beam"
+            "TargetName" = "8:imem_json.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C039EB7557DA49DDBCF9D91C4FE5909B"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_bg-bg.js"
@@ -43078,6 +43192,26 @@
             "TargetName" = "8:sofs.beam"
             "Tag" = "8:"
             "Folder" = "8:_DDFDF2164AAF419BB08B515AC74513A2"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C1258335E5B24B168AF4AA83DE327772"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_snap.beam"
+            "TargetName" = "8:imem_snap.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -43292,6 +43426,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C2D8233C8C4D4291B15CA9AEDD2BF4A8"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_insert.beam"
+            "TargetName" = "8:imem_sql_insert.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C3698ACB7C50429B97C17F48E060ECA6"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\ebin\\dderl_session.beam"
@@ -43472,26 +43626,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C4191FD036A049CA83C061B6BB83EB4E"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_proll.beam"
-            "TargetName" = "8:imem_proll.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C431283818234E9F97952B1A9EA13A33"
             {
             "SourcePath" = "8:..\\dderl\\lib\\gs-1.5.15.2\\priv\\tcl\\lib\\tcl8.5\\encoding\\iso8859-10.enc"
@@ -43618,26 +43752,6 @@
             "TargetName" = "8:theme-chrome.js"
             "Tag" = "8:"
             "Folder" = "8:_B2D721834E5547E4A63EF324609E83C8"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C512B3524CF54778B53C728CA24BCA55"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_snap.beam"
-            "TargetName" = "8:imem_snap.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -44758,26 +44872,6 @@
             "TargetName" = "8:mode-luapage.js"
             "Tag" = "8:"
             "Folder" = "8:_B2D721834E5547E4A63EF324609E83C8"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_CD0BBA18E40C482D9E18E6C321989E7C"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_meta.beam"
-            "TargetName" = "8:imem_meta.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -45992,6 +46086,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D4C195D663D346C69D232B48FDA1520D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_cache.beam"
+            "TargetName" = "8:imem_cache.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D4DF8EDDFD344F598931304140362B73"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_tl.js"
@@ -46058,6 +46172,26 @@
             "TargetName" = "8:tm.tcl"
             "Tag" = "8:"
             "Folder" = "8:_81B6CFE65337417FA88BDE3FED7D87C3"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D5CD7A9184D84B96897C26850AE180D4"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_if_sys_conf.beam"
+            "TargetName" = "8:imem_if_sys_conf.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -46332,12 +46466,52 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D800856CF5BF4A609F2FF7058DF6AFC1"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_funs.beam"
+            "TargetName" = "8:imem_sql_funs.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D805472962B8404F991B81A9091B5D77"
             {
             "SourcePath" = "8:..\\dderl\\lib\\dderl-1.0.7\\priv\\static\\angular-1.2.12\\i18n\\angular-locale_fr-bl.js"
             "TargetName" = "8:angular-locale_fr-bl.js"
             "Tag" = "8:"
             "Folder" = "8:_BADDDD4C0C3248859A0AFE662C22CA68"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D822AB42A19D4D31AF3C0942C68FCCEB"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\jpparse-0.0.1\\ebin\\jpparse.beam"
+            "TargetName" = "8:jpparse.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_EAAF601D9AF149179B8570A95401D577"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -46458,26 +46632,6 @@
             "TargetName" = "8:lager.hrl"
             "Tag" = "8:"
             "Folder" = "8:_8F7EFD02EE9143669B129980470AF479"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D8CE48BC12E94A0E832C781623EDB0C5"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_account.beam"
-            "TargetName" = "8:imem_account.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -47672,26 +47826,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_DF1E475DC2824D19AC39FCA29E426B0A"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem.beam"
-            "TargetName" = "8:imem.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_DF299EC16A2B4F1F926C3196182F3816"
             {
             "SourcePath" = "8:..\\dderl\\lib\\kernel-2.16.1\\ebin\\inet_sctp.beam"
@@ -48572,6 +48706,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E44A3162E6EF43CAAAC983521CFF4C5F"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_dal_skvh_load.beam"
+            "TargetName" = "8:imem_dal_skvh_load.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E47207D994954BC1B78722292E6C5233"
             {
             "SourcePath" = "8:..\\dderl\\lib\\gs-1.5.15.2\\priv\\tcl\\lib\\tcl8.5\\encoding\\iso8859-5.enc"
@@ -48992,6 +49146,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E647A7E02ADC4E86B24EE92E7CBC04F9"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\sext-1.2-3-ga982a17\\ebin\\sext.app"
+            "TargetName" = "8:sext.app"
+            "Tag" = "8:"
+            "Folder" = "8:_BAD965B874BD4E13920456AD139C50B3"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E6639A229B5D4F7692B66CA3607AD1FB"
             {
             "SourcePath" = "8:..\\dderl\\lib\\inets-5.9.4\\ebin\\httpd_script_env.beam"
@@ -49152,6 +49326,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E73F64FD0D4D4F009136BD4CDDF58650"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_test_writer.beam"
+            "TargetName" = "8:imem_test_writer.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E75958F2B40D42E8A214810E3A8270DB"
             {
             "SourcePath" = "8:..\\dderl\\lib\\wx-1.0\\ebin\\wxTextCtrl.beam"
@@ -49258,26 +49452,6 @@
             "TargetName" = "8:angular-locale_uk.js"
             "Tag" = "8:"
             "Folder" = "8:_BADDDD4C0C3248859A0AFE662C22CA68"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E889DC5E95984F4CA2A34D89ABC0608C"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_mnesia_tests.beam"
-            "TargetName" = "8:imem_mnesia_tests.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -49518,26 +49692,6 @@
             "TargetName" = "8:angular-locale_ko-kr.js"
             "Tag" = "8:"
             "Folder" = "8:_BADDDD4C0C3248859A0AFE662C22CA68"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_EA9DB35C9E1E4B949E5ADF7A3272C5CB"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_server.beam"
-            "TargetName" = "8:imem_server.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -49992,6 +50146,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_ECC5765F9FB24678A727BA8F75569BCD"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_account.beam"
+            "TargetName" = "8:imem_sql_account.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_ECC90A1F515C4360B037A49314D20A82"
             {
             "SourcePath" = "8:..\\dderl\\lib\\snmp-4.23.1\\ebin\\snmp_usm.beam"
@@ -50398,6 +50572,26 @@
             "TargetName" = "8:theme-solarized_light.js"
             "Tag" = "8:"
             "Folder" = "8:_B2D721834E5547E4A63EF324609E83C8"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_EF8F92E5F36D422F89E928511E5AB83D"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_index.beam"
+            "TargetName" = "8:imem_index.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -52332,26 +52526,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_FC587CA0F1894501B6D52B6833CEAF4A"
-            {
-            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_expr.beam"
-            "TargetName" = "8:imem_sql_expr.beam"
-            "Tag" = "8:"
-            "Folder" = "8:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_FC6DB26554B5476B83D32B523D7CDD89"
             {
             "SourcePath" = "8:..\\dderl\\lib\\gs-1.5.15.2\\priv\\tcl\\lib\\tcl8.5\\encoding\\dingbats.enc"
@@ -52598,6 +52772,26 @@
             "TargetName" = "8:ranch_tcp.beam"
             "Tag" = "8:"
             "Folder" = "8:_2ADAFBE1E14A416BBE989D19B53AE52C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_FDD6140E4A274E7CA00919DE3A0E051B"
+            {
+            "SourcePath" = "8:..\\dderl\\lib\\imem-1.2.4\\ebin\\imem_sql_expr.beam"
+            "TargetName" = "8:imem_sql_expr.beam"
+            "Tag" = "8:"
+            "Folder" = "8:_A84E66E78BC34E5E84390C0CFFAB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -53184,6 +53378,28 @@
                     "Property" = "8:_C5B937F155DE4F66A6084C701C23C859"
                         "Folders"
                         {
+                            "{9EF0B969-E518-4E46-987F-47570745A589}:_060E5CDB36164D919321C2F5B8C45A1E"
+                            {
+                            "Name" = "8:sext-1.2-3-ga982a17"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_C6977663B23D48E1807BC5CDB5A96242"
+                                "Folders"
+                                {
+                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_BAD965B874BD4E13920456AD139C50B3"
+                                    {
+                                    "Name" = "8:ebin"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_D49CDC9AF9CF4366AA777C9D5B4B254A"
+                                        "Folders"
+                                        {
+                                        }
+                                    }
+                                }
+                            }
                             "{9EF0B969-E518-4E46-987F-47570745A589}:_250F32646DE248C0BABBB9802C9CFB92"
                             {
                             "Name" = "8:crypto-2.3"
@@ -54449,6 +54665,28 @@
                                     }
                                 }
                             }
+                            "{9EF0B969-E518-4E46-987F-47570745A589}:_ACC723BA19C34552B5C98E08D47CC529"
+                            {
+                            "Name" = "8:jpparse-0.0.1"
+                            "AlwaysCreate" = "11:FALSE"
+                            "Condition" = "8:"
+                            "Transitive" = "11:FALSE"
+                            "Property" = "8:_8116C2BBE3734CD18923AA64265D409E"
+                                "Folders"
+                                {
+                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_EAAF601D9AF149179B8570A95401D577"
+                                    {
+                                    "Name" = "8:ebin"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_9AE2C0614996456D940A698CCB403669"
+                                        "Folders"
+                                        {
+                                        }
+                                    }
+                                }
+                            }
                             "{9EF0B969-E518-4E46-987F-47570745A589}:_B3B6060ECF304C028845EBD0CE2C22CB"
                             {
                             "Name" = "8:stdlib-1.19.1"
@@ -54887,17 +55125,6 @@
                             "Property" = "8:_DC4D63698DC945C1B4025D5F9DED6F11"
                                 "Folders"
                                 {
-                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_34F86FDC42CF49FB9BA4AD0F8C8BFA15"
-                                    {
-                                    "Name" = "8:ebin"
-                                    "AlwaysCreate" = "11:FALSE"
-                                    "Condition" = "8:"
-                                    "Transitive" = "11:FALSE"
-                                    "Property" = "8:_DC1D9936225B4775BB16010262380981"
-                                        "Folders"
-                                        {
-                                        }
-                                    }
                                     "{9EF0B969-E518-4E46-987F-47570745A589}:_A0C2D51F074D4B7F87EBACF253D42525"
                                     {
                                     "Name" = "8:include"
@@ -54929,6 +55156,17 @@
                                                 {
                                                 }
                                             }
+                                        }
+                                    }
+                                    "{9EF0B969-E518-4E46-987F-47570745A589}:_A84E66E78BC34E5E84390C0CFFAB2BE1"
+                                    {
+                                    "Name" = "8:ebin"
+                                    "AlwaysCreate" = "11:FALSE"
+                                    "Condition" = "8:"
+                                    "Transitive" = "11:FALSE"
+                                    "Property" = "8:_385E97612FE3459BB6EE234A0B084EA4"
+                                        "Folders"
+                                        {
                                         }
                                     }
                                 }
@@ -55064,7 +55302,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DDErl"
         "ProductCode" = "8:{FC06376B-40B1-42DA-B1B2-F43185F95200}"
-        "PackageCode" = "8:{84500901-18D0-48BF-A3D1-6086DBC06993}"
+        "PackageCode" = "8:{28559371-5B1C-462F-AD99-67ADD8537EFC}"
         "UpgradeCode" = "8:{3A840EDF-B90B-472D-8F70-4F729712E45A}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -55311,9 +55549,9 @@
             "Attributes" = "3:1"
                 "Dialogs"
                 {
-                    "{688940B3-5CA9-4162-8DEE-2993FA9D8CBC}:_072D0F251669479C9ED62E6DCF2F660E"
+                    "{688940B3-5CA9-4162-8DEE-2993FA9D8CBC}:_1527DB3269A5497B8A51BA0CB75211F3"
                     {
-                    "Sequence" = "3:300"
+                    "Sequence" = "3:320"
                     "DisplayName" = "8:Confirm Installation"
                     "UseDynamicProperties" = "11:TRUE"
                     "IsDependency" = "11:FALSE"
@@ -55330,6 +55568,520 @@
                             "Attributes" = "3:4"
                             "Setting" = "3:2"
                             "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                        }
+                    }
+                    "{688940B3-5CA9-4162-8DEE-2993FA9D8CBC}:_2127B713072449C98F2A49A83AC5A782"
+                    {
+                    "Sequence" = "3:300"
+                    "DisplayName" = "8:Textboxes   (B)"
+                    "UseDynamicProperties" = "11:TRUE"
+                    "IsDependency" = "11:FALSE"
+                    "SourcePath" = "8:<VsdDialogDir>\\VsdCustomText2Dlg.wid"
+                        "Properties"
+                        {
+                            "BannerBitmap"
+                            {
+                            "Name" = "8:BannerBitmap"
+                            "DisplayName" = "8:#1001"
+                            "Description" = "8:#1101"
+                            "Type" = "3:8"
+                            "ContextData" = "8:Bitmap"
+                            "Attributes" = "3:4"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "BannerText"
+                            {
+                            "Name" = "8:BannerText"
+                            "DisplayName" = "8:#1014"
+                            "Description" = "8:#1114"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Interface configuration"
+                            "DefaultValue" = "8:#1214"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "BodyText"
+                            {
+                            "Name" = "8:BodyText"
+                            "DisplayName" = "8:#1015"
+                            "Description" = "8:#1115"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:"
+                            "DefaultValue" = "8:#1215"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Label"
+                            {
+                            "Name" = "8:Edit1Label"
+                            "DisplayName" = "8:#1046"
+                            "Description" = "8:#1146"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:dderl inteface (ip:port) :"
+                            "DefaultValue" = "8:#1246"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Property"
+                            {
+                            "Name" = "8:Edit1Property"
+                            "DisplayName" = "8:#1050"
+                            "Description" = "8:#1150"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:DDERLINTERFACE"
+                            "DefaultValue" = "8:EDITB1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Value"
+                            {
+                            "Name" = "8:Edit1Value"
+                            "DisplayName" = "8:#1054"
+                            "Description" = "8:#1154"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:0.0.0.0:8443"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Visible"
+                            {
+                            "Name" = "8:Edit1Visible"
+                            "DisplayName" = "8:#1042"
+                            "Description" = "8:#1142"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Label"
+                            {
+                            "Name" = "8:Edit2Label"
+                            "DisplayName" = "8:#1047"
+                            "Description" = "8:#1147"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:imem inteface (ip:port) :"
+                            "DefaultValue" = "8:#1247"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Property"
+                            {
+                            "Name" = "8:Edit2Property"
+                            "DisplayName" = "8:#1051"
+                            "Description" = "8:#1151"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:IMEMINTERFACE"
+                            "DefaultValue" = "8:EDITB2"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Value"
+                            {
+                            "Name" = "8:Edit2Value"
+                            "DisplayName" = "8:#1055"
+                            "Description" = "8:#1155"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:0.0.0.0:8126"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Visible"
+                            {
+                            "Name" = "8:Edit2Visible"
+                            "DisplayName" = "8:#1043"
+                            "Description" = "8:#1143"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Label"
+                            {
+                            "Name" = "8:Edit3Label"
+                            "DisplayName" = "8:#1048"
+                            "Description" = "8:#1148"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:imem schema:"
+                            "DefaultValue" = "8:#1248"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Property"
+                            {
+                            "Name" = "8:Edit3Property"
+                            "DisplayName" = "8:#1052"
+                            "Description" = "8:#1152"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:IMEMSCHEMA"
+                            "DefaultValue" = "8:EDITB3"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Value"
+                            {
+                            "Name" = "8:Edit3Value"
+                            "DisplayName" = "8:#1056"
+                            "Description" = "8:#1156"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:dderl"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Visible"
+                            {
+                            "Name" = "8:Edit3Visible"
+                            "DisplayName" = "8:#1044"
+                            "Description" = "8:#1144"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Label"
+                            {
+                            "Name" = "8:Edit4Label"
+                            "DisplayName" = "8:#1049"
+                            "Description" = "8:#1149"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:1"
+                            "Value" = "8:#1249"
+                            "DefaultValue" = "8:#1249"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Property"
+                            {
+                            "Name" = "8:Edit4Property"
+                            "DisplayName" = "8:#1053"
+                            "Description" = "8:#1153"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:EDITB4"
+                            "DefaultValue" = "8:EDITB4"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Value"
+                            {
+                            "Name" = "8:Edit4Value"
+                            "DisplayName" = "8:#1057"
+                            "Description" = "8:#1157"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:1"
+                            "Value" = "8:"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Visible"
+                            {
+                            "Name" = "8:Edit4Visible"
+                            "DisplayName" = "8:#1045"
+                            "Description" = "8:#1145"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:0"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                        }
+                    }
+                    "{688940B3-5CA9-4162-8DEE-2993FA9D8CBC}:_587336A72AB5470CA07A1FC1DE87CAF2"
+                    {
+                    "Sequence" = "3:200"
+                    "DisplayName" = "8:Textboxes   (A)"
+                    "UseDynamicProperties" = "11:TRUE"
+                    "IsDependency" = "11:FALSE"
+                    "SourcePath" = "8:<VsdDialogDir>\\VsdCustomText1Dlg.wid"
+                        "Properties"
+                        {
+                            "BannerBitmap"
+                            {
+                            "Name" = "8:BannerBitmap"
+                            "DisplayName" = "8:#1001"
+                            "Description" = "8:#1101"
+                            "Type" = "3:8"
+                            "ContextData" = "8:Bitmap"
+                            "Attributes" = "3:4"
+                            "Setting" = "3:2"
+                            "Value" = "8:_470B38BE90674C40A820B7D0BCF1B38D"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "BannerText"
+                            {
+                            "Name" = "8:BannerText"
+                            "DisplayName" = "8:#1014"
+                            "Description" = "8:#1114"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Node configuration"
+                            "DefaultValue" = "8:#1214"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "BodyText"
+                            {
+                            "Name" = "8:BodyText"
+                            "DisplayName" = "8:#1015"
+                            "Description" = "8:#1115"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:"
+                            "DefaultValue" = "8:#1215"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Label"
+                            {
+                            "Name" = "8:Edit1Label"
+                            "DisplayName" = "8:#1046"
+                            "Description" = "8:#1146"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Node name:"
+                            "DefaultValue" = "8:#1246"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Property"
+                            {
+                            "Name" = "8:Edit1Property"
+                            "DisplayName" = "8:#1050"
+                            "Description" = "8:#1150"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:NODENAME"
+                            "DefaultValue" = "8:EDITA1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Value"
+                            {
+                            "Name" = "8:Edit1Value"
+                            "DisplayName" = "8:#1054"
+                            "Description" = "8:#1154"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:dderl@127.0.0.1"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit1Visible"
+                            {
+                            "Name" = "8:Edit1Visible"
+                            "DisplayName" = "8:#1042"
+                            "Description" = "8:#1142"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Label"
+                            {
+                            "Name" = "8:Edit2Label"
+                            "DisplayName" = "8:#1047"
+                            "Description" = "8:#1147"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Cookie:"
+                            "DefaultValue" = "8:#1247"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Property"
+                            {
+                            "Name" = "8:Edit2Property"
+                            "DisplayName" = "8:#1051"
+                            "Description" = "8:#1151"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:COOKIE"
+                            "DefaultValue" = "8:EDITA2"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Value"
+                            {
+                            "Name" = "8:Edit2Value"
+                            "DisplayName" = "8:#1055"
+                            "Description" = "8:#1155"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:dderl"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit2Visible"
+                            {
+                            "Name" = "8:Edit2Visible"
+                            "DisplayName" = "8:#1043"
+                            "Description" = "8:#1143"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Label"
+                            {
+                            "Name" = "8:Edit3Label"
+                            "DisplayName" = "8:#1048"
+                            "Description" = "8:#1148"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Cluster Manager:"
+                            "DefaultValue" = "8:#1248"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Property"
+                            {
+                            "Name" = "8:Edit3Property"
+                            "DisplayName" = "8:#1052"
+                            "Description" = "8:#1152"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:CLUSTERMANAGER"
+                            "DefaultValue" = "8:EDITA3"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Value"
+                            {
+                            "Name" = "8:Edit3Value"
+                            "DisplayName" = "8:#1056"
+                            "Description" = "8:#1156"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:dderl@127.0.0.1"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit3Visible"
+                            {
+                            "Name" = "8:Edit3Visible"
+                            "DisplayName" = "8:#1044"
+                            "Description" = "8:#1144"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Label"
+                            {
+                            "Name" = "8:Edit4Label"
+                            "DisplayName" = "8:#1049"
+                            "Description" = "8:#1149"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:Node type:"
+                            "DefaultValue" = "8:#1249"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Property"
+                            {
+                            "Name" = "8:Edit4Property"
+                            "DisplayName" = "8:#1053"
+                            "Description" = "8:#1153"
+                            "Type" = "3:14"
+                            "ContextData" = "8:Public"
+                            "Attributes" = "3:2"
+                            "Setting" = "3:2"
+                            "Value" = "8:NODETYPE"
+                            "DefaultValue" = "8:EDITA4"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Value"
+                            {
+                            "Name" = "8:Edit4Value"
+                            "DisplayName" = "8:#1057"
+                            "Description" = "8:#1157"
+                            "Type" = "3:3"
+                            "ContextData" = "8:"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:2"
+                            "Value" = "8:ram"
+                            "DefaultValue" = "8:"
+                            "UsePlugInResources" = "11:TRUE"
+                            }
+                            "Edit4Visible"
+                            {
+                            "Name" = "8:Edit4Visible"
+                            "DisplayName" = "8:#1045"
+                            "Description" = "8:#1145"
+                            "Type" = "3:5"
+                            "ContextData" = "8:1;True=1;False=0"
+                            "Attributes" = "3:0"
+                            "Setting" = "3:0"
+                            "Value" = "3:1"
+                            "DefaultValue" = "3:1"
                             "UsePlugInResources" = "11:TRUE"
                             }
                         }
@@ -55385,7 +56137,7 @@
                     }
                     "{688940B3-5CA9-4162-8DEE-2993FA9D8CBC}:_9D75F59B069F404B8848CBD5E4CB959C"
                     {
-                    "Sequence" = "3:200"
+                    "Sequence" = "3:400"
                     "DisplayName" = "8:Installation Folder"
                     "UseDynamicProperties" = "11:TRUE"
                     "IsDependency" = "11:FALSE"
@@ -55621,6 +56373,34 @@
         }
         "ProjectOutput"
         {
+            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_446F18F1F40146C0ADBA513D6BC5D5D4"
+            {
+            "SourcePath" = "8:..\\ClusterConfiguration\\obj\\Release\\ClusterConfiguration.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_6FF75B9171DE49C09E9506988DC4917C"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            "ProjectOutputGroupRegister" = "3:1"
+            "OutputConfiguration" = "8:"
+            "OutputGroupCanonicalName" = "8:Built"
+            "OutputProjectGuid" = "8:{517AC02A-6D1A-4FA8-B380-45C648BEFC16}"
+            "ShowKeyOutput" = "11:TRUE"
+                "ExcludeFilters"
+                {
+                }
+            }
         }
     }
 }
