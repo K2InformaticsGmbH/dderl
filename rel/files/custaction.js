@@ -53,7 +53,7 @@ if (action == "install") {
 }
 else if (action == "commit") {
     WshShell.Exec(dderlCmdPath + ' install');
-    MsgBox("Service installed");
+    MsgBox("Service installed", MsgConfig.Type.User, MsgConfig.Button.Ok, MsgConfig.DefaultBtn.First, MsgConfig.Icon.Exclamation);
     WshShell.Exec(dderlCmdPath + ' start');
 }
 else if (action == "uninstall") {
