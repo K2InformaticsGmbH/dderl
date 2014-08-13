@@ -9,7 +9,7 @@
 -define(PKG_COMMENT, "DDErl is a registered trademark of"
                      " K2 Informatics GmbH").
 -define(WXSFILE, "dderl.wxs").
--define(WIXOBJFILE, "dderl.wixobj").
+-define(MSIFILE, "dderl.msi").
 -define(TAB, "dderlids").
 -define(TABFILE, "dderlids.dets").
 
@@ -25,21 +25,29 @@
               , file_info
         }).
 
-main([]) ->
+main([]) -> main(["not_verbose"]);
+main([Vrbs]) ->
     {Root, AppPath} = get_paths(),
-    io:format("UUID ~s Root ~p AppPath ~p~n", [uuid(), Root, AppPath]),
-    %make_soft_links(AppPath),
-    %rebar_generate(Root),
+    io:format("Root ~s~n", [Root]),
+    io:format("AppPath ~s~n", [AppPath]),
+    Verbose = case Vrbs of
+                  "-v" ->
+                      io:format("Verbose true~n"),
+                      true;
+                  "not_verbose" -> false
+              end,
+    %make_soft_links(Verbose, AppPath),
+    %rebar_generate(Verbose, Root),
     {ok, ?TAB} = dets:open_file(?TAB, [{ram_file, true}
                                        , {file, ?TABFILE}
                                        , {keypos, 2}]),
-    create_wxs(Root),
+    create_wxs(Verbose, Root),
     ok = dets:close(?TAB);
 main(_) ->
     usage().
 
 usage() ->
-    io:format("usage: build_msi.escript"),
+    io:format("usage: build_msi.escript [-v]~n"),
     halt(1).
 
 uuid() ->
@@ -74,13 +82,13 @@ rebar_generate(Root) ->
     io:format("~s", [os:cmd("rebar generate")]),
     ok = file:set_cwd(CurDir).
 
-create_wxs(Root) ->
+create_wxs(Verbose, Root) ->
     {ok, FileH} = file:open(filename:join([Root, "rel"
                                            , "wixsetup", ?WXSFILE])
                             , [write, raw]),
-    {ok, PRODUCT_GUID} = get_id(undefined, 'PRODUCT_GUID', undefined),
-    {ok, UPGRADE_GUID} = get_id(undefined, 'UPGRADE_GUID', undefined),
-    {ok, ID} = get_id(undefined, ?COMPANY, undefined),
+    {ok, PRODUCT_GUID} = get_id(Verbose, undefined, 'PRODUCT_GUID', undefined),
+    {ok, UPGRADE_GUID} = get_id(Verbose, undefined, 'UPGRADE_GUID', undefined),
+    {ok, ID} = get_id(Verbose, undefined, ?COMPANY, undefined),
     ok = file:write(FileH,
         "<?xml version='1.0' encoding='windows-1252'?>\n"
         "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n\n"
@@ -112,14 +120,14 @@ create_wxs(Root) ->
         "         <Directory Id='INSTALLDIR' Name='"?PRODUCT
                                             " "?VERSION"'>\n"),
 
-    walk_release(FileH, Root),
+    walk_release(Verbose, FileH, Root),
 
     ok = file:write(FileH,
         "         </Directory>\n"
         "       </Directory>\n"
         "     </Directory>\n"),
 
-    {RegId, RegGuId} = get_id(component, "dderl"
+    {RegId, RegGuId} = get_id(Verbose, component, "dderl"
                               , filename:join([Root,"rel"])),
     ok = file:write(FileH,
         "     <Directory Id='ProgramMenuFolder' Name='Programs'>\n"
@@ -138,14 +146,42 @@ create_wxs(Root) ->
         "     <Directory Id='DesktopFolder' Name='Desktop' />\n"
         "   </Directory>\n\n"),
 
-    build_features(FileH),
+    build_features(Verbose, FileH),
 
     ok = file:write(FileH,
         "   <WixVariable Id='WixUILicenseRtf' Value='License.rtf' />\n"
         "   <WixVariable Id='WixUIBannerBmp' Value='banner493x58.jpg' />\n"
-        "   <WixVariable Id='WixUIDialogBmp' Value='dialog493x312.jpg' />\n"
+        "   <WixVariable Id='WixUIDialogBmp'"
+                       " Value='dialog493x312.jpg' />\n\n"),
+
+    ok = file:write(FileH,
         "   <UIRef Id='WixUI_Mondo' />\n"
         "   <UIRef Id='WixUI_ErrorProgressText' />\n\n"),
+
+    % External Dialog Chaining
+    ok = file:write(FileH,
+        "   <UI Id='CustWixUI_Mondo'>\n"
+        "       <UIRef Id='WixUI_Mondo' />\n"
+        "       <UIRef Id='WixUI_ErrorProgressText' />\n\n"
+
+        "       <DialogRef Id='ServiceSetupDlg' />\n"
+
+        "       <Publish Dialog='CustomizeDlg' Control='Next'\n"
+        "                Event='NewDialog' Value='ServiceSetupDlg'\n"
+        "                Order='3'>LicenseAccepted = 1</Publish>\n"
+        "       <Publish Dialog='VerifyReadyDlg' Control='Back'\n"
+        "                Event='NewDialog' Value='ServiceSetupDlg'>\n"
+        "           1</Publish>\n"
+        "   </UI>\n\n"),
+
+    ok = file:write(FileH,
+        "   <Property Id='NODENAME'>dderl@127.0.0.1</Property>\n"
+        "   <Property Id='NODECOOKIE'>dderlcookie</Property>\n"
+        "   <Property Id='WEBSRVINTF'>127.0.0.1:8443</Property>\n"
+        "   <Property Id='DBNODETYPE'>disc</Property>\n"
+        "   <Property Id='DBNODESCHEMANAME'>dderlstag</Property>\n"
+        "   <Property Id='DBCLUSTERMGRS'><![CDATA[['dderl@127.0.0.1']]]></Property>\n"
+        "   <Property Id='DBINTF'>127.0.0.1:1234</Property>\n\n"),
 
     %% Service Installation
     [Comp] = dets:select(?TAB, [{#item{type=component
@@ -200,32 +236,45 @@ create_wxs(Root) ->
     ok = file:close(FileH),
     {ok, CurDir} = file:get_cwd(),
     ok = file:set_cwd(filename:join([Root,"rel", "wixsetup"])),
-    io:format("~s", [os:cmd("candle.exe "?WXSFILE)]),
-    io:format("~s", [os:cmd("light.exe -ext WixUIExtension "?WIXOBJFILE)]),
+    Wxses = filelib:wildcard("*.wxs"),
+    CandleCmd = "candle.exe "
+                ++ if Verbose -> "-v "; true -> "" end
+                ++ string:join(Wxses, " "),
+    io:format("~s~n", [CandleCmd]),
+    io:format("~s", [os:cmd(CandleCmd)]),
+    WixObjs = filelib:wildcard("*.wixobj"),
+    LightCmd = "light.exe "
+                ++ if Verbose -> "-v "; true -> "" end
+                ++ "-ext WixUIExtension -out "?MSIFILE" "
+                ++ string:join(WixObjs, " "),
+    io:format("~s~n", [LightCmd]),
+    io:format("~s", [os:cmd(LightCmd)]),
     ok = file:set_cwd(CurDir).
 
-walk_release(FileH, Root) ->
+walk_release(Verbose, FileH, Root) ->
     ReleaseRoot = filename:join([Root,"rel","dderl"]),
     case filelib:is_dir(ReleaseRoot) of
         true ->
-            walk_release(FileH, filelib:wildcard("*", ReleaseRoot)
+            walk_release(Verbose, FileH, filelib:wildcard("*", ReleaseRoot)
                          , ReleaseRoot, 12);
         false -> io:format("~p is not a directory~n", [ReleaseRoot])
     end.
 
-walk_release(_FileH, [], _Dir, _N) -> ok;
-walk_release(FileH, [F|Files], Dir, N) ->
+walk_release(Verbose, _FileH, [], _Dir, _N) -> ok;
+walk_release(Verbose, FileH, [F|Files], Dir, N) ->
     case filelib:is_dir(filename:join([Dir,F])) of
         true ->
             NewDirLevel = filename:join([Dir,F]),
             FilesAtThisLevel = filelib:wildcard("*", NewDirLevel),
-            {ok, DirId} = get_id(dir, F, Dir),
+            {ok, DirId} = get_id(Verbose, dir, F, Dir),
             ok = file:write(FileH, lists:duplicate(N,32)++
                             "<Directory Id='"++DirId++
                                             "' Name='"++F++"'>\n"),
-            walk_release(FileH, FilesAtThisLevel, NewDirLevel, N+3),
+            walk_release(Verbose, FileH, FilesAtThisLevel, NewDirLevel, N+3),
             ok = file:write(FileH, lists:duplicate(N,32)++"</Directory>\n"),
-            io:format("~s ->~n", [NewDirLevel]);
+            if Verbose -> io:format("~s/ ->~n", [NewDirLevel]);
+               true -> io:format(lists:duplicate(N-10,32)++"~s/~n", [F])
+            end;
         false ->
             FilePathNoRel = lists:foldl(fun
                             ("..", Acc) -> Acc;
@@ -234,8 +283,8 @@ walk_release(FileH, [F|Files], Dir, N) ->
                         end, [],
                        filename:split(Dir)),
             FilePath = filename:join([".." | FilePathNoRel]++[F]),
-            {Id, GuID} = get_id(component, F, Dir),
-            {ok, FileId} = get_id(file, F, Dir),
+            {Id, GuID} = get_id(Verbose, component, F, Dir),
+            {ok, FileId} = get_id(Verbose, file, F, Dir),
             ok = file:write(FileH, lists:duplicate(N+3,32)++
                 "<Component Id='"++Id++"' Guid='"++GuID++"'>\n"
                 ++lists:duplicate(N+3,32)++
@@ -243,11 +292,11 @@ walk_release(FileH, [F|Files], Dir, N) ->
                                 "' DiskId='1' Source='"++FilePath++"'"
                 " KeyPath='yes' />\n"++lists:duplicate(N+3,32)++
                 "</Component>\n"),
-            io:format("\t~s~n", [F])
+            if Verbose -> io:format("\t~s~n", [F]); true -> ok end
     end,
-    walk_release(FileH, Files, Dir, N).
+    walk_release(Verbose, FileH, Files, Dir, N).
 
-build_features(FileH) ->
+build_features(_Verbose, FileH) ->
     ok = file:write(FileH,
         "   <Feature Id='Complete' Title='"?PRODUCT" "?VERSION"'"
                     " Description='The complete package.'"
@@ -268,7 +317,7 @@ build_features(FileH) ->
     ok = file:write(FileH, "      </Feature>\n\n"),
     ok = file:write(FileH, "   </Feature>\n\n").
 
-get_id(Type, F, Dir)
+get_id(_Verbose, Type, F, Dir)
   when Type =:= component;
        Type =:= file;
        Type =:= dir ->
@@ -307,7 +356,7 @@ get_id(Type, F, Dir)
                 dir -> {ok, Item#item.id}
             end
     end;
-get_id(undefined, Field, undefined) when is_list(Field) ->
+get_id(_Verbose, undefined, Field, undefined) when is_list(Field) ->
     Id = "id_"++?H(Field),
     case dets:lookup(?TAB, Id) of
         [] ->
@@ -317,7 +366,7 @@ get_id(undefined, Field, undefined) when is_list(Field) ->
         [#item{} = Item] ->
             {ok, Item#item.id}
     end;
-get_id(undefined, Field, undefined) ->
+get_id(_Verbose, undefined, Field, undefined) ->
     Id = "id_"++?H(Field),
     case dets:lookup(?TAB, Id) of
         [] ->
