@@ -10,18 +10,18 @@
         <Control X="20" Y="50" Width="90" Height="15" Type="Text"
                  Id="NodeNameLabel" TabSkip="no" Text="No&amp;de Name" />
         <Control X="110" Y="50" Width="150" Height="15" Type="Edit"
-                 Id="NodeNameEdit" Indirect="yes" Property="NODENAME"
+                 Id="NodeNameEdit" Property="NODENAME"
                  Text="{80}" />
 
         <Control X="20" Y="70" Width="90" Height="15" Type="Text"
                  Id="NodeCookieLebel" TabSkip="no" Text="&amp;Cookie" />
         <Control X="110" Y="70" Width="150" Height="15" Type="Edit"
-                 Id="NodeCookieEdit" Indirect="yes" Property="NODECOOKIE" Text="{80}" />
+                 Id="NodeCookieEdit" Property="NODECOOKIE" Text="{80}" />
      
         <Control X="20" Y="90" Width="90" Height="15" Type="Text"
                  Id="WebSrvIntfLabel" TabSkip="no" Text="&amp;Web Service" />
         <Control X="110" Y="90" Width="150" Height="15" Type="Edit"
-                 Id="WebSrvIntfEdit" Indirect="yes" Property="WEBSRVINTF" Text="{80}" />
+                 Id="WebSrvIntfEdit" Property="WEBSRVINTF" Text="{80}" />
 
         <Control X="10" Y="120" Width="150" Height="10" Type="Text"
                  Id="DBConfigSectionTitle" NoPrefix="yes"
@@ -31,22 +31,22 @@
         <Control X="20" Y="140" Width="90" Height="15" Type="Text"
                  Id="NodeTypeLabel" TabSkip="no" Text="Node &amp;Type" />
         <Control X="110" Y="140" Width="150" Height="15" Type="Edit"
-                 Id="NodeTypeEdit" Indirect="yes" Property="DBNODETYPE" Text="{80}" />
+                 Id="NodeTypeEdit" Property="DBNODETYPE" Text="{80}" />
 
         <Control X="20" Y="160" Width="90" Height="15" Type="Text"
                  Id="SchemaNameLabel" TabSkip="no" Text="&amp;Schema Name" />
         <Control X="110" Y="160" Width="150" Height="15" Type="Edit"
-                 Id="SchemaNameEdit" Indirect="yes" Property="DBNODESCHEMANAME" Text="{80}" />
+                 Id="SchemaNameEdit" Property="DBNODESCHEMANAME" Text="{80}" />
 
         <Control X="20" Y="180" Width="90" Height="15" Type="Text"
                  Id="ClusterMgrsLabel" TabSkip="no" Text="Cluster &amp;Managers" />
         <Control X="110" Y="180" Width="150" Height="15" Type="Edit"
-                 Id="ClusterMgrsEdit" Indirect="yes" Property="DBCLUSTERMGRS" Text="{80}" />
+                 Id="ClusterMgrsEdit" Property="DBCLUSTERMGRS" Text="{80}" />
 
         <Control X="20" Y="200" Width="90" Height="15" Type="Text" 
                  Id="DbIntfLabel" TabSkip="no" Text="DB &amp;Interface" />
         <Control X="110" Y="200" Width="150" Height="15" Type="Edit"
-                 Id="DbIntfEdit" Indirect="yes" Property="DBINTF" Text="{80}" />
+                 Id="DbIntfEdit" Property="DBINTF" Text="{80}" />
 
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56"
                  Height="17" Text="&amp;Back">

@@ -104,28 +104,54 @@ create_wxs(Verbose, Root) ->
         "            Description=\""?COMPANY"\"\n"
         "            Comments='"?PKG_COMMENT"'\n"
         "            Manufacturer='"?COMPANY"'\n"
-        "            InstallerVersion='100' Languages='1033'\n"
+        "            InstallerVersion='200' Languages='1033'\n"
         "            Compressed='yes'\n"
+        "            InstallPrivileges='elevated'\n"
         "            SummaryCodepage='1252' />\n\n"
 
         "   <Media Id='1' Cabinet='"?PRODUCT".cab' EmbedCab='yes'\n"
         "          DiskPrompt='CD-ROM #1'/>\n"
         "   <Property Id='DiskPrompt'\n"
         "             Value=\""?COMPANY
-                            " "?VERSION" Installation [1]\"/>\n\n"
+                            " "?VERSION" Installation [1]\"/>\n\n"),
 
-        "   <Directory Id='TARGETDIR' Name='SourceDir'>\n"
+    ok = file:write(FileH,
+        "   <Directory Id='TARGETDIR' Name='SourceDir'>\n"),
+
+    % AppData PATH
+    {CoDatId, CoDatGuId} = get_id(Verbose, component, 'COMPANYDAT_GUID', undefined),
+    {AppDatId, AppDatGuId} = get_id(Verbose, component, 'PRODUCTDAT_GUID', undefined),
+    ok = file:write(FileH,
+        "     <Directory Id='CommonAppDataFolder' Name='CommonAppData'>\n"
+        "       <Directory Id='COMPANYDAT' Name='"?COMPANY"'>\n"
+        "         <Component Id='"++CoDatId++"' Guid='"++CoDatGuId++"'>\n"
+        "           <CreateFolder Directory='COMPANYDAT'>\n"
+        "             <Permission User='Everyone' GenericAll='yes' />\n"
+        "           </CreateFolder>\n"
+        "         </Component>\n"
+        "         <Directory Id='PRODUCTDAT' Name='"?PRODUCT" "?VERSION"'>\n"
+        "           <Component Id='"++AppDatId++"' Guid='"++AppDatGuId++"'>\n"
+        "             <CreateFolder Directory='PRODUCTDAT'>\n"
+        "               <Permission User='Everyone' GenericAll='yes' />\n"
+        "             </CreateFolder>\n"
+        "           </Component>\n"
+        "         </Directory> <!-- PRODUCT -->\n"
+        "       </Directory> <!-- COMPANY -->\n"
+        "     </Directory> <!-- AppDataFolder -->\n\n"),
+
+    % ProgramFiles PATH
+    ok = file:write(FileH,
         "     <Directory Id='ProgramFilesFolder' Name='PFiles'>\n"
         "       <Directory Id='"++ID++"' Name='"?COMPANY"'>\n"
         "         <Directory Id='INSTALLDIR' Name='"?PRODUCT
-                                            " "?VERSION"'>\n"),
+                                                   " "?VERSION"'>\n"),
 
     walk_release(Verbose, FileH, Root),
 
     ok = file:write(FileH,
-        "         </Directory>\n"
-        "       </Directory>\n"
-        "     </Directory>\n"),
+        "         </Directory> <!-- PRODUCT -->\n"
+        "       </Directory> <!-- COMPANY -->\n"
+        "     </Directory> <!-- ProgramFilesFolder -->\n"),
 
     {RegId, RegGuId} = get_id(Verbose, component, "dderl"
                               , filename:join([Root,"rel"])),
@@ -140,11 +166,11 @@ create_wxs(Verbose, Root) ->
                             " Type='string' Value='' KeyPath='yes' />\n"
         "           </Component>\n"
         "       </Directory>\n"
-        "     </Directory>\n\n"),
+        "     </Directory> <!-- ProgramMenuFolder -->\n\n"),
 
     ok = file:write(FileH,
         "     <Directory Id='DesktopFolder' Name='Desktop' />\n"
-        "   </Directory>\n\n"),
+        "   </Directory> <!-- TARGETDIR -->\n\n"),
 
     build_features(Verbose, FileH),
 
@@ -183,6 +209,47 @@ create_wxs(Verbose, Root) ->
         "   <Property Id='DBCLUSTERMGRS'><![CDATA[['dderl@127.0.0.1']]]></Property>\n"
         "   <Property Id='DBINTF'>127.0.0.1:1234</Property>\n\n"),
 
+    % Service customization
+    [BootDir] = dets:select(?TAB, [{#item{type=dir
+                                          , name="1.0.7", _='_'}
+                                    , [], ['$_']}]),
+    [EscriptExe] = dets:select(?TAB, [{#item{type=component
+                                              , name="escript.exe", _='_'}
+                                        , [], ['$_']}]),
+    EscriptExePath = filename:split(EscriptExe#item.path),
+    [EditConfEs] = dets:select(?TAB, [{#item{type=component
+                                             , name="editconfs.escript", _='_'}
+                                       , [], ['$_']}]),
+    EditConfEsPath = filename:split(EditConfEs#item.path),
+    ExecCommand = "\"[INSTALLDIR]"
+                  ++ string:join(
+                       lists:sublist(EscriptExePath
+                                     , length(EscriptExePath)-1, 2)
+                       ++ ["escript.exe"]
+                       , "\\")
+                  ++ "\" \"[INSTALLDIR]"
+                  ++ string:join(
+                       lists:sublist(EditConfEsPath
+                                     , length(EditConfEsPath), 1)
+                       ++ ["editconfs.escript"]
+                       , "\\")
+                  ++ "\"",
+                  
+    if Verbose ->
+           io:format("BootDir~n"
+                     "     name : ~s~n"
+                     "     path : ~s~n"
+                     "     id   : ~s~n"
+                     , [BootDir#item.name
+                        , BootDir#item.path
+                        , BootDir#item.id]),
+            io:format("ConfigService CMD ~s~n"
+                      , [ExecCommand]);
+       true ->
+            io:format("ConfigService ~s @ ~s~n"
+                      , [ExecCommand, BootDir#item.path])
+    end,
+
     %% Service Installation
     [Comp] = dets:select(?TAB, [{#item{type=component
                                        , name="dderl.cmd", _='_'}
@@ -190,6 +257,21 @@ create_wxs(Verbose, Root) ->
     [CItm] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
                                        , guid=undefined, _='_'}
                                  , [], ['$_']}]),
+
+
+    % Custom actions service configure
+    %  must run after InstallFiles step is 'comitted'
+    %  and before InstallService action it must not
+    %  impersonate to retain file modification priviledges
+    ok = file:write(FileH,
+        "   <CustomAction Id='ConfigService' Directory='"++BootDir#item.id++"'\n"
+        "                 ExeCommand='"++ExecCommand++" \"[NODENAME]\" "
+                                      "\"[NODECOOKIE]\" \"[WEBSRVINTF]\" "
+                                      "\"[DBNODETYPE]\" \"[DBNODESCHEMANAME]\" "
+                                      "\"[DBCLUSTERMGRS]\" \"[DBINTF]\" "
+                                      "\"["++BootDir#item.id++"]\\\" "
+                                      "\"[PRODUCTDAT]\\\"'\n"
+        "                 Execute='commit' Impersonate='no' />\n\n"),
 
     % Custom actions service install and start
     %  must run after InstallFiles step is 'comitted'
@@ -199,15 +281,16 @@ create_wxs(Verbose, Root) ->
     %  removed and DDErl service is stopped before
     %  uninstalling process detecets and warns
     ok = file:write(FileH,
-        "   <CustomAction Id='InstallService' FileKey='"++CItm#item.id++"'\n"
+        "   <CustomAction Id='InstallService' "
+        "                 FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='install' Execute='commit' />\n"
         "   <CustomAction Id='StartService' FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='start' Execute='commit' />\n"
-        "   <CustomAction Id='UnInstallService' FileKey='"++CItm#item.id++"'\n"
+        "   <CustomAction Id='UnInstallService' "
+        "                 FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='uninstall' Execute='immediate' />\n"
         "   <CustomAction Id='StopService' FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='stop' Execute='immediate' />\n\n"
-                   ),
+        "                 ExeCommand='stop' Execute='immediate' />\n\n"),
 
     % Sequence of custom action is important to ensure
     %  service is installed before started and stopped
@@ -221,11 +304,14 @@ create_wxs(Verbose, Root) ->
         "   <InstallExecuteSequence>\n"
         "      <Custom Action='StopService' Before='InstallValidate'>"
                 "$"++Comp#item.id++"=2</Custom>\n"
-        "      <Custom Action='UnInstallService' Before='InstallValidate'>"
+        "      <Custom Action='UnInstallService' After='StopService'>"
                 "$"++Comp#item.id++"=2</Custom>\n"
-        "      <Custom Action='InstallService' After='InstallFiles'>"
+        "      <Custom Action='ConfigService' After='InstallFiles'>"
+                "$"++EscriptExe#item.id++"=3 AND "
+                "$"++EditConfEs#item.id++"=3</Custom>\n"
+        "      <Custom Action='InstallService' After='ConfigService'>"
                 "$"++Comp#item.id++"=3</Custom>\n"
-        "      <Custom Action='StartService' After='InstallFiles'>"
+        "      <Custom Action='StartService' After='InstallService'>"
                 "$"++Comp#item.id++"=3</Custom>\n"
         "   </InstallExecuteSequence>\n\n"),
 
@@ -317,6 +403,35 @@ build_features(_Verbose, FileH) ->
     ok = file:write(FileH, "      </Feature>\n\n"),
     ok = file:write(FileH, "   </Feature>\n\n").
 
+get_id(_Verbose, undefined, Field, undefined) when is_list(Field) ->
+    Id = "id_"++?H(Field),
+    case dets:lookup(?TAB, Id) of
+        [] ->
+            Item = #item{id = Id, name = Field},
+            ok = dets:insert(?TAB, Item),
+            {ok, Item#item.id};
+        [#item{} = Item] ->
+            {ok, Item#item.id}
+    end;
+get_id(_Verbose, Type, Field, undefined) when is_atom(Field) ->
+    Id = "id_"++?H(Field),
+    case dets:lookup(?TAB, Id) of
+        [] ->
+            Item = #item{id = Id, name = Field, guid = uuid()},
+            case Type of
+                component ->
+                    ok = dets:insert(?TAB, Item#item{type=component}),
+                    {Item#item.id, Item#item.guid};
+                _ ->
+                    ok = dets:insert(?TAB, Item),
+                    {ok, Item#item.guid}
+            end;
+        [#item{} = Item] ->
+            case Type of
+                component -> {Item#item.id, Item#item.guid};
+                _ -> {ok, Item#item.guid}
+            end
+    end;
 get_id(_Verbose, Type, F, Dir)
   when Type =:= component;
        Type =:= file;
@@ -355,23 +470,4 @@ get_id(_Verbose, Type, F, Dir)
                 file -> {ok, Item#item.id};
                 dir -> {ok, Item#item.id}
             end
-    end;
-get_id(_Verbose, undefined, Field, undefined) when is_list(Field) ->
-    Id = "id_"++?H(Field),
-    case dets:lookup(?TAB, Id) of
-        [] ->
-            Item = #item{id = Id, name = Field},
-            ok = dets:insert(?TAB, Item),
-            {ok, Item#item.id};
-        [#item{} = Item] ->
-            {ok, Item#item.id}
-    end;
-get_id(_Verbose, undefined, Field, undefined) ->
-    Id = "id_"++?H(Field),
-    case dets:lookup(?TAB, Id) of
-        [] ->
-            Item = #item{id = Id, name = Field, guid = uuid()},
-            ok = dets:insert(?TAB, Item),
-            {ok, Item#item.guid};
-        [#item{} = Item] -> {ok, Item#item.guid}
     end.
