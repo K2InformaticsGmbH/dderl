@@ -25,29 +25,80 @@
               , file_info
         }).
 
-main([]) -> main(["not_verbose"]);
-main([Vrbs]) ->
+main([]) ->
+    io:format("Building MSI from master tag silently~n"),
+    main({false, "master"});
+main(["-v"]) ->
+    io:format("Building MSI from master tag with progress logs~n"),
+    main({true, "master"});
+main(["-t"]) ->
+    io:format("Available tags~n"),
+    Tags = lists:sort(string:tokens(oscmd(false, "git tag"), "\n")),
+    [io:format("   ~s~n", [T]) || T <- Tags];
+main(["-v", Tag]) ->
+    io:format("Building MSI from ~s tag with progress logs~n", [Tag]),
+    main({true, Tag});
+main([Tag]) ->
+    io:format("Building MSI from ~s tag silently~n", [Tag]),
+    main({false, Tag});
+main({Verbose, _Tag}) -> % Target Specified
+    %prepare_release(Verbose, Tag);
     {Root, AppPath} = get_paths(),
+    build_msi(Verbose, Root, AppPath);
+main(_) ->
+    usage().
+
+oscmd(Verbose, Cmd) ->
+    CmdRes = re:replace(os:cmd(Cmd), "[\r\n]", "", [{return, list}]),
+    if Verbose -> io:format("~s -> ~s~n", [Cmd, CmdRes]); true -> ok end,
+    CmdRes.
+
+prepare_release(Verbose, Tag) ->
+    Pwd = filename:dirname(escript:script_name()),
+    GitRepo = oscmd(Verbose,"git config --get remote.origin.url"),
+    DistroFolder = string:join([Pwd, "distro"], "\\"),
+    io:format("Pwd ~s~n", [Pwd]),
+    io:format("GitRepo ~s~n", [GitRepo]),
+    {ok, CurDir} = file:get_cwd(),
+    %io:format("Removing ~s~n", [DistroFolder]),
+    %oscmd(Verbose, "rd "++DistroFolder++" /s /q"),
+    %io:format("Creating empty ~s~n", [DistroFolder]),
+    %ok = file:make_dir(DistroFolder),
+    %ok = file:set_cwd(DistroFolder),
+    %oscmd(Verbose,"git clone "++GitRepo),
+    AppRootPath = string:join([DistroFolder, "dderl"], "\\"),
+    AppRootFolder = filename:absname(AppRootPath),
+    ok = file:set_cwd(AppRootPath),
+    io:format("downloading dependencies...~n"),
+    oscmd(Verbose, "rebar get-deps"),
+    AppReleaseFolder = filename:absname(string:join([AppRootFolder, "apps\\dderl"], "\\")),
+    io:format("moving src/ priv/ from ~s to ~s~n", [AppRootFolder, AppReleaseFolder]),
+    oscmd(Verbose, "move \""
+                   ++ string:join([AppRootFolder, "src"], "\\")
+                   ++ "\" \""
+                   ++ AppReleaseFolder
+                   ++ "\""),
+    oscmd(Verbose, "move \""
+                   ++ string:join([AppRootFolder, "priv"], "\\")
+                   ++ "\" \""
+                   ++ AppReleaseFolder
+                   ++ "\""),
+    ok = file:set_cwd(CurDir).
+
+build_msi(Verbose, Root, AppPath) ->
     io:format("Root ~s~n", [Root]),
     io:format("AppPath ~s~n", [AppPath]),
-    Verbose = case Vrbs of
-                  "-v" ->
-                      io:format("Verbose true~n"),
-                      true;
-                  "not_verbose" -> false
-              end,
-    %make_soft_links(Verbose, AppPath),
-    %rebar_generate(Verbose, Root),
+    make_soft_links(Verbose, AppPath),
+    rebar_generate(Verbose, Root),
     {ok, ?TAB} = dets:open_file(?TAB, [{ram_file, true}
                                        , {file, ?TABFILE}
                                        , {keypos, 2}]),
     create_wxs(Verbose, Root),
-    ok = dets:close(?TAB);
-main(_) ->
-    usage().
-
+    ok = dets:close(?TAB).
+    
 usage() ->
-    io:format("usage: build_msi.escript [-v]~n"),
+    io:format("usage: build_msi.escript [[-v] Tag | -t] ~n"),
+    io:format("       default Tag 'master'~n"),
     halt(1).
 
 uuid() ->
@@ -63,23 +114,33 @@ get_paths() ->
             {filename:join(R), filename:join(R++["apps","dderl"])}
     end.
 
-make_soft_links(AppPath) ->
+make_soft_links(Verbose, AppPath) ->
     [begin
         Cmd = lists:flatten(io_lib:format("mklink /D ~p ~p"
                                           , [Link, Target])),
-        io:format("~s~n~s~n", [Cmd, os:cmd(Cmd)])
+        io:format("Creating soft links ~s <- ~s~n", [Target, Link]),
+        if Verbose -> io:format("Executing ~s~n", [Cmd]); true -> ok end,
+        io:format("    ~s~n", [os:cmd(Cmd)])
      end
     || {Link, Target} <- [ {filename:join([AppPath, "src"]), "..\\..\\src"}
                           , {filename:join([AppPath, "priv"])
                              , "..\\..\\priv"}]].
 
-rebar_generate(Root) ->
+rebar_generate(Verbose, Root) ->
     {ok, CurDir} = file:get_cwd(),
+    if Verbose ->
+           io:format("Entering ~s from ~s~n", [Root, CurDir]);
+       true -> ok
+    end,
     ok = file:set_cwd(Root),
     io:format("Clean Compile and generate...~n", []),
-    io:format("~s", [os:cmd("rebar clean")]),
-    io:format("~s", [os:cmd("rebar compile")]),
-    io:format("~s", [os:cmd("rebar generate")]),
+    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" clean")]),
+    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" compile")]),
+    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" generate")]),
+    if Verbose ->
+           io:format("Leaving ~s to ~s~n", [Root, CurDir]);
+       true -> ok
+    end,
     ok = file:set_cwd(CurDir).
 
 create_wxs(Verbose, Root) ->
