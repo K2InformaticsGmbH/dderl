@@ -88,8 +88,8 @@ oscmd(Verbose, Cmd) ->
 build_msi(Verbose, Root, AppPath) ->
     io:format("Root ~s~n", [Root]),
     io:format("AppPath ~s~n", [AppPath]),
-    %make_soft_links(Verbose, AppPath),
-    %rebar_generate(Verbose, Root),
+    make_soft_links(Verbose, AppPath),
+    rebar_generate(Verbose, Root),
     {ok, ?TAB} = dets:open_file(?TAB, [{ram_file, true}
                                        , {file, ?TABFILE}
                                        , {keypos, 2}]),
@@ -127,6 +127,7 @@ make_soft_links(Verbose, AppPath) ->
                              , "..\\..\\priv"}]].
 
 rebar_generate(Verbose, Root) ->
+    ok = file:delete(?TABFILE),
     {ok, CurDir} = file:get_cwd(),
     if Verbose ->
            io:format("Entering ~s from ~s~n", [Root, CurDir]);
