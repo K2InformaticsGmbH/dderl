@@ -138,6 +138,10 @@ update_sys_config(FileHandle, ConfigFolder
        "    AppDataFolder       : ~p"
        , [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom, ImemSchemaNameAtom
           , ImemClusterMgrsTerm, ImemHost, ImemPort, AppDataFolder]),
+    SnapDir = filename:join([AppDataFolder, "snapshot"]),
+    ErrorLog = filename:join([AppDataFolder, "log", "error.log"]),
+    ConsoleLog = filename:join([AppDataFolder, "log", "console.log"]),
+    CrashLog = filename:join([AppDataFolder, "log", "crash.log"]),
     update_file_term(FileHandle, ConfigFolder, "sys.config",
                     [{[dderl, interface], [], DDerlHost}
                      , {[dderl, port], [], DDerlPort}
@@ -146,18 +150,12 @@ update_sys_config(FileHandle, ConfigFolder
                      , {[imem, erl_cluster_mgrs], [], ImemClusterMgrsTerm}
                      , {[imem, tcp_ip], [], ImemHost}
                      , {[imem, tcp_port], [], ImemPort}
-                     , {[imem, imem_snapshot_dir], [], AppDataFolder}
+                     , {[imem, imem_snapshot_dir], [], SnapDir}
                      , {[lager, handlers, lager_file_backend, file]
-                        , [{level, error}], filename:join(
-                                              AppDataFolder
-                                              ,"error.log")}
+                        , [{level, error}], ErrorLog}
                      , {[lager, handlers, lager_file_backend, file]
-                        , [{level, info}], filename:join(
-                                             AppDataFolder
-                                             ,"console.log")}
-                     , {[lager, crash_log], [], filename:join(
-                                                  AppDataFolder
-                                                  ,"crash.log")}
+                        , [{level, info}], ConsoleLog}
+                     , {[lager, crash_log], [], CrashLog}
                     ]).
 
 update_file_term(FileHandle, ConfigFolder, File, Configs) ->
@@ -197,38 +195,46 @@ update_file_term(FileHandle, ConfigFolder, File, Configs) ->
 
 modify_nested_proplist(_FileHandle, _File, NewTerm, []) -> NewTerm;
 modify_nested_proplist(FileHandle, File, Term, {[P], Match, Change}) ->
-    case proplists:get_value(P,Term) of
-        undefined ->
-            ?L("{~s} prperty ~p doesn't exists in ~p", [File, P, Term]),
-            throw({error, path_not_exist, {P,Term}});
-        SubTerm ->
-            case lists:foldl(
-                   fun({M,V}, A) ->
-                           A andalso
-                           case proplists:get_value(M,Term) of
-                               undefined -> false;
-                               V -> true;
-                               _ -> false
-                           end
-                   end
-                   , true, Match) of
-                true ->
-                    ?L("{~s} changing ~p ~p -> ~p", [File, P, SubTerm, Change]),
-                    lists:keyreplace(P, 1, Term, {P, Change});
-                false -> Term
-            end
-    end;
+    MatchFun = fun({M,V}, A) ->
+        A andalso
+        case proplists:get_value(M,Term) of
+            undefined -> false;
+            V -> true;
+            _ -> false
+        end
+    end,
+    FoldFun =
+    fun(OldTerm,Acc) ->
+        case OldTerm of
+            {P,SubTerm} ->
+                case lists:foldl(MatchFun, true, Match) of
+                    true ->
+                        ?L("{~s} changing ~p ~p -> ~p"
+                           , [File, P, SubTerm, Change]),
+                        [{P, Change} | Acc];
+                    false -> [OldTerm | Acc]
+                end;
+            OldTerm ->
+                [OldTerm | Acc]
+        end
+    end,
+    lists:reverse(lists:foldl(FoldFun, [], Term));
 modify_nested_proplist(FileHandle, File, Term, {[P|Path], Match, Change}) ->
-    case proplists:get_value(P,Term) of
-        undefined ->
-            ?L("{~s} prperty ~p doesn't exists in ~p", [File, P, Term]),
-            throw({error, path_not_exist, {P,Term}});
-        SubTerm ->
-            NewSubTerm = modify_nested_proplist(
-                           FileHandle, File, SubTerm
-                           , {Path, Match, Change}),
-            lists:keyreplace(P, 1, Term, {P, NewSubTerm})
-    end;
+    lists:reverse(
+      lists:foldl(
+        fun(OldTerm,A) ->
+                case OldTerm of
+                    {P,SubTerm} ->
+                        NewSubTerm =
+                        modify_nested_proplist(
+                          FileHandle, File, SubTerm
+                          , {Path, Match, Change}),
+                        [{P, NewSubTerm} | A];
+                    OldTerm ->
+                        [OldTerm | A]
+                end
+        end
+        , [], Term));
 modify_nested_proplist(FileHandle, File, Term, [{Path, Match, Change}|Config]) ->
     ?L("{~s} at ~s", [File, string:join([atom_to_list(P) || P <- Path], "/")]),
     NewTerm = modify_nested_proplist(FileHandle, File, Term, {Path, Match, Change}),

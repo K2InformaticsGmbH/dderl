@@ -53,43 +53,43 @@ oscmd(Verbose, Cmd) ->
     if Verbose -> io:format("~s -> ~s~n", [Cmd, CmdRes]); true -> ok end,
     CmdRes.
 
-prepare_release(Verbose, Tag) ->
-    Pwd = filename:dirname(escript:script_name()),
-    GitRepo = oscmd(Verbose,"git config --get remote.origin.url"),
-    DistroFolder = string:join([Pwd, "distro"], "\\"),
-    io:format("Pwd ~s~n", [Pwd]),
-    io:format("GitRepo ~s~n", [GitRepo]),
-    {ok, CurDir} = file:get_cwd(),
-    %io:format("Removing ~s~n", [DistroFolder]),
-    %oscmd(Verbose, "rd "++DistroFolder++" /s /q"),
-    %io:format("Creating empty ~s~n", [DistroFolder]),
-    %ok = file:make_dir(DistroFolder),
-    %ok = file:set_cwd(DistroFolder),
-    %oscmd(Verbose,"git clone "++GitRepo),
-    AppRootPath = string:join([DistroFolder, "dderl"], "\\"),
-    AppRootFolder = filename:absname(AppRootPath),
-    ok = file:set_cwd(AppRootPath),
-    io:format("downloading dependencies...~n"),
-    oscmd(Verbose, "rebar get-deps"),
-    AppReleaseFolder = filename:absname(string:join([AppRootFolder, "apps\\dderl"], "\\")),
-    io:format("moving src/ priv/ from ~s to ~s~n", [AppRootFolder, AppReleaseFolder]),
-    oscmd(Verbose, "move \""
-                   ++ string:join([AppRootFolder, "src"], "\\")
-                   ++ "\" \""
-                   ++ AppReleaseFolder
-                   ++ "\""),
-    oscmd(Verbose, "move \""
-                   ++ string:join([AppRootFolder, "priv"], "\\")
-                   ++ "\" \""
-                   ++ AppReleaseFolder
-                   ++ "\""),
-    ok = file:set_cwd(CurDir).
+%prepare_release(Verbose, _Tag) ->
+%    Pwd = filename:dirname(escript:script_name()),
+%    GitRepo = oscmd(Verbose,"git config --get remote.origin.url"),
+%    DistroFolder = string:join([Pwd, "distro"], "\\"),
+%    io:format("Pwd ~s~n", [Pwd]),
+%    io:format("GitRepo ~s~n", [GitRepo]),
+%    {ok, CurDir} = file:get_cwd(),
+%    %io:format("Removing ~s~n", [DistroFolder]),
+%    %oscmd(Verbose, "rd "++DistroFolder++" /s /q"),
+%    %io:format("Creating empty ~s~n", [DistroFolder]),
+%    %ok = file:make_dir(DistroFolder),
+%    %ok = file:set_cwd(DistroFolder),
+%    %oscmd(Verbose,"git clone "++GitRepo),
+%    AppRootPath = string:join([DistroFolder, "dderl"], "\\"),
+%    AppRootFolder = filename:absname(AppRootPath),
+%    ok = file:set_cwd(AppRootPath),
+%    io:format("downloading dependencies...~n"),
+%    oscmd(Verbose, "rebar get-deps"),
+%    AppReleaseFolder = filename:absname(string:join([AppRootFolder, "apps\\dderl"], "\\")),
+%    io:format("moving src/ priv/ from ~s to ~s~n", [AppRootFolder, AppReleaseFolder]),
+%    oscmd(Verbose, "move \""
+%                   ++ string:join([AppRootFolder, "src"], "\\")
+%                   ++ "\" \""
+%                   ++ AppReleaseFolder
+%                   ++ "\""),
+%    oscmd(Verbose, "move \""
+%                   ++ string:join([AppRootFolder, "priv"], "\\")
+%                   ++ "\" \""
+%                   ++ AppReleaseFolder
+%                   ++ "\""),
+%    ok = file:set_cwd(CurDir).
 
 build_msi(Verbose, Root, AppPath) ->
     io:format("Root ~s~n", [Root]),
     io:format("AppPath ~s~n", [AppPath]),
-    make_soft_links(Verbose, AppPath),
-    rebar_generate(Verbose, Root),
+    %make_soft_links(Verbose, AppPath),
+    %rebar_generate(Verbose, Root),
     {ok, ?TAB} = dets:open_file(?TAB, [{ram_file, true}
                                        , {file, ?TABFILE}
                                        , {keypos, 2}]),
@@ -208,29 +208,44 @@ create_wxs(Verbose, Root) ->
                                                    " "?VERSION"'>\n"),
 
     walk_release(Verbose, FileH, Root),
-
+    
     ok = file:write(FileH,
         "         </Directory> <!-- PRODUCT -->\n"
         "       </Directory> <!-- COMPANY -->\n"
         "     </Directory> <!-- ProgramFilesFolder -->\n"),
 
-    {RegId, RegGuId} = get_id(Verbose, component, "dderl"
-                              , filename:join([Root,"rel"])),
+    % Property references
+    [BootDir] = dets:select(?TAB, [{#item{type=dir
+                                          , name="1.0.7", _='_'}
+                                    , [], ['$_']}]),
+    [EscriptExe] = dets:select(?TAB, [{#item{type=component
+                                              , name="escript.exe", _='_'}
+                                        , [], ['$_']}]),
+    [EditConfEs] = dets:select(?TAB, [{#item{type=component
+                                             , name="editconfs.escript", _='_'}
+                                       , [], ['$_']}]),
+    [Comp] = dets:select(?TAB, [{#item{type=component
+                                       , name="dderl.cmd", _='_'}
+                                 , [], ['$_']}]),
+    [CItm] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
+                                       , guid=undefined, _='_'}
+                                 , [], ['$_']}]),
+
+    {ProgFolderId, ProgFolderGuId} = get_id(Verbose, component, 'PROGSMENUFOLDER_GUID', undefined),
+    {DsktpShortId, DsktpShortGuId} = get_id(Verbose, component, 'DESKTOPSHORTCUT_GUID', undefined),
+
     ok = file:write(FileH,
         "     <Directory Id='ProgramMenuFolder' Name='Programs'>\n"
-        "        <Directory Id='"++RegId++"'"
-                                " Name='"?PRODUCT" "?VERSION"'>\n"
-        "           <Component Id='"++RegId++"' Guid='"++RegGuId++"'>\n"
-        "               <RemoveFolder Id='"++RegId++"' On='uninstall' />\n"
-        "               <RegistryValue Root='HKCU'"
-                            " Key='Software\\[Manufacturer]\\[ProductName]'"
-                            " Type='string' Value='' KeyPath='yes' />\n"
-        "           </Component>\n"
-        "       </Directory>\n"
+        "        <Directory Id='ApplicationProgramMenuFolder'\n"
+        "                   Name='"?PRODUCT" "?VERSION"' />\n"
         "     </Directory> <!-- ProgramMenuFolder -->\n\n"),
 
     ok = file:write(FileH,
-        "     <Directory Id='DesktopFolder' Name='Desktop' />\n"
+        "     <Directory Id='DesktopFolder' Name='Desktop'>\n"
+        "       <Directory Id='ApplicationDesktopFolder' Name='"?PRODUCT" "?VERSION"'/>\n"
+        "     </Directory> <!-- DesktopFolder -->\n\n"),
+
+    ok = file:write(FileH,
         "   </Directory> <!-- TARGETDIR -->\n\n"),
 
     build_features(Verbose, FileH),
@@ -261,26 +276,55 @@ create_wxs(Verbose, Root) ->
         "           1</Publish>\n"
         "   </UI>\n\n"),
 
-    ok = file:write(FileH,
-        "   <Property Id='NODENAME'>dderl@127.0.0.1</Property>\n"
-        "   <Property Id='NODECOOKIE'>dderlcookie</Property>\n"
-        "   <Property Id='WEBSRVINTF'>127.0.0.1:8443</Property>\n"
-        "   <Property Id='DBNODETYPE'>disc</Property>\n"
-        "   <Property Id='DBNODESCHEMANAME'>dderlstag</Property>\n"
-        "   <Property Id='DBCLUSTERMGRS'><![CDATA[['dderl@127.0.0.1']]]></Property>\n"
-        "   <Property Id='DBINTF'>127.0.0.1:1234</Property>\n\n"),
-
-    % Service customization
-    [BootDir] = dets:select(?TAB, [{#item{type=dir
-                                          , name="1.0.7", _='_'}
-                                    , [], ['$_']}]),
-    [EscriptExe] = dets:select(?TAB, [{#item{type=component
-                                              , name="escript.exe", _='_'}
-                                        , [], ['$_']}]),
-    EscriptExePath = filename:split(EscriptExe#item.path),
-    [EditConfEs] = dets:select(?TAB, [{#item{type=component
-                                             , name="editconfs.escript", _='_'}
+    [VmArgsFile] = dets:select(?TAB, [{#item{type=file
+                                             , name="vm.args", _='_'}
                                        , [], ['$_']}]),
+    [SysConfigFile] = dets:select(?TAB, [{#item{type=file
+                                             , name="sys.config", _='_'}
+                                       , [], ['$_']}]),
+    {ok, VmArgsBin} = file:read_file(filename:join(VmArgsFile#item.path, "vm.args")),
+    {ok, SysConfigBin} = file:read_file(filename:join(SysConfigFile#item.path, "sys.config")),
+    {match, [Node]} = re:run(VmArgsBin
+                             , ".*-name (.*)[\r\n]"
+                             , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [Cookie]} = re:run(VmArgsBin
+                               , ".*-setcookie (.*)[\r\n]"
+                               , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [DDErlIntf]} = re:run(SysConfigBin
+                                  , ".*\{interface,[ ]*\"(.*)\"[ ]*}"
+                                  , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [DDErlPort]} = re:run(SysConfigBin
+                                  , ".*\{port,[ ]*([0-9]*)[ ]*}"
+                                  , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [ImemNodeType]} = re:run(SysConfigBin
+                                       , ".*\{mnesia_node_type,[ ]*(disc|ram)[ ]*}"
+                                       , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [ImemSchemaName]} = re:run(SysConfigBin
+                                       , ".*\{mnesia_schema_name,[ ]*('.*')[ ]*}"
+                                       , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [ImemClustMgrs]} = re:run(SysConfigBin
+                                      , ".*\{erl_cluster_mgrs,[ ]*(\\[.*)[ ]*}"
+                                      , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [ImemIntf]} = re:run(SysConfigBin
+                                 , ".*\{tcp_ip,[ ]*\"(.*)\"[ ]*}"
+                                 , [{capture, [1], list}, ungreedy, dotall]),
+    {match, [ImemPort]} = re:run(SysConfigBin
+                                 , ".*\{tcp_port,[ ]*([0-9]*)[ ]*}"
+                                 , [{capture, [1], list}, ungreedy, dotall]),
+
+    ok = file:write(FileH,
+        "   <Property Id='NODENAME'>"++Node++"</Property>\n"
+        "   <Property Id='NODECOOKIE'>"++Cookie++"</Property>\n"
+        "   <Property Id='WEBSRVINTF'>"++DDErlIntf++":"++DDErlPort++"</Property>\n"
+        "   <Property Id='DBNODETYPE'>"++ImemNodeType++"</Property>\n"
+        "   <Property Id='DBNODETYPE_DISC'>disc</Property>\n"
+        "   <Property Id='DBNODETYPE_RAM'>ram</Property>\n"
+        "   <Property Id='DBNODESCHEMANAME'>"++ImemSchemaName++"</Property>\n"
+        "   <Property Id='DBCLUSTERMGRS'><![CDATA["++ImemClustMgrs++"]]></Property>\n"
+        "   <Property Id='DBINTF'>"++ImemIntf++":"++ImemPort++"</Property>\n\n"),
+
+    %% Service customization
+    EscriptExePath = filename:split(EscriptExe#item.path),
     EditConfEsPath = filename:split(EditConfEs#item.path),
     ExecCommand = "\"[INSTALLDIR]"
                   ++ string:join(
@@ -312,13 +356,6 @@ create_wxs(Verbose, Root) ->
     end,
 
     %% Service Installation
-    [Comp] = dets:select(?TAB, [{#item{type=component
-                                       , name="dderl.cmd", _='_'}
-                                 , [], ['$_']}]),
-    [CItm] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
-                                       , guid=undefined, _='_'}
-                                 , [], ['$_']}]),
-
 
     % Custom actions service configure
     %  must run after InstallFiles step is 'comitted'
@@ -342,12 +379,12 @@ create_wxs(Verbose, Root) ->
     %  removed and DDErl service is stopped before
     %  uninstalling process detecets and warns
     ok = file:write(FileH,
-        "   <CustomAction Id='InstallService' "
+        "   <CustomAction Id='InstallService'\n"
         "                 FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='install' Execute='commit' />\n"
         "   <CustomAction Id='StartService' FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='start' Execute='commit' />\n"
-        "   <CustomAction Id='UnInstallService' "
+        "   <CustomAction Id='UnInstallService'\n"
         "                 FileKey='"++CItm#item.id++"'\n"
         "                 ExeCommand='uninstall' Execute='immediate' />\n"
         "   <CustomAction Id='StopService' FileKey='"++CItm#item.id++"'\n"
@@ -376,6 +413,63 @@ create_wxs(Verbose, Root) ->
                 "$"++Comp#item.id++"=3</Custom>\n"
         "   </InstallExecuteSequence>\n\n"),
 
+    [Icon] = dets:select(?TAB, [{#item{type=component
+                                       , name="dderl.ico", _='_'}
+                                        , [], ['$_']}]),
+    FullIconPath = filename:join([Icon#item.path,"dderl.ico"]),
+
+    ok = file:write(FileH,
+        "   <DirectoryRef Id='ApplicationProgramMenuFolder'>\n"
+        "       <Component Id='"++ProgFolderId++"' Guid='"++ProgFolderGuId++"'>\n"
+        "           <Shortcut Id='programattach'\n"
+        "                     Name='"?PRODUCT" Attach'\n"
+        "                     Target='[#"++CItm#item.id++"]'\n"
+        "                     Arguments='attach'\n"
+        "                     WorkingDirectory='"++BootDir#item.id++"'\n"
+        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "           <Shortcut Id='programgui'\n"
+        "                     Name='"?PRODUCT" GUI'\n"
+        "                     Target='[#"++CItm#item.id++"]'\n"
+        "                     Arguments='console'\n"
+        "                     WorkingDirectory='"++BootDir#item.id++"'\n"
+        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "           <RemoveFolder Id='ApplicationProgramMenuFolder' On='uninstall' />\n"
+        "           <RegistryValue Root='HKCU'\n"
+        "                          Key='Software\\[Manufacturer]\\[ProductName]'\n"
+        "                          Name='programmenu' Type='string'\n"
+        "                          Value='"++PRODUCT_GUID++"' KeyPath='yes'/>\n"
+        "       </Component>\n"
+        "   </DirectoryRef>\n"),
+
+    ok = file:write(FileH,
+        "   <DirectoryRef Id='ApplicationDesktopFolder'>\n"
+        "       <Component Id='"++DsktpShortId++"' Guid='"++DsktpShortGuId++"'>\n"
+        "           <Shortcut Id='desktopattach'\n"
+        "                     Name='"?PRODUCT" Attach'\n"
+        "                     Target='[#"++CItm#item.id++"]'\n"
+        "                     Arguments='attach'\n"
+        "                     WorkingDirectory='"++BootDir#item.id++"'\n"
+        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "           <Shortcut Id='desktopgui'\n"
+        "                     Name='"?PRODUCT" GUI'\n"
+        "                     Target='[#"++CItm#item.id++"]'\n"
+        "                     Arguments='console'\n"
+        "                     WorkingDirectory='"++BootDir#item.id++"'\n"
+        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "           <RemoveFolder Id='ApplicationDesktopFolder' On='uninstall'/>\n"
+        "           <RegistryValue Root='HKCU'\n"
+        "                          Key='Software\\[Manufacturer]\\[ProductName]'\n"
+        "                          Name='desktop' Type='integer'\n"
+        "                          Value='1' KeyPath='yes'/>\n"
+        "       </Component>\n"
+        "   </DirectoryRef>\n"),
+
+    ok = file:write(FileH,
+        "   <Icon Id='dderl.ico' SourceFile='"++FullIconPath++"' />\n"),
+
+    ok = file:write(FileH,
+        "   <Property Id='ARPPRODUCTICON' Value='dderl.ico' />"),
+    
     ok = file:write(FileH,
         "</Product>\n"
         "</Wix>"),
@@ -407,7 +501,7 @@ walk_release(Verbose, FileH, Root) ->
         false -> io:format("~p is not a directory~n", [ReleaseRoot])
     end.
 
-walk_release(Verbose, _FileH, [], _Dir, _N) -> ok;
+walk_release(_Verbose, _FileH, [], _Dir, _N) -> ok;
 walk_release(Verbose, FileH, [F|Files], Dir, N) ->
     case filelib:is_dir(filename:join([Dir,F])) of
         true ->
