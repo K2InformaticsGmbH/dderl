@@ -30,8 +30,13 @@
              
         <Control X="20" Y="140" Width="90" Height="15" Type="Text"
                  Id="NodeTypeLabel" TabSkip="no" Text="Node &amp;Type" />
-        <Control X="110" Y="140" Width="150" Height="15" Type="Edit"
-                 Id="NodeTypeEdit" Property="DBNODETYPE" Text="{80}" />
+        <Control X="110" Y="140" Width="150" Height="15" Type="ComboBox"
+                 Id="NodeTypeCombo" Property="DBNODETYPE"> <!--  Text="{80}"  -->
+            <ComboBox Property="DBNODETYPE">
+                <ListItem Value="disc" />
+                <ListItem Value="ram" />
+            </ComboBox>
+        </Control>
 
         <Control X="20" Y="160" Width="90" Height="15" Type="Text"
                  Id="SchemaNameLabel" TabSkip="no" Text="&amp;Schema Name" />
