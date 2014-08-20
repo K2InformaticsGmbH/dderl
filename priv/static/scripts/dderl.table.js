@@ -750,6 +750,8 @@
     // Reload table: called from the sql editor to refresh this table.
     cmdReload: function(cmd, button) {
         console.log('command reloading ['+cmd+']');
+        // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
+        this.close_stmt();
         this._clmlay = null;
         this._cmd = cmd;
         this.options.dderlStartBtn = this._startBtn = button;
@@ -1933,7 +1935,9 @@
 
     _renderRows: function(_rows) {
         var self = this;
-        if(_rows.hasOwnProperty('rows')) {
+        if(_rows.hasOwnProperty('op') && _rows.op === "close") {
+            self._stmt = null;
+        } else if(_rows.hasOwnProperty('rows')) {
             //console.log('rows '+ JSON.stringify(_rows.rows));
             console.log('[AJAX] rendering '+ _rows.rows.length+' rows');
             var rowsCount = _rows.rows.length;
@@ -1964,8 +1968,7 @@
                     self.buttonPress(tmpLoop);
                 }
             }
-        }
-        else if(_rows.hasOwnProperty('error')) {
+        } else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
         }
     },

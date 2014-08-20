@@ -110,12 +110,17 @@ function set_conns_list(adapter, owner)
 }
 
 function disconnect_tab() {
+    if (!dderlState.connection) {
+        return;
+    }
     var headers = new Object();
 
     if (dderlState.adapter != null) {
         headers['adapter'] = dderlState.adapter;
     }
     headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
+    $(".ui-dialog-content").dialog('close');
+    $('#dashboard-menu').empty();
 
     $.ajax({
         type: 'POST',
@@ -132,8 +137,6 @@ function disconnect_tab() {
             dderlState.adapter = null;
             dderlState.connected_user = null;
             dderlState.service = null;
-            $(".ui-dialog-content").dialog('close');
-            $('#dashboard-menu').empty();
             connect_dlg();
         },
 

@@ -822,11 +822,6 @@ function insertAtCursor(myField, myValue) {
         }
         var collapsed = box.collapsed || (allChildCollapsed && box.name.length === 0);
         var myRes = {div : this._leaf_box(bx, collapsed, box.name, alltext, children, maxwidth-20, parent), text: alltext};
-        if(myRes.div.data("oldText") == $(oldBox).data("oldText")) {
-            console.log("match " + myRes.div.data("oldText"));
-        } else {
-            console.log("no match " + myRes.div.data("oldText") + " - " + $(oldBox).data("oldText"));
-        }
         return myRes;
     },
 
