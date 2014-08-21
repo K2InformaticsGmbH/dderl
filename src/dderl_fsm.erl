@@ -604,15 +604,18 @@ filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
 filling({rows, {Recs,false}}, State0) ->
     % receive and store data, no prefetch needed here
     State1 = data_append(filling, {Recs,false},State0),
-    NewBufBot = State1#state.bufBot,
-    NewGuiBot = State1#state.guiBot,
-    State2 = if
-        (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
-        true ->                     State1
-    end,
-    {next_state, filling, State2};
+    %TODO: This needs to be analyzed
+    %NewBufBot = State1#state.bufBot,
+    %NewGuiBot = State1#state.guiBot,
+    %?NoDbLog(info, [], "the new (bufferbot, guibot) is ~p ...", [{NewBufBot, NewGuiBot}]),
+    %State2 = if
+    %    (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
+    %    true ->                     State1
+    %end,
+    {next_state, filling, State1};
 filling({rows, {Recs,true}}, State0) ->
     % receive and store data, close the fetch and switch state, no prefetch needed here
+    ?NoDbLog(info, [], "closed...", []),
     State1 = fetch_close(State0),
     State2 = data_append(completed, {Recs,true},State1),
     {next_state, completed, State2};
