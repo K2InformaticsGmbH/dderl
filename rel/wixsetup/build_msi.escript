@@ -127,7 +127,7 @@ make_soft_links(Verbose, AppPath) ->
                              , "..\\..\\priv"}]].
 
 rebar_generate(Verbose, Root) ->
-    ok = file:delete(?TABFILE),
+    file:delete(?TABFILE),
     {ok, CurDir} = file:get_cwd(),
     if Verbose ->
            io:format("Entering ~s from ~s~n", [Root, CurDir]);
@@ -301,7 +301,7 @@ create_wxs(Verbose, Root) ->
                                        , ".*\{mnesia_node_type,[ ]*(disc|ram)[ ]*}"
                                        , [{capture, [1], list}, ungreedy, dotall]),
     {match, [ImemSchemaName]} = re:run(SysConfigBin
-                                       , ".*\{mnesia_schema_name,[ ]*('.*')[ ]*}"
+                                       , ".*\{mnesia_schema_name,[ ]*'(.*)'[ ]*}"
                                        , [{capture, [1], list}, ungreedy, dotall]),
     {match, [ImemClustMgrs]} = re:run(SysConfigBin
                                       , ".*\{erl_cluster_mgrs,[ ]*(\\[.*)[ ]*}"
@@ -382,14 +382,14 @@ create_wxs(Verbose, Root) ->
     ok = file:write(FileH,
         "   <CustomAction Id='InstallService'\n"
         "                 FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='install' Execute='commit' />\n"
+        "                 ExeCommand='install' Execute='commit' Impersonate='no' />\n"
         "   <CustomAction Id='StartService' FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='start' Execute='commit' />\n"
+        "                 ExeCommand='start' Execute='commit' Impersonate='no' />\n"
         "   <CustomAction Id='UnInstallService'\n"
         "                 FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='uninstall' Execute='immediate' />\n"
+        "                 ExeCommand='uninstall' Execute='immediate' Impersonate='no' />\n"
         "   <CustomAction Id='StopService' FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='stop' Execute='immediate' />\n\n"),
+        "                 ExeCommand='stop' Execute='immediate' Impersonate='no' />\n\n"),
 
     % Sequence of custom action is important to ensure
     %  service is installed before started and stopped
