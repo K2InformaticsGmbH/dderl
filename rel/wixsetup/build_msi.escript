@@ -387,9 +387,9 @@ create_wxs(Verbose, Root) ->
         "                 ExeCommand='start' Execute='commit' Impersonate='no' />\n"
         "   <CustomAction Id='UnInstallService'\n"
         "                 FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='uninstall' Execute='immediate' Impersonate='no' />\n"
+        "                 ExeCommand='uninstall' Execute='deferred' Impersonate='no' />\n"
         "   <CustomAction Id='StopService' FileKey='"++CItm#item.id++"'\n"
-        "                 ExeCommand='stop' Execute='immediate' Impersonate='no' />\n\n"),
+        "                 ExeCommand='stop' Execute='deferred' Impersonate='no' />\n\n"),
 
     % Sequence of custom action is important to ensure
     %  service is installed before started and stopped
@@ -401,7 +401,7 @@ create_wxs(Verbose, Root) ->
     %  Ref http://wix.tramontana.co.hu/tutorial/com-expression-syntax-miscellanea/expression-syntax
     ok = file:write(FileH,
         "   <InstallExecuteSequence>\n"
-        "      <Custom Action='StopService' Before='InstallValidate'>"
+        "      <Custom Action='StopService' After='InstallInitialize'>"
                 "$"++Comp#item.id++"=2</Custom>\n"
         "      <Custom Action='UnInstallService' After='StopService'>"
                 "$"++Comp#item.id++"=2</Custom>\n"
