@@ -252,7 +252,7 @@
     function processRowsInGroups(clpRows) {
         var newClpRows = [];
         clpdRange = [];
-        if (clpRows.length > 100) {
+        /*if (clpRows.length > 100) {
             newClpRows = clpRows.splice(0, 100);
 //console.log(getTime() + " Row processing");
             setTimeout(function() {
@@ -261,7 +261,8 @@
         } else {
 //console.log(getTime() + " Last Row processing");
             newClpRows = clpRows;
-        }
+        }*/
+        newClpRows = clpRows;
         for (var i = 0; i < newClpRows.length; i++)
             clpdRange[i] = newClpRows[i].split("\t");
         _processTabularData(clpdRange);
