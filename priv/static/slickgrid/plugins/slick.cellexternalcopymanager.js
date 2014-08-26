@@ -236,36 +236,35 @@
         var clippedRange = [[clipText]];
         
         if(!isImage) {
+            console.log(getTime() + " Rows split "+clipText.length+" bytes");
             clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
             var last = clipRows.pop();
             if(last)
                 clipRows.push(last);
-//console.log(getTime() + " Row Split complete");
+            console.log(getTime() + " Rows " + clipRows.length);
+            var clpdRange = [];
             setTimeout(function() {
-                processRowsInGroups(clipRows);
+                processRowsInGroups(clipRows, clpdRange);
             }, 1);
         } else {
             _processTabularData(clippedRange);
         }
     }
 
-    function processRowsInGroups(clpRows) {
-        var newClpRows = [];
-        clpdRange = [];
-        /*if (clpRows.length > 100) {
-            newClpRows = clpRows.splice(0, 100);
-//console.log(getTime() + " Row processing");
+    function processRowsInGroups(clpRows, clpdRange) {
+        if (clpRows.length > 0) {
             setTimeout(function() {
-                processRowsInGroups(clpRows);
-            }, 1);
+                var newClpRows = clpRows.splice(0, Math.min(200, clpRows.length));
+                var startClipIdx = clpdRange.length;
+                for (var i = 0; i < newClpRows.length; i++)
+                    clpdRange[startClipIdx + i] = newClpRows[i].split("\t");
+                console.log(getTime() + " Cell split processed " + clpdRange.length +
+                                        " remaining "+clpRows.length);
+                processRowsInGroups(clpRows, clpdRange);
+            }, 5);
         } else {
-//console.log(getTime() + " Last Row processing");
-            newClpRows = clpRows;
-        }*/
-        newClpRows = clpRows;
-        for (var i = 0; i < newClpRows.length; i++)
-            clpdRange[i] = newClpRows[i].split("\t");
-        _processTabularData(clpdRange);
+            _processTabularData(clpdRange);
+        }
     }
 
     function _processTabularData(clippedRange) {
