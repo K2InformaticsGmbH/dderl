@@ -49,7 +49,7 @@
     _editedText     : null,
     _editorEscaped  : false,
     _loop           : "",
-    _spinCounter    : null,
+    _spinCounter    : 0,
     _imagePreview   : null,
 
     // flag to avoid multiple calls to reorder
@@ -186,7 +186,6 @@
 
         self._origcolumns = {};
         self._gdata = [];
-        self._spinCounter = 0;
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -1075,10 +1074,7 @@
     },
 
     _ajax: function(url, data, resp, callback) {
-        this._spinCounter += 1;
-        if(this._dlg.hasClass('ui-dialog-content')) {
-            this._setTitleHtml($(this._dlg.dialog('option', 'title')).addClass('table-title-wait'));
-        }
+        this.addWheel();
         ajaxCall(this, url, data, resp, callback);
     },
     
@@ -1456,6 +1452,9 @@
           self._grid.render();
         });
         self._gdata = self._gridDataView.getItems();
+
+        // to be accessed from external class context
+        self._grid["gridowner"] = self;
     },
 
     _setupEventHandlers: function() {
@@ -2872,10 +2871,30 @@
         self._dlg.dialog('open');
     },
 
+    endPaste : function() { this.removeWheel(); },
     removeWheel : function()
     {
-        if(this._spinCounter <= 0) {
-            this._setTitleHtml($(this._dlg.dialog('option', 'title')).removeClass('table-title-wait'));
+        this._spinCounter--;
+        var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
+        if(this._spinCounter <= 0
+                && this._dlg.hasClass('ui-dialog-content')
+                && $dlgTitleObj.hasClass('table-title-wait')) {
+            this._setTitleHtml($dlgTitleObj.removeClass('table-title-wait'));
+            this._spinCounter = 0;
+        }
+    },
+
+    startPaste : function() { this.addWheel(); },
+    addWheel : function()
+    {
+        if(this._spinCounter < 0)
+            this._spinCounter = 0;
+        this._spinCounter++;
+        var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
+        if(this._spinCounter > 0
+                && this._dlg.hasClass('ui-dialog-content')
+                && !($dlgTitleObj.hasClass('table-title-wait'))) {
+            this._setTitleHtml($dlgTitleObj.addClass('table-title-wait'));
         }
     },
 

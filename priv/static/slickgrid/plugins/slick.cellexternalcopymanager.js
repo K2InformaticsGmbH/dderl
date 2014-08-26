@@ -178,6 +178,9 @@
                         };
                         reader.readAsDataURL(item.getAsFile());
                     } else if(item != null && item.type === 'text/plain') {
+                        if(_grid.hasOwnProperty("gridowner")
+                                && typeof _grid.gridowner.startPaste === 'function')
+                            _grid.gridowner.startPaste();
 //console.log(getTime() + " Reading clipboard");
                         item.getAsString(function(string) {
                             setTimeout(function() {
@@ -188,6 +191,9 @@
                     }
                 } else {
                     if (clipboardData.types.length) {
+                        if(_grid.hasOwnProperty("gridowner")
+                                && typeof _grid.gridowner.startPaste === 'function')
+                            _grid.gridowner.startPaste();
 //console.log(getTime() + " Reading clipboard");
                         text = clipboardData.getData('Text');
                         if (text != null && text.length) {
@@ -203,6 +209,9 @@
                 }
             }
             if (clipboardData = window.clipboardData) {
+                if(_grid.hasOwnProperty("gridowner")
+                        && typeof _grid.gridowner.startPaste === 'function')
+                    _grid.gridowner.startPaste();
 //console.log(getTime() + " Reading clipboard");
                 text = clipboardData.getData('Text');
                 setTimeout(function() {
@@ -247,7 +256,7 @@
                 processRowsInGroups(clipRows, clpdRange);
             }, 1);
         } else {
-            _processTabularData(clippedRange);
+            _processTabularData(clippedRange);            
         }
     }
 
@@ -365,13 +374,16 @@
                 _grid.getSelectionModel().setSelectedRanges([bRange]);
                 _grid.focus();
                 self.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
+                if(_grid.hasOwnProperty("gridowner")
+                    && typeof _grid.gridowner.endPaste === 'function')
+                    _grid.gridowner.endPaste();
             });
         },
 
         processRows : function(destW, activeRow, activeCell, limit, y, cb) {
             //We need to process max 50 rows to not block the gui.
             var self = this;
-            var batchLimit = y + Math.min(limit - y, 10);
+            var batchLimit = y + Math.min(limit - y, 50);
             for(; y < batchLimit; ++y) {
                 this.oldValues[y] = [];
                 this.w=0;
