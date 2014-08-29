@@ -95,9 +95,9 @@ function logout() {
     var headers = new Object();
 
     if (dderlState.adapter != null) {
-        headers['adapter'] = dderlState.adapter;
+        headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
+    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',

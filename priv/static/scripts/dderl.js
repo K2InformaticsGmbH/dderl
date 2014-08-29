@@ -72,11 +72,11 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     console.log('[AJAX] TX '+_url);
 
     var headers = new Object();
-    if (dderlState.adapter != null) headers['adapter'] = dderlState.adapter;
-    headers['dderl_sess'] = (dderlState.session != null ? '' + dderlState.session : '');
+    if (dderlState.adapter != null) headers['DDERL-Adapter'] = dderlState.adapter;
+    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
     if (null != self) {
-        if(self.hasOwnProperty('_session')) headers['dderl_sess'] = self._session;
-        if(self.hasOwnProperty('_adapter')) headers['adapter'] = self._adapter;
+        if(self.hasOwnProperty('_session')) headers['DDERL-Session'] = self._session;
+        if(self.hasOwnProperty('_adapter')) headers['DDERL-Adapter'] = self._adapter;
     }
 
     $.ajax({
@@ -99,8 +99,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
             // Save the session if the request was to log in.
             if(_url == '/app/login') {
-                var s = request.getResponseHeader('dderl_sess');
-                console.log("The session response header dderl_sess");
+                var s = request.getResponseHeader('dderl-session');
+                console.log("The session response header dderl-session" + s);
                 console.log(s);
                 dderlState.session = s;
             }
@@ -474,7 +474,7 @@ function uploadFile(file) {
     xhr.addEventListener("abort", function(e) {console.log("upload cancled!");}, false);
 
     xhr.open("POST", "/app/upload");
-    xhr.setRequestHeader('dderl_sess', (dderlState.session != null ? '' + dderlState.session : ''));
+    xhr.setRequestHeader('dderl-session', (dderlState.session != null ? '' + dderlState.session : ''));
     xhr.send(fd);
 }
 

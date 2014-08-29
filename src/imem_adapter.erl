@@ -129,7 +129,15 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
                         system -> Owner = <<"system">>;
                         Owner -> Owner
                     end,
-                    From ! {reply, jsx:encode([{<<"connect">>, [{<<"conn_id">>, NewConn#ddConn.id}, {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                    From ! {reply
+                            , jsx:encode(
+                                [{<<"connect">>
+                                  , [{<<"conn_id">>, NewConn#ddConn.id}
+                                     , {<<"owner">>, Owner}
+                                     , {<<"conn">>
+                                        , ?EncryptPid(term_to_binary(
+                                                        Connection))}
+                                    ]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
@@ -184,14 +192,25 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
                         system -> Owner = <<"system">>;
                         Owner -> Owner
                     end,
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"conn_id">>, NewConn#ddConn.id},  {<<"owner">>, Owner}, {<<"conn">>, list_to_binary(?EncryptPid(Connection))}]}])}
+                    From ! {reply
+                            , jsx:encode(
+                                [{<<"connect_change_pswd">>
+                                  , [{<<"conn_id">>, NewConn#ddConn.id}
+                                     , {<<"owner">>, Owner}
+                                     , {<<"conn">>
+                                        , ?EncryptPid(
+                                             term_to_binary(Connection))}
+                                    ]}])}
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
 
 process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"change_pswd">>, BodyJson}] = ReqBody,
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
@@ -216,7 +235,10 @@ process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{con
 
 process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     case lists:member(Connection, Connections) of
         true ->
             Connection:close(),
@@ -229,7 +251,10 @@ process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connectio
     end;
 process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"remote_apps">>, BodyJson}] = ReqBody,
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     case lists:member(Connection, Connections) of
         true ->
             Apps = Connection:run_cmd(which_applications, []),
@@ -244,7 +269,10 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     ?Debug("query ~p", [Query]),
     case lists:member(Connection, Connections) of
@@ -262,7 +290,10 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
 process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     Row = proplists:get_value(<<"row">>, BodyJson, 0),
     Col = proplists:get_value(<<"col">>, BodyJson, 0),
@@ -392,7 +423,11 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
                                             ++ Resp
                                            }]);
                 _ ->
-                    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+                    Connection = binary_to_term(
+                                   ?DecryptPid(
+                                      proplists:get_value(<<"connection">>
+                                                          , BodyJson, <<>>)
+                                     )),
                     case lists:member(Connection, Connections) of
                         true ->
                             Resp = process_query(C#ddCmd.command, Connection, {ConnId, imem}, SessPid),
@@ -523,7 +558,10 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, [])) of
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
@@ -695,7 +733,7 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             [{<<"columns">>, Columns},
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
-             {<<"connection">>, list_to_binary(?EncryptPid(Connection))}];
+             {<<"connection">>, ?EncryptPid(term_to_binary(Connection))}];
         {error, {{Ex, M}, _Stacktrace} = Error} ->
             ?Error([{session, Connection}], "query error ~p", [Error]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
@@ -737,7 +775,10 @@ send_result_table_cmd(From, BinCmd, Results) ->
 
 -spec process_table_cmd(atom(), binary(), term(), [{atom(), pid()}]) -> term().
 process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
-    Connection = ?DecryptPid(binary_to_list(proplists:get_value(<<"connection">>, BodyJson, <<>>))),
+    Connection = binary_to_term(
+                   ?DecryptPid(
+                      proplists:get_value(<<"connection">>, BodyJson, <<>>)
+                     )),
     case lists:member(Connection, Connections) of
         true ->
             case Connection:run_cmd(Cmd, [TableName]) of

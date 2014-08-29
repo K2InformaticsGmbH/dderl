@@ -68,11 +68,11 @@ get_html() ->
 	{ok, Binary} = file:read_file(Filename),
 	Binary.
 
--spec encrypt_id(term()) -> list().
-encrypt_id(Term) -> base64:encode_to_string(term_to_binary(Term)).
+-spec encrypt_id(binary()) -> base64:ascii_binary().
+encrypt_id(Bin) when is_binary(Bin) -> base64:encode(Bin).
 
--spec decrypt_id(list()) -> term().
-decrypt_id(IdStr) when is_list(IdStr) -> binary_to_term(base64:decode(IdStr)).
+-spec decrypt_id(base64:ascii_binary()|base64:ascii_string()) -> binary().
+decrypt_id(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) -> base64:decode(BinOrStr).
 
 %%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
 %%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).

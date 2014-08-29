@@ -20,43 +20,61 @@
         , format_status/2
         ]).
 
+% via exports
+-export([ register_name/2
+          , register_name/3
+          , unregister_name/1
+          , whereis_name/1
+          , send/2
+        ]).
+
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
 -record(state, {
-        adapt_priv = [] :: list()
-        , tref :: timer:tref()
-        , user = <<>> :: binary()
-        , user_id :: ddEntityId()
-        , sess :: {atom, pid()}
-        }).
+          id            = <<>>          :: binary()
+          , adapt_priv  = []            :: list()
+          , tref                        :: timer:tref()
+          , user        = <<>>          :: binary()
+          , user_id                     :: ddEntityId()
+          , sess                        :: {atom, pid()}
+         }).
 
 -spec start() -> {dderl_session, pid()}.
 start() ->
-    {ok, Pid} = gen_server:start(?MODULE, [], []),
-    {?MODULE, Pid}.
+    Ref = erlang:make_ref(),
+    Bytes = crypto:rand_bytes(64),
+    {ok, _Pid} = gen_server:start({via, ?MODULE, Ref}
+                                  , ?MODULE, [Bytes], []),
+    {?MODULE, Ref, Bytes}.
 
 -spec get_state({atom(), pid()}) -> #state{}.
-get_state({?MODULE, Pid}) ->
-    gen_server:call(Pid, get_state, infinity).
+get_state({?MODULE, Ref, Bytes}) ->
+    gen_server:call({via, ?MODULE, Ref}, {get_state, Bytes}, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()}) -> term().
 process_request(undefined, Type, Body, ReplyPid, Ref) ->
     process_request(gen_adapter, Type, Body, ReplyPid, Ref);
-process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Pid}) ->
+process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Ref, Bytes}) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    gen_server:cast(Pid, {process, Adapter, Type, Body, ReplyPid}).
+    true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
+    gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid}).
 
-init(_Args) ->
+init([Bytes]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     ?Debug("~p started!", [{?MODULE, Self}]),
-    {ok, #state{tref=TRef}}.
+    {ok, #state{tref=TRef, id=Bytes}}.
 
-handle_call(get_state, _From, State) ->
+handle_call({verify, InBytes}, _From, State) ->
+    {reply, InBytes =:= State#state.id, State};
+handle_call({get_state, Bytes}, _From, #state{id = Bytes} = State) ->
     ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
+handle_call({get_state, _}, _From, State) ->
+    ?Debug("get_state, unauthorized access attempt result: ~p~n", [State]),
+    {reply, unauthorized, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error([{user, _User}], "unknown call ~p", [Unknown]),
     {reply, {no_supported, Unknown} , State}.
@@ -368,3 +386,11 @@ adapter_name(gen_adapter) -> gen;
 adapter_name(AdaptMod) ->
     [BinAdapter|_] = binary:split(atom_to_binary(AdaptMod, utf8), <<"_">>),
     binary_to_existing_atom(BinAdapter, utf8).
+
+
+% VIA API
+register_name(Name, Pid) -> global:register_name(Name, Pid).
+register_name(Name, Pid, Resolve) -> global:register_name(Name, Pid, Resolve).
+unregister_name(Name) -> global:unregister_name(Name).
+whereis_name(Name) -> global:whereis_name(Name).
+send(Name, Msg) -> global:send(Name, Msg).

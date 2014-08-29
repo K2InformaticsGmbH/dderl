@@ -459,9 +459,9 @@
             .on('load',function() {
                 var iframe = $(this);
                 var form = $('<form method="post" action="/app/download_query">')
-                    .append($('<input type="hidden" name="dderl_sess">').val(dderl_sess))
+                    .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
                     .append($('<input type="hidden" name="connection">').val(connection))
-                    .append($('<input type="hidden" name="adapter">').val(adapter))
+                    .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                     .append($('<input type="hidden" name="fileToDownload">').val(filename))
                     .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
                 $(this).contents().find('body').append(form);

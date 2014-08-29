@@ -18,8 +18,8 @@ init({ssl, http}, Req, []) ->
     {_Method, Req0} = cowboy_req:method(Req),
     case cowboy_req:has_body(Req0) of
     true ->
-        {Session, Req1} = cowboy_req:header(<<"dderl_sess">>,Req0),
-        {Adapter, Req2} = cowboy_req:header(<<"adapter">>,Req1),
+        {Session, Req1} = cowboy_req:header(<<"dderl-session">>,Req0),
+        {Adapter, Req2} = cowboy_req:header(<<"dderl-adapter">>,Req1),
         {Typ, Req3} = cowboy_req:path_info(Req2),
         %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
         process_request(Session, Adapter, Req3, Typ);
@@ -53,8 +53,8 @@ process_request(_, _, Req, [<<"upload">>]) ->
     {loop, Req1, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
-    Session = proplists:get_value(<<"dderl_sess">>, ReqDataList, <<>>),
-    Adapter = proplists:get_value(<<"adapter">>, ReqDataList, <<>>),
+    Session = proplists:get_value(<<"dderl-session">>, ReqDataList, <<>>),
+    Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
@@ -70,22 +70,23 @@ process_request(Session, Adapter, Req, Typ) ->
 
 process_request_low(Session, Adapter, Req, Body, Typ) ->
     case create_new_session(Session) of
-        {ok, {_,DDerlSessPid} = DderlSess} ->
+        {ok, DderlSess} ->
             AdaptMod = if
                 is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
                 true -> undefined
             end,
             DderlSess:process_request(AdaptMod, Typ, Body, self()),
-            {loop, Req, DDerlSessPid, 3600000, hibernate};
+            {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
             {{Ip, Port}, Req0} = cowboy_req:peer(Req),
-            ?Info("session ~p doesn't exist (~p), from ~s:~p", [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+            ?Info("session ~p doesn't exist (~p), from ~s:~p"
+                  , [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
             self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
             {loop, Req0, Session, 5000, hibernate}
     end.
 
 info({reply, Body}, Req, DDerlSessPid) ->
-    ?NoDbLog(debug, [], "reply ~n~s", [jsx:prettify(Body)]),
+    ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
@@ -111,17 +112,27 @@ create_new_session(<<>>) ->
     {ok, DderlSess};
 create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
     try
-        {_, Pid} = _DDerlSess = ?DecryptPid(DDerlSessStr),
-        %?Debug("existing session ~p", [DDerlSess]),
-        case erlang:process_info(Pid) of
-            undefined -> {error, <<"process not found">>};
-            _ -> {ok, {dderl_session, Pid}}
+        DDerlSessBin = ?DecryptPid(DDerlSessStr),
+        RefSize = byte_size(DDerlSessBin) - 64,
+        << First:32/binary
+           , RefBin:RefSize/binary
+           , Last:32/binary >> = DDerlSessBin,        
+        Ref = binary_to_term(RefBin),
+        Bytes = << First/binary, Last/binary >>,
+        DDerlSession = {dderl_session, Ref, Bytes},
+        %?Debug("existing session ~p", [_DDerlSess]),
+        case catch DDerlSession:get_state() of
+            {'EXIT', _ } -> {error, <<"process not found">>};
+            unauthorized -> {error, <<"process not found">>};
+            _ -> {ok, DDerlSession}
         end
     catch
         Error:Reason ->  {error, {Error, Reason}}
     end;
-create_new_session(S) when is_binary(S) -> create_new_session(binary_to_list(S));
-create_new_session(_) -> create_new_session(<<>>).
+create_new_session(S) when is_binary(S) ->
+    create_new_session(binary_to_list(S));
+create_new_session(_) ->
+    create_new_session(<<>>).
 
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
@@ -129,13 +140,18 @@ create_new_session(_) -> create_new_session(<<>>).
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Body, DDerlSessPid, Req) when is_pid(DDerlSessPid) ->
-    reply_200_json(Body, list_to_binary(?EncryptPid({dderl_session, DDerlSessPid})), Req);
-reply_200_json(Body, EncryptedPid, Req) ->
+reply_200_json(Body, {dderl_session, Ref
+                      , << First:32/binary, Last:32/binary >>}, Req)
+  when is_reference(Ref), is_binary(First), is_binary(Last) ->
+    reply_200_json(Body
+                   , ?EncryptPid(list_to_binary(
+                                   [First, term_to_binary(Ref), Last]
+                                  )), Req);
+reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
 	cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
-        , {<<"dderl_sess">>, EncryptedPid}
+        , {<<"dderl-session">>, EncryptedPid}
         ], Body, Req).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
@@ -144,7 +160,8 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             {ok, Req1} = cowboy_req:chunked_reply(200, [
                   {<<"content-encoding">>, <<"utf-8">>}
                 , {<<"content-type">>, <<"text/csv">>}
-                , {<<"Content-disposition">>, list_to_binary(["attachment;filename=", FileName])}
+                , {<<"Content-disposition">>
+                   , list_to_binary(["attachment;filename=", FileName])}
                 ], Req),
             ok = cowboy_req:chunk(Chunk, Req1),
             {ok, Req1};
@@ -152,7 +169,8 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             {ok, Req1} = cowboy_req:chunked_reply(200, [
                   {<<"content-encoding">>, <<"utf-8">>}
                 , {<<"content-type">>, <<"text/csv">>}
-                , {<<"Content-disposition">>, list_to_binary(["attachment;filename=", FileName])}
+                , {<<"Content-disposition">>
+                   , list_to_binary(["attachment;filename=", FileName])}
                 ], Req),
             ok = cowboy_req:chunk(Chunk, Req1),
             {ok, Req1};
@@ -181,7 +199,7 @@ display_req(Req) ->
     ?Info("url        ~p~n", [element(1,cowboy_req:url(Req))]),
     %?Info("binding    ~p~n", [element(1,cowboy_req:binding(Req))]),
     ?Info("bindings   ~p~n", [element(1,cowboy_req:bindings(Req))]),
-    ?Info("hdr(ddls)  ~p~n", [element(1,cowboy_req:header(<<"dderl_sess">>,Req))]),
+    ?Info("hdr(ddls)  ~p~n", [element(1,cowboy_req:header(<<"dderl-session">>,Req))]),
     ?Info("hdr(host)  ~p~n", [element(1,cowboy_req:header(<<"host">>,Req))]),
     %?Info("headers    ~p~n", [element(1,cowboy_req:headers(Req))]),
     %?Info("cookie     ~p~n", [element(1,cowboy_req:cookie(Req))]),
