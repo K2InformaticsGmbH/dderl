@@ -15,6 +15,8 @@
         , build_column_json/1
         , build_column_csv/1
         , extract_modified_rows/1
+        , decrypt_to_term/1
+        , encrypt_to_binary/1 
         ]).
 
 init() -> ok.
@@ -536,3 +538,12 @@ get_sql_title(_) -> <<>>.
 %% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
 ptlist_to_string([{ParseTree,_}]) -> sqlparse:pt_to_string(ParseTree);
 ptlist_to_string([{FirstPT,_} | _]) -> {mulitple, sqlparse:pt_to_string(FirstPT), FirstPT}.
+
+
+-spec decrypt_to_term(binary()) -> any().
+decrypt_to_term(Bin) when is_binary(Bin) ->
+    binary_to_term(?Decrypt(Bin)).
+
+-spec encrypt_to_binary(term()) -> binary().
+encrypt_to_binary(Term) ->
+    ?Encrypt(term_to_binary(Term)).

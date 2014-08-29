@@ -69,7 +69,7 @@ process_request(Session, Adapter, Req, Typ) ->
     process_request_low(Session, Adapter, Req1, Body, Typ).
 
 process_request_low(Session, Adapter, Req, Body, Typ) ->
-    case create_new_session(Session) of
+    case dderl_session:get_session(Session) of
         {ok, DderlSess} ->
             AdaptMod = if
                 is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
@@ -104,49 +104,19 @@ info(Message, Req, State) ->
 terminate(_Reason, _Req, _State) ->
 	ok.
 
-%% Helper functions
--spec create_new_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
-create_new_session(<<>>) ->
-    DderlSess = dderl_session:start(),
-    ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
-    {ok, DderlSess};
-create_new_session(DDerlSessStr) when is_list(DDerlSessStr) ->
-    try
-        DDerlSessBin = ?DecryptPid(DDerlSessStr),
-        RefSize = byte_size(DDerlSessBin) - 64,
-        << First:32/binary
-           , RefBin:RefSize/binary
-           , Last:32/binary >> = DDerlSessBin,        
-        Ref = binary_to_term(RefBin),
-        Bytes = << First/binary, Last/binary >>,
-        DDerlSession = {dderl_session, Ref, Bytes},
-        %?Debug("existing session ~p", [_DDerlSess]),
-        case catch DDerlSession:get_state() of
-            {'EXIT', _ } -> {error, <<"process not found">>};
-            unauthorized -> {error, <<"process not found">>};
-            _ -> {ok, DDerlSession}
-        end
-    catch
-        Error:Reason ->  {error, {Error, Reason}}
-    end;
-create_new_session(S) when is_binary(S) ->
-    create_new_session(binary_to_list(S));
-create_new_session(_) ->
-    create_new_session(<<>>).
-
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
 % cowboy_req:reply(200, [{<<"content-encoding">>, <<"utf-8">>}], Echo, Req),
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Body, {dderl_session, Ref
+reply_200_json(Body, {_, Ref
                       , << First:32/binary, Last:32/binary >>}, Req)
   when is_reference(Ref), is_binary(First), is_binary(Last) ->
     reply_200_json(Body
-                   , ?EncryptPid(list_to_binary(
-                                   [First, term_to_binary(Ref), Last]
-                                  )), Req);
+                   , ?Encrypt(list_to_binary(
+                                [First, term_to_binary(Ref), Last]
+                               )), Req);
 reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
 	cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}

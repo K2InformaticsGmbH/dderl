@@ -8,8 +8,8 @@
         , init/3
         , handle/2
         , terminate/3
-        , encrypt_id/1
-        , decrypt_id/1
+        , encrypt/1
+        , decrypt/1
         ]).
 
 %% API.
@@ -68,11 +68,27 @@ get_html() ->
 	{ok, Binary} = file:read_file(Filename),
 	Binary.
 
--spec encrypt_id(binary()) -> base64:ascii_binary().
-encrypt_id(Bin) when is_binary(Bin) -> base64:encode(Bin).
+-spec encrypt(binary()) -> base64:ascii_binary().
+encrypt(Bin) when is_binary(Bin) ->
+    << Key:16/binary
+      , IV:16/binary
+      , _/binary>> = integer_to_binary(
+                       lists:nth(
+                         1, proplists:get_value(
+                              vsn, module_info(attributes)
+                             ))),
+    base64:encode(crypto:aes_cfb_128_encrypt(Key, IV, Bin)).
 
--spec decrypt_id(base64:ascii_binary()|base64:ascii_string()) -> binary().
-decrypt_id(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) -> base64:decode(BinOrStr).
+-spec decrypt(base64:ascii_binary()|base64:ascii_string()) -> binary().
+decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
+    << Key:16/binary
+      , IV:16/binary
+      , _/binary>> = integer_to_binary(
+                       lists:nth(
+                         1, proplists:get_value(
+                              vsn, module_info(attributes)
+                             ))),
+    crypto:aes_cfb_128_decrypt(Key,IV,base64:decode(BinOrStr)).
 
 %%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
 %%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).

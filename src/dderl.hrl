@@ -89,8 +89,8 @@
 -define(Error(__F),         ?Error(__F,[])).
 
 % Function shortcuts
--define(EncryptPid(__T), dderl:encrypt_id(__T)).
--define(DecryptPid(__S), dderl:decrypt_id(__S)).
+-define(Encrypt(__T), dderl:encrypt(__T)).
+-define(Decrypt(__S), dderl:decrypt(__S)).
 
 % CSV Export
 -define(CSV_FIELD_SEP, ";").

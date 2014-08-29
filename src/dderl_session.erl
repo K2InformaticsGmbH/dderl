@@ -5,7 +5,7 @@
 
 -include("dderl.hrl").
 
--export([start/0
+-export([get_session/1
         , process_request/5
         , get_state/1
         , get_apps_version/2
@@ -39,6 +39,37 @@
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
          }).
+
+%% Helper functions
+-spec get_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
+get_session(<<>>) ->
+    DderlSess = start(),
+    ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
+    {ok, DderlSess};
+get_session(DDerlSessStr) when is_list(DDerlSessStr) ->
+    try
+        DDerlSessBin = ?Decrypt(DDerlSessStr),
+        RefSize = byte_size(DDerlSessBin) - 64,
+        << First:32/binary
+           , RefBin:RefSize/binary
+           , Last:32/binary >> = DDerlSessBin,        
+        Ref = binary_to_term(RefBin),
+        Bytes = << First/binary, Last/binary >>,
+        DDerlSession = {?MODULE, Ref, Bytes},
+        case is_process_alive(whereis_name(Ref)) of
+            true -> {ok, DDerlSession};
+            _ -> {error, <<"process not found">>}
+        end
+    catch
+        Error:Reason ->
+            ?Error("Eror ~p~nDDerlSessionString = ~p~n~p"
+                   , [Reason, DDerlSessStr, erlang:get_stacktrace()]),
+            {error, {Error, Reason}}
+    end;
+get_session(S) when is_binary(S) ->
+    get_session(binary_to_list(S));
+get_session(_) ->
+    get_session(<<>>).
 
 -spec start() -> {dderl_session, pid()}.
 start() ->
@@ -253,7 +284,10 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
         UnsortedConns ->
-            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) -> Name > Name2 end, UnsortedConns),
+            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) ->
+                                             Name > Name2
+                                     end
+                                     , UnsortedConns),
             ?Debug([{user, User}], "conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
                 lists:foldl(fun(C, Acc) ->
@@ -389,8 +423,12 @@ adapter_name(AdaptMod) ->
 
 
 % VIA API
-register_name(Name, Pid) -> global:register_name(Name, Pid).
-register_name(Name, Pid, Resolve) -> global:register_name(Name, Pid, Resolve).
+register_name(Name, Pid) ->
+    ?Info("Registering ~p with ~p", [Name, Pid]),
+    global:register_name(Name, Pid).
+register_name(Name, Pid, Resolve) ->
+    ?Info("Registering ~p with ~p", [Name, Pid]),
+    global:register_name(Name, Pid, Resolve).
 unregister_name(Name) -> global:unregister_name(Name).
 whereis_name(Name) -> global:whereis_name(Name).
 send(Name, Msg) -> global:send(Name, Msg).
