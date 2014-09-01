@@ -31,7 +31,7 @@ check_file(F) ->
 start(_Type, _Args) ->
     PrivDir = get_priv_dir(),
     {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
-io:format(user, "MasterPaths ~p~n", [MasterUrlRoutePaths]),
+    ?Info("MasterPaths ~p", [MasterUrlRoutePaths]),
     Dispatch = cowboy_router:compile([
 		{'_',
             % sbs routes
@@ -67,6 +67,30 @@ io:format(user, "MasterPaths ~p~n", [MasterUrlRoutePaths]),
 		{certfile, CertFile},
 		{keyfile, KeyFile}
     ], [{env, [{dispatch, Dispatch}]}]),
+
+    {ok, PrivateFile}   = application:get_env(dderl, crypt_private),
+    {ok, PublicFile}    = application:get_env(dderl, crypt_public),
+    {ok, RsaPassword}   = application:get_env(dderl, crypt_password),    
+    MaybePrivateFile = filename:join(PrivDir, PrivateFile),
+    MaybePublicFile = filename:join(PrivDir, PublicFile),
+    RsaPrivateFile = case filelib:is_file(MaybePrivateFile) of
+                         false -> PrivateFile;
+                         true -> MaybePrivateFile
+                     end,
+    RsaPublicFile = case filelib:is_file(MaybePublicFile) of
+                         false -> PublicFile;
+                         true -> MaybePublicFile
+                     end,
+    {ok, PrivateBin} = file:read_file(RsaPrivateFile),
+    {ok, PublicBin} = file:read_file(RsaPublicFile),
+    [PrivateRSAEntry] = public_key:pem_decode(PrivateBin),
+    [PublicRSAEntry] = public_key:pem_decode(PublicBin),
+    PrivateKey = public_key:pem_entry_decode(PrivateRSAEntry, RsaPassword),
+    PublicKey = public_key:pem_entry_decode(PublicRSAEntry),
+
+    ok = application:set_env(dderl, crypt_private_key, PrivateKey),
+    ok = application:set_env(dderl, crypt_public_key, PublicKey),
+
 	dderl_sup:start_link().
 
 stop(_State) ->
