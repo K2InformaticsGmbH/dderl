@@ -615,7 +615,6 @@ filling({rows, {Recs,false}}, State0) ->
     {next_state, filling, State1};
 filling({rows, {Recs,true}}, State0) ->
     % receive and store data, close the fetch and switch state, no prefetch needed here
-    ?NoDbLog(info, [], "closed...", []),
     State1 = fetch_close(State0),
     State2 = data_append(completed, {Recs,true},State1),
     {next_state, completed, State2};
