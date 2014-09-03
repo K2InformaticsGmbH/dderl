@@ -42,7 +42,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
             end
     end.
 
--spec process_cmd({[binary()], [{binary(), list()}]}, binary(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
+-spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
 process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
@@ -338,6 +338,25 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
             ?Debug("The string to format: ~p", [StringToFormat]),
             format_json_or_term(jsx:is_json(StringToFormat), StringToFormat, From, BodyJson)
     end;
+% generate sql from table data
+process_cmd({[<<"get_sql">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"get_sql">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnIds = proplists:get_value(<<"columnIds">>, BodyJson, []),
+    RowIds = proplists:get_value(<<"rowIds">>, BodyJson, []),
+    Operation = proplists:get_value(<<"op">>, BodyJson, <<>>),
+    Columns = Statement:get_columns(),
+    case Statement:get_table_name() of
+        {as, Tab, _Alias} -> TableName = Tab;
+        {{as, Tab, _Alias}, _} -> TableName = Tab;
+        {Tab, _} -> TableName = Tab;
+        Tab when is_binary(Tab) -> TableName = Tab;
+        _ -> TableName = <<>>
+    end,
+    Rows = [Statement:row_with_key(Id) || Id <- RowIds],
+    Sql = generate_sql(TableName, Operation, Rows, Columns, ColumnIds, Adapter),
+    Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}, {<<"title">>, <<"Generated Sql">>}]}]),
+    From ! {reply, Response};
 
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
@@ -539,7 +558,6 @@ get_sql_title(_) -> <<>>.
 ptlist_to_string([{ParseTree,_}]) -> sqlparse:pt_to_string(ParseTree);
 ptlist_to_string([{FirstPT,_} | _]) -> {mulitple, sqlparse:pt_to_string(FirstPT), FirstPT}.
 
-
 -spec decrypt_to_term(binary()) -> any().
 decrypt_to_term(Bin) when is_binary(Bin) ->
     binary_to_term(?Decrypt(Bin)).
@@ -547,3 +565,96 @@ decrypt_to_term(Bin) when is_binary(Bin) ->
 -spec encrypt_to_binary(term()) -> binary().
 encrypt_to_binary(Term) ->
     ?Encrypt(term_to_binary(Term)).
+
+-spec generate_sql(binary(), binary(), [tuple()], [#stmtCol{}], [integer()], atom()) -> binary().
+generate_sql(TableName, <<"upd">>, Rows, Columns, ColumnIds, Adapter) ->
+    iolist_to_binary(generate_upd_sql(TableName, Rows, Columns, ColumnIds, Adapter));
+generate_sql(TableName, <<"ins">>, Rows, Columns, ColumnIds, Adapter) ->
+    InsCols = generate_ins_cols(Columns, ColumnIds),
+    iolist_to_binary(generate_ins_sql(TableName, Rows, InsCols, Columns, ColumnIds, Adapter)).
+
+-spec generate_ins_sql(binary(), [tuple()], iolist(), [#stmtCol{}], [integer()], atom()) -> iolist().
+generate_ins_sql(_, [], _, _, _, _) -> [];
+generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds, Adapter) ->
+    [<<"insert into ">>, TableName, <<" (">>,
+     InsCols,
+     <<") values (">>,
+     generate_ins_values(Row, Columns, ColumnIds, Adapter),
+     <<");\n">>,
+     generate_ins_sql(TableName, Rest, InsCols, Columns, ColumnIds, Adapter)].
+
+-spec generate_ins_cols([#stmtCol{}], [integer()]) -> iolist().
+generate_ins_cols(_, []) -> [];
+generate_ins_cols(Columns, [ColId]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName];
+generate_ins_cols(Columns, [ColId | Rest]) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    [ColName, ",", generate_ins_cols(Columns, Rest)].
+
+-spec generate_ins_values(tuple(), [#stmtCol{}], [integer()], atom()) -> iolist().
+generate_ins_values(_, _, [], _) -> [];
+generate_ins_values(Row, Columns, [ColId], Adapter) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value, Adapter)];
+generate_ins_values(Row, Columns, [ColId | Rest], Adapter) ->
+    Col = lists:nth(ColId, Columns),
+    Value = element(3 + ColId, Row),
+    [add_function_type(Col#stmtCol.type, Value, Adapter)
+    ,", ", generate_ins_values(Row, Columns, Rest, Adapter)].
+
+-spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()], atom()) -> iolist().
+generate_upd_sql(_, [], _, _, _) -> [];
+generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds, Adapter) ->
+    [<<"update ">>, TableName, <<" set ">>,
+     generate_set_value(Row, Columns, ColumnIds, Adapter),
+     <<" where ">>,
+     generate_set_value(Row, Columns, [1], Adapter),
+     <<";\n">>,
+     generate_upd_sql(TableName, Rest, Columns, ColumnIds, Adapter)].
+
+-spec generate_set_value(tuple(), [#stmtCol{}], [integer()], atom()) -> iolist().
+generate_set_value(_, _, [], _) -> [];
+generate_set_value(Row, Columns, [ColId], Adapter) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value, Adapter)];
+generate_set_value(Row, Columns, [ColId | Rest], Adapter) ->
+    Col = lists:nth(ColId, Columns),
+    ColName = Col#stmtCol.alias,
+    Value = element(3 + ColId, Row),
+    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value, Adapter)
+    , ", ", generate_set_value(Row, Columns, Rest, Adapter)].
+
+-spec add_function_type(atom(), binary(), atom()) -> binary().
+add_function_type(_, <<>>, _) -> <<"NULL">>;
+add_function_type('SQLT_NUM', Value, oci) -> Value;
+add_function_type('SQLT_DAT', Value, oci) ->
+    ImemDatetime = imem_datatype:io_to_datetime(Value),
+    NewValue = imem_datatype:datetime_to_io(ImemDatetime),
+    iolist_to_binary([<<"to_date('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS')">>]);
+add_function_type(integer, Value, imem) -> Value;
+add_function_type(float, Value, imem) -> Value;
+add_function_type(decimal, Value, imem) -> Value;
+add_function_type(binary, Value, imem) -> Value;
+add_function_type(boolean, Value, imem) -> Value;
+add_function_type(datetime, Value, imem) ->
+    ImemDatetime = imem_datatype:io_to_datetime(Value),
+    NewValue = imem_datatype:datetime_to_io(ImemDatetime),
+    iolist_to_binary([<<"to_date('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS')">>]);
+add_function_type(timestamp, Value, imem) ->
+    ImemDatetime = imem_datatype:io_to_timestamp(Value),
+    NewValue = imem_datatype:timestamp_to_io(ImemDatetime),
+    iolist_to_binary([<<"to_timestamp('">>, NewValue, <<"','DD.MM.YYYY HH24:MI:SS.FF6')">>]);
+add_function_type(_, Value, _) ->
+    iolist_to_binary([$', escape_quotes(binary_to_list(Value)), $']).
+
+
+-spec escape_quotes(list()) -> list().
+escape_quotes([]) -> [];
+escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
+escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
