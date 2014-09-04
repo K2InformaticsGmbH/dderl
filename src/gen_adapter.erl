@@ -230,7 +230,7 @@ process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_value(<<"column_ids">>, BodyJson, []),
     {Total, Cols, HistoRows, SN} = Statement:get_histogram(ColumnId),
-    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"value">> -> text; true -> float end, readonly = true}
+    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"value">> -> binstr; true -> float end, readonly = true}
               || C <- Cols],
     HistoJson = gui_resp(#gres{ operation    = <<"rpl">>
                               , cnt          = Total
@@ -261,7 +261,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             ?Error("Stats error ~p~n~p", [Error, St]),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
                       || C <- Cols],
             ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
@@ -294,7 +294,7 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
             ?Error("Stats error ~p~n~p", [Error, St]),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> text; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
                       || C <- Cols],
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
                                       , cnt          = Total
@@ -513,11 +513,20 @@ build_column_json([C|Cols], JCols, Counter) ->
     Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
     case C#stmtCol.type of
         integer -> Type = <<"numeric">>;
-        float -> Type = <<"numeric">>;
+        float   -> Type = <<"numeric">>;
         decimal -> Type = <<"numeric">>;
-        number -> Type = <<"numeric">>;
+        number  -> Type = <<"numeric">>;
+        binstr  -> Type = <<"text">>;
+        string  -> Type = <<"text">>;
+%% Oracle types:
         'SQLT_NUM' -> Type = <<"numeric">>;
-        _ -> Type = <<"text">>
+        'SQLT_CHR' -> Type = <<"text">>;
+        'SQLT_STR' -> Type = <<"text">>;
+        'SQLT_VCS' -> Type = <<"text">>;
+        'SQLT_LVC' -> Type = <<"text">>;
+        'SQLT_CLOB'-> Type = <<"text">>;
+        'SQLT_VST' -> Type = <<"text">>;
+        _ -> Type = <<"undefined">>
     end,
     JC = [{<<"id">>, Nm1},
           {<<"type">>, Type},

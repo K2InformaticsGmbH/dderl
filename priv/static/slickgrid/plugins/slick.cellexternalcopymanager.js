@@ -590,7 +590,7 @@
                                 ++counter;
                                 numericIdList[currentId] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
                                 clipTextCells[columns[usedCols[j]].name] = currentId;
-                            } else {
+                            } else if (columns[usedCols[j]].type === "text" || gridData[i][columns[usedCols[j]].field]) {
                                 clipTextCells[columns[usedCols[j]].name] = escapeNewLines(gridData[i][columns[usedCols[j]].field]);
                             }
                             isRowEmpty = false;
@@ -605,6 +605,9 @@
         }
         var result = JSON.stringify(rowObjects, undefined, 4);
         for(currentId in numericIdList) {
+            if(!numericIdList[currentId]) {
+                numericIdList[currentId] = "null";
+            }
             result = result.replace("\"" + currentId + "\"", numericIdList[currentId])
         }
         return result;
