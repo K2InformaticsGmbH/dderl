@@ -2224,7 +2224,7 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0, UpdRef) of
                 {_,ExecErr} ->
-                    ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
+                    ExecMessage = list_to_binary(ExecErr),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
                 ChangedKeys ->
                     {GuiCnt,GuiTop,GuiBot} = case Nav of
