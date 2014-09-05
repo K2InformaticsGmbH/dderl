@@ -5,7 +5,8 @@
 
 -include("dderl.hrl").
 
--export([get_session/1
+-export([start_link/2
+        , get_session/1
         , process_request/5
         , get_state/1
         , get_apps_version/2
@@ -43,7 +44,10 @@
 %% Helper functions
 -spec get_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>) ->
-    DderlSess = start(),
+    Ref = erlang:make_ref(),
+    Bytes = crypto:rand_bytes(64),
+    {ok, _Pid} = dderl_session_sup:start_session(Ref, Bytes),
+    DderlSess = {?MODULE, Ref, Bytes},
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 get_session(DDerlSessStr) when is_list(DDerlSessStr) ->
@@ -71,13 +75,9 @@ get_session(S) when is_binary(S) ->
 get_session(_) ->
     get_session(<<>>).
 
--spec start() -> {dderl_session, pid()}.
-start() ->
-    Ref = erlang:make_ref(),
-    Bytes = crypto:rand_bytes(64),
-    {ok, _Pid} = gen_server:start({via, ?MODULE, Ref}
-                                  , ?MODULE, [Bytes], []),
-    {?MODULE, Ref, Bytes}.
+-spec start_link(reference(), binary()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Ref, Bytes) ->
+    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes], []).
 
 -spec get_state({atom(), pid()}) -> #state{}.
 get_state({?MODULE, Ref, Bytes}) ->
