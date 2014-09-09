@@ -832,7 +832,7 @@ check_funs(Error) ->
 -spec extract_table_name(binary()) -> binary().
 extract_table_name(Query) ->
     case sqlparse:parsetree(Query) of
-        {ok,{[{{select, SelectSections},_}],_}} ->
+        {ok,[{{select, SelectSections},_}]} ->
             {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
             case FirstTable of
                 {as, Tab, _Alias} -> Tab;
@@ -848,7 +848,7 @@ extract_table_name(Query) ->
 -spec get_params(binary()) -> [binary()].
 get_params(Sql) ->
     case sqlparse:parsetree(Sql) of
-        {ok,{[{ParseTree,_}],_}} ->
+        {ok,[{ParseTree,_}]} ->
             Pred = fun(P,Ctx) ->
                            case P of
                                {param, Param} -> [Param|Ctx];

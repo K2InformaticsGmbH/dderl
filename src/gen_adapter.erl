@@ -51,7 +51,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, <<"Empty sql string">>}, {<<"flat">>, <<>>}]}])};
         true ->
             case sqlparse:parsetree(Sql) of
-                {ok, {ParseTrees, _}} ->
+                {ok, ParseTrees} ->
                     case ptlist_to_string(ParseTrees) of
                         {error, Reason} ->
                             ?Error("parse_stmt error in fold ~p~n", [Reason]),

@@ -524,7 +524,7 @@ is_local_query(Qry) ->
 %            {'order by',[]}]}
 
     case sqlparse:parsetree(Qry) of
-        {ok, { [{{select, QOpts},_}|_ ], _Tokens}} ->
+        {ok, [{{select,QOpts},_}|_]} ->
             case lists:keyfind(from, 1, QOpts) of
                 {from, Tables} ->
                     lists:foldl(fun(T,_) ->

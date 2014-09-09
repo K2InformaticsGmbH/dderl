@@ -972,7 +972,7 @@ sqlb_loop(PrintParseTree, Sql) ->
         _ ->
             try
                 Log1 = io_lib:format("Orig:~n~s~n", [Sql]),
-                {ok, {[{ParseTree,_}|_],_}} = sqlparse:parsetree(Sql),
+                {ok, [{ParseTree,_}|_]} = sqlparse:parsetree(Sql),
                 Log2 = Log1 ++
                 if PrintParseTree =:= true ->
                     print_parse_tree(ParseTree);
@@ -983,11 +983,11 @@ sqlb_loop(PrintParseTree, Sql) ->
                 ?assert(is_list(validate_box(SqlBox))),
                 FlatSql = (catch flat_from_box(SqlBox)),
                 Log3 = Log2 ++ io_lib:format("Flat:~n~s~n", [FlatSql]),
-                {ok, {[{FlatSqlParseTree,_}|_],_}} = sqlparse:parsetree(FlatSql),
+                {ok, [{FlatSqlParseTree,_}|_]} = sqlparse:parsetree(FlatSql),
                 ?assertEqual(ParseTree, FlatSqlParseTree),
                 PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
                 Log4 = Log3 ++ io_lib:format("Pretty:~n~s~n", [PrettySqlExp]),
-                {ok, {[{PrettySqlParseTree,_}|_],_}} = sqlparse:parsetree(PrettySqlExp),
+                {ok, [{PrettySqlParseTree,_}|_]} = sqlparse:parsetree(PrettySqlExp),
                 ?assertEqual(ParseTree, PrettySqlParseTree),
                 CleanSql = clean(Sql),
                 CleanPrettySqlExp = clean(PrettySqlExp),
