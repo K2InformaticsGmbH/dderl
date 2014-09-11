@@ -30,20 +30,18 @@ check_file(F) ->
 
 start(_Type, _Args) ->
     PrivDir = get_priv_dir(),
+    % external routes
     {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
-    ?Info("MasterPaths ~p", [MasterUrlRoutePaths]),
-    Dispatch = cowboy_router:compile([
-		{'_',
-            % sbs routes
-            MasterUrlRoutePaths ++
-            % default routes
-            [{"/", dderl, []},
-            {"/ws", bullet_handler, [{handler, dderl_stream}]},
-            {"/app/[...]", dderl_resource, []},
-            {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
-            {"/[...]", cowboy_static, {dir, PrivDir}}
-		]}
-	]),
+    % default routes
+    NewRoutePaths = MasterUrlRoutePaths ++
+	                [{"/", dderl, []}, 
+			 {"/ws", bullet_handler, [{handler, dderl_stream}]},
+			 {"/app/[...]", dderl_resource, []},
+			 {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
+			 {"/[...]", cowboy_static, {dir, PrivDir}}],
+    ok = application:set_env(dderl, master_paths, NewRoutePaths),
+    ?Info("DDerl started with route paths ~p", [NewRoutePaths]),
+    Dispatch = cowboy_router:compile([{'_', NewRoutePaths}]),
 
     {ok, Ip}         = application:get_env(dderl, interface),
     {ok, Port}       = application:get_env(dderl, port),

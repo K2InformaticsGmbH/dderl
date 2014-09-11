@@ -138,10 +138,14 @@ update_sys_config(FileHandle, ConfigFolder
        "    AppDataFolder       : ~p"
        , [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom, ImemSchemaNameAtom
           , ImemClusterMgrsTerm, ImemHost, ImemPort, AppDataFolder]),
-    SnapDir = filename:join([AppDataFolder, "snapshot"]),
-    ErrorLog = filename:join([AppDataFolder, "log", "error.log"]),
-    ConsoleLog = filename:join([AppDataFolder, "log", "console.log"]),
-    CrashLog = filename:join([AppDataFolder, "log", "crash.log"]),
+    %%SnapDir = filename:join([AppDataFolder, "snapshot"]),
+    %%ErrorLog = filename:join([AppDataFolder, "log", "error.log"]),
+    %%ConsoleLog = filename:join([AppDataFolder, "log", "console.log"]),
+    %%CrashLog = filename:join([AppDataFolder, "log", "crash.log"]),
+    SnapDir = "./snapshot",
+    ErrorLog = "./log/error.log",
+    ConsoleLog = "./log/console.log",
+    CrashLog = "./log/crash.log",
     update_file_term(FileHandle, ConfigFolder, "sys.config",
                     [{[dderl, interface], [], DDerlHost}
                      , {[dderl, port], [], DDerlPort}
