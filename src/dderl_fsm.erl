@@ -2196,7 +2196,7 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
         ok ->
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0) of
-                {_,ExecErr} ->
+                {error, ExecErr} ->
                     ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
                 ChangedKeys ->
@@ -2223,8 +2223,10 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
         {ok, UpdRef} ->
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0, UpdRef) of
-                {_,ExecErr} ->
-                    ExecMessage = list_to_binary(ExecErr),
+                {error, Msg} when is_binary(Msg) ->
+                    {NewSN, gui_nop(#gres{state = NewSN, beep = true, message = Msg}, State0)};
+                {error, ExecErr} ->
+                    ExecMessage = list_to_binary(io_lib:format("~p",[ExecErr])),
                     {NewSN,gui_nop(#gres{state=NewSN,beep=true,message=ExecMessage},State0)};
                 ChangedKeys ->
                     {GuiCnt,GuiTop,GuiBot} = case Nav of

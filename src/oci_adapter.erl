@@ -617,10 +617,9 @@ process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt,
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, ?E2B(Connection)}];
-process_query({error, {Code, Msg}}, _Query, Connection, _SessPid) when is_list(Msg) ->
+process_query({error, {Code, Msg}}, _Query, Connection, _SessPid) when is_binary(Msg) ->
     ?Error([{session, Connection}], "query error ~p", [{Code, Msg}]),
-    Err = list_to_binary(Msg),
-    [{<<"error">>, Err}];
+    [{<<"error">>, Msg}];
 process_query(Error, _Query, Connection, _SessPid) ->
     ?Error([{session, Connection}], "query error ~p", [Error]),
     if
