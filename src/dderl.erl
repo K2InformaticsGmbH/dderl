@@ -70,27 +70,11 @@ get_html() ->
 
 -spec encrypt(binary()) -> base64:ascii_binary().
 encrypt(Bin) when is_binary(Bin) ->
-%    << Key:16/binary
-%      , IV:16/binary
-%      , _/binary>> = integer_to_binary(
-%                       lists:nth(
-%                         1, proplists:get_value(
-%                              vsn, module_info(attributes)
-%                             ))),
-%    base64:encode(crypto:aes_cfb_128_encrypt(Key, IV, Bin)).
     {ok, PrivateKey} = application:get_env(dderl, crypt_private_key),
     base64:encode(public_key:encrypt_private(Bin, PrivateKey)).
 
 -spec decrypt(base64:ascii_binary()|base64:ascii_string()) -> binary().
 decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
-%    << Key:16/binary
-%      , IV:16/binary
-%      , _/binary>> = integer_to_binary(
-%                       lists:nth(
-%                         1, proplists:get_value(
-%                              vsn, module_info(attributes)
-%                             ))),
-%    crypto:aes_cfb_128_decrypt(Key,IV,base64:decode(BinOrStr)).
     {ok, PublicKey} = application:get_env(dderl, crypt_public_key),
     public_key:decrypt_public(base64:decode(BinOrStr), PublicKey).
 

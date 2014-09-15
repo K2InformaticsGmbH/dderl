@@ -989,14 +989,6 @@ zip5([],_,_,_,_) -> [];
 zip5([L1f|L1],[L2f|L2],[L3f|L3],[L4f|L4],[L5f|L5]) ->
     [{L1f,L2f,L3f,L4f,L5f} | zip5(L1,L2,L3,L4,L5)].
 
-binary_to_number(Number) ->
-    try
-        binary_to_integer(Number)
-    catch
-        _:_ ->
-            binary_to_float(Number)
-    end.
-
 -spec bin_to_number(binary()) -> integer() | float() | {error, binary()}.
 bin_to_number(NumberBin) ->
     NumberString = binary_to_list(NumberBin),
@@ -1028,6 +1020,10 @@ format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares} | RestResult],
     Average = Sum/Count,
     StdDev = math:sqrt((Squares - Sum*Sum/Count) /(Count -1)),
     [[Idx, nop, ColName, Count, Sum, Average, StdDev]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
+
+calculate_avgs([], []) -> [];
+calculate_avgs([_Total | RestTotal], [0 | RestCount]) -> [0 | calculate_avgs(RestTotal, RestCount)];
+calculate_avgs([Total | RestTotal], [Count | RestCount]) -> [Total/Count | calculate_avgs(RestTotal, RestCount)].
 
 %% --------------------------------------------------------------------
 %% Func: handle_sync_event/4 handling sync "send_all_state_event""
@@ -1114,9 +1110,9 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                     lists:foldl(fun(Idx, SelRows) ->
                         Candidate = lists:nth(Idx, CandidateRow),
                         CandidateList = element(Idx, SelRows),
-                        case Candidate of
-                            <<>> -> SelRows;
-                            _ -> erlang:setelement(Idx,SelRows,CandidateList ++ [Candidate])
+                        case bin_to_number(Candidate) of
+                            {error, _} -> SelRows;
+                            _ -> erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate])
                         end
                     end,
                     SelectRows,
@@ -1126,10 +1122,10 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
         , list_to_tuple(lists:duplicate(length(ColNames), []))
         , TableUsed)),
     try
-        RowColumns = [[binary_to_number(I) || I <- Row] || Row <- Rows],
+        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- Rows],
         Counts  = [length(C) || C <- RowColumns],
         Totals  = [lists:sum(C) || C <- RowColumns],
-        Avgs    = [lists:sum(C) / length(C) || C <- RowColumns],
+        Avgs    = calculate_avgs(Totals, Counts),
         StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
                 Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
                 if

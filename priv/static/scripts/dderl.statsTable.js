@@ -439,6 +439,7 @@
 
             self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
             self._grid.onClick.subscribe($.proxy(self._handleClick, self));
+            self._grid.onKeyDown.subscribe($.proxy(self._handleKeyDown, self));
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
             self._grid.onSort.subscribe($.proxy(self._handleSort, self));
@@ -845,7 +846,17 @@
             var keyCode = $.ui.keyCode;
 
             // TODO: Review this, maybe it can be simplified.
-            if((e.keyCode >= 112 && e.keyCode <= 123) ||
+            if(e.ctrlKey || e.metaKey) {
+                if(e.keyCode === 72) {
+                    e.stopImmediatePropagation();
+                    dderlState.copyMode = "header";
+                    console.log("header copy activated");
+                } else if(e.keyCode === 74) {
+                    e.stopImmediatePropagation();
+                    dderlState.copyMode = "json";
+                    console.log("json copy activated");
+                }
+            } else if((e.keyCode >= 112 && e.keyCode <= 123) ||
                $.inArray(e.keyCode, [keyCode.LEFT, keyCode.RIGHT, keyCode.UP,
                                      keyCode.DOWN, keyCode.PAGE_UP, keyCode.PAGE_DOWN,
                                      keyCode.CAPS_LOCK, keyCode.HOME, keyCode.END,

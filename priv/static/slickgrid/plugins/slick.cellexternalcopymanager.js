@@ -605,7 +605,7 @@
         }
         var result = JSON.stringify(rowObjects, undefined, 4);
         for(currentId in numericIdList) {
-            if(!numericIdList[currentId]) {
+            if(numericIdList[currentId] === "") {
                 numericIdList[currentId] = "null";
             }
             result = result.replace("\"" + currentId + "\"", numericIdList[currentId])

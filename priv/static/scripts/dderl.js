@@ -493,14 +493,18 @@ function show_more_apps() {
 function escapeNewLines(str)
 {
     var result = "";
-    for(var i = 0; i < str.length; ++i) {
-        if(str.charCodeAt(i) === 9) {
-            result += "\\t";
-        } else if(str.charCodeAt(i) === 10) {
-            result += "\\n";
-        } else if(str.charCodeAt(i) !== 13) {
-            result += str[i];
+    if(typeof str == 'string' || str instanceof String) {
+        for(var i = 0; i < str.length; ++i) {
+            if(str.charCodeAt(i) === 9) {
+                result += "\\t";
+            } else if(str.charCodeAt(i) === 10) {
+                result += "\\n";
+            } else if(str.charCodeAt(i) !== 13) {
+                result += str[i];
+            }
         }
+    } else {
+        result = str;
     }
     return result;
 }
