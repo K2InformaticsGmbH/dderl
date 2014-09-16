@@ -237,9 +237,15 @@
         },
 
         open: function() {
-            this._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
-            this._dlg.dialog("open").dialog("widget").draggable("option","containment", this._container);
-            this._dlg.dialog("widget").appendTo(this._container);
+            var self = this;
+            var termOwnerDlg = self._termOwner._dlg.dialog("widget");
+            self._dlg.dialog("option", "position", {at : 'left+20 top', my : 'left top', of: termOwnerDlg, collision : 'flipfit'});
+            self._dlg.dialog("open").dialog("widget").draggable("option","containment", self._container);
+            self._dlg.dialog("widget").appendTo(self._container);
+            self._termOwner._divDisable.click(function() {
+                //Add this to prevent hiding this dialog behind the disabled parent window.
+                self._dlg.dialog("moveToTop");
+            });
         },
 
         destroy: function() {

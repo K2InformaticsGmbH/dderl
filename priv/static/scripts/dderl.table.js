@@ -2056,7 +2056,7 @@
                         title     : title,
                         termOwner : self,
                         readOnly  : readOnly,
-                        container : self._divDisable,
+                        container : $("#main-body"),
                         term      : content,
                         isJson    : isJson
                     }
