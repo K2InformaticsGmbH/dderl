@@ -40,7 +40,6 @@ start() ->
     ok = application:start(cowlib),
     ok = application:start(cowboy),
     erlimem:start(),
-    application:start(sqlparse),% maybe already started by imem 
     imem:start(),
 	ok = application:start(?MODULE).
 
