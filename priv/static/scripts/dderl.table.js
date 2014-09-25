@@ -81,7 +81,9 @@
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
-                        getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); }
+                        getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); },
+                        activateSender  : function(e, _result) { e.data._activateSenderResult   (_result); },
+                        activateReceiver: function(e, _result) { e.data._activateReceiverResult (_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -103,7 +105,9 @@
                        'Save View As'   : '_saveViewAs',
                        'Rename View'    : '_renameView',
                        'Delete View'    : '_deleteView',
-                       'Export Csv'     : '_exportCsv'},
+                       'Export Csv'     : '_exportCsv',
+                       'Send Data'      : '_activateSender',
+                       'Receive Data'   : '_activateReceiver'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Hide'             : '_hide',
@@ -732,6 +736,46 @@
             self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
                self._grid.getColumns()[self._grid.getColumnIndex(columnId)].oldformatter;
             self._gridDataView.setGrouping([]);
+        }
+    },
+
+    _activateSender: function() {
+        var self = this;
+        var columnPos = self._getColumnPositions();
+        self._ajax('/app/activate_sender', {
+            activate_sender: {
+                connection: dderlState.connection,
+                statement: self._stmt,
+                column_positions: columnPos
+            }
+        }, 'activate_sender', 'activateSender');
+    },
+
+    _activateSenderResult: function(activationResult) {
+        if(activationResult.hasOwnProperty('error')) {
+            alert_jq(activationResult.error);
+        } else {
+            alert_jq("sender activated");
+        }
+    },
+
+    _activateReceiver: function() {
+        var self = this;
+        var columnPos = self._getColumnPositions();
+        self._ajax('/app/activate_receiver', {
+            activate_receiver: {
+                connection: dderlState.connection,
+                statement: self._stmt,
+                column_positions: columnPos
+            }
+        }, 'activate_receiver', 'activateReceiver');
+    },
+
+    _activateReceiverResult: function(activationResult) {
+        if(activationResult.hasOwnProperty('error')) {
+            alert_jq(activationResult.error);
+        } else {
+            alert_jq("receiver activated, use tail to see the data in real time");
         }
     },
 
@@ -2569,16 +2613,22 @@
 
     _gridColumnsReorder: function() {
         var self = this;
-        var columns = self._grid.getColumns();
-        var columnsPos = new Array();
-        //id is the first column, it is not part of the sql
-        for(var i = 1; i < columns.length; ++i) {
-            columnsPos.push(self._origcolumns[columns[i].field]);
-        }
-        console.log(columnsPos);
+        var columnsPos = self._getColumnPositions();
         var reorderData = {reorder: {statement   : self._stmt,
                                      column_order: columnsPos}};
         self._ajax('app/reorder', reorderData, 'reorder', 'reorderResult');
+    },
+
+    _getColumnPositions: function() {
+        var self = this;
+        var columns = self._grid.getColumns();
+        var columnPos = new Array();
+        //id is the first column, it is not part of the sql
+        for(var i = 1; i < columns.length; ++i) {
+            columnPos.push(self._origcolumns[columns[i].field]);
+        }
+        console.log(columnPos);
+        return columnPos;
     },
 
     _gridColumnsResize: function() {

@@ -61,6 +61,7 @@
         , get_histogram/2
         , get_statistics/2
         , get_statistics/3
+        , get_sender_params/1
         , refresh_session_ctx/2
         ]).
 
@@ -273,6 +274,9 @@ get_statistics(ColumnIds, {?MODULE, Pid}) ->
 get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds, RowIds}).
 
+-spec get_sender_params({atom(), pid()}) -> {}.
+get_sender_params({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, get_sender_params).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -1046,6 +1050,10 @@ handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
 handle_sync_event(get_table_name, _From, SN, #state{ctx=#ctx{table_name=TableName}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
     {reply, TableName, SN, State, infinity};
+handle_sync_event(get_sender_params, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = Columns}} = State) ->
+    SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
+    ?Debug("get_sender_params ~p", [SenderParams]),
+    {reply, SenderParams, SN, State, infinity};
 handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=State) ->
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),

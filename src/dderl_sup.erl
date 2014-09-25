@@ -27,5 +27,7 @@ init([]) ->
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
     {ok, { {one_for_one, 5, 10}, [?CHILD(dderl_dal, worker, [SchemaName])
                                  ,?CHILD(dderl_session_sup, supervisor, [])
+                                 ,?CHILD(dderl_data_sender_sup, supervisor, [])
+                                 ,?CHILD(dderl_data_receiver_sup, supervisor, [])
                                  ]} }.
 

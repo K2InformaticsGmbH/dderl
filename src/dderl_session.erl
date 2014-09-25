@@ -39,6 +39,7 @@
           , user        = <<>>          :: binary()
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
+          , active_sender               :: pid()
          }).
 
 %% Helper functions
@@ -108,11 +109,16 @@ handle_call({get_state, _}, _From, State) ->
     {reply, unauthorized, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error([{user, _User}], "unknown call ~p", [Unknown]),
-    {reply, {no_supported, Unknown} , State}.
+    {reply, {not_supported, Unknown} , State}.
 
 handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
-    State0 = process_call({Typ, WReq}, Adapter, ReplyPid, State),
+    State0 = try process_call({Typ, WReq}, Adapter, ReplyPid, State)
+    catch Class:Error ->
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            ReplyPid ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
+            State
+    end,
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
@@ -319,6 +325,62 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=
     From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
     State;
 
+process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
+    [{<<"activate_sender">>, BodyJson}] = jsx:decode(ReqData),
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
+    %% TODO: Add options to override default parameters
+    case dderl_data_sender_sup:start_sender(Statement, ColumnPositions) of
+        {ok, Pid} ->
+            From ! {reply, jsx:encode([{<<"activate_sender">>, <<"ok">>}])},
+            State#state{active_sender = Pid};
+        {error, Reason} ->
+            Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
+            From ! {reply, jsx:encode([{<<"activate_sender">>, Error}])},
+            State
+    end;
+process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_sender = PidSender} = State) ->
+    case erlang:is_process_alive(PidSender) of
+        true ->
+            ?Error("Sender ~p already waiting for connection", [PidSender]), %% Log more details user, active sender etc...
+            %% TODO: Add information about the active sender. ( if possible block this from browser & show status of sender)
+            From ! {reply, jsx:encode([{<<"activate_sender">>, [{<<"error">>, <<"Sender already waiting for connection">>}]}])},
+            State;
+        false ->
+            process_call({[<<"activate_sender">>], ReqData}, Adapter, From, State#state{active_sender = undefined})
+    end;
+
+process_call({[<<"activate_receiver">>], _ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
+    ?Error("No active data sender found"), %% TODO: Log more 
+    From ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}])},
+    State;
+process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active_sender = PidSender} = State) ->
+    case erlang:is_process_alive(PidSender) of
+        true ->
+            [{<<"activate_receiver">>, BodyJson}] = jsx:decode(ReqData),
+            Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+            ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
+            %% TODO: Add options to override default parameters
+            case dderl_data_receiver_sup:start_receiver(Statement, ColumnPositions, PidSender) of
+                {ok, PidReceiver} ->
+                    ?Info("Data receiver ~p started and connected with ~p", [PidReceiver, PidSender]),
+                    From ! {reply, jsx:encode([{<<"activate_receiver">>, <<"ok">>}])},
+                    State#state{active_sender = undefined};
+                {error, Reason} ->
+                    Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
+                    From ! {reply, jsx:encode([{<<"activate_receiver">>, Error}])},
+                    State
+            end;
+        false ->
+            ?Error("No active data sender found"), %% Log more details...
+            From ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}])},
+            State#state{active_sender = undefined}
+    end;
+
+%%process_cmd({[<<"activate_receiver">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+%%    [{<<"activate_receiver">>, BodyJson}] = ReqBody,
+
+
 % commands handled generically
 process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
@@ -336,7 +398,7 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"get_gt_kvstore">>;
       C =:= <<"get_gelt_kvstore">>;
       C =:= <<"get_objects">>;
-      C =:= <<"get_sql">> ->
+      C =:= <<"get_sql">>->
     BodyJson = jsx:decode(ReqData),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;
