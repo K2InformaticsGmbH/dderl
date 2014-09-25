@@ -80,12 +80,13 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast(get_data_info, #state{statement = Statement, receiver_pid = ReceiverPid} = State) ->
+handle_cast(get_data_info, #state{statement = Statement, receiver_pid = ReceiverPid, column_pos = ColumnPos} = State) ->
     %% TODO: Maybe we will need sql to check for same table sender-receiver.
     {TableId, IndexId, Nav, RowFun, Columns} = Statement:get_sender_params(),
     Size = ets:info(TableId, size),
-    ?Debug("The parameters from the fsm ~p", [{TableId, IndexId, Nav, RowFun, Columns, Size}]),
-    dderl_data_receiver:data_info(ReceiverPid, {Columns, Size}),
+    SelectedColumns = [lists:nth(Col, Columns) || Col <- ColumnPos],
+    ?Debug("The parameters from the fsm ~p", [{TableId, IndexId, Nav, RowFun, SelectedColumns, Size}]),
+    dderl_data_receiver:data_info(ReceiverPid, {SelectedColumns, Size}),
     {noreply, State#state{table_id = TableId, index_id = IndexId, nav = Nav, row_fun = RowFun}};
 handle_cast(fetch_first_block, #state{nav = Nav, table_id = TableId, index_id = IndexId} = State) ->
     case Nav of
@@ -143,9 +144,11 @@ expand_rows([], _) -> [];
 expand_rows([{_, Id} | RestRows], #state{table_id = TableId} = State) ->
     Row = lists:nth(1, ets:lookup(TableId, Id)),
     expand_rows([Row | RestRows], State);
-expand_rows([{_I,_Op, RK} | RestRows], #state{row_fun = RowFun} = State) ->
-    [RowFun(RK) | expand_rows(RestRows, State)];
-expand_rows([FullRowTuple | RestRows], #state{} = State) ->
-    RowAsList = tuple_to_list(FullRowTuple),
-    [lists:nthtail(3, RowAsList) | expand_rows(RestRows, State)].
+expand_rows([{_I,_Op, RK} | RestRows], #state{row_fun = RowFun, column_pos = ColumnPos} = State) ->
+    ExpandedRow = list_to_tuple(RowFun(RK)), %% As tuple for faster access.
+    SelectedColumns = [element(Col, ExpandedRow) || Col <- ColumnPos],
+    [SelectedColumns | expand_rows(RestRows, State)];
+expand_rows([FullRowTuple | RestRows], #state{column_pos = ColumnPos} = State) ->
+    SelectedColumns = [element(3+Col, FullRowTuple) || Col <- ColumnPos],
+    [SelectedColumns | expand_rows(RestRows, State)].
 

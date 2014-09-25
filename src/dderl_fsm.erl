@@ -62,6 +62,7 @@
         , get_statistics/2
         , get_statistics/3
         , get_sender_params/1
+        , get_receiver_params/1
         , refresh_session_ctx/2
         ]).
 
@@ -277,6 +278,10 @@ get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
 -spec get_sender_params({atom(), pid()}) -> {}.
 get_sender_params({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_sender_params).
+
+-spec get_receiver_params({atom(), pid()}) -> {}.
+get_receiver_params({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, get_receiver_params).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -1054,6 +1059,10 @@ handle_sync_event(get_sender_params, _From, SN, #state{nav = Nav, tableId = Tabl
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
     {reply, SenderParams, SN, State, infinity};
+handle_sync_event(get_receiver_params, _From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}} = State) ->
+    ReceiverParams = {Ucpf, Ucef, Columns},
+    ?Debug("get_receiver_params ~p", [ReceiverParams]),
+    {reply, ReceiverParams, SN, State, infinity};
 handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=State) ->
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),

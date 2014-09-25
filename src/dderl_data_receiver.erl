@@ -7,7 +7,7 @@
 %% Included for stmtCol record
 -include_lib("imem/include/imem_sql.hrl").
 
--export([start_link/3
+-export([start_link/4
         ,data_info/2
         ,data/2]).
 
@@ -19,17 +19,21 @@
         ,code_change/3
         ]).
 
--record(state, {statement      :: {atom, pid()}
-               ,column_pos     :: [integer()]
-               ,fsm_monitor    :: reference()
-               ,sender_pid     :: pid()
-               ,sender_monitor :: reference()}).
+-record(state,
+        {statement                 :: {atom, pid()}
+        ,column_pos                :: [integer()]
+        ,fsm_monitor               :: reference()
+        ,update_cursor_prepare_fun :: fun()
+        ,update_cursor_execute_fun :: fun()
+        ,sender_pid                :: pid()
+        ,sender_monitor            :: reference()
+        ,browser_pid               :: pid()}).
 
 -define(RESPONSE_TIMEOUT, 5000). %% TODO: Timeout should be 100 sec
 
--spec start_link({atom(), pid()}, [integer()], pid()) -> {ok, pid()} | {error, term()} | ignore.
-start_link(Statement, ColumnPositions, PidSender) ->
-	gen_server:start_link(?MODULE, [Statement, ColumnPositions, PidSender], []).
+-spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
+start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
+	gen_server:start_link(?MODULE, [Statement, ColumnPositions, PidSender, BrowserPid], []).
 
 -spec data_info(pid(), {[#stmtCol{}], non_neg_integer()}) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
@@ -40,15 +44,16 @@ data(ReceiverPid, Rows) ->
     gen_server:cast(ReceiverPid, {data, Rows}).
 
 %% Gen server callbacks
-init([{dderl_fsm, StmtPid} = Statement, ColumnPositions, SenderPid]) ->
+init([{dderl_fsm, StmtPid} = Statement, ColumnPositions, SenderPid, BrowserRespPid]) ->
     FsmMonitorRef = erlang:monitor(process, StmtPid),
     ok = dderl_data_sender:connect(SenderPid, self()), %% Todo handle case when not ok...
     SenderMonitorRef = erlang:monitor(process, SenderPid),
-    State = #state{statement      = Statement
+    State =#state{statement       = Statement
                   ,column_pos     = ColumnPositions
                   ,fsm_monitor    = FsmMonitorRef
                   ,sender_pid     = SenderPid
-                  ,sender_monitor = SenderMonitorRef},
+                  ,sender_monitor = SenderMonitorRef
+                  ,browser_pid    = BrowserRespPid},
     ok = dderl_data_sender:get_data_info(SenderPid),
     {ok, State, ?RESPONSE_TIMEOUT}.
 
@@ -56,13 +61,25 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast({data_info, {_Columns, 0}}, State) ->
-    ?Info("No available rows from sender"),
+handle_cast({data_info, {_Columns, 0}}, #state{browser_pid = BrowserPid} = State) ->
+    ?Info("No rows available from sender"),
+    %% TODO: This should be a callback function.
+    BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No rows available from sender">>}]}])},
     {stop, {shutdown, <<"Empty sender">>}, State};
-handle_cast({data_info, {Columns, AvailableRows}}, #state{sender_pid = SenderPid} = State) -> %% TODO: Check for column types.
-    ?Info("data information received, columns ~n~p~n, Available rows: ~p", [Columns, AvailableRows]),
-    dderl_data_sender:fetch_first_block(SenderPid),
-    {noreply, State, ?RESPONSE_TIMEOUT};
+handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
+    ?Info("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
+    {Ucpf, Ucef, _Columns} = Statement:get_receiver_params(),
+    %% TODO: Check for column names and types instead of only count.
+    if
+        length(ColumnPos) =:= length(SenderColumns) ->
+            %% TODO: Change this for a callback and add information about sender columns
+            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, <<"ok">>}])},
+            dderl_data_sender:fetch_first_block(SenderPid),
+            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}, ?RESPONSE_TIMEOUT};
+        true ->
+            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
+            {stop, {shutdown, <<"Columns mismatch">>}, State}
+    end;
 handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender, terminating"),
     {stop, normal, State};
@@ -94,14 +111,14 @@ terminate(Reason, #state{}) ->
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
-add_rows_to_statement(Rows, #state{statement = Statement}) ->
-    PreparedRows = prepare_rows(Rows),
+add_rows_to_statement(Rows, #state{statement = Statement, column_pos = ColumnPos}) ->
+    PreparedRows = prepare_rows(Rows, ColumnPos),
     Statement:gui_req(update, PreparedRows,
                       fun(#gres{} = _IgnoredForNow) ->
                               Statement:gui_req(button, <<"commit">>, fun(_) -> ok end)
                       end).
 
-prepare_rows([]) -> [];
-prepare_rows([Row | RestRows]) ->
-    ColumnsToInsert = lists:zip(lists:seq(1, length(Row)), Row),
-    [{undefined, ins, ColumnsToInsert} | prepare_rows(RestRows)].
+prepare_rows([], _ColumnPos) -> [];
+prepare_rows([Row | RestRows], ColumnPos) ->
+    ColumnsToInsert = lists:zip(ColumnPos, Row),
+    [{undefined, ins, ColumnsToInsert} | prepare_rows(RestRows, ColumnPos)].

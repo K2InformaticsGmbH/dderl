@@ -4,7 +4,7 @@
 
 %% API
 -export([start_link/0
-        ,start_receiver/3
+        ,start_receiver/4
         ,terminate_receiver/1
         ,list_receivers/0]).
 
@@ -21,9 +21,9 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
--spec start_receiver({atom(), pid()}, [integer()], pid()) -> {error, term()} | {ok, pid()}.
-start_receiver(Statement, ColumnPositions, SenderPid) ->
-	supervisor:start_child(?MODULE, [Statement, ColumnPositions, SenderPid]).
+-spec start_receiver({atom(), pid()}, [integer()], pid(), pid()) -> {error, term()} | {ok, pid()}.
+start_receiver(Statement, ColumnPositions, SenderPid, BrowserRespPid) ->
+	supervisor:start_child(?MODULE, [Statement, ColumnPositions, SenderPid, BrowserRespPid]).
 
 -spec terminate_receiver(pid()) -> ok | {error, not_found | simple_one_for_one}.
 terminate_receiver(ReceiverPid) ->
