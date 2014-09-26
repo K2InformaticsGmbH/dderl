@@ -30,7 +30,7 @@
                ,receiver_monitor :: reference()}).
 
 -define(CONNECT_TIMEOUT, 100000).
--define(BLOCK_SIZE, 100).
+-define(BLOCK_SIZE, 100). %% TODO: Change this maybe to a receiver parameter ?.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API Sender-Receiver Communication (Sender API)
@@ -39,7 +39,7 @@
 % get_data_info: Async request columns and types in the order they will be
 %                exported, also how many rows are available at the moment.
 % fetch_first_block: Async request, to initialize the data request process
-% more_data(BlockSize): Async request of a block of data.
+% more_data : Async request of a block of data.
 
 -spec start_link({atom(), pid()}, [integer()]) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions) ->

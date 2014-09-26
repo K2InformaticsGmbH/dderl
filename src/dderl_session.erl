@@ -361,10 +361,9 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active
             Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
             ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
             %% TODO: Add options to override default parameters
-            case dderl_data_receiver_sup:start_receiver(Statement, ColumnPositions, PidSender) of
+            case dderl_data_receiver_sup:start_receiver(Statement, ColumnPositions, PidSender, From) of
                 {ok, PidReceiver} ->
                     ?Info("Data receiver ~p started and connected with ~p", [PidReceiver, PidSender]),
-                    From ! {reply, jsx:encode([{<<"activate_receiver">>, <<"ok">>}])},
                     State#state{active_sender = undefined};
                 {error, Reason} ->
                     Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
