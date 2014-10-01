@@ -61,7 +61,7 @@ case $1 in
         if [[ "$unamestr" == 'Linux' ]]; then
             exename=erl
         else
-            exename=werl.exe
+            exename="start //MAX werl.exe"
         fi
         echo "Starting $app_name local GUI with '$exename $name $kernelconfig $commonparams $extra'"
         $exename $name $kernelconfig $commonparams $extra
