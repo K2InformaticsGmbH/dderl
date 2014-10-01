@@ -1372,22 +1372,32 @@
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
         
+
         // test the range and throw unsupported exceptions
         if(!self._singleCellSelected(ranges)) {
-            throw('cell level \'Browse Data\' don\'t support multiples and ranges');
-        } else {
-            var cell    = ranges[0];
-            var column  = self._grid.getColumns()[cell.fromCell];
-            var data    = self._gridDataView.getItem(cell.fromRow);
-            // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
-            self._ajax('/app/browse_data',
-                           { browse_data: {connection : dderlState.connection,
-                                              conn_id : dderlState.connectionSelected.connection,
-                                            statement : self._stmt,
-                                                  row : data.id, //cell.fromRow,
-                                                  col : this._origcolumns[column.field]}},
-                           'browse_data', 'browseData');
-         }
+            // If it is only one row, we take the first one.
+            if(ranges.length == 1
+               && ranges[0].fromRow  === ranges[0].toRow
+               && ranges[0].fromCell <= 1
+               && ranges[0].toCell === self._grid.getColumns().length - 1) {
+                ranges[0].fromCell = 1;
+            } else {
+                self._grid.focus();
+                return;
+            }
+        }
+
+        var cell    = ranges[0];
+        var column  = self._grid.getColumns()[cell.fromCell];
+        var data    = self._gridDataView.getItem(cell.fromRow);
+        // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
+        self._ajax('/app/browse_data',
+                       { browse_data: {connection : dderlState.connection,
+                                           conn_id : dderlState.connectionSelected.connection,
+                                           statement : self._stmt,
+                                           row : data.id, //cell.fromRow,
+                                           col : this._origcolumns[column.field]}},
+                       'browse_data', 'browseData');
     },
 
     _runTableCmd: function(tableCmd, callback, ranges) {
