@@ -59,9 +59,9 @@ init() ->
     end).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}, pid()) -> #priv{}.
-process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined, SessPid) ->
-    process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []}, SessPid);
-process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, undefined, SessPid) ->
+    process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{connections = []}, SessPid);
+process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"connect">>,BodyJson}] = ReqBody,
     IpAddr   = proplists:get_value(<<"ip">>, BodyJson, <<>>),
     Port     =
@@ -197,7 +197,7 @@ process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{con
             Priv
     end;
 
-process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     case lists:member(Connection, Connections) of

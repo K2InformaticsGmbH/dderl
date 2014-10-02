@@ -14,8 +14,8 @@
         ]).
 
 -export([get_adapters/1
-        ,login/2
-        ,change_password/3
+        ,login/3
+        ,change_password/4
         ,add_adapter/2
         ,add_command/7
         ,update_command/6
@@ -42,11 +42,11 @@
                , sess :: {atom(), pid()}
     }).
 
--spec login(binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-login(User, Password) ->
+-spec login(binary(), binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+login(User, Password, SessionId) ->
     ?Debug("login for user ~p", [User]),
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password)}) of
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), SessionId}) of
         {error, Error} ->
             ?Error("login exception ~n~p~n", [Error]),
             {error, Error};
@@ -56,11 +56,11 @@ login(User, Password) ->
             {true, Sess, UserId}
     end.
 
--spec change_password(binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-change_password(User, Password, NewPassword) ->
+-spec change_password(binary(), binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+change_password(User, Password, NewPassword, SessionId) ->
     ?Debug("changing password for user ~p", [User]),
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
+    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
         {error, Error} ->
             ?Error("change password exception ~n~p~n", [Error]),
             {error, Error};
@@ -397,7 +397,7 @@ start_link(SchemaName) ->
     Result.
 
 init([SchemaName]) ->
-    case erlimem:open(local, {SchemaName}, {<<>>, <<>>}) of
+    case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of
         {ok, Sess} ->
             %lager:set_loglevel(lager_console_backend, debug),
             {ok, Vsn} = application:get_key(dderl,vsn),

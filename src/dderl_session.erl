@@ -40,6 +40,7 @@
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
+          , registered_name             :: reference()
          }).
 
 %% Helper functions
@@ -78,7 +79,7 @@ get_session(_) ->
 
 -spec start_link(reference(), binary()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(Ref, Bytes) ->
-    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes], []).
+    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes, Ref], []).
 
 -spec get_state({atom(), pid()}) -> #state{}.
 get_state({?MODULE, Ref, Bytes}) ->
@@ -92,12 +93,12 @@ process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Ref, Bytes}) ->
     true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
     gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid}).
 
-init([Bytes]) when is_binary(Bytes) ->
+init([Bytes, RegisteredName]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     ?Debug("~p started!", [{?MODULE, Self}]),
-    {ok, #state{tref=TRef, id=Bytes}}.
+    {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName}}.
 
 handle_call({verify, InBytes}, _From, State) ->
     {reply, InBytes =:= State#state.id, State};
@@ -151,12 +152,13 @@ format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
-process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
-%    dderl_req_handler:get_params(ReqData, <<"login">>, 
+process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
+    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
+    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    case dderl_dal:login(User, Password) of
+    case dderl_dal:login(User, Password, SessionId) of
         {true, Sess, UserId} ->
             ?Info("login successful for ~p", [{self(), User}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
@@ -185,12 +187,14 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, State) ->
             State
     end;
 
-process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, State) ->
+process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, #state{} = State) ->
+    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
+    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
-    case dderl_dal:change_password(User, Password, NewPassword) of
+    case dderl_dal:change_password(User, Password, NewPassword, SessionId) of
         {true, Sess, UserId} ->
             ?Debug("change password successful for ~p", [User]),
             From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
@@ -393,24 +397,22 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"statistics_full">>;
       C =:= <<"dashboards">>;
       C =:= <<"edit_term_or_view">>;
-      C =:= <<"get_contracts">>;
-      C =:= <<"get_gt_kvstore">>;
-      C =:= <<"get_gelt_kvstore">>;
-      C =:= <<"get_objects">>;
       C =:= <<"get_sql">>->
     BodyJson = jsx:decode(ReqData),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) when
+process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv} = State) when
       Cmd =:= [<<"connect">>];
       Cmd =:= [<<"connect_change_pswd">>];
       Cmd =:= [<<"disconnect">>] ->
+    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
+    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     NewCurrentPriv =
-        try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, self())
+        try Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},

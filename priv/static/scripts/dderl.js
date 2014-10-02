@@ -100,7 +100,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             // Save the session if the request was to log in.
             if(_url == '/app/login') {
                 var s = request.getResponseHeader('dderl-session');
-                console.log("The session response header dderl-session" + s);
+                console.log("The session response header dderl-session: ");
                 console.log(s);
                 dderlState.session = s;
             }

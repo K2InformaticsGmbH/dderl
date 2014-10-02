@@ -78,10 +78,10 @@ init() ->
     end.
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}, pid()) -> #priv{}.
-process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, undefined, SessPid) ->
-    process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = []}, SessPid);
-process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
-    [{<<"connect">>,BodyJson}] = ReqBody,
+process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, undefined, SessPid) ->
+    process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, #priv{connections = []}, SessPid);
+process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+    [{<<"connect">>, BodyJson}] = ReqBody,
     Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
     Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
     Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
@@ -90,7 +90,7 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
     Password    = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Type        = get_connection_type(Ip),
     ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User, Secure}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password)}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), SessionId}),
     case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -143,10 +143,10 @@ process_cmd({[<<"connect">>], ReqBody}, Sess, UserId, From, #priv{connections = 
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, undefined, SessPid) ->
-    process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = []}, SessPid);
-process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
-    [{<<"connect">>,BodyJson}] = ReqBody,
+process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From, undefined, SessPid) ->
+    process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From, #priv{connections = []}, SessPid);
+process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+    [{<<"connect">>, BodyJson}] = ReqBody,
     Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
     Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
     Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
@@ -156,7 +156,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody}, Sess, UserId, From, #priv{co
     NewPassword = proplists:get_value(<<"new_password">>, BodyJson, <<>>),
     Type        = get_connection_type(Ip),
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword)}),
+    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
@@ -231,7 +231,7 @@ process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{con
             Priv
     end;
 
-process_cmd({[<<"disconnect">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     case lists:member(Connection, Connections) of
