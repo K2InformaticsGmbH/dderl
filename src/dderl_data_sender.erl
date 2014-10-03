@@ -24,6 +24,7 @@
                ,index_id         :: ets:tid()
                ,nav              :: raw | ind
                ,continuation     :: ets:continuation()
+               ,skip             :: non_neg_integer()
                ,row_fun          :: fun()
                ,fsm_monitor      :: reference()
                ,receiver_pid     :: pid()
@@ -66,7 +67,8 @@ init([{dderl_fsm, StmtPid} = Statement, ColumnPositions]) ->
     FsmMonitorRef = erlang:monitor(process, StmtPid),
     State = #state{statement   = Statement
                   ,column_pos  = ColumnPositions
-                  ,fsm_monitor = FsmMonitorRef},
+                  ,fsm_monitor = FsmMonitorRef
+                  ,skip        = 0},
     {ok, State, ?CONNECT_TIMEOUT}.
 
 handle_call({connect, ReceiverPid}, _From, #state{receiver_monitor = undefined} = State) ->
@@ -94,20 +96,30 @@ handle_cast(fetch_first_block, #state{nav = Nav, table_id = TableId, index_id = 
         ind -> UsedTable = IndexId
     end,
     FirstKey = ets:first(UsedTable),
-    {Rows, Continuation} = case rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
-        '$end_of_table' -> {'$end_of_table', '$end_of_table'};
-        Result -> Result
-    end,
-    send_rows(Rows, State),
-    {noreply, State#state{continuation = Continuation}};
+    case rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
+        '$end_of_table' ->
+            retry_more_data(),
+            {noreply, State};
+        {Rows, '$end_of_table'} ->
+            NewState = send_rows(Rows, State),
+            {noreply, NewState};
+        {Rows, Continuation} ->
+            send_rows(Rows, State),
+            {noreply, State#state{continuation = Continuation, skip = 0}}
+    end;
+handle_cast(more_data, #state{continuation = undefined} = State) -> handle_cast(fetch_first_block, State);
 handle_cast(more_data, #state{continuation = Continuation} = State) ->
-    {Rows, NewContinuation} = case ets:select(Continuation) of
-        '$end_of_table' -> {'$end_of_table', '$end_of_table'};
-        Result-> Result
-    end,
-    ?Debug("Continuation reading more data ~p", [NewContinuation]),
-    send_rows(Rows, State),
-    {noreply, State#state{continuation = NewContinuation}};
+    case ets:select(Continuation) of
+        '$end_of_table' ->
+            retry_more_data(),
+            {noreply, State};
+        {Rows, '$end_of_table'} ->
+            NewState = send_rows(Rows, State),
+            {noreply, NewState};
+        {Rows, NewContinuation} ->
+            send_rows(Rows, State),
+            {noreply, State#state{continuation = NewContinuation, skip = 0}}
+    end;
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
     {noreply, State}.
@@ -135,10 +147,16 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 rows_from(TableId, Key, Limit) ->
     ets:select(TableId, [{'$1', [{'>=',{element,1,'$1'}, {const, Key}}],['$_']}], Limit).
 
-send_rows('$end_of_table', #state{receiver_pid = ReceiverPid}) ->
-    dderl_data_receiver:data(ReceiverPid, '$end_of_table');
-send_rows(Rows, #state{receiver_pid = ReceiverPid} = State) ->
-    dderl_data_receiver:data(ReceiverPid, expand_rows(Rows, State)).
+send_rows(Rows, #state{receiver_pid = ReceiverPid, skip = Skip} = State) ->
+    case lists:nthtail(Skip, Rows) of
+        [] ->
+            retry_more_data(),
+            State;
+        RowsToSend ->
+            NewSkip = Skip + length(RowsToSend),
+            dderl_data_receiver:data(ReceiverPid, expand_rows(RowsToSend, State)),
+            State#state{skip = NewSkip}
+    end.
 
 expand_rows([], _) -> [];
 expand_rows([{_, Id} | RestRows], #state{table_id = TableId} = State) ->
@@ -152,3 +170,7 @@ expand_rows([FullRowTuple | RestRows], #state{column_pos = ColumnPos} = State) -
     SelectedColumns = [element(3+Col, FullRowTuple) || Col <- ColumnPos],
     [SelectedColumns | expand_rows(RestRows, State)].
 
+-spec retry_more_data() -> ok.
+retry_more_data() ->
+    timer:sleep(500), %% retry after 0.5 seconds.
+    more_data(self()).

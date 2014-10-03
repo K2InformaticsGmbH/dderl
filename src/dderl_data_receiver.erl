@@ -30,7 +30,7 @@
         ,sender_monitor            :: reference()
         ,browser_pid               :: pid()}).
 
--define(RESPONSE_TIMEOUT, 5000). %% TODO: Timeout should be 100 sec
+-define(RESPONSE_TIMEOUT, 100000). %% TODO: Timeout should be defined by options
 
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
@@ -62,19 +62,16 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast({data_info, {_Columns, 0}}, #state{browser_pid = BrowserPid} = State) ->
-    ?Info("No rows available from sender"),
-    %% TODO: This should be a callback function.
-    BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No rows available from sender">>}]}])},
-    {stop, {shutdown, <<"Empty sender">>}, State};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
     %% TODO: Check for column names and types instead of only count.
     if
         length(ColumnPos) =:= length(SenderColumns) ->
+            SenderColumnNames = [ColAlias || #stmtCol{alias = ColAlias} <- SenderColumns],
             %% TODO: Change this for a callback and add information about sender columns
-            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, <<"ok">>}])},
+            Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SenderColumnNames}],
+            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
             {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
         true ->
@@ -100,7 +97,7 @@ handle_info({'DOWN', Ref, process, SenderPid, Reason}, #state{sender_monitor = R
     ?Info("Sender data process ~p down with reason ~p, monitor ref ~p", [SenderPid, Reason, Ref]),
     {stop, {shutdown, <<"Sender terminated">>}, State};
 handle_info(timeout, #state{} = State) ->
-    ?Info("timeout in data receiver ~p after ~p seconds without a response from sender", [self(), ?RESPONSE_TIMEOUT div 1000]),
+    ?Info("timeout in data receiver ~p after ~p seconds without data from sender", [self(), ?RESPONSE_TIMEOUT div 1000]),
     {stop, {shutdown, timeout}, State};
 handle_info(Msg, State) ->
     ?Info("~p received unknown msg ~p", [self(), Msg]),
