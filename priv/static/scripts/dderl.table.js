@@ -775,7 +775,16 @@
         if(activationResult.hasOwnProperty('error')) {
             alert_jq(activationResult.error);
         } else {
-            alert_jq("receiver activated, use tail to see the data in real time");
+            var msg = "Receiver activated: <br><br>";
+            msg += "Use tail to see the data in real time. <br><br>";
+            msg += "Available rows: " + activationResult.available_rows + "<br>";
+            msg += "Sender columns: " + activationResult.sender_columns[0];
+            for(var i = 1; i < activationResult.sender_columns.length; ++i) {
+                msg += ",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+                msg += activationResult.sender_columns[i];
+            }
+
+            alert_jq(msg);
         }
     },
 
