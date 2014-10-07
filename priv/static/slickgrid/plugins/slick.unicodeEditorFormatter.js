@@ -66,7 +66,7 @@ function fromUnicodeLiteral(str)
         var newValue;
         if (value == null) {
             newValue = "";
-        } else if(value.length > 100) {
+        } else if(value.length > 203) {
             newValue = value.substring(0, 200) + "...";
             newValue = newValue.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         } else {
