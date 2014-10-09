@@ -31,7 +31,7 @@ init() ->
                                              {port, 1521},
                                              {type, <<"DB Name">>},
                                              {service, xe},
-                                             {secure, false}
+                                             {secure, true}
                                             ]
                                  }),
     gen_adapter:add_cmds_views(undefined, system, oci, false, [
@@ -147,12 +147,9 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
+                    Connection:close(port_close),
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
-                NewConn ->
-                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
-                        system -> Owner = <<"system">>;
-                        Owner -> Owner
-                    end,
+                #ddConn{owner = Owner} = NewConn ->
                     From ! {reply
                             , jsx:encode(
                                 [{<<"connect">>

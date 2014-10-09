@@ -27,10 +27,10 @@ init() ->
                                  , owner = system
                                  , adapter = imem
                                  , access = [{ip, <<"local">>},
-                                             {user, <<"admin">>},
+                                             {user, <<>>},
                                              {port, <<>>},
                                              {type, local},
-                                             {secure, false}
+                                             {secure, true}
                                             ]
                                  }),
     SystemViews = [
@@ -90,7 +90,7 @@ process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, #priv{con
     Password    = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Type        = get_connection_type(Ip),
     ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User, Secure}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), SessionId}),
+    ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), SessionId}),
     case ResultConnect of
         {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
             ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
@@ -126,12 +126,9 @@ process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, #priv{con
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
+                    Connection:close(),
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
-                NewConn ->
-                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
-                        system -> Owner = <<"system">>;
-                        Owner -> Owner
-                    end,
+                #ddConn{owner = Owner} = NewConn ->
                     From ! {reply
                             , jsx:encode(
                                 [{<<"connect">>
@@ -156,7 +153,7 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, Fro
     NewPassword = proplists:get_value(<<"new_password">>, BodyJson, <<>>),
     Type        = get_connection_type(Ip),
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}),
+    ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}),
     case ResultConnect of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
@@ -177,23 +174,20 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, Fro
                           , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
                           , owner   = UserId
                           , adapter = imem
-                          , access  = [ {ip,   Ip}
-                                       , {port, Port}
-                                       , {type, Type}
-                                       , {user, User}
-                                       , {secure, Secure}
-                                       ]
+                          , access  = [{ip,     Ip}
+                                      ,{port,   Port}
+                                      ,{type,   Type}
+                                      ,{user,   User}
+                                      ,{secure, Secure}
+                                      ]
                           , schm    = binary_to_atom(Schema, utf8)
                           },
             ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
+                    Connection:close(),
                     From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                NewConn ->
-                    case dderl_dal:get_name(Sess, NewConn#ddConn.owner) of
-                        system -> Owner = <<"system">>;
-                        Owner -> Owner
-                    end,
+                #ddConn{owner = Owner} = NewConn ->
                     From ! {reply
                             , jsx:encode(
                                 [{<<"connect_change_pswd">>
@@ -777,19 +771,24 @@ build_srtspec_json(SP, IsAsc) when is_binary(SP) ->
             {SP, [{<<"id">>, -1}, {<<"asc">>, IsAsc}]}
     end.
 
--spec connect_to_erlimem(atom(), list(), binary(), atom(),  binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
-connect_to_erlimem(rpc, _Ip, Port, _Secure, Schema, Credentials) ->
+-spec connect_to_erlimem(atom(), {atom(), pid()}, list(), binary(), atom(),  binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
+connect_to_erlimem(rpc, _Sess, _Ip, Port, _Secure, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
         AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type rpc"}
     end;
-connect_to_erlimem(tcp, Ip, Port, Secure, Schema, Credentials) ->
+connect_to_erlimem(tcp, _Sess, Ip, Port, Secure, Schema, Credentials) ->
     SSL = if Secure =:= true -> [ssl]; true -> [] end,
     try binary_to_integer(Port) of
         IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema, SSL}, Credentials)
     catch _:_ -> {error, "Invalid port for connection type tcp"}
     end;
-connect_to_erlimem(Type, _Ip, _Port, _Secure, Schema, Credentials) ->
+connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, Credentials) ->
+    case dderl_dal:is_admin(Sess) of
+        true -> erlimem:open(local, {Schema}, Credentials);
+        _ -> {error, "Local connection unauthorized"}
+    end;
+connect_to_erlimem(Type, _Sess, _Ip, _Port, _Secure, Schema, Credentials) ->
     erlimem:open(Type, {Schema}, Credentials).
 
 -spec get_connection_type(binary()) -> atom().

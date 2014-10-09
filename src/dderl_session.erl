@@ -289,8 +289,8 @@ process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
     From ! {reply, Res},
     State;
 
-process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    case dderl_dal:get_connects(Sess, User) of
+process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
+    case dderl_dal:get_connects(Sess, UserId) of
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
         UnsortedConns ->
@@ -298,7 +298,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                                              Name > Name2
                                      end
                                      , UnsortedConns),
-            ?Debug([{user, User}], "conections ~p", [Connections]),
+            ?Debug("conections ~p", [Connections]),
             Res = jsx:encode([{<<"connects">>,
                 lists:foldl(fun(C, Acc) ->
                     [{integer_to_binary(C#ddConn.id), [
@@ -313,7 +313,7 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
                 [],
                 Connections)
             }]),
-            ?Debug([{user, User}], "connections as json ~s", [jsx:prettify(Res)]),
+            ?Debug("connections as json ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
     State;

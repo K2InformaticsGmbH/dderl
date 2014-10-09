@@ -64,6 +64,26 @@
 
 -define(ddDash, [integer, atom, userid, binstr, list]).
 
+
+%% Definition taken from imem_seco.hrl
+-type ddIdentity() :: binary().                 %% Account name
+-type ddCredential() :: {pwdmd5, binary()}.     %% {pwdmd5, md5(password)} for now
+
+-record(ddAccount,                          %% imem cluster account (shared by application)
+                  { id                      ::ddEntityId()
+                  , name                    ::ddIdentity()        %% unique login id (mutable)
+                  , type='user'             ::atom()              %% user | driver | deamon | application
+                  , credentials             ::[ddCredential()]
+                  , fullName                ::binary()
+                  , lastLoginTime           ::ddDatetime()        %% erlang time of last login success
+                  , lastFailureTime         ::ddDatetime()        %% erlang time of last login failure (for existing account name)
+                  , lastPasswordChangeTime  ::ddDatetime()        %% change time (undefined or too old  => must change it now and reconnect)
+                  , locked='false'          ::'true' | 'false'
+                  }
+       ).
+
+-define(ddAccount, [userid,binstr,atom,list,binstr,datetime,datetime,datetime,boolean]).
+
 -ifndef(LOG_TAG).
 -define(LOG_TAG, "_DDRL_").
 -endif.
