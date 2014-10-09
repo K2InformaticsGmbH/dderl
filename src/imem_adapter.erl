@@ -213,9 +213,10 @@ process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{con
     Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    SessionId = iolist_to_binary(io_lib:format("password changed for user ~s", [User])),
     case lists:member(Connection, Connections) of
         true ->
-            case erlimem:open(rpc, {node(), Schema}, {User, erlang:md5(Password), erlang:md5(NewPassword)}) of
+            case erlimem:open(rpc, {node(), Schema}, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
                 {error, Error} ->
                     ?Error("change password exception ~n~p~n", [Error]),
                     Err = iolist_to_binary(io_lib:format("~p", [Error])),
