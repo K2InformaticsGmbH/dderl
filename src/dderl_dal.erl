@@ -294,13 +294,17 @@ get_dashboards(Sess, Owner) ->
 
 -spec get_id({atom(), pid()}, ddIdentity()) -> ddEntityId().
 get_id(Sess, Username) ->
-    {[UserId], true} = Sess:run_cmd(select, [ddAccount, [{#ddAccount{id='$1', name=Username, _='_'}, [], ['$1']}]]),
-    UserId.
+    case Sess:run_cmd(select, [ddAccount, [{#ddAccount{id='$1', name=Username, _='_'}, [], ['$1']}]]) of
+        {[UserId], true} -> UserId;
+        _ -> undefined
+    end.
 
 -spec get_name({atom(), pid()}, ddEntityId()) -> ddIdentity().
 get_name(Sess, UserId) ->
-    {[Username], true} = Sess:run_cmd(select, [ddAccount, [{#ddAccount{id=UserId, name='$1', _='_'}, [], ['$1']}]]),
-    Username.
+    case Sess:run_cmd(select, [ddAccount, [{#ddAccount{id=UserId, name='$1', _='_'}, [], ['$1']}]]) of
+        {[Username], true} -> Username;
+        _ -> <<"">>
+    end.
 
 -spec add_adapter_to_cmd({atom(), pid()} | undefined, ddEntityId(), atom()) -> ok | {error, binary()}.
 add_adapter_to_cmd(undefined, CmdId, Adapter) ->

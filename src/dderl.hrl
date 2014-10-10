@@ -66,8 +66,10 @@
 
 
 %% Definition taken from imem_seco.hrl
--type ddIdentity() :: binary().                 %% Account name
--type ddCredential() :: {pwdmd5, binary()}.     %% {pwdmd5, md5(password)} for now
+-type ddIdentity()   :: binary().           %% Account name
+-type ddCredential() :: {pwdmd5, binary()}. %% {pwdmd5, md5(password)} for now
+-type ddPermission() :: atom() | tuple().   %% e.g. manage_accounts, {table,ddDash,select}
+-type ddQuota()      :: {atom(),any()}.     %% e.g. {max_memory, 1000000000}
 
 -record(ddAccount,                          %% imem cluster account (shared by application)
                   { id                      ::ddEntityId()
@@ -83,6 +85,16 @@
        ).
 
 -define(ddAccount, [userid,binstr,atom,list,binstr,datetime,datetime,datetime,boolean]).
+
+-record(ddRole,                             %% hierarchy of roles with permissions and access privileges to connections and commands  
+                  { id                      ::ddEntityId()            %% lookup starts with ddAccount.id, other roles are atoms
+                  , roles=[]                ::[atom()]                %% granted roles
+                  , permissions=[]          ::[ddPermission()]        %% granted permissions
+                  , quotas=[]               ::[ddQuota()]             %% granted quotas
+                  }
+       ).
+
+-define(ddRole, [userid,list,list,list]).
 
 -ifndef(LOG_TAG).
 -define(LOG_TAG, "_DDRL_").
