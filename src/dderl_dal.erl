@@ -535,12 +535,17 @@ add_connect_internal(UserSess, DalSess, #ddConn{schm = undefined} = Conn) ->
 add_connect_internal(UserSess, DalSess, #ddConn{id = undefined, owner = Owner} = Conn) ->
     case UserSess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
                                          , [{'=:=','$1',Conn#ddConn.name},{'=:=','$2',Owner}]
-                                         , ['$3']}]]) of
-        {[Id|_], true} ->
+                                         , ['$_']}]]) of
+        {[#ddConn{id = Id} = OldCon | _], true} ->
             %% User is updating is own connection no need for privileges
             NewCon = Conn#ddConn{id=Id},
-            ?Info("replacing connection ~p, owner ~p", [NewCon, Owner]),
-            check_save_conn(UserSess, DalSess, update, NewCon);
+            case compare_connections(OldCon, NewCon) of
+                true -> %% Connection not changed
+                    Conn#ddConn{owner = get_name(DalSess, Conn#ddConn.owner)};
+                false ->
+                    ?Info("replacing connection ~p, owner ~p", [NewCon, Owner]),
+                    check_save_conn(UserSess, DalSess, update, {OldCon, NewCon})
+            end;
         _ ->
             case UserSess:run_cmd(have_permission, [[manage_system, ?MANAGE_CONNS, ?CREATE_CONNS]]) of
                 true ->
@@ -565,7 +570,7 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Con
                 false ->
                     if
                         Owner =:= OldOwner -> %% Same owner update the connection.
-                            check_save_conn(UserSess, DalSess, update, Conn);
+                            check_save_conn(UserSess, DalSess, update, {OldCon, Conn});
                         true -> %% Different owner, create a copy.
                             add_connect_internal(UserSess, DalSess, Conn#ddConn{id = undefined})
                     end
@@ -590,11 +595,11 @@ check_save_conn(UserSess, DalSess, Op, Conn) ->
             ?Error("~p connection failed: ~p", [Op, Error]),
             Msg = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
             {error, Msg};
-        Conn ->
-            Conn#ddConn{owner = get_name(DalSess, Conn#ddConn.owner)};
+        #ddConn{} = SavedConn ->
+            SavedConn#ddConn{owner = get_name(DalSess, SavedConn#ddConn.owner)};
         InvalidReturn ->
             ?Error("Invalid return on ~p connection ~p: The result:~n~p", [Op, Conn, InvalidReturn]),
-            {error, <<"Invalid return saving the connection">>}
+            {error, <<"Error saving the connection (Invalid value returned from DB)">>}
     end.
 
 -spec compare_connections(#ddConn{}, #ddConn{}) -> boolean().
