@@ -429,28 +429,104 @@ set_buf_counters(#state{nav=ind,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}=State
 filter_fun(?NoFilter) ->
     fun(_) -> true end;
 filter_fun({'and',Conditions}) ->
-    fun(R) -> 
-        filter_and(R,Conditions)
+    CConditions = like_compile(Conditions),
+    fun(__R) -> 
+        filter_and(__R,CConditions)
     end;
 filter_fun({'or',Conditions}) ->
-    fun(R) -> 
-        filter_or(R,Conditions)
+    CConditions = like_compile(Conditions),
+    fun(__R) -> 
+        filter_or(__R,CConditions)
     end.
+
+like_compile(Conditions) -> 
+    like_compile(Conditions,[]).
+
+like_compile([],CCs) -> lists:reverse(CCs);
+like_compile([{Col,[<<"$like$">>|Values]}|Conditions], CCs) ->
+    like_compile(Conditions, [{Col,[<<"$like$">>|[imem_sql_funs:like_compile(V) || V <- Values]]} | CCs]);
+like_compile([{Col,[<<"$not_like$">>|Values]}|Conditions], CCs) ->
+    like_compile(Conditions, [{Col,[<<"$not_like$">>|[imem_sql_funs:like_compile(V) || V <- Values]]} | CCs]);
+like_compile([Cond|Conditions], CCs) ->
+    like_compile(Conditions, [Cond | CCs]).
+
 
 -spec filter_and(tuple(), [{integer(), term()}]) -> boolean().
 filter_and(_,[]) -> true;
-filter_and(R,[{Col,Values}|Conditions]) ->
-    case lists:member(element(Col+3,R), Values) of
-        true ->     filter_and(R,Conditions);
+filter_and(__R,[{__Col,[<<"$in$">>|__IValues]}|__IConditions]) ->
+    filter_and_in(__R,[{__Col,__IValues}|__IConditions]);
+filter_and(__R,[{__Col,[<<"$not_in$">>|__NIValues]}|__NIConditions]) ->
+    filter_and_not_in(__R,[{__Col,__NIValues}|__NIConditions]);
+filter_and(__R,[{__Col,[<<"$like$">>|__LValues]}|__LConditions]) ->
+    filter_and_like(__R,[{__Col,__LValues}|__LConditions]);
+filter_and(__R,[{__Col,[<<"$not_like$">>|__NLValues]}|__NLConditions]) ->
+    filter_and_not_like(__R,[{__Col,__NLValues}|__NLConditions]);
+filter_and(__R,[{__Col,__DValues}|__DConditions]) ->
+   filter_and_in(__R,[{__Col,__DValues}|__DConditions]).
+
+filter_and_in(__R,[{__Col,__Values}|__Conditions]) ->
+    case lists:member(element(__Col+3,__R), __Values) of
+        true ->     filter_and(__R,__Conditions);
         false ->    false
+    end.
+
+filter_and_like(_,[{_,[]}|_]) -> false;
+filter_and_like(__R,[{Col,[__RE|__REs]}|__Conditions]) ->
+    case re:run(element(Col+3,__R), __RE) of
+        nomatch ->  filter_and_like(__R,[{Col,__REs}|__Conditions]);
+        _ ->        filter_and(__R,__Conditions) 
+    end.
+
+filter_and_not_in(__R,[{Col,__Values}|__Conditions]) ->
+    case lists:member(element(Col+3,__R), __Values) of
+        true ->     false;
+        false ->    filter_and(__R,__Conditions)
+    end.
+
+filter_and_not_like(__R,[{_,[]}|__Conditions]) -> filter_and(__R,__Conditions);
+filter_and_not_like(__R,[{Col,[__RE|__REs]}|__Conditions]) ->
+    case re:run(element(Col+3,__R), __RE) of
+        nomatch ->  filter_and_not_like(__R,[{Col,__REs}|__Conditions]);
+        _ ->        false 
     end.
 
 -spec filter_or(tuple(), [{integer(), term()}]) -> boolean().
 filter_or(_,[]) -> false;
-filter_or(R,[{Col,Values}|Conditions]) ->
-    case lists:member(element(Col+3,R), Values) of
-        false ->    filter_or(R,Conditions);
-        true ->     true
+filter_or(__R,[{__Col,[<<"$in$">>|__IValues]}|__IConditions]) ->
+    filter_or_in(__R,[{__Col,__IValues}|__IConditions]);
+filter_or(__R,[{__Col,[<<"$not_in$">>|__NIValues]}|__NIConditions]) ->
+    filter_or_not_in(__R,[{__Col,__NIValues}|__NIConditions]);
+filter_or(__R,[{__Col,[<<"$like$">>|__LValues]}|__LConditions]) ->
+    filter_or_like(__R,[{__Col,__LValues}|__LConditions]);
+filter_or(__R,[{__Col,[<<"$not_like$">>|__NLValues]}|__NLConditions]) ->
+    filter_or_not_like(__R,[{__Col,__NLValues}|__NLConditions]);
+filter_or(__R,[{__Col,__DValues}|__DConditions]) ->
+    filter_or_in(__R,[{__Col,__DValues}|__DConditions]).
+
+filter_or_in(__R,[{__Col,__Values}|__Conditions]) ->
+    case lists:member(element(__Col+3,__R), __Values) of
+        true ->     true;
+        false ->    filter_or(__R,__Conditions)
+    end.
+
+filter_or_like(__R,[{_,[]}|__Conditions]) -> filter_or(__R,__Conditions);
+filter_or_like(__R,[{__Col,[__RE|__REs]}|__Conditions]) ->
+    case re:run(element(__Col+3,__R), __RE) of
+        nomatch ->  filter_or_like(__R,[{__Col,__REs}|__Conditions]);
+        _ ->        true
+    end.
+
+filter_or_not_in(__R,[{__Col,__Values}|__Conditions]) ->
+    case lists:member(element(__Col+3,__R), __Values) of
+        true ->     filter_or(__R,__Conditions);
+        false ->    true
+    end.
+
+filter_or_not_like(_,[{_,[]}|_]) -> true;
+filter_or_not_like(__R,[{__Col,[__RE|__REs]}|__Conditions]) ->
+    case re:run(element(__Col+3,__R), __RE) of
+        nomatch ->  filter_or_not_like(__R,[{__Col,__REs}|__Conditions]);
+        _ ->        filter_or(__R,__Conditions) 
     end.
 
 -spec reply_stack(atom(), fun(), #state{}) -> #state{}.
