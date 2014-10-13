@@ -1180,6 +1180,7 @@
                                 .css('margin', 0)
                                 .css('overflow','auto')
                                 .css('padding', 0),
+                            typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
                             vals: new Object(),
                             name: cols[c].name
                         };
@@ -1187,6 +1188,19 @@
             }
         }
         self._showFilterGui();
+    },
+
+    _createFilterOptions: function(select) {
+        var filterTypes = [{value: "$in$", text: "In"},
+                           {value: "$not_in$", text: "Not in"},
+                           {value: "$like$", text: "Like"},
+                           {value: "$not_like$", text: "Not like"}];
+
+        for(var i = 0; i < filterTypes.length; ++i) {
+            var option = "<option value='" + filterTypes[i].value + "'>" + filterTypes[i].text + "</option>";
+            select.append($(option));
+        }
+        return select;
     },
 
     _filterClear: function(_ranges) {
@@ -1224,6 +1238,7 @@
                                 .css('margin', 0)
                                 .css('overflow','auto')
                                 .css('padding', 0),
+                            typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
                             vals: new Object(),
                             name: cols[c].name
                         };
@@ -1273,8 +1288,9 @@
             .css('width', '100%')
             .attr('border', 0)
             .attr('cellpadding', 0)
-            .attr('cellspacing', 0)   
+            .attr('cellspacing', 0)
             .appendTo(self._fltrDlg);
+
         for(var c in self._filters) {
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
@@ -1284,12 +1300,11 @@
                 self._filters[c].inp.val(strs.join('\n'));
             }
             $('<tr>')
-                .append($('<td>'))
                 .append('<td>'+ self._filters[c].name +'</td>')
+                .append($('<td>').append(self._filters[c].typeSelect))
                 .appendTo(fltrTbl);
             $('<tr>')
-                .append('<td>in&nbsp;</td>')
-                .append($('<td>').append(self._filters[c].inp))
+                .append($('<td colspan = "2">').append(self._filters[c].inp))
                 .appendTo(fltrTbl);
         }
 
@@ -1349,6 +1364,7 @@
             break;
         }
     },
+
     _filterSpec2Json: function(type) {
         var self = this;
         var filterspec = new Object();
@@ -1358,13 +1374,16 @@
             if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
             var vStrings = new Array();
             self._filters[c].vals = new Object();
-            for (var i=0; i<_vStrings.length; ++i) {
+            for (var i=0; i < _vStrings.length; ++i) {
                 vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
                 self._filters[c].vals[_vStrings[i]] = true;
             }
             var fltr = new Object();
             fltr[self._origcolumns[c]] = vStrings;
             if(vStrings.length > 0) {
+                var filterType = self._filters[c].typeSelect.val();
+                fltr[self._origcolumns[c]].unshift(filterType);
+                console.log("Here we add the filter type " + filterType  + " at the front");
                 filterspec[type].push(fltr);
             }
             else delete self._filters[c];

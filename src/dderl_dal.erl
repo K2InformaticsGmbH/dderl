@@ -333,7 +333,6 @@ start_link(SchemaName) ->
 init([SchemaName]) ->
     case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of
         {ok, Sess} ->
-            %lager:set_loglevel(lager_console_backend, debug),
             {ok, Vsn} = application:get_key(dderl,vsn),
             case code:lib_dir(dderl) of                
                 {error,bad_name} -> ?Info("Application not running from installation", []);
