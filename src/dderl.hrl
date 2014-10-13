@@ -100,24 +100,44 @@
 -define(LOG_TAG, "_DDRL_").
 -endif.
 
--define(NoDbLog(__L,__M,__F,__A), lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A)).
--define(Log(__L,__M,__F,__A),
-    begin
-        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}]++__A),
-        dderl_dal:log_to_db(__L,?MODULE,element(2,element(2,process_info(self(), current_function))),?LINE,[]
-                           ,list_to_binary(io_lib:format(__F, __A))
-                           ,erlang:get_stacktrace())
-    end).
--define(Debug(__M,__F,__A), ?Log(debug,__M,__F,__A)).
--define(Info(__M,__F,__A),  ?Log(info,__M,__F,__A)).
--define(Error(__M,__F,__A), ?Log(error,__M,__F,__A)).
+-define(NoDbLog(__L,__M,__F,__A),
+        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
+-define(Log(__L,__M,__F,__A,__S),
+(fun(_S) ->
+        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A]),
+        __Ln = lager_util:level_to_num(__L),
+        case __Ln band element(1,lager_config:get(loglevel)) of
+            0 -> ok;
+            _ ->
+                __ST = if length(_S) == 0 ->
+                              case (__Ln =< lager_util:level_to_num(error)) of
+                                  true -> erlang:get_stacktrace();
+                                  _ -> []
+                              end;
+                          true ->
+                              _S
+                       end,
+                dderl_dal:log_to_db(
+                  __L,?MODULE,
+                  element(2,element(2,process_info(self(),current_function)
+                                   )),
+                  ?LINE,[],
+                  list_to_binary(io_lib:format(__F, __A)),
+                  __ST)
+        end
+end)(__S)).
+
+-define(Debug(__M,__F,__A),     ?Log(debug,__M,__F,__A,[])).
+-define(Info(__M,__F,__A),      ?Log(info,__M,__F,__A,[])).
+-define(Error(__M,__F,__A,__S), ?Log(error,__M,__F,__A,__S)).
 
 % helper macro extension
 -define(Debug(__F,__A),     ?Debug([],__F,__A)).
 -define(Debug(__F),         ?Debug(__F,[])).
 -define(Info(__F,__A),      ?Info([],__F,__A)).
 -define(Info(__F),          ?Info(__F,[])).
--define(Error(__F,__A),     ?Error([],__F,__A)).
+-define(Error(__F,__A,__S), ?Error([],__F,__A,__S)).
+-define(Error(__F,__A),     ?Error([],__F,__A,[])).
 -define(Error(__F),         ?Error(__F,[])).
 
 % Function shortcuts

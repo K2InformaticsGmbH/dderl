@@ -92,12 +92,12 @@ process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From, #priv{con
     ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User, Secure}]),
     ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), SessionId}),
     case ResultConnect of
-        {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
-            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
+        {error, {{Exception, {"Password expired. Please change it", _} = M}, Stacktrace}} ->
+            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}], Stacktrace),
             From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
             Priv;
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result: ~n~p", [User, Error]),
+        {error, {{Exception, M}, Stacktrace} = Error} ->
+            ?Error("Db connect failed for ~p, result: ~n~p", [User, Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"connect">>, [{<<"error">>, Err}]}])},
@@ -155,8 +155,8 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, Fro
     ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
     ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip), Port, Secure, Schema, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}),
     case ResultConnect of
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result ~n~p", [User, Error]),
+        {error, {{Exception, M}, Stacktrace} = Error} ->
+            ?Error("Db connect failed for ~p, result ~n~p", [User, Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
@@ -533,8 +533,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
             Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
-        {error, {{Ex, M}, _Stacktrace} = Error} ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
+        {error, {{Ex, M}, Stacktrace} = Error} ->
+            ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
@@ -594,8 +594,8 @@ disconnect(#priv{connections = [Connection | Rest]} = Priv) ->
     ?Debug("closing the connection ~p", [Connection]),
     try Connection:close()
     catch Class:Error ->
-            ?Error("Error trying to close the connection ~p ~p:~p~n~p~n",
-                   [Connection, Class, Error, erlang:get_stacktrace()])
+            ?Error("Error trying to close the connection ~p ~p:~p~n",
+                   [Connection, Class, Error], erlang:get_stacktrace())
     end,
     disconnect(Priv#priv{connections = Rest}).
 
@@ -669,7 +669,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
                                                                                   exit:{noproc,_} ->
                                                                                       ?Debug("Fsm terminated after the connection was closed");
                                                                                   Class:Error ->
-                                                                                      ?Error("Error trying to terminate the statement ~p:~p, ~n~p", [Class, Error, erlang:get_stacktrace()])
+                                                                                      ?Error("Error trying to terminate the statement ~p:~p",
+                                                                                             [Class, Error], erlang:get_stacktrace())
                                                                               end
                                                                       end
                                        , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
@@ -692,8 +693,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
-        {error, {{Ex, M}, _Stacktrace} = Error} ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
+        {error, {{Ex, M}, Stacktrace} = Error} ->
+            ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
@@ -739,8 +740,8 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
                     ok;
-                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
-                    ?Error([{session, Connection}], "query error ~p", [Error]),
+                {error, {{_Ex, _M}, Stacktrace} = Error} ->
+                    ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
                     {error, TableName};
                 {error, {Ex, M}} ->
                     ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
