@@ -26,7 +26,7 @@ function display_login()
         closeOnEscape: false,
         dialogClass: 'no-close',
         open: function(event, ui) {
-            $('#user_login').val("admin");
+            $('#user_login').val("system");
             $(this).dialog("widget").appendTo("#main-body");
             setTimeout(function() {
                 $('#password_login').focus();
