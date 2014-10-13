@@ -84,23 +84,27 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                                        {<<"sqlbox">>, JsonBox}
                                                catch
                                                    Class:Error ->
-                                                       ?Error("Error ~p:~p converting the box ~p to json: ~n~p~n", [Class, Error, Box, erlang:get_stacktrace()]),
+                                                       ?Error("Error ~p:~p converting the box ~p to json",
+                                                              [Class, Error, Box]),
                                                        {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                                end
                                        catch
                                            Class:Error ->
-                                               ?Error("Error ~p:~p trying to get the box of the parse tree ~p, the st: ~n~p~n", [Class, Error, ParseTree, erlang:get_stacktrace()]),
+                                               ?Error("Error ~p:~p trying to get the box of the parse tree ~p~n",
+                                                      [Class, Error, ParseTree], erlang:get_stacktrace()),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                        end,
                             PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
                                               {error, PrettyReason} ->
-                                                  ?Error("Error ~p trying to get the pretty of the parse tree ~p", [PrettyReason, ParseTree]),
+                                                  ?Error("Error ~p trying to get the pretty of the parse tree ~p",
+                                                         [PrettyReason, ParseTree]),
                                                   {<<"prettyerror">>, PrettyReason};
                                               Pretty ->
                                                   {<<"pretty">>, Pretty}
                                           catch
                                               Class1:Error1 ->
-                                                  ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p, the st: ~n~p~n", [Class1, Error1, ParseTree, erlang:get_stacktrace()]),
+                                                  ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
+                                                         [Class1, Error1, ParseTree], erlang:get_stacktrace()),
                                                   {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
                                           end,
                             case SqlTitle of
@@ -258,7 +262,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     RowIds = proplists:get_value(<<"row_ids">>, BodyJson, 0),
     RespJson = case Statement:get_statistics(ColumnIds, RowIds) of
         {error, Error, St} ->
-            ?Error("Stats error ~p~n~p", [Error, St]),
+            ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
             ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
@@ -291,7 +295,7 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
     ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
     RespJson = case Statement:get_statistics(ColumnIds) of
         {error, Error, St} ->
-            ?Error("Stats error ~p~n~p", [Error, St]),
+            ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
             ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
@@ -484,9 +488,13 @@ r2jsn([Row|Rows], JCols, NewRows) ->
 build_resp_fun(Cmd, Clms, From) ->
     fun(#gres{} = GuiResp) ->
         GuiRespJson = gui_resp(GuiResp, Clms),
-        case (catch jsx:encode([{Cmd,GuiRespJson}])) of
-            {'EXIT', Error} -> ?Error("Encoding problem ~p ~p~n~p~n~p", [Cmd, Error, GuiResp, GuiRespJson]);
-            Resp -> From ! {reply, Resp}
+        try
+            Resp = jsx:encode([{Cmd,GuiRespJson}]),
+            From ! {reply, Resp}
+        catch
+            _:Error ->
+                ?Error("Encoding problem ~p ~p~n~p~n~p",
+                       [Cmd, Error, GuiResp, GuiRespJson])
         end
     end.
 
