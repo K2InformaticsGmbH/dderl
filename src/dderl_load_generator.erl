@@ -81,8 +81,7 @@ handle_cast(_Ignored, State) ->
 handle_info(_Info, State) ->
 	{noreply, State}.
 
-terminate(_Reason, State) ->
-    ok.
+terminate(_Reason, _State) -> ok.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
