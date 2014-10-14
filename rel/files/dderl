@@ -2,7 +2,22 @@
 # -*- tab-width:4;indent-tabs-mode:nil -*-
 # ex: ts=4 sw=4 et
 
-RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
+. "{{runner_base_dir}}/lib/env.sh"
+
+# /bin/sh on Solaris is not a POSIX compatible shell, but /usr/bin/ksh is.
+if [ `uname -s` = 'SunOS' -a "${POSIX_SHELL}" != "true" ]; then
+    POSIX_SHELL="true"
+    export POSIX_SHELL
+    # To support 'whoami' add /usr/ucb to path
+    PATH=/usr/ucb:$PATH
+    export PATH
+    exec /usr/bin/ksh $0 "$@"
+fi
+
+# clear it so if we invoke other scripts, they run as ksh
+unset POSIX_SHELL
+
+RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd -P)
 
 CALLER_DIR=$PWD
 
@@ -11,10 +26,17 @@ RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
 # Note the trailing slash on $PIPE_DIR/
 PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
 RUNNER_USER=
+WHOAMI=$(whoami)
 
 # Make sure this script is running as the appropriate user
-if [ ! -z "$RUNNER_USER" ] && [ `whoami` != "$RUNNER_USER" ]; then
-    exec sudo -u $RUNNER_USER -i $0 $@
+if ([ "$RUNNER_USER" ] && [ "x$WHOAMI" != "x$RUNNER_USER" ]); then
+    type sudo > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "sudo doesn't appear to be installed and your EUID isn't $RUNNER_USER" 1>&2
+        exit 1
+    fi
+    echo "Attempting to restart script through sudo -H -u $RUNNER_USER" >&2
+    exec sudo -H -u $RUNNER_USER -i $RUNNER_SCRIPT_DIR/$RUNNER_SCRIPT $@
 fi
 
 # Identify the script name
@@ -25,7 +47,8 @@ START_ERL=`cat $RUNNER_BASE_DIR/releases/start_erl.data`
 ERTS_VSN=${START_ERL% *}
 APP_VSN=${START_ERL#* }
 
-# Use $CWD/vm.args if exists, otherwise releases/APP_VSN/vm.args, or else etc/vm.args
+# Use $CWD/vm.args if exists, otherwise releases/APP_VSN/vm.args, or
+# else etc/vm.args
 if [ -e "$CALLER_DIR/vm.args" ]; then
     VMARGS_PATH=$CALLER_DIR/vm.args
     USE_DIR=$CALLER_DIR
@@ -54,7 +77,7 @@ else
 fi
 
 # Extract the target node name from node.args
-NAME_ARG=`egrep '^-s?name' $VMARGS_PATH`
+NAME_ARG=`egrep '^\-s?name' $VMARGS_PATH`
 if [ -z "$NAME_ARG" ]; then
     echo "vm.args needs to have either -name or -sname parameter."
     exit 1
@@ -64,12 +87,13 @@ fi
 REMSH_TYPE=`echo $NAME_ARG | awk '{print $1}'`
 REMSH_NAME=`echo $NAME_ARG | awk '{print $2}'`
 
-# Note the `date +%s`, used to allow multiple remsh to the same node transparently
+# Note the `date +%s`, used to allow multiple remsh to the same node
+# transparently
 REMSH_NAME_ARG="$REMSH_TYPE remsh`date +%s`@`echo $REMSH_NAME | awk -F@ '{print $2}'`"
 REMSH_REMSH_ARG="-remsh $REMSH_NAME"
 
 # Extract the target cookie
-COOKIE_ARG=`grep '^-setcookie' $VMARGS_PATH`
+COOKIE_ARG=`grep '^\-setcookie' $VMARGS_PATH`
 if [ -z "$COOKIE_ARG" ]; then
     echo "vm.args needs to have a -setcookie parameter."
     exit 1
@@ -81,7 +105,6 @@ cd $USE_DIR
 # Make sure log directory exists
 mkdir -p $USE_DIR/log
 
-
 # Add ERTS bin dir to our path
 ERTS_PATH=$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin
 
@@ -91,11 +114,35 @@ NODETOOL="$ERTS_PATH/escript $ERTS_PATH/nodetool $NAME_ARG $COOKIE_ARG"
 # Setup remote shell command to control node
 REMSH="$ERTS_PATH/erl $REMSH_NAME_ARG $REMSH_REMSH_ARG $COOKIE_ARG"
 
+# Common functions
+
+# Ping node without allowing nodetool to take stdin
+ping_node() {
+    $NODETOOL ping < /dev/null
+}
+
+# Set the PID global variable, return 1 on error
+get_pid() {
+    PID=`$NODETOOL getpid < /dev/null`
+    ES=$?
+    if [ "$ES" -ne 0 ]; then
+        echo "Node is not running!"
+        return 1
+    fi
+
+    # don't allow empty or init pid's
+    if [ -z $PID ] || [ "$PID" -le 1 ]; then
+        return 1
+    fi
+
+    return 0
+}
+
 # Check the first argument for instructions
 case "$1" in
     start|start_boot)
         # Make sure there is not already a node running
-        RES=`$NODETOOL ping`
+        RES=`ping_node`
         if [ "$RES" = "pong" ]; then
             echo "Node is already running!"
             exit 1
@@ -117,35 +164,74 @@ case "$1" in
         export HEART_COMMAND
         mkdir -p $PIPE_DIR
         $ERTS_PATH/run_erl -daemon $PIPE_DIR $RUNNER_LOG_DIR "exec $RUNNER_BASE_DIR/bin/$SCRIPT $START_OPTION $RUN_PARAM" 2>&1
+        if [ ! -z "$WAIT_FOR_PROCESS" ]; then
+            # Wait for the node to come up. We can't just ping it because
+            # distributed erlang comes up for a second before the node crashes
+            # (eg. in the case of an unwriteable disk). Once the node comes
+            # up we check for the $WAIT_FOR_PROCESS} process. If that's running
+            # then we assume things are good enough. This will at least let
+            # the user know when the node is crashing right after startup.
+            WAIT=${WAIT_FOR_ERLANG:-15}
+            while [ $WAIT -gt 0 ]; do
+                WAIT=`expr $WAIT - 1`
+                sleep 1
+                echo -n "."
+
+                # squash stderr output to not frighten users if the node does
+                # not come up right away
+                MUTE=`ping_node 2> /dev/null`
+                if [ "$?" -ne 0 ]; then
+                    continue
+                fi
+                PROCESS=`$NODETOOL rpcterms erlang whereis "'${WAIT_FOR_PROCESS}'."`
+                if [ "$PROCESS" != "undefined" ]; then
+                    # Attempt to create a .pid file for the process
+                    create_pid_file
+                    exit 0
+                fi
+            done
+            echo "${SCRIPT} failed to start within ${WAIT_FOR_ERLANG:-15} seconds,"
+            echo "see the output of '${SCRIPT} console' for more information."
+            echo "If you want to wait longer, set the environment variable"
+            echo "WAIT_FOR_ERLANG to the number of seconds to wait."
+            exit 1
+        fi
+
+        # Attempt to create a .pid file
+        create_pid_file
         ;;
 
     stop)
-        # Wait for the node to completely stop...
-        case `uname -s` in
-            Linux|Darwin|FreeBSD|DragonFly|NetBSD|OpenBSD)
-                # PID COMMAND
-                PID=`ps ax -o pid= -o command=|\
-                    grep "$RUNNER_BASE_DIR/.*/[b]eam"|awk '{print $1}'`
-                ;;
-            SunOS)
-                # PID COMMAND
-                PID=`ps -ef -o pid= -o args=|\
-                    grep "$RUNNER_BASE_DIR/.*/[b]eam"|awk '{print $1}'`
-                ;;
-            CYGWIN*)
-                # UID PID PPID TTY STIME COMMAND
-                PID=`ps -efW|grep "$RUNNER_BASE_DIR/.*/[b]eam"|awk '{print $2}'`
-                ;;
-        esac
-        $NODETOOL stop
+        # Get the PID from nodetool
+        get_pid
+        GPR=$?
+        if [ "$GPR" -ne 0 ] || [ -z $PID ]; then
+            exit $GPR
+        fi
+
+        # Tell nodetool to initiate a stop
+        $NODETOOL stop >/dev/null 2>&1
         ES=$?
         if [ "$ES" -ne 0 ]; then
             exit $ES
         fi
-        while `kill -0 $PID 2>/dev/null`;
+
+        # Wait for the node to completely stop...
+        WAIT=${NODE_DOWN_WAIT:-15}
+        while `kill -s 0 $PID 2>/dev/null`
         do
+            WAIT=`expr $WAIT - 1`
+            if [ $WAIT -lt 1 ]; then
+                break;
+            fi
             sleep 1
+            echo -n "."
         done
+        if [ $WAIT -lt 1 ]; then
+            # Brutal kill the pid
+            echo -n "(VM brutal kill)"
+            `kill -9 $PID 2>/dev/null`
+        fi
         ;;
 
     restart)
@@ -168,7 +254,7 @@ case "$1" in
 
     ping)
         ## See if the VM is alive
-        $NODETOOL ping
+        ping_node
         ES=$?
         if [ "$ES" -ne 0 ]; then
             exit $ES
@@ -176,8 +262,8 @@ case "$1" in
         ;;
 
     attach)
-        # Make sure a node IS running
-        RES=`$NODETOOL ping`
+        # Make sure a node is running
+        ping_node
         ES=$?
         if [ "$ES" -ne 0 ]; then
             echo "Node is not running!"
@@ -189,8 +275,8 @@ case "$1" in
         ;;
 
     remote_console)
-        # Make sure a node IS running
-        RES=`$NODETOOL ping`
+        # Make sure a node is running
+        ping_node
         ES=$?
         if [ "$ES" -ne 0 ]; then
             echo "Node is not running!"
@@ -210,7 +296,7 @@ case "$1" in
         fi
 
         # Make sure a node IS running
-        RES=`$NODETOOL ping`
+        ping_node
         ES=$?
         if [ "$ES" -ne 0 ]; then
             echo "Node is not running!"
@@ -283,8 +369,17 @@ case "$1" in
         # Start the VM
         exec $CMD -- ${1+"$@"}
         ;;
+    getpid)
+        # Get the PID from nodetool
+        get_pid
+        ES=$?
+        if [ "$ES" -ne 0 ] || [ -z $PID ]; then
+            exit $ES
+        fi
+        echo $PID
+        ;;
     *)
-        echo "Usage: $SCRIPT {start|start_boot <file>|foreground|stop|restart|reboot|ping|console|console_clean|console_boot <file>|attach|remote_console|upgrade}"
+        echo "Usage: $SCRIPT {start|start_boot <file>|foreground|stop|restart|reboot|ping|console|getpid|console_clean|console_boot <file>|attach|remote_console|upgrade}"
         exit 1
         ;;
 esac
