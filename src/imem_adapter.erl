@@ -11,6 +11,7 @@
         , disconnect/1
         , process_query/4
         , rows/2
+        , get_deps/0
         ]).
 
 -record(priv, {connections = []}).
@@ -860,3 +861,6 @@ get_params(Sql) ->
         _ ->
             []
     end.
+
+-spec get_deps() -> [atom()].
+get_deps() -> [erlimem, imem].

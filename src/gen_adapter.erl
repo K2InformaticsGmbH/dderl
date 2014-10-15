@@ -17,6 +17,7 @@
         , extract_modified_rows/1
         , decrypt_to_term/1
         , encrypt_to_binary/1 
+        , get_deps/0
         ]).
 
 init() -> ok.
@@ -675,3 +676,6 @@ add_function_type(_, Value, _) ->
 escape_quotes([]) -> [];
 escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
 escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
+
+-spec get_deps() -> [atom()].
+get_deps() -> [sqlparse].

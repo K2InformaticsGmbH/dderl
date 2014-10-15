@@ -446,8 +446,15 @@ handle_cast({add_adapter, Id, FullName}, #state{sess=Sess} = State) ->
     {noreply, State};
 handle_cast({init_adapter, Adapter}, State) ->
     spawn(fun() ->
-        Adapter:init(),
-        ?Debug("init_adapter ~p", [Adapter])
+        Deps = Adapter:get_deps(),
+        ?Info("checking for ~p dependencies: ~p", [Adapter, Deps]),
+        case check_dependencies(Deps) of
+            true ->
+                ?Info("Dependencies found, initializing adapter ~p", [Adapter]),
+                Adapter:init();
+            false ->
+                ?Info("Some dependencies of ~p missing, it will be excluded", [Adapter])
+        end
     end),
     {noreply, State};
 handle_cast(Req,State) ->
@@ -628,3 +635,11 @@ when is_atom(Level)
         imem_meta:log_to_db(Level,Module,Function,Line,Fields,Message,StackTrace)
     end),
     ok.
+
+-spec check_dependencies([atom()]) -> boolean().
+check_dependencies([]) -> true;
+check_dependencies([Dep | Rest]) ->
+    case code:priv_dir(Dep) of
+        {error, bad_name} -> false;
+        _ -> check_dependencies(Rest)
+    end.

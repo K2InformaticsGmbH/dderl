@@ -11,6 +11,7 @@
         , disconnect/1
         , rows/2
         , rows_limit/3
+        , get_deps/0
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -758,3 +759,6 @@ get_value_empty_default(Key, Proplist, Defaults) ->
         <<>> -> proplists:get_value(Key, Defaults, <<>>);
         Value -> Value
     end.
+
+-spec get_deps() -> [atom()].
+get_deps() -> [dderloci, erloci].
