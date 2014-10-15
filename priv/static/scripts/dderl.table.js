@@ -1,5 +1,4 @@
 (function( $ ) {
-
   $.widget( "dderl.table", $.ui.dialog, {
 
     _dlg            : null,
@@ -122,7 +121,8 @@
                        'Statistics'       : '_showStatisticsFull',
                        'Toggle Grouping'  : '_toggleGrouping'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
-                       'Filter'           : '_filter',
+                       'Filter'           : '_filterCell',
+                       'Filter...'        : '_filterCellDialog',
                        'Edit'             : '_editErlangTerm',
                        'Truncate Table'   : '_truncateTable',
                        'Drop Table'       : '_dropTable',
@@ -1221,7 +1221,16 @@
             self._ajax('/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
         }
     },
-    _filter: function(_ranges) {
+
+    _filterCellDialog: function(_ranges) {
+        this._filter(_ranges, true);
+    },
+
+    _filterCell: function(_ranges) {
+        this._filter(_ranges, false);
+    },
+
+    _filter: function(_ranges, showDialog) {
         var self = this;
         if(self._filters === null) {
             self._filters = new Object();
@@ -1248,7 +1257,7 @@
                 }
             }
         }
-        if(Object.keys(self._filters).length === 1) {
+        if(Object.keys(self._filters).length === 1 && !showDialog) {
             for(var c in self._filters) {
                 var strs = [];
                 for(s in self._filters[c].vals) strs.push(s);
@@ -1264,6 +1273,7 @@
             self._showFilterGui();
         }
     },
+
     _showFilterGui: function() {
         var self = this;
         // first check if we have a filter open and close it.
