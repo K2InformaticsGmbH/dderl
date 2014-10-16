@@ -14,6 +14,7 @@
 
 %% API.
 start() ->
+    application:set_env(ssl, protocol_version, ['tlsv1.2','tlsv1.1',tlsv1]),
     ssl:start(),
     ok = application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},

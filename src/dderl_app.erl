@@ -34,11 +34,11 @@ start(_Type, _Args) ->
     {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
     % default routes
     NewRoutePaths = MasterUrlRoutePaths ++
-	                [{"/", dderl, []}, 
-			 {"/ws", bullet_handler, [{handler, dderl_stream}]},
-			 {"/app/[...]", dderl_resource, []},
-			 {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
-			 {"/[...]", cowboy_static, {dir, PrivDir}}],
+        [{"/", dderl, []},
+         {"/ws", bullet_handler, [{handler, dderl_stream}]},
+         {"/app/[...]", dderl_resource, []},
+         {"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
+         {"/[...]", cowboy_static, {dir, PrivDir}}],
     ok = application:set_env(dderl, master_paths, NewRoutePaths),
     ?Info("DDerl started with route paths ~p", [NewRoutePaths]),
     Dispatch = cowboy_router:compile([{'_', NewRoutePaths}]),
@@ -60,10 +60,11 @@ start(_Type, _Args) ->
     {ok, Interface} = inet:getaddr(Ip, inet),
     {ok, _} = cowboy:start_https(https, 100, [
         {ip, Interface},
-		{port, Port},
-		{cacertfile, CaCertFile},
-		{certfile, CertFile},
-		{keyfile, KeyFile}
+        {port, Port},
+        {cacertfile, CaCertFile},
+        {certfile, CertFile},
+        {keyfile, KeyFile},
+        {versions, ['tlsv1.2','tlsv1.1',tlsv1]}
     ], [{env, [{dispatch, Dispatch}]}]),
 
     {ok, PrivateFile}   = application:get_env(dderl, crypt_private),
@@ -89,7 +90,7 @@ start(_Type, _Args) ->
     ok = application:set_env(dderl, crypt_private_key, PrivateKey),
     ok = application:set_env(dderl, crypt_public_key, PublicKey),
 
-	dderl_sup:start_link().
+    dderl_sup:start_link().
 
 stop(_State) ->
-	ok.
+    ok.
