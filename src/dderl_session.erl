@@ -109,7 +109,7 @@ handle_call({get_state, _}, _From, State) ->
     ?Debug("get_state, unauthorized access attempt result: ~p~n", [State]),
     {reply, unauthorized, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
-    ?Error([{user, _User}], "unknown call ~p", [Unknown]),
+    ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
 handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
@@ -123,7 +123,7 @@ handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) 
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State0#state{tref=NewTRef}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
-    ?Error([{user, _User}], "~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
+    ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
 handle_info(die, #state{user=User}=State) ->
@@ -139,7 +139,7 @@ handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
 handle_info(Info, #state{user = User} = State) ->
-    ?Error([{user, User}], "~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
+    ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
 
 terminate(Reason, #state{user=User} = State) ->

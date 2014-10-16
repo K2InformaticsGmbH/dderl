@@ -535,17 +535,17 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
+            ?Error("query error ~p", [Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
         {error, {Ex,M}} ->
-            ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
+            ?Error("query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
         Error ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
+            ?Error("query error ~p", [Error]),
             Error = if is_binary(Error) -> Error;
                 true -> list_to_binary(lists:flatten(io_lib:format("~p", [Error])))
             end,
@@ -695,17 +695,17 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
         {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
+            ?Error("query error ~p", [Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
         {error, {Ex,M}} ->
-            ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
+            ?Error("query error ~p", [{Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
         Error ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
+            ?Error("query error ~p", [Error]),
             if
                 is_binary(Error) ->
                     [{<<"error">>, Error}];
@@ -742,13 +742,13 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
                 ok ->
                     ok;
                 {error, {{_Ex, _M}, Stacktrace} = Error} ->
-                    ?Error([{session, Connection}], "query error ~p", [Error], Stacktrace),
+                    ?Error("query error ~p", [Error], Stacktrace),
                     {error, TableName};
                 {error, {Ex, M}} ->
-                    ?Error([{session, Connection}], "query error ~p", [{Ex,M}]),
+                    ?Error("query error ~p", [{Ex,M}]),
                     {error, TableName};
                 Error ->
-                    ?Error([{session, Connection}], "query error ~p", [Error]),
+                    ?Error("query error ~p", [Error]),
                     {error, TableName}
             end;
         false ->

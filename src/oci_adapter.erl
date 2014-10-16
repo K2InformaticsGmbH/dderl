@@ -520,7 +520,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             dderloci:fetch_recs_async(StmtRef, [{fetch_mode, push}], 0),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
         Error ->
-            ?Error([{session, Connection}], "query error ~p", [Error]),
+            ?Error("query error ~p", [Error]),
             Error = if is_binary(Error) -> Error;
                 true -> list_to_binary(lists:flatten(io_lib:format("~p", [Error])))
             end,
@@ -615,11 +615,11 @@ process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt,
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, ?E2B(Connection)}];
-process_query({error, {Code, Msg}}, _Query, Connection, _SessPid) when is_binary(Msg) ->
-    ?Error([{session, Connection}], "query error ~p", [{Code, Msg}]),
+process_query({error, {Code, Msg}}, _Query, _Connection, _SessPid) when is_binary(Msg) ->
+    ?Error("query error ~p", [{Code, Msg}]),
     [{<<"error">>, Msg}];
-process_query(Error, _Query, Connection, _SessPid) ->
-    ?Error([{session, Connection}], "query error ~p", [Error]),
+process_query(Error, _Query, _Connection, _SessPid) ->
+    ?Error("query error ~p", [Error]),
     if
         is_binary(Error) ->
             [{<<"error">>, Error}];
@@ -653,7 +653,7 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case dderloci:run_table_cmd(Connection, Cmd, TableName) of
                 ok -> ok;
                 {error, Error} ->
-                    ?Error([{session, Connection}], "query error ~p", [Error]),
+                    ?Error("query error ~p", [Error]),
                     {error, TableName}
             end;
         false ->
