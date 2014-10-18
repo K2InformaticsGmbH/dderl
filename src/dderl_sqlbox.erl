@@ -833,7 +833,7 @@ foldb(Ind, P, {between, A, B, C}) ->
     end;
 
 foldb(_Ind, P, Term) ->    
-    ?Error("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
+    ?Debug("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
 
 -spec mk_clspd_box(integer(), tuple() | list(), binary()) -> #box{}.

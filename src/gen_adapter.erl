@@ -76,7 +76,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
                                            {error, BoxReason} ->
-                                               ?Error("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
+                                               ?Debug("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
                                            {ok, Box} ->
                                                %% ?Debug("The box ~p", [Box]),
@@ -85,27 +85,27 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                                                        {<<"sqlbox">>, JsonBox}
                                                catch
                                                    Class:Error ->
-                                                       ?Error("Error ~p:~p converting the box ~p to json",
+                                                       ?Debug("Error ~p:~p converting the box ~p to json",
                                                               [Class, Error, Box]),
                                                        {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                                end
                                        catch
                                            Class:Error ->
-                                               ?Error("Error ~p:~p trying to get the box of the parse tree ~p~n",
-                                                      [Class, Error, ParseTree], erlang:get_stacktrace()),
+                                               ?Debug("Error ~p:~p trying to get the box of the parse tree ~p~n",
+                                                      [Class, Error, ParseTree]),
                                                {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
                                        end,
                             PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
                                               {error, PrettyReason} ->
-                                                  ?Error("Error ~p trying to get the pretty of the parse tree ~p",
+                                                  ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
                                                          [PrettyReason, ParseTree]),
                                                   {<<"prettyerror">>, PrettyReason};
                                               Pretty ->
                                                   {<<"pretty">>, Pretty}
                                           catch
                                               Class1:Error1 ->
-                                                  ?Error("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
-                                                         [Class1, Error1, ParseTree], erlang:get_stacktrace()),
+                                                  ?Debug("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
+                                                         [Class1, Error1, ParseTree]),
                                                   {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
                                           end,
                             case SqlTitle of
