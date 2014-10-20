@@ -281,16 +281,23 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     State;
 
 process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    Res = jsx:encode([{<<"adapters">>,
-            [ [{<<"id">>, jsq(A#ddAdapter.id)}
-              ,{<<"fullName">>, A#ddAdapter.fullName}]
-            || A <- dderl_dal:get_adapters(Sess)]}]),
-    ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
-    From ! {reply, Res},
+    case dderl_dal:get_adapters(Sess) of
+        {error, Reason} ->
+            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
+        Adapters ->
+            Res = jsx:encode([{<<"adapters">>,
+                [[{<<"id">>, jsq(A#ddAdapter.id)}
+                 ,{<<"fullName">>, A#ddAdapter.fullName}]
+                 || A <- Adapters]}]),
+            ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
+            From ! {reply, Res}
+    end,
     State;
 
 process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
     case dderl_dal:get_connects(Sess, UserId) of
+        {error, Reason} ->
+            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
         [] ->
             From ! {reply, jsx:encode([{<<"connects">>,[]}])};
         UnsortedConns ->

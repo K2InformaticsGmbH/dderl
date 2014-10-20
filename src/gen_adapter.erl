@@ -22,12 +22,13 @@
 
 init() -> ok.
 
--spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> [ddEntityId() | need_replace].
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> [ddEntityId() | need_replace] | {error, binary()}.
 add_cmds_views(_, _, _, _, []) -> [];
 add_cmds_views(Sess, UserId, A, R, [{N,C,Con}|Rest]) ->
     add_cmds_views(Sess, UserId, A, R, [{N,C,Con,#viewstate{}}|Rest]);
 add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     case dderl_dal:get_view(Sess, N, A, UserId) of
+        {error, _} = Error -> Error;
         undefined ->
             Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
             ViewId = dderl_dal:add_view(Sess, UserId, N, Id, V),
@@ -220,6 +221,8 @@ process_cmd({[<<"save_dashboard">>], ReqBody}, _Adapter, Sess, UserId, From, _Pr
     From ! {reply, Res};
 process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
     case dderl_dal:get_dashboards(Sess, UserId) of
+        {error, Reason} ->
+            Res = jsx:encode([{<<"error">>, Reason}]);
         [] ->
             ?Debug("No dashboards found for the user ~p", [UserId]),
             Res = jsx:encode([{<<"dashboards">>,[]}]);

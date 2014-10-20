@@ -64,7 +64,7 @@ add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName
 add_connect(undefined, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Conn});
 add_connect(Sess, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Sess, Conn}).
 
--spec get_connects({atom(), pid()}, ddEntityId()) -> [#ddConn{}].
+-spec get_connects({atom(), pid()}, ddEntityId()) -> [#ddConn{}] | {error, binary()}.
 get_connects(Sess, UserId) -> gen_server:call(?MODULE, {get_connects, Sess, UserId}).
 
 -spec add_command({atom(), pid()} | undefined, ddEntityId(), atom(), binary(), binary(), list() | undefined, term()) -> ddEntityId().
@@ -206,11 +206,10 @@ delete_view(Sess, ViewId) ->
             {error, <<"Unable to find the view to delete">>}
     end.
 
--spec get_adapters({atom(), pid()}) -> [#ddAdapter{}].
+-spec get_adapters({atom(), pid()}) -> {error, binary()} | [#ddAdapter{}].
 get_adapters(Sess) ->
     ?Debug("get_adapters"),
-    {Adapters, true} = Sess:run_cmd(select, [ddAdapter, [{'$1', [], ['$_']}]]),
-    Adapters.
+    check_cmd_select(Sess, [ddAdapter, [{'$1', [], ['$_']}]]).
 
 -spec del_conn({atom(), pid()}, ddEntityId()) -> ok | no_permission.
 del_conn(Sess, ConId) ->
@@ -231,45 +230,46 @@ del_conn(Sess, ConId) ->
         end
     end.
 
--spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{}.
+-spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{} | {error, binary()}.
 get_command(Sess, IdOrName) ->
-  ?Debug("get_command for id ~p", [IdOrName]),
-  {Cmds, true} =
-      case IdOrName of
-          Id when is_integer(Id) -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
-          Name -> Sess:run_cmd(select, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
-      end,
-  Cmd = if length(Cmds) > 0 -> lists:nth(1, Cmds); true -> #ddCmd{opts=[]} end,
-  Cmd.
+    ?Debug("get_command for id ~p", [IdOrName]),
+    CmdsResult =
+        case IdOrName of
+            Id when is_integer(Id) ->
+                check_cmd_select(Sess, [ddCmd, [{#ddCmd{id=Id, _='_'}, [], ['$_']}]]);
+            Name ->
+                check_cmd_select(Sess, [ddCmd, [{#ddCmd{name=Name, _='_'}, [], ['$_']}]])
+        end,
+    case CmdsResult of
+        {error, _} = Error -> Error;
+        [Cmd | _Ignored] -> Cmd;
+        [] ->  #ddCmd{opts=[]}
+    end.
 
--spec get_view({atom(), pid()}, ddEntityId()) -> #ddView{} | undefined.
+-spec get_view({atom(), pid()}, ddEntityId()) -> {error, binary()} | #ddView{} | undefined .
 get_view(undefined, ViewId) -> gen_server:call(?MODULE, {get_view, ViewId});
 get_view(Sess, ViewId) ->
     ?Debug("get view by id ~p", [ViewId]),
-    case Sess:run_cmd(select, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
-        {[View], true} ->
-            View;
+    case check_cmd_select(Sess, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
+        {error, _} = Error -> Error;
+        [View] -> View;
         Result ->
             ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
-            View = undefined
-    end,
-    View.
+            undefined
+    end.
 
 -spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
 get_view(undefined, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Name, Adapter, Owner});
 get_view(Sess, Name, Adapter, Owner) -> 
     ?Debug("get_view ~p", [Name]),
-    {Views, true} = Sess:run_cmd(select, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]),
-    ListResult = [{V, Sess:run_cmd(select, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters='$1', _='_'}, [], ['$1']}]])} || V <- Views],
-    Result = [V || {V, {[C], true}} <- ListResult, lists:member(Adapter, C)],
-    if
-        length(Result) > 0 ->
-            %% TODO: How can we discriminate to ignore the correct one?
-            [View | _Ignored] = Result;
-        true ->
-            View = undefined
-    end,
-    View.
+    case check_cmd_select(Sess, [ddView,[{#ddView{name=Name, owner=Owner, _='_'}, [], ['$_']}]]) of
+        {error, _} = Error -> Error;
+        Views ->
+            case filter_view_result(Views, Sess, Adapter) of
+                {error, _} = Error -> Error;
+                View -> View
+            end
+    end.
 
 -spec save_dashboard({atom(), pid()}, ddEntityId(), integer(), binary(), list()) -> integer() | {error, binary()}.
 save_dashboard(Sess, Owner, -1, Name, Views) ->
@@ -287,10 +287,9 @@ save_dashboard(Sess, Owner, DashId, Name, Views) ->
     ?Debug("dashboard saved ~p", [NewDash]),
     DashId.
 
--spec get_dashboards({atom(), pid()}, ddEntityId()) -> [#ddDash{}].
+-spec get_dashboards({atom(), pid()}, ddEntityId()) -> {error, binary()} | [#ddDash{}].
 get_dashboards(Sess, Owner) ->
-    {Dashboards, true} = Sess:run_cmd(select, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]),
-    Dashboards.
+    check_cmd_select(Sess, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]).
 
 -spec get_id({atom(), pid()}, ddIdentity()) -> ddEntityId().
 get_id(Sess, Username) ->
@@ -408,14 +407,18 @@ handle_call({add_connect, UserSess, Conn}, _From, #state{sess=DalSess} = State) 
     {reply, add_connect_internal(UserSess, DalSess, Conn), State};
 
 handle_call({get_connects, UserSess, UserId}, _From, #state{sess = DalSess} = State) ->
-    {AllCons, true} = UserSess:run_cmd(select, [ddConn, [{'$1', [], ['$_']}]]),
-    case UserSess:run_cmd(have_permission, [[manage_system, ?MANAGE_CONNS]]) of
-        true -> Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)} || C <- AllCons];
-        _ ->
-            Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)}
-                    || C <- AllCons, conn_permission(UserSess, UserId, C)]
-    end,
-    {reply, Cons, State};
+    case check_cmd_select(UserSess, [ddConn, [{'$1', [], ['$_']}]]) of
+        {error, _} = Error ->
+            {reply, Error, State};
+        AllCons ->
+            case UserSess:run_cmd(have_permission, [[manage_system, ?MANAGE_CONNS]]) of
+                true -> Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)} || C <- AllCons];
+                _ ->
+                    Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)}
+                            || C <- AllCons, conn_permission(UserSess, UserId, C)]
+            end,
+            {reply, Cons, State}
+    end;
 
 handle_call({update_command, Id, Owner, Name, Sql, Opts}, _From, #state{sess=Sess} = State) ->
     {reply, update_command(Sess, Id, Owner, Name, Sql, Opts), State};
@@ -595,7 +598,7 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Con
             {error, <<"Error saving the connection">>}
     end.
 
--spec check_save_conn({atom(), pid()}, {atom(), pid()}, atom(), #ddConn{}) -> #ddConn{} | {error, term()}.
+-spec check_save_conn({atom(), pid()}, {atom(), pid()}, atom(), #ddConn{}) -> #ddConn{} | {error, binary()}.
 check_save_conn(UserSess, DalSess, Op, Conn) ->
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
@@ -612,6 +615,25 @@ check_save_conn(UserSess, DalSess, Op, Conn) ->
         InvalidReturn ->
             ?Error("Invalid return on ~p connection ~p: The result:~n~p", [Op, Conn, InvalidReturn]),
             {error, <<"Error saving the connection (Invalid value returned from DB)">>}
+    end.
+
+-spec check_cmd_select({atom(), pid()}, list()) -> {error, binary()} | list().
+check_cmd_select(UserSess, Args) ->
+    case UserSess:run_cmd(select, Args) of
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("select failed : ~n~p", [Error]),
+            Msg = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                     lists:flatten(io_lib:format("~p", [M]))),
+            {error, Msg};
+        {error, Error} ->
+            ?Error("select failed: ~p", [Error]),
+            Msg = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
+            {error, Msg};
+        {Result, true} ->
+            Result;
+        InvalidReturn ->
+            ?Error("Invalid return on select, args ~p: The result:~n~p", [Args, InvalidReturn]),
+            {error, <<"Error on select (Invalid value returned from DB)">>}
     end.
 
 -spec compare_connections(#ddConn{}, #ddConn{}) -> boolean().
@@ -642,4 +664,17 @@ check_dependencies([Dep | Rest]) ->
     case code:priv_dir(Dep) of
         {error, bad_name} -> false;
         _ -> check_dependencies(Rest)
+    end.
+
+-spec filter_view_result([#ddView{}], {atom(), pid()}, atom()) -> #ddView{} | {error, binary()}.
+filter_view_result([], _, _) -> undefined;
+filter_view_result([V | Views], Sess, Adapter) ->
+    case check_cmd_select(Sess, [ddCmd, [{#ddCmd{id=V#ddView.cmd, adapters='$1', _='_'}, [], ['$1']}]]) of
+        {error, _} = Error ->
+            Error;
+        [C] ->
+            case lists:member(Adapter, C) of
+                true -> V;
+                false -> filter_view_result(Views, Sess, Adapter)
+            end
     end.

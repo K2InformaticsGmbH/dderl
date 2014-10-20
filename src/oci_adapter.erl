@@ -312,6 +312,8 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     %% TODO: This should be replaced by dashboard.
     case dderl_dal:get_view(Sess, <<"All Views">>, oci, UserId) of
+        {error, _} = Error->
+            F = Error;
         undefined ->
             ?Debug("Using system view All Views"),
             F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system);
@@ -319,17 +321,22 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
             ?Debug("Using a personalized view All Views"),
             F = UserView
     end,
-    C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
-    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
-    RespJson = jsx:encode([{<<"views">>,
-        [{<<"content">>, C#ddCmd.command}
-        ,{<<"name">>, <<"All Views">>}
-        ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-        ,{<<"view_id">>, F#ddView.id}]
-        ++ Resp
-    }]),
+    case F of
+        {error, Reason} ->
+            RespJson = jsx:encode([{<<"error">>, Reason}]);
+        _ ->
+            C = dderl_dal:get_command(Sess, F#ddView.cmd),
+            Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
+            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+            RespJson = jsx:encode([{<<"views">>,
+                [{<<"content">>, C#ddCmd.command}
+                ,{<<"name">>, <<"All Views">>}
+                ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                ,{<<"view_id">>, F#ddView.id}]
+                ++ Resp
+            }])
+    end,
     From ! {reply, RespJson},
     Priv;
 
@@ -337,18 +344,22 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
 process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid) ->
     [{<<"system_views">>,BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
-    F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system),
-    C = dderl_dal:get_command(Sess, F#ddView.cmd),
-    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
-    ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
-    RespJson = jsx:encode([{<<"system_views">>,
-        [{<<"content">>, C#ddCmd.command}
-        ,{<<"name">>, <<"All Views">>}
-        ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-        ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-        ,{<<"view_id">>, F#ddView.id}]
-        ++ Resp
-    }]),
+    case dderl_dal:get_view(Sess, <<"All Views">>, oci, system) of
+        {error, Reason} ->
+            RespJson = jsx:encode([{<<"error">>, Reason}]);
+        F ->
+            C = dderl_dal:get_command(Sess, F#ddView.cmd),
+            Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
+            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+            RespJson = jsx:encode([{<<"system_views">>,
+                [{<<"content">>, C#ddCmd.command}
+                ,{<<"name">>, <<"All Views">>}
+                ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
+                ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
+                ,{<<"view_id">>, F#ddView.id}]
+                ++ Resp
+            }])
+    end,
     From ! {reply, RespJson},
     Priv;
 
@@ -358,6 +369,9 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
     case dderl_dal:get_view(Sess, ViewId) of
+        {error, Reason} ->
+            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, Reason}]}])},
+            Priv;
         undefined ->
             From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, <<"View not found">>}]}])},
             Priv;
