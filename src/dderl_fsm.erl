@@ -531,7 +531,7 @@ filter_or_not_like(__R,[{__Col,[__RE|__REs]}|__Conditions]) ->
 
 -spec reply_stack(atom(), fun(), #state{}) -> #state{}.
 reply_stack(_SN,ReplyTo, #state{stack=undefined}=State0) ->
-    % stack is empty, nothing to do    
+    % stack is empty, nothing to do
     State0#state{replyToFun=ReplyTo};
 reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=undefined}=State0) ->
     % stack is obsolete, overriden by new command, reply delayed request with nop    
@@ -990,9 +990,9 @@ aborted(Other, State) ->
 %% --------------------------------------------------------------------
 
 handle_event({button, <<">">>, ReplyTo}, empty, State0) ->
-    State1 = fetch(none,none, State0#state{tailMode=false}),
-    ?NoDbLog(debug, [], "empty stack '>' the fun ~p", [ReplyTo]),
-    {next_state, filling, State1#state{stack={button,<<">">>,ReplyTo}}};
+    State1 = reply_stack(empty, ReplyTo, State0),
+    State2 = fetch(none,none, State1#state{tailMode=false}),
+    {next_state, filling, State2#state{stack={button,<<">">>,ReplyTo}}};
 handle_event({button, <<">">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     {next_state, SN, serve_fwd(SN, State1#state{tailLock=true})};
