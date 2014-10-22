@@ -9,7 +9,6 @@
 -define(PKG_COMMENT, "DDErl is a registered trademark of"
                      " K2 Informatics GmbH").
 -define(WXSFILE, "dderl.wxs").
--define(MSIFILE, "dderl.msi").
 -define(TAB, "dderlids").
 -define(TABFILE, "dderlids.dets").
 
@@ -485,9 +484,12 @@ create_wxs(Verbose, Root) ->
     io:format("~s~n", [CandleCmd]),
     io:format("~s", [os:cmd(CandleCmd)]),
     WixObjs = filelib:wildcard("*.wixobj"),
+    MsiFile = generate_msi_name(),
     LightCmd = "light.exe "
                 ++ if Verbose -> "-v "; true -> "" end
-                ++ "-ext WixUIExtension -out "?MSIFILE" "
+                ++ "-ext WixUIExtension -out "
+                ++ MsiFile
+                ++ " "
                 ++ string:join(WixObjs, " "),
     io:format("~s~n", [LightCmd]),
     io:format("~s", [os:cmd(LightCmd)]),
@@ -503,6 +505,19 @@ get_filepath(Dir, F) ->
           end,
           [], filename:split(Dir)),
     filename:join([".." | FilePathNoRel]++[F]).
+
+generate_msi_name() ->
+    MsiDate = format_date_msi(calendar:local_time()),
+    ?APP_NAME ++ "_" ++ MsiDate ++ ".msi".
+
+format_date_msi({{Y, M, D},{H, Min, S}}) ->
+    AsString = [to_list_add_padding(X) || X <- [Y,M,D,H,Min,S]],
+    string:join(AsString, "-").
+
+to_list_add_padding(Value) when Value < 10 ->
+    [$0 | integer_to_list(Value)];
+to_list_add_padding(Value) ->
+    integer_to_list(Value).
 
 walk_release(Verbose, FileH, Root) ->
     ReleaseRoot = filename:join([Root,"rel","dderl"]),
