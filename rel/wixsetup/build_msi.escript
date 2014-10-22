@@ -5,6 +5,7 @@
 
 -define(COMPANY, "K2 Informatics GmbH").
 -define(PRODUCT, "DDErl").
+-define(APP_NAME, "dderl").
 -define(VERSION, "1.0.7").
 -define(PKG_COMMENT, "DDErl is a registered trademark of"
                      " K2 Informatics GmbH").
