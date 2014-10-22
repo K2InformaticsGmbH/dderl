@@ -417,7 +417,7 @@ create_wxs(Verbose, Root) ->
     [Icon] = dets:select(?TAB, [{#item{type=component
                                        , name="dderl.ico", _='_'}
                                         , [], ['$_']}]),
-    FullIconPath = filename:join([Icon#item.path,"dderl.ico"]),
+    FullIconPath = get_filepath(Icon#item.path, "dderl.ico"),
 
     ok = file:write(FileH,
         "   <DirectoryRef Id='ApplicationProgramMenuFolder'>\n"
@@ -493,6 +493,17 @@ create_wxs(Verbose, Root) ->
     io:format("~s", [os:cmd(LightCmd)]),
     ok = file:set_cwd(CurDir).
 
+get_filepath(Dir, F) ->
+    FilePathNoRel =
+        lists:foldl(
+          fun
+              ("..", Acc) -> Acc;
+              ("rel", Acc) -> Acc;
+              (P,Acc) -> Acc ++ [P]
+          end,
+          [], filename:split(Dir)),
+    filename:join([".." | FilePathNoRel]++[F]).
+
 walk_release(Verbose, FileH, Root) ->
     ReleaseRoot = filename:join([Root,"rel","dderl"]),
     case filelib:is_dir(ReleaseRoot) of
@@ -518,13 +529,7 @@ walk_release(Verbose, FileH, [F|Files], Dir, N) ->
                true -> io:format(lists:duplicate(N-10,32)++"~s/~n", [F])
             end;
         false ->
-            FilePathNoRel = lists:foldl(fun
-                            ("..", Acc) -> Acc;
-                            ("rel", Acc) -> Acc;
-                            (P,Acc) -> Acc ++ [P]
-                        end, [],
-                       filename:split(Dir)),
-            FilePath = filename:join([".." | FilePathNoRel]++[F]),
+            FilePath = get_filepath(Dir, F),
             {Id, GuID} = get_id(Verbose, component, F, Dir),
             {ok, FileId} = get_id(Verbose, file, F, Dir),
             ok = file:write(FileH, lists:duplicate(N+3,32)++
