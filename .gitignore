@@ -197,3 +197,10 @@ rel/wixsetup/*.wixpdb
 rel/wixsetup/*.wxs
 rel/wixsetup/*.dets
 rel/wixsetup/*.msi
+
+rel/rpmbuild/BUILD
+rel/rpmbuild/BUILDROOT
+rel/rpmbuild/RPMS
+rel/rpmbuild/SOURCES
+rel/rpmbuild/SRPMS
+rel/rpmbuild/SPECS

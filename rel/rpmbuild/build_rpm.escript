@@ -83,8 +83,10 @@ build_sources(ProjDir, RpmSources, Version) ->
     RootDir = filename:join(RpmSources, "dderl-"++Version),
     ?OSCMD("rm -rf "++RootDir),
     ok = file:make_dir(RootDir),
-    {ok, _} = file:copy(filename:join(ProjDir, "rebar.config")
-                , filename:join(RootDir, "rebar.config")),
+    [begin
+        {ok, _} = file:copy(filename:join(ProjDir,F),
+                        filename:join(RootDir,F))
+    end || F <- ["rebar.config", "LICENSE", "README.md", "RELEASE-DDERL.md"]],
     ?OSCMD("cp -L `which rebar` "++RootDir),
     copy_folder(ProjDir, RootDir, ["include"], "*.*"),
     copy_folder(ProjDir, RootDir, ["src"], "*.*"),
@@ -245,7 +247,9 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
         "\n"
         "%files\n"
         "%defattr(-,dderl,dderl)\n"
-        %"%doc\n"
+        "%doc LICENSE\n"
+        "%doc README.md\n"
+        "%doc RELEASE-DDERL.md\n"
         "%{_bindir}\n"
         "%{_erts}/*\n"
         "%{_etcdir}/*\n"
