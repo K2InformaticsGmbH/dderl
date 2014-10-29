@@ -5,12 +5,17 @@ Release history with new or improved features and bugfixes
 
 Version 1.0.7 (Release Date 29.09.2014)
 =======================================
+* [Bug 10] Views grouped by target DB SBS0, SBS1, SBS2
+* [Bug 11] Fixed errors with formatters preventing query execution
+* [Bug 24] Implemented access to the system with users without administrative rights
 * Generalized erlang term editor, now it support any text in read only format
 * Implemented copy in JSON format and including the header
 * Added dashboard functionality
-* Integrated ACE editor for sql queries with syntax highlighting
 * Improved ctrl+click selection to not clear the selection in case of small mouse drags
 * Minimum size of columns set to fixed 40 pixels instead of proportional to the column name
+* Improved security by better randomization of session tokens.
+* Restricted listener to not allow sslv3 due to poodle vulnerability
+* Improved paste performance and made in steps to not block the ui on big amount of data
 * erlang version from R16B03(erts 5.10.4) to 17(erts 6.2)
 * goldrush from 0.1.0 to 0.1.6
 * lager from 2.0.0 to 2.0.3
