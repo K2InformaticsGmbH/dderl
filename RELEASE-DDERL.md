@@ -11,6 +11,15 @@ Version 1.0.7 (Release Date TBD)
 * Integrated ACE editor for sql queries with syntax highlighting
 * Improved ctrl+click selection to not clear the selection in case of small mouse drags
 * Minimum size of columns set to fixed 40 pixels instead of proportional to the column name
+* erlang version from R16B03(erts 5.10.4) to 17(erts 6.2)
+* goldrush from 0.1.0 to 0.1.6
+* lager from 2.0.0 to 2.0.3
+* ranch from 0.8.4 to 1.0.0
+* cowboy from 0.8.4 to 1.0.0
+* imem from 1.2.3 to 1.2.4
+* erlimem from 1.0.4 to 1.0.5
+* sqlparse from 1.0.0 to 1.2.0
+* new library jpparse 0.0.3 added
 
 
 Version 1.0.6 (Release Date 04.09.2013)
