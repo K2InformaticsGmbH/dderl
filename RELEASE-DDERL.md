@@ -3,7 +3,7 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.0.7 (Release Date TBD)
+Version 1.0.7 (Release Date 29.09.2014)
 =======================================
 * Generalized erlang term editor, now it support any text in read only format
 * Implemented copy in JSON format and including the header
