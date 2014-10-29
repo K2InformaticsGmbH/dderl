@@ -381,7 +381,7 @@ handle_call({login, User, Password, SessionId}, _From, #state{sess=DalSess, sche
     ?Debug("login for user ~p", [User]),
     case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), SessionId}) of
         {error, Error} ->
-            ?Error("login exception ~n~p~n", [Error]),
+            ?Debug("login exception ~n~p~n", [Error]),
             {reply, {error, Error}, State};
         {ok, UserSess} ->
             UserId = get_id(DalSess, User),

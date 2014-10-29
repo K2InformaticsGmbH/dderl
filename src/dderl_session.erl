@@ -134,7 +134,7 @@ handle_info(logout, #state{user = User} = State) ->
     {stop, normal, State};
 handle_info(invalid_credentials, #state{} = State) ->
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
-    {stop, invalid_credentials, State};
+    {stop, normal, State};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
@@ -179,7 +179,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
             State;
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("login failed for ~p, result ~n~p", [User, Error]),
+            ?Debug("login failed for ~p, result ~n~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply, jsx:encode([{<<"login">>, Err}])},
