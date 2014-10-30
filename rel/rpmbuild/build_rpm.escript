@@ -178,6 +178,7 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
         "%define _etcdir /opt/dderl/etc\n"
         "%define _config /opt/dderl/config\n"
         "%define _run /var/run/dderl\n"
+        "%define _pipe /tmp/opt/dderl\n"
         "%define _smp_mflags  -j3\n"
         "%define __arch_install_post   /usr/lib/rpm/check-rpaths   /usr/lib/rpm/check-buildroot\n"
         "%define init_script %{_sysconfdir}/init.d/dderl\n"
@@ -209,6 +210,7 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
         "mkdir -p %{buildroot}%{_erts}\n"
         "mkdir -p %{buildroot}%{_config}\n"
         "mkdir -p %{buildroot}%{_run}\n"
+        "mkdir -p %{buildroot}%{_pipe}\n"
         "mkdir -p %{buildroot}%{_localstatedir}/log/dderl\n"
         "\n"
         "cp -R %{relpath}/etc       %{buildroot}%{_installdir}\n"
@@ -259,6 +261,7 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
         "%config(noreplace) %{_reldir}/"++Version++"/vm.args\n"
         "%{_config}\n"
         "%{_run}\n"
+        "%{_pipe}\n"
         "%{_localstatedir}/log/dderl\n"
         "%{_sysconfdir}/init.d/dderl\n"
         %"%{_mandir}/man1\n"
@@ -313,6 +316,7 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
         "chown -R dderl:dderl %{_installdir}\n"
         "chown -R dderl:dderl %{_localstatedir}\n"
         "chown -R dderl:dderl %{_run}\n"
+        "chown -R mpro:mpro %{_pipe}\n"
         "chkconfig --add dderl\n"),
 
     ok = file:close(FileH).
