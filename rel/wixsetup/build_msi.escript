@@ -1,6 +1,6 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
-%%! -smp enable -sname build_msi -mnesia debug verbose
+%%! -smp enable -mnesia debug verbose
 -include_lib("kernel/include/file.hrl").
 
 -define(COMPANY, "K2 Informatics GmbH").
