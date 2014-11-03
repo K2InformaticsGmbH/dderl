@@ -14,7 +14,6 @@
 
 %% API.
 start() ->
-    application:set_env(ssl, protocol_version, ['tlsv1.2','tlsv1.1',tlsv1]),
     ssl:start(),
     ok = application:load(lager),
     ok = application:set_env(lager, handlers, [{lager_console_backend, info},
@@ -70,13 +69,11 @@ get_html() ->
 
 -spec encrypt(binary()) -> base64:ascii_binary().
 encrypt(Bin) when is_binary(Bin) ->
-    {ok, PrivateKey} = application:get_env(dderl, crypt_private_key),
-    base64:encode(public_key:encrypt_private(Bin, PrivateKey)).
+    base64:encode(Bin).
 
 -spec decrypt(base64:ascii_binary()|base64:ascii_string()) -> binary().
 decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
-    {ok, PublicKey} = application:get_env(dderl, crypt_public_key),
-    public_key:decrypt_public(base64:decode(BinOrStr), PublicKey).
+    base64:decode(BinOrStr).
 
 %%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
 %%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).

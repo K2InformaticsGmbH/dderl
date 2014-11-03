@@ -137,7 +137,7 @@ rebar_generate(Verbose, Root) ->
     io:format("Clean Compile and generate...~n", []),
     io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" clean")]),
     io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" compile")]),
-    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" generate")]),
+    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" generate skip_deps=true")]),
     if Verbose ->
            io:format("Leaving ~s to ~s~n", [Root, CurDir]);
        true -> ok
@@ -168,6 +168,7 @@ create_wxs(Verbose, Root) ->
         "            Manufacturer='"?COMPANY"'\n"
         "            InstallerVersion='200' Languages='1033'\n"
         "            Compressed='yes'\n"
+        "            InstallScope='perMachine'\n"
         "            InstallPrivileges='elevated'\n"
         "            SummaryCodepage='1252' />\n\n"
 
@@ -414,11 +415,6 @@ create_wxs(Verbose, Root) ->
                 "$"++Comp#item.id++"=3</Custom>\n"
         "   </InstallExecuteSequence>\n\n"),
 
-    [Icon] = dets:select(?TAB, [{#item{type=component
-                                       , name="dderl.ico", _='_'}
-                                        , [], ['$_']}]),
-    FullIconPath = get_filepath(Icon#item.path, "dderl.ico"),
-
     ok = file:write(FileH,
         "   <DirectoryRef Id='ApplicationProgramMenuFolder'>\n"
         "       <Component Id='"++ProgFolderId++"' Guid='"++ProgFolderGuId++"'>\n"
@@ -466,7 +462,7 @@ create_wxs(Verbose, Root) ->
         "   </DirectoryRef>\n"),
 
     ok = file:write(FileH,
-        "   <Icon Id='dderl.ico' SourceFile='"++FullIconPath++"' />\n"),
+        "   <Icon Id='dderl.ico' SourceFile='dderl.ico' />\n"),
 
     ok = file:write(FileH,
         "   <Property Id='ARPPRODUCTICON' Value='dderl.ico' />"),

@@ -19,24 +19,7 @@
   {mod, { dderl_app, []}},
   {env, [ {interface, "0.0.0.0"}
         , {port, 8443}
-
-        % Public private PEM key are generated with:
-        %   openssl[.exe] genrsa -des3 -out private.pem 1024
-        %   openssl[.exe] rsa -in private.pem -pubout -out public.pem
-        % password used to generated these key pairs is also
-        % supplied below
-        , {crypt_private, "crypt/private.pem"}
-        , {crypt_public, "crypt/public.pem"}
-        , {crypt_password, "abcd1234"}
-
-        % Placeholder for public private keys
-        % for runtime performance
-        , {crypt_private_key, undefined}
-        , {crypt_public_key, undefined}
-
-        , {ssl_certfile, "certs/server.crt"}
-        , {ssl_cacertfile, "certs/cowboy-ca.crt"}
-        , {ssl_keyfile, "certs/server.key"}
+        , {ssl_opts, []}
         , {master_paths, []}
         ]}
  ]}.

@@ -23,7 +23,7 @@ check_file(F) ->
     File = filename:join([PrivDir, F]),
     IsFile = filelib:is_file(File),
     if IsFile =:= true -> ok;
-        true ->
+       true ->
             throw("File "++File++" doesn't exists")
     end,
     File.
@@ -45,51 +45,26 @@ start(_Type, _Args) ->
 
     {ok, Ip}         = application:get_env(dderl, interface),
     {ok, Port}       = application:get_env(dderl, port),
-    {ok, CaCertF}    = application:get_env(dderl, ssl_cacertfile),
-    {ok, CertF}      = application:get_env(dderl, ssl_certfile),
-    {ok, KeyF}       = application:get_env(dderl, ssl_keyfile),
-
-    CaCertFile = check_file(CaCertF),
-    CertFile = check_file(CertF),
-    KeyFile = check_file(KeyF),
-    
+    case application:get_env(dderl, ssl_opts) of
+        {ok, []} ->
+            SslOpts = [{certfile, check_file("certs/server.crt")}
+                      ,{cacertfile, check_file("certs/cowboy-ca.crt")}
+                      ,{keyfile, check_file("certs/server.key")}
+                      ,{versions, ['tlsv1.2','tlsv1.1',tlsv1]}];
+        {ok, SslOpts} -> SslOpts
+    end,
+                
     ?Info(lists:flatten([ "starting dderl at https://"
                         , if is_list(Ip) -> Ip; true -> io_lib:format("~p",[Ip]) end
                         , ":~p"]), [Port]),
 
     {ok, Interface} = inet:getaddr(Ip, inet),
-    {ok, _} = cowboy:start_https(https, 100, [
-        {ip, Interface},
-        {port, Port},
-        {cacertfile, CaCertFile},
-        {certfile, CertFile},
-        {keyfile, KeyFile},
-        {versions, ['tlsv1.2','tlsv1.1',tlsv1]}
-    ], [{env, [{dispatch, Dispatch}]}]),
-
-    {ok, PrivateFile}   = application:get_env(dderl, crypt_private),
-    {ok, PublicFile}    = application:get_env(dderl, crypt_public),
-    {ok, RsaPassword}   = application:get_env(dderl, crypt_password),    
-    MaybePrivateFile = filename:join(PrivDir, PrivateFile),
-    MaybePublicFile = filename:join(PrivDir, PublicFile),
-    RsaPrivateFile = case filelib:is_file(MaybePrivateFile) of
-                         false -> PrivateFile;
-                         true -> MaybePrivateFile
-                     end,
-    RsaPublicFile = case filelib:is_file(MaybePublicFile) of
-                         false -> PublicFile;
-                         true -> MaybePublicFile
-                     end,
-    {ok, PrivateBin} = file:read_file(RsaPrivateFile),
-    {ok, PublicBin} = file:read_file(RsaPublicFile),
-    [PrivateRSAEntry] = public_key:pem_decode(PrivateBin),
-    [PublicRSAEntry] = public_key:pem_decode(PublicBin),
-    PrivateKey = public_key:pem_entry_decode(PrivateRSAEntry, RsaPassword),
-    PublicKey = public_key:pem_entry_decode(PublicRSAEntry),
-
-    ok = application:set_env(dderl, crypt_private_key, PrivateKey),
-    ok = application:set_env(dderl, crypt_public_key, PublicKey),
-
+    {ok, _} = cowboy:start_https(https, 100,
+        [
+            {ip, Interface},
+            {port, Port}
+            | SslOpts],
+        [{env, [{dispatch, Dispatch}]}]),
     dderl_sup:start_link().
 
 stop(_State) ->
