@@ -98,7 +98,8 @@ log_cmd(Cmd, Port) when is_port(Port) ->
     end.
 
 build_sources(Verbose, ProjDir, RootDir) ->
-    ?L("Source ~s~nBuild Source in ~s", [ProjDir, RootDir]),
+    ?L("Source ~s", [ProjDir]),
+    ?L("Build Source in ~s", [RootDir]),
     ?OSCMD("rm -rf "++RootDir),
     ok = file:make_dir(RootDir),
     [begin
@@ -528,17 +529,19 @@ get_filepath(Dir, F) ->
     filename:join([".." | FilePathNoRel]++[F]).
 
 generate_msi_name(Proj,Version) ->
-    MsiDate = format_date_msi(calendar:local_time()),
+    {{Y,M,D},{H,Mn,S}} = calendar:local_time(),
+    MsiDate = io_lib:format("~4..0B~2..0B~2..0B_~2..0B~2..0B~2..0B",
+                            [Y,M,D,H,Mn,S]),
     lists:flatten([Proj,"-",Version,"_",MsiDate,".msi"]).
 
-format_date_msi({{Y, M, D},{H, Min, S}}) ->
-    AsString = [to_list_add_padding(X) || X <- [Y,M,D,H,Min,S]],
-    string:join(AsString, "-").
-
-to_list_add_padding(Value) when Value < 10 ->
-    [$0 | integer_to_list(Value)];
-to_list_add_padding(Value) ->
-    integer_to_list(Value).
+%format_date_msi({{Y, M, D},{H, Min, S}}) ->
+%    AsString = [to_list_add_padding(X) || X <- [Y,M,D,H,Min,S]],
+%    string:join(AsString, "-").
+%
+%to_list_add_padding(Value) when Value < 10 ->
+%    [$0 | integer_to_list(Value)];
+%to_list_add_padding(Value) ->
+%    integer_to_list(Value).
 
 walk_release(Verbose, Tab, FileH, Root) ->
     ReleaseRoot = filename:join([Root,"rel","dderl"]),
