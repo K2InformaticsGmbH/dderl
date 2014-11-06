@@ -4,14 +4,9 @@
 -include_lib("kernel/include/file.hrl").
 
 -define(COMPANY, "K2 Informatics GmbH").
--define(PRODUCT, "DDErl").
 -define(APP_NAME, "dderl").
--define(VERSION, "1.0.7").
 -define(PKG_COMMENT, "DDErl is a registered trademark of"
                      " K2 Informatics GmbH").
--define(WXSFILE, "dderl.wxs").
--define(TAB, "dderlids").
--define(TABFILE, "dderlids.dets").
 
 -define(H(__F), integer_to_list(erlang:phash2(__F), 16)).
 
@@ -25,137 +20,179 @@
               , file_info
         }).
 
-main([]) ->
-    io:format("Building MSI from master tag silently~n"),
-    main({false, "master"});
-main(["-v"]) ->
-    io:format("Building MSI from master tag with progress logs~n"),
-    main({true, "master"});
-main(["-t"]) ->
-    io:format("Available tags~n"),
-    Tags = lists:sort(string:tokens(oscmd(false, "git tag"), "\n")),
-    [io:format("   ~s~n", [T]) || T <- Tags];
-main(["-v", Tag]) ->
-    io:format("Building MSI from ~s tag with progress logs~n", [Tag]),
-    main({true, Tag});
-main([Tag]) ->
-    io:format("Building MSI from ~s tag silently~n", [Tag]),
-    main({false, Tag});
-main({Verbose, _Tag}) -> % Target Specified
-    %prepare_release(Verbose, Tag);
-    {Root, AppPath} = get_paths(),
-    build_msi(Verbose, Root, AppPath);
-main(_) ->
-    usage().
 
-oscmd(Verbose, Cmd) ->
-    CmdRes = re:replace(os:cmd(Cmd), "[\r\n]", "", [{return, list}]),
-    if Verbose -> io:format("~s -> ~s~n", [Cmd, CmdRes]); true -> ok end,
-    CmdRes.
+-define(E(__Fmt,__Args), io:format("[~p] "++__Fmt++"~n", [?LINE | __Args])).
+-define(E(__Fmt), ?E(__Fmt,[])).
 
-%prepare_release(Verbose, _Tag) ->
-%    Pwd = filename:dirname(escript:script_name()),
-%    GitRepo = oscmd(Verbose,"git config --get remote.origin.url"),
-%    DistroFolder = string:join([Pwd, "distro"], "\\"),
-%    io:format("Pwd ~s~n", [Pwd]),
-%    io:format("GitRepo ~s~n", [GitRepo]),
-%    {ok, CurDir} = file:get_cwd(),
-%    %io:format("Removing ~s~n", [DistroFolder]),
-%    %oscmd(Verbose, "rd "++DistroFolder++" /s /q"),
-%    %io:format("Creating empty ~s~n", [DistroFolder]),
-%    %ok = file:make_dir(DistroFolder),
-%    %ok = file:set_cwd(DistroFolder),
-%    %oscmd(Verbose,"git clone "++GitRepo),
-%    AppRootPath = string:join([DistroFolder, "dderl"], "\\"),
-%    AppRootFolder = filename:absname(AppRootPath),
-%    ok = file:set_cwd(AppRootPath),
-%    io:format("downloading dependencies...~n"),
-%    oscmd(Verbose, "rebar get-deps"),
-%    AppReleaseFolder = filename:absname(string:join([AppRootFolder, "apps\\dderl"], "\\")),
-%    io:format("moving src/ priv/ from ~s to ~s~n", [AppRootFolder, AppReleaseFolder]),
-%    oscmd(Verbose, "move \""
-%                   ++ string:join([AppRootFolder, "src"], "\\")
-%                   ++ "\" \""
-%                   ++ AppReleaseFolder
-%                   ++ "\""),
-%    oscmd(Verbose, "move \""
-%                   ++ string:join([AppRootFolder, "priv"], "\\")
-%                   ++ "\" \""
-%                   ++ AppReleaseFolder
-%                   ++ "\""),
-%    ok = file:set_cwd(CurDir).
+-define(L(__Fmt,__Args),
+        if Verbose ->
+               io:format("[~p] "++__Fmt++"~n",
+                         [?LINE | __Args]);
+           true -> ok
+        end).
+-define(L(__Fmt), ?L(__Fmt,[])).
 
-build_msi(Verbose, Root, AppPath) ->
-    io:format("Root ~s~n", [Root]),
-    io:format("AppPath ~s~n", [AppPath]),
-    make_soft_links(Verbose, AppPath),
-    rebar_generate(Verbose, Root),
-    {ok, ?TAB} = dets:open_file(?TAB, [{ram_file, true}
-                                       , {file, ?TABFILE}
-                                       , {keypos, 2}]),
-    create_wxs(Verbose, Root),
-    ok = dets:close(?TAB).
+-define(OSCMD(__Cmd),
+    (fun() ->
+        CR = os:cmd(__Cmd),
+        CmdResp = re:replace(CR, "[\r\n ]*$", "", [{return, list}]),
+        ?L(__Cmd++": ~s", [CmdResp]),
+        CmdResp
+    end)()
+).
+
+main([Proj, ProjDir, ReleaseDir, "-v"]) ->
+    build_msi(true, Proj, ProjDir, ReleaseDir);
+main([Proj, ProjDir, ReleaseDir]) ->
+    ?E("no verbose"),
+    build_msi(false, Proj, ProjDir, ReleaseDir);
+main(Opts) ->
+    ?E("Invalid Opts ~p", [Opts]).
+
+build_msi(Verbose, Proj, ProjDir, ReleaseDir) ->
+    {ok, [{application,dderl,DderlAppProps}]} =
+        file:consult(filename:join([ProjDir,"src",Proj++".app.src"])),
+    Version = proplists:get_value(vsn, DderlAppProps, ""),
+    ?L("Building ~s-~s MSI", [Proj, Version]),
+    BuildSourceDir = filename:join(ReleaseDir, "dderl-"++Version),
+    build_sources(Verbose, ProjDir, BuildSourceDir),
+    rebar_generate(Verbose, Proj, BuildSourceDir),
+    {ok, _} = dets:open_file(Proj++"ids", [{ram_file, true},
+                                           {file, Proj++"ids.dets"},
+                                           {keypos, 2}]),
+    create_wxs(Verbose, Proj, Version, BuildSourceDir),
+    candle_light(Verbose, Proj, Version, BuildSourceDir),
+    ok = dets:close(Proj++"ids").
     
-usage() ->
-    io:format("usage: build_msi.escript [[-v] Tag | -t] ~n"),
-    io:format("       default Tag 'master'~n"),
-    halt(1).
-
 uuid() ->
-    string:to_upper(re:replace(os:cmd("uuidgen.exe")
-              , "\r\n", "", [{return, list}])).
+    string:to_upper(re:replace(os:cmd("uuidgen.exe"), "\r\n", "",
+                               [{return, list}])).
 
-get_paths() ->
-    case lists:reverse(filename:split(
-                        filename:dirname(escript:script_name()))) of
-        ["."] -> {"../../", "../../apps/dderl"};
-        [_,_|SomeOtherPath] ->
-            R = lists:reverse(SomeOtherPath),
-            {filename:join(R), filename:join(R++["apps","dderl"])}
+run_port(Cmd, Args) ->
+    log_cmd(Cmd,
+            erlang:open_port({spawn_executable, Cmd},
+                             [{line, 128},{args, Args}, exit_status,
+                              stderr_to_stdout, {parallelism, true}])).
+run_port(Cmd, Args, Cwd) ->
+    log_cmd(Cmd,
+            erlang:open_port({spawn_executable, Cmd},
+                             [{cd, Cwd},{line, 128},{args, Args},
+                              exit_status,stderr_to_stdout,
+                              {parallelism, true}])).
+
+-define(NL(__Fmt,__Args), io:format(__Fmt, __Args)).
+-define(NL(__Fmt), ?NL(__Fmt,[])).
+log_cmd(Cmd, Port) when is_port(Port) ->
+    receive
+        {'EXIT',Port,Reason} -> ?E("~s terminated for ~p", [Cmd, Reason]);
+        {Port,closed} -> ?E("~s terminated", [Cmd]);
+        {Port,{exit_status,Status}} ->
+            ?E("~s exit with status ~p", [Cmd, Status]),
+            catch erlang:port_close(Port);
+        {Port,{data,{F,Line}}} ->
+            ?NL("~s" ++ if F =:= eol -> "~n"; true -> "" end, [Line]),
+            log_cmd(Cmd, Port);
+        {Port,{data,Data}} ->
+            ?NL("~p", [Data]),
+            log_cmd(Cmd, Port)
     end.
 
-make_soft_links(Verbose, AppPath) ->
+build_sources(Verbose, ProjDir, RootDir) ->
+    ?L("Source ~s~nBuild Source in ~s", [ProjDir, RootDir]),
+    ?OSCMD("rm -rf "++RootDir),
+    ok = file:make_dir(RootDir),
     [begin
-        Cmd = lists:flatten(io_lib:format("mklink /D ~p ~p"
-                                          , [Link, Target])),
-        io:format("Creating soft links ~s <- ~s~n", [Target, Link]),
-        if Verbose -> io:format("Executing ~s~n", [Cmd]); true -> ok end,
-        io:format("    ~s~n", [os:cmd(Cmd)])
-     end
-    || {Link, Target} <- [ {filename:join([AppPath, "src"]), "..\\..\\src"}
-                          , {filename:join([AppPath, "priv"])
-                             , "..\\..\\priv"}]].
+        {ok, _} = file:copy(filename:join(ProjDir,F),
+                        filename:join(RootDir,F))
+    end || F <- ["rebar.config", "LICENSE", "README.md", "RELEASE-DDERL.md"]],
+    RebarCmd = os:find_executable("rebar"),
+    ?OSCMD("cp -L \""++RebarCmd++"\" \""++RootDir++"\""),
+    ?OSCMD("cp -L \""++filename:rootname(RebarCmd)++"\" \""++RootDir++"\""),
+    ok = file:write_file(filename:join(RootDir,"rebar.bat"),
+                         <<"rebar.cmd %*\n">>),
+    copy_folder(ProjDir, RootDir, ["include"], "*.*"),
+    copy_folder(ProjDir, RootDir, ["src"], "*.*"),
+    copy_folder(ProjDir, RootDir, ["docs"], "*.*"),
+    copy_folder(ProjDir, RootDir, ["rel"], "*.*"),
+    copy_folder(ProjDir, RootDir, ["rel", "files"], "*"),
+    copy_folder(ProjDir, RootDir, ["rel", "wixsetup"], "*.*"),
 
-rebar_generate(Verbose, Root) ->
-    file:delete(?TABFILE),
+    Priv = filename:join(RootDir, "priv"),
+    ok = file:make_dir(Priv),
+    copy_deep(filename:join([ProjDir, "priv"]), Priv),
+    
+    Deps = filename:join(RootDir, "deps"),
+    ok = file:make_dir(Deps),
+    copy_deep(filename:join([ProjDir, "deps"]), Deps).
+
+copy_folder(Src, Target, Folders, Match) ->
+    ok = file:make_dir(filename:join([Target|Folders])),
+    SrcFolder = filename:join([Src|Folders]),
+    [begin
+         Source = filename:join(SrcFolder,F),
+         IsFile = (filelib:is_dir(Source) == false andalso
+                   filename:extension(Source) /= ".swp"),
+         if IsFile ->
+                {ok, _} = file:copy(Source,
+                                    filename:join([Target|Folders]++[F]));
+                true -> ok
+         end
+     end || F <- filelib:wildcard(Match, SrcFolder)].
+
+copy_deep(ProjDep, TargetDep) ->
+    [case D of
+        ".git" -> skip;
+        "ebin" -> skip;
+        ".gitignore" -> skip;       
+        D ->
+            case filelib:is_dir(filename:join(ProjDep, D)) of
+                true ->
+                    ok = file:make_dir(filename:join(TargetDep, D)),
+                    copy_deep(filename:join(ProjDep, D)
+                            , filename:join(TargetDep, D));
+                false ->
+                    SrcFile = filename:join(ProjDep, D),
+                    DstFile = filename:join(TargetDep, D),
+                    {ok, #file_info{mode = Mode}} = file:read_file_info(SrcFile),
+                    {ok, _} = file:copy(SrcFile, DstFile),
+                    ok = file:change_mode(DstFile, Mode)
+            end
+     end
+     || D <- filelib:wildcard("*", ProjDep)].
+
+rebar_generate(Verbose, Proj, Root) ->
+    file:delete(Proj++"ids.dets"),
     {ok, CurDir} = file:get_cwd(),
     if Verbose ->
-           io:format("Entering ~s from ~s~n", [Root, CurDir]);
+           ?L("Entering ~s from ~s", [Root, CurDir]);
        true -> ok
     end,
     ok = file:set_cwd(Root),
-    io:format("Clean Compile and generate...~n", []),
-    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" clean")]),
-    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" compile")]),
-    io:format("~s", [os:cmd("rebar "++if Verbose -> "-vvv"; true -> "" end++" generate skip_deps=true")]),
+    ?L("Clean Compile and generate..."),
+    run_port("rebar.bat", ["clean"], Root),
+    run_port("rebar.bat", ["compile"], Root),
+    run_port("rebar.bat", ["generate", "skip_deps=true"], Root),
     if Verbose ->
-           io:format("Leaving ~s to ~s~n", [Root, CurDir]);
+           ?L("Leaving ~s to ~s", [Root, CurDir]);
        true -> ok
     end,
     ok = file:set_cwd(CurDir).
 
-create_wxs(Verbose, Root) ->
-    {ok, FileH} = file:open(filename:join([Root, "rel"
-                                           , "wixsetup", ?WXSFILE])
-                            , [write, raw]),
-    {ok, PRODUCT_GUID} = get_id(Verbose, undefined, 'PRODUCT_GUID', undefined),
-    {ok, UPGRADE_GUID} = get_id(Verbose, undefined, 'UPGRADE_GUID', undefined),
-    {ok, ID} = get_id(Verbose, undefined, ?COMPANY, undefined),
+create_wxs(Verbose, Proj, Version, Root) ->
+    Tab = Proj++"ids",
+    Product = Proj++"_"++Version,
+    {ok, FileH} = file:open(
+                    filename:join([Root, "rel", "wixsetup",
+                                   lists:flatten([Proj,"-",Version,".wxs"])]),
+                    [write, raw]),
+    {ok, PRODUCT_GUID} = get_id(Verbose, Tab, undefined, 'PRODUCT_GUID', undefined),
+    {ok, UPGRADE_GUID} = get_id(Verbose, Tab, undefined, 'UPGRADE_GUID', undefined),
+    {ok, ID} = get_id(Verbose, Tab, undefined, ?COMPANY, undefined),
     ok = file:write(FileH,
         "<?xml version='1.0' encoding='windows-1252'?>\n"
         "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n\n"
 
-        "<Product Name='"?PRODUCT" "?VERSION"'\n"
+        "<Product Name='"++Product++"'\n"
         "         Id='"++PRODUCT_GUID++"'\n"
         "         UpgradeCode='"++UPGRADE_GUID++"'\n"
         "         Language='1033' Codepage='1252' Version='1.0.7'\n"
@@ -172,18 +209,17 @@ create_wxs(Verbose, Root) ->
         "            InstallPrivileges='elevated'\n"
         "            SummaryCodepage='1252' />\n\n"
 
-        "   <Media Id='1' Cabinet='"?PRODUCT".cab' EmbedCab='yes'\n"
+        "   <Media Id='1' Cabinet='"++Product++".cab' EmbedCab='yes'\n"
         "          DiskPrompt='CD-ROM #1'/>\n"
         "   <Property Id='DiskPrompt'\n"
-        "             Value=\""?COMPANY
-                            " "?VERSION" Installation [1]\"/>\n\n"),
+        "             Value=\""?COMPANY" "++Product++" Installation [1]\"/>\n\n"),
 
     ok = file:write(FileH,
         "   <Directory Id='TARGETDIR' Name='SourceDir'>\n"),
 
     % AppData PATH
-    {CoDatId, CoDatGuId} = get_id(Verbose, component, 'COMPANYDAT_GUID', undefined),
-    {AppDatId, AppDatGuId} = get_id(Verbose, component, 'PRODUCTDAT_GUID', undefined),
+    {CoDatId, CoDatGuId} = get_id(Verbose, Tab, component, 'COMPANYDAT_GUID', undefined),
+    {AppDatId, AppDatGuId} = get_id(Verbose, Tab, component, 'PRODUCTDAT_GUID', undefined),
     ok = file:write(FileH,
         "     <Directory Id='CommonAppDataFolder' Name='CommonAppData'>\n"
         "       <Directory Id='COMPANYDAT' Name='"?COMPANY"'>\n"
@@ -192,7 +228,7 @@ create_wxs(Verbose, Root) ->
         "             <Permission User='Everyone' GenericAll='yes' />\n"
         "           </CreateFolder>\n"
         "         </Component>\n"
-        "         <Directory Id='PRODUCTDAT' Name='"?PRODUCT" "?VERSION"'>\n"
+        "         <Directory Id='PRODUCTDAT' Name='"++Product++"'>\n"
         "           <Component Id='"++AppDatId++"' Guid='"++AppDatGuId++"'>\n"
         "             <CreateFolder Directory='PRODUCTDAT'>\n"
         "               <Permission User='Everyone' GenericAll='yes' />\n"
@@ -206,10 +242,9 @@ create_wxs(Verbose, Root) ->
     ok = file:write(FileH,
         "     <Directory Id='ProgramFilesFolder' Name='PFiles'>\n"
         "       <Directory Id='"++ID++"' Name='"?COMPANY"'>\n"
-        "         <Directory Id='INSTALLDIR' Name='"?PRODUCT
-                                                   " "?VERSION"'>\n"),
+        "         <Directory Id='INSTALLDIR' Name='"++Product++"'>\n"),
 
-    walk_release(Verbose, FileH, Root),
+    walk_release(Verbose, Tab, FileH, Root),
     
     ok = file:write(FileH,
         "         </Directory> <!-- PRODUCT -->\n"
@@ -217,40 +252,36 @@ create_wxs(Verbose, Root) ->
         "     </Directory> <!-- ProgramFilesFolder -->\n"),
 
     % Property references
-    [BootDir] = dets:select(?TAB, [{#item{type=dir
-                                          , name="1.0.7", _='_'}
-                                    , [], ['$_']}]),
-    [EscriptExe] = dets:select(?TAB, [{#item{type=component
-                                              , name="escript.exe", _='_'}
-                                        , [], ['$_']}]),
-    [EditConfEs] = dets:select(?TAB, [{#item{type=component
-                                             , name="editconfs.escript", _='_'}
-                                       , [], ['$_']}]),
-    [Comp] = dets:select(?TAB, [{#item{type=component
-                                       , name="dderl.cmd", _='_'}
-                                 , [], ['$_']}]),
-    [CItm] = dets:select(?TAB, [{#item{type=file, name="dderl.cmd"
-                                       , guid=undefined, _='_'}
-                                 , [], ['$_']}]),
+    [BootDir] = dets:select(Tab, [{#item{type=dir, name="1.0.7", _='_'}, [],
+                                   ['$_']}]),
+    [EscriptExe] = dets:select(Tab, [{#item{type=component, name="escript.exe",
+                                            _='_'}, [], ['$_']}]),
+    [EditConfEs] = dets:select(Tab, [{#item{type=component,
+                                             name="editconfs.escript", _='_'},
+                                       [], ['$_']}]),
+    [Comp] = dets:select(Tab, [{#item{type=component, name="dderl.cmd", _='_'},
+                                [], ['$_']}]),
+    [CItm] = dets:select(Tab, [{#item{type=file, name="dderl.cmd",
+                                      guid=undefined, _='_'}, [], ['$_']}]),
 
-    {ProgFolderId, ProgFolderGuId} = get_id(Verbose, component, 'PROGSMENUFOLDER_GUID', undefined),
-    {DsktpShortId, DsktpShortGuId} = get_id(Verbose, component, 'DESKTOPSHORTCUT_GUID', undefined),
+    {ProgFolderId, ProgFolderGuId} = get_id(Verbose, Tab, component, 'PROGSMENUFOLDER_GUID', undefined),
+    {DsktpShortId, DsktpShortGuId} = get_id(Verbose, Tab, component, 'DESKTOPSHORTCUT_GUID', undefined),
 
     ok = file:write(FileH,
         "     <Directory Id='ProgramMenuFolder' Name='Programs'>\n"
         "        <Directory Id='ApplicationProgramMenuFolder'\n"
-        "                   Name='"?PRODUCT" "?VERSION"' />\n"
+        "                   Name='"++Product++"' />\n"
         "     </Directory> <!-- ProgramMenuFolder -->\n\n"),
 
     ok = file:write(FileH,
         "     <Directory Id='DesktopFolder' Name='Desktop'>\n"
-        "       <Directory Id='ApplicationDesktopFolder' Name='"?PRODUCT" "?VERSION"'/>\n"
+        "       <Directory Id='ApplicationDesktopFolder' Name='"++Product++"'/>\n"
         "     </Directory> <!-- DesktopFolder -->\n\n"),
 
     ok = file:write(FileH,
         "   </Directory> <!-- TARGETDIR -->\n\n"),
 
-    build_features(Verbose, FileH),
+    build_features(Verbose, Proj, Version, FileH),
 
     ok = file:write(FileH,
         "   <WixVariable Id='WixUILicenseRtf' Value='License.rtf' />\n"
@@ -278,10 +309,10 @@ create_wxs(Verbose, Root) ->
         "           1</Publish>\n"
         "   </UI>\n\n"),
 
-    [VmArgsFile] = dets:select(?TAB, [{#item{type=file
+    [VmArgsFile] = dets:select(Tab, [{#item{type=file
                                              , name="vm.args", _='_'}
                                        , [], ['$_']}]),
-    [SysConfigFile] = dets:select(?TAB, [{#item{type=file
+    [SysConfigFile] = dets:select(Tab, [{#item{type=file
                                              , name="sys.config", _='_'}
                                        , [], ['$_']}]),
     {ok, VmArgsBin} = file:read_file(filename:join(VmArgsFile#item.path, "vm.args")),
@@ -419,13 +450,13 @@ create_wxs(Verbose, Root) ->
         "   <DirectoryRef Id='ApplicationProgramMenuFolder'>\n"
         "       <Component Id='"++ProgFolderId++"' Guid='"++ProgFolderGuId++"'>\n"
         "           <Shortcut Id='programattach'\n"
-        "                     Name='"?PRODUCT" Attach'\n"
+        "                     Name='"++Proj++" Attach'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='attach'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
         "                     Icon='dderl.ico' IconIndex='0' />\n"
         "           <Shortcut Id='programgui'\n"
-        "                     Name='"?PRODUCT" GUI'\n"
+        "                     Name='"++Proj++" GUI'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='console'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
@@ -442,13 +473,13 @@ create_wxs(Verbose, Root) ->
         "   <DirectoryRef Id='ApplicationDesktopFolder'>\n"
         "       <Component Id='"++DsktpShortId++"' Guid='"++DsktpShortGuId++"'>\n"
         "           <Shortcut Id='desktopattach'\n"
-        "                     Name='"?PRODUCT" Attach'\n"
+        "                     Name='"++Proj++" Attach'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='attach'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
         "                     Icon='dderl.ico' IconIndex='0' />\n"
         "           <Shortcut Id='desktopgui'\n"
-        "                     Name='"?PRODUCT" GUI'\n"
+        "                     Name='"++Proj++" GUI'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='console'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
@@ -471,25 +502,19 @@ create_wxs(Verbose, Root) ->
         "</Product>\n"
         "</Wix>"),
 
-    ok = file:close(FileH),
+    ok = file:close(FileH).
+
+candle_light(Verbose, Proj, Version, Root) ->
     {ok, CurDir} = file:get_cwd(),
-    ok = file:set_cwd(filename:join([Root,"rel", "wixsetup"])),
+    ok = file:set_cwd(filename:join([Root,"rel","wixsetup"])),
     Wxses = filelib:wildcard("*.wxs"),
-    CandleCmd = "candle.exe "
-                ++ if Verbose -> "-v "; true -> "" end
-                ++ string:join(Wxses, " "),
-    io:format("~s~n", [CandleCmd]),
-    io:format("~s", [os:cmd(CandleCmd)]),
+    run_port(os:find_executable("candle.exe"),
+             if Verbose -> ["-v"]; true -> [] end ++ Wxses),
     WixObjs = filelib:wildcard("*.wixobj"),
-    MsiFile = generate_msi_name(),
-    LightCmd = "light.exe "
-                ++ if Verbose -> "-v "; true -> "" end
-                ++ "-ext WixUIExtension -out "
-                ++ MsiFile
-                ++ " "
-                ++ string:join(WixObjs, " "),
-    io:format("~s~n", [LightCmd]),
-    io:format("~s", [os:cmd(LightCmd)]),
+    MsiFile = generate_msi_name(Proj,Version),
+    run_port(os:find_executable("light.exe"),
+             if Verbose -> ["-v"]; true -> [] end
+             ++ ["-ext","WixUIExtension","-out",MsiFile | WixObjs]),
     ok = file:set_cwd(CurDir).
 
 get_filepath(Dir, F) ->
@@ -497,15 +522,14 @@ get_filepath(Dir, F) ->
         lists:foldl(
           fun
               ("..", Acc) -> Acc;
-              ("rel", Acc) -> Acc;
               (P,Acc) -> Acc ++ [P]
           end,
           [], filename:split(Dir)),
     filename:join([".." | FilePathNoRel]++[F]).
 
-generate_msi_name() ->
+generate_msi_name(Proj,Version) ->
     MsiDate = format_date_msi(calendar:local_time()),
-    ?APP_NAME ++ "_" ++ MsiDate ++ ".msi".
+    lists:flatten([Proj,"-",Version,"_",MsiDate,".msi"]).
 
 format_date_msi({{Y, M, D},{H, Min, S}}) ->
     AsString = [to_list_add_padding(X) || X <- [Y,M,D,H,Min,S]],
@@ -516,56 +540,55 @@ to_list_add_padding(Value) when Value < 10 ->
 to_list_add_padding(Value) ->
     integer_to_list(Value).
 
-walk_release(Verbose, FileH, Root) ->
+walk_release(Verbose, Tab, FileH, Root) ->
     ReleaseRoot = filename:join([Root,"rel","dderl"]),
     case filelib:is_dir(ReleaseRoot) of
         true ->
-            walk_release(Verbose, FileH, filelib:wildcard("*", ReleaseRoot)
-                         , ReleaseRoot, 12);
-        false -> io:format("~p is not a directory~n", [ReleaseRoot])
+            walk_release(Verbose, Tab, FileH,
+                         filelib:wildcard("*", ReleaseRoot), ReleaseRoot, 12);
+        false -> ?L("~p is not a directory", [ReleaseRoot])
     end.
 
-walk_release(_Verbose, _FileH, [], _Dir, _N) -> ok;
-walk_release(Verbose, FileH, [F|Files], Dir, N) ->
+walk_release(_Verbose, _Tab, _FileH, [], _Dir, _N) -> ok;
+walk_release(Verbose, Tab, FileH, [F|Files], Dir, N) ->
     case filelib:is_dir(filename:join([Dir,F])) of
         true ->
             NewDirLevel = filename:join([Dir,F]),
             FilesAtThisLevel = filelib:wildcard("*", NewDirLevel),
-            {ok, DirId} = get_id(Verbose, dir, F, Dir),
+            {ok, DirId} = get_id(Verbose, Tab, dir, F, Dir),
             ok = file:write(FileH, lists:duplicate(N,32)++
                             "<Directory Id='"++DirId++
                                             "' Name='"++F++"'>\n"),
-            walk_release(Verbose, FileH, FilesAtThisLevel, NewDirLevel, N+3),
+            walk_release(Verbose, Tab, FileH, FilesAtThisLevel, NewDirLevel,
+                         N+3),
             ok = file:write(FileH, lists:duplicate(N,32)++"</Directory>\n"),
-            if Verbose -> io:format("~s/ ->~n", [NewDirLevel]);
-               true -> io:format(lists:duplicate(N-10,32)++"~s/~n", [F])
-            end;
+            ?L("~s/", [NewDirLevel]);
         false ->
             FilePath = get_filepath(Dir, F),
-            {Id, GuID} = get_id(Verbose, component, F, Dir),
-            {ok, FileId} = get_id(Verbose, file, F, Dir),
+            {Id, GuID} = get_id(Verbose, Tab, component, F, Dir),
+            {ok, FileId} = get_id(Verbose, Tab, file, F, Dir),
             ok = file:write(FileH, lists:duplicate(N+3,32)++
                 "<Component Id='"++Id++"' Guid='"++GuID++"'>\n"
                 ++lists:duplicate(N+3,32)++
                 "   <File Id='"++FileId++"' Name='"++F++
                                 "' DiskId='1' Source='"++FilePath++"'"
                 " KeyPath='yes' />\n"++lists:duplicate(N+3,32)++
-                "</Component>\n"),
-            if Verbose -> io:format("\t~s~n", [F]); true -> ok end
+                "</Component>\n")
     end,
-    walk_release(Verbose, FileH, Files, Dir, N).
+    walk_release(Verbose, Tab, FileH, Files, Dir, N).
 
-build_features(_Verbose, FileH) ->
+build_features(_Verbose, Proj, Version, FileH) ->
+    Tab = Proj++"ids",
     ok = file:write(FileH,
-        "   <Feature Id='Complete' Title='"?PRODUCT" "?VERSION"'"
+        "   <Feature Id='Complete' Title='"++Proj++"-"++Version++"'"
                     " Description='The complete package.'"
                     " Level='1' ConfigurableDirectory='INSTALLDIR'>\n"),
     ok = file:write(FileH,
-        "      <Feature Id='MainProgram' Title='"?PRODUCT" "
-                                                ?VERSION" service'"
+        "      <Feature Id='MainProgram' Title='"++Proj++"-"++Version
+                                                        ++" service'"
                     " Description='The service.' Level='1'>\n"),
-    dets:sync(?TAB),
-    dets:traverse(?TAB,
+    dets:sync(Tab),
+    dets:traverse(Tab,
                   fun(#item{type=component, id = Id}) ->
                           ok = file:write(FileH
                                           , "         <ComponentRef Id='"
@@ -576,27 +599,27 @@ build_features(_Verbose, FileH) ->
     ok = file:write(FileH, "      </Feature>\n\n"),
     ok = file:write(FileH, "   </Feature>\n\n").
 
-get_id(_Verbose, undefined, Field, undefined) when is_list(Field) ->
+get_id(_Verbose, Tab, undefined, Field, undefined) when is_list(Field) ->
     Id = "id_"++?H(Field),
-    case dets:lookup(?TAB, Id) of
+    case dets:lookup(Tab, Id) of
         [] ->
             Item = #item{id = Id, name = Field},
-            ok = dets:insert(?TAB, Item),
+            ok = dets:insert(Tab, Item),
             {ok, Item#item.id};
         [#item{} = Item] ->
             {ok, Item#item.id}
     end;
-get_id(_Verbose, Type, Field, undefined) when is_atom(Field) ->
+get_id(_Verbose, Tab, Type, Field, undefined) when is_atom(Field) ->
     Id = "id_"++?H(Field),
-    case dets:lookup(?TAB, Id) of
+    case dets:lookup(Tab, Id) of
         [] ->
             Item = #item{id = Id, name = Field, guid = uuid()},
             case Type of
                 component ->
-                    ok = dets:insert(?TAB, Item#item{type=component}),
+                    ok = dets:insert(Tab, Item#item{type=component}),
                     {Item#item.id, Item#item.guid};
                 _ ->
-                    ok = dets:insert(?TAB, Item),
+                    ok = dets:insert(Tab, Item),
                     {ok, Item#item.guid}
             end;
         [#item{} = Item] ->
@@ -605,13 +628,13 @@ get_id(_Verbose, Type, Field, undefined) when is_atom(Field) ->
                 _ -> {ok, Item#item.guid}
             end
     end;
-get_id(_Verbose, Type, F, Dir)
+get_id(_Verbose, Tab, Type, F, Dir)
   when Type =:= component;
        Type =:= file;
        Type =:= dir ->
     Id = "id_"++?H({Type, filename:join([Dir, F])}),
     {ok, FI} = file:read_file_info(filename:join([Dir, F])),
-    case dets:lookup(?TAB, Id) of
+    case dets:lookup(Tab, Id) of
         [] ->
             Item = #item{id = Id
                          , type = Type
@@ -621,7 +644,7 @@ get_id(_Verbose, Type, F, Dir)
                          , path = Dir
                          , file_info = FI
                         },
-            ok = dets:insert(?TAB, Item),
+            ok = dets:insert(Tab, Item),
             case Type of
                 component -> {Item#item.id, Item#item.guid};
                 file -> {ok, Item#item.id};
@@ -637,7 +660,7 @@ get_id(_Verbose, Type, F, Dir)
             Item = I#item{guid = if Type =:= component -> uuid();
                                     true -> undefined end
                           , file_info = FI},
-            ok = dets:insert(?TAB, Item),
+            ok = dets:insert(Tab, Item),
             case Type of
                 component -> {Item#item.id, Item#item.guid};
                 file -> {ok, Item#item.id};

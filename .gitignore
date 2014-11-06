@@ -197,6 +197,8 @@ rel/wixsetup/*.wixpdb
 rel/wixsetup/*.wxs
 rel/wixsetup/*.dets
 rel/wixsetup/*.msi
+rel/wixsetup/dderl*/
+*.dets
 
 rel/rpmbuild/BUILD
 rel/rpmbuild/BUILDROOT
