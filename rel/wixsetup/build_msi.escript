@@ -4,7 +4,6 @@
 -include_lib("kernel/include/file.hrl").
 
 -define(COMPANY, "K2 Informatics GmbH").
--define(APP_NAME, "dderl").
 -define(PKG_COMMENT, "DDErl is a registered trademark of"
                      " K2 Informatics GmbH").
 
@@ -50,12 +49,12 @@ main(Opts) ->
     ?E("Invalid Opts ~p", [Opts]).
 
 build_msi(Verbose, Proj, ProjDir, ReleaseDir) ->
-    {ok, [{application,dderl,DderlAppProps}]} =
+    {ok, [{application,_,AppProps}]} =
         file:consult(filename:join([ProjDir,"src",Proj++".app.src"])),
-    Version = proplists:get_value(vsn, DderlAppProps, ""),
+    Version = proplists:get_value(vsn, AppProps, ""),
     ?L("Building ~s-~s MSI", [Proj, Version]),
-    BuildSourceDir = filename:join(ReleaseDir, "dderl-"++Version),
-    build_sources(Verbose, ProjDir, BuildSourceDir),
+    BuildSourceDir = filename:join(ReleaseDir, Proj++"-"++Version),
+    build_sources(Verbose, Proj, ProjDir, BuildSourceDir),
     rebar_generate(Verbose, Proj, BuildSourceDir),
     {ok, _} = dets:open_file(Proj++"ids", [{ram_file, true},
                                            {file, Proj++"ids.dets"},
@@ -97,7 +96,7 @@ log_cmd(Cmd, Port) when is_port(Port) ->
             log_cmd(Cmd, Port)
     end.
 
-build_sources(Verbose, ProjDir, RootDir) ->
+build_sources(Verbose, Proj, ProjDir, RootDir) ->
     ?L("Source ~s", [ProjDir]),
     ?L("Build Source in ~s", [RootDir]),
     ?OSCMD("rm -rf "++RootDir),
@@ -105,7 +104,8 @@ build_sources(Verbose, ProjDir, RootDir) ->
     [begin
         {ok, _} = file:copy(filename:join(ProjDir,F),
                         filename:join(RootDir,F))
-    end || F <- ["rebar.config", "LICENSE", "README.md", "RELEASE-DDERL.md"]],
+    end || F <- ["rebar.config", "LICENSE", "README.md",
+                 "RELEASE-"++string:to_upper(Proj)++".md"]],
     RebarCmd = os:find_executable("rebar"),
     ?OSCMD("cp -L \""++RebarCmd++"\" \""++RootDir++"\""),
     ?OSCMD("cp -L \""++filename:rootname(RebarCmd)++"\" \""++RootDir++"\""),
@@ -245,24 +245,23 @@ create_wxs(Verbose, Proj, Version, Root) ->
         "       <Directory Id='"++ID++"' Name='"?COMPANY"'>\n"
         "         <Directory Id='INSTALLDIR' Name='"++Product++"'>\n"),
 
-    walk_release(Verbose, Tab, FileH, Root),
+    walk_release(Verbose, Proj, Tab, FileH, Root),
     
     ok = file:write(FileH,
         "         </Directory> <!-- PRODUCT -->\n"
         "       </Directory> <!-- COMPANY -->\n"
         "     </Directory> <!-- ProgramFilesFolder -->\n"),
-
     % Property references
-    [BootDir] = dets:select(Tab, [{#item{type=dir, name="1.0.7", _='_'}, [],
+    [BootDir] = dets:select(Tab, [{#item{type=dir, name=Version, _='_'}, [],
                                    ['$_']}]),
     [EscriptExe] = dets:select(Tab, [{#item{type=component, name="escript.exe",
                                             _='_'}, [], ['$_']}]),
     [EditConfEs] = dets:select(Tab, [{#item{type=component,
                                              name="editconfs.escript", _='_'},
                                        [], ['$_']}]),
-    [Comp] = dets:select(Tab, [{#item{type=component, name="dderl.cmd", _='_'},
+    [Comp] = dets:select(Tab, [{#item{type=component, name=Proj++".cmd", _='_'},
                                 [], ['$_']}]),
-    [CItm] = dets:select(Tab, [{#item{type=file, name="dderl.cmd",
+    [CItm] = dets:select(Tab, [{#item{type=file, name=Proj++".cmd",
                                       guid=undefined, _='_'}, [], ['$_']}]),
 
     {ProgFolderId, ProgFolderGuId} = get_id(Verbose, Tab, component, 'PROGSMENUFOLDER_GUID', undefined),
@@ -455,13 +454,13 @@ create_wxs(Verbose, Proj, Version, Root) ->
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='attach'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
-        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "                     Icon='"++Proj++".ico' IconIndex='0' />\n"
         "           <Shortcut Id='programgui'\n"
         "                     Name='"++Proj++" GUI'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='console'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
-        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "                     Icon='"++Proj++".ico' IconIndex='0' />\n"
         "           <RemoveFolder Id='ApplicationProgramMenuFolder' On='uninstall' />\n"
         "           <RegistryValue Root='HKCU'\n"
         "                          Key='Software\\[Manufacturer]\\[ProductName]'\n"
@@ -478,13 +477,13 @@ create_wxs(Verbose, Proj, Version, Root) ->
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='attach'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
-        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "                     Icon='"++Proj++".ico' IconIndex='0' />\n"
         "           <Shortcut Id='desktopgui'\n"
         "                     Name='"++Proj++" GUI'\n"
         "                     Target='[#"++CItm#item.id++"]'\n"
         "                     Arguments='console'\n"
         "                     WorkingDirectory='"++BootDir#item.id++"'\n"
-        "                     Icon='dderl.ico' IconIndex='0' />\n"
+        "                     Icon='"++Proj++".ico' IconIndex='0' />\n"
         "           <RemoveFolder Id='ApplicationDesktopFolder' On='uninstall'/>\n"
         "           <RegistryValue Root='HKCU'\n"
         "                          Key='Software\\[Manufacturer]\\[ProductName]'\n"
@@ -494,10 +493,10 @@ create_wxs(Verbose, Proj, Version, Root) ->
         "   </DirectoryRef>\n"),
 
     ok = file:write(FileH,
-        "   <Icon Id='dderl.ico' SourceFile='dderl.ico' />\n"),
+        "   <Icon Id='"++Proj++".ico' SourceFile='"++Proj++".ico' />\n"),
 
     ok = file:write(FileH,
-        "   <Property Id='ARPPRODUCTICON' Value='dderl.ico' />"),
+        "   <Property Id='ARPPRODUCTICON' Value='"++Proj++".ico' />"),
     
     ok = file:write(FileH,
         "</Product>\n"
@@ -534,17 +533,8 @@ generate_msi_name(Proj,Version) ->
                             [Y,M,D,H,Mn,S]),
     lists:flatten([Proj,"-",Version,"_",MsiDate,".msi"]).
 
-%format_date_msi({{Y, M, D},{H, Min, S}}) ->
-%    AsString = [to_list_add_padding(X) || X <- [Y,M,D,H,Min,S]],
-%    string:join(AsString, "-").
-%
-%to_list_add_padding(Value) when Value < 10 ->
-%    [$0 | integer_to_list(Value)];
-%to_list_add_padding(Value) ->
-%    integer_to_list(Value).
-
-walk_release(Verbose, Tab, FileH, Root) ->
-    ReleaseRoot = filename:join([Root,"rel","dderl"]),
+walk_release(Verbose, Proj, Tab, FileH, Root) ->
+    ReleaseRoot = filename:join([Root,"rel",Proj]),
     case filelib:is_dir(ReleaseRoot) of
         true ->
             walk_release(Verbose, Tab, FileH,
