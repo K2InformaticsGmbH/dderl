@@ -23,7 +23,7 @@
 -define(L(__Fmt), ?L(__Fmt,[])).
 
 main([]) ->
-    io:format("Building RPM from master tag silently~n"),
+    ?L("Building RPM from master tag silently"),
     Pwd = filename:dirname(filename:absname(escript:script_name())),
     [_,_|ProjectDirParts] = lists:reverse(filename:split(Pwd)),
     ProjDir = filename:join(lists:reverse(ProjectDirParts)),
