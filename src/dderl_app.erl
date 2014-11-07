@@ -65,7 +65,13 @@ start(_Type, _Args) ->
             {port, Port}
             | SslOpts],
         [{env, [{dispatch, Dispatch}]}]),
-    dderl_sup:start_link().
+    ?Info("---------------------------------------------------"),
+    ?Info("STARTING DDERL"),
+    SupRef = dderl_sup:start_link(),
+    ?Info("DDERL STARTED"),
+    ?Info("---------------------------------------------------"),
+    SupRef.
 
 stop(_State) ->
+    ?Info("SHUTDOWN DDERL"),
     ok.

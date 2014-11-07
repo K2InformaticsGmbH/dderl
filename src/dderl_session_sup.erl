@@ -1,6 +1,7 @@
 -module(dderl_session_sup).
-
 -behaviour(supervisor).
+
+-include("dderl.hrl").
 
 %% API
 -export([start_link/0
@@ -19,7 +20,15 @@
 %% ===================================================================
 -spec start_link() -> ignore | {error, term()} | {ok, pid()}.
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    ?Info("~p starting...~n", [?MODULE]),
+    case supervisor:start_link({local, ?MODULE}, ?MODULE, []) of
+        {ok,_} = Success ->
+            ?Info("~p started!~n", [?MODULE]),
+            Success;
+        Error ->
+            ?Error("~p failed to start ~p~n", [?MODULE, Error]),
+            Error
+    end.
 
 -spec start_session(reference(), binary()) -> {error, term()} | {ok, pid()}.
 start_session(Ref, RandBytes) ->

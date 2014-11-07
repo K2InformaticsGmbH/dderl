@@ -1,7 +1,7 @@
 -module(dderl_dal).
--include("dderl.hrl").
-
 -behavior(gen_server).
+
+-include("dderl.hrl").
 
 -export([init/1
         ,start_link/1
@@ -325,9 +325,15 @@ get_maxrowcount() ->
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->
-    Result = gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []),
-    ?Info("Started! ~n~p", [Result]),
-    Result.
+    ?Info("~p starting...~n", [?MODULE]),
+    case gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []) of
+        {ok, _} = Success ->
+            ?Info("~p started!~n", [?MODULE]),
+            Success;
+        Error ->
+            ?Error("~p failed to start ~p~n", [?MODULE, Error]),
+            Error
+    end.
 
 init([SchemaName]) ->
     case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of

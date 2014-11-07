@@ -1,5 +1,4 @@
 -module(dderl_data_sender).
-
 -behaviour(gen_server).
 
 -include("dderl.hrl").
@@ -44,7 +43,15 @@
 
 -spec start_link({atom(), pid()}, [integer()]) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions) ->
-	gen_server:start_link(?MODULE, [Statement, ColumnPositions], []).
+    ?Info("~p starting...~n", [?MODULE]),
+	case gen_server:start_link(?MODULE, [Statement, ColumnPositions], []) of
+        {ok, _} = Success ->
+            ?Info("~p started!~n", [?MODULE]),
+            Success;
+        Error ->
+            ?Error("~p failed to start ~p~n", [?MODULE, Error]),
+            Error
+    end.
 
 -spec connect(pid(), pid()) -> ok | {error, binary()}.
 connect(SenderPid, ReceiverPid) ->

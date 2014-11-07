@@ -1,7 +1,7 @@
 -module(dderl_sup).
--author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
-
 -behaviour(supervisor).
+
+-include("dderl.hrl").
 
 %% API
 -export([start_link/0]).
@@ -17,7 +17,15 @@
 %% ===================================================================
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    ?Info("~p starting...~n", [?MODULE]),
+    case supervisor:start_link({local, ?MODULE}, ?MODULE, []) of
+        {ok,_} = Success ->
+            ?Info("~p started!~n", [?MODULE]),
+            Success;
+        Error ->
+            ?Error("~p failed to start ~p~n", [?MODULE, Error]),
+            Error
+    end.
 
 %% ===================================================================
 %% Supervisor callbacks
