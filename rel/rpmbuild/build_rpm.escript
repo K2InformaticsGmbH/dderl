@@ -195,7 +195,7 @@ make_spec(ProjDir, SpecPath, Version, Description) ->
     ok = file:write(FileH,
         "\n"
         "%build\n"
-        "./rebar compile\n"),
+        "./rebar compile\n"
         "./rebar generate skip_deps=true\n"),
 
     % Install
