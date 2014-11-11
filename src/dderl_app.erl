@@ -54,10 +54,6 @@ start(_Type, _Args) ->
         {ok, SslOpts} -> SslOpts
     end,
                 
-    ?Info(lists:flatten([ "starting dderl at https://"
-                        , if is_list(Ip) -> Ip; true -> io_lib:format("~p",[Ip]) end
-                        , ":~p"]), [Port]),
-
     {ok, Interface} = inet:getaddr(Ip, inet),
     {ok, _} = cowboy:start_https(https, 100,
         [
@@ -67,6 +63,9 @@ start(_Type, _Args) ->
         [{env, [{dispatch, Dispatch}]}]),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
+    ?Info(lists:flatten(["URL https://", if is_list(Ip) -> Ip;
+                                            true -> io_lib:format("~p",[Ip])
+                                         end, ":~p"]), [Port]),
     SupRef = dderl_sup:start_link(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),

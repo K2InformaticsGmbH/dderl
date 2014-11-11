@@ -5,6 +5,7 @@
 
 %% API.
 -export([ start/0
+        , stop/0
         , init/3
         , handle/2
         , terminate/3
@@ -43,6 +44,19 @@ start() ->
     imem:start(),
 	ok = application:start(?MODULE).
 
+stop() ->
+    ok = application:stop(?MODULE),
+    imem:stop(),
+    erlimem:stop(),
+    ok = application:stop(cowboy),
+    ok = application:stop(cowlib),
+    ok = application:unload(sasl),
+    ok = application:stop(lager),
+    ok = application:stop(goldrush),
+    ok = application:stop(syntax_tools),
+    ok = application:stop(compiler),
+    ok = application:unload(lager),
+    ssl:stop().
 
 init(_Transport, Req, []) ->
 	{ok, Req, undefined}.
