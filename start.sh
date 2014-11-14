@@ -57,9 +57,9 @@ dderl_opts=$dderl_opts" port $dderlport"
 
 start_opts="$paths $cookie $node_name $kernel_opts $imem_opts $dderl_opts"
 
-# CPRO start options
+# DDERL start options
 echo "------------------------------------------"
-echo "Starting CPRO (Opts)"
+echo "Starting DDERL (Opts)"
 echo "------------------------------------------"
 echo "Node Name : $node_name"
 echo "Cookie    : $cookie"
@@ -69,5 +69,5 @@ echo "IMEM      : $imem_opts"
 echo "DDERL     : $dderl_opts"
 echo "------------------------------------------"
 
-# Starting cpro
+# Starting dderl
 $exename $start_opts -s dderl
