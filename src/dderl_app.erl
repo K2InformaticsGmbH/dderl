@@ -61,6 +61,16 @@ start(_Type, _Args) ->
             {port, Port}
             | SslOpts],
         [{env, [{dispatch, Dispatch}]}]),
+    % adding lager imem handler (after IMEM start)
+    LogTableNameFun =
+        fun() ->
+            ?GET_DDERL_CONFIG(dderlLogTable,[],'dderlLog_86400@')
+        end,
+    ok = gen_event:add_handler(
+           lager_event, {imem_lager_backend, dderl},
+           [{level,info},{tablefun,LogTableNameFun},{application,dderl},
+            {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
+          ),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
     ?Info(lists:flatten(["URL https://", if is_list(Ip) -> Ip;

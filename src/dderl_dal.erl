@@ -13,7 +13,8 @@
         ,format_status/2
         ]).
 
--export([get_adapters/1
+-export([get_config_hlk/5
+        ,get_adapters/1
         ,login/3
         ,change_password/4
         ,add_adapter/2
@@ -33,7 +34,6 @@
         ,is_admin/1
         ,save_dashboard/5
         ,get_dashboards/2
-        ,log_to_db/7
         ,get_maxrowcount/0
         ,add_adapter_to_cmd/3
         ]).
@@ -205,6 +205,9 @@ delete_view(Sess, ViewId) ->
             ?Error("Unable to get the view to delete ~p", [ViewId]),
             {error, <<"Unable to find the view to delete">>}
     end.
+
+get_config_hlk(Table,Key,Owner,Context,Default) ->
+    imem_meta:get_config_hlk(Table,Key,Owner,Context,Default).
 
 -spec get_adapters({atom(), pid()}) -> {error, binary()} | [#ddAdapter{}].
 get_adapters(Sess) ->
@@ -649,20 +652,6 @@ compare_connections(_, #ddConn{access = []}) -> false;
 compare_connections(#ddConn{access = A1} = Con1, #ddConn{access = A2} = Con2) ->
     lists:sort(A1) =:= lists:sort(A2)
         andalso compare_connections(Con1#ddConn{access = []}, Con2#ddConn{access = []}).
-
--spec log_to_db(atom(), atom(), atom(), integer(), list(), binary(), list()) -> ok.
-log_to_db(Level,Module,Function,Line,Fields,Message,StackTrace)
-when is_atom(Level)
-    , is_atom(Module)
-    , is_atom(Function)
-    , is_integer(Line)
-    , is_list(Fields)
-    , is_binary(Message)
-    , is_list(StackTrace) ->
-    spawn(fun() ->
-        imem_meta:log_to_db(Level,Module,Function,Line,Fields,Message,StackTrace)
-    end),
-    ok.
 
 -spec check_dependencies([atom()]) -> boolean().
 check_dependencies([]) -> true;

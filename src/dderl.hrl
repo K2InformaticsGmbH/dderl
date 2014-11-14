@@ -104,28 +104,17 @@
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -define(Log(__L,__M,__F,__A,__S),
 (fun(_S) ->
-        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A]),
-        __Ln = lager_util:level_to_num(__L),
-        case __Ln band element(1,lager_config:get(loglevel)) of
-            0 -> ok;
-            _ ->
-                __ST = if length(_S) == 0 ->
-                              case (__Ln =< lager_util:level_to_num(error)) of
-                                  true -> erlang:get_stacktrace();
-                                  _ -> []
-                              end;
-                          true ->
-                              _S
-                       end,
-                dderl_dal:log_to_db(
-                  __L,?MODULE,
-                  element(2,element(2,process_info(self(),current_function)
-                                   )),
-                  ?LINE,[],
-                  list_to_binary(io_lib:format(__F, __A)),
-                  __ST)
-        end
-end)(__S)).
+         __Ln = lager_util:level_to_num(__L),
+         __LM = __Ln band element(1,lager_config:get(loglevel)),
+         _LEn = lager_util:level_to_num(error),
+         __ST = if __LM /= 0 andalso length(_S) == 0 andalso __Ln =< _LEn ->
+                       erlang:get_stacktrace();
+                   true ->
+                       _S
+                end,
+         lager:__L([{stacktrace,__ST}|__M], "["++?LOG_TAG++"] ~p "++__F,
+                   [{?MODULE,?LINE}|__A])
+ end)(__S)).
 
 -define(Debug(__M,__F,__A),     ?Log(debug,__M,__F,__A,[])).
 -define(Info(__M,__F,__A),      ?Log(info,__M,__F,__A,[])).
@@ -146,4 +135,10 @@ end)(__S)).
 
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
+
+% Config getter
+-define(GET_DDERL_CONFIG(__PName,__Context,__Default),
+        dderl_dal:get_config_hlk(ddConfig, {dderl,?MODULE,__PName}, ?MODULE,
+                                 lists:flatten([__Context,node()]),__Default)
+       ).
 

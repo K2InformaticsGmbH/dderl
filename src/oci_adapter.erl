@@ -49,14 +49,7 @@ init() ->
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
-        lager:__L(__File, "[" ++ ?LOG_TAG ++ "] {~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg]),
-        dderl_dal:log_to_db(__L
-                            , list_to_atom(__File)
-                            , list_to_atom(__Func)
-                            , __Line
-                            , []
-                            , list_to_binary(__Msg)
-                            , [])
+        lager:__L(__File, "[" ++ ?LOG_TAG ++ "] {~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg])
     end).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}, pid()) -> #priv{}.
