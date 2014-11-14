@@ -3,7 +3,7 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.0.7 (Release Date 29.09.2014)
+Version 1.0.7 (Release Date 17.11.2014)
 =======================================
 * [Bug 10] Views grouped by target DB SBS0, SBS1, SBS2
 * [Bug 11] Fixed errors with formatters preventing query execution
@@ -25,7 +25,6 @@ Version 1.0.7 (Release Date 29.09.2014)
 * erlimem from 1.0.4 to 1.0.5
 * sqlparse from 1.0.0 to 1.2.0
 * new library jpparse 0.0.3 added
-
 
 Version 1.0.6 (Release Date 04.09.2013)
 =======================================
