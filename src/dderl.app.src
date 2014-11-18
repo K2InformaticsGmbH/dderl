@@ -3,7 +3,7 @@
 {application, dderl,
  [
   {description, "Web based tool for exploring databases"},
-  {vsn, "1.0.7"},
+  {vsn, "1.0.8"},
   {registered, []},
   {applications, [kernel,
                   stdlib,
@@ -14,7 +14,8 @@
                   cowlib,
                   erlimem,
                   imem,
-                  sqlparse
+                  sqlparse,
+                  dderloci
                  ]},
   {mod, { dderl_app, []}},
   {env, [ {interface, "0.0.0.0"}

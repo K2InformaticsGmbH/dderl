@@ -42,10 +42,12 @@ start() ->
     ok = application:start(cowboy),
     erlimem:start(),
     imem:start(),
+    catch dderloci:start(),
 	ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
+    catch dderloci:stop(),
     imem:stop(),
     erlimem:stop(),
     ok = application:stop(cowboy),

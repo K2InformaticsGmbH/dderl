@@ -27,19 +27,39 @@ main(Deps) ->
     [_,_|ProjectDirParts] = lists:reverse(filename:split(Pwd)),
     ConfFile = filename:join(lists:reverse(ProjectDirParts) ++ ["rebar.config"]),
     {ok, Conf} = file:consult(ConfFile),
-    main(ConfFile, Conf, Conf, Deps).
+    remove_dep(ConfFile, Conf, Conf, Deps),
+    AppFile = filename:join(lists:reverse(ProjectDirParts) ++ ["src", "dderl.app.src"]),
+    {ok, App} = file:consult(AppFile),
+    remove_app(AppFile, App, App, Deps).
 
-main(ConfFile, Conf, Conf, []) ->
+remove_dep(ConfFile, Conf, Conf, []) ->
     ?L("Unmodified Configuration ~p", [ConfFile]);
-main(ConfFile, Conf, OrigConf, []) ->
+remove_dep(ConfFile, Conf, OrigConf, []) ->
     ?L("Config file ~p", [ConfFile]),
     ?L("Original content:~n~p~n", [OrigConf]),
     ?L("The new conf:~n~p~n", [Conf]),
     ConfBin = iolist_to_binary([io_lib:format("~p.~n", [C]) || C <- Conf]),
     ok = file:write_file(ConfFile, ConfBin);
-main(ConfFile, Conf, OrigConf, [Dep| Deps]) ->
-    main(ConfFile, remove_dep(Conf, Dep), OrigConf, Deps).
+remove_dep(ConfFile, Conf, OrigConf, [Dep| Deps]) ->
+    remove_dep(ConfFile, remove_dep(Conf, Dep), OrigConf, Deps).
 
 remove_dep(Conf, Dep) ->
     Deps = proplists:get_value(deps, Conf),
     lists:keyreplace(deps, 1, Conf, {deps, [D || D <- Deps, atom_to_list(element(1,D)) =/= Dep]}).
+
+remove_app(AppFile, App, App, []) ->
+    ?L("Unmodified app config ~p", [AppFile]);
+remove_app(AppFile, App, OrigApp, []) ->
+    ?L("Application config file ~p", [AppFile]),
+    ?L("Original content:~n~p~n", [OrigApp]),
+    ?L("The new app conf:~n~p~n", [App]),
+    AppBin = iolist_to_binary([io_lib:format("~p.~n", [C]) || C <- App]),
+    ok = file:write_file(AppFile, AppBin);
+remove_app(AppFile, App, OrigApp, [Dep| Deps]) ->
+    remove_app(AppFile, remove_app(App, Dep), OrigApp, Deps).
+
+remove_app([{application, App, Props}], Dep) ->
+    Apps = proplists:get_value(applications, Props),
+    [{application, App,
+      lists:keyreplace(applications, 1, Props,
+                       {applications, [A || A <- Apps, atom_to_list(A) =/= Dep]})}].

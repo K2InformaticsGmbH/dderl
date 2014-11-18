@@ -21,9 +21,9 @@ Version 1.0.7 (Release Date 17.11.2014)
 * lager from 2.0.0 to 2.0.3
 * ranch from 0.8.4 to 1.0.0
 * cowboy from 0.8.4 to 1.0.0
-* imem from 1.2.3 to 1.2.4
+* imem from 1.2.3 to 1.2.5
 * erlimem from 1.0.4 to 1.0.5
-* sqlparse from 1.0.0 to 1.2.0
+* sqlparse from 1.0.0 to 1.2.2
 * new library jpparse 0.0.3 added
 
 Version 1.0.6 (Release Date 04.09.2013)

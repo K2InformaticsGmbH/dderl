@@ -110,12 +110,12 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
                         , Port
                         , binary_to_list(Service)])),
                 ?Debug("session:open ~p", [{User, Password, NewTnsstr}]),
-                OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
+                OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
                 ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
             end;
         true ->
             ?Debug("session:open ~p", [{User, Password, Tnsstr}]),
-            OciPort = oci_port:start_link([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
+            OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
             ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
