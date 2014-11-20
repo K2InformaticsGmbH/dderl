@@ -8,13 +8,9 @@
   {applications, [kernel,
                   stdlib,
                   sasl,
-                  os_mon,
-                  lager,
-                  ranch,
                   cowlib,
                   erlimem,
                   imem,
-                  sqlparse,
                   dderloci
                  ]},
   {mod, { dderl_app, []}},

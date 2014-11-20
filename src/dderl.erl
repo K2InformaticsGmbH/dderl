@@ -15,50 +15,20 @@
 
 %% API.
 start() ->
-    ssl:start(),
-    ok = application:load(lager),
-    ok = application:set_env(lager, handlers, [{lager_console_backend, info},
-                                               {lager_file_backend, [{file, "log/error.log"},
-                                                                     {level, error},
-                                                                     {size, 10485760},
-                                                                     {date, "$D0"},
-                                                                     {count, 5}]},
-                                               {lager_file_backend, [{file, "log/console.log"},
-                                                                     {level, info},
-                                                                     {size, 10485760},
-                                                                     {date, "$D0"},
-                                                                     {count, 5}]}]),
-    ok = application:set_env(lager, error_logger_redirect, false),
-    ok = application:start(compiler),
-    ok = application:start(syntax_tools),
-    ok = application:start(goldrush),
-    ok = application:start(lager),
-    ok = application:load(sasl),
-    ok = application:set_env(sasl, sasl_error_logger, false),
-    ok = application:start(sasl),
-    ok = application:start(os_mon),
-    ok = application:start(ranch),
-    ok = application:start(cowlib),
-    ok = application:start(cowboy),
     erlimem:start(),
     imem:start(),
+    ok = application:start(cowlib),
+    ok = application:start(cowboy),
     catch dderloci:start(),
 	ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
     catch dderloci:stop(),
-    imem:stop(),
-    erlimem:stop(),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
-    ok = application:unload(sasl),
-    ok = application:stop(lager),
-    ok = application:stop(goldrush),
-    ok = application:stop(syntax_tools),
-    ok = application:stop(compiler),
-    ok = application:unload(lager),
-    ssl:stop().
+    imem:stop(),
+    erlimem:stop().
 
 init(_Transport, Req, []) ->
 	{ok, Req, undefined}.
