@@ -8,6 +8,9 @@
 -kernel inet_dist_listen_min {{ epmd_min }}
 -kernel inet_dist_listen_max {{ epmd_max }}
 
+## Distribution protocol
+-proto_dist {{ proto_dist }}
+
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
 ##-heart
