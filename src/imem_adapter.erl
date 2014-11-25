@@ -718,15 +718,10 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
-        Error ->
-            ?Error("query error ~p", [Error]),
-            if
-                is_binary(Error) ->
-                    [{<<"error">>, Error}];
-                true ->
-                    Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-                    [{<<"error">>, Err}]
-            end
+        Result ->
+            ?Debug("query result ~p", [Result]),
+            %% Todo: client can't handle this result yet, so we send ok.
+            [{<<"result">>, <<"ok">>}]
     end.
 
 -spec send_result_table_cmd(pid(), binary(), list()) -> ok.

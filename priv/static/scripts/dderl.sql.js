@@ -73,15 +73,17 @@ function insertAtCursor(myField, myValue) {
     _historySelect  : null,
     _cmdChanged     : false,
     _reloadBtn      : null,
+    _spinCounter    : 0,
+    _pendingQueries : null,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
                             var self = e.data; 
-                            self._checkParsed(_parsed);
                             self._renderParsed(_parsed);
                         },
                         reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd (_parsed); },
-                        saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); }
+                        saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); },
+                        resultMultStmt  : function(e, _result) { e.data._resultMultStmt  (_result); }
                       },
 
     // Dialog context menus
@@ -140,6 +142,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
 
         self._history = [];
+        self._pendingQueries = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -267,6 +270,7 @@ function insertAtCursor(myField, myValue) {
                 var shouldReparse = false;
                 self._setTabFocus();
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
+                    self.addWheel();
                     ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
             })
@@ -312,6 +316,7 @@ function insertAtCursor(myField, myValue) {
 
         if (undefined != self._cmdFlat && self._cmdFlat.length > 0) {
             self._modCmd = self._cmdFlat;
+            self.addWheel();
             ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
         }
     },
@@ -407,6 +412,7 @@ function insertAtCursor(myField, myValue) {
         var saveView = self._getSaveStructure(viewName);
         var updateView = {update_view : saveView.save_view};
         updateView.update_view.view_id = viewId;
+        self.addWheel();
         ajaxCall(self, '/app/update_view', updateView, 'update_view', 'saveViewResult');
     },
 
@@ -414,6 +420,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         var saveView =  self._getSaveStructure(viewName);
         saveView.save_view.replace = replace;
+        self.addWheel();
         ajaxCall(self, '/app/save_view', saveView, 'save_view', 'saveViewResult');
     },
 
@@ -492,6 +499,44 @@ function insertAtCursor(myField, myValue) {
         });
     },
 
+
+      _setTitleHtml: function(newTitle) {
+          var self = this;
+          self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
+          self._dlg.dialog("widget").find(".table-title").click(function(e) {
+              self._sqlTtlCnxtMnu.dom
+                  .css("top", e.clientY - 10)
+                  .css("left", e.clientX)
+                  .data('cnxt', self)
+                  .show();
+          });
+      },
+
+      removeWheel : function()
+      {
+          this._spinCounter--;
+          var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
+          if(this._spinCounter <= 0
+             && this._dlg.hasClass('ui-dialog-content')
+             && $dlgTitleObj.hasClass('table-title-wait')) {
+              this._setTitleHtml($dlgTitleObj.removeClass('table-title-wait'));
+              this._spinCounter = 0;
+          }
+      },
+
+      addWheel : function()
+      {
+          if(this._spinCounter < 0)
+              this._spinCounter = 0;
+          this._spinCounter++;
+          var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
+          if(this._spinCounter > 0
+             && this._dlg.hasClass('ui-dialog-content')
+             && !($dlgTitleObj.hasClass('table-title-wait'))) {
+              this._setTitleHtml($dlgTitleObj.addClass('table-title-wait'));
+          }
+      },
+
     _addBtngrpToDiv: function(toolDiv) {
         var self = this;
 
@@ -561,6 +606,7 @@ function insertAtCursor(myField, myValue) {
      */
     _toolBarValidate: function() {
         this._addToHistory(this._modCmd);
+        this.addWheel();
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','parsedCmd');
     },
     _toolBarTblReload: function() {
@@ -581,34 +627,73 @@ function insertAtCursor(myField, myValue) {
     _loadTable: function(button) {
         this._reloadBtn = button;
         this._addToHistory(this._modCmd);
+        this.addWheel();
         ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt','reloadParsedCmd');
     },
 
     _reloadParsedCmd: function(_parsed) {
         var self = this;
         this._renderParsed(_parsed);
-        var initOptions = {
-            title          : this._title,
-            autoOpen       : false,
-            dderlConn      : dderlState.connection,
-            dderlAdapter   : dderlState.adapter,
-            dderlStartBtn  : this._reloadBtn,
-            dderlCmdStrs   : this._history,
-            dderlSqlEditor : this._dlg
-        };
-        this._modCmd = this._cmdFlat;
-        if(null === this._cmdOwner) {
-            this._cmdOwner = $('<div>')
-                .appendTo(document.body)
-                .table(initOptions)
-                .table('cmdReload', this._modCmd, self._reloadBtn);
-        } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
-            this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
+        if(_parsed.hasOwnProperty("flat_list")) {
+            self._pendingQueries = angular.copy(_parsed.flat_list);
+            self._execMultStmts();
         } else {
-            this._cmdOwner.appendTo(document.body).table(initOptions)
-                .table('cmdReload', this._modCmd, self._reloadBtn);
+            var initOptions = {
+                title          : this._title,
+                autoOpen       : false,
+                dderlConn      : dderlState.connection,
+                dderlAdapter   : dderlState.adapter,
+                dderlStartBtn  : this._reloadBtn,
+                dderlCmdStrs   : this._history,
+                dderlSqlEditor : this._dlg
+            };
+            this._modCmd = this._cmdFlat;
+            if(null === this._cmdOwner) {
+                this._cmdOwner = $('<div>')
+                    .appendTo(document.body)
+                    .table(initOptions)
+                    .table('cmdReload', this._modCmd, self._reloadBtn);
+            } else if(this._cmdOwner.hasClass('ui-dialog-content')) {
+                this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
+            } else {
+                this._cmdOwner.appendTo(document.body).table(initOptions)
+                    .table('cmdReload', this._modCmd, self._reloadBtn);
+            }
         }
     },
+
+      _resultMultStmt: function(resultQry) {
+          var self = this;
+          if(resultQry.hasOwnProperty('result') && resultQry.result === 'ok') {
+              self._execMultStmts();
+              return;
+          }
+          if(resultQry.hasOwnProperty('error')) {
+              alert_jq(resultQry.error + "<br><br><b><center>" + self._pendingQueries.length + " statements not executed</center></b>");
+              return;
+          }
+          if(!resultQry.hasOwnProperty('statement')) {
+              alert_jq('missing statement handle <br><br><b><center>' + self._pendingQueries.length + " statements not executed</center></b>");
+              return;
+          }
+          console.log("open table!!"); // TODO: Really open a table ...
+          self._execMultStmts();
+          return;
+      },
+
+      _execMultStmts: function() {
+          var self = this;
+          if(self._pendingQueries.length <= 0) {
+              alert_jq("All statements executed");
+          } else {
+              var qstr = self._pendingQueries.shift();
+              self.addWheel();
+              ajaxCall(self, '/app/query', {query: {
+                  connection: dderlState.connection, qstr : qstr,
+                  conn_id: dderlState.connectionSelected.connection
+              }}, 'query', 'resultMultStmt');
+          }
+      },
 
     _addToHistory: function(sql) {
         var self = this;
@@ -649,17 +734,6 @@ function insertAtCursor(myField, myValue) {
     /*
      * ajaxCall success handlers
      */
-      // TODO: Enable error display when they are minimal
-    _checkParsed: function(_parsed) { /*
-        var error = ''
-        if(_parsed.hasOwnProperty('boxerror'))      error += 'Box Error - <br>' + _parsed.boxerror + '<br>';
-        if(_parsed.hasOwnProperty('prettyerror'))   error += 'Pretty Error - <br>' + _parsed.prettyerror + '<br>';
-        if(_parsed.hasOwnProperty('flaterror'))     error += 'Flat Error - <br>' + _parsed.flaterror + '<br>';
-        if(_parsed.hasOwnProperty('error'))         error = 'Parser error - <br>' + _parsed.error + '<br>';
-
-        if (error.length > 0)
-            alert_jq(error);*/
-    },
     _renderParsed: function(_parsed) {
         var boxResult, self = this;
 
@@ -866,8 +940,9 @@ function insertAtCursor(myField, myValue) {
     showCmd: function(cmd) {
         var self = this;
         self._modCmd = cmd;
-        this._flatTb.val(cmd);
-        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
+        self._flatTb.val(cmd);
+        self.addWheel();
+        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
     },
 
     selHistorySelect: function(pos, sql) {

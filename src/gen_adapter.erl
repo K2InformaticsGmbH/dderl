@@ -59,20 +59,21 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             ?Error("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
                             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
-                        {multiple, _Flat, FirstPT} ->
-                            SqlTitle = get_sql_title(FirstPT),
-                            FlatTuple = {<<"flat">>, Sql},
+                        {multiple, FlatList, [FirstPt | _] = _PtList} ->
+                            SqlTitle = get_sql_title(FirstPt),
+                            FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
+                            FlatListTuple = {<<"flat_list">>, FlatList},
                             BoxTuple = {<<"boxerror">>, <<"multiple statements not supported by the box">>},
                             PrettyTuple = {<<"prettyerror">>, <<"pretty print doesn't support mulple statements">>},
                             case SqlTitle of
                                 <<>> ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple]}]);
+                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple, FlatListTuple]}]);
                                 _ ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
+                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple, FlatListTuple]}])
                             end,
                             From ! {reply, ParseStmt};
                         Flat ->
-                            [{ParseTree, _} | _] = ParseTrees,
+                            [{ParseTree, _}] = ParseTrees,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
@@ -576,8 +577,12 @@ get_sql_title({select, Args}) ->
 get_sql_title(_) -> <<>>.
 
 %% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
-ptlist_to_string([{ParseTree,_}]) -> sqlparse:pt_to_string(ParseTree);
-ptlist_to_string([{FirstPT,_} | _]) -> {mulitple, sqlparse:pt_to_string(FirstPT), FirstPT}.
+ptlist_to_string([{ParseTree,_}]) ->
+    sqlparse:pt_to_string(ParseTree);
+ptlist_to_string(Input) when is_list(Input) ->
+    PtList = [Pt || {Pt, _Extra} <- Input],
+    FlatList = [sqlparse:pt_to_string(Pt) || Pt <- PtList],
+    {multiple, FlatList, PtList}.
 
 -spec decrypt_to_term(binary()) -> any().
 decrypt_to_term(Bin) when is_binary(Bin) ->

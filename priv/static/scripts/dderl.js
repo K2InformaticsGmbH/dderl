@@ -45,7 +45,8 @@ var dderlState = {
     currentWindows: new Array(),
     saveDashboardCounter: 0,
     connectionSelected: null,
-    copyMode: "normal"             // normal, header, json
+    copyMode: "normal",             // normal, header, json
+    operationLogs: ""
 }
 
 // generic dderlserver call interface
@@ -92,8 +93,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         {
             console.log('Request '+_url+' Result '+textStatus);
 
-            if(this && this.hasOwnProperty('_spinCounter') && this._dlg && this._dlg.hasClass('ui-dialog-content')) {
-                this._spinCounter -= 1;
+            if(this && this.hasOwnProperty('_spinCounter') && this._dlg
+               && this._dlg.hasClass('ui-dialog-content')) {
                 this.removeWheel();
             }
 
@@ -146,7 +147,6 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
         error: function (request, textStatus, errorThrown) {
             if(this.hasOwnProperty('_spinCounter')) {
-                this._spinCounter -= 1;
                 this.removeWheel();
             }
 
