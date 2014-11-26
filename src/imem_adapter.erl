@@ -266,7 +266,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
                     true -> process_query(Query, Sess, {ConnId, imem}, SessPid);
                     _ -> process_query(Query, Connection, {ConnId, imem}, SessPid)
                 end,
-            From ! {reply, jsx:encode([{<<"query">>,R}])};
+            From ! {reply, jsx:encode([{<<"query">>, [{<<"qstr">>, Query} | R]}])};
         false ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,

@@ -711,34 +711,6 @@
         }
     },
 
-    _toggleGrouping: function(data) {
-        var self = this;
-        var seperator = /[#/.\\]/;
-        var columnId = data.columnId;
-        console.log('show histogram ' + JSON.stringify(data));
-        if (self._gridDataView.getGrouping().length == 0) {
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
-                self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
-                function (row, cell, value, columnDef, dataContext) {
-                    var newValue;
-                    if (value == null) {
-                        newValue = "";
-                    } else {
-                        newValueParts = value.split(seperator);
-                        newValue = newValueParts[newValueParts.length - 1];
-                    }
-                    return newValue;
-                };
-            groupByColumn(self._gridDataView,columnId,seperator);
-        }
-        else {
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
-               self._grid.getColumns()[self._grid.getColumnIndex(columnId)].oldformatter;
-            self._gridDataView.setGrouping([]);
-        }
-    },
-
     _activateSender: function() {
         var self = this;
         var columnPos = self._getColumnPositions();
@@ -1908,6 +1880,14 @@
         // If this is a view we add it to the current views
         addToCurrentViews(this);
     },
+
+    // Exported function to be called from sql query editor
+    renderTable: function(_table) {
+        this._dlg.dialog("moveToTop");
+        this._cmd = _table.qstr;
+        this._renderTable(_table);
+    },
+
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('result') && _table.result === 'ok') {
             console.log('[_renderTable] no row query, closing dialog');
@@ -3257,6 +3237,34 @@
         }
         //console.timeEnd('appendRows');
         //console.profileEnd();
+    },
+
+    _toggleGrouping: function(data) {
+        var self = this;
+        var seperator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
+        var columnId = data.columnId;
+        console.log('show histogram ' + JSON.stringify(data));
+        if (self._gridDataView.getGrouping().length == 0) {
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
+                self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
+                function (row, cell, value, columnDef, dataContext) {
+                    var newValue;
+                    if (value == null) {
+                        newValue = "";
+                    } else {
+                        newValueParts = value.split(seperator);
+                        newValue = newValueParts[newValueParts.length - 1];
+                    }
+                    return newValue;
+                };
+            groupByColumn(self._gridDataView,columnId,seperator);
+        }
+        else {
+            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
+               self._grid.getColumns()[self._grid.getColumnIndex(columnId)].oldformatter;
+            self._gridDataView.setGrouping([]);
+        }
     }
 
   });

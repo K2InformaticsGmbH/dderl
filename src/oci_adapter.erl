@@ -227,7 +227,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
                     true -> gen_adapter:process_query(Query, Sess, {ConnId, oci}, SessPid);
                     _ -> process_query(Query, Connection, SessPid)
                 end,
-            From ! {reply, jsx:encode([{<<"query">>,R}])};
+            From ! {reply, jsx:encode([{<<"query">>,[{<<"qstr">>, Query} | R]}])};
         false ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
@@ -714,12 +714,6 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, Tabl
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
         ValidFuns -> {ok, StmtRslt, TableName};
-        true -> <<"Unsupported target database version">>
-    end;
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
-    ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
-    if
-        ValidFuns -> {ok, StmtRslt};
         true -> <<"Unsupported target database version">>
     end;
 check_funs(Error) ->
