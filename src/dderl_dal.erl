@@ -671,5 +671,8 @@ filter_view_result([V | Views], Sess, Adapter) ->
             case lists:member(Adapter, C) of
                 true -> V;
                 false -> filter_view_result(Views, Sess, Adapter)
-            end
+            end;
+        _ ->
+            ?Error("Command id ~p not found for view ~p, with id ~p", [V#ddView.cmd, V#ddView.name, V#ddView.id]),
+            {error, iolist_to_binary(["Command not found for view ", V#ddView.name])}
     end.
