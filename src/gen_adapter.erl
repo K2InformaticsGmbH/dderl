@@ -59,11 +59,11 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             ?Error("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
                             From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
-                        {multiple, FlatList, [FirstPt | _] = _PtList} ->
+                        {multiple, FlatList, [FirstPt | _] = PtList} ->
                             SqlTitle = get_sql_title(FirstPt),
                             FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
                             FlatListTuple = {<<"flat_list">>, FlatList},
-                            BoxTuple = {<<"boxerror">>, <<"multiple statements not supported by the box">>},
+                            BoxTuple = get_box_tuple_multiple(PtList),
                             PrettyTuple = {<<"prettyerror">>, <<"pretty print doesn't support mulple statements">>},
                             case SqlTitle of
                                 <<>> ->
@@ -76,27 +76,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             [{ParseTree, _}] = ParseTrees,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
-                            BoxTuple = try dderl_sqlbox:boxed_from_pt(ParseTree) of
-                                           {error, BoxReason} ->
-                                               ?Debug("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
-                                               {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
-                                           {ok, Box} ->
-                                               %% ?Debug("The box ~p", [Box]),
-                                               try dderl_sqlbox:box_to_json(Box) of
-                                                   JsonBox ->
-                                                       {<<"sqlbox">>, JsonBox}
-                                               catch
-                                                   Class:Error ->
-                                                       ?Debug("Error ~p:~p converting the box ~p to json",
-                                                              [Class, Error, Box]),
-                                                       {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
-                                               end
-                                       catch
-                                           Class:Error ->
-                                               ?Debug("Error ~p:~p trying to get the box of the parse tree ~p~n",
-                                                      [Class, Error, ParseTree]),
-                                               {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
-                                       end,
+                            BoxTuple = get_box_tuple(ParseTree),
                             PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
                                               {error, PrettyReason} ->
                                                   ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
@@ -380,6 +360,43 @@ process_query(Query, Connection, Params, SessPid) ->
     imem_adapter:process_query(Query, Connection, Params, SessPid).
 
 %%%%%%%%%%%%%%%
+
+-spec get_box_tuple(term()) -> {binary(), binary()}.
+get_box_tuple(ParseTree) ->
+    try dderl_sqlbox:boxed_from_pt(ParseTree) of
+        {error, BoxReason} ->
+            ?Debug("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
+            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
+        {ok, Box} ->
+            %% ?Debug("The box ~p", [Box]),
+            try dderl_sqlbox:box_to_json(Box) of
+                JsonBox ->
+                    {<<"sqlbox">>, JsonBox}
+            catch
+                Class:Error ->
+                    ?Debug("Error ~p:~p converting the box ~p to json",
+                           [Class, Error, Box]),
+                    {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
+            end
+    catch
+        Class:Error ->
+            ?Debug("Error ~p:~p trying to get the box of the parse tree ~p~n",
+                   [Class, Error, ParseTree]),
+            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
+    end.
+
+-spec get_box_tuple_multiple(list()) -> {binary(), term()}.
+get_box_tuple_multiple(ParseTrees) ->
+    get_box_tuple_multiple(ParseTrees, []).
+
+get_box_tuple_multiple([], Result) ->
+    lists:reverse(Result),
+    {<<"sqlbox">>, dderl_sqlbox:wrap_multiple_json(Result)};
+get_box_tuple_multiple([ParseTree | Rest], Result) ->
+    case get_box_tuple(ParseTree) of
+        {<<"boxerror">> , _} = Error -> Error;
+        {<<"sqlbox">>, JsonBox} -> get_box_tuple_multiple(Rest, [JsonBox | Result])
+    end.
 
 -spec format_json_or_term(boolean(), binary(), pid(), term()) -> term().
 format_json_or_term(true, StringToFormat, From, _) ->

@@ -6,6 +6,7 @@
         , pretty_from_box/1
         , box_to_json/1
         , foldb/3
+        , wrap_multiple_json/1
         ]).
 
 -include("dderl.hrl").
@@ -890,6 +891,17 @@ box_to_json(Box) ->
     , {<<"error">>, Box#box.error}
     , {<<"color">>, Box#box.color}
     , {<<"pick">>, Box#box.pick}].
+
+-spec wrap_multiple_json(list()) -> list().
+wrap_multiple_json(Children) ->
+    Default = #box{},
+    [ {<<"ind">>, 0}
+    , {<<"name">>, any_to_bin(Default#box.name)}
+    , {<<"children">>, Children}
+    , {<<"collapsed">>, false}
+    , {<<"error">>, Default#box.error}
+    , {<<"color">>, Default#box.color}
+    , {<<"pick">>, Default#box.pick}].
 
 -spec any_to_bin(term()) -> binary().
 any_to_bin(C) when is_list(C) -> list_to_binary(C);
