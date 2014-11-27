@@ -64,7 +64,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
                             FlatListTuple = {<<"flat_list">>, FlatList},
                             BoxTuple = get_box_tuple_multiple(PtList),
-                            PrettyTuple = {<<"prettyerror">>, <<"pretty print doesn't support mulple statements">>},
+                            PrettyTuple = get_pretty_tuple_multiple(PtList),
                             case SqlTitle of
                                 <<>> ->
                                     ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple, FlatListTuple]}]);
@@ -77,19 +77,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = get_box_tuple(ParseTree),
-                            PrettyTuple = try dderl_sqlbox:pretty_from_pt(ParseTree) of
-                                              {error, PrettyReason} ->
-                                                  ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
-                                                         [PrettyReason, ParseTree]),
-                                                  {<<"prettyerror">>, PrettyReason};
-                                              Pretty ->
-                                                  {<<"pretty">>, Pretty}
-                                          catch
-                                              Class1:Error1 ->
-                                                  ?Debug("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
-                                                         [Class1, Error1, ParseTree]),
-                                                  {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
-                                          end,
+                            PrettyTuple = get_pretty_tuple(ParseTree),
                             case SqlTitle of
                                 <<>> ->
                                     ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple]}]);
@@ -389,13 +377,44 @@ get_box_tuple(ParseTree) ->
 get_box_tuple_multiple(ParseTrees) ->
     get_box_tuple_multiple(ParseTrees, []).
 
-get_box_tuple_multiple([], Result) ->
-    lists:reverse(Result),
+-spec get_box_tuple_multiple(list(), list()) -> {binary, term()}.
+get_box_tuple_multiple([], ResultR) ->
+    Result = lists:reverse(ResultR),
     {<<"sqlbox">>, dderl_sqlbox:wrap_multiple_json(Result)};
 get_box_tuple_multiple([ParseTree | Rest], Result) ->
     case get_box_tuple(ParseTree) of
         {<<"boxerror">> , _} = Error -> Error;
         {<<"sqlbox">>, JsonBox} -> get_box_tuple_multiple(Rest, [JsonBox | Result])
+    end.
+
+-spec get_pretty_tuple(term()) -> {binary(), binary()}.
+get_pretty_tuple(ParseTree) ->
+    try dderl_sqlbox:pretty_from_pt(ParseTree) of
+        {error, PrettyReason} ->
+            ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
+                   [PrettyReason, ParseTree]),
+            {<<"prettyerror">>, PrettyReason};
+        Pretty ->
+            {<<"pretty">>, Pretty}
+    catch
+        Class1:Error1 ->
+            ?Debug("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
+                   [Class1, Error1, ParseTree]),
+            {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
+    end.
+
+-spec get_pretty_tuple_multiple(list()) -> {binary(), binary()}.
+get_pretty_tuple_multiple(ParseTrees) ->
+    get_pretty_tuple_multiple(ParseTrees, []).
+
+-spec get_pretty_tuple_multiple(list(), list()) -> {binary(), binary()}.
+get_pretty_tuple_multiple([], Result) ->
+    %% Same as the flat we add ; and new line after each statement.
+    {<<"pretty">>, iolist_to_binary([[Pretty, ";\n"] || Pretty <- lists:reverse(Result)])};
+get_pretty_tuple_multiple([ParseTree | Rest], Result) ->
+    case get_pretty_tuple(ParseTree) of
+        {<<"prettyerror">>, _} = Error -> Error;
+        {<<"pretty">>, Pretty} -> get_pretty_tuple_multiple(Rest, [Pretty | Result])
     end.
 
 -spec format_json_or_term(boolean(), binary(), pid(), term()) -> term().
