@@ -718,6 +718,9 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
+        <<"Unsupported target database version">> = Msg ->
+            ?Error("Unsupported target database version"),
+            [{<<"error">>, Msg}];
         Result ->
             ?Debug("query result ~p", [Result]),
             %% Todo: client can't handle this result yet, so we send ok.
