@@ -290,7 +290,11 @@
                 // Scroll view into the selection area.
                 var viewRow = activeCell.row == _ranges[0].fromRow ? _ranges[0].toRow : _ranges[0].fromRow;
                 var viewCell = activeCell.cell == _ranges[0].fromCell ? _ranges[0].toCell : _ranges[0].fromCell;
-                _grid.scrollCellIntoView(viewRow, viewCell);
+                if(e.which == 39 || e.which == 37) {
+                    _grid.scrollCellIntoView(viewRow, viewCell);
+                } else {
+                    _grid.scrollRowIntoView(viewRow, false);
+                }
 
                 setSelectedRanges(_ranges);
 
