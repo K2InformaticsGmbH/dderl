@@ -323,12 +323,18 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
         true ->
             case lists:member(Connection, Connections) of
                 true ->
-                    Name = element(3 + Col, R),
-                    Query = <<"select * from ", Name/binary>>,
+                    Name0 = element(3 + Col, R),
+                    Name1 = case re:split(Name0,"[,]") of
+                        [<<${,S/binary>>,N] ->  NN=re:replace(N,"}$","",[{return,binary}]),
+                                                % convert "{Schema,Name}"" to "Schema.Name"
+                                                <<S/binary,$.,NN/binary>>; 
+                        _ ->                    Name0
+                    end,
+                    Query = <<"select * from ", Name1/binary>>,
                     Resp = process_query(Query, Connection, {ConnId, imem}, SessPid),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, Query}
-                         ,{<<"name">>, Name}] ++ Resp }]),
+                         ,{<<"name">>, Name1}] ++ Resp }]),
                     From ! {reply, RespJson};
                 false ->
                     From ! {reply, error_invalid_conn(Connection, Connections)}
