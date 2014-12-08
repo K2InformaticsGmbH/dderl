@@ -200,7 +200,6 @@ process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, Fro
             end,
             Priv#priv{connections = [Connection|Connections]}
     end;
-
 process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"change_pswd">>, BodyJson}] = ReqBody,
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
@@ -226,7 +225,6 @@ process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{con
             From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
             Priv
     end;
-
 process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
@@ -253,7 +251,6 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
             From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
             Priv
     end;
-
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"query">>,BodyJson}] = ReqBody,
     Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
@@ -271,7 +268,6 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
     Priv;
-
 process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -323,26 +319,18 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
         true ->
             case lists:member(Connection, Connections) of
                 true ->
-                    Name0 = element(3 + Col, R),
-                    Name1 = case re:split(Name0,"[,]") of
-                        [<<${,S/binary>>,N] ->  NN=re:replace(N,"}$","",[{return,binary}]),
-                                                % convert "{Schema,Name}"" to "Schema.Name"
-                                                <<S/binary,$.,NN/binary>>; 
-                        _ ->                    Name0
-                    end,
-                    Query = <<"select * from ", Name1/binary>>,
+                    Name = sql_name(element(3 + Col, R)),
+                    Query = <<"select * from ", Name/binary>>,
                     Resp = process_query(Query, Connection, {ConnId, imem}, SessPid),
                     RespJson = jsx:encode([{<<"browse_data">>,
                         [{<<"content">>, Query}
-                         ,{<<"name">>, Name1}] ++ Resp }]),
+                         ,{<<"name">>, Name}] ++ Resp }]),
                     From ! {reply, RespJson};
                 false ->
                     From ! {reply, error_invalid_conn(Connection, Connections)}
             end
     end,
     Priv;
-
-% views
 process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     [{<<"views">>,BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
@@ -375,8 +363,6 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     end,
     From ! {reply, RespJson},
     Priv;
-
-%  system views
 process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid) ->
     [{<<"system_views">>,BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
@@ -398,8 +384,6 @@ process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid)
     end,
     From ! {reply, RespJson},
     Priv;
-
-% open view by id
 process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"open_view">>, BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
@@ -442,7 +426,6 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             From ! {reply, RespJson},
             Priv
     end;
-% events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -466,30 +449,28 @@ process_cmd({[<<"reorder">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     Priv;
 process_cmd({[<<"drop_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"drop_table">>, BodyJson}] = ReqBody,
-    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    TableNames = [sql_name(N) || N <- proplists:get_value(<<"table_names">>, BodyJson, [])],
     Results = [process_table_cmd(drop_table, TableName, BodyJson, Connections) || TableName <- TableNames],
     send_result_table_cmd(From, <<"drop_table">>, Results),
     Priv;
 process_cmd({[<<"truncate_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"truncate_table">>, BodyJson}] = ReqBody,
-    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    TableNames = [sql_name(N) || N <- proplists:get_value(<<"table_names">>, BodyJson, [])],
     Results = [process_table_cmd(truncate_table, TableName, BodyJson, Connections) || TableName <- TableNames],
     send_result_table_cmd(From, <<"truncate_table">>, Results),
     Priv;
 process_cmd({[<<"snapshot_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"snapshot_table">>, BodyJson}] = ReqBody,
-    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    TableNames = [sql_name(N) || N <- proplists:get_value(<<"table_names">>, BodyJson, [])],
     Results = [process_table_cmd(snapshot_table, TableName, BodyJson, Connections) || TableName <- TableNames],
     send_result_table_cmd(From, <<"snapshot_table">>, Results),
     Priv;
 process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"restore_table">>, BodyJson}] = ReqBody,
-    TableNames = proplists:get_value(<<"table_names">>, BodyJson, []),
+    TableNames = [sql_name(N) || N <- proplists:get_value(<<"table_names">>, BodyJson, [])],
     Results = [process_table_cmd(restore_table, TableName, BodyJson, Connections) || TableName <- TableNames],
     send_result_table_cmd(From, <<"restore_table">>, Results),
     Priv;
-
-% gui button events
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
@@ -535,7 +516,6 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid)
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-
 process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
@@ -572,14 +552,25 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             From ! {reply_csv, FileName, Error, single}
     end,
     Priv;
-
-
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),
     CmdBin = lists:last(Cmd),
     From ! {reply, jsx:encode([{CmdBin,[{<<"error">>, <<"command '", CmdBin/binary, "' is unsupported">>}]}])},
     Priv.
+
+sql_name(Name) ->
+    %% accept {Schema,Name} and convert to Schema.Name  
+    case re:split(Name,"[,]") of
+        [<<${,S/binary>>,N] ->  
+            NN0=re:replace(N,"}$","",[{return,binary}]),
+            NN1=re:replace(NN0,"^'","",[{return,binary}]),
+            NN2=re:replace(NN1,"'$","",[{return,binary}]),
+            % convert "{Schema,Name}"" to "Schema.Name"
+            <<S/binary,$.,NN2/binary>>; 
+        _ ->
+            Name
+    end.
 
 % dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
