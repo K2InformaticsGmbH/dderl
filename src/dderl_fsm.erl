@@ -350,6 +350,12 @@ update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = 
         {ok, UpdRef} ->
             ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
             {ok, UpdRef};
+        {_, {{error, {'ClientError', M}}, _St} = Error} ->
+            ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
+            {error, M};
+        {_, {{error, M}, _St} = Error} ->
+            ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
+            {error, M};
         {_, Error} ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
             {error, Error}
@@ -373,6 +379,12 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
     case Ucef(Lock) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
+        {_, {{error, {'ClientError', M}, _St}, _St1} = Error} ->
+            ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
+            {error, M};
+        {_, {{error, M, _St}, _St1} = Error} ->
+            ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
+            {error, M};
         {_, Error} ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
