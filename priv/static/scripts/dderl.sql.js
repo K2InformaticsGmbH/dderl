@@ -80,6 +80,19 @@ function insertAtCursor(myField, myValue) {
     _handlers       : { parsedCmd : function(e, _parsed) {
                             var self = e.data; 
                             self._renderParsed(_parsed);
+                            var pos = self._dlg.offset();
+                            sql_params_dlg(pos.left + 100, pos.top, self._dlg.zIndex(),
+                                    {types: ["SQLT_INT", "SQLT_CHAR"],
+                                        pars: {
+                                            ":a":{typ:"SQLT_INT",val:1},
+                                            ":b":{typ:"SQLT_CHAR",val:"aa"},
+                                            ":a1":{typ:"SQLT_INT",val:12},
+                                            ":b2":{typ:"SQLT_CHAR",val:"aaw"},
+                                            ":ea1":{typ:"SQLT_INT",val:13},
+                                            ":eb2":{typ:"SQLT_CHAR",val:"aas"}
+                                        }
+                                    },
+                                    function(qparams) { console.log(qparams); });
                         },
                         reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd (_parsed); },
                         saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); },
