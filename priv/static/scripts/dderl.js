@@ -121,7 +121,9 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                         throw('unsupported success event '+_successevt+' for '+_url);
                     }
                 } else {
-                    if(this._handlers.hasOwnProperty(_successevt)) {
+                    if($.isFunction(_successevt)) {
+                        _successevt(_data[_resphead]);
+                    } else if(this._handlers.hasOwnProperty(_successevt)) {
                         this.element.trigger(_successevt, _data[_resphead]);
                     } else {
                         throw('unsupported success event '+_successevt+' for '+_url);

@@ -44,8 +44,22 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
             end
     end.
 
+opt_bind_json_obj(Sql, Adapter) ->
+    case re:run(Sql, ":[^ ,\)\n\r;]+", [global,{capture,all,binary}]) of
+        {match, Parameters} ->
+            AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
+            [{<<"binds">>,
+              [{<<"types">>, AdapterMod:bind_arg_types()},
+               {<<"pars">>, [{P, [{<<"typ">>,<<"SQLT_CHAR">>},{<<"val">>,<<>>}]}
+                             || P <- lists:merge(Parameters)]}]
+             }];
+        % No bind parameters can be extracted
+        % possibly query string is not parameterized
+        _ -> []
+    end.
+
 -spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
-process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"parse_stmt">>,BodyJson}] = ReqBody,
     Sql = string:strip(binary_to_list(proplists:get_value(<<"qstr">>, BodyJson, <<>>))),
     if
@@ -58,19 +72,24 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                         {error, Reason} ->
                             ?Error("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
-                            From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
+                            From ! {reply, jsx:encode([{<<"parse_stmt">>,
+                                                        [{<<"error">>, ReasonBin},
+                                                         {<<"flat">>, list_to_binary(Sql)}
+                                                         | opt_bind_json_obj(Sql, Adapter)]
+                                                       }])};
                         {multiple, FlatList, [FirstPt | _] = PtList} ->
                             SqlTitle = get_sql_title(FirstPt),
                             FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
                             FlatListTuple = {<<"flat_list">>, FlatList},
                             BoxTuple = get_box_tuple_multiple(PtList),
                             PrettyTuple = get_pretty_tuple_multiple(PtList),
-                            case SqlTitle of
-                                <<>> ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple, FlatListTuple]}]);
-                                _ ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple, FlatListTuple]}])
-                            end,
+                            ParseStmt = jsx:encode([{<<"parse_stmt">>,
+                                case SqlTitle of
+                                    <<>> -> [BoxTuple, PrettyTuple, FlatTuple, FlatListTuple
+                                             | opt_bind_json_obj(Sql, Adapter)];
+                                _ -> [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple, FlatListTuple
+                                      | opt_bind_json_obj(Sql, Adapter)]
+                            end}]),
                             From ! {reply, ParseStmt};
                         Flat ->
                             [{ParseTree, _}] = ParseTrees,
@@ -78,23 +97,29 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
                             FlatTuple = {<<"flat">>, Flat},
                             BoxTuple = get_box_tuple(ParseTree),
                             PrettyTuple = get_pretty_tuple(ParseTree),
-                            case SqlTitle of
-                                <<>> ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [BoxTuple, PrettyTuple, FlatTuple]}]);
-                                _ ->
-                                    ParseStmt = jsx:encode([{<<"parse_stmt">>, [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple]}])
-                            end,
+                            ParseStmt = jsx:encode([{<<"parse_stmt">>,
+                                case SqlTitle of
+                                    <<>> -> [BoxTuple, PrettyTuple, FlatTuple
+                                             | opt_bind_json_obj(Sql, Adapter)];
+                                    _ -> [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple
+                                          | opt_bind_json_obj(Sql, Adapter)]
+                            end}]),
                             %% ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
                             From ! {reply, ParseStmt}
                     end;
                 {parse_error, {PError, Tokens}} ->
                     ?Error("parse_stmt error in parsetree ~p~n", [{PError, Tokens}]),
                     ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [{PError, Tokens}])),
-                    From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])};
+                    From ! {reply, jsx:encode([{<<"parse_stmt">>,
+                                                [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}
+                                                 | opt_bind_json_obj(Sql, Adapter)]}])};
                 {lex_error, LError} ->
                     ?Error("lexer error in parsetree ~p~n", [LError]),
                     ReasonBin = iolist_to_binary(io_lib:format("Lexer error: ~p", [LError])),
-                    From ! {reply, jsx:encode([{<<"parse_stmt">>, [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}]}])}
+                    From ! {reply, jsx:encode([{<<"parse_stmt">>,
+                                                [{<<"error">>, ReasonBin},
+                                                 {<<"flat">>, list_to_binary(Sql)}
+                                                 | opt_bind_json_obj(Sql, Adapter)]}])}
             end
     end;
 process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->

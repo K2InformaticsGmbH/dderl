@@ -12,12 +12,15 @@
         , rows/2
         , rows_limit/3
         , get_deps/0
+        , bind_arg_types/0
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
 
 -define(E2B(__T), gen_adapter:encrypt_to_binary(__T)).
 -define(D2T(__B), gen_adapter:decrypt_to_term(__B)).
+
+bind_arg_types() -> erloci:bind_arg_types().
 
 -spec init() -> ok.
 init() ->
