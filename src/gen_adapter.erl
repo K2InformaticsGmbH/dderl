@@ -50,7 +50,7 @@ opt_bind_json_obj(Sql, Adapter) ->
             AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
             [{<<"binds">>,
               [{<<"types">>, AdapterMod:bind_arg_types()},
-               {<<"pars">>, [{P, [{<<"typ">>,<<"SQLT_CHAR">>},{<<"val">>,<<>>}]}
+               {<<"pars">>, [{P, [{<<"typ">>,<<"SQLT_CHR">>},{<<"val">>,<<>>}]}
                              || P <- lists:merge(Parameters)]}]
              }];
         % No bind parameters can be extracted

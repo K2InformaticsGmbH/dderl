@@ -220,19 +220,23 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
 
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"query">>,BodyJson}] = ReqBody,
-    Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
-    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
-    ?Debug("query ~p", [Query]),
-    case lists:member(Connection, Connections) of
-        true ->
-            R = case dderl_dal:is_local_query(Query) of
-                    true -> gen_adapter:process_query(Query, Sess, {ConnId, oci}, SessPid);
-                    _ -> process_query(Query, Connection, SessPid)
-                end,
-            From ! {reply, jsx:encode([{<<"query">>,[{<<"qstr">>, Query} | R]}])};
-        false ->
-            From ! {reply, error_invalid_conn(Connection, Connections)}
+    case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
+        {error, Error} -> From ! {reply, jsx:encode([{<<"error">>, Error}])};
+        BindVals ->
+            Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
+            Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+            ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
+            ?Info("query ~p binds ~p", [Query, BindVals]),
+            case lists:member(Connection, Connections) of
+                true ->
+                    R = case dderl_dal:is_local_query(Query) of
+                            true -> gen_adapter:process_query(Query, Sess, {ConnId, oci}, SessPid);
+                            _ -> process_query(Query, BindVals, Connection, SessPid)
+                        end,
+                    From ! {reply, jsx:encode([{<<"query">>,[{<<"qstr">>, Query} | R]}])};
+                false ->
+                    From ! {reply, error_invalid_conn(Connection, Connections)}
+            end
     end,
     Priv;
 
@@ -766,3 +770,24 @@ get_value_empty_default(Key, Proplist, Defaults) ->
 
 -spec get_deps() -> [atom()].
 get_deps() -> [dderloci, erloci].
+
+make_binds(null) -> undefined;
+make_binds(Binds) ->
+    try
+        lists:foldl(
+          fun({B, TV}, {NewBinds, NewVals}) ->
+                  Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
+                  Val = binary_to_existing_atom(proplists:get_value(<<"val">>, TV), utf8),
+                  {[{B, Typ} | NewBinds],
+                   [case Typ of
+                        'SQLT_INT' -> binary_to_integer(Val);
+                        'SQLT_CHAR' -> Val
+                    end | NewVals]}
+          end,
+          {[], []}, Binds)
+    catch
+        _:Exception ->
+            {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
+    end.
+
+

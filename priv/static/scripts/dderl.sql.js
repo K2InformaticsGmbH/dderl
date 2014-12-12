@@ -75,6 +75,7 @@ function insertAtCursor(myField, myValue) {
     _reloadBtn      : null,
     _spinCounter    : 0,
     _pendingQueries : null,
+    _cmdExtra       : null,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
@@ -607,16 +608,18 @@ function insertAtCursor(myField, myValue) {
      */
     _toolBarValidate: function() {
         var self = this;
-        this._addToHistory(this._modCmd);
-        this.addWheel();
-        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}},'parse_stmt',
+        self._addToHistory(self._modCmd);
+        self.addWheel();
+        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt);
                     if (parse_stmt.hasOwnProperty("binds")) {
                         var pos = self._dlg.offset();
                         sql_params_dlg(pos.left + 100, pos.top,
                             self._dlg.zIndex(), parse_stmt.binds,
-                            function(qparams) { console.log(qparams); });
+                            function(qparams) { self._cmdExtra = qparams.pars; });
+                    } else {
+                        self._cmdExtra = null;
                     }
                 });
     },
@@ -644,85 +647,85 @@ function insertAtCursor(myField, myValue) {
 
     _reloadParsedCmd: function(_parsed) {
         var self = this;
-        this._renderParsed(_parsed);
+        self._renderParsed(_parsed);
         if(_parsed.hasOwnProperty("flat_list")) {
             self._pendingQueries = angular.copy(_parsed.flat_list);
             self._execMultStmts();
         } else {
-            this._modCmd = this._cmdFlat;
-            if(this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
-                this._cmdOwner.table('cmdReload', this._modCmd, self._reloadBtn);
+            self._modCmd = self._cmdFlat;
+            if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
+                self._cmdOwner.table('cmdReload', self._modCmd, self._reloadBtn);
             } else {
                 self.addWheel();
                 ajaxCall(self, '/app/query', {query: {
-                    connection: dderlState.connection, qstr : this._modCmd,
-                    conn_id: dderlState.connectionSelected.connection
+                    connection: dderlState.connection, qstr: self._modCmd,
+                    conn_id: dderlState.connectionSelected.connection, binds: self._cmdExtra
                 }}, 'query', 'resultStmt');
             }
         }
     },
+    
+    _processResultStmt: function(resultQry, isMultiple) {
+        var self = this;
+        
+        var initOptions = {
+            autoOpen       : false,
+            dderlConn      : dderlState.connection,
+            dderlAdapter   : dderlState.adapter,
+            dderlStartBtn  : this._reloadBtn,
+            dderlCmdStrs   : this._history,
+        };
 
-      _processResultStmt: function(resultQry, isMultiple) {
-          var self = this;
+        if(resultQry.hasOwnProperty('result') && resultQry.result === 'ok') {
+            // Here we should write results to the operation logs
+            if(isMultiple) {
+                self._execMultStmts();
+            }
+        } else if(resultQry.hasOwnProperty('error')) {
+            alert_jq(resultQry.error + "<br><br><b><center>" + self._pendingQueries.length + " statements not executed</center></b>");
+        } else if(!resultQry.hasOwnProperty('statement')) {
+            alert_jq('missing statement handle <br><br><b><center>' + self._pendingQueries.length + " statements not executed</center></b>");
+        } else if(isMultiple) {
+            initOptions.title = resultQry.qstr;
+            $('<div>')
+                .appendTo(document.body)
+                .table(initOptions)
+                .table('renderTable', resultQry);
+            self._execMultStmts();
+        } else {
+            initOptions.dderlSqlEditor = this._dlg;
+            initOptions.title = this._title;
+            if(null === this._cmdOwner) {
+                this._cmdOwner = $('<div>')
+            }
+            this._cmdOwner
+                .appendTo(document.body)
+                .table(initOptions)
+                .table('renderTable', resultQry);
+        }
+    },
 
-          var initOptions = {
-              autoOpen       : false,
-              dderlConn      : dderlState.connection,
-              dderlAdapter   : dderlState.adapter,
-              dderlStartBtn  : this._reloadBtn,
-              dderlCmdStrs   : this._history,
-          };
+    _resultStmt: function(resultQry) {
+        this._processResultStmt(resultQry, false);
+    },
 
-          if(resultQry.hasOwnProperty('result') && resultQry.result === 'ok') {
-              // Here we should write results to the operation logs
-              if(isMultiple) {
-                  self._execMultStmts();
-              }
-          } else if(resultQry.hasOwnProperty('error')) {
-              alert_jq(resultQry.error + "<br><br><b><center>" + self._pendingQueries.length + " statements not executed</center></b>");
-          } else if(!resultQry.hasOwnProperty('statement')) {
-              alert_jq('missing statement handle <br><br><b><center>' + self._pendingQueries.length + " statements not executed</center></b>");
-          } else if(isMultiple) {
-              initOptions.title = resultQry.qstr;
-              $('<div>')
-                  .appendTo(document.body)
-                  .table(initOptions)
-                  .table('renderTable', resultQry);
-              self._execMultStmts();
-          } else {
-              initOptions.dderlSqlEditor = this._dlg;
-              initOptions.title = this._title;
-              if(null === this._cmdOwner) {
-                  this._cmdOwner = $('<div>')
-              }
-              this._cmdOwner
-                  .appendTo(document.body)
-                  .table(initOptions)
-                  .table('renderTable', resultQry);
-          }
-      },
+    _resultMultStmt: function(resultQry) {
+        this._processResultStmt(resultQry, true);
+    },
 
-      _resultStmt: function(resultQry) {
-          this._processResultStmt(resultQry, false);
-      },
-
-      _resultMultStmt: function(resultQry) {
-          this._processResultStmt(resultQry, true);
-      },
-
-      _execMultStmts: function() {
-          var self = this;
-          if(self._pendingQueries.length <= 0) {
-              alert_jq("All statements executed");
-          } else {
-              var qstr = self._pendingQueries.shift();
-              self.addWheel();
-              ajaxCall(self, '/app/query', {query: {
-                  connection: dderlState.connection, qstr : qstr,
-                  conn_id: dderlState.connectionSelected.connection
-              }}, 'query', 'resultMultStmt');
-          }
-      },
+    _execMultStmts: function() {
+        var self = this;
+        if(self._pendingQueries.length <= 0) {
+            alert_jq("All statements executed");
+        } else {
+            var qstr = self._pendingQueries.shift();
+            self.addWheel();
+            ajaxCall(self, '/app/query', {query: {
+                connection: dderlState.connection, qstr : qstr,
+                conn_id: dderlState.connectionSelected.connection, binds: self._cmdExtra
+            }}, 'query', 'resultMultStmt');
+        }
+    },
 
     _addToHistory: function(sql) {
         var self = this;
