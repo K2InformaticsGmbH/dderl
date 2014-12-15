@@ -226,12 +226,12 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
             Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
             Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
             ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
-            ?Info("query ~p binds ~p", [Query, BindVals]),
+            ?Debug("query ~p binds ~p", [Query, BindVals]),
             case lists:member(Connection, Connections) of
                 true ->
                     R = case dderl_dal:is_local_query(Query) of
                             true -> gen_adapter:process_query(Query, Sess, {ConnId, oci}, SessPid);
-                            _ -> process_query(Query, BindVals, Connection, SessPid)
+                            _ -> process_query({Query, BindVals}, Connection, SessPid)
                         end,
                     From ! {reply, jsx:encode([{<<"query">>,[{<<"qstr">>, Query} | R]}])};
                 false ->
@@ -466,7 +466,13 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                 _ ->
                     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
 %% TODO: Fix restart if there is a need to link again.
-                    case dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount()) of
+                    case dderloci:exec(
+                           Connection, Query,
+                           case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
+                               {error, _Error} -> undefined;
+                               BindVals -> BindVals
+                           end,
+                           dderl_dal:get_maxrowcount()) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
@@ -608,7 +614,12 @@ filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
--spec process_query(tuple(), tuple(), pid()) -> list().
+
+-spec process_query(tuple()|binary(), tuple(), pid()) -> list().
+process_query({Query, BindVals}, {oci_port, _, _} = Connection, SessPid) ->
+    process_query(check_funs(dderloci:exec(Connection, Query, BindVals,
+                                           dderl_dal:get_maxrowcount())),
+                  Query, Connection, SessPid);
 process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount())), Query, Connection, SessPid).
 
@@ -777,11 +788,14 @@ make_binds(Binds) ->
         lists:foldl(
           fun({B, TV}, {NewBinds, NewVals}) ->
                   Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
-                  Val = binary_to_existing_atom(proplists:get_value(<<"val">>, TV), utf8),
+                  Val = proplists:get_value(<<"val">>, TV, <<>>),
                   {[{B, Typ} | NewBinds],
                    [case Typ of
-                        'SQLT_INT' -> binary_to_integer(Val);
-                        'SQLT_CHAR' -> Val
+                        'SQLT_INT' ->
+                            if Val == <<>> -> <<>>;
+                               true -> binary_to_integer(Val)
+                            end;
+                        'SQLT_CHR' -> Val
                     end | NewVals]}
           end,
           {[], []}, Binds)
@@ -789,5 +803,3 @@ make_binds(Binds) ->
         _:Exception ->
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
     end.
-
-

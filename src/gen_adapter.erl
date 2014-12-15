@@ -45,13 +45,16 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
     end.
 
 opt_bind_json_obj(Sql, Adapter) ->
-    case re:run(Sql, ":[^ ,\)\n\r;]+", [global,{capture,all,binary}]) of
+    AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
+    Types = AdapterMod:bind_arg_types(),
+    RegEx = ":(" ++ string:join([binary_to_list(T) || T <- oci_adapter:bind_arg_types()], "|")
+         ++ ")[^ ,\)\n\r;]+",
+    case re:run(Sql, RegEx, [global,{capture, [0,1], binary}]) of
         {match, Parameters} ->
-            AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
             [{<<"binds">>,
-              [{<<"types">>, AdapterMod:bind_arg_types()},
-               {<<"pars">>, [{P, [{<<"typ">>,<<"SQLT_CHR">>},{<<"val">>,<<>>}]}
-                             || P <- lists:merge(Parameters)]}]
+              [{<<"types">>, Types},
+               {<<"pars">>, [{P, [{<<"typ">>,T},{<<"val">>,<<>>}]}
+                             || [P,T] <- Parameters]}]
              }];
         % No bind parameters can be extracted
         % possibly query string is not parameterized

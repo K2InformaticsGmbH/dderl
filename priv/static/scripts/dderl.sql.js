@@ -124,6 +124,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).remove();
                           },
         cmdFlat         : "",
+        cmdExtra        : null,
         cmdOwner        : null,
         history         : []
     },
@@ -152,6 +153,7 @@ function insertAtCursor(myField, myValue) {
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
+        if(self.options.cmdExtra    !== self._cmdExtra)     self._cmdExtra  = self.options.cmdExtra;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
@@ -615,6 +617,15 @@ function insertAtCursor(myField, myValue) {
                     self._renderParsed(parse_stmt);
                     if (parse_stmt.hasOwnProperty("binds")) {
                         var pos = self._dlg.offset();
+                        if (parse_stmt.binds.hasOwnProperty('pars') &&
+                            self._cmdExtra != null) {
+                            for (p in parse_stmt.binds.pars) {
+                                if (self._cmdExtra.hasOwnProperty(p) &&
+                                    self._cmdExtra[p].typ == parse_stmt.binds.pars[p].typ) {
+                                    parse_stmt.binds.pars[p].val = self._cmdExtra[p].val;
+                                }
+                            }
+                        }
                         sql_params_dlg(pos.left + 100, pos.top,
                             self._dlg.zIndex(), parse_stmt.binds,
                             function(qparams) { self._cmdExtra = qparams.pars; });
@@ -654,7 +665,7 @@ function insertAtCursor(myField, myValue) {
         } else {
             self._modCmd = self._cmdFlat;
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
-                self._cmdOwner.table('cmdReload', self._modCmd, self._reloadBtn);
+                self._cmdOwner.table('cmdReload', self._modCmd, self._cmdExtra, self._reloadBtn);
             } else {
                 self.addWheel();
                 ajaxCall(self, '/app/query', {query: {
@@ -698,6 +709,7 @@ function insertAtCursor(myField, myValue) {
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>')
             }
+            resultQry["qparams"] = self._cmdExtra;
             this._cmdOwner
                 .appendTo(document.body)
                 .table(initOptions)
