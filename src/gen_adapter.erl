@@ -18,6 +18,7 @@
         , decrypt_to_term/1
         , encrypt_to_binary/1 
         , get_deps/0
+        , opt_bind_json_obj/2
         ]).
 
 init() -> ok.

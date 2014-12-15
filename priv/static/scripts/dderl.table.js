@@ -1947,7 +1947,10 @@
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
-            this._openFailedSql(_table.name, _table.content);
+            this._openFailedSql(_table.name, _table.content, null);
+            return;
+        } else if(_table.hasOwnProperty('binds')) {
+            this._openFailedSql(_table.name, _table.content, _table.binds);
             return;
         }
 
@@ -2062,13 +2065,13 @@
     _openTermOrViewEditor: function(cmdOrString) {
         var self =  this;
         if(cmdOrString.isView === true) {
-            self._openFailedSql(cmdOrString.title, cmdOrString.cmd);
+            self._openFailedSql(cmdOrString.title, cmdOrString.cmd, null);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
     },
 
-    _openFailedSql: function(title, cmd) {
+    _openFailedSql: function(title, cmd, cmdExtra) {
         $('<div>')
             .appendTo(document.body)
             .sql({autoOpen  : false,
@@ -2076,6 +2079,7 @@
                   cmdOwner  : null,
                   history   : [],
                   cmdFlat   : cmd,
+                  cmdExtra  : cmdExtra
                  })
             .sql('open');
     },

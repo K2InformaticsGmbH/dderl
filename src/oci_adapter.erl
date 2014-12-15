@@ -276,15 +276,38 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                 _ ->
                     case lists:member(Connection, Connections) of
                         true ->
-                            Resp = process_query(C#ddCmd.command, Connection, SessPid),
                             ?Debug("View ~p", [V]),
-                            RespJson = jsx:encode([{<<"browse_data">>,
-                                [{<<"content">>, C#ddCmd.command}
-                                 ,{<<"name">>, Name}
-                                 ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-                                 ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
-                                 ,{<<"view_id">>, V#ddView.id}] ++ Resp}]),
-                            ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                            case {gen_adapter:opt_bind_json_obj(C#ddCmd.command, oci),
+                                  make_binds(proplists:get_value(<<"binds">>, BodyJson, null))} of
+                                {[], _} ->
+                                    Resp = process_query(C#ddCmd.command, Connection, SessPid),
+                                    RespJson = jsx:encode(
+                                                 [{<<"browse_data">>,[{<<"content">>, C#ddCmd.command},
+                                                                      {<<"name">>, Name},
+                                                                      {<<"table_layout">>, (V#ddView.state)#viewstate.table_layout},
+                                                                      {<<"column_layout">>, (V#ddView.state)#viewstate.column_layout},
+                                                                      {<<"view_id">>, V#ddView.id}] ++ Resp}]
+                                                ),
+                                    ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                                {JsonBindInfo, Binds} when Binds == undefined; element(1, Binds) == error ->
+                                    RespJson = jsx:encode(
+                                                 [{<<"browse_data">>,
+                                                   [{<<"content">>, C#ddCmd.command},
+                                                    {<<"name">>, Name},
+                                                    {<<"view_id">>, V#ddView.id}
+                                                    | JsonBindInfo]}]
+                                                );
+                                {_, Binds} ->
+                                    Resp = process_query({C#ddCmd.command, Binds}, Connection, SessPid),
+                                    RespJson = jsx:encode(
+                                                 [{<<"browse_data">>,[{<<"content">>, C#ddCmd.command},
+                                                                      {<<"name">>, Name},
+                                                                      {<<"table_layout">>, (V#ddView.state)#viewstate.table_layout},
+                                                                      {<<"column_layout">>, (V#ddView.state)#viewstate.column_layout},
+                                                                      {<<"view_id">>, V#ddView.id}] ++ Resp}]
+                                                ),
+                                    ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout])
+                            end;
                         false ->
                             RespJson = error_invalid_conn(Connection, Connections)
                     end
