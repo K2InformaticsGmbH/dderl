@@ -9,7 +9,7 @@
     bottom:21px;
 }
 
-#tabflat, #tabpretty, #tabbox {
+#tabflat, #tabpretty, #tabbox, #tabparams {
     position: absolute;
     top:0;
     left:0;

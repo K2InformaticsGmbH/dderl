@@ -1,25 +1,14 @@
-function sql_params_dlg(x, y, z, qpars, successcb)
+function sql_params_dlg(container, qpars)
 {
-    content = $('<div/>')
-        .addClass("modal-content")
-        .css('z-index', z+101)
-        .offset({ top: y, left: x})
-        .draggable();
+    container.empty();
 
-    bg = $('<div/>')
-        .addClass('modal-background')
-        .css('z-index', z+100);
-    
-    bg.appendTo(document.body);
-    content.appendTo(document.body);
-    
     tab = $('<table/>')
         .addClass('params')
         .append($('<tr><th>Param</th>'+
                     '<th>Type</th>'+
                     '<th>Value</th>'+
                     '</tr>'))
-        .appendTo(content);
+        .appendTo(container);
     
     sel = $('<select/>')
         .css('font-family', 'inherit')
@@ -57,19 +46,4 @@ function sql_params_dlg(x, y, z, qpars, successcb)
                         .append($('<td/>').append(s))
                         .append($('<td/>').append(i.val(param.val))));
     }
-    
-    $('<button>OK</button>').button().appendTo(content)
-        .on("click", function() {
-            bg.remove();
-            content.remove();
-            successcb(qpars);
-        })
-        .find('span.ui-button-text').addClass('params');
-
-    $('<button>Cancel</button>').button().appendTo(content)
-        .on("click", function() {
-            bg.remove();
-            content.remove();
-        })
-        .find('span.ui-button-text').addClass('params');
 }

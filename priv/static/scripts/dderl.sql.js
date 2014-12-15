@@ -63,12 +63,12 @@ function insertAtCursor(myField, myValue) {
     _flatTb         : null,
     _prettyTb       : null,
     _boxDiv         : null,
+    _paramsDiv      : null,
 
     _modCmd         : "",
     _cmdFlat        : "",
     _cmdPretty      : "",
     _boxJson        : {},  
-    _boxBg          : null,
     _history        : null,
     _historySelect  : null,
     _cmdChanged     : false,
@@ -193,7 +193,8 @@ function insertAtCursor(myField, myValue) {
 
         var flatBg      = 'rgb(240,240,255)';
         var prettyBg    = 'rgb(255,240,240)';
-        self._boxBg     = 'rgb(240,255,240)';
+        var boxBg       = 'rgb(240,255,240)';
+        var paramsBg    = '#FFFFD1';
 
         var sqlKeyHandle = function(e, self, _cmd) {
             if(e.type == "keydown") {
@@ -229,7 +230,7 @@ function insertAtCursor(myField, myValue) {
             self._boxDiv = $("#boxdiv");
         } else if(is_ace_editor()) {
             var boxDivId = create_ace_editor(self);
-            self._boxBg = 'rgb(255, 255, 255)';
+            boxBg = 'rgb(255, 255, 255)';
             self._boxDiv = $("#" + boxDivId);
         } else {
             self._boxDiv =
@@ -238,13 +239,16 @@ function insertAtCursor(myField, myValue) {
                 .css('font-family', self._fnt);
         }
 
+        self._paramsDiv = $('<div>');
+
         self._editDiv =
             $('<div>')
             .append(
               $('<ul>'
               +'  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>'
               +'  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>'
-              +'  <li style="background:'+self._boxBg+'"><a href="#tabbox">Box</a></li>'
+              +'  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>'
+              +'  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>'
               +'</ul>')
             )
             .append(
@@ -259,9 +263,15 @@ function insertAtCursor(myField, myValue) {
             )
             .append(
               $('<div>')
-              .css('background-color', self._boxBg)
+              .css('background-color', boxBg)
               .attr('id','tabbox')
               .append(self._boxDiv)
+            )
+            .append(
+              $('<div>')
+              .css('background-color', paramsBg)
+              .attr('id','tabparams')
+              .append(self._paramsDiv)
             )
             .css('position', 'absolute')
             .css('overflow', 'hidden')
@@ -291,7 +301,7 @@ function insertAtCursor(myField, myValue) {
         self._editDiv.find('li').removeClass('ui-corner-top');
 
         var titleHeight = tabTitles.height();
-        $('#tabflat, #tabpretty, #tabbox').css('top', titleHeight+'px');
+        $('#tabflat, #tabpretty, #tabbox, #tabparams').css('top', titleHeight+'px');
 
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
@@ -616,7 +626,6 @@ function insertAtCursor(myField, myValue) {
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt);
                     if (parse_stmt.hasOwnProperty("binds")) {
-                        var pos = self._dlg.offset();
                         if (parse_stmt.binds.hasOwnProperty('pars') &&
                             self._cmdExtra != null) {
                             for (p in parse_stmt.binds.pars) {
@@ -626,9 +635,8 @@ function insertAtCursor(myField, myValue) {
                                 }
                             }
                         }
-                        sql_params_dlg(pos.left + 100, pos.top,
-                            self._dlg.zIndex(), parse_stmt.binds,
-                            function(qparams) { self._cmdExtra = qparams.pars; });
+                        self._cmdExtra = parse_stmt.binds.pars;
+                        sql_params_dlg(self._paramsDiv, parse_stmt.binds);
                     } else {
                         self._cmdExtra = null;
                     }
