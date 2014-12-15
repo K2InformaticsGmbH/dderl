@@ -4,10 +4,6 @@ function sql_params_dlg(container, qpars)
 
     tab = $('<table/>')
         .addClass('params')
-        .append($('<tr><th>Param</th>'+
-                    '<th>Type</th>'+
-                    '<th>Value</th>'+
-                    '</tr>'))
         .appendTo(container);
     
     sel = $('<select/>')

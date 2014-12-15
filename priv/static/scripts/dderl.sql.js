@@ -637,6 +637,7 @@ function insertAtCursor(myField, myValue) {
                         }
                         self._cmdExtra = parse_stmt.binds.pars;
                         sql_params_dlg(self._paramsDiv, parse_stmt.binds);
+                        self._paramsDiv.focus();
                     } else {
                         self._cmdExtra = null;
                     }
