@@ -48,7 +48,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
-    RegEx = ":(" ++ string:join([binary_to_list(T) || T <- oci_adapter:bind_arg_types()], "|")
+    RegEx = ":(" ++ string:join([binary_to_list(T) || T <- Types], "|")
          ++ ")[^ ,\)\n\r;]+",
     case re:run(Sql, RegEx, [global,{capture, [0,1], binary}]) of
         {match, Parameters} ->

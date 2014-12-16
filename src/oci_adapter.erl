@@ -10,8 +10,8 @@
         , process_cmd/6
         , disconnect/1
         , rows/2
-        , rows_limit/3
         , get_deps/0
+        , rows_limit/3
         , bind_arg_types/0
         ]).
 
@@ -78,7 +78,7 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
     Language  = get_value_empty_default(<<"languange">>, BodyJson, Defaults),
     Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
-    NLS_LANG   = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
+    NLS_LANG  = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
     LogFun = fun
                  ({Lvl, File, Func, Line, Msg}) ->
                      case Lvl of

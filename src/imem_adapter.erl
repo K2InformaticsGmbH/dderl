@@ -9,15 +9,18 @@
 -export([ init/0
         , process_cmd/6
         , disconnect/1
-        , process_query/4
         , rows/2
         , get_deps/0
+        , process_query/4
+        , bind_arg_types/0
         ]).
 
 -record(priv, {connections = []}).
 
 -define(E2B(__T), gen_adapter:encrypt_to_binary(__T)).
 -define(D2T(__B), gen_adapter:decrypt_to_term(__B)).
+
+bind_arg_types() -> imem_datatype:bind_arg_types().
 
 -spec init() -> ok.
 init() ->
