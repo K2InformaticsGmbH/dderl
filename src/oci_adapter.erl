@@ -813,13 +813,7 @@ make_binds(Binds) ->
                   Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
                   Val = proplists:get_value(<<"val">>, TV, <<>>),
                   {[{B, Typ} | NewBinds],
-                   [case Typ of
-                        'SQLT_INT' ->
-                            if Val == <<>> -> <<>>;
-                               true -> binary_to_integer(Val)
-                            end;
-                        'SQLT_CHR' -> Val
-                    end | NewVals]}
+                   [dderloci_utils:to_ora(Typ, Val) | NewVals]}
           end,
           {[], []}, Binds)
     catch

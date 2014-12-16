@@ -795,17 +795,18 @@ foldb(Ind, P, {Op, L, R}) when is_atom(Op), is_binary(L), is_binary(R) ->
     end;
 
 % REVISIT: Indentation level reduced for heirarchy
-foldb(Ind, P, {like, L, R, Escape}) when is_binary(L), is_binary(R) ->
+foldb(Ind, P, {like, L, R, Escape}) when is_binary(L) ->
+    RBoxed = if is_binary(R) -> mk_clspd_box(Ind, [], R); true -> foldb(Ind, P, R) end,
     case (binding(P) =< binding(like)) of
         true ->
-            mk_box(Ind, [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), mk_clspd_box(Ind, [], R) |
+            mk_box(Ind, [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), RBoxed |
                 case Escape of
                     <<>> -> [];
                     _ -> [mk_box(Ind, [], 'escape'), mk_box(Ind, [], Escape)]
                 end
             ], <<>>);
         false ->
-            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), mk_clspd_box(Ind, [], R) |
+            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], like), RBoxed |
                 case Escape of
                     <<>> -> [];
                     _ -> [mk_box(Ind, [], 'escape'), mk_box(Ind, [], Escape)]

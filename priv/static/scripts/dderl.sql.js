@@ -627,7 +627,7 @@ function insertAtCursor(myField, myValue) {
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt);
                     if (parse_stmt.hasOwnProperty("binds")) {
-                        self._mergeBinds(parse_stmt.binds, self._optBinds);
+                        self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                         sql_params_dlg(self._paramsDiv, self._optBinds);
                         self._editDiv.tabs("option", "active", 3);
                         self._setTabFocus();
@@ -657,6 +657,7 @@ function insertAtCursor(myField, myValue) {
                     dst.pars[p] = {typ : src.pars[p].typ, val : src.pars[p].val};
                 }
         }
+        return dst;
     },
 
     _toolBarTblReload: function() {
@@ -685,7 +686,7 @@ function insertAtCursor(myField, myValue) {
                         self._reloadParsedCmd(parse_stmt);
                     } else {
                         if (parse_stmt.hasOwnProperty("binds")) {
-                            self._mergeBinds(parse_stmt.binds, self._optBinds);
+                            self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                             sql_params_dlg(self._paramsDiv, self._optBinds);
                             self._editDiv.tabs("option", "active", 3);
                             self._setTabFocus();
