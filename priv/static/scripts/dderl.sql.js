@@ -75,7 +75,7 @@ function insertAtCursor(myField, myValue) {
     _reloadBtn      : null,
     _spinCounter    : 0,
     _pendingQueries : null,
-    _cmdExtra       : null,
+    _optBinds       : null,
 
     // private event handlers
     _handlers       : { parsedCmd : function(e, _parsed) {
@@ -124,8 +124,8 @@ function insertAtCursor(myField, myValue) {
                             $(this).remove();
                           },
         cmdFlat         : "",
-        cmdExtra        : null,
         cmdOwner        : null,
+        optBinds        : null,
         history         : []
     },
  
@@ -153,7 +153,7 @@ function insertAtCursor(myField, myValue) {
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
-        if(self.options.cmdExtra    !== self._cmdExtra)     self._cmdExtra  = self.options.cmdExtra;
+        if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
@@ -239,7 +239,7 @@ function insertAtCursor(myField, myValue) {
                 .css('font-family', self._fnt);
         }
 
-        self._paramsDiv = $('<div>');
+        self._paramsDiv = $('<div>').css("display", "inline-block;");
 
         self._editDiv =
             $('<div>')
@@ -270,6 +270,7 @@ function insertAtCursor(myField, myValue) {
             .append(
               $('<div>')
               .css('background-color', paramsBg)
+              .css("overflow", "auto")
               .attr('id','tabparams')
               .append(self._paramsDiv)
             )
@@ -626,23 +627,38 @@ function insertAtCursor(myField, myValue) {
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt);
                     if (parse_stmt.hasOwnProperty("binds")) {
-                        if (parse_stmt.binds.hasOwnProperty('pars') &&
-                            self._cmdExtra != null) {
-                            for (p in parse_stmt.binds.pars) {
-                                if (self._cmdExtra.hasOwnProperty(p) &&
-                                    self._cmdExtra[p].typ == parse_stmt.binds.pars[p].typ) {
-                                    parse_stmt.binds.pars[p].val = self._cmdExtra[p].val;
-                                }
-                            }
-                        }
-                        self._cmdExtra = parse_stmt.binds.pars;
-                        sql_params_dlg(self._paramsDiv, parse_stmt.binds);
-                        self._paramsDiv.focus();
+                        self._mergeBinds(parse_stmt.binds, self._optBinds);
+                        sql_params_dlg(self._paramsDiv, self._optBinds);
+                        self._editDiv.tabs("option", "active", 3);
+                        self._setTabFocus();
                     } else {
-                        self._cmdExtra = null;
+                        self._optBinds = null;
                     }
                 });
     },
+
+    _mergeBinds: function(src, dst) {
+        if (dst == null || !dst.hasOwnProperty('types')
+                || !dst.hasOwnProperty('pars')) {
+            dst = src;
+        } else {
+            dst.types = src.types;
+            
+            // remove stale parameters
+            for (p in dst.pars)
+                if (!src.pars.hasOwnProperty(p))
+                    delete dst.pars[p];
+
+            // import new parameters and retain values of old parameters
+            for (p in src.pars)
+                if (dst.pars.hasOwnProperty(p)) {
+                    dst.pars[p].typ = src.pars[p].typ;
+                } else {
+                    dst.pars[p] = {typ : src.pars[p].typ, val : src.pars[p].val};
+                }
+        }
+    },
+
     _toolBarTblReload: function() {
         this._loadTable('>');
     },
@@ -659,10 +675,26 @@ function insertAtCursor(myField, myValue) {
     },
 
     _loadTable: function(button) {
-        this._reloadBtn = button;
-        this._addToHistory(this._modCmd);
-        this.addWheel();
-        ajaxCall(this, '/app/parse_stmt', {parse_stmt: {qstr:this._modCmd}}, 'parse_stmt', 'reloadParsedCmd');
+        var self = this;
+        self._reloadBtn = button;
+        self._addToHistory(self._modCmd);
+        self.addWheel();
+        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
+                function (parse_stmt) {
+                    if (self._optBinds != null) {
+                        self._reloadParsedCmd(parse_stmt);
+                    } else {
+                        if (parse_stmt.hasOwnProperty("binds")) {
+                            self._mergeBinds(parse_stmt.binds, self._optBinds);
+                            sql_params_dlg(self._paramsDiv, self._optBinds);
+                            self._editDiv.tabs("option", "active", 3);
+                            self._setTabFocus();
+                        } else {
+                            self._optBinds = null;
+                            self._reloadParsedCmd(parse_stmt);
+                        }
+                    }
+                });
     },
 
     _reloadParsedCmd: function(_parsed) {
@@ -674,12 +706,12 @@ function insertAtCursor(myField, myValue) {
         } else {
             self._modCmd = self._cmdFlat;
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
-                self._cmdOwner.table('cmdReload', self._modCmd, self._cmdExtra, self._reloadBtn);
+                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn);
             } else {
                 self.addWheel();
                 ajaxCall(self, '/app/query', {query: {
-                    connection: dderlState.connection, qstr: self._modCmd,
-                    conn_id: dderlState.connectionSelected.connection, binds: self._cmdExtra
+                    connection: dderlState.connection, qstr: self._modCmd, conn_id: dderlState.connectionSelected.connection,
+                    binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
                 }}, 'query', 'resultStmt');
             }
         }
@@ -718,7 +750,7 @@ function insertAtCursor(myField, myValue) {
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>')
             }
-            resultQry["qparams"] = self._cmdExtra;
+            resultQry["qparams"] = self._optBinds;
             this._cmdOwner
                 .appendTo(document.body)
                 .table(initOptions)
@@ -742,8 +774,8 @@ function insertAtCursor(myField, myValue) {
             var qstr = self._pendingQueries.shift();
             self.addWheel();
             ajaxCall(self, '/app/query', {query: {
-                connection: dderlState.connection, qstr : qstr,
-                conn_id: dderlState.connectionSelected.connection, binds: self._cmdExtra
+                connection: dderlState.connection, qstr : qstr, conn_id: dderlState.connectionSelected.connection,
+                binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
             }}, 'query', 'resultMultStmt');
         }
     },
@@ -765,20 +797,29 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         var selected = self._editDiv.tabs("option", "active");
 
-        if(selected == 0) {
-            self._flatTb.focus();
-            textBox = self._flatTb[0];
-            textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
-        } else if(selected == 1) {
-            self._prettyTb.focus();
-            textBox = self._prettyTb[0];
-            textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
-        } else if(selected == 2) {
-            if(is_ace_editor()) {
-                self.setAceFocus();
-            } else {
-                self._boxDiv.focus();
-            }
+        switch(selected) {
+            case 0:
+                self._flatTb.focus();
+                textBox = self._flatTb[0];
+                textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+                break;
+            case 1:
+                self._prettyTb.focus();
+                textBox = self._prettyTb[0];
+                textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+                break;
+            case 2:
+                if(is_ace_editor()) {
+                    self.setAceFocus();
+                } else {
+                    self._boxDiv.focus();
+                }
+                break;
+            case 3:
+                self._paramsDiv.focus();
+                break;
+            default:
+                break;
         }
     },
 
@@ -980,6 +1021,11 @@ function insertAtCursor(myField, myValue) {
         }
         this._refreshHistoryBoxSize();
         this._setTabFocus();
+        if (this._optBinds != null) {
+            sql_params_dlg(this._paramsDiv, this._optBinds);
+            this._editDiv.tabs("option", "active", 3);
+            this._setTabFocus();
+        }
     },
 
     setFlatCmd: function(cmd) {

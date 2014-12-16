@@ -18,7 +18,7 @@
     _conn           : null,
     _adapter        : null,
     _cmd            : null,
-    _cmdExtra       : null,
+    _optBinds       : null,
     _clmlay         : null,
     _tbllay         : null,
     _viewId         : null,
@@ -371,7 +371,7 @@
                       cmdOwner  : this._dlg,
                       history   : this._cmdStrs,
                       cmdFlat   : this._cmd,
-                      cmdExtra  : this._cmdExtra,
+                      optBinds  : this._optBinds,
                      })
                 .sql('open');
         }
@@ -774,19 +774,20 @@
     },
 
     // Reload table: called from the sql editor to refresh this table.
-    cmdReload: function(cmd, cmdExtra, button) {
+    cmdReload: function(cmd, optBinds, button) {
         console.log('command reloading ['+cmd+']');
         // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
         this.close_stmt();
         this._clmlay = null;
         this._cmd = cmd;
-        this._cmdExtra = cmdExtra;
+        this._optBinds = optBinds;
         this.options.dderlStartBtn = this._startBtn = button;
         this._filters = null;
         this._ajax('/app/query', {query: {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection,
-            qstr : this._cmd, binds: this._cmdExtra
+            qstr : this._cmd, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
+                                            ? this._optBinds.pars : null)
         }}, 'query', 'queryResult');
         this._dlg.dialog("moveToTop");
     },
@@ -1889,7 +1890,7 @@
     renderTable: function(_table) {
         this._dlg.dialog("moveToTop");
         this._cmd = _table.qstr;
-        this._cmdExtra = _table.qparams;
+        this._optBinds = _table.qparams;
         this._renderTable(_table);
     },
 
@@ -2071,7 +2072,7 @@
         }
     },
 
-    _openFailedSql: function(title, cmd, cmdExtra) {
+    _openFailedSql: function(title, cmd, optBinds) {
         $('<div>')
             .appendTo(document.body)
             .sql({autoOpen  : false,
@@ -2079,7 +2080,7 @@
                   cmdOwner  : null,
                   history   : [],
                   cmdFlat   : cmd,
-                  cmdExtra  : cmdExtra
+                  optBinds  : optBinds
                  })
             .sql('open');
     },
@@ -2721,7 +2722,8 @@
     // loading rows
     buttonPress: function(button) {
         this._ajax('/app/button', {button: { connection: dderlState.connection,
-            statement: this._stmt, binds: this._cmdExtra, btn: button}},
+            statement: this._stmt, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
+                                            ? this._optBinds.pars : null), btn: button}},
             'button', 'loadRows');
     },
 
