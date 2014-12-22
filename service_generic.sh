@@ -94,7 +94,7 @@ case $1 in
         ;;
     "stop" )
 	check_arg_count 1
-        echo Stoping $app_name service
+        echo Stopping $app_name service
         erlsrv.exe stop $app_name
         ;;
     "list" )
