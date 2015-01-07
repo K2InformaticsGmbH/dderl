@@ -13,6 +13,7 @@
         , get_deps/0
         , rows_limit/3
         , bind_arg_types/0
+        , logfun/1
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -79,21 +80,6 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
     Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
     NLS_LANG  = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
-    LogFun = fun
-                 ({Lvl, File, Func, Line, Msg}) ->
-                     case Lvl of
-                        debug       -> ?LogOci(debug,File,Func,Line,Msg);
-                        info        -> ?LogOci(debug,File,Func,Line,Msg);
-                        notice      -> ?LogOci(debug,File,Func,Line,Msg);
-                        error       -> ?LogOci(error,File,Func,Line,Msg);
-                        warn        -> ?LogOci(error,File,Func,Line,Msg);
-                        critical    -> ?LogOci(error,File,Func,Line,Msg);
-                        fatal       -> ?LogOci(error,File,Func,Line,Msg);
-                        unknown     -> ?LogOci(error,File,Func,Line,Msg)
-                     end;                     
-                 (Log) ->
-                    io:format(user, "Log in unsupported format ~p~n", [Log])
-             end,
     if
         Tnsstr =:= <<>> ->
             case Port of
@@ -113,12 +99,12 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
                         , Port
                         , binary_to_list(Service)])),
                 ?Debug("session:open ~p", [{User, Password, NewTnsstr}]),
-                OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
+                OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
                 ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
             end;
         true ->
             ?Debug("session:open ~p", [{User, Password, Tnsstr}]),
-            OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], LogFun),
+            OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
             ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
     end,
     case ErlOciSession of
@@ -820,3 +806,17 @@ make_binds(Binds) ->
         _:Exception ->
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
     end.
+
+logfun({Lvl, File, Func, Line, Msg}) ->
+    case Lvl of
+        debug       -> ?LogOci(debug,File,Func,Line,Msg);
+        info        -> ?LogOci(info,File,Func,Line,Msg);
+        notice      -> ?LogOci(info,File,Func,Line,Msg);
+        error       -> ?LogOci(error,File,Func,Line,Msg);
+        warn        -> ?LogOci(warning,File,Func,Line,Msg);
+        critical    -> ?LogOci(error,File,Func,Line,Msg);
+        fatal       -> ?LogOci(error,File,Func,Line,Msg);
+        unknown     -> ?LogOci(error,File,Func,Line,Msg)
+    end;
+logfun(Log) ->
+    io:format(user, "Log in unsupported format ~p~n", [Log]).
