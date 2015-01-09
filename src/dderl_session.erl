@@ -404,7 +404,8 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"statistics_full">>;
       C =:= <<"dashboards">>;
       C =:= <<"edit_term_or_view">>;
-      C =:= <<"get_sql">>->
+      C =:= <<"get_sql">>;
+      C =:= <<"cache_data">> ->
     BodyJson = jsx:decode(ReqData),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;

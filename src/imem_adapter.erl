@@ -674,6 +674,7 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
                                        , sortFun                    = SortFun
                                        , sortSpec                   = SortSpec
                                        , orig_qry                   = Query
+                                       , bind_vals                  = Params
                                        , table_name                 = TableName
                                        , block_length               = ?DEFAULT_ROW_SIZE
                                        , fetch_recs_async_fun       = fun(Opts, _) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end

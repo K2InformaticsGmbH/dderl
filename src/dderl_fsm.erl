@@ -64,6 +64,7 @@
         , get_sender_params/1
         , get_receiver_params/1
         , refresh_session_ctx/2
+        , cache_data/1
         ]).
 
 -record(ctx,    { %% session context
@@ -81,6 +82,7 @@
                 , update_cursor_prepare_fun
                 , update_cursor_execute_fun
                 , orig_qry
+                , bind_vals
                 , table_name
                 }).
 
@@ -189,6 +191,7 @@ fsm_ctx(#fsmctx{ id                         = Id
                , update_cursor_prepare_fun  = Ucpf
                , update_cursor_execute_fun  = Ucef
                , orig_qry                   = Qry
+               , bind_vals                  = BindVals
                , table_name                 = TableName
                }) ->
     #ctx{ id                        = Id
@@ -204,6 +207,7 @@ fsm_ctx(#fsmctx{ id                         = Id
         , update_cursor_prepare_fun = Ucpf
         , update_cursor_execute_fun = Ucef
         , orig_qry                  = Qry
+        , bind_vals                 = BindVals
         , table_name                = TableName
         }.
 
@@ -282,6 +286,10 @@ get_sender_params({?MODULE, Pid}) ->
 -spec get_receiver_params({atom(), pid()}) -> {}.
 get_receiver_params({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_receiver_params).
+
+-spec cache_data({atom(), pid()}) -> ok.
+cache_data({?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, cache_data).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
@@ -1293,6 +1301,16 @@ handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _Fro
                    },
     State2 = fetch(none,none,State1#state{pfc=0}),
     {reply, ok, SN, State2, infinity};
+handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=StmtCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
+    FoldFun =
+    fun(Row, Acc) ->
+        RowKey = element(3, Row),
+        [RowKey | Acc]
+    end,
+    QueryResult = ets:foldl(FoldFun, [], TableId),
+    Key = {dbTest, Qry, BindVals},
+    imem_cache:write(Key, {StmtCols, QueryResult}),
+    {reply, ok, SN, State, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 

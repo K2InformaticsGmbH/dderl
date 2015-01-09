@@ -211,8 +211,7 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
         BindVals ->
             Query = proplists:get_value(<<"qstr">>, BodyJson, <<>>),
             Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-            ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
-            ?Debug("query ~p binds ~p", [Query, BindVals]),
+            ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% TODO: This should be change to params...
             case lists:member(Connection, Connections) of
                 true ->
                     R = case dderl_dal:is_local_query(Query) of
@@ -475,16 +474,14 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                 _ ->
                     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
 %% TODO: Fix restart if there is a need to link again.
-                    case dderloci:exec(
-                           Connection, Query,
-                           case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
-                               {error, _Error} -> undefined;
-                               BindVals -> BindVals
-                           end,
-                           dderl_dal:get_maxrowcount()) of
+                    BindVals = case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
+                                   {error, _Error} -> undefined;
+                                   BindVals0 -> BindVals0
+                               end,
+                    case dderloci:exec(Connection, Query, BindVals, dderl_dal:get_maxrowcount()) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
-                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
+                            FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
                             FsmStmt:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, FsmStmt, From)),
                             FsmStmt:get_count(),
                             FsmStmt:refresh_session_ctx(FsmCtx);
@@ -532,7 +529,6 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid)
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-
 process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
@@ -628,16 +624,19 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 process_query({Query, BindVals}, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query, BindVals,
                                            dderl_dal:get_maxrowcount())),
-                  Query, Connection, SessPid);
+                  Query, BindVals, Connection, SessPid);
 process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
-    process_query(check_funs(dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount())), Query, Connection, SessPid).
+    process_query(check_funs(dderloci:exec(Connection, Query,
+                                           dderl_dal:get_maxrowcount())),
+                  Query, [], Connection, SessPid).
 
--spec process_query(term(), binary(), tuple(), pid()) -> list().
-process_query(ok, Query, Connection, _SessPid) ->
+-spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
+process_query(ok, Query, _BindVals, Connection, _SessPid) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName}, Query, {oci_port, _, _} = Connection, SessPid) ->
-    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, Connection, TableName),
+process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName},
+              Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->
+    FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
     StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
     dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, StmtFsm),
     ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
@@ -649,10 +648,10 @@ process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt,
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, ?E2B(Connection)}];
-process_query({error, {Code, Msg}}, _Query, _Connection, _SessPid) when is_binary(Msg) ->
+process_query({error, {Code, Msg}}, _Query, _BindVals, _Connection, _SessPid) when is_binary(Msg) ->
     ?Error("query error ~p", [{Code, Msg}]),
     [{<<"error">>, Msg}];
-process_query(Error, _Query, _Connection, _SessPid) ->
+process_query(Error, _Query, _BindVals, _Connection, _SessPid) ->
     ?Error("query error ~p", [Error]),
     if
         is_binary(Error) ->
@@ -747,19 +746,20 @@ check_funs(Error) ->
     ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), tuple(), term()) -> #fsmctx{}.
+-spec generate_fsmctx_oci(#stmtResult{}, binary(), list(), tuple(), term()) -> #fsmctx{}.
 generate_fsmctx_oci(#stmtResult{
                   stmtCols = Clms
                 , rowFun   = RowFun
                 , stmtRef  = StmtRef
                 , sortFun  = SortFun
-                , sortSpec = SortSpec}, Query, {oci_port, _, _} = Connection, TableName) ->
+                , sortSpec = SortSpec}, Query, BindVals, {oci_port, _, _} = Connection, TableName) ->
     #fsmctx{id            = "what is it?"
            ,stmtCols      = Clms
            ,rowFun        = RowFun
            ,sortFun       = SortFun
            ,sortSpec      = SortSpec
            ,orig_qry      = Query
+           ,bind_vals     = BindVals
            ,table_name    = TableName
            ,block_length  = ?DEFAULT_ROW_SIZE
            ,fetch_recs_async_fun = fun(Opts, Count) -> dderloci:fetch_recs_async(StmtRef, Opts, Count) end
@@ -794,14 +794,14 @@ get_deps() -> [dderloci, erloci].
 make_binds(null) -> undefined;
 make_binds(Binds) ->
     try
-        lists:foldl(
-          fun({B, TV}, {NewBinds, NewVals}) ->
-                  Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
-                  Val = proplists:get_value(<<"val">>, TV, <<>>),
-                  {[{B, Typ} | NewBinds],
-                   [dderloci_utils:to_ora(Typ, Val) | NewVals]}
-          end,
-          {[], []}, Binds)
+        {Vars, Values} = lists:foldl(
+            fun({B, TV}, {NewBinds, NewVals}) ->
+                Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
+                Val = proplists:get_value(<<"val">>, TV, <<>>),
+                {[{B, Typ} | NewBinds], [dderloci_utils:to_ora(Typ, Val) | NewVals]}
+            end,
+            {[], []}, Binds),
+        {lists:reverse(Vars), lists:reverse(Values)}
     catch
         _:Exception ->
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}

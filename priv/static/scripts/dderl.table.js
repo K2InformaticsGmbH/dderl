@@ -83,7 +83,8 @@
                         editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
                         getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); },
                         activateSender  : function(e, _result) { e.data._activateSenderResult   (_result); },
-                        activateReceiver: function(e, _result) { e.data._activateReceiverResult (_result); }
+                        activateReceiver: function(e, _result) { e.data._activateReceiverResult (_result); },
+                        cacheResult     : function(e, _result) { e.data._cacheResult            (_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
@@ -107,7 +108,8 @@
                        'Delete View'    : '_deleteView',
                        'Export Csv'     : '_exportCsv',
                        'Send Data'      : '_activateSender',
-                       'Receive Data'   : '_activateReceiver'},
+                       'Receive Data'   : '_activateReceiver',
+                       'Cache Data'     : '_cacheData'},
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Hide'             : '_hide',
@@ -759,6 +761,24 @@
             }
 
             alert_jq(msg);
+        }
+    },
+
+    _cacheData: function() {
+        var self = this;
+        self._ajax('/app/cache_data', {
+            cache_data: {
+                connection: dderlState.connection,
+                statement: self._stmt,
+            }
+        }, 'cache_data', 'cacheResult');
+    },
+
+    _cacheResult: function(cacheResult) {
+        if(cacheResult === "ok") {
+            console.log('cache success!');
+        } else if(cacheResult.hasOwnProperty('error')) {
+            alert_jq('cache failed!\n' + cacheResult.error);
         }
     },
 
