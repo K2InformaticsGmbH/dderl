@@ -39,6 +39,10 @@ paths="-pa"
 paths=$paths" $PWD/ebin"
 paths=$paths" $PWD/deps/*/ebin"
 
+# Proto dist module
+dist_opts="-proto_dist"
+dist_opts=$dist_opts" imem_inet_tcp"
+
 # Kernel Opts
 kernel_opts="-kernel"
 kernel_opts=$kernel_opts" inet_dist_listen_min 7000"
@@ -55,7 +59,7 @@ imem_opts=$imem_opts" tcp_port $port"
 dderl_opts="-dderl"
 dderl_opts=$dderl_opts" port $dderlport" 
 
-start_opts="$paths $cookie $node_name $kernel_opts $imem_opts $dderl_opts"
+start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts"
 
 # DDERL start options
 echo "------------------------------------------"
@@ -64,6 +68,7 @@ echo "------------------------------------------"
 echo "Node Name : $node_name"
 echo "Cookie    : $cookie"
 echo "EBIN Path : $paths"
+echo "Dist      : $dist_opts"
 echo "Kernel    : $kernel_opts"
 echo "IMEM      : $imem_opts"
 echo "DDERL     : $dderl_opts"

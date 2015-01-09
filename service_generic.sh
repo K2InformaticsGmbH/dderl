@@ -41,7 +41,7 @@ path2win appebin
 erlpaths="-pa $appebin -pa $deps"
 kernellogfile=$PWD/log/kernel.txt
 path2win kernellogfile
-kernelconfig="-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020"
+kernelconfig="-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020 -proto_dist imem_inet_tcp"
 kernelconfigsrv="$kernelconfig -kernel error_logger {file,\\\"""$kernellogfile\\\"""}"
 app_name=$2
 node_name=$3
