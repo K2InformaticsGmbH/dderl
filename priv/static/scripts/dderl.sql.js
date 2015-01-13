@@ -792,38 +792,30 @@ function insertAtCursor(myField, myValue) {
         }
     },
 
-    _setTabFocus: function(skipFocus) {
+    _setTabFocus: function() {
         var self = this;
         var selected = self._editDiv.tabs("option", "active");
 
         switch(selected) {
             case 0:
-                if(!skipFocus) {
-                    self._flatTb.focus();
-                }
+                self._flatTb.focus();
                 textBox = self._flatTb[0];
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 1:
-                if(!skipFocus) {
-                    self._prettyTb.focus();
-                }
+                self._prettyTb.focus();
                 textBox = self._prettyTb[0];
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 2:
-                if(!skipFocus) {
-                    if(is_ace_editor()) {
-                        self.setAceFocus();
-                    } else {
-                        self._boxDiv.focus();
-                    }
+                if(is_ace_editor()) {
+                    self.setAceFocus();
+                } else {
+                    self._boxDiv.focus();
                 }
                 break;
             case 3:
-                if(!skipFocus) {
-                    self._paramsDiv.focus();
-                }
+                self._paramsDiv.focus();
                 break;
             default:
                 break;
@@ -838,7 +830,9 @@ function insertAtCursor(myField, myValue) {
     _renderParsed: function(_parsed, skipFocus) {
         var boxResult, self = this;
 
-        self._setTabFocus(skipFocus);
+        if(!skipFocus) {
+            self._setTabFocus();
+        }
         //TODO: pass the boxing to the ace editor for sections.
         if(_parsed.hasOwnProperty('sqlbox') && !is_ace_editor()) {
             console.log(self._boxJson);
@@ -864,7 +858,9 @@ function insertAtCursor(myField, myValue) {
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
                 self._editDiv.tabs("option", "active", 1);
-                self._setTabFocus(skipFocus);
+                if(!skipFocus) {
+                    self._setTabFocus();
+                }
                 var nlines = _parsed.pretty.split("\n").length;
                 var dialogPos = self._dlg.dialog("widget").position();
                 var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
