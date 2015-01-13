@@ -364,7 +364,7 @@ process_cmd({[<<"get_sql">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv) ->
     Response = jsx:encode([{<<"get_sql">>, [{<<"sql">>, Sql}, {<<"title">>, <<"Generated Sql">>}]}]),
     From ! {reply, Response};
 
-process_cmd({[<<"cache_data">>], ReqBody}, Adapter, _Sess, _UserId, From, Priv) ->
+process_cmd({[<<"cache_data">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"cache_data">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ok = Statement:cache_data(),

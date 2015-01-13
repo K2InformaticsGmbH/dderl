@@ -78,10 +78,8 @@ function insertAtCursor(myField, myValue) {
     _optBinds       : null,
 
     // private event handlers
-    _handlers       : { parsedCmd : function(e, _parsed) {
-                            var self = e.data; 
-                            self._renderParsed(_parsed);
-                        },
+    _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed    (_parsed, false); },
+                        parsedSkipFocus : function(e, _parsed) { e.data._renderParsed    (_parsed, true); },
                         reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd (_parsed); },
                         saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); },
                         resultMultStmt  : function(e, _result) { e.data._resultMultStmt  (_result); },
@@ -595,7 +593,7 @@ function insertAtCursor(myField, myValue) {
                         .text(self._history[i])
                         .click(function (evt) {
                             evt.preventDefault();
-                            self.showCmd($(this).text());
+                            self.showCmd($(this).text(), false);
                         });
                     sel.append(optionToAdd);
                 }
@@ -625,7 +623,7 @@ function insertAtCursor(myField, myValue) {
         self.addWheel();
         ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
                 function (parse_stmt) {
-                    self._renderParsed(parse_stmt);
+                    self._renderParsed(parse_stmt, false);
                     if (parse_stmt.hasOwnProperty("binds")) {
                         self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                         sql_params_dlg(self._paramsDiv, self._optBinds);
@@ -700,7 +698,7 @@ function insertAtCursor(myField, myValue) {
 
     _reloadParsedCmd: function(_parsed) {
         var self = this;
-        self._renderParsed(_parsed);
+        self._renderParsed(_parsed, false);
         if(_parsed.hasOwnProperty("flat_list")) {
             self._pendingQueries = angular.copy(_parsed.flat_list);
             self._execMultStmts();
@@ -789,35 +787,43 @@ function insertAtCursor(myField, myValue) {
                 $('<option>').text(sql)
                     .click(function (evt) {
                         evt.preventDefault();
-                        self.showCmd($(this).text());
+                        self.showCmd($(this).text(), false);
                     }));
         }
     },
 
-    _setTabFocus: function() {
+    _setTabFocus: function(skipFocus) {
         var self = this;
         var selected = self._editDiv.tabs("option", "active");
 
         switch(selected) {
             case 0:
-                self._flatTb.focus();
+                if(!skipFocus) {
+                    self._flatTb.focus();
+                }
                 textBox = self._flatTb[0];
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 1:
-                self._prettyTb.focus();
+                if(!skipFocus) {
+                    self._prettyTb.focus();
+                }
                 textBox = self._prettyTb[0];
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 2:
-                if(is_ace_editor()) {
-                    self.setAceFocus();
-                } else {
-                    self._boxDiv.focus();
+                if(!skipFocus) {
+                    if(is_ace_editor()) {
+                        self.setAceFocus();
+                    } else {
+                        self._boxDiv.focus();
+                    }
                 }
                 break;
             case 3:
-                self._paramsDiv.focus();
+                if(!skipFocus) {
+                    self._paramsDiv.focus();
+                }
                 break;
             default:
                 break;
@@ -829,10 +835,10 @@ function insertAtCursor(myField, myValue) {
     /*
      * ajaxCall success handlers
      */
-    _renderParsed: function(_parsed) {
+    _renderParsed: function(_parsed, skipFocus) {
         var boxResult, self = this;
 
-        self._setTabFocus();
+        self._setTabFocus(skipFocus);
         //TODO: pass the boxing to the ace editor for sections.
         if(_parsed.hasOwnProperty('sqlbox') && !is_ace_editor()) {
             console.log(self._boxJson);
@@ -858,7 +864,7 @@ function insertAtCursor(myField, myValue) {
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
                 self._editDiv.tabs("option", "active", 1);
-                self._setTabFocus();
+                self._setTabFocus(skipFocus);
                 var nlines = _parsed.pretty.split("\n").length;
                 var dialogPos = self._dlg.dialog("widget").position();
                 var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
@@ -1037,18 +1043,22 @@ function insertAtCursor(myField, myValue) {
 
     close: function() { this._dlg.dialog("close"); },
 
-    showCmd: function(cmd) {
+    showCmd: function(cmd, skipFocus) {
         var self = this;
+        var callback = 'parsedCmd';
         self._modCmd = cmd;
         self._flatTb.val(cmd);
+        if(skipFocus) {
+            callback = 'parsedSkipFocus';
+        }
         self.addWheel();
-        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:cmd}},'parse_stmt','parsedCmd');
+        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:cmd}}, 'parse_stmt', callback);
     },
 
     selHistorySelect: function(pos, sql) {
         var self = this;
         self._historySelect[0].options[pos].selected = true;
-        self.showCmd(sql);
+        self.showCmd(sql, true);
     },
 
     addToHistorySelect: function(sql) {
@@ -1057,7 +1067,7 @@ function insertAtCursor(myField, myValue) {
             $('<option>').text(sql)
                 .click(function (evt) {
                     evt.preventDefault();
-                    self.showCmd($(this).text());
+                    self.showCmd($(this).text(), false);
                 })
         );
         self.selHistorySelect(0, sql);

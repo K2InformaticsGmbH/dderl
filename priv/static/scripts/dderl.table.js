@@ -2672,6 +2672,13 @@
     _gridColumnsReorder: function() {
         var self = this;
         var columnsPos = self._getColumnPositions();
+
+        // Workaround to fix the selection display.
+        var g           = self._grid;
+        var gSelMdl    = g.getSelectionModel();
+        var gSelected  = gSelMdl.getSelectedRanges();
+        gSelMdl.setSelectedRanges(gSelected);
+
         var reorderData = {reorder: {statement   : self._stmt,
                                      column_order: columnsPos}};
         self._ajax('app/reorder', reorderData, 'reorder', 'reorderResult');
