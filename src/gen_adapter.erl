@@ -235,9 +235,7 @@ process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
     [{<<"histogram">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_value(<<"column_ids">>, BodyJson, []),
-    {Total, Cols, HistoRows, SN} = Statement:get_histogram(ColumnId),
-    ColRecs = [#stmtCol{alias = C, type = if C =:= <<"value">> -> binstr; true -> float end, readonly = true}
-              || C <- Cols],
+    {Total, ColRecs, HistoRows, SN} = Statement:get_histogram(ColumnId),
     HistoJson = gui_resp(#gres{ operation    = <<"rpl">>
                               , cnt          = Total
                               , toolTip      = <<"">>

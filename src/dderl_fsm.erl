@@ -1256,7 +1256,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
             {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
                   , SN, State, infinity}
     end;
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun} = State) ->
+handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
@@ -1282,7 +1282,11 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
     ?Debug("Histo Rows ~p", [Result]),
     HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
     HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
-    HistoColumns = [<<"value">>, <<"count">>, <<"pct">>],
+    ColInfo = lists:nth(ColumnId, StmtCols),
+    HistoColumns =
+        [#stmtCol{alias = ColInfo#stmtCol.alias, type = binstr, readonly = true}
+        ,#stmtCol{alias = <<"count">>, type = float, readonly = true}
+        ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
     {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
