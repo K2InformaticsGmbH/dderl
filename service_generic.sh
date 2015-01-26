@@ -12,6 +12,8 @@ function usage {
     echo "       $1 attach app_name"
     echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie"
     echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie"
+    echo "       $1 check node_name node_host cookie"
+    echo "       $1 escript script_file_path_name node_name node_host cookie"
 }
 
 function path2win {
@@ -83,26 +85,44 @@ case $1 in
         erlsrv.exe add $app_name -c "$app_name Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $commonparams $extra"
         ;;
     "remove" )
-	check_arg_count 1
+	    check_arg_count 1
         echo Removing $app_name service
         erlsrv.exe remove $app_name
         ;;
     "start" )
-	check_arg_count 1
+	    check_arg_count 1
         echo Starting $app_name service
         erlsrv.exe start $app_name
         ;;
     "stop" )
-	check_arg_count 1
+	    check_arg_count 1
         echo Stopping $app_name service
         erlsrv.exe stop $app_name
         ;;
     "list" )
-	check_arg_count 1
+	    check_arg_count 1
         erlsrv.exe list $app_name
         ;;
+    "escript" )
+	    check_arg_count 4
+        if [ -f "$2" ]; then
+            $2 $3 $4 $5
+        else
+            echo escript not found $2
+        fi
+        ;;
+    "check" )
+	    check_arg_count 3
+        if [ -f "./check.escript" ]; then
+            ./check.escript $2 $3 $4
+        elif [ -f "./deps/dderl/check.escript" ]; then
+            ./deps/dderl/check.escript $2 $3 $4
+        else
+            echo file not found : check.escript
+        fi
+        ;;
     "attach" )
-	check_arg_count 1
+	    check_arg_count 1
         node=$(erlsrv.exe list $app_name | grep -re "Name:" | awk '{print $2}')
         node=$(echo $node | awk '{print $1}')
         host=(${node//\@/ })
