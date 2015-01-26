@@ -30,7 +30,7 @@ main([Node,Host,CookieStr]) ->
     pong = net_adm:ping(RemoteNode),
     ?L("Started node ~p, process ~p", [node(), Pid]),
     {Time, _} = rpc:call(RemoteNode, timer, tc, [remote_fun()]),
-    ?L("Executed in ~pms", [Time]).
+    ?L("Executed in ~p ms", [Time / 1000]).
 
 remote_fun() ->
     ScriptNode = node(),
