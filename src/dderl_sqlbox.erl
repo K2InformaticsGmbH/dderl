@@ -27,7 +27,7 @@ validate_children(Children) ->
 flat_from_box([]) -> <<>>;
 flat_from_box(#box{name= <<",">> ,children=[]}) -> <<", ">>;
 flat_from_box(#box{name=Name,children=[]}) ->
-    iolist_to_binary([binary_to_list(Name), " "]);
+    iolist_to_binary([Name, " "]);
 flat_from_box(#box{name= <<>>,children=CH}) ->
     iolist_to_binary([[flat_from_box(C) || C <-CH]]);
 flat_from_box(#box{name=Name,children=CH}) ->
@@ -48,6 +48,8 @@ pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);
 pretty_from_box(#box{name= <<>>,children=[]}) -> <<>>;
 pretty_from_box(#box{ind=Ind,name=Name,children=[]}) ->
     iolist_to_binary([indent(Ind), Name, "\r\n"]);
+pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= <<"#">>}, #box{children=[]} = R]}) ->
+    iolist_to_binary([indent(Ind+1), L#box.name, <<"#">>, R#box.name, "\r\n"]);
 pretty_from_box(#box{ind=Ind,name= <<>>,children=CH}) ->
     if
         (hd(CH))#box.collapsed ->
@@ -85,6 +87,7 @@ binding('param') -> 190;
 binding('prior') -> 185;
 binding('fun') -> 180;
 binding('||') -> 175;
+binding('#') -> 175;
 binding('*') -> 170;
 binding('/') -> 170;
 binding('+') -> 160;
@@ -300,6 +303,13 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                             mk_box(Ind, [B0,B1,B2], Fun)
                     end
             end
+    end;
+foldb(Ind, P, {'#', R, L}) when is_binary(L), is_binary(R) ->
+    case (binding(P) =< binding('list')) of
+        true ->
+            mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], '#'), mk_clspd_box(Ind+1, [], R)], <<>>);
+        false ->
+            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], '#'), mk_clspd_box(Ind, [], R)]
     end;
 foldb(Ind, _P, {fields, List}) when is_list(List) ->    %% Sli from, 'group by', 'order by'
     Res = [foldb(Ind+1, fields, Li) || Li <- List],
