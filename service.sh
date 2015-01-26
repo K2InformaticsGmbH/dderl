@@ -20,6 +20,8 @@ function usage {
     echo "       $1 attach"
     echo "       $1 gui"
     echo "       $1 txt"
+    echo "       $1 check"
+    echo "       $1 escript"
     echo "default arguments app_name = $app_name"
     echo "                  node_name = $node_name"
     echo "                  node_host = $node_host"
@@ -37,6 +39,10 @@ if [ "$1" == "gui" ] ||
    [ "$1" == "list" ] ||
    [ "$1" == "attach" ]; then
     ./deps/dderl/service_generic.sh $1 $app_name $node_name $node_host $cluster_name $cluster_host $cookie
+elif [ "$1" == "escript" ]; then
+    ./deps/dderl/service_generic.sh $1 $2 $node_name $node_host $cookie
+elif [ "$1" == "check" ]; then
+    ./deps/dderl/service_generic.sh $1 $node_name $node_host $cookie
 else
     usage $cmd
     echo ---------------
