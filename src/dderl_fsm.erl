@@ -1311,7 +1311,7 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
         RowKey = element(3, Row),
         [RowKey | Acc]
     end,
-    QueryResult = ets:foldl(FoldFun, [], TableId),
+    QueryResult = ets:foldr(FoldFun, [], TableId),
     %% Normalize the query using the parsetree.
     {ok, Pt} = sqlparse:parsetree(Qry),
     NormQry = sqlparse:pt_to_string(Pt),
