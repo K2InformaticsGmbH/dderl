@@ -19,3 +19,11 @@ WEB DataBase Browser Application.
 5. Append `%WIXBIN%` to `%PATH%` environment variable
 6. Navigate to `dderl/rel/wixsetup` and execute `./build_msi.escript`
 7. Installer MSI will be generated in `dderl/rel/wixsetup`
+
+###Hacks
+Unlock account
+```erlang
+rr(imem_seco).
+{[[A]], _} = imem_meta:select(ddAccount, [{#ddAccount{id=system,_='_'}, [], [['$_']]}]).
+imem_meta:write(ddAccount, A#ddAccount{locked = false}).
+```
