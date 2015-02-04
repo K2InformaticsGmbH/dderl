@@ -798,6 +798,9 @@
         console.log('command reloading ['+cmd+']');
         // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
         this.close_stmt();
+        if(this._lastRequestMoreData) {
+            delete this._lastRequestMoreData;
+        }
         this._clmlay = null;
         this._cmd = cmd;
         this._optBinds = optBinds;
@@ -1645,6 +1648,9 @@
             var viewInfo = self._getTableLayout("");
             self._clmlay = viewInfo.save_view.column_layout;
             self._tbllay = viewInfo.save_view.table_layout;
+        }
+        if(self._lastRequestMoreData) {
+            delete self._lastRequestMoreData;
         }
         self._gridDataView.setGrouping([]);
         self.buttonPress("restart");
@@ -3034,8 +3040,9 @@
         self._tbTxtBox.attr('title',_rows.toolTip);
         self._tbTxtBox.val(_rows.cnt+' ');
         var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
-        for (var i = 0; i < tbClass.length; ++i)
+        for (var i = 0; i < tbClass.length; ++i) {
             self._tbTxtBox.removeClass(tbClass[i]);
+        }
         self._tbTxtBox.addClass('tb_'+_rows.state);
         if(_rows.message.length > 0) alert_jq(_rows.message);
         if(_rows.op !== "nop") {
@@ -3267,11 +3274,22 @@
                                      self._pendingEditorCell.cell);
             delete self._pendingEditorCell;
         }
-
         if(self._doneBtn && _rows.state === "completed") {
             var tmpDoneBtn = self._doneBtn;
             self._doneBtn = null;
-            setTimeout(function() {self.buttonPress(tmpDoneBtn);}, 50);
+            setTimeout(function() { self.buttonPress(tmpDoneBtn); }, 50);
+        } else if(self._grid.getDataLength() < 100 && _rows.state === "filling" &&
+                  (_rows.op === "rpl" || _rows.op === "app") &&
+                  (!self._lastRequestMoreData || (new Date() - self._lastRequestMoreData < 3000))) // load 3 secs max.
+        {
+            if(!self._lastRequestMoreData) {
+                self._lastRequestMoreData = new Date();
+            }
+            self._loadMoreCalled = true;
+            setTimeout(function() { self.buttonPress('>'); }, 50);
+        } else if(self._loadMoreCalled) {
+            self._loadMoreCalled = false;
+            setTimeout(function() { self.buttonPress('|<'); }, 50);
         }
         //console.timeEnd('appendRows');
         //console.profileEnd();
