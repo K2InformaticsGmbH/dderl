@@ -14,6 +14,7 @@ Version 1.0.9 (Release Date 05.02.2015)
 * dderloci from 0.0.3 to 0.0.4
 * erlimem from 1.0.5 to 1.0.8
 * removed dependencies included by imem
+* improved go to end increasing the size of last block to 300
 
 Version 1.0.7 (Release Date 17.11.2014)
 =======================================
