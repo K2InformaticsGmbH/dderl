@@ -2,6 +2,18 @@ Application dderl
 =================
 
 Release history with new or improved features and bugfixes
+Version 1.0.9 (Release Date 05.02.2015)
+======================================
+* Added support for multiple sql queries
+* Improved cell selection using hotkeys
+* Added parameterized query support
+* [Bug 37] Fixed wrong focus after refresh on result window
+* Added column alias to histogram result
+* Fixed support for # in pretty printed sql editor
+* imem from 1.2.5 to 1.2.6
+* dderloci from 0.0.3 to 0.0.4
+* erlimem from 1.0.5 to 1.0.8
+* removed dependencies included by imem
 
 Version 1.0.7 (Release Date 17.11.2014)
 =======================================
