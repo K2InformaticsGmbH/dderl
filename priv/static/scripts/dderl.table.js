@@ -3278,7 +3278,7 @@
             var tmpDoneBtn = self._doneBtn;
             self._doneBtn = null;
             setTimeout(function() { self.buttonPress(tmpDoneBtn); }, 50);
-        } else if(self._grid.getDataLength() < 100 && _rows.state === "filling" &&
+        } else if(self._grid.getDataLength() < 300 && _rows.state === "filling" &&
                   (_rows.op === "rpl" || _rows.op === "app") &&
                   (!self._lastRequestMoreData || (new Date() - self._lastRequestMoreData < 3000))) // load 3 secs max.
         {
