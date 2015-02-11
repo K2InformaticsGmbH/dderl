@@ -48,8 +48,8 @@ pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);
 pretty_from_box(#box{name= <<>>,children=[]}) -> <<>>;
 pretty_from_box(#box{ind=Ind,name=Name,children=[]}) ->
     iolist_to_binary([indent(Ind), Name, "\r\n"]);
-pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= <<"#">>}, #box{children=[]} = R]}) ->
-    iolist_to_binary([indent(Ind+1), L#box.name, <<"#">>, R#box.name, "\r\n"]);
+pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= OP}, #box{children=[]} = R]}) when OP== <<"#">>;OP== <<":">>;OP== <<"{">>;OP== <<"}">>;OP== <<"[">>;OP== <<"]">> ->
+    iolist_to_binary([indent(Ind+1), L#box.name, OP, R#box.name, "\r\n"]);
 pretty_from_box(#box{ind=Ind,name= <<>>,children=CH}) ->
     if
         (hd(CH))#box.collapsed ->
@@ -304,12 +304,50 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                     end
             end
     end;
+foldb(Ind, P, {OP, Fun, List}) when OP=='{}';OP=='[]' ->
+    case (binding(P) =< binding('list')) of
+        true ->
+            Res = [foldb(Ind+3, 'list', Li) || Li <- List],
+            case check_error(Res) of
+                {error, Reason} -> {error, Reason};
+                _ ->
+                    case foldb_commas(Res) of
+                        {error, Reason} -> {error, Reason};
+                        Ch ->
+                            B0 = mk_box(Ind+2, [], char1(OP)),
+                            B1 = mk_box(Ind+2, Ch, <<>>),
+                            B2 = mk_box(Ind+2, [], char2(OP)),
+                            mk_box(Ind, mk_box(Ind+1, [B0,B1,B2], Fun),<<>>)
+                    end
+            end;
+        false ->
+            Res = [foldb(Ind+2, 'list', Li) || Li <- List],
+            case check_error(Res) of
+                {error, Reason} -> {error, Reason};
+                _ ->
+                    case foldb_commas(Res) of
+                        {error, Reason} -> {error, Reason};
+                        Ch ->
+                            B0 = mk_box(Ind+1, [], char1(OP)),
+                            B1 = mk_box(Ind+1, Ch, <<>>),
+                            B2 = mk_box(Ind+1, [], char2(OP)),
+                            mk_box(Ind, [B0,B1,B2], Fun)
+                    end
+            end
+    end;
 foldb(Ind, P, {'#', R, L}) when is_binary(L), is_binary(R) ->
     case (binding(P) =< binding('list')) of
         true ->
             mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], '#'), mk_clspd_box(Ind+1, [], R)], <<>>);
         false ->
             [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], '#'), mk_clspd_box(Ind, [], R)]
+    end;
+foldb(Ind, P, {':', R, L}) when is_binary(L), is_binary(R) ->
+    case (binding(P) =< binding('list')) of
+        true ->
+            mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], ':'), mk_clspd_box(Ind+1, [], R)], <<>>);
+        false ->
+            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], ':'), mk_clspd_box(Ind, [], R)]
     end;
 foldb(Ind, _P, {fields, List}) when is_list(List) ->    %% Sli from, 'group by', 'order by'
     Res = [foldb(Ind+1, fields, Li) || Li <- List],
@@ -895,6 +933,12 @@ append_alias(#box{children = Ch} = B, Alias) ->
 check_error([]) -> no_errors;
 check_error([{error, Reason} | _Rest]) -> {error, Reason};
 check_error([_ | Rest]) -> check_error(Rest).
+
+char1('{}') -> <<"{">>;
+char1('[]') -> <<"[">>.
+
+char2('{}') -> <<"}">>;
+char2('[]') -> <<"]">>.
 
 -spec box_to_json(#box{}) -> [{binary(), term()}].
 box_to_json(Box) ->
