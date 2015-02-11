@@ -141,7 +141,7 @@ neItems(List) ->    %% non-empty items of as list
 bStr(A) when is_atom(A) -> atom_to_binary(A, utf8);
 bStr(B) when is_binary(B) -> B;
 bStr(C) ->
-    ?Error("Expected atom or binary, got ~p", [C]),
+    % ?Error("Expected atom or binary, got ~p", [C]),
     throw({error, iolist_to_binary(io_lib:format("Expected atom or binary, got ~p", [C]))}).
 
 foldb(ParseTree) ->
@@ -824,6 +824,9 @@ foldb(Ind, P, {like, L, R, Escape}) when is_binary(L) ->
             ]
     end;
 
+foldb(Ind, P, {like, L, R, _Escape})  ->
+    foldb(Ind, P, {like, L, R});            %% ToDo: support for like with escape 
+
 foldb(Ind, P, {between, A, B, C}) ->
     Childern = case {A, B, C} of
         {A,B,C} when is_binary(A), is_binary(B), is_binary(C) ->
@@ -844,8 +847,8 @@ foldb(Ind, P, {between, A, B, C}) ->
         false   -> Childern
     end;
 
-foldb(_Ind, P, Term) ->    
-    ?Debug("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
+foldb(_Ind, _P, Term) ->    
+    % ?Debug("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, _P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
 
 -spec mk_clspd_box(integer(), tuple() | list(), binary()) -> #box{}.
@@ -926,7 +929,6 @@ any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 -define(DefCollInd,10).
 -endif.
 
--include_lib("sqlparse/src/sql_tests.hrl").
 %% TESTS ------------------------------------------------------------------
 
 -include_lib("eunit/include/eunit.hrl").
@@ -1050,9 +1052,9 @@ pretty_from_box_exp([Box|Boxes]) ->
 
 print_parse_tree(ParseTree) -> io_lib:format("ParseTree:~n~p~n~n", [ParseTree]).
 
-print_box(_Box) ->
-    io:format(user, "~p~n~n", [_Box]),
-    ok.
+% print_box(_Box) ->
+%     io:format(user, "~p~n~n", [_Box]),
+%     ok.
 
 -define(REG_COL, [
     {"(--.*[\n\r]+)",                             " "}    % comments                      -> removed
