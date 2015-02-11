@@ -1314,8 +1314,10 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
     end,
     QueryResult = ets:foldr(FoldFun, [], TableId),
     %% Normalize the query using the parsetree.
-    {ok, Pt} = sqlparse:parsetree(Qry),
-    NormQry = sqlparse:pt_to_string(Pt),
+    NormQry = case sqlparse:parsetree(Qry) of
+        {ok, Pt} -> sqlparse:pt_to_string(Pt);
+        _ -> Qry
+    end,
     Key = {dbTest, NormQry, BindVals},
     imem_cache:write(Key, {StmtCols, QueryResult}),
     {reply, ok, SN, State, infinity};
