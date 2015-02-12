@@ -12,7 +12,8 @@
 -include("dderl.hrl").
 -include("dderl_sqlbox.hrl").
 
--define(DefCollInd,10).  % First indentation level which will be collapsed by default
+-define(DefCollInd,6).  % First indentation level which will be collapsed by default
+-define(DefCollLen,40). % Max length of flattened subboxes which is collapsed
 
 -spec validate_children([#box{}]) -> ok | {error, binary()}.
 validate_children([]) -> ok;
@@ -44,7 +45,6 @@ pretty_from_pt(ParseTree) ->
 
 -spec pretty_from_box([#box{}] | #box{}) -> binary().
 pretty_from_box([]) -> [];
-pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);
 pretty_from_box(#box{name= <<>>,children=[]}) -> <<>>;
 pretty_from_box(#box{ind=Ind,name=Name,children=[]}) ->
     iolist_to_binary([indent(Ind), Name, "\r\n"]);
@@ -53,16 +53,21 @@ pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{na
 pretty_from_box(#box{ind=Ind,name= <<>>,children=CH}) ->
     if
         (hd(CH))#box.collapsed ->
+            % ?Info("collapsed box ~p ~p",[<<>>,CH]),                
             iolist_to_binary([indent(Ind+1),[flat_from_box(C) || C <-CH],"\r\n"]);
         true ->
+            % ?Info("expanded box ~p ~p",[<<>>,CH]),                
             iolist_to_binary([[pretty_from_box(C) || C <-CH]])
     end;
+pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);  % moved down from top to be revisited
 pretty_from_box(#box{ind=Ind,name=Name,children=CH}) ->
     if
         (hd(CH))#box.collapsed ->
+            % ?Info("collapsed box ~p ~p",[Name,CH]),                
             iolist_to_binary([indent(Ind),binary_to_list(Name),"\r\n",
                 indent(Ind+1),[flat_from_box(C) || C <-CH],"\r\n"]);
         true ->
+            % ?Info("expanded box ~p ~p",[Name,CH]),                
             iolist_to_binary([indent(Ind), Name,"\r\n",[pretty_from_box(C) || C <-CH]])
     end;
 pretty_from_box([Box|Boxes]) ->
@@ -161,7 +166,7 @@ foldb(_, _P, {having, {}})               -> empty;
 foldb(_, _P, {'hierarchical query', {}}) -> empty;
 
 foldb(Ind, _P, T) when is_binary(T); is_atom(T) -> mk_box(Ind, [], T);
-foldb(Ind, _P, {param, T}) -> mk_box(Ind, [], T);
+foldb(Ind, _P, {param, T}) -> mk_box(Ind-1, [], T);
 
 %%TODO: Improve these ugly nested cases to check for errors.
 foldb(Ind, P, {'as', {'fun',Fun,List}, Alias}) ->
@@ -898,8 +903,17 @@ mk_clspd_box(Ind, Children, Name) ->
 -spec mk_box(integer(), tuple() | list(), binary() | atom()) -> #box{}.
 mk_box(Ind, Child, Name) when is_record(Child, box) ->
     mk_box(Ind, [Child], Name);
+mk_box(Ind, Children, Name) when (Ind >= ?DefCollInd) ->
+    #box{ind = Ind, collapsed = true, children = Children, name = bStr(Name)};
+mk_box(Ind, [L,Op,R], Name) ->
+    ON = bStr(Op#box.name), 
+    Coll = case lists:member(ON,[<<"=">>,<<"<>">>,<<">">>,<<"<">>,<<">=">>,<<"<=">>,<<"in">>,<<"is">>,<<"like">>]) of
+        false ->    false;
+        true ->     false % (lists:sum([byte_size(flat_from_box(Ch)) || Ch <- [L,Op,R]]) < ?DefCollLen)
+    end,
+    #box{ind = Ind, collapsed = Coll, children = [L,Op,R], name = bStr(Name)};
 mk_box(Ind, Children, Name) ->
-    #box{ind = Ind, collapsed = (Ind >= ?DefCollInd), children = Children, name = bStr(Name)}.
+    #box{ind = Ind, collapsed = false, children = Children, name = bStr(Name)}.
 
 -spec foldb_commas([#box{}]) -> list() | {error, binary()}.
 foldb_commas(Boxes) when is_list(Boxes) ->
@@ -970,7 +984,7 @@ any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
 -ifdef(DefCollInd).
 -undef(DefCollInd).
--define(DefCollInd,10).
+-define(DefCollInd,6).
 -endif.
 
 %% TESTS ------------------------------------------------------------------
