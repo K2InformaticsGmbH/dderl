@@ -48,8 +48,8 @@ pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);
 pretty_from_box(#box{name= <<>>,children=[]}) -> <<>>;
 pretty_from_box(#box{ind=Ind,name=Name,children=[]}) ->
     iolist_to_binary([indent(Ind), Name, "\r\n"]);
-pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= <<"#">>}, #box{children=[]} = R]}) ->
-    iolist_to_binary([indent(Ind+1), L#box.name, <<"#">>, R#box.name, "\r\n"]);
+pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= OP}, #box{children=[]} = R]}) when OP== <<"#">>;OP== <<":">>;OP== <<"{">>;OP== <<"}">>;OP== <<"[">>;OP== <<"]">> ->
+    iolist_to_binary([indent(Ind+1), L#box.name, OP, R#box.name, "\r\n"]);
 pretty_from_box(#box{ind=Ind,name= <<>>,children=CH}) ->
     if
         (hd(CH))#box.collapsed ->
@@ -141,7 +141,7 @@ neItems(List) ->    %% non-empty items of as list
 bStr(A) when is_atom(A) -> atom_to_binary(A, utf8);
 bStr(B) when is_binary(B) -> B;
 bStr(C) ->
-    ?Error("Expected atom or binary, got ~p", [C]),
+    % ?Error("Expected atom or binary, got ~p", [C]),
     throw({error, iolist_to_binary(io_lib:format("Expected atom or binary, got ~p", [C]))}).
 
 foldb(ParseTree) ->
@@ -304,12 +304,50 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                     end
             end
     end;
+foldb(Ind, P, {OP, Fun, List}) when OP=='{}';OP=='[]' ->
+    case (binding(P) =< binding('list')) of
+        true ->
+            Res = [foldb(Ind+3, 'list', Li) || Li <- List],
+            case check_error(Res) of
+                {error, Reason} -> {error, Reason};
+                _ ->
+                    case foldb_commas(Res) of
+                        {error, Reason} -> {error, Reason};
+                        Ch ->
+                            B0 = mk_box(Ind+2, [], char1(OP)),
+                            B1 = mk_box(Ind+2, Ch, <<>>),
+                            B2 = mk_box(Ind+2, [], char2(OP)),
+                            mk_box(Ind, mk_box(Ind+1, [B0,B1,B2], Fun),<<>>)
+                    end
+            end;
+        false ->
+            Res = [foldb(Ind+2, 'list', Li) || Li <- List],
+            case check_error(Res) of
+                {error, Reason} -> {error, Reason};
+                _ ->
+                    case foldb_commas(Res) of
+                        {error, Reason} -> {error, Reason};
+                        Ch ->
+                            B0 = mk_box(Ind+1, [], char1(OP)),
+                            B1 = mk_box(Ind+1, Ch, <<>>),
+                            B2 = mk_box(Ind+1, [], char2(OP)),
+                            mk_box(Ind, [B0,B1,B2], Fun)
+                    end
+            end
+    end;
 foldb(Ind, P, {'#', R, L}) when is_binary(L), is_binary(R) ->
     case (binding(P) =< binding('list')) of
         true ->
             mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], '#'), mk_clspd_box(Ind+1, [], R)], <<>>);
         false ->
             [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], '#'), mk_clspd_box(Ind, [], R)]
+    end;
+foldb(Ind, P, {':', R, L}) when is_binary(L), is_binary(R) ->
+    case (binding(P) =< binding('list')) of
+        true ->
+            mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], ':'), mk_clspd_box(Ind+1, [], R)], <<>>);
+        false ->
+            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], ':'), mk_clspd_box(Ind, [], R)]
     end;
 foldb(Ind, _P, {fields, List}) when is_list(List) ->    %% Sli from, 'group by', 'order by'
     Res = [foldb(Ind+1, fields, Li) || Li <- List],
@@ -824,6 +862,9 @@ foldb(Ind, P, {like, L, R, Escape}) when is_binary(L) ->
             ]
     end;
 
+foldb(Ind, P, {like, L, R, _Escape})  ->
+    foldb(Ind, P, {like, L, R});            %% ToDo: support for like with escape 
+
 foldb(Ind, P, {between, A, B, C}) ->
     Childern = case {A, B, C} of
         {A,B,C} when is_binary(A), is_binary(B), is_binary(C) ->
@@ -844,8 +885,8 @@ foldb(Ind, P, {between, A, B, C}) ->
         false   -> Childern
     end;
 
-foldb(_Ind, P, Term) ->    
-    ?Debug("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, P]),
+foldb(_Ind, _P, Term) ->    
+    % ?Debug("Unrecognized parse tree term ~p in foldb under parent ~p~n", [Term, _P]),
     {error, iolist_to_binary(io_lib:format("Unrecognized parse tree term ~p in foldb", [Term]))}.
 
 -spec mk_clspd_box(integer(), tuple() | list(), binary()) -> #box{}.
@@ -893,6 +934,12 @@ check_error([]) -> no_errors;
 check_error([{error, Reason} | _Rest]) -> {error, Reason};
 check_error([_ | Rest]) -> check_error(Rest).
 
+char1('{}') -> <<"{">>;
+char1('[]') -> <<"[">>.
+
+char2('{}') -> <<"}">>;
+char2('[]') -> <<"]">>.
+
 -spec box_to_json(#box{}) -> [{binary(), term()}].
 box_to_json(Box) ->
     [ {<<"ind">>, Box#box.ind}
@@ -926,7 +973,6 @@ any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 -define(DefCollInd,10).
 -endif.
 
--include_lib("sqlparse/src/sql_tests.hrl").
 %% TESTS ------------------------------------------------------------------
 
 -include_lib("eunit/include/eunit.hrl").
@@ -1050,9 +1096,9 @@ pretty_from_box_exp([Box|Boxes]) ->
 
 print_parse_tree(ParseTree) -> io_lib:format("ParseTree:~n~p~n~n", [ParseTree]).
 
-print_box(_Box) ->
-    io:format(user, "~p~n~n", [_Box]),
-    ok.
+% print_box(_Box) ->
+%     io:format(user, "~p~n~n", [_Box]),
+%     ok.
 
 -define(REG_COL, [
     {"(--.*[\n\r]+)",                             " "}    % comments                      -> removed
