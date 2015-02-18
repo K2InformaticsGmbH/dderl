@@ -27,8 +27,8 @@
     @set app_config="%node_root%\etc\app.config"
 )
 
-@if exist "%releases_dir%\%release_version%\vm_t.args" (
-    @set vm_args="%releases_dir%\%release_version%\vm_t.args"
+@if exist "%releases_dir%\%release_version%\vm.args" (
+    @set vm_args="%releases_dir%\%release_version%\vm.args"
 ) else (
     @set vm_args="%node_root%\etc\vm.args"
 )
