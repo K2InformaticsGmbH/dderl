@@ -201,3 +201,5 @@ rel/rpmbuild/RPMS
 rel/rpmbuild/SOURCES
 rel/rpmbuild/SRPMS
 rel/rpmbuild/SPECS
+
+rel/erlpkg*
