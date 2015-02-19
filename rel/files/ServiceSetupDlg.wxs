@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+<Fragment>
+    <UI>
+      <TextStyle Id="ServiceSetupDlg_Font_SubHeading" FaceName="Tahoma" Size="8" Bold="yes" />
+      <Dialog Id="ServiceSetupDlg" Width="370" Height="270"
+              Title="[ProductName] Setup" NoMinimize="yes">
+
+        <Control X="20" Y="50" Width="90" Height="15" Type="Text"
+                 Id="NodeNameLabel" TabSkip="no" Text="No&amp;de Name" />
+        <Control X="110" Y="50" Width="150" Height="15" Type="Edit"
+                 Id="NodeNameEdit" Property="NODENAME"
+                 Text="{80}" />
+
+        <Control X="20" Y="70" Width="90" Height="15" Type="Text"
+                 Id="NodeCookieLebel" TabSkip="no" Text="&amp;Cookie" />
+        <Control X="110" Y="70" Width="150" Height="15" Type="Edit"
+                 Id="NodeCookieEdit" Property="NODECOOKIE" Text="{80}" />
+     
+        <Control X="20" Y="90" Width="90" Height="15" Type="Text"
+                 Id="WebSrvIntfLabel" TabSkip="no" Text="&amp;Web Service" />
+        <Control X="110" Y="90" Width="150" Height="15" Type="Edit"
+                 Id="WebSrvIntfEdit" Property="WEBSRVINTF" Text="{80}" />
+
+        <Control X="10" Y="120" Width="150" Height="10" Type="Text"
+                 Id="DBConfigSectionTitle" NoPrefix="yes"
+                 Text="{\ServiceSetupDlg_Font_SubHeading}Backend configurations" />
+        <Control X="10" Y="135" Width="350" Height="0" Type="Line" Id="SeperatorLine" />
+             
+        <Control X="20" Y="140" Width="90" Height="15" Type="Text"
+                 Id="NodeTypeLabel" TabSkip="no" Text="Node &amp;Type" />
+        <Control X="110" Y="140" Width="150" Height="15" Type="ComboBox"
+                 Id="NodeTypeCombo" Property="DBNODETYPE"> <!--  Text="{80}"  -->
+            <ComboBox Property="DBNODETYPE">
+                <ListItem Value="disc" />
+                <ListItem Value="ram" />
+            </ComboBox>
+        </Control>
+
+        <Control X="20" Y="160" Width="90" Height="15" Type="Text"
+                 Id="SchemaNameLabel" TabSkip="no" Text="&amp;Schema Name" />
+        <Control X="110" Y="160" Width="150" Height="15" Type="Edit"
+                 Id="SchemaNameEdit" Property="DBNODESCHEMANAME" Text="{80}" />
+
+        <Control X="20" Y="180" Width="90" Height="15" Type="Text"
+                 Id="ClusterMgrsLabel" TabSkip="no" Text="Cluster &amp;Managers" />
+        <Control X="110" Y="180" Width="150" Height="15" Type="Edit"
+                 Id="ClusterMgrsEdit" Property="DBCLUSTERMGRS" Text="{80}" />
+
+        <Control X="20" Y="200" Width="90" Height="15" Type="Text" 
+                 Id="DbIntfLabel" TabSkip="no" Text="DB &amp;Interface" />
+        <Control X="110" Y="200" Width="150" Height="15" Type="Edit"
+                 Id="DbIntfEdit" Property="DBINTF" Text="{80}" />
+
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56"
+                 Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56"
+                 Height="17" Default="yes" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">
+            1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56"
+                 Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370"
+                 Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280"
+                 Height="15" Transparent="yes" NoPrefix="yes">
+            <Text>Please enter Node and cluster configuration</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370"
+                 Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200"
+                 Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}DDErl service setup</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370"
+                 Height="0" />
+      </Dialog>
+    </UI>
+  </Fragment>
+</Wix>
