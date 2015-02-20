@@ -10,6 +10,62 @@
 
 -ifdef(TEST).
 -define (TEST_SELECT_QUERIES,[
+<<"
+select col1, col2:a1 from sbsgui.bintermtest where col1 = 3
+">>
+,
+<<"
+select col1, col2:a1:a2 from sbsgui.bintermtest where col1 = 3
+">>
+,
+<<"
+select col1, col2{a1} from sbsgui.bintermtest where col1 = 3
+">>
+,
+<<"
+select col1, col2{a1,a2} from sbsgui.bintermtest where col1 = 3
+">>
+,
+<<"
+select col1, col2{a1,a2,a3,a4} from sbsgui.bintermtest where col1 = 3
+">>
+,
+<<"
+select col1, length(col2[]) from sbsgui.bintermtest where col1 = 4
+">>
+,
+<<"
+select col1, col2[1] from sbsgui.bintermtest where col1 = 5
+">>
+,
+<<"
+select col1, col2[1,3,5] from sbsgui.bintermtest where col1 = 5
+">>
+,
+<<"
+select col1, l.item from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2[])
+">>
+,
+<<"
+select col1, l.item#key from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2[])
+">>
+,
+<<"
+select col1, l.item#value#keys from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2[])
+">>
+,
+<<"
+select col1, length(l.item#value#keys) from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2[])
+">>
+,
+<<"
+select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID from tpac where last(ckey) = to_string('access')
+">>
+,
+<<"
+select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetime(cvalue:WHITELIST[1]#value:EXPIRE_DATE) from tpac where last(ckey) = to_string('access')
+">>
+,
 <<"select
 	/*+ INDEX(BDCUCIDXA PK_BDCUCIDXA) */
 	'-' as msgid
@@ -335,9 +391,9 @@
 		,
 			bc_msisdn_b
 ">>
-]).
-
--define (TEST_MORE_SELECT_QUERIES,[
+,
+% ]).
+% -define (TEST_MORE_SELECT_QUERIES,[
 <<"select
 		a
 		||
@@ -516,7 +572,7 @@
 			=
 			h
 ">>
- ,
+,
 <<"SELECT
 		a
 		,
@@ -526,8 +582,9 @@
 				d
 	FROM
 		b
-">>,
-"select
+">>
+,
+<<"select
 	/*+008*/
 	distinct
 		a
@@ -581,9 +638,9 @@
 			g
 			=
 			h
-"
+">>
 ,
-"select
+<<"select
 	/*+009*/
 			NVL
 				(
@@ -618,8 +675,9 @@
 			h
 			and
 			i
-",
-"select
+">>
+,
+<<"select
 	/*+029*/
 		*
 	from
@@ -643,9 +701,9 @@
 			g
 			=
 			h038
-"
+">>
 ,
-"select
+<<"select
 	/*+030*/
 		*
 	from
@@ -669,9 +727,9 @@
 				g
 				=
 				h
-"
+">>
 ,
-"select
+<<"select
 		'aa'
 		||
 		'b\nb'
@@ -681,9 +739,9 @@
 		field
 	from
 		def
-"
+">>
 ,
-"select
+<<"select
 		\"aa\"
 		||
 		\"b\nb\"
@@ -693,9 +751,9 @@
 		field
 	from
 		def
-"
+">>
 ,
-"select
+<<"select
 		'a'
 		||
 		'b'
@@ -721,9 +779,9 @@
 				'd'
 				||
 				fld4
-"
+">>
 ,
-"					SELECT
+<<"					SELECT
 						/*+001*/
 						DISTINCT
 							a
@@ -750,9 +808,9 @@
 				i
 			FROM
 				j
-"
+">>
 ,
-"SELECT
+<<"SELECT
 	/*+011*/
 		a
 		,
@@ -765,8 +823,9 @@
 		e
 		=
 		f
-",
-"select
+">>
+,
+<<"select
 		name
 		,
 		lastLoginTime
@@ -778,8 +837,9 @@
 			sysdate
 			-
 			1.1574074074074073e-4
-",
-"select
+">>
+,
+<<"select
 	/*+001*/
 		a
 	from
@@ -804,8 +864,9 @@
 			f
 			=
 			-11.5
-",
-"select
+">>
+,
+<<"select
 			3
 			+
 			a
@@ -833,8 +894,9 @@
 				)
 	order by
 		a asc
-",
-"select
+">>
+,
+<<"select
 	/*+003*/
 		*
 	from
@@ -878,9 +940,9 @@
 									j
 								)
 				)
-"
+">>
 ,
-"select
+<<"select
 	/*+003*/
 		a
 		,
@@ -908,9 +970,9 @@
 		abc
 		,
 		def as d
-"
+">>
 ,
-"select
+<<"select
 		*
 	from
 		def
@@ -928,9 +990,9 @@
 			w
 			=
 			3
-"
+">>
 ,
-"select
+<<"select
 		*
 	from
 		def
@@ -948,9 +1010,9 @@
 									3
 							)
 				)
-"
+">>
 ,
-"select
+<<"select
 		*
 	from
 		def
@@ -987,9 +1049,9 @@
 					div
 					2
 				)
-"
+">>
 ,
-"select
+<<"select
 		d.col1
 		,
 		m.col1
@@ -999,8 +1061,9 @@
 		def as d
 		,
 		member_test as m
-",
-"select
+">>
+,
+<<"select
 		d.col1
 		,
 		m.col1
@@ -1010,8 +1073,9 @@
 		def as d
 		,
 		member_test as m
-",
-"select
+">>
+,
+<<"select
 		d.col1
 		,
 		m.col1
@@ -1026,8 +1090,9 @@
 				,
 				m.\"'$_'\"
 			)
-",
-"select
+">>
+,
+<<"select
 		*
 	from
 		member_test
@@ -1038,13 +1103,15 @@
 				,
 				col2
 			)
-",
-"sElect
+">>
+,
+<<"sElect
 		*
 	frOm
 		tab@1234@_no#de:@nohost
-",
-"select
+">>
+,
+<<"select
 	/*+011*/
 			a
 			+
@@ -1086,8 +1153,9 @@
 			c
 			=
 			d
-",
-"select
+">>
+,
+<<"select
 		12
 		,
 		\"12\"
@@ -1107,14 +1175,16 @@
 				)
 	from
 		'table_1'
-",
-"select
+">>
+,
+<<"select
 	/*+000*/
 		*
 	from
 		abc
-",
-"select
+">>
+,
+<<"select
 	/*+002*/
 		a
 		,
@@ -1148,9 +1218,9 @@
 					,
 					k
 				)
-"
+">>
 ,
-"select
+<<"select
 	/*+003*/
 		a
 		,
@@ -1174,10 +1244,9 @@
 					)
 			=
 			0
-"
+">>
 ,
-
-"select
+<<"select
 	/*+005*/
 			a
 			+
@@ -1198,9 +1267,9 @@
 					=
 					f
 			)
-"
+">>
 ,
-"select
+<<"select
 	/*+006*/
 		- c as cc
 	from
@@ -1221,9 +1290,9 @@
 			e
 			=
 			f
-"
+">>
 ,
-"select
+<<"select
 	/*+007*/
 		*
 	from
@@ -1244,9 +1313,9 @@
 			g
 			=
 			h
-"
+">>
 ,
-"select
+<<"select
 	/*+010*/
 				to_date
 					(
@@ -1263,9 +1332,9 @@
 		a
 		=
 		b
-"
+">>
 ,
-"select
+<<"select
 	/*+011*/
 			a
 			+
@@ -1288,9 +1357,9 @@
 			c
 			=
 			d
-"
+">>
 ,
-"select
+<<"select
 	/*+012*/
 		*
 	from
@@ -1311,9 +1380,9 @@
 			g
 			=
 			h
-"
+">>
 ,
-"select
+<<"select
 	/*+013*/
 		*
 	from
@@ -1335,9 +1404,9 @@
 			g
 			=
 			h
-"
+">>
 ,
-"select
+<<"select
 	/*+014*/
 		*
 	from
@@ -1359,9 +1428,9 @@
 			g
 			=
 			h
-" 
+">>
 ,
-"select
+<<"select
 	/*+015*/
 		*
 	from
@@ -1383,9 +1452,9 @@
 				g
 				=
 				h
-"
+">>
 ,
-"select
+<<"select
 	/*+016*/
 		*
 	from
@@ -1406,10 +1475,9 @@
 			g
 			=
 			h
-"
+">>
 ,
-"
-select
+<<"select
 	/*+018*/
 		*
 	from
@@ -1431,10 +1499,9 @@ select
 			g
 			=
 			h
-"
+">>
 ,
-"
-select
+<<"select
 	/*+019*/
 		*
 	from
@@ -1456,10 +1523,9 @@ select
 			g
 			=
 			h
-"
+">>
 ,
-"
-select
+<<"select
 	/*+020*/
 		*
 	from
@@ -1482,10 +1548,9 @@ select
 			g
 			=
 			h
-" 
+">> 
 ,
-"
-select
+<<"select
 	/*+021*/
 		*
 	from
@@ -1508,10 +1573,9 @@ select
 				g
 				=
 				h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+022*/
 		*
 	from
@@ -1533,10 +1597,9 @@ select
 			g
 			=
 			h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+023*/
 		*
 	from
@@ -1560,10 +1623,9 @@ select
 			g
 			=
 			h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+024*/
 		*
 	from
@@ -1585,10 +1647,9 @@ select
 			g
 			=
 			h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+025*/
 		*
 	from
@@ -1611,10 +1672,9 @@ select
 			g
 			=
 			h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+026*/
 		*
 	from
@@ -1637,10 +1697,9 @@ select
 			g
 			>
 			h
-"
+">>
 ,
-"
-select
+<<"select
 	/*+027*/
 		*
 	from
@@ -1662,10 +1721,9 @@ select
 			g
 			=
 			h
-" 
+">>
 ,
-"
-select
+<<"select
 	/*+028*/
 		*
 	from
@@ -1686,10 +1744,9 @@ select
 				g
 				=
 				h
-"
+">>
 ,
-"
-select
+<<"select
 	/*+033*/
 	distinct
 		a
@@ -1722,10 +1779,10 @@ select
 		,
 		d desc
 		,
-		e "
+		e
+">>
 ,
-"
-select
+<<"select
 	/*+034*/
 		*
 	from
@@ -1747,8 +1804,10 @@ select
 						g
 						=
 						h
-				)",
-"select
+				)
+">>
+,
+<<"select
 	/*+035*/
 		*
 	from
@@ -1756,10 +1815,10 @@ select
 	where
 		a
 		=
-		b",
-%	,decode(BD_MSGTYPE||BD_EVENTDISP,01,'Y',012,'Y','N') ISDELIV
-"
-select
+		b
+">>
+,
+<<"select
 	/*+037*/
 		AC_ID
 		,
@@ -1799,10 +1858,9 @@ select
 				5
 				-
 				3
-"
+">>
 ,
-"
-select
+<<"select
 	/*+038*/
 		AC_ID
 		,
@@ -1894,8 +1952,9 @@ select
 				a
 				-
 				12.9
-",
-"select
+">>
+,
+<<"select
 		t1.col1
 		,
 		t2.col1
@@ -1923,9 +1982,9 @@ select
 					)
 			=
 			2
-"
+">>
 ,
-"select
+<<"select
 	distInct
 		id
 	from
@@ -1946,9 +2005,9 @@ select
 			)
 	order by
 		ordered
-"
+">>
 ,
-"select
+<<"select
 		f
 		,
 			MAX
@@ -1972,9 +2031,9 @@ select
 			2
 	order by
 		f
-"
+">>
 ,
-"select
+<<"select
 	/*+036*/
 		NULL as ROW_ID_S
 		,
@@ -2154,9 +2213,9 @@ select
 				)
 		,
 		BD_MSGTYPE
-"
+">>
 ,
-"select
+<<"select
 	/*+017*/
 		a
 		,
@@ -2182,6 +2241,6 @@ select
 			)
 		=
 		b
-"
+">>
 ]).
 -endif. % TEST
