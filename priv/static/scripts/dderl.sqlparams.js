@@ -16,10 +16,11 @@ function sql_params_dlg(container, qpars)
     });
 
     inp = $('<input type="text"/>')
+        .addClass('param')
         .css('font-family', 'inherit')
         .css('font-weight', 'inherit')
         .css('font-size', 'inherit');
-    
+
     for (p in qpars.pars) {
         param = qpars.pars[p];
         s = sel.clone();
@@ -38,8 +39,29 @@ function sql_params_dlg(container, qpars)
         })(s,i,param);
 
         s.find('option[value="'+param.typ+'"]').attr('selected','selected');
-        tab.append($('<tr/>').append($('<td>'+p+'</td>'))
-                        .append($('<td/>').append(s))
-                        .append($('<td/>').append(i.val(param.val))));
+        tab.append(
+                $('<tr/>')
+                .append(
+                    $('<td>'+p+'</td>')
+                    .addClass('fit-content')
+                    )
+                .append(
+                    $('<td/>')
+                    .addClass('fit-content')
+                    .append(s)
+                    )
+                .append(
+                    $('<td/>').append(
+                        i.on('focus', function() {
+                            var $this =
+                            $(this).one('mouseup.mouseupSelect', function() {
+                                $this.select();
+                                return false;
+                            }).one('mousedown', function() {
+                                $this.off('mouseup.mouseupSelect');
+                            }).select();
+                        }).val(param.val))
+                    )
+                );
     }
 }

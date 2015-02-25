@@ -11,3 +11,11 @@ table.params {
 table.params tr:nth-child(odd) {
     background-color: rgba(220,220,220,0.5);
 }
+
+table.params td.fit-content {
+    width:1%;
+}
+
+table.params input.param {
+    width:100%
+}
