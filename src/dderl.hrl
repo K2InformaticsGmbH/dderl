@@ -116,18 +116,37 @@
                    [{?MODULE,?LINE}|__A])
  end)(__S)).
 
--define(Debug(__M,__F,__A),     ?Log(debug,__M,__F,__A,[])).
--define(Info(__M,__F,__A),      ?Log(info,__M,__F,__A,[])).
--define(Error(__M,__F,__A,__S), ?Log(error,__M,__F,__A,__S)).
+-define(Debug(__M,__F,__A),        ?Log(debug,__M,__F,__A,[])).
+-define(Info(__M,__F,__A),         ?Log(info,__M,__F,__A,[])).
+-define(Note(__M,__F,__A),         ?Log(notice,__M,__F,__A,[])).
+-define(Warn(__M,__F,__A),         ?Log(warning,__M,__F,__A,[])).
+-define(Error(__M,__F,__A,__S),    ?Log(error,__M,__F,__A,__S)).
+-define(Crit(__M,__F,__A,__S),     ?Log(critical,__M,__F,__A,__S)).
+-define(Alert(__M,__F,__A,__S),    ?Log(alert,__M,__F,__A,__S)).
+-define(Emergency(__M,__F,__A,__S),?Log(emergency,__M,__F,__A,__S)).
+
 
 % helper macro extension
--define(Debug(__F,__A),     ?Debug([],__F,__A)).
--define(Debug(__F),         ?Debug(__F,[])).
--define(Info(__F,__A),      ?Info([],__F,__A)).
--define(Info(__F),          ?Info(__F,[])).
--define(Error(__F,__A,__S), ?Error([],__F,__A,__S)).
--define(Error(__F,__A),     ?Error([],__F,__A,[])).
--define(Error(__F),         ?Error(__F,[])).
+-define(Debug(__F,__A),         ?Debug([],__F,__A)).
+-define(Debug(__F),             ?Debug(__F,[])).
+-define(Info(__F,__A),          ?Info([],__F,__A)).
+-define(Info(__F),              ?Info(__F,[])).
+-define(Note(__F, __A),         ?Note([], __F, __A)).
+-define(Note(__F),              ?Note(__F, [])).
+-define(Warn(__F,__A),          ?Warn([],__F,__A)).
+-define(Warn(__F),              ?Warn(__F,[])).
+-define(Error(__F,__A,__S),     ?Error([],__F,__A,__S)).
+-define(Error(__F,__A),         ?Error([],__F,__A,[])).
+-define(Error(__F),             ?Error(__F,[])).
+-define(Crit(__F,__A, __S),     ?Crit([],__F,__A,__S)).
+-define(Crit(__F,__A),          ?Crit([],__F,__A,[])).
+-define(Crit(__F),              ?Crit(__F,[])).
+-define(Alert(__F,__A, __S),    ?Alert([],__F,__A,__S)).
+-define(Alert(__F,__A),         ?Alert([],__F,__A,[])).
+-define(Alert(__F),             ?Alert(__F,[])).
+-define(Emergency(__F,__A, __S),?Emergency([],__F,__A,__S)).
+-define(Emergency(__F,__A),     ?Emergency([],__F,__A,[])).
+-define(Emergency(__F),         ?Emergency(__F,[])).
 
 % Function shortcuts
 -define(Encrypt(__T), dderl:encrypt(__T)).
