@@ -7,6 +7,8 @@
         , box_to_json/1
         , foldb/3
         , wrap_multiple_json/1
+        , rtrim/1
+        , flat_merge/1
         ]).
 
 -include("dderl.hrl").
@@ -14,6 +16,7 @@
 
 -define(DefCollInd,6).  % First indentation level which will be collapsed by default
 -define(DefCollLen,40). % Max length of flattened subboxes which is collapsed
+-define(Spc," ").        % Inter Token spacing " "
 
 -spec validate_children([#box{}]) -> ok | {error, binary()}.
 validate_children([]) -> ok;
@@ -26,15 +29,57 @@ validate_children(Children) ->
 
 -spec flat_from_box([#box{}] | #box{}) -> binary().
 flat_from_box([]) -> <<>>;
-flat_from_box(#box{name= <<",">> ,children=[]}) -> <<", ">>;
+flat_from_box(#box{name= <<>>,children=[]}) -> <<>>;
+flat_from_box(#box{name= <<",">> ,children=[]}) -> <<",">>; 
+flat_from_box(#box{name=Name,children=[]}) when Name == <<":">>;Name == <<"#">>;Name == <<"(">>;Name == <<"[">>;Name == <<"{">> ->
+    iolist_to_binary([Name]);
 flat_from_box(#box{name=Name,children=[]}) ->
-    iolist_to_binary([Name, " "]);
+    iolist_to_binary([Name, ?Spc]);
 flat_from_box(#box{name= <<>>,children=CH}) ->
-    iolist_to_binary([[flat_from_box(C) || C <-CH]]);
+    flat_merge([flat_from_box(C) || C <-CH]);
 flat_from_box(#box{name=Name,children=CH}) ->
-    iolist_to_binary([Name," ",[flat_from_box(C) || C <-CH]]);
-flat_from_box([Box|Boxes]) ->
-    iolist_to_binary([flat_from_box(Box),flat_from_box(Boxes)]).
+    flat_merge([Name,<<" ">>] ++ [flat_from_box(C) || C <-CH]);
+flat_from_box([Boxes]) when is_list(Boxes) ->
+    flat_merge([flat_from_box(B) || B <-Boxes]).
+
+flat_merge(L) -> flat_merge(L,[]).
+
+flat_merge([],Acc) -> iolist_to_binary(lists:reverse(Acc));
+flat_merge([T,<<$,>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$,>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$)>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$)>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$),32>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$),32>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$:>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$:>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$#>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$#>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$#,32>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$#,32>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$]>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$]>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$],32>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$],32>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$}>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$}>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$},32>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$},32>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$(,B/binary>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$(,B/binary>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<${,B/binary>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<${,B/binary>>|[rtrim(T)|Acc]]);
+flat_merge([T,<<$[,B/binary>>|Rest],Acc) -> 
+    flat_merge(Rest,[<<$[,B/binary>>|[rtrim(T)|Acc]]);
+flat_merge([T|Rest],Acc) -> 
+    flat_merge(Rest,[T|Acc]).
+
+rtrim(<<>>) -> <<>>; 
+rtrim(B) -> 
+    case binary:last(B) of
+        32 ->   binary:part(B,0,byte_size(B)-1);
+        _ ->    B
+    end.
 
 -spec pretty_from_pt(term()) -> binary() | {error, binary()}.
 pretty_from_pt(ParseTree) ->
@@ -46,30 +91,14 @@ pretty_from_pt(ParseTree) ->
 -spec pretty_from_box([#box{}] | #box{}) -> binary().
 pretty_from_box([]) -> [];
 pretty_from_box(#box{name= <<>>,children=[]}) -> <<>>;
+pretty_from_box(#box{ind=Ind,collapsed=true}=Box) ->
+    iolist_to_binary([indent(Ind),flat_from_box(Box),"\r\n"]);
 pretty_from_box(#box{ind=Ind,name=Name,children=[]}) ->
     iolist_to_binary([indent(Ind), Name, "\r\n"]);
-pretty_from_box(#box{ind=Ind,name= <<>>,children=[#box{children=[]} = L, #box{name= OP}, #box{children=[]} = R]}) when OP== <<"#">>;OP== <<":">>;OP== <<"{">>;OP== <<"}">>;OP== <<"[">>;OP== <<"]">> ->
-    iolist_to_binary([indent(Ind+1), L#box.name, OP, R#box.name, "\r\n"]);
-pretty_from_box(#box{ind=Ind,name= <<>>,children=CH}) ->
-    if
-        (hd(CH))#box.collapsed ->
-            % ?Info("collapsed box ~p ~p",[<<>>,CH]),                
-            iolist_to_binary([indent(Ind+1),[flat_from_box(C) || C <-CH],"\r\n"]);
-        true ->
-            % ?Info("expanded box ~p ~p",[<<>>,CH]),                
-            iolist_to_binary([[pretty_from_box(C) || C <-CH]])
-    end;
-pretty_from_box(#box{collapsed=true}=Box) -> flat_from_box(Box);  % moved down from top to be revisited
+pretty_from_box(#box{ind=_Ind,name= <<>>,children=CH}) ->
+    iolist_to_binary([[pretty_from_box(C) || C <-CH]]);
 pretty_from_box(#box{ind=Ind,name=Name,children=CH}) ->
-    if
-        (hd(CH))#box.collapsed ->
-            % ?Info("collapsed box ~p ~p",[Name,CH]),                
-            iolist_to_binary([indent(Ind),binary_to_list(Name),"\r\n",
-                indent(Ind+1),[flat_from_box(C) || C <-CH],"\r\n"]);
-        true ->
-            % ?Info("expanded box ~p ~p",[Name,CH]),                
-            iolist_to_binary([indent(Ind), Name,"\r\n",[pretty_from_box(C) || C <-CH]])
-    end;
+    iolist_to_binary([indent(Ind), Name,"\r\n",[pretty_from_box(C) || C <-CH]]);
 pretty_from_box([Box|Boxes]) ->
     iolist_to_binary([pretty_from_box(Box), pretty_from_box(Boxes)]).
 
@@ -92,7 +121,10 @@ binding('param') -> 190;
 binding('prior') -> 185;
 binding('fun') -> 180;
 binding('||') -> 175;
-binding('#') -> 175;
+binding('#') -> 174;
+binding(':') -> 173;
+binding('{}') -> 172;
+binding('[]') -> 171;
 binding('*') -> 170;
 binding('/') -> 170;
 binding('+') -> 160;
@@ -118,7 +150,7 @@ binding('hierarchical query') -> 88;
 binding('start with') -> 88;
 binding('connect by') -> 88;
 binding('list') -> 85;
-binding('fields') -> 80;
+binding('fields') -> 80;  % was 80
 binding('into') -> 80;
 binding('hints') -> 80;
 binding('opt') -> 80;
@@ -152,11 +184,53 @@ bStr(C) ->
 foldb(ParseTree) ->
     foldb(0, undefined, ParseTree).
 
-foldb(Ind, P, {select, List}) when is_list(List) ->
+foldb(Ind, P, {'union'=Op,L,R}) when P==undefined;P=='union';P=='union all' ->
+    case foldb(Ind+1, Op, L) of
+        {error, Reason} -> {error, Reason};
+        Fl ->
+            case foldb(Ind+1, Op, R) of
+                {error, Reason} -> {error, Reason};
+                Fr -> mk_box(Ind, lists:flatten([Fl,foldb(Ind+1, P, Op),Fr]), <<>>)
+            end
+    end;
+foldb(Ind, P, {'union all'=Op,L,R}) when P==undefined;P=='union';P=='union all' ->
+    case foldb(Ind+1, Op, L) of
+        {error, Reason} -> {error, Reason};
+        Fl ->
+            case foldb(Ind+1, Op, R) of
+                {error, Reason} -> {error, Reason};
+                Fr -> mk_box(Ind, lists:flatten([Fl,foldb(Ind+1, P, Op),Fr]), <<>>)
+            end
+    end;
+foldb(Ind, _, {Op,L,R}) when Op=='union';Op=='union all'->
+    case foldb(Ind+2, Op, L) of
+        {error, Reason} -> {error, Reason};
+        Fl ->
+            case foldb(Ind+2, Op, R) of
+                {error, Reason} -> {error, Reason};
+                Fr ->   B0 = mk_clspd_box(Ind+1, [], <<"(">>),
+                        B1 = mk_clspd_box(Ind+1, Fl, <<>>),
+                        B2 = mk_clspd_box(Ind+1, [], Op),
+                        B3 = mk_clspd_box(Ind+1, Fr, <<>>),
+                        B4 = mk_clspd_box(Ind+1, [], <<")">>),
+                        mk_box(Ind, mk_clspd_box(Ind+1, [B0,B1,B2,B3,B4], <<>>),<<>>)
+            end
+    end;
+foldb(Ind, P, {select, List}) when P==undefined;P=='union';P=='union all' ->
     Res = [foldb(Ind+1, P, Sli) || Sli <- List],
     case check_error(Res) of
         {error, Reason} -> {error, Reason};
         _ -> mk_box(Ind, neItems(Res), select)
+    end;
+foldb(Ind, P, {select, List}) when is_list(List) ->
+    Res = [foldb(Ind+2, P, Sli) || Sli <- List],
+    case check_error(Res) of
+        {error, Reason} -> {error, Reason};
+        _ -> 
+            B0 = mk_clspd_box(Ind+1, [], <<"(">>),
+            B1 = mk_clspd_box(Ind+1, neItems(Res), select),
+            B2 = mk_clspd_box(Ind+1, [], <<")">>),
+            mk_box(Ind, mk_clspd_box(Ind+1, [B0,B1,B2], <<>>),<<>>)
     end;
 foldb(_, _P, {hints,<<>>})               -> empty;
 foldb(_, _P, {opt,  <<>>})               -> empty;
@@ -309,51 +383,31 @@ foldb(Ind, P, {'fun', Fun, List}) ->
                     end
             end
     end;
-foldb(Ind, P, {OP, Fun, List}) when OP=='{}';OP=='[]' ->
-    case (binding(P) =< binding('list')) of
-        true ->
-            Res = [foldb(Ind+3, 'list', Li) || Li <- List],
-            case check_error(Res) of
+foldb(Ind, _P, {OP, L, List}) when OP=='{}';OP=='[]' ->
+    Res = [foldb(Ind+2, 'list', Li) || Li <- List],
+    Base = foldb(Ind+1, OP, L),
+    case check_error(Res) of
+        {error, Reason} -> {error, Reason};
+        _ ->
+            case foldb_commas(Res) of
                 {error, Reason} -> {error, Reason};
-                _ ->
-                    case foldb_commas(Res) of
-                        {error, Reason} -> {error, Reason};
-                        Ch ->
-                            B0 = mk_box(Ind+2, [], char1(OP)),
-                            B1 = mk_box(Ind+2, Ch, <<>>),
-                            B2 = mk_box(Ind+2, [], char2(OP)),
-                            mk_box(Ind, mk_box(Ind+1, [B0,B1,B2], Fun),<<>>)
-                    end
-            end;
-        false ->
-            Res = [foldb(Ind+2, 'list', Li) || Li <- List],
-            case check_error(Res) of
-                {error, Reason} -> {error, Reason};
-                _ ->
-                    case foldb_commas(Res) of
-                        {error, Reason} -> {error, Reason};
-                        Ch ->
-                            B0 = mk_box(Ind+1, [], char1(OP)),
-                            B1 = mk_box(Ind+1, Ch, <<>>),
-                            B2 = mk_box(Ind+1, [], char2(OP)),
-                            mk_box(Ind, [B0,B1,B2], Fun)
-                    end
+                Ch ->
+                    B0 = mk_clspd_box(Ind+1, [], char1(OP)),
+                    B1 = mk_clspd_box(Ind+1, Ch, <<>>),
+                    B2 = mk_clspd_box(Ind+1, [], char2(OP)),
+                    mk_clspd_box(Ind, [Base,B0,B1,B2], <<>>)
             end
     end;
-foldb(Ind, P, {'#', R, L}) when is_binary(L), is_binary(R) ->
-    case (binding(P) =< binding('list')) of
-        true ->
-            mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], '#'), mk_clspd_box(Ind+1, [], R)], <<>>);
-        false ->
-            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], '#'), mk_clspd_box(Ind, [], R)]
-    end;
-foldb(Ind, P, {':', R, L}) when is_binary(L), is_binary(R) ->
-    case (binding(P) =< binding('list')) of
-        true ->
-            mk_box(Ind, [mk_clspd_box(Ind+1, [], L), mk_clspd_box(Ind+1, [], ':'), mk_clspd_box(Ind+1, [], R)], <<>>);
-        false ->
-            [mk_clspd_box(Ind, [], L), mk_clspd_box(Ind, [], ':'), mk_clspd_box(Ind, [], R)]
-    end;
+foldb(Ind, P, I) when is_integer(I) ->
+    foldb(Ind, P, list_to_binary(integer_to_list(I)));
+foldb(Ind, P, F) when is_float(F) ->
+    foldb(Ind, P, list_to_binary(float_to_list(F)));
+foldb(Ind, _P, {'#', R, L}) ->
+    Fl = foldb(Ind+1,'#', L),
+    Fr = foldb(Ind+1,'#', R), 
+    mk_clspd_box(Ind, lists:flatten([Fl, mk_clspd_box(Ind+1, [], '#'), Fr]), <<>>);
+foldb(Ind, _P, {':', R, L}) ->
+    mk_clspd_box(Ind, lists:flatten([foldb(Ind+1,':', L), mk_clspd_box(Ind+1, [], ':'), foldb(Ind+1,':', R)]), <<>>);
 foldb(Ind, _P, {fields, List}) when is_list(List) ->    %% Sli from, 'group by', 'order by'
     Res = [foldb(Ind+1, fields, Li) || Li <- List],
     case check_error(Res) of
@@ -391,7 +445,7 @@ foldb(Ind, _P, {{'fun', Fun, List}, Dir}) when is_binary(Dir) ->
             [BChild] = B#box.children,
             GChildren = BChild#box.children,
             {CF,[CL]} = lists:split(length(GChildren)-1,GChildren),
-            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," ",Dir])}],
+            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name,?Spc,Dir])}], 
             NewChild = BChild#box{children=NewGChildren},
             B#box{children=[NewChild]}
     end;
@@ -400,9 +454,9 @@ foldb(Ind, _P, {Item, Dir}) when is_binary(Dir) ->
         {error, Reason} -> {error, Reason};
         B ->
             case B#box.children of
-                [] ->   B#box{name=list_to_binary([B#box.name," ",Dir])};
+                [] ->   B#box{name=list_to_binary([B#box.name,?Spc,Dir])}; 
                 Ch ->   {CF,[CL]} = lists:split(length(Ch)-1,Ch),
-                        EChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," ",Dir])}],
+                        EChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name,?Spc,Dir])}],
                         B#box{children=EChildren}
             end
     end;
@@ -420,6 +474,17 @@ foldb(Ind, _P, {Sli, List}) when is_list(List) ->       %% Sli from, 'group by',
                     end
             end
     end;
+
+foldb(Ind, P, {Op, {select,L}}) when is_atom(Op), is_list(L) ->
+    case foldb(Ind+1, P, Op) of
+        {error, Reason} -> {error, Reason};
+        Fl ->
+            case foldb(Ind+1, Op, {select,L}) of
+                {error, Reason} -> {error, Reason};
+                Fr -> mk_box(Ind, lists:flatten([Fl, Fr]), <<>>)
+            end
+    end;
+
 foldb(Ind, P, {Op, R}) when is_atom(Op), is_tuple(R) ->
     Bo = binding(Op),
     Br = binding(R),
@@ -909,16 +974,17 @@ mk_box(Ind, [L,Op,R], Name) ->
     ON = bStr(Op#box.name), 
     Coll = case lists:member(ON,[<<"=">>,<<"<>">>,<<">">>,<<"<">>,<<">=">>,<<"<=">>,<<"in">>,<<"is">>,<<"like">>]) of
         false ->    false;
-        true ->     false % (lists:sum([byte_size(flat_from_box(Ch)) || Ch <- [L,Op,R]]) < ?DefCollLen)
+        true ->     (lists:sum([byte_size(flat_from_box(Ch)) || Ch <- [L,Op,R]]) < ?DefCollLen)
     end,
     #box{ind = Ind, collapsed = Coll, children = [L,Op,R], name = bStr(Name)};
 mk_box(Ind, Children, Name) ->
     #box{ind = Ind, collapsed = false, children = Children, name = bStr(Name)}.
 
 -spec foldb_commas([#box{}]) -> list() | {error, binary()}.
+foldb_commas([]) -> [];
 foldb_commas(Boxes) when is_list(Boxes) ->
     validate_children(Boxes),
-    Comma = (hd(Boxes))#box{children=[],name=bStr(<<",">>)},
+    Comma = (hd(Boxes))#box{children=[],name= <<",">>},
     [_|Result] = lists:flatten([[Comma,B] || B <- Boxes]),
     Result;
 foldb_commas(Boxes) ->
@@ -928,7 +994,7 @@ foldb_commas(Boxes) ->
 -spec foldb_concat([#box{}]) -> list() | {error, binary()}.
 foldb_concat(Boxes) when is_list(Boxes) ->
     validate_children(Boxes),
-    Comma = (hd(Boxes))#box{children=[],name=bStr(<<"||">>)},
+    Comma = (hd(Boxes))#box{children=[],name= <<"||">>},
     [_|Result] = lists:flatten([[Comma,B] || B <- Boxes]),
     Result;
 foldb_concat(Boxes) ->
@@ -989,7 +1055,19 @@ any_to_bin(C) -> list_to_binary(lists:nth(1, io_lib:format("~p", [C]))).
 
 %% TESTS ------------------------------------------------------------------
 
+-define(Filter,<<"s">>).   % pick only queries which contain this string <<"/*+033*/">>
+-define(LogOrig,false).
+-define(LogParseTree,false).
+-define(LogSqlBox,false).
+-define(LogFlat,false).
+-define(LogPretty,false).
+-define(LogPrettyDiff,false).
+
 -include_lib("eunit/include/eunit.hrl").
+
+print_parse_tree(ParseTree) -> io_lib:format("ParseTree:~n~p~n~n", [ParseTree]).
+
+print_box(Box) -> io_lib:format("Box:~n~p~n~n", [Box]).
 
 setup() -> ok.
 
@@ -1030,10 +1108,12 @@ test_sqlb(_) ->
     io:format(user, "|     S Q L  B O X  T E S T     |~n", []),
     io:format(user, "=================================~n", []),
     LoggerPid = spawn(fun() -> log_process([]) end),
+    Pred = fun(Str) -> (binary:match(Str, ?Filter) =/= nomatch) end,
+    TestQueries = lists:filter(Pred,?TEST_SELECT_QUERIES),
     Pids = [spawn(fun() ->
-        Log = sqlb_loop(false, Sql),
+        Log = sqlb_loop(Sql),
         LoggerPid ! {log, Idx, Log}
-    end) || {Idx, Sql} <- lists:zip(lists:seq(1, length(?TEST_SELECT_QUERIES)), ?TEST_SELECT_QUERIES)],
+    end) || {Idx, Sql} <- lists:zip(lists:seq(1, length(TestQueries)), TestQueries)],
     io:format(user, "Number of testing processes ~p~n", [length(Pids)]),
     wait_processes(LoggerPid, Pids).
 
@@ -1049,27 +1129,34 @@ log_process(Logs) ->
                       , lists:sort(Logs))
     end.
 
-sqlb_loop(PrintParseTree, Sql) ->
+sqlb_loop(Sql) ->
     case re:run(Sql, "select", [global, {capture, all, list}, caseless]) of
         nomatch ->  "";
         _ ->
             try
-                Log1 = io_lib:format("Orig:~n~s~n", [Sql]),
+                SqlLen = byte_size(Sql),
+                Log0 = if 
+                    ?LogOrig ->     io_lib:format("~s~n", [Sql]);
+                    (SqlLen<50) ->  io_lib:format("~s~n", [Sql]);  
+                    true ->         io_lib:format("~s...~n", [binary:part(Sql,0, 50)]) 
+                end, 
+                put(log,Log0),
                 {ok, [{ParseTree,_}|_]} = sqlparse:parsetree(Sql),
-                Log2 = Log1 ++
-                if PrintParseTree =:= true ->
-                    print_parse_tree(ParseTree);
-                true -> ""
-                end,
+                Log1 = Log0 ++ if ?LogParseTree -> print_parse_tree(ParseTree); true -> "" end,
+                put(log,Log1),
                 SqlBox = foldb(ParseTree),
+                Log2 = Log1 ++ if ?LogSqlBox -> print_box(SqlBox); true -> "" end,
+                put(log,Log2),
                 ?assertMatch(#box{ind=0},SqlBox),
                 ?assert(is_list(validate_box(SqlBox))),
                 FlatSql = (catch flat_from_box(SqlBox)),
-                Log3 = Log2 ++ io_lib:format("Flat:~n~s~n", [FlatSql]),
+                Log3 = Log2 ++ if ?LogFlat -> io_lib:format("Flat:~n~s~n", [FlatSql]); true -> "" end,
+                put(log,Log3),
                 {ok, [{FlatSqlParseTree,_}|_]} = sqlparse:parsetree(FlatSql),
                 ?assertEqual(ParseTree, FlatSqlParseTree),
-                PrettySqlExp = (catch pretty_from_box_exp(SqlBox)),
-                Log4 = Log3 ++ io_lib:format("Pretty:~n~s~n", [PrettySqlExp]),
+                PrettySqlExp = (catch pretty_from_box(SqlBox)),     % pretty_from_box_exp
+                Log4 = Log3 ++ if ?LogPretty -> io_lib:format("Pretty:~n~s~n", [PrettySqlExp]); true -> "" end,
+                put(log,Log4),
                 {ok, [{PrettySqlParseTree,_}|_]} = sqlparse:parsetree(PrettySqlExp),
                 ?assertEqual(ParseTree, PrettySqlParseTree),
                 CleanSql = clean(Sql),
@@ -1077,15 +1164,16 @@ sqlb_loop(PrintParseTree, Sql) ->
                 Log5 = case str_diff(CleanSql,CleanPrettySqlExp) of
                     same -> Log4;
                     Diff ->
-                        Log4 ++ io_lib:format("Sql Difference: ~p~n", [Diff])
+                        Log4 ++ if ?LogPrettyDiff -> io_lib:format("Sql Difference: ~p~n", [Diff]); true -> "" end
                 end,
-                ?assertEqual(CleanSql,CleanPrettySqlExp),
+                put(log,Log5),
+                % ?assertEqual(CleanSql,CleanPrettySqlExp),
+                % io:format(user, "~s~n", [jsx:prettify(jsx:encode(box_to_json(SqlBox)))]),
                 Log5
-                %print_box(SqlBox),
-                %io:format(user, "~s~n", [jsx:prettify(jsx:encode(box_to_json(SqlBox)))])
             catch
                 Class:Reason ->
-                    io_lib:format("Exception ~p:~p~n~p~n", [Class, Reason, erlang:get_stacktrace()])
+                    Log = lists:flatten(get(log)),
+                    io_lib:format("Exception ~p:~p~n~s~n~p~n", [Class, Reason, Log, erlang:get_stacktrace()])
             end
     end.
 
@@ -1107,12 +1195,6 @@ pretty_from_box_exp(#box{ind=Ind,name=Name,children=CH}) ->
     lists:flatten(["\r\n",lists:duplicate(Ind,9),binary_to_list(Name),[pretty_from_box_exp(C) || C <-CH]]);
 pretty_from_box_exp([Box|Boxes]) ->
     lists:flatten([pretty_from_box_exp(Box),pretty_from_box_exp(Boxes)]).
-
-print_parse_tree(ParseTree) -> io_lib:format("ParseTree:~n~p~n~n", [ParseTree]).
-
-% print_box(_Box) ->
-%     io:format(user, "~p~n~n", [_Box]),
-%     ok.
 
 -define(REG_COL, [
     {"(--.*[\n\r]+)",                             " "}    % comments                      -> removed

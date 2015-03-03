@@ -268,7 +268,8 @@ function insertAtCursor(myField, myValue) {
             .append(
               $('<div>')
               .css('background-color', paramsBg)
-              .css("overflow", "auto")
+              .css("overflow-x", "hidden")
+              .css("overflow-y", "auto")
               .attr('id','tabparams')
               .append(self._paramsDiv)
             )
