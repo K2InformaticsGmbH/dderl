@@ -203,3 +203,5 @@ rel/rpmbuild/SRPMS
 rel/rpmbuild/SPECS
 
 rel/erlpkg*
+
+.rebar
