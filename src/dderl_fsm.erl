@@ -313,7 +313,7 @@ fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun
         %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
         %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
         ok -> 
-            % ?Debug("fetch(~p, ~p) ok", [FetchMode, TailMode]),
+            % ?Info("fetch(~p, ~p, ~p) ok", [FetchMode, TailMode, State0#state.pfc+1]),
             State0#state{pfc=State0#state.pfc+1};
         {_, Error} -> 
             ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Error]),
@@ -697,6 +697,7 @@ filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
     NewGuiBot = State1#state.guiBot,
+    % ?Info("filling rows false ~p ~p ~p",[length(Recs),NewBufBot,NewGuiBot]),
     State2 = if
         (Button == <<">">>) ->      prefetch(filling,State1);
         (Button == <<">>">>) ->     prefetch(filling,State1);
@@ -1605,15 +1606,18 @@ gui_append(GuiResult,#state{nav=ind,bl=BL,tableId=TableId,guiCnt=0}=State0) ->
     end;
 gui_append(GuiResult,#state{nav=ind,bl=BL,gl=GL,tableId=TableId,guiCnt=GuiCnt,guiBot=GuiBot}=State0) ->
     Keys=keys_after(GuiBot, BL, State0),
-    Cnt = length(Keys),
-    Rows = rows_for_keys(Keys,TableId),
-    {NewGuiCnt,NewGuiTop,NewGuiBot} = case keys_before(GuiBot,min(GuiCnt-1,GL-Cnt-1),State0) of
-        [] ->       {Cnt+1,GuiBot,lists:last(Keys)};
-        KeysKept -> {length(KeysKept)+Cnt+1,hd(KeysKept),lists:last(Keys)}
-    end,
-    ?NoDbLog(debug, [], "gui_append  ~p .. ~p ~p ~p", [NewGuiTop, NewGuiBot, GuiResult#gres.state, GuiResult#gres.loop]),
-    State1 = State0#state{guiCnt=NewGuiCnt,guiTop=NewGuiTop,guiBot=NewGuiBot},
-    gui_response(GuiResult#gres{operation= <<"app">>,rows=Rows,keep=NewGuiCnt}, State1).
+    case length(Keys) of
+        0 ->   
+            gui_response(GuiResult#gres{operation= <<"nop">>},State0);
+        Cnt ->  
+            Rows = rows_for_keys(Keys,TableId),
+            {NewGuiCnt,NewGuiTop,NewGuiBot} = case keys_before(GuiBot,min(GuiCnt-1,GL-Cnt-1),State0) of
+                [] ->       {Cnt+1,GuiBot,lists:last(Keys)};
+                KeysKept -> {length(KeysKept)+Cnt+1,hd(KeysKept),lists:last(Keys)}
+            end,
+            State1 = State0#state{guiCnt=NewGuiCnt,guiTop=NewGuiTop,guiBot=NewGuiBot},
+            gui_response(GuiResult#gres{operation= <<"app">>,rows=Rows,keep=NewGuiCnt}, State1)
+    end.
 
 -spec serve_top(atom(), #state{}) -> #state{}.
 serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
@@ -1834,51 +1838,53 @@ serve_stack(SN, #state{tRef=TRef} = State) when TRef =/= undefined ->
 serve_stack( _, #state{stack=undefined}=State) ->
     % no stack, nothing .. do
     State;
+serve_stack(aborted, #state{stack={button,But,RT}}=State0) when But== <<"|<">>;But== <<"<">>;But== <<"<<">> ->
+    % deferred button can be executed for backward button <<"<">> 
+    serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
+serve_stack(aborted, #state{stack={button,_Button,RT}}=State0) ->
+    % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
+    serve_bot(aborted,<<>>,State0#state{stack=undefined,replyToFun=RT});
+
 serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,stack={button,Button,RT}}=State0) when
       Button =:= <<">">>;
       Button =:= <<">>">>;
       Button =:= <<">|">>;
       Button =:= <<">|...">>;
       Button =:= <<"more">> ->
-    ?NoDbLog(debug, [], "~p stack exec ~p when guiCol true", [completed,Button]),
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack( _SN, #state{nav=ind,bufBot=B,guiBot=B}=State) -> 
-    % ?Info("serve_stack at end of buffer ~p (NOP)",[B]),
-    % gui is current at the end of the buffer, no new interesting data, nothing .. do
-    State;
-serve_stack(completed, #state{stack={button,<<"<">>,RT}}=State0) ->
-    % deferred button can be executed for backward button <<"<">> 
-    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,<<"<">>]),
+% serve_stack( _SN, #state{nav=ind,bufBot=B,guiBot=B}=State) -> 
+%     % ?Info("serve_stack at end of buffer ~p (NOP)",[B]),
+%     % gui is current at the end of the buffer, no new interesting data, nothing to do
+%     State;
+serve_stack(completed, #state{stack={button,But,RT}}=State0) when But== <<"|<">>; But== <<"<">>; But== <<"<<">> ->
     serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
-serve_stack(completed, #state{stack={button,<<"<<">>,RT}}=State0) ->
-    % deferred button can be executed for backward button <<"<<">> 
-    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,<<"<<">>]),
-    serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
+serve_stack(completed, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
+    serve_top(completed,State0#state{stack=undefined,replyToFun=RT});
 serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
-    ?NoDbLog(debug, [], "~p stack exec ~p", [completed,_Button]),
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(aborted, #state{stack={button,<<"<">>,RT}}=State0) ->
-    % deferred button can be executed for backward button <<"<">> 
-    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,<<"<">>]),
-    serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
-serve_stack(aborted, #state{stack={button,<<"<<">>,RT}}=State0) ->
-    % deferred button can be executed for backward button <<"<<">> 
-    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,<<"<<">>]),
-    serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
-serve_stack(aborted, #state{stack={button,_Button,RT}}=State0) ->
-    % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
-    ?NoDbLog(debug, [], "~p stack exec ~p", [aborted,_Button]),
-    serve_bot(aborted,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
-    KeysBefore = keys_before(BufBot,BL-1,State0),
-    IsMember = KeysBefore == [] orelse lists:member(GuiBot, keys_before(BufBot,BL-1,State0)),
-    case IsMember of
-        false ->    % deferred forward can be executed now
-                    ?NoDbLog(debug, [], "~p stack exec ~p", [SN,<<">">>]),
-                    gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
-        true ->     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
-    end;
+
+serve_stack(filling, #state{nav=raw,stack={button,<<">">>,_},gl=GL,bufBot=BufBot,guiCnt=0}=State) when BufBot<GL ->
+    % delay serving received rows, trying to get a full block for first serve
+    % ?Info("skipping raw serve at ~p",[BufBot]),
+    State;
+serve_stack(filling, #state{nav=ind,stack={button,<<">">>,_},gl=GL,bufBot=_BufBot,indCnt=IndCnt,guiCnt=0}=State) when IndCnt<GL ->
+    % delay serving received rows, trying to get a full gui block of sorted data before first serve
+    % ?Info("skipping ind serve at ~p (~p)",[_BufBot,IndCnt]),
+    State;
+serve_stack(filling, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
+    serve_top(filling,State0#state{stack=undefined,replyToFun=RT});
+% serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
+%     KeysBefore = keys_before(BufBot,BL-1,State0),
+%     IsMember = KeysBefore == [] orelse lists:member(GuiBot, keys_before(BufBot,BL-1,State0)),
+%     case IsMember of
+%         false ->    % deferred forward can be executed now
+%                     ?NoDbLog(debug, [], "~p stack exec ~p", [SN,<<">">>]),
+%                     ?Info("gui_append at ~p",[BufBot]),
+%                     gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
+%         true ->     ?Info("skip serve at ~p",[BufBot]),
+%                     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
+%     end;
 serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiTop}=State0) ->
     if
         (BufTop == GuiTop) -> State0#state{tailLock=true}; % No new data, keep the stack
@@ -1893,31 +1899,26 @@ serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiT
 serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     case lists:member(GuiBot,keys_before(BufBot,GL-1,State0)) of
         false ->    % deferred forward can be executed now
-                    ?Debug("~p stack exec ~p", [SN,<<">>">>]),
                     serve_bot(SN,<<"">>,State0#state{tailLock=true,stack=undefined, replyToFun=RT});
         true ->     State0#state{tailLock=true}  % buffer has not grown by 1 max gui length yet, keep the stack
     end;
 serve_stack(SN, #state{bufCnt=BufCnt,stack={button,Target,RT}}=State0) when is_integer(Target), (BufCnt>=Target) ->
     % deferred target can be executed now
-    ?NoDbLog(debug, [], "~p stack exec ~p", [SN,Target]),
     serve_target(SN,Target,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(tailing, #state{stack={button,<<">|...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
 serve_stack(tailing, #state{stack={button,<<"...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
 serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol,stack={button,<<"tail">>,RT},tailLock=TailLock,replyToFun=ReplyTo}=State0) ->
-    ?NoDbLog(debug, [], "~p serve_stack ~p", [tailing,<<"tail">>]),
     if
         TailLock -> 
             reply_stack(tailing, ReplyTo, State0);                  % tailing is cancelled
         (BufCnt == 0) -> State0;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State0;     % no new data, nothing to do, keep stack
         (GuiCnt == 0) ->                                            % (re)initialize to buffer bottom
-            ?Debug("~p stack exec ~p", [tailing,<<"tail">>]),
             serve_bot(tailing,<<"tail">>,State0#state{stack=undefined,replyToFun=RT});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?NoDbLog(debug, [], "~p stack exec ~p", [tailing,<<"tail">>]),
             gui_append(#gres{state=tailing,loop= <<"tail">>,focus=-1},State0#state{stack=undefined,replyToFun=RT})
     end;
 serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<"more">>, ReplyTo}} = State) ->
@@ -1926,11 +1927,9 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
         (GuiCnt == 0) ->                                            % (re)initialize to buffer bottom
-            ?Debug("~p stack exec ~p", [autofilling,<<"more">>]),
             serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<"more">>]),
             gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
 serve_stack(_SN, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
@@ -1938,11 +1937,9 @@ serve_stack(_SN, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
         (GuiCnt == 0) ->                                            % (re)initialize to buffer bottom
-            ?Debug("~p stack exec ~p", [autofilling,<<">|">>]),
             serve_bot(autofilling, <<">|">>, State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("Guicnt != 0 ~p ~p", [autofilling,<<"more">>]),
             gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
 serve_stack(filling, #state{stack = {button, <<"more">>, ReplyTo}} = State) ->
@@ -1952,15 +1949,13 @@ serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
         (GuiCnt == 0) ->                                           % (re)initialize to buffer bottom
-            ?Debug("stack exec ~p", [integer_to_binary(Target)]),
             serve_bot(filling, integer_to_binary(Target), State#state{stack = undefined, replyToFun = ReplyTo});
         true ->
             % serve new data at the bottom of the buffer, ask client to come back
-            ?Debug("Guicnt != 0 ~p", [integer_to_binary(Target)]),
             gui_append(#gres{state = filling, loop = integer_to_binary(Target), focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
-serve_stack(SN , #state{stack = Stack} = State) ->
-    ?Debug("~p serve_stack nop~p", [SN, Stack]),
+serve_stack(_SN , #state{stack = _Stack} = State) ->
+    % ?Info("~p serve_stack nop~p", [_SN, _Stack]),
     State.
 
 -spec rows_after(integer(), integer(), #state{}) -> list().
