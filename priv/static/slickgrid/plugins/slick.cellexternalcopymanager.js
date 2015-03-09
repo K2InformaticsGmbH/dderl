@@ -248,8 +248,9 @@
             console.log(getTime() + " Rows split "+clipText.length+" bytes");
             clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
             var last = clipRows.pop();
-            if(last)
+            if(last) {
                 clipRows.push(last);
+            }
             console.log(getTime() + " Rows " + clipRows.length);
             var clpdRange = [];
             setTimeout(function() {
@@ -265,8 +266,9 @@
             setTimeout(function() {
                 var newClpRows = clpRows.splice(0, Math.min(200, clpRows.length));
                 var startClipIdx = clpdRange.length;
-                for (var i = 0; i < newClpRows.length; i++)
+                for (var i = 0; i < newClpRows.length; i++) {
                     clpdRange[startClipIdx + i] = newClpRows[i].split("\t");
+                }
                 console.log(getTime() + " Cell split processed " + clpdRange.length +
                                         " remaining "+clpRows.length);
                 processRowsInGroups(clpRows, clpdRange);
@@ -329,9 +331,10 @@
       var addRows = 0;
       if(availableRows < destH)
       {
-        var d = _grid.getData();
-        if (_grid.getData() instanceof Slick.Data.DataView)
-            d = _grid.getData().getItems();
+          var d = _grid.getData();
+          if (_grid.getData() instanceof Slick.Data.DataView) {
+              d = _grid.getData().getItems();
+          }
 
         for(addRows = 1; addRows <= destH - availableRows; addRows++) {
             d.push({id: -addRows});
@@ -388,7 +391,11 @@
                 this.oldValues[y] = [];
                 this.w=0;
                 this.h++;
-                for (var x = 0; x < destW; x++) {
+                var rowW = destW;
+                if(!oneCellToMultiple) {
+                    rowW = clippedRange[y].length;
+                }
+                for (var x = 0; x < rowW; x++) {
                     this.w++;
                     var desty = activeRow + y;
                     var destx = activeCell + x;
@@ -396,10 +403,11 @@
                     if (desty < this.maxDestY && destx < this.maxDestX ) {
                         var nd = _grid.getCellNode(desty, destx);
                         var dt = null;
-                        if (_grid.getData() instanceof Slick.Data.DataView)
+                        if (_grid.getData() instanceof Slick.Data.DataView) {
                             dt = _grid.getData().getItems()[desty];
-                        else
+                        } else {
                             dt = _grid.getDataItem(desty);
+                        }
 
                         if (dt != undefined) {
                             this.oldValues[y][x] = dt[columns[destx]['id']];
