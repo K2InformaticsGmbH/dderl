@@ -438,9 +438,7 @@ function show_qry_files(useSystem)
         autoOpen     : false,
         dderlConn    : dderlState.connection,
         dderlAdapter : dderlState.adapter,
-        title        : "All Views",
-        dderlStartBtn: ">|",
-        dderlDoneBtn : "|<"
+        title        : "All Views"
     })
     .table('loadViews', useSystem);
 }

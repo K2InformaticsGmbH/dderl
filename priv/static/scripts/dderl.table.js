@@ -37,7 +37,6 @@
 
     // start button
     _startBtn       : null,
-    _doneBtn        : null,
     _cmdStrs        : null,
     _divSqlEditor   : null,
 
@@ -182,7 +181,6 @@
         dderlTbllay       : null,
         dderlViewId       : null,
         dderlStartBtn     : '>',
-        dderlDoneBtn      : null,
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
     },
@@ -207,7 +205,6 @@
         if(self.options.dderlTbllay     !== self._tbllay)   self._tbllay    = self.options.dderlTbllay;
         if(self.options.dderlViewId     !== self._viewId)   self._viewId    = self.options.dderlViewId;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
-        if(self.options.dderlDoneBtn    !== self._doneBtn)  self._doneBtn   = self.options.dderlDoneBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
         if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
             self._divSqlEditor = self.options.dderlSqlEditor;
@@ -1897,10 +1894,6 @@
             }
             self._gridColumnsReorder();
             self.buttonPress(self._startBtn);
-            if(_views.name === "All Views" && self._startBtn === ">|") {
-                // Make sure to not hang if it is the first load.
-                setTimeout(function() {self.buttonPress(self._startBtn);}, 50);
-            }
         }
         // If this is a view we add it to the current views
         addToCurrentViews(this);
@@ -2055,17 +2048,10 @@
 
             // command back request
             if(_rows.loop.length > 0 && !self._divDisable) {
-                var tmpLoop;
-                if(_rows.loop === ">" && self.options.title === "All Views") {
-                    tmpLoop = ">|";
-                } else {
-                    tmpLoop = _rows.loop;
-                }
-
                 if (self._grid.getCellEditor()) {
-                    self._loop = tmpLoop;
+                    self._loop = _rows.loop;
                 } else {
-                    self.buttonPress(tmpLoop);
+                    self.buttonPress(_rows.loop);
                 }
             }
         } else if(_rows.hasOwnProperty('error')) {
@@ -3267,11 +3253,6 @@
             self._grid.setActiveCell(self._pendingEditorCell.row + 1,
                                      self._pendingEditorCell.cell);
             delete self._pendingEditorCell;
-        }
-        if(self._doneBtn && _rows.state === "completed") {
-            var tmpDoneBtn = self._doneBtn;
-            self._doneBtn = null;
-            setTimeout(function() { self.buttonPress(tmpDoneBtn); }, 50);
         }
         //console.timeEnd('appendRows');
         //console.profileEnd();
