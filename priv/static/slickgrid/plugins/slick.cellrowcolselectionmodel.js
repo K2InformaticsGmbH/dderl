@@ -170,10 +170,9 @@
                     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
                         if(col === 0) {
                             _grid.setActiveCell(newActiveRowPos, 1);
-                            _ranges = [];
-                            var range = new Slick.Range(0, 1, maxRow, _grid.getColumns().length - 1);
+                            var range = new Slick.Range(0, 0, maxRow, _grid.getColumns().length - 1);
                             range.fullCol = true;
-                            _ranges.push(range);
+                            _ranges = [range];
                             setSelectedRanges(_ranges);
                         } else {
                             _grid.setActiveCell(newActiveRowPos, col);
@@ -214,10 +213,9 @@
             if(e.ctrlKey && e.keyCode === 65) {
                 var maxRow = _grid.getDataLength() - 1;
                 _grid.setActiveCell(0, 1);
-                _ranges = [];
-                for(var i = 1; i < _grid.getColumns().length; ++i) {
-                    _ranges.push(createFullColRange(0, i, maxRow, i));
-                }
+                var range = new Slick.Range(0, 0, maxRow, _grid.getColumns().length - 1);
+                range.fullCol = true;
+                _ranges = [range];
                 setSelectedRanges(_ranges);
                 e.preventDefault();
                 e.stopPropagation();
