@@ -1527,6 +1527,7 @@
         self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
         self._grid.onMouseEnter.subscribe($.proxy(self._handleMouseEnter, self));
         self._grid.onMouseLeave.subscribe($.proxy(self._handleMouseLeave, self));
+        self._grid.onSelectedRowsChanged.subscribe($.proxy(self._handleSelectionChanged, self));
 
         // wire up model events to drive the grid
         self._gridDataView.onRowCountChanged.subscribe(function (e, args) {
@@ -2636,6 +2637,13 @@
         self._removeImgPreview();
     },
 
+      _handleSelectionChanged: function(e, args) {
+          var self = this;
+          var columns = self._grid.getColumns();
+          columns[0].name = args.rows.length.toString();
+          self._grid.setColumns(columns);
+      },
+
     _addImgPreview: function(value, top, left) {
         var self = this;
         self._imagePreview = $('<div><img src="'+value+'"></div>')
@@ -2934,6 +2942,7 @@
         var fldWidth = 0;
         self._origcolumns = {};
         columns[0].formatter = Slick.Formatters.IdFormatter;
+        columns[0].headerCssClass = "numeric";
         for (var i = 1; i < columns.length; ++i) {
             if(columns[i].type == "numeric") {
                 columns[i].cssClass = "numeric";
