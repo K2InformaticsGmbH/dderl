@@ -154,10 +154,3 @@
 
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
-
-% Config getter
--define(GET_DDERL_CONFIG(__PName,__Context,__Default),
-        dderl_dal:get_config_hlk(ddConfig, {dderl,?MODULE,__PName}, ?MODULE,
-                                 lists:flatten([__Context,node()]),__Default)
-       ).
-

@@ -64,7 +64,7 @@ start(_Type, _Args) ->
     % adding lager imem handler (after IMEM start)
     LogTableNameFun =
         fun() ->
-            ?GET_DDERL_CONFIG(dderlLogTable,[],'dderlLog_86400@')
+            ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@')
         end,
     ok = gen_event:add_handler(
            lager_event, {imem_lager_backend, dderl},
