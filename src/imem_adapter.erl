@@ -710,12 +710,12 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
         {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("query error ~p", [Error], Stacktrace),
+            ?Error("Error on query ~p: ~p", [Query, Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
         {error, {Ex,M}} ->
-            ?Error("query error ~p", [{Ex,M}]),
+            ?Error("Error on query ~p: ~p", [Query, {Ex,M}]),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
