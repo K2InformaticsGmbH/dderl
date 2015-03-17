@@ -1,3 +1,6 @@
+-ifndef(DDERL_HRL).
+-define(DDERL_HRL, true).
+
 -include_lib("imem/include/imem_meta.hrl").
 
 -define(DEFAULT_ROW_SIZE, 100).
@@ -154,3 +157,5 @@
 
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
+
+-endif.

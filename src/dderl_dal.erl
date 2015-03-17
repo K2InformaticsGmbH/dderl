@@ -13,8 +13,7 @@
         ,format_status/2
         ]).
 
--export([get_config_hlk/5
-        ,get_adapters/1
+-export([get_adapters/1
         ,login/3
         ,change_password/4
         ,add_adapter/2
@@ -34,7 +33,6 @@
         ,is_admin/1
         ,save_dashboard/5
         ,get_dashboards/2
-        ,get_maxrowcount/0
         ,add_adapter_to_cmd/3
         ]).
 
@@ -206,9 +204,6 @@ delete_view(Sess, ViewId) ->
             {error, <<"Unable to find the view to delete">>}
     end.
 
-get_config_hlk(Table,Key,Owner,Context,Default) ->
-    imem_meta:get_config_hlk(Table,Key,Owner,Context,Default).
-
 -spec get_adapters({atom(), pid()}) -> {error, binary()} | [#ddAdapter{}].
 get_adapters(Sess) ->
     ?Debug("get_adapters"),
@@ -321,10 +316,6 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) ->
     end,
     Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     CmdId.
-
--spec get_maxrowcount() -> integer().
-get_maxrowcount() ->
-    imem_meta:get_config_hlk(ddConfig, {imem, imem_sql_expr, rownumDefaultLimit}, imem_sql_expr, [node()], 10000).
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(SchemaName) ->

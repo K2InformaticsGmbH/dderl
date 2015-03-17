@@ -477,7 +477,7 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                                    {error, _Error} -> undefined;
                                    BindVals0 -> BindVals0
                                end,
-                    case dderloci:exec(Connection, Query, BindVals, dderl_dal:get_maxrowcount()) of
+                    case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
@@ -533,7 +533,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    case dderloci:exec(Connection, Query, dderl_dal:get_maxrowcount()) of
+    case dderloci:exec(Connection, Query, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(Clms),
             From ! {reply_csv, FileName, Columns, first},
@@ -622,11 +622,11 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 -spec process_query(tuple()|binary(), tuple(), pid()) -> list().
 process_query({Query, BindVals}, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query, BindVals,
-                                           dderl_dal:get_maxrowcount())),
+                                           ?GET_ROWNUM_LIMIT)),
                   Query, BindVals, Connection, SessPid);
 process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query,
-                                           dderl_dal:get_maxrowcount())),
+                                           ?GET_ROWNUM_LIMIT)),
                   Query, [], Connection, SessPid).
 
 -spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
