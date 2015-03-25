@@ -100,6 +100,7 @@ expand_auto(Term, _Col) when is_atom(Term);
                              is_integer(Term);
                              is_float(Term)  -> {false, io_lib:format("~w", [Term])};
 expand_auto(Term, _Col) when is_binary(Term) -> {false, io_lib:format("~p", [Term])};
+expand_auto(Term, _Col) when is_map(Term)    -> {false, io_lib:format("~p", [Term])};
 expand_auto({First, Second}, Col)            ->
     case expand_auto(First, Col+1) of
         {true, FirstResult} ->
