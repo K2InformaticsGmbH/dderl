@@ -82,11 +82,13 @@ rtrim(B) ->
     end.
 
 -spec pretty_from_pt(term()) -> binary() | {error, binary()}.
-pretty_from_pt(ParseTree) ->
+pretty_from_pt(#box{name=N} = ParseTree) when N=='select';N=='union';N=='union all' ->
     case foldb(ParseTree) of
         {error, Reason} -> {error, Reason};
         SqlBox -> pretty_from_box(SqlBox)
-    end.
+    end;
+pretty_from_pt(ParseTree) ->
+    {error, {not_implemented_for, ParseTree}}.
 
 -spec pretty_from_box([#box{}] | #box{}) -> binary().
 pretty_from_box([]) -> [];
@@ -104,7 +106,7 @@ pretty_from_box([Box|Boxes]) ->
 
 indent(Ind) -> lists:duplicate(Ind*2,32).
 
-boxed_from_pt(ParseTree) ->
+boxed_from_pt(#box{name=N} = ParseTree) when N=='select';N=='union';N=='union all' ->
     try
         case foldb(ParseTree) of
             {error, _} = Error -> Error;
@@ -112,7 +114,10 @@ boxed_from_pt(ParseTree) ->
         end
     catch
         _:R -> {error, {R, erlang:get_stacktrace()}}
-    end.
+    end;
+boxed_from_pt(ParseTree) ->
+    {error, {not_implemented_for, ParseTree}}.
+
 
 %% Operator Binding Power -------------------------------
 
@@ -1186,15 +1191,15 @@ validate_box([Box|Boxes]) ->
     validate_box(Box),
     validate_box(Boxes).
 
-pretty_from_box_exp([]) -> "";
-pretty_from_box_exp(#box{ind=Ind,name=Name,children=[]}) ->
-    lists:flatten(["\r\n",lists:duplicate(Ind,9),binary_to_list(Name)]);
-pretty_from_box_exp(#box{name= <<>>,children=CH}) ->
-    lists:flatten([[pretty_from_box_exp(C) || C <-CH]]);
-pretty_from_box_exp(#box{ind=Ind,name=Name,children=CH}) ->
-    lists:flatten(["\r\n",lists:duplicate(Ind,9),binary_to_list(Name),[pretty_from_box_exp(C) || C <-CH]]);
-pretty_from_box_exp([Box|Boxes]) ->
-    lists:flatten([pretty_from_box_exp(Box),pretty_from_box_exp(Boxes)]).
+% pretty_from_box_exp([]) -> "";
+% pretty_from_box_exp(#box{ind=Ind,name=Name,children=[]}) ->
+%     lists:flatten(["\r\n",lists:duplicate(Ind,9),binary_to_list(Name)]);
+% pretty_from_box_exp(#box{name= <<>>,children=CH}) ->
+%     lists:flatten([[pretty_from_box_exp(C) || C <-CH]]);
+% pretty_from_box_exp(#box{ind=Ind,name=Name,children=CH}) ->
+%     lists:flatten(["\r\n",lists:duplicate(Ind,9),binary_to_list(Name),[pretty_from_box_exp(C) || C <-CH]]);
+% pretty_from_box_exp([Box|Boxes]) ->
+%     lists:flatten([pretty_from_box_exp(Box),pretty_from_box_exp(Boxes)]).
 
 -define(REG_COL, [
     {"(--.*[\n\r]+)",                             " "}    % comments                      -> removed
