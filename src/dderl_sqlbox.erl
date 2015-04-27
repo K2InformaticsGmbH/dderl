@@ -82,13 +82,18 @@ rtrim(B) ->
     end.
 
 -spec pretty_from_pt(term()) -> binary() | {error, binary()}.
-pretty_from_pt(#box{name=N} = ParseTree) when N=='select';N=='union';N=='union all' ->
+pretty_from_pt({select,_} = ParseTree) ->
+    try_pretty_from_pt(ParseTree);
+pretty_from_pt({N,_,_} = ParseTree) when N=='union';N=='union all' ->
+    try_pretty_from_pt(ParseTree);
+pretty_from_pt(_ParseTree) ->
+    {error, <<"Boxing is not yet implemented for this SQL statement">>}.
+
+try_pretty_from_pt(ParseTree) ->
     case foldb(ParseTree) of
         {error, Reason} -> {error, Reason};
         SqlBox -> pretty_from_box(SqlBox)
-    end;
-pretty_from_pt(ParseTree) ->
-    {error, {not_implemented_for, ParseTree}}.
+    end.
 
 -spec pretty_from_box([#box{}] | #box{}) -> binary().
 pretty_from_box([]) -> [];
@@ -106,7 +111,15 @@ pretty_from_box([Box|Boxes]) ->
 
 indent(Ind) -> lists:duplicate(Ind*2,32).
 
-boxed_from_pt(#box{name=N} = ParseTree) when N=='select';N=='union';N=='union all' ->
+boxed_from_pt({select,_} = ParseTree) ->
+    try_boxed_from_pt(ParseTree);
+boxed_from_pt({N,_,_} = ParseTree) when N=='union';N=='union all' ->
+    try_boxed_from_pt(ParseTree);
+boxed_from_pt(_ParseTree) ->
+    {error, <<"Boxing is not yet implemented for this SQL statement">>}.
+
+
+try_boxed_from_pt(ParseTree) ->
     try
         case foldb(ParseTree) of
             {error, _} = Error -> Error;
@@ -114,10 +127,7 @@ boxed_from_pt(#box{name=N} = ParseTree) when N=='select';N=='union';N=='union al
         end
     catch
         _:R -> {error, {R, erlang:get_stacktrace()}}
-    end;
-boxed_from_pt(ParseTree) ->
-    {error, {not_implemented_for, ParseTree}}.
-
+    end.
 
 %% Operator Binding Power -------------------------------
 
