@@ -389,7 +389,7 @@
                 row_ids     : self._rowIds
             };
 
-            self._ajax('/app/'+type, reqObj, type, 'statsLoadResult');
+            self._ajax(type, reqObj, type, 'statsLoadResult');
         },
 
         open: function(stats) {
@@ -792,7 +792,7 @@
 
         // loading rows
         buttonPress: function(button) {
-            ajaxCall(this, '/app/button', {button: {connection: dderlState.connection,
+            ajaxCall(this, 'button', {button: {connection: dderlState.connection,
                                                     statement : this._stmt,
                                                     btn       : button
                                                    }}, 'button', 'updateData');
@@ -901,7 +901,7 @@
                 row_ids     : self._rowIds
             };
 
-            self._ajax('/app/'+cmd, reqObj, cmd, 'statsResult');
+            self._ajax(cmd, reqObj, cmd, 'statsResult');
         },
 
         _toolBarTxtBox: function(self) {

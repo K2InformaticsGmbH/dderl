@@ -412,7 +412,7 @@
             var viewName = prompt("View new name",this.options.title);
             console.log("saving "+this._viewId+" with name "+viewName);
             var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('/app/view_op', renameView, 'view_op', 'opViewResult');
+            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
         }
     },
 
@@ -424,7 +424,7 @@
             var self = this;
             console.log("deleting a view "+this._viewId+" with name "+this.options.title);
             var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
-            self._ajax('/app/view_op', delView, 'view_op', 'opViewResult');
+            self._ajax('view_op', delView, 'view_op', 'opViewResult');
         }
     },
 
@@ -463,7 +463,7 @@
         $('<iframe>')
             .on('load',function() {
                 var iframe = $(this);
-                var form = $('<form method="post" action="/app/download_query">')
+                var form = $('<form method="post" action="app/download_query">')
                     .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
                     .append($('<input type="hidden" name="connection">').val(connection))
                     .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
@@ -511,7 +511,7 @@
         var saveView = self._getTableLayout(viewName);
         var updateView = {update_view : saveView.save_view};
         updateView.update_view.view_id = viewId;
-        self._ajax('/app/update_view', updateView, 'update_view', 'saveViewResult');
+        self._ajax('update_view', updateView, 'update_view', 'saveViewResult');
     },
 
     _saveViewWithName: function(_viewName, replace) {
@@ -521,7 +521,7 @@
         saveView.save_view.replace = replace;
 
         console.log('saving view '+JSON.stringify(saveView));
-        self._ajax('/app/save_view', saveView, 'save_view', 'saveViewResult');
+        self._ajax('save_view', saveView, 'save_view', 'saveViewResult');
     },
 
     _saveNewView: function(viewName, replace) {
@@ -531,7 +531,7 @@
         saveView.save_view.replace = replace;
 
         console.log('saving view '+JSON.stringify(saveView));
-        self._ajax('/app/save_view', saveView, 'save_view', 'newViewResult');
+        self._ajax('save_view', saveView, 'save_view', 'newViewResult');
     },
 
     _showHistogram: function(data) {
@@ -681,7 +681,7 @@
             }
         };
 
-        self._ajax('/app/get_sql', getSql, 'get_sql', 'getSqlResult');
+        self._ajax('get_sql', getSql, 'get_sql', 'getSqlResult');
     },
 
     _openSqlEditor: function(sqlResult) {
@@ -715,7 +715,7 @@
     _activateSender: function() {
         var self = this;
         var columnPos = self._getColumnPositions();
-        self._ajax('/app/activate_sender', {
+        self._ajax('activate_sender', {
             activate_sender: {
                 connection: dderlState.connection,
                 statement: self._stmt,
@@ -735,7 +735,7 @@
     _activateReceiver: function() {
         var self = this;
         var columnPos = self._getColumnPositions();
-        self._ajax('/app/activate_receiver', {
+        self._ajax('activate_receiver', {
             activate_receiver: {
                 connection: dderlState.connection,
                 statement: self._stmt,
@@ -763,7 +763,7 @@
 
     _cacheData: function() {
         var self = this;
-        self._ajax('/app/cache_data', {
+        self._ajax('cache_data', {
             cache_data: {
                 connection: dderlState.connection,
                 statement: self._stmt,
@@ -800,7 +800,7 @@
         this._optBinds = optBinds;
         this.options.dderlStartBtn = this._startBtn = button;
         this._filters = null;
-        this._ajax('/app/query', {query: {
+        this._ajax('query', {query: {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection,
             qstr : this._cmd, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
@@ -888,7 +888,7 @@
             }
         }
         if(Object.keys(self._sorts).length === 1) {
-            self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
             self._showSortGui();
         }
@@ -905,7 +905,7 @@
             }
         }
         if(Object.keys(self._sorts).length === 1) {
-            self._ajax('/app/sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('sort', {sort: {spec: self._sortSpec2Json(), statement: self._stmt}}, 'sort', 'sortResult');
         } else {
             self._showSortGui();
         }
@@ -925,7 +925,7 @@
             self._showSortGui();
         } else {
             self._sorts = null;
-            self._ajax('/app/sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
+            self._ajax('sort', {sort: {spec: [], statement: self._stmt}}, 'sort', 'sortResult');
         }
     },
     _showSortGui: function() {
@@ -1099,7 +1099,7 @@
             buttons: {
                 'Sort' : function() {
                     var sortspec = saveChange();
-                    self._ajax('/app/sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                    self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                     $(this).dialog('close');
                     $(this).remove();
                 }
@@ -1212,7 +1212,7 @@
             self._showFilterGui();
         } else {
             self._filters = null;
-            self._ajax('/app/filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('filter', {filter: {spec: {'undefined':[]}, statement: self._stmt}}, 'filter', 'filterResult');
         }
     },
 
@@ -1262,7 +1262,7 @@
                 }
             }
             var filterspec = self._filterSpec2Json('and');
-            self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
         } else {
             self._showFilterGui();
         }
@@ -1339,7 +1339,7 @@
 
         var applyFiltersFn = function(type) {
             var filterspec = self._filterSpec2Json(type);
-            self._ajax('/app/filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
+            self._ajax('filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
             $(this).dialog('close');
             $(this).remove();
         };
@@ -1423,7 +1423,7 @@
         var column  = self._grid.getColumns()[cell.fromCell];
         var data    = self._gridDataView.getItem(cell.fromRow);
         // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
-        self._ajax('/app/browse_data',
+        self._ajax('browse_data',
                        { browse_data: {connection : dderlState.connection,
                                            conn_id : dderlState.connectionSelected.connection,
                                            statement : self._stmt,
@@ -1453,7 +1453,7 @@
         context[tableCmd] = {connection  : dderlState.connection,
                              statement   : self._stmt,
                              table_names : tables};
-        self._ajax('/app/' + tableCmd, context, tableCmd, callback);
+        self._ajax(tableCmd, context, tableCmd, callback);
         self._grid.resetActiveCell();
         self._grid.setSelectedRows([]);
     },
@@ -1484,7 +1484,7 @@
             } else {
                 var data = self._gridDataView.getItem(cell.fromRow);
                 self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-                self._ajax('/app/edit_term_or_view', {
+                self._ajax('edit_term_or_view', {
                     edit_term_or_view: {
                         connection : dderlState.connection,
                         statement : self._stmt,
@@ -2320,7 +2320,7 @@
                                          rowid       : parseInt(modifiedRow.id),
                                          cellid      : this._origcolumns[cols[args.cell].field],
                                          value       : modifiedRow[cols[args.cell].field]}};
-        this._ajax('/app/update_data', updateJson, 'update_data', 'updateData');
+        this._ajax('update_data', updateJson, 'update_data', 'updateData');
         console.log('changed '+JSON.stringify(updateJson));
 
         // Update all rows from the selected range
@@ -2340,7 +2340,7 @@
                                         col         : this._origcolumns[args.column.field],
                                         value       : args.item[args.column.id]}};
         //console.log('inserting '+JSON.stringify(args.item));
-        this._ajax('/app/insert_data', insertJson, 'insert_data', 'insertData');
+        this._ajax('insert_data', insertJson, 'insert_data', 'insertData');
     },
     _gridPasteCells: function(e, args) {
         e.stopPropagation();
@@ -2373,7 +2373,7 @@
         var pasteJson = {paste_data: {connection : this._conn,
                                       statement  : this._stmt,
                                       rows       : modifiedRows}};
-        this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
+        this._ajax('paste_data', pasteJson, 'paste_data', 'updateData');
 
         // Update all rows from the selected range
         for(var i = range.fromRow; i <= range.toRow; ++i) {
@@ -2505,14 +2505,14 @@
             if(rids.length !== 0) {
                 var deleteJson = {delete_row: {statement : this._stmt,
                                                rowids    : rids}};
-                this._ajax('/app/delete_row', deleteJson, 'delete_row', 'deleteData');
+                this._ajax('delete_row', deleteJson, 'delete_row', 'deleteData');
             }
 
             if(modifiedRows.length !== 0) {
                 var pasteJson = {paste_data: {connection : this._conn,
                                               statement  : this._stmt,
                                               rows       : modifiedRows}};
-                this._ajax('/app/paste_data', pasteJson, 'paste_data', 'updateData');
+                this._ajax('paste_data', pasteJson, 'paste_data', 'updateData');
             }
 
             this._applyStyle();
@@ -2675,7 +2675,7 @@
 
         var reorderData = {reorder: {statement   : self._stmt,
                                      column_order: columnsPos}};
-        self._ajax('app/reorder', reorderData, 'reorder', 'reorderResult');
+        self._ajax('reorder', reorderData, 'reorder', 'reorderResult');
     },
 
     _getColumnPositions: function() {
@@ -2729,9 +2729,9 @@
     // loading the views table
     loadViews: function(useSystem) {
         if(useSystem){
-            this._ajax('/app/system_views', {system_views: { conn_id: dderlState.connectionSelected.connection}}, 'system_views', 'loadViews');
+            this._ajax('system_views', {system_views: { conn_id: dderlState.connectionSelected.connection}}, 'system_views', 'loadViews');
         } else {
-            this._ajax('/app/views', {views: { conn_id: dderlState.connectionSelected.connection}}, 'views', 'loadViews');
+            this._ajax('views', {views: { conn_id: dderlState.connectionSelected.connection}}, 'views', 'loadViews');
         }
     },
 
@@ -2742,7 +2742,7 @@
 
     // loading rows
     buttonPress: function(button) {
-        this._ajax('/app/button', {button: { connection: dderlState.connection,
+        this._ajax('button', {button: { connection: dderlState.connection,
             statement: this._stmt, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
                                             ? this._optBinds.pars : null), btn: button}},
             'button', 'loadRows');

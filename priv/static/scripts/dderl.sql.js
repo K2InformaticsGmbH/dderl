@@ -285,7 +285,7 @@ function insertAtCursor(myField, myValue) {
                 self._setTabFocus();
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     self.addWheel();
-                    ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
+                    ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
                 }
             })
             .removeClass('ui-corner-all')
@@ -331,7 +331,7 @@ function insertAtCursor(myField, myValue) {
         if (undefined != self._cmdFlat && self._cmdFlat.length > 0) {
             self._modCmd = self._cmdFlat;
             self.addWheel();
-            ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
+            ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
         }
     },
 
@@ -427,7 +427,7 @@ function insertAtCursor(myField, myValue) {
         var updateView = {update_view : saveView.save_view};
         updateView.update_view.view_id = viewId;
         self.addWheel();
-        ajaxCall(self, '/app/update_view', updateView, 'update_view', 'saveViewResult');
+        ajaxCall(self, 'update_view', updateView, 'update_view', 'saveViewResult');
     },
 
     _saveViewWithName: function(viewName, replace) {
@@ -435,7 +435,7 @@ function insertAtCursor(myField, myValue) {
         var saveView =  self._getSaveStructure(viewName);
         saveView.save_view.replace = replace;
         self.addWheel();
-        ajaxCall(self, '/app/save_view', saveView, 'save_view', 'saveViewResult');
+        ajaxCall(self, 'save_view', saveView, 'save_view', 'saveViewResult');
     },
 
     _getOwnerViewId: function() {
@@ -622,7 +622,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         self._addToHistory(self._modCmd);
         self.addWheel();
-        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
+        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt, false);
                     if (parse_stmt.hasOwnProperty("binds")) {
@@ -679,7 +679,7 @@ function insertAtCursor(myField, myValue) {
         self._reloadBtn = button;
         self._addToHistory(self._modCmd);
         self.addWheel();
-        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
+        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
                 function (parse_stmt) {
                     if (self._optBinds != null) {
                         self._reloadParsedCmd(parse_stmt);
@@ -709,7 +709,7 @@ function insertAtCursor(myField, myValue) {
                 self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn);
             } else {
                 self.addWheel();
-                ajaxCall(self, '/app/query', {query: {
+                ajaxCall(self, 'query', {query: {
                     connection: dderlState.connection, qstr: self._modCmd, conn_id: dderlState.connectionSelected.connection,
                     binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
                 }}, 'query', 'resultStmt');
@@ -773,7 +773,7 @@ function insertAtCursor(myField, myValue) {
         } else {
             var qstr = self._pendingQueries.shift();
             self.addWheel();
-            ajaxCall(self, '/app/query', {query: {
+            ajaxCall(self, 'query', {query: {
                 connection: dderlState.connection, qstr : qstr, conn_id: dderlState.connectionSelected.connection,
                 binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
             }}, 'query', 'resultMultStmt');
@@ -1049,7 +1049,7 @@ function insertAtCursor(myField, myValue) {
             callback = 'parsedSkipFocus';
         }
         self.addWheel();
-        ajaxCall(self, '/app/parse_stmt', {parse_stmt: {qstr:cmd}}, 'parse_stmt', callback);
+        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:cmd}}, 'parse_stmt', callback);
     },
 
     selHistorySelect: function(pos, sql) {

@@ -3,7 +3,7 @@ var connects = null;
 
 function load_connections()
 {
-    ajaxCall(null,'/app/adapters',{}, 'adapters', function(data) {
+    ajaxCall(null,'adapters',{}, 'adapters', function(data) {
         var adapters = data;
         for(var i=0; i < adapters.length; ++i)
             $('#adapter_list').append($('<option>', {
@@ -13,7 +13,7 @@ function load_connections()
         $('#adapter_list').combobox();
         $("#adapter_list-input").prop('readonly', true).disableSelection();
         setTimeout(function() {
-            ajaxCall(null,'/app/connects',{}, 'connects', function(data) {
+            ajaxCall(null,'connects',{}, 'connects', function(data) {
                 connects = data;
                 $('#connection_list').html('');
                 var connectsArray = new Array();
@@ -124,7 +124,7 @@ function disconnect_tab() {
 
     $.ajax({
         type: 'POST',
-        url: '/app/disconnect',
+        url: 'app/disconnect',
         data: JSON.stringify({disconnect: {connection: dderlState.connection}}),
         dataType: "JSON",
         contentType: "application/json; charset=utf-8",
@@ -238,7 +238,7 @@ function connect_dlg()
 
                 dderlState.adapter = $('#adapter_list option:checked').val();
                 var Password = $('#password').val();
-                var urlConnect = '/app/connect';
+                var urlConnect = 'connect';
                 var resp = 'connect'
                 var NewPassword = null;
                 if($('#new_password').val()) {
@@ -247,7 +247,7 @@ function connect_dlg()
                         alert("Confirm password missmatch!");
                         return;
                     }
-                    urlConnect = '/app/connect_change_pswd';
+                    urlConnect = 'connect_change_pswd';
                     resp = 'connect_change_pswd';
                 }
 
@@ -264,7 +264,7 @@ function connect_dlg()
                                              territory :$('#territory').val(),
                                              charset   :$('#charset').val()}};
 
-                if(NewPassword && urlConnect == '/app/connect_change_pswd') {
+                if(NewPassword && urlConnect == 'connect_change_pswd') {
                     connectJson.connect.new_password = NewPassword;
                 }
                 // Add the current id if we are not creating a new connection
@@ -306,7 +306,7 @@ function connect_dlg()
                 var selectedId = $('#connection_list').val();
                 if (null !== selectedId && selectedId.length > 0) {
                     // delete in server
-                    ajaxCall(null,'/app/del_con', {del_con: {conid: parseInt(selectedId)}}, 'del_con', function(data) {
+                    ajaxCall(null,'del_con', {del_con: {conid: parseInt(selectedId)}}, 'del_con', function(data) {
                         if(data.hasOwnProperty('error')) {
                             alert_jq(JSON.stringify(data.error));
                         } else {
@@ -392,7 +392,7 @@ function change_connect_password(loggedInUser)
                             password  : $('#old_password_login').val(),
                             new_password  : $('#password_change_login').val()
                         }};
-                    ajaxCall(null, '/app/change_conn_pswd', newPassJson, 'change_conn_pswd', function(data) {
+                    ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function(data) {
                         if(data == "ok") {
                             $("#dialog-change-password").dialog("close");
                             resetPingTimer();

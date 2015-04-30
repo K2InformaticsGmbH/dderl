@@ -44,7 +44,7 @@ function display_login()
         if(e.which == 13) {
             var loginJson = {login: { user      :   $('#user_login').val(),
                                       password  :   $('#password_login').val()}};
-            ajaxCall(null, '/app/login', loginJson, 'login', function(data) {
+            ajaxCall(null, 'login', loginJson, 'login', function(data) {
                 if(data == "ok") {
                     var user = $('#user_login').val();
                     update_user_information(user);
@@ -67,8 +67,7 @@ function display_login()
 }
 
 function update_user_information(user) {
-    var url = (window.location.protocol==='https:'?'wss://':'ws://')+window.location.host+'/ws';
-    create_ws(url);
+    create_ws();
     $('#change-pswd-button').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
 }
@@ -101,7 +100,7 @@ function logout() {
 
     $.ajax({
         type: 'POST',
-        url: '/app/logout',
+        url: 'app/logout',
         data: JSON.stringify({}),
         dataType: "JSON",
         contentType: "application/json; charset=utf-8",
@@ -182,7 +181,7 @@ function change_login_password(loggedInUser, shouldConnect)
                             password  : $('#old_password_login').val(),
                             new_password  : $('#password_change_login').val()
                         }};
-                    ajaxCall(null,'/app/login_change_pswd',newPassJson,'login_change_pswd', function(data) {
+                    ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                         if(data == "ok") {
                             $("#dialog-change-password").dialog("close");
                             resetPingTimer();

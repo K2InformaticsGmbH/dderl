@@ -74,7 +74,7 @@
                     conn_id: dderlState.connectionSelected.connection
                 }};
 
-                ajaxCall(null, '/app/open_view', openViewData, 'open_view', (function(pos) { return function(viewResult) {
+                ajaxCall(null, 'open_view', openViewData, 'open_view', (function(pos) { return function(viewResult) {
                     if(viewResult.hasOwnProperty('error')) {
                         alert_jq(viewResult.error);
                     } else {
@@ -94,9 +94,8 @@
         }
 
         function save(cbSuccess) {
-            var url = '/app/save_dashboard';
             var data = {dashboard: getAsObject()};
-            ajaxCall(null, url, data, 'save_dashboard', function(result) {
+            ajaxCall(null, 'save_dashboard', data, 'save_dashboard', function(result) {
                 if(result.hasOwnProperty('error')) {
                     alert_jq('<strong>save dashboard failed!</strong><br><br>' + result.error);
                 } else if(!isNaN(parseInt(result)) && isFinite(result)) {

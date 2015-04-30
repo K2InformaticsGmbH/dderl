@@ -70,6 +70,9 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         }
     }
 
+    // request url converted to server AJAX map
+    _url = 'app/'+_url;
+
     console.log('[AJAX] TX '+_url);
 
     var headers = new Object();
@@ -99,7 +102,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             }
 
             // Save the session if the request was to log in.
-            if(_url == '/app/login') {
+            if(_url == 'app/login') {
                 var s = request.getResponseHeader('dderl-session');
                 console.log("The session response header dderl-session: ");
                 console.log(s);
@@ -131,7 +134,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == '/app/ping' && _data.error === "Session is not valid") {
+                if(_url == 'app/ping' && _data.error === "Session is not valid") {
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     dderlState.session = null;
@@ -172,7 +175,7 @@ function loadDashboard(dashboard) {
 }
 
 function requestDashboards() {
-    ajaxCall(null, '/app/dashboards', null, 'dashboards', function(dashboards) {
+    ajaxCall(null, 'dashboards', null, 'dashboards', function(dashboards) {
         var dashboard, view, viewLayout;
         for(var i = 0; i < dashboards.length; ++i) {
             dashboard = new DDerl.Dashboard(dashboards[i].id, dashboards[i].name, []);
@@ -409,7 +412,7 @@ function resetPingTimer() {
 
     dderlState.pingTimer = setTimeout(
         function() {
-            ajaxCall(null, '/app/ping', null, 'ping', function(response) {
+            ajaxCall(null, 'ping', null, 'ping', function(response) {
                 console.log("ping " + response);
                 if(response != "pong") {
                     alert_jq("Failed to reach the server, the connection might be lost.");
@@ -516,7 +519,7 @@ function unescapeNewLines(str) {
 }
 
 function get_local_apps(table) {
-    ajaxCall(null, '/app/about', null, 'about', function(applications) {
+    ajaxCall(null, 'about', null, 'about', function(applications) {
         var apps = '';
         for(app in applications) {
             var version = applications[app].version;
@@ -540,7 +543,7 @@ function get_local_apps(table) {
 }
 
 function get_remote_apps(table) {
-    ajaxCall(null, '/app/remote_apps', {remote_apps : {connection: dderlState.connection}}, 'remote_apps', function(applications) {
+    ajaxCall(null, 'remote_apps', {remote_apps : {connection: dderlState.connection}}, 'remote_apps', function(applications) {
         var extra_apps = '';
         for(app in applications) {
             var version = applications[app].version;
@@ -558,7 +561,7 @@ function get_remote_apps(table) {
 
 function show_about_dlg()
 {
-    ajaxCall(null, '/app/about', null, 'about', function(applications) {
+    ajaxCall(null, 'about', null, 'about', function(applications) {
         var aboutDlg =
             $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
@@ -656,8 +659,10 @@ function alert_jq(string)
     return dlgDiv;
 }
 
-function create_ws(url)
+function create_ws()
 {
+    var url = (window.location.protocol==='https:'?'wss://':'ws://')+
+                window.location.host+window.location.pathname+'ws';
     if(!dderlState.ws) {
         dderlState.ws = $.bullet(url, {});
 
