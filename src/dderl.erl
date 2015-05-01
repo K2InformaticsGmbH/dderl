@@ -86,9 +86,10 @@ start(_Type, _Args) ->
           ),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
-    ?Info(lists:flatten(["URL https://", if is_list(Ip) -> Ip;
-                                            true -> io_lib:format("~p",[Ip])
-                                         end, ":~p"]), [Port]),
+    ?Info(lists:flatten(["URL https://",
+                         if is_list(Ip) -> Ip;
+                            true -> io_lib:format("~p",[Ip])
+                         end, ":~p~s"]), [Port,UrlPathPrefix]),
     SupRef = dderl_sup:start_link(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
