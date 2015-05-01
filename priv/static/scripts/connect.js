@@ -162,7 +162,8 @@ function new_connection_tab() {
             if(!children) {
                 children = new Array();
             }
-            var newURL = window.location.protocol + "//" + window.location.host;
+            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
+            console.log(newURL);
             children.push(window.open(newURL, "_blank"));
         }
     }
