@@ -555,6 +555,12 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             From ! {reply_csv, FileName, Error, single}
     end,
     Priv;
+process_cmd({[<<"restore_table_as">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
+    [{<<"restore_table_as">>, BodyJson}] = ReqBody,
+    ?Info("TBD restore_table_as ~p", [BodyJson]),
+    From ! {reply, jsx:encode([{<<"restore_table_as">>,
+                                [{T, <<"ok">>} || {T,_} <- BodyJson]}])},
+    Priv;
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),

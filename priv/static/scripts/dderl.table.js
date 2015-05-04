@@ -1520,7 +1520,8 @@
             restoreAsData[fCount] = {field : tables[fCount],
                                 inp : $('<input>')
                                     .attr('type', 'text')
-                                    .attr('size', maxFieldLen)
+                                    .css('display', 'table-cell')
+                                    .css('width', '100%')
                                     .val(tables[fCount])};
             $('<tr>')
                 .append($('<td>')
