@@ -34,6 +34,7 @@
     _sortDlg        : null,
     _filters        : null,
     _fltrDlg        : null,
+    _restoreAsDlg   : null,
 
     // start button
     _startBtn       : null,
@@ -79,6 +80,7 @@
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        restoreAsResult : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
                         getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); },
                         activateSender  : function(e, _result) { e.data._activateSenderResult   (_result); },
@@ -131,6 +133,7 @@
                        'Snapshot Table'   : '_snapshotTable',
                        'Statistics'       : '_showStatistics',
                        'Restore Table'    : '_restoreTable',
+                       'Restore Table As' : '_restoreTableAs',
                        'Update Sql'       : '_updateSql',
                        'Insert Sql'       : '_insertSql'},
 
@@ -1469,6 +1472,100 @@
     },
     _restoreTable: function(ranges) {
         this._runTableCmd('restore_table', 'restoreResult', ranges);
+    },
+    _restoreTableAs: function(ranges) {
+        var self = this;
+        var tables = [];
+        var columns = self._grid.getColumns();
+
+        for(var i = 0; i < ranges.length; ++i) {
+            for(var j = ranges[i].fromCell; j <= ranges[i].toCell; ++j) {
+                var cell = columns[j];
+                for(var k = ranges[i].fromRow; k <= ranges[i].toRow; ++k) {
+                    var row    = self._gdata[k];
+                    tables.push(row[cell.field]);
+                }
+            }
+        }
+
+        this._showRestoreAs(tables);
+    },
+
+    _showRestoreAs: function(tables) {
+        var self = this;
+        if(self._restoreAsDlg && self._restoreAsDlg.hasClass('ui-dialog-content')) {
+            self._restoreAsDlg.dialog("close");
+        }
+
+        self._restoreAsDlg =
+            $('<div>')
+            .css('width', 336)
+            .appendTo(document.body);
+
+        var restorAsTbl =
+            $('<table>')
+            .css('height', '100%')
+            .css('width', '100%')
+            .attr('border', 0)
+            .attr('cellpadding', 0)
+            .attr('cellspacing', 0)
+            .appendTo(self._restoreAsDlg);
+
+        var restoreAsData = new Array();
+        var fCount = 0;
+        var maxFieldLen = 0; 
+        for(fCount = 0; fCount < tables.length; ++fCount) {
+            if (maxFieldLen < tables[fCount].length)
+                maxFieldLen = tables[fCount].length;
+            restoreAsData[fCount] = {field : tables[fCount],
+                                inp : $('<input>')
+                                    .attr('type', 'text')
+                                    .attr('size', maxFieldLen)
+                                    .val(tables[fCount])};
+            $('<tr>')
+                .append($('<td>')
+                            .css('width','1%')
+                            .css('white-space','nowrap')
+                            .append(restoreAsData[fCount].field)
+                            .append('&nbsp;'))
+                .append($('<td>').append(restoreAsData[fCount].inp))
+                .appendTo(restorAsTbl);
+        }
+
+        self._restoreAsDlg
+            .dialog({
+                width :   100 + 12 * maxFieldLen,
+                modal :   false,
+                title :   'Restore As',
+                position : {my: "left top", at: "left bottom", of: this._dlg},
+                close : function() {
+                        $(this).dialog('close');
+                        $(this).remove();
+                    },
+                resize: function(e, ui) {
+                    var dH = $(this).height() / fCount - 30;
+                    var dW = $(this).width() - 30;
+                }
+            });
+
+        self._restoreAsDlg.dialog("widget").draggable("option","containment", "#main-body");
+        self._restoreAsDlg.dialog("widget").appendTo("#main-body");
+        smartDialogPosition($("#main-body"), this._dlg, self._restoreAsDlg, ['center']);
+
+        var applyRestoreAsFn = function() {
+            var restoreAsJson = {};
+            for(var t = 0; t < restoreAsData.length; ++t) {
+                restoreAsJson[restoreAsData[t].field] = restoreAsData[t].inp.val();
+            }
+            self._ajax('restore_table_as', {restore_table_as: restoreAsJson},
+                    'restore_table_as', 'restoreAsResult');
+            $(this).dialog('close');
+            $(this).remove();
+        };
+
+        self._restoreAsDlg.dialog('option', 'buttons', [
+                { text: 'Restore', click: function() { applyRestoreAsFn.apply(this); } }
+            ]);
     },
 
     _editErlangTerm: function (_ranges) {
