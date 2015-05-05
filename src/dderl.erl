@@ -53,7 +53,7 @@ start(_Type, _Args) ->
          {UrlPathPrefix++"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
          {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}],
     ok = application:set_env(dderl, master_paths, NewRoutePaths),
-    ?Info("DDerl started with route paths ~p", [NewRoutePaths]),
+    ?Info("DDerl started with route paths ~p", [[P||{P,_,_}<-NewRoutePaths]]),
     Dispatch = cowboy_router:compile([{'_', NewRoutePaths}]),
 
     {ok, Ip}         = application:get_env(dderl, interface),
@@ -96,8 +96,10 @@ start(_Type, _Args) ->
     SupRef.
 
 stop(_State) ->
+    ok = gen_event:delete_handler(lager_event, {imem_lager_backend, dderl}, []),
+    ok = cowboy:stop_listener(https),
     ?Info("SHUTDOWN DDERL"),
-    ok.
+    ?Info("---------------------------------------------------").
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------
