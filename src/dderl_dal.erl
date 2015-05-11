@@ -511,7 +511,8 @@ is_local_query(Qry) ->
                                  {{_,T1,_}, _} when is_binary(T1) -> T1;
                                  {T1, _} when is_binary(T1) -> T1;
                                  {_,T1,_} when is_binary(T1) -> T1;
-                                 T when is_binary(T) -> T
+                                 T when is_binary(T) -> T;
+                                 _ -> T
                              end,
                              lists:member(Tab, SysTabs)
                          end,
