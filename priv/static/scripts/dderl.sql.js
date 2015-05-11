@@ -704,8 +704,8 @@ function insertAtCursor(myField, myValue) {
             self._pendingQueries = angular.copy(_parsed.flat_list);
             self._execMultStmts();
         } else {
-            self._modCmd = self._cmdFlat;
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
+                self._modCmd = self._cmdFlat;
                 self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn);
             } else {
                 self.addWheel();
@@ -713,6 +713,7 @@ function insertAtCursor(myField, myValue) {
                     connection: dderlState.connection, qstr: self._modCmd, conn_id: dderlState.connectionSelected.connection,
                     binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
                 }}, 'query', 'resultStmt');
+                self._modCmd = self._cmdFlat;
             }
         }
     },
