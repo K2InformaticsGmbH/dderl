@@ -29,28 +29,43 @@ init({ssl, http}, Req, []) ->
         {loop, Req, <<>>, 5000, hibernate}
     end.
 
-read_multipart(Req) -> read_multipart(Req, <<>>).
-read_multipart({ok, Data, Req}, Body) ->
-    {ok, list_to_binary([Body, Data]), Req};
-read_multipart({more, Data, Req}, Body) ->
-    read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
+multipart(Req) -> multipart(Req, []).
+multipart(Req, Files) ->
+    case cowboy_req:part(Req) of
+        {ok, Headers, Req1} ->
+            case cow_multipart:form_data(Headers) of
+                {file, FieldName, Filename, CType, CTransferEncoding} ->                    
+                    {Data, Req2} = stream_file(Req1),
+                    multipart(
+                      Req2,
+                      [#{fieldName => FieldName, fileName => Filename,
+                         contentType => CType, data => Data,
+                         contentTransferEncoding => CTransferEncoding} | Files])
+            end;
+        {done, Req2} ->
+            {Files, Req2}
+    end.
+ 
+stream_file(Req) -> stream_file(Req, <<>>).
+stream_file(Req, Buffer) ->
+    case cowboy_req:part_body(Req) of
+        {ok, Body, Req2} ->
+            {list_to_binary([Buffer, Body]), Req2};
+        {more, Body, Req2} ->
+            stream_file(Req2, list_to_binary([Buffer, Body]))
+    end.
 
 process_request(_, _, Req, [<<"upload">>]) ->
-    {ok, ReqData, Req1} = read_multipart(cowboy_req:body(Req)),
-    %%{ok, ReqData, Req1} = cowboy_req:body(Req),
-    ?Debug("Request ~p", [ReqData]),
-    Resp = {reply, jsx:encode([{<<"upload">>, 
-        case re:run(ReqData, ".*filename=[\"](.*)[\"].*", [{capture,[1],binary}]) of
-            {match, [FileName]} -> [{<<"name">>, FileName}];
-            _ -> []
-        end ++
-        case re:run(ReqData, "\r\n\r\n(.*)\r\n\r\n[-a-zA-Z0-9]+", [{capture,[1],binary},dotall]) of
-            {match, [FileContent]} -> [{<<"content">>, FileContent}];
-            _ -> []
-        end
-    }])},
-    ?Debug("Responding ~p", [Resp]),
-    self() ! Resp,
+    {Files, Req1} = multipart(Req),
+    ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
+    self() ! {reply, jsx:encode(
+                       #{upload =>
+                         [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
+                              "text/plain" -> F;
+                              _ ->
+                                  F#{data:=base64:encode(maps:get(data,F))}
+                          end || F <- Files]}
+                      )},
     {loop, Req1, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
@@ -59,12 +74,12 @@ process_request(_, _, Req, [<<"download_query">>] = Typ) ->
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
-    process_request_low(Session, Adapter, Req1
-                        , jsx:encode([{<<"download_query">>, [ {<<"connection">>, Connection}
-                                        , {<<"fileToDownload">>, FileToDownload}
-                                        , {<<"queryToDownload">>, QueryToDownload}
-                                        ]}])
-                        , Typ);
+    process_request_low(Session, Adapter, Req1,
+                        jsx:encode([{<<"download_query">>,
+                                     [{<<"connection">>, Connection},
+                                      {<<"fileToDownload">>, FileToDownload},
+                                      {<<"queryToDownload">>, QueryToDownload}]
+                                    }]), Typ);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(Session, Adapter, Req1, Body, Typ).
