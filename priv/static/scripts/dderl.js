@@ -499,11 +499,18 @@ function uploadFiles(files)
                 progressBar.progressbar('value',percentComplete);
             }
         }, false);
+    xhr.addEventListener('progress',
+            function(e) {
+                if(e.lengthComputable) {
+                    var percentComplete = Math.floor((e.loaded / e.total) * 100);
+                    progressBar.progressbar('value',percentComplete);
+                }
+            }, false);
     xhr.addEventListener("load", function(e) {
             var fileObjs = JSON.parse(e.target.responseText).upload;
             dlg.dialog("close");
             for(var idx = 0; idx < fileObjs.length; ++idx) {
-                StartSqlEditorWithTitle(fileObjs[idx].name, fileObjs[idx].content);
+                StartSqlEditorWithTitle(fileObjs[idx].fileName, fileObjs[idx].data);
             }
         }, false);
     xhr.addEventListener("error", function(e) {progressLbl.text("upload error!");}, false);
