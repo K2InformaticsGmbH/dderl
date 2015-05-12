@@ -454,6 +454,7 @@ function import_query() {
                 for(var i = 0; i < this.files.length; ++i) {
                     uploadFile(this.files[i]);
                 }
+                $(this).attr("value", "");
             });
     }
     $("#fileToUpload").click();
