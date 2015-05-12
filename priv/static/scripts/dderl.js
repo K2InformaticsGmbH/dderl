@@ -476,7 +476,7 @@ function uploadFile(file) {
     xhr.addEventListener("error", function(e) {console.log("upload error!");}, false);
     xhr.addEventListener("abort", function(e) {console.log("upload cancled!");}, false);
 
-    xhr.open("POST", "/app/upload");
+    xhr.open("POST", "app/upload");
     xhr.setRequestHeader('dderl-session', (dderlState.session != null ? '' + dderlState.session : ''));
     xhr.send(fd);
 }

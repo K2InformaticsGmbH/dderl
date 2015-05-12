@@ -30,12 +30,13 @@ init({ssl, http}, Req, []) ->
     end.
 
 read_multipart(Req) -> read_multipart(Req, <<>>).
-read_multipart({done, Req}, Body) -> {ok, Body, Req};
 read_multipart({ok, Data, Req}, Body) ->
+    {ok, list_to_binary([Body, Data]), Req};
+read_multipart({more, Data, Req}, Body) ->
     read_multipart(cowboy_req:stream_body(Req), list_to_binary([Body, Data])).
 
 process_request(_, _, Req, [<<"upload">>]) ->
-    {ok, ReqData, Req1} = read_multipart(cowboy_req:stream_body(Req)),
+    {ok, ReqData, Req1} = read_multipart(cowboy_req:body(Req)),
     %%{ok, ReqData, Req1} = cowboy_req:body(Req),
     ?Debug("Request ~p", [ReqData]),
     Resp = {reply, jsx:encode([{<<"upload">>, 
