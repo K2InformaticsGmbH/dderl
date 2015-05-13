@@ -58,11 +58,14 @@ start(_Type, _Args) ->
 
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
+    {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
+    [{'Certificate',Cert,not_encrypted}] = public_key:pem_decode(PemCrt),
+    {ok, PemKey} = file:read_file(check_file("certs/server.key")),
+    [{'RSAPrivateKey',Key, not_encrypted}] = public_key:pem_decode(PemKey),
     SslOptions = case application:get_env(dderl, ssl_opts) of
                      {ok, []} ->
                          ?GET_CONFIG(dderlSslOpts,[],
-                                     [{certfile, check_file("certs/server.crt")},
-                                      {keyfile, check_file("certs/server.key")},
+                                     [{cert, Cert}, {key, {'RSAPrivateKey',Key}},
                                       {versions, ['tlsv1.2','tlsv1.1',tlsv1]}]);
                      {ok, SslOpts} -> SslOpts
                  end,
