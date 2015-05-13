@@ -1125,7 +1125,7 @@ format_stat_rows([ColName | RestColNames], [{1, Sum, _} | RestResult], Idx) ->
     [[Idx, nop, ColName, 1, Sum, Average, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
 format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares} | RestResult], Idx) ->
     Average = Sum/Count,
-    StdDev = math:sqrt((Squares - Sum*Sum/Count) /(Count -1)),
+    StdDev = math:sqrt(abs(Squares - Sum*Sum/Count)/(Count-1)),
     [[Idx, nop, ColName, Count, Sum, Average, StdDev]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
 
 calculate_avgs([], []) -> [];
