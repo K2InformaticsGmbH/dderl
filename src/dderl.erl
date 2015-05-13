@@ -56,24 +56,20 @@ start(_Type, _Args) ->
     ?Info("DDerl started with route paths ~p", [[P||{P,_,_}<-NewRoutePaths]]),
     Dispatch = cowboy_router:compile([{'_', NewRoutePaths}]),
 
-    {ok, Ip}         = application:get_env(dderl, interface),
-    {ok, Port}       = application:get_env(dderl, port),
-    case application:get_env(dderl, ssl_opts) of
-        {ok, []} ->
-            SslOpts = [{certfile, check_file("certs/server.crt")}
-                      ,{cacertfile, check_file("certs/cowboy-ca.crt")}
-                      ,{keyfile, check_file("certs/server.key")}
-                      ,{versions, ['tlsv1.2','tlsv1.1',tlsv1]}];
-        {ok, SslOpts} -> SslOpts
-    end,
-                
+    {ok, Ip}   = application:get_env(dderl, interface),
+    {ok, Port} = application:get_env(dderl, port),
+    SslOptions = case application:get_env(dderl, ssl_opts) of
+                     {ok, []} ->
+                         ?GET_CONFIG(dderlSslOpts,[],
+                                     [{certfile, check_file("certs/server.crt")},
+                                      {keyfile, check_file("certs/server.key")},
+                                      {versions, ['tlsv1.2','tlsv1.1',tlsv1]}]);
+                     {ok, SslOpts} -> SslOpts
+                 end,
     {ok, Interface} = inet:getaddr(Ip, inet),
-    {ok, _} = cowboy:start_https(https, 100,
-        [
-            {ip, Interface},
-            {port, Port}
-            | SslOpts],
-        [{env, [{dispatch, Dispatch}]}]),
+    {ok, _} = cowboy:start_https(
+                https, 100, [{ip, Interface}, {port, Port} | SslOptions],
+                [{env, [{dispatch, Dispatch}]}]),
     % adding lager imem handler (after IMEM start)
     LogTableNameFun =
         fun() ->
