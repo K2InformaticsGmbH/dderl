@@ -1,9 +1,0 @@
-imem_meta:drop_table(temp).
-imem_meta:create_table(temp, {[columna,columnb,columnc], [integer,integer,integer], {temp, 0,0,0}}, []).
-imem_meta:insert(temp, [1,1,1]).
-imem_meta:insert(temp, [2,2,1]).
-imem_meta:insert(temp, [3,3,1]).
-imem_meta:insert(temp, [4,2,1]).
-imem_meta:insert(temp, [5,2,1]).
-[imem_meta:dirty_write(temp, {temp,0,0,0}) || X <- lists:seq(1, 500)].
-
