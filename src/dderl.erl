@@ -21,20 +21,21 @@
 %% Console Interface
 %%-----------------------------------------------------------------------------
 start() ->
-    erlimem:start(),
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
+    erlimem:start(),
     catch dderloci:start(),
 	ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
     catch dderloci:stop(),
+    erlimem:stop(),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
-    imem:stop(),
-    erlimem:stop().
+    imem:stop().
+
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------

@@ -5,8 +5,8 @@
 
 -include("dderl.hrl").
 
--export([start_link/2
-        , get_session/1
+-export([start_link/3
+        , get_session/2
         , process_request/5
         , get_state/1
         , get_apps_version/2
@@ -44,15 +44,15 @@
          }).
 
 %% Helper functions
--spec get_session(binary() | list()) -> {ok, {atom(), pid()}} | {error, term()}.
-get_session(<<>>) ->
+-spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
+get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
     Ref = erlang:make_ref(),
     Bytes = crypto:rand_bytes(64),
-    {ok, _Pid} = dderl_session_sup:start_session(Ref, Bytes),
+    {ok, _Pid} = dderl_session_sup:start_session(Ref, Bytes, ConnInfoFun),
     DderlSess = {?MODULE, Ref, Bytes},
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
-get_session(DDerlSessStr) when is_list(DDerlSessStr) ->
+get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
     try
         DDerlSessBin = ?Decrypt(DDerlSessStr),
         RefSize = byte_size(DDerlSessBin) - 64,
@@ -72,14 +72,14 @@ get_session(DDerlSessStr) when is_list(DDerlSessStr) ->
                    , [Reason, DDerlSessStr, erlang:get_stacktrace()]),
             {error, {Error, Reason}}
     end;
-get_session(S) when is_binary(S) ->
-    get_session(binary_to_list(S));
-get_session(_) ->
-    get_session(<<>>).
+get_session(S, ConnInfoFun) when is_binary(S) ->
+    get_session(binary_to_list(S), ConnInfoFun);
+get_session(_, ConnInfoFun) ->
+    get_session(<<>>, ConnInfoFun).
 
--spec start_link(reference(), binary()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Ref, Bytes) ->
-    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes, Ref], []).
+-spec start_link(reference(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Ref, Bytes, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes, Ref, ConnInfoFun()], []).
 
 -spec get_state({atom(), pid()}) -> #state{}.
 get_state({?MODULE, Ref, Bytes}) ->
@@ -93,11 +93,11 @@ process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Ref, Bytes}) ->
     true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
     gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid}).
 
-init([Bytes, RegisteredName]) when is_binary(Bytes) ->
+init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
     Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    ?Debug("~p started!", [{?MODULE, Self}]),
+    ?Info("~p started by ~p!", [{?MODULE, Self}, ConnInfo]),
     {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName}}.
 
 handle_call({verify, InBytes}, _From, State) ->

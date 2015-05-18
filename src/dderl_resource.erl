@@ -85,7 +85,7 @@ process_request(Session, Adapter, Req, Typ) ->
     process_request_low(Session, Adapter, Req1, Body, Typ).
 
 process_request_low(Session, Adapter, Req, Body, Typ) ->
-    case dderl_session:get_session(Session) of
+    case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
         {ok, DderlSess} ->
             AdaptMod = if
                 is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
@@ -94,12 +94,32 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             DderlSess:process_request(AdaptMod, Typ, Body, self()),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
-            {{Ip, Port}, Req0} = cowboy_req:peer(Req),
-            ?Info("session ~p doesn't exist (~p), from ~s:~p"
-                  , [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+            {{Ip, Port}, Req} = cowboy_req:peer(Req),
+            ?Info("session ~p doesn't exist (~p), from ~s:~p",
+                  [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
             self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
-            {loop, Req0, Session, 5000, hibernate}
+            {loop, Req, Session, 5000, hibernate}
     end.
+
+conn_info(Req) ->
+    {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
+    Sock = cowboy_req:get(socket, Req),
+    ConnInfo = case Sock of
+                {sslsocket, _, _} ->
+                       {ok, {LocalIp, LocalPort}} = ssl:sockname(Sock),
+                       Info = #{tcp => #{localip => LocalIp, localport => LocalPort}},
+                       case ssl:peercert(Sock) of
+                           {ok, Cert} ->
+                               Info#{ssl => #{cert => public_key:pkix_decode_cert(Cert, otp)}};
+                           _ -> Info#{ssl => #{}}
+                       end;
+                   _ ->
+                       {ok, {LocalIp, LocalPort}} = inet:sockname(Sock),
+                       #{tcp => #{localip => LocalIp, localport => LocalPort}}
+               end,
+    #{tcp := ConnTcpInfo} = ConnInfo,
+    ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
+              http => cowboy_req:headers(Req)}.
 
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),
@@ -165,6 +185,7 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             {ok, Req}
     end.
 
+%-define(DISP_REQ, true).
 -ifdef(DISP_REQ).
 display_req(Req) ->
     ?Info("-------------------------------------------------------"),
@@ -199,111 +220,3 @@ display_req(Req) ->
 -else.
 display_req(_) -> ok.
 -endif.
-
-%% - handle(Req, State) ->    
-%% -    	{ok, Req2} =
-%% -     case cowboy_req:header(<<"authorization">>, Req) of
-%% -         {undefined, Req1} ->
-%% -             cowboy_req:reply(401
-%% -                              , [{<<"WWW-Authenticate">>, <<"NTLM">>}
-%% -                                 , {<<"content-type">>, <<"text/html">>}]
-%% -                              , <<"<html><body>Test</body></html>">>, Req1);
-%% -         {Auth, Req1} ->
-%% -             case authorize(Auth) of
-%% -                 not_ntlm ->
-%% -                     cowboy_req:reply(401
-%% -                                      , [{<<"WWW-Authenticate">>, <<"NTLM">>}
-%% -                                         , {<<"content-type">>, <<"text/html">>}]
-%% -                                      , <<"<html><body>Request Type-1</body></html>">>, Req1);
-%% -                 {unsupported, AuthBin} ->
-%% -                     ?Info("Authorization unsupported ~p~n", [AuthBin]),
-%% -                     cowboy_req:reply(404, [{<<"content-type">>, <<"text/html">>}]
-%% -                                      , <<"<html><body>Login failed</body></html>">>, Req1);
-%% -                 {ntlmssp, 1, Flags, Rest} ->
-%% -                      % , cowboy_req:headers(Req1)
-%% -                     ?Info("Authorization : 1~nFlags ~p~n", [Flags]),
-%% -                     NTLMType2Bin = base64:encode(<<16#4e, 16#54, 16#4c, 16#4d,
-%% -                                                    16#53, 16#53, 16#50, 16#00,
-%% -                                                    16#02, 16#00, 16#00, 16#00,
-%% -                                                    16#0c, 16#00, 16#0c, 16#00,
-%% -                                                    16#30, 16#00, 16#00, 16#00,
-%% -                                                    16#01, 16#02, 16#81, 16#00,
-%% -                                                    16#01, 16#23, 16#45, 16#67,
-%% -                                                    16#89, 16#ab, 16#cd, 16#ef,
-%% -                                                    16#00, 16#00, 16#00, 16#00,
-%% -                                                    16#00, 16#00, 16#00, 16#00,
-%% -                                                    16#62, 16#00, 16#62, 16#00,
-%% -                                                    16#3c, 16#00, 16#00, 16#00,
-%% -                                                    16#44, 16#00, 16#4f, 16#00,
-%% -                                                    16#4d, 16#00, 16#41, 16#00,
-%% -                                                    16#49, 16#00, 16#4e, 16#00,
-%% -                                                    16#02, 16#00, 16#0c, 16#00,
-%% -                                                    16#44, 16#00, 16#4f, 16#00,
-%% -                                                    16#4d, 16#00, 16#41, 16#00,
-%% -                                                    16#49, 16#00, 16#4e, 16#00,
-%% -                                                    16#01, 16#00, 16#0c, 16#00,
-%% -                                                    16#53, 16#00, 16#45, 16#00,
-%% -                                                    16#52, 16#00, 16#56, 16#00,
-%% -                                                    16#45, 16#00, 16#52, 16#00,
-%% -                                                    16#04, 16#00, 16#14, 16#00,
-%% -                                                    16#64, 16#00, 16#6f, 16#00,
-%% -                                                    16#6d, 16#00, 16#61, 16#00,
-%% -                                                    16#69, 16#00, 16#6e, 16#00,
-%% -                                                    16#2e, 16#00, 16#63, 16#00,
-%% -                                                    16#6f, 16#00, 16#6d, 16#00,
-%% -                                                    16#03, 16#00, 16#22, 16#00,
-%% -                                                    16#73, 16#00, 16#65, 16#00,
-%% -                                                    16#72, 16#00, 16#76, 16#00,
-%% -                                                    16#65, 16#00, 16#72, 16#00,
-%% -                                                    16#2e, 16#00, 16#64, 16#00,
-%% -                                                    16#6f, 16#00, 16#6d, 16#00,
-%% -                                                    16#61, 16#00, 16#69, 16#00,
-%% -                                                    16#6e, 16#00, 16#2e, 16#00,
-%% -                                                    16#63, 16#00, 16#6f, 16#00,
-%% -                                                    16#6d, 16#00, 16#00, 16#00,
-%% -                                                    16#00, 16#00>>),
-%% -                     cowboy_req:reply(401
-%% -                                      , [{<<"WWW-Authenticate">>
-%% -                                          , <<"NTLM ", NTLMType2Bin/binary>>}
-%% -                                         , {<<"content-type">>, <<"text/html">>}]
-%% -                                      , <<"<html><body>Request Type-3</body></html>">>, Req1);
-%% -                 {ntlmssp, 3, Flags, Rest} ->
-%% -                     ?Info("Authorization : 3~nFlags ~p~nRest ~p~n", [Flags, Rest]),
-%% -                     cowboy_req:reply(200
-%% -                                      , [{<<"content-type">>, <<"text/html">>}]
-%% -                                      , get_html(), Req1)
-%% -             end
-%% -     end,
-%% - 	{ok, Req2, State}.
-%% - 
-%% - authorize(Auth) ->
-%% -     case re:run(Auth, <<"NTLM (.*)">>, [{capture, [1], binary}]) of
-%% -         nomatch -> not_ntlm;
-%% -         {match,[AuthB64]} ->
-%% -             AuthBin = base64:decode(AuthB64),
-%% -             case AuthBin of
-%% -                 <<"NTLMSSP", 0:8, 1:4/little-unsigned-integer-unit:8, T1Body/binary>> ->
-%% -                     <<Flags:4/little-unsigned-integer-unit:8, T1BodyRest/binary>> = T1Body,
-%% -                     {ntlmssp, 1, bitmask_parse(<< Flags:32 >>), T1BodyRest};
-%% -                 <<"NTLMSSP", 0:8, 3:4/little-unsigned-integer-unit:8, T3Body/binary>> ->
-%% -                     {ntlmssp, 3, [], T3Body};
-%% -                 _ -> {unsupported, AuthBin}
-%% -             end
-%% -     end.
-%% - 
-%% - bitmask_parse(Flags) ->
-%% -     bitmask_parse(Flags
-%% -                   , [encrypt65, type3EncryptSessionKey, encrypt128, u1N2B4
-%% -                      , u4N1B4, u3N1B4, u2N1B4, u1N1B4
-%% -                      , targetInfo, nonNTSessKeyReq, acceptRespReq, initRespReq
-%% -                      , negoNTLM2Key, targetTypeShare, targetTypeServer, targetTypeDomain
-%% -                      , negoAlwaysSign, negoLocalCall, negoWorkStnSuppld, negoDomainSuppld
-%% -                      , negoAnonym, u3N1B2, negoNTLM, negoNetware
-%% -                      , negoLanManKey, negoDatagramStyle, negoSeal, negoSign
-%% -                      , u4N2B1, targetReq, negoOEM, negoUnicode]
-%% -                   , []).
-%% - bitmask_parse(<<>>, [], Options) -> lists:reverse(Options);
-%% - bitmask_parse(<<1:1, Rest/bitstring>>, [P|Props], Options) ->
-%% -     bitmask_parse(Rest, Props, [P | Options]);
-%% - bitmask_parse(<<0:1, Rest/bitstring>>, [_|Props], Options) ->
-%% -     bitmask_parse(Rest, Props, Options).
