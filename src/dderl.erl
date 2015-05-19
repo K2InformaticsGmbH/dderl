@@ -12,7 +12,7 @@
 -export([init/3, handle/2, terminate/3]).
 
 %% Private interfaces
--export([encrypt/1, decrypt/1]).
+-export([encrypt/1, decrypt/1, insert_mw/2]).
 
 %% OTP Application API
 -export([start/2, stop/1]).
@@ -45,7 +45,7 @@ start(_Type, _Args) ->
     PrivDir = get_priv_dir(),
     % external routes
     {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
-    UrlPathPrefix = ?GET_CONFIG(urlsuffix,[],"/dderl"),
+    UrlPathPrefix = ?URLSUFFIX,
     % default routes
     NewRoutePaths = MasterUrlRoutePaths ++
         [{UrlPathPrefix++"/", dderl, []},
@@ -73,7 +73,8 @@ start(_Type, _Args) ->
     {ok, Interface} = inet:getaddr(Ip, inet),
     {ok, _} = cowboy:start_https(
                 https, 100, [{ip, Interface}, {port, Port} | SslOptions],
-                [{env, [{dispatch, Dispatch}]}]),
+                [{env, [{dispatch, Dispatch}]},
+                 {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
     LogTableNameFun =
         fun() ->
@@ -140,7 +141,17 @@ decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
 
 %%encrypt_pid(Pid)    when is_pid(Pid)        -> pid_to_list(Pid).
 %%decrypt_pid(PidStr) when is_list(PidStr)    -> list_to_pid(PidStr).
-%%
+
+-spec insert_mw(atom(), atom()) -> atom().
+insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
+    Opts = ranch:get_protocol_options(Intf),
+    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
+                                                               1, Opts),
+    [LastMod|RestMods] = lists:reverse(Middlewares),    
+    ok = ranch:set_protocol_options(
+           https, [{middlewares, lists:reverse([LastMod, MwMod | RestMods])}
+                   | Opts1]).
+
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------

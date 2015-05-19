@@ -158,4 +158,6 @@
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
 
+-define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl")).
+
 -endif.
