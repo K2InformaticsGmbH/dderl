@@ -12,7 +12,8 @@
 -export([init/3, handle/2, terminate/3]).
 
 %% Private interfaces
--export([encrypt/1, decrypt/1, insert_mw/2]).
+-export([encrypt/1, decrypt/1, insert_mw/2, insert_routes/2, remove_mw/2,
+         reset_routes/1]).
 
 %% OTP Application API
 -export([start/2, stop/1]).
@@ -42,20 +43,11 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
-    PrivDir = get_priv_dir(),
-    % external routes
-    {ok, MasterUrlRoutePaths} = application:get_env(dderl, master_paths),
-    UrlPathPrefix = ?URLSUFFIX,
-    % default routes
-    NewRoutePaths = MasterUrlRoutePaths ++
-        [{UrlPathPrefix++"/", dderl, []},
-         {UrlPathPrefix++"/ws", bullet_handler, [{handler, dderl_stream}]},
-         {UrlPathPrefix++"/app/[...]", dderl_resource, []},
-         {UrlPathPrefix++"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
-         {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}],
-    ok = application:set_env(dderl, master_paths, NewRoutePaths),
-    ?Info("DDerl started with route paths ~p", [[P||{P,_,_}<-NewRoutePaths]]),
-    Dispatch = cowboy_router:compile([{'_', NewRoutePaths}]),
+    DDerlRoutes = get_routes(),
+    Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
+    ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
+                                              io_lib:format("~p",[NRP]))
+                                            ||NRP<-DDerlRoutes], "\n")]),    
 
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
@@ -90,7 +82,7 @@ start(_Type, _Args) ->
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
-                         end, ":~p~s"]), [Port,UrlPathPrefix]),
+                         end, ":~p~s"]), [Port,?URLSUFFIX]),
     SupRef = dderl_sup:start_link(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
@@ -152,11 +144,47 @@ insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
            https, [{middlewares, lists:reverse([LastMod, MwMod | RestMods])}
                    | Opts1]).
 
+-spec remove_mw(atom(), atom()) -> atom().
+remove_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
+    Opts = ranch:get_protocol_options(Intf),
+    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
+                                                               1, Opts),
+    ok = ranch:set_protocol_options(
+           https, [{middlewares, Middlewares -- [MwMod]} | Opts1]).
+
+-spec insert_routes(atom(), list()) -> ok.
+insert_routes(Intf, [{'_',[],Dispatch}]) ->
+    Opts = ranch:get_protocol_options(Intf),
+    {value, {env, [{dispatch,[{'_',[],OldDispatches}]}]}, Opts1}
+    = lists:keytake(env, 1, Opts),
+    ok = ranch:set_protocol_options(
+           https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
+                   | Opts1]).
+
+
+-spec reset_routes(atom()) -> ok.
+reset_routes(Intf) ->
+    Opts = ranch:get_protocol_options(Intf),
+    {value, {env, [{dispatch,_}]}, Opts1} = lists:keytake(env, 1, Opts),
+    [{'_',[],DefaultDispatches}] = cowboy_router:compile([{'_', get_routes()}]),
+    ok = ranch:set_protocol_options(
+           https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
+                   | Opts1]).
+
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------
 %% Local Functions
 %%-----------------------------------------------------------------------------
+get_routes() ->
+    PrivDir = get_priv_dir(),
+    UrlPathPrefix = ?URLSUFFIX,
+    [{UrlPathPrefix++"/", dderl, []},
+     {UrlPathPrefix++"/ws", bullet_handler, [{handler, dderl_stream}]},
+     {UrlPathPrefix++"/app/[...]", dderl_resource, []},
+     {UrlPathPrefix++"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
+     {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
+
 get_priv_dir() ->
     case code:priv_dir(?MODULE) of
         {error, bad_name} -> "priv";
