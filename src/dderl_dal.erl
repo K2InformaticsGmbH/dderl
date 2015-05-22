@@ -4,7 +4,7 @@
 -include("dderl.hrl").
 
 -export([init/1
-        ,start_link/1
+        ,start_link/0
         ,handle_call/3
         ,handle_cast/2
         ,handle_info/2
@@ -49,8 +49,17 @@
 %% Validate this permission.
 -define(USE_ADAPTER, {dderl, adapter, {id, __AdaptId}, use}).
 
--spec login(binary(), binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-login(User, Password, SessionId) -> gen_server:call(?MODULE, {login, User, Password, SessionId}).
+-spec login(binary(), binary(), binary()) -> {error, term()} | {ok, {atom(), pid()}, ddEntityId()}.
+login(User, Password, SessionId) ->
+    case erlimem:open(rpc, {node(), imem_meta:schema()}, {User, erlang:md5(Password), SessionId}) of
+        {error, Error} ->
+            ?Debug("login exception ~n~p~n", [Error]),
+            {error, Error};
+        {ok, UserSess} ->
+            UserId = get_id(UserSess, User),
+            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
+            {ok, UserSess, UserId}
+    end.
 
 -spec change_password(binary(), binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
 change_password(User, Password, NewPassword, SessionId) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword, SessionId}).
@@ -317,10 +326,10 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) ->
     Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     CmdId.
 
--spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(SchemaName) ->
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
     ?Info("~p starting...~n", [?MODULE]),
-    case gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []) of
+    case gen_server:start_link({local, ?MODULE}, ?MODULE, [], []) of
         {ok, _} = Success ->
             ?Info("~p started!~n", [?MODULE]),
             Success;
@@ -329,7 +338,8 @@ start_link(SchemaName) ->
             Error
     end.
 
-init([SchemaName]) ->
+init([]) ->
+    SchemaName = imem_meta:schema(),
     case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of
         {ok, Sess} ->
             {ok, Vsn} = application:get_key(dderl,vsn),
@@ -376,18 +386,6 @@ build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(init_create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
-
-handle_call({login, User, Password, SessionId}, _From, #state{sess=DalSess, schema=SchemaName} = State) ->
-    ?Debug("login for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), SessionId}) of
-        {error, Error} ->
-            ?Debug("login exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, UserSess} ->
-            UserId = get_id(DalSess, User),
-            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
-            {reply, {true, UserSess, UserId}, State}
-    end;
 
 handle_call({change_password, User, Password, NewPassword, SessionId}, _From, #state{sess=DalSess, schema=SchemaName} = State) ->
     ?Debug("changing password for user ~p", [User]),
