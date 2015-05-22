@@ -43,12 +43,6 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
-    DDerlRoutes = get_routes(),
-    Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
-    ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
-                                              io_lib:format("~p",[NRP]))
-                                            ||NRP<-DDerlRoutes], "\n")]),    
-
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
     {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
@@ -63,6 +57,8 @@ start(_Type, _Args) ->
                      {ok, SslOpts} -> SslOpts
                  end,
     {ok, Interface} = inet:getaddr(Ip, inet),
+    DDerlRoutes = get_routes(),
+    Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     {ok, _} = cowboy:start_https(
                 https, 100, [{ip, Interface}, {port, Port} | SslOptions],
                 [{env, [{dispatch, Dispatch}]},
@@ -83,6 +79,9 @@ start(_Type, _Args) ->
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
                          end, ":~p~s"]), [Port,?URLSUFFIX]),
+    ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
+                                              io_lib:format("~p",[NRP]))
+                                            ||NRP<-DDerlRoutes], "\n")]),
     SupRef = dderl_sup:start_link(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
