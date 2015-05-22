@@ -159,15 +159,15 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     case dderl_dal:login(User, Password, SessionId) of
-        {true, Sess, UserId} ->
+        {ok, Sess, UserId} ->
             ?Info("login successful for ~p", [{self(), User}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
             State#state{sess=Sess, user=User, user_id=UserId};
-        {_, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->
+        {error, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->
             ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
             From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
             State;
-        {_, {error, {Exception, M}}} ->
+        {error, {error, {Exception, M}}} ->
             ?Error("login failed for ~p, result ~n~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
