@@ -5,12 +5,14 @@ function display_login()
         $('#change-pswd-button').data("logged_in_user", "");
         $('#login-msg').html('Welcome guest');
     }
-    var dlg = $('<div id="dialog-login" title="Login to Query Server" style="diaply:none">'
+    var dlg = $('<div id="dialog-login" title="Login" style="diaply:none">'
      +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
-     +'      <tr><td align=right valign=center>User&nbsp;</td>'
-     +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
-     +'      <tr><td align=right valign=center>Password&nbsp;</td>'
-     +'          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
+     +'      <tr><td valign=bottom>'
+     +'         <input type="text" placeholder="User" id="user_login" class="text ui-widget-content ui-corner-all"/>'
+     +'      </td></tr>'
+     +'      <tr><td valign=bottom>'
+     +'         <input type="password" id="password_login" placeholder="Password" class="text ui-widget-content ui-corner-all"/>'
+     +'      </td></tr>'
      +'  </table>'
      +'</div>')
     .appendTo(document.body);
@@ -75,7 +77,7 @@ function update_user_information(user) {
 function check_already_connected() {
     if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
        !window.opener.$('#change-pswd-button').data("logged_in_user")) {
-        display_login();
+        loginAjax(null);
     } else {
         dderlState.session = window.opener.dderlState.session;
         dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
@@ -83,6 +85,122 @@ function check_already_connected() {
         update_user_information(user);
         connect_dlg();
     }
+}
+
+function loginAjax(data) {
+    ajaxCall(null, 'login', (data == null ? {} : data),
+            'login', loginCb);
+}
+
+function loginCb(resp) {
+    if (resp.hasOwnProperty('error')) {
+        alert('Login falied : ' + resp.error);
+        return null;
+    } else if(resp.hasOwnProperty('pwdmd5')) {
+        display({title  : "Login",
+                 fields : [{type        : "text",
+                            placeholder : "User",
+                            val         : resp.pwdmd5.accountName},
+                           {type        : "password",
+                            placeholder : "Password",
+                            val         : ""}]
+        });
+    } else if(resp.hasOwnProperty('smsott')) {
+        display({title  : "Enter Token",
+                 fields : [{type        : "label",
+                            val         : "A token is send through SMS to "+resp.smsott.to+
+                                          " for user "+resp.smsott.accountName+
+                                          ". Please enter the token below"},
+                           {type        : "text",
+                            placeholder : "SMS Token",
+                            val         : ""}]
+        });
+    } else if (resp == "ok") {
+        update_user_information("system"); // TODO : FIXIT
+        resetPingTimer();
+        connect_dlg();
+    } else {
+        throw(resp);
+        alert("Unexpected "+JSON.stringify(resp));
+    }
+}
+
+function display(layout) {
+    var dlg = $('<div title="'+layout.title+'" style="diaply:none">')
+        .appendTo(document.body);
+    var tab = $('<table border=0 width=100% cellpadding=0 cellspacing=0>')
+        .appendTo(dlg);
+
+    dlg.dialog({
+        autoOpen: false,
+        minHeight: 100,
+        height: 'auto',
+        width: 'auto',
+        resizable: false,
+        modal: false,
+        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        closeOnEscape: false,
+        dialogClass: 'no-close',
+        open: function(event, ui) {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        }
+    });
+
+    for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
+        var td = $('<td valign=bottom>').appendTo($('<tr>').appendTo(tab));
+        if(layout.fields[fldIdx].type == "label") {
+            $('<span>').text(layout.fields[fldIdx].val).appendTo(td);
+        } else if(layout.fields[fldIdx].type == "text") {
+            var elm = $('<input type="text" placeholder="'+layout.fields[fldIdx].placeholder+
+                        '" class="text ui-widget-content ui-corner-all"/>')
+                            .val(layout.fields[fldIdx].val)
+                            .keypress(function(e) {
+                                if(e.which == 13) {
+                                    inputEnter(layout);
+                                    dlg.dialog("close");
+                                }
+                            })
+                            .appendTo(td);
+            layout.fields[fldIdx].elm = elm;
+       } else if(layout.fields[fldIdx].type == "password") {
+            var elm = $('<input type="password" placeholder="'+layout.fields[fldIdx].placeholder+
+                        '" class="text ui-widget-content ui-corner-all"/>')
+                            .val(layout.fields[fldIdx].val)
+                            .keypress(function(e) {
+                                if(e.which == 13) {
+                                    inputEnter(layout);
+                                    dlg.dialog("close");
+                                }
+                            })
+                            .appendTo(td);
+            layout.fields[fldIdx].elm = elm;
+        }
+    }
+
+    dlg.dialog("open")
+       .dialog("widget")
+       .draggable("option","containment","#main-body");
+}
+
+function inputEnter(layout) {
+    var data = {};
+    for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
+        if (layout.fields[fldIdx].hasOwnProperty('elm')) {
+            layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
+        }
+        if (layout.fields[fldIdx].type != "label") {
+            if(layout.fields[fldIdx].type == "password") {
+                data[layout.fields[fldIdx].placeholder] = md5(layout.fields[fldIdx].val);
+            } else {
+                data[layout.fields[fldIdx].placeholder] = layout.fields[fldIdx].val;
+            }
+        }
+    }
+    loginAjax(data);
 }
 
 function logout() {
