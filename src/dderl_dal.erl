@@ -61,8 +61,19 @@ login(User, Password, SessionId) ->
             {ok, UserSess, UserId}
     end.
 
--spec change_password(binary(), binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-change_password(User, Password, NewPassword, SessionId) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword, SessionId}).
+-spec change_password(binary(), binary(), binary(), binary()) ->
+    {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
+change_password(User, Password, NewPassword, SessionId) ->
+    case erlimem:open(rpc, {node(), imem_meta:schema()},
+                      {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
+        {error, Error} ->
+            ?Error("change password exception ~n~p~n", [Error]),
+            {error, Error};
+        {ok, UserSess} ->
+            UserId = get_id(UserSess, User),
+            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
+            {ok, UserSess, UserId}
+    end.
 
 -spec add_adapter(atom(), binary()) -> ok.
 add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
@@ -340,10 +351,10 @@ start_link() ->
 
 init([]) ->
     SchemaName = imem_meta:schema(),
-    case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of
+    case erlimem:open(local, SchemaName) of
         {ok, Sess} ->
             {ok, Vsn} = application:get_key(dderl,vsn),
-            case code:lib_dir(dderl) of                
+            case code:lib_dir(dderl) of
                 {error,bad_name} -> ?Info("Application not running from installation", []);
                 LibDir ->
                     ConfigPath = filename:join([LibDir,"..","..","releases",Vsn]),
@@ -386,18 +397,6 @@ build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(init_create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
-
-handle_call({change_password, User, Password, NewPassword, SessionId}, _From, #state{sess=DalSess, schema=SchemaName} = State) ->
-    ?Debug("changing password for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
-        {error, Error} ->
-            ?Error("change password exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, UserSess} ->
-            UserId = get_id(DalSess, User),
-            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
-            {reply, {true, UserSess, UserId}, State}
-    end;
 
 handle_call({add_connect, Conn}, _From, #state{sess=Sess} = State) ->
     {reply, add_connect_internal(Sess, Sess, Conn), State};
