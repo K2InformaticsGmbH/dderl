@@ -120,7 +120,7 @@ conn_info(Req) ->
     #{tcp := ConnTcpInfo} = ConnInfo,
     {Headers, Req} = cowboy_req:headers(Req),
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
-              http => Headers}.
+              http => #{headers => Headers}}.
 
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),

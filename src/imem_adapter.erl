@@ -795,22 +795,25 @@ build_srtspec_json(SP, IsAsc) when is_binary(SP) ->
 -spec connect_to_erlimem(atom(), {atom(), pid()}, list(), binary(), atom(),  binary(), tuple()) -> {ok, {atom(), pid()}} | {error, term()}.
 connect_to_erlimem(rpc, _Sess, _Ip, Port, _Secure, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
-        AtomPort -> erlimem:open(rpc, {AtomPort, Schema}, Credentials)
+        AtomPort ->
+            erlimem:open({rpc, AtomPort}, Schema)
+            % TODO : Multi step support
     catch _:_ -> {error, "Invalid port for connection type rpc"}
     end;
 connect_to_erlimem(tcp, _Sess, Ip, Port, Secure, Schema, Credentials) ->
     SSL = if Secure =:= true -> [ssl]; true -> [] end,
     try binary_to_integer(Port) of
-        IntPort -> erlimem:open(tcp, {Ip, IntPort, Schema, SSL}, Credentials)
+        IntPort ->
+            erlimem:open({tcp, Ip, IntPort, SSL}, Schema)
+            % TODO : Multi step support
     catch _:_ -> {error, "Invalid port for connection type tcp"}
     end;
-connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, Credentials) ->
+connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, _Credentials) ->
     case dderl_dal:is_admin(Sess) of
-        true -> erlimem:open(local, {Schema}, Credentials);
+        true ->
+            erlimem:open(local, Schema);
         _ -> {error, "Local connection unauthorized"}
-    end;
-connect_to_erlimem(Type, _Sess, _Ip, _Port, _Secure, Schema, Credentials) ->
-    erlimem:open(Type, {Schema}, Credentials).
+    end.
 
 -spec get_connection_type(binary()) -> atom().
 get_connection_type(<<"local_sec">>) -> local_sec;

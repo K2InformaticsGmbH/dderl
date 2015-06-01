@@ -1,72 +1,72 @@
-function display_login()
-{
-    if($('#login-button').html().indexOf('out') > 0) {
-        $('#login-button').html('');
-        $('#change-pswd-button').data("logged_in_user", "");
-        $('#login-msg').html('Welcome guest');
-    }
-    var dlg = $('<div id="dialog-login" title="Login" style="diaply:none">'
-     +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
-     +'      <tr><td valign=bottom>'
-     +'         <input type="text" placeholder="User" id="user_login" class="text ui-widget-content ui-corner-all"/>'
-     +'      </td></tr>'
-     +'      <tr><td valign=bottom>'
-     +'         <input type="password" id="password_login" placeholder="Password" class="text ui-widget-content ui-corner-all"/>'
-     +'      </td></tr>'
-     +'  </table>'
-     +'</div>')
-    .appendTo(document.body);
-
-    dlg.dialog({
-        autoOpen: false,
-        minHeight: 100,
-        height: 'auto',
-        width: 'auto',
-        resizable: false,
-        modal: false,
-        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
-        closeOnEscape: false,
-        dialogClass: 'no-close',
-        open: function(event, ui) {
-            $('#user_login').val("system");
-            $(this).dialog("widget").appendTo("#main-body");
-            setTimeout(function() {
-                $('#password_login').focus();
-            }, 10);
-        },
-        close: function() {
-            $(this).dialog('destroy');
-            $(this).remove();
-        }
-    })
-    .dialog("open")
-    .dialog("widget").draggable("option","containment","#main-body");
-
-    $("#password_login").keypress(function(e) {
-        if(e.which == 13) {
-            var loginJson = {login: { user      :   $('#user_login').val(),
-                                      password  :   $('#password_login').val()}};
-            ajaxCall(null, 'login', loginJson, 'login', function(data) {
-                if(data == "ok") {
-                    var user = $('#user_login').val();
-                    update_user_information(user);
-                    $("#dialog-login").dialog("close");
-                    resetPingTimer();
-                    connect_dlg();
-                } else if (data == "expired") {
-                    var user = $('#user_login').val();
-                    update_user_information(user);
-                    $("#dialog-login").dialog("close");
-                    change_login_password(user, true);
-                } else {
-                    dderlState.session = null;
-                    resetPingTimer();
-                    alert('Login falied : ' + data);
-                }
-            });
-        }
-    });
-}
+// function display_login()
+// {
+//     if($('#login-button').html().indexOf('out') > 0) {
+//         $('#login-button').html('');
+//         $('#change-pswd-button').data("logged_in_user", "");
+//         $('#login-msg').html('Welcome guest');
+//     }
+//     var dlg = $('<div id="dialog-login" title="Login" style="diaply:none">'
+//      +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
+//      +'      <tr><td valign=bottom>'
+//      +'         <input type="text" placeholder="User" id="user_login" class="text ui-widget-content ui-corner-all"/>'
+//      +'      </td></tr>'
+//      +'      <tr><td valign=bottom>'
+//      +'         <input type="password" id="password_login" placeholder="Password" class="text ui-widget-content ui-corner-all"/>'
+//      +'      </td></tr>'
+//      +'  </table>'
+//      +'</div>')
+//     .appendTo(document.body);
+// 
+//     dlg.dialog({
+//         autoOpen: false,
+//         minHeight: 100,
+//         height: 'auto',
+//         width: 'auto',
+//         resizable: false,
+//         modal: false,
+//         position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+//         closeOnEscape: false,
+//         dialogClass: 'no-close',
+//         open: function(event, ui) {
+//             $('#user_login').val("system");
+//             $(this).dialog("widget").appendTo("#main-body");
+//             setTimeout(function() {
+//                 $('#password_login').focus();
+//             }, 10);
+//         },
+//         close: function() {
+//             $(this).dialog('destroy');
+//             $(this).remove();
+//         }
+//     })
+//     .dialog("open")
+//     .dialog("widget").draggable("option","containment","#main-body");
+// 
+//     $("#password_login").keypress(function(e) {
+//         if(e.which == 13) {
+//             var loginJson = {login: { user      :   $('#user_login').val(),
+//                                       password  :   $('#password_login').val()}};
+//             ajaxCall(null, 'login', loginJson, 'login', function(data) {
+//                 if(data == "ok") {
+//                     var user = $('#user_login').val();
+//                     update_user_information(user);
+//                     $("#dialog-login").dialog("close");
+//                     resetPingTimer();
+//                     connect_dlg();
+//                 } else if (data == "expired") {
+//                     var user = $('#user_login').val();
+//                     update_user_information(user);
+//                     $("#dialog-login").dialog("close");
+//                     change_login_password(user, true);
+//                 } else {
+//                     dderlState.session = null;
+//                     resetPingTimer();
+//                     alert('Login falied : ' + data);
+//                 }
+//             });
+//         }
+//     });
+// }
 
 function update_user_information(user) {
     create_ws();
@@ -115,8 +115,8 @@ function loginCb(resp) {
                             placeholder : "SMS Token",
                             val         : ""}]
         });
-    } else if (resp == "ok") {
-        update_user_information("system"); // TODO : FIXIT
+    } else if (resp.hasOwnProperty('accountName')) {
+        update_user_information(resp.accountName);
         resetPingTimer();
         connect_dlg();
     } else {
@@ -150,6 +150,7 @@ function display(layout) {
         }
     });
 
+    var focused = false;
     for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
         var td = $('<td valign=bottom>').appendTo($('<tr>').appendTo(tab));
         if(layout.fields[fldIdx].type == "label") {
@@ -166,6 +167,10 @@ function display(layout) {
                             })
                             .appendTo(td);
             layout.fields[fldIdx].elm = elm;
+            if(!focused && layout.fields[fldIdx].val.length == 0) {
+                focused == true;
+                setTimeout(function() { elm.focus(); }, 10);
+            }
        } else if(layout.fields[fldIdx].type == "password") {
             var elm = $('<input type="password" placeholder="'+layout.fields[fldIdx].placeholder+
                         '" class="text ui-widget-content ui-corner-all"/>')
@@ -178,6 +183,10 @@ function display(layout) {
                             })
                             .appendTo(td);
             layout.fields[fldIdx].elm = elm;
+            if(!focused) {
+                focused == true;
+                setTimeout(function() { elm.focus(); }, 10);
+            }
         }
     }
 
@@ -260,7 +269,7 @@ function process_logout() {
             }
         }
     }
-    display_login();
+    loginAjax(null);
 }
 
 function change_login_password(loggedInUser, shouldConnect)

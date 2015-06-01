@@ -132,7 +132,7 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{} = State) ->
+handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, normal, State};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
@@ -171,46 +171,18 @@ process_data(Data) -> Data.
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
-           registered_name = RegisteredName, sess = ErlImemSess} = State,
+           registered_name = RegisteredName, sess = ErlImemSess,
+           user = User} = State,
     SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     {Reply, NewState} = process_login(SessionId,jsx:decode(ReqData,[return_maps]),State),
-    case Reply of
-        #{login:=ok} -> ErlImemSess:run_cmd(login,[]);
-        _ -> ok
-    end,
-    From ! {reply, jsx:encode(Reply)},
+    NewReply = case Reply of
+                   #{login:=ok} ->
+                       ErlImemSess:run_cmd(login,[]),
+                       Reply#{login=>#{accountName=>User}};
+                   _ -> Reply
+               end,
+    From ! {reply, jsx:encode(NewReply)},
     NewState;
-    %BodyJson = [],
-    %User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    %Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    %case dderl_dal:login(User, Password, SessionId) of
-    %    {ok, Sess, UserId} ->
-    %        ?Info("login successful for ~p", [{self(), User}]),
-    %        From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
-    %        State#state{sess=Sess, user=User, user_id=UserId};
-    %    {error, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->
-    %        ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
-    %        From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
-    %        State;
-    %    {error, {error, {Exception, M}}} ->
-    %        ?Error("login failed for ~p, result ~n~p", [User, {Exception, M}]),
-    %        Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-    %                                 lists:flatten(io_lib:format("~p", [M]))),
-    %        From ! {reply, jsx:encode([{<<"login">>,Err}])},
-    %        self() ! invalid_credentials,
-    %        State;
-    %    {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
-    %        ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
-    %        From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
-    %        State;
-    %    {error, {{Exception, M}, _Stacktrace} = Error} ->
-    %        ?Debug("login failed for ~p, result ~n~p", [User, Error]),
-    %        Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-    %                                 lists:flatten(io_lib:format("~p", [M]))),
-    %        From ! {reply, jsx:encode([{<<"login">>, Err}])},
-    %        self() ! invalid_credentials,
-    %        State
-    %end;
 
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
