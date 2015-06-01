@@ -46,12 +46,16 @@ start(_Type, _Args) ->
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
     {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
-    [{'Certificate',Cert,not_encrypted}] = public_key:pem_decode(PemCrt),
+    [{'Certificate',Cert,not_encrypted} | Certs] = public_key:pem_decode(PemCrt),
+    CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
     {ok, PemKey} = file:read_file(check_file("certs/server.key")),
     [{KeyType,Key, not_encrypted}] = public_key:pem_decode(PemKey),
     SslOptions = case application:get_env(dderl, ssl_opts) of
                      {ok, []} ->
                          ?GET_CONFIG(dderlSslOpts,[],
+                                     if length(CACerts) > 0 -> [{cacerts,CACerts}];
+                                         true -> []
+                                     end ++
                                      [{cert, Cert}, {key, {KeyType,Key}},
                                       {versions, ['tlsv1.2','tlsv1.1',tlsv1]}]);
                      {ok, SslOpts} -> SslOpts
