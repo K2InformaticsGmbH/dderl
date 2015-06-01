@@ -171,14 +171,14 @@ process_data(Data) -> Data.
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
-           registered_name = RegisteredName, sess = ErlImemSess,
-           user = User} = State,
+           registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     {Reply, NewState} = process_login(SessionId,jsx:decode(ReqData,[return_maps]),State),
     NewReply = case Reply of
                    #{login:=ok} ->
                        ErlImemSess:run_cmd(login,[]),
-                       Reply#{login=>#{accountName=>User}};
+                       ?Info("Logged in user ~p", [NewState#state.user]),
+                       Reply#{login=>#{accountName=>NewState#state.user}};
                    _ -> Reply
                end,
     From ! {reply, jsx:encode(NewReply)},
