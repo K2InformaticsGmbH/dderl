@@ -133,7 +133,7 @@ function inputEnter(layout) {
         }
         if (layout.fields[fldIdx].type != "label") {
             if(layout.fields[fldIdx].type == "password") {
-                data[layout.fields[fldIdx].placeholder] = md5(layout.fields[fldIdx].val);
+                data[layout.fields[fldIdx].placeholder] = md5Arr(layout.fields[fldIdx].val);
             } else {
                 data[layout.fields[fldIdx].placeholder] = layout.fields[fldIdx].val;
             }
@@ -206,14 +206,16 @@ function change_login_password(loggedInUser, shouldConnect)
 {
     $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td align=right valign=center>User&nbsp;</td>' +
-      '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
-      '      <tr><td align=right valign=center>Old Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td valign=center>User <b>'+loggedInUser+'</b></td></tr>' +
+      '      <tr><td valign=bottom>' +
+      '             <input type="password" id="old_password_login" placeholder="Old Password" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td valign=bottom>' +
+      '             <input type="password" id="password_change_login" placeholder="New Password" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td valign=bottom>' +
+      '             <input type="password" id="conf_password_login" placeholder="Confirm New Password" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
       '  </table>' +
       '</div>').appendTo(document.body);
     $('#dialog-change-password').dialog({
@@ -235,8 +237,8 @@ function change_login_password(loggedInUser, shouldConnect)
                     var newPassJson = {
                         change_pswd: {
                             user  : loggedInUser,
-                            password  : $('#old_password_login').val(),
-                            new_password  : $('#password_change_login').val()
+                            password  : md5Arr($('#old_password_login').val()),
+                            new_password  : md5Arr($('#password_change_login').val())
                         }};
                     ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                         if(data == "ok") {
@@ -260,4 +262,13 @@ function change_login_password(loggedInUser, shouldConnect)
     })
     .dialog("open")
     .dialog("widget").draggable("option","containment","#main-body");
+}
+
+function md5Arr(data) {
+    var dataMd5 = md5(data);
+    var dataArr = [];
+    for(var i = 0; i < dataMd5.length; i += 2) {
+        dataArr.push(parseInt(dataMd5.substring(i,i+2), 16));
+    }
+    return dataArr;
 }

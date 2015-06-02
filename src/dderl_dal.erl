@@ -15,7 +15,6 @@
 
 -export([get_adapters/1
         ,login/3
-        ,change_password/4
         ,add_adapter/2
         ,add_command/7
         ,update_command/6
@@ -58,20 +57,6 @@ login(User, Password, SessionId) ->
         {ok, UserSess} ->
             UserId = get_id(UserSess, User),
             ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
-            {ok, UserSess, UserId}
-    end.
-
--spec change_password(binary(), binary(), binary(), binary()) ->
-    {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-change_password(User, Password, NewPassword, SessionId) ->
-    case erlimem:open(rpc, {node(), imem_meta:schema()},
-                      {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
-        {error, Error} ->
-            ?Error("change password exception ~n~p~n", [Error]),
-            {error, Error};
-        {ok, UserSess} ->
-            UserId = get_id(UserSess, User),
-            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
             {ok, UserSess, UserId}
     end.
 

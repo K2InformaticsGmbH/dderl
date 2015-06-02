@@ -154,8 +154,9 @@ format_status(_Opt, [_PDict, State]) -> State.
 process_login(SessionId,#{<<"SMS Token">>:=Token}, #state{sess=ErlImemSess}=State) ->
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token})), State};
 process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{sess = ErlImemSess} = State) ->
-    Pswd = <<<<(list_to_integer([X,Y],16))>>||<<X,Y>><=Password>>,
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,Pswd}})), State#state{user=User}};
+    {process_login_reply(
+       ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
+      ), State#state{user=User}};
 process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
     {ok, ErlImemSess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State#state{sess=ErlImemSess}}.
@@ -173,42 +174,48 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    {Reply, NewState} = process_login(SessionId,jsx:decode(ReqData,[return_maps]),State),
-    NewReply = case Reply of
-                   #{login:=ok} ->
-                       ErlImemSess:run_cmd(login,[]),
-                       ?Info("Logged in user ~p", [NewState#state.user]),
-                       Reply#{login=>#{accountName=>NewState#state.user}};
-                   _ -> Reply
-               end,
-    From ! {reply, jsx:encode(NewReply)},
-    NewState;
+    {Reply, State1} = process_login(SessionId,jsx:decode(ReqData,[return_maps]),State),
+    {Reply1, State2}
+    = case Reply of
+          #{login:=ok} ->
+              ErlImemSess:run_cmd(login,[]),
+              {[UserId],true} = imem_meta:select(
+                                  ddAccount,
+                                  [{#ddAccount{name=State1#state.user,
+                                               id='$1',_='_'},
+                                    [], ['$1']}]),
+              {Reply#{login=>#{accountName=>State1#state.user}},
+               State1#state{user_id = UserId}};
+          _ -> {Reply, State1}
+      end,
+    From ! {reply, jsx:encode(Reply1)},
+    State2;
 
-process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, #state{} = State) ->
-    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
+             #state{sess = ErlImemSess} = State) ->
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
-    case dderl_dal:change_password(User, Password, NewPassword, SessionId) of
-        {ok, Sess, UserId} ->
+    OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
+    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
+    case ErlImemSess:run_cmd(
+           change_credentials,
+           [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
+          ) of
+        SeKey when is_integer(SeKey)  ->
             ?Debug("change password successful for ~p", [User]),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
-            State#state{sess=Sess, user=User, user_id=UserId};
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])};
         {error, {error, {Exception, M}}} ->
             ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])},
-            State;
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])};
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("change password failed for ~p, result ~n~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])},
-            State
-    end;
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])}
+    end,
+    State;
 
 process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
     NewState = logout(State),

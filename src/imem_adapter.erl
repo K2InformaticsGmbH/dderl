@@ -796,16 +796,19 @@ build_srtspec_json(SP, IsAsc) when is_binary(SP) ->
 connect_to_erlimem(rpc, _Sess, _Ip, Port, _Secure, Schema, Credentials) ->
     try binary_to_existing_atom(Port, utf8) of
         AtomPort ->
-            erlimem:open({rpc, AtomPort}, Schema)
-            % TODO : Multi step support
+            {ok, ErlImemSess} = erlimem:open({rpc, AtomPort}, Schema),
+            ?Info("Credentials ~p", [Credentials]),
+            ErlImemSess:run_cmd(login,[]),
+            {ok, ErlImemSess}
     catch _:_ -> {error, "Invalid port for connection type rpc"}
     end;
 connect_to_erlimem(tcp, _Sess, Ip, Port, Secure, Schema, Credentials) ->
     SSL = if Secure =:= true -> [ssl]; true -> [] end,
     try binary_to_integer(Port) of
         IntPort ->
-            erlimem:open({tcp, Ip, IntPort, SSL}, Schema)
-            % TODO : Multi step support
+            {ok, ErlImemSess} = erlimem:open({tcp, Ip, IntPort, SSL}, Schema),
+            ErlImemSess:run_cmd(login,[]),
+            {ok, ErlImemSess}
     catch _:_ -> {error, "Invalid port for connection type tcp"}
     end;
 connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, _Credentials) ->
