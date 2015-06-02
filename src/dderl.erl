@@ -43,21 +43,36 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
+    ?Info("---------------------------------------------------"),
+    ?Info("STARTING DDERL"),
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
-    {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
-    [{'Certificate',Cert,not_encrypted} | Certs] = public_key:pem_decode(PemCrt),
-    CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
-    {ok, PemKey} = file:read_file(check_file("certs/server.key")),
-    [{KeyType,Key, not_encrypted}] = public_key:pem_decode(PemKey),
     SslOptions = case application:get_env(dderl, ssl_opts) of
                      {ok, []} ->
-                         ?GET_CONFIG(dderlSslOpts,[],
-                                     if length(CACerts) > 0 -> [{cacerts,CACerts}];
-                                         true -> []
-                                     end ++
-                                     [{cert, Cert}, {key, {KeyType,Key}},
-                                      {versions, ['tlsv1.2','tlsv1.1',tlsv1]}]);
+                         case ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf') of
+                             '$no_ssl_conf' ->
+                                 {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
+                                 [{'Certificate',Cert,not_encrypted} | Certs] = public_key:pem_decode(PemCrt),
+                                 CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
+                                 {ok, PemKey} = file:read_file(check_file("certs/server.key")),
+                                 [{KeyType,Key, not_encrypted}] = public_key:pem_decode(PemKey),
+                                 DDErlSslDefault =
+                                    [{cert, Cert},
+                                     {key, {KeyType,Key}},
+                                     {versions, ['tlsv1.2','tlsv1.1',tlsv1]}
+                                    | if length(CACerts) > 0 ->
+                                         [{cacerts,CACerts}];
+                                            true -> []
+                                      end],
+                                 ?Info("Installing SSL configurations ~p", [DDErlSslDefault]),
+                                 ?PUT_CONFIG(dderlSslOpts, [], DDErlSslDefault,
+                                     list_to_binary(
+                                         io_lib:format("Installed at ~p on ~s",
+                                                       [node(), imem_datatype:timestamp_to_io(os:timestamp())]
+                                                   ))),
+                                 DDErlSslDefault;
+                             DDErlSslOpts -> DDErlSslOpts
+                         end;
                      {ok, SslOpts} -> SslOpts
                  end,
     {ok, Interface} = inet:getaddr(Ip, inet),
@@ -77,8 +92,6 @@ start(_Type, _Args) ->
            [{level,info},{tablefun,LogTableNameFun},{application,dderl},
             {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
           ),
-    ?Info("---------------------------------------------------"),
-    ?Info("STARTING DDERL"),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
