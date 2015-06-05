@@ -86,7 +86,7 @@ function display(layout) {
         if(layout.fields[fldIdx].type == "label") {
             $('<span>').text(layout.fields[fldIdx].val).appendTo(td);
         } else if(layout.fields[fldIdx].type == "text") {
-            var elm = $('<input type="text" placeholder="'+layout.fields[fldIdx].placeholder+
+            var txt = $('<input type="text" placeholder="'+layout.fields[fldIdx].placeholder+
                         '" class="text ui-widget-content ui-corner-all"/>')
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
@@ -96,13 +96,13 @@ function display(layout) {
                                 }
                             })
                             .appendTo(td);
-            layout.fields[fldIdx].elm = elm;
+            layout.fields[fldIdx].elm = txt;
             if(!focused && layout.fields[fldIdx].val.length == 0) {
-                focused == true;
-                setTimeout(function() { elm.focus(); }, 10);
+                focused = true;
+                setTimeout(function() { txt.focus(); }, 10);
             }
        } else if(layout.fields[fldIdx].type == "password") {
-            var elm = $('<input type="password" placeholder="'+layout.fields[fldIdx].placeholder+
+            var pass = $('<input type="password" placeholder="'+layout.fields[fldIdx].placeholder+
                         '" class="text ui-widget-content ui-corner-all"/>')
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
@@ -112,10 +112,10 @@ function display(layout) {
                                 }
                             })
                             .appendTo(td);
-            layout.fields[fldIdx].elm = elm;
+            layout.fields[fldIdx].elm = pass;
             if(!focused) {
-                focused == true;
-                setTimeout(function() { elm.focus(); }, 10);
+                focused = true;
+                setTimeout(function() { pass.focus(); }, 10);
             }
         }
     }
