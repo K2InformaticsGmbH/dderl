@@ -58,7 +58,7 @@ function loginCb(resp) {
 function display(layout) {
     var dlg = $('<div title="'+layout.title+'" style="diaply:none">')
         .appendTo(document.body);
-    var tab = $('<table border=0 width=100% cellpadding=0 cellspacing=0>')
+    var tab = $('<table border=0 width=100% cellspacing=0>')
         .appendTo(dlg);
 
     dlg.dialog({
@@ -82,12 +82,19 @@ function display(layout) {
 
     var focused = false;
     for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
-        var td = $('<td valign=bottom>').appendTo($('<tr>').appendTo(tab));
-        if(layout.fields[fldIdx].type == "label") {
-            $('<span>').text(layout.fields[fldIdx].val).appendTo(td);
+        var tr = $('<tr>').appendTo(tab);
+        var td = $('<td valign=bottom>').appendTo(tr);
+        if(layout.fields[fldIdx].type == "label") {            
+            $('<span>')
+                .css('word-wrap', 'break-word')
+                .css('display', 'block')
+                .css('width', '300px')
+                .text(layout.fields[fldIdx].val)
+                .appendTo(td.attr('colspan',2));
         } else if(layout.fields[fldIdx].type == "text") {
-            var txt = $('<input type="text" placeholder="'+layout.fields[fldIdx].placeholder+
-                        '" class="text ui-widget-content ui-corner-all"/>')
+            td.append(layout.fields[fldIdx].placeholder);
+            td = $('<td valign=bottom>').appendTo(tr);
+            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>')
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
                                 if(e.which == 13) {
@@ -102,8 +109,9 @@ function display(layout) {
                 setTimeout(function() { txt.focus(); }, 10);
             }
        } else if(layout.fields[fldIdx].type == "password") {
-            var pass = $('<input type="password" placeholder="'+layout.fields[fldIdx].placeholder+
-                        '" class="text ui-widget-content ui-corner-all"/>')
+            td.append(layout.fields[fldIdx].placeholder);
+            td = $('<td valign=bottom>').appendTo(tr);
+            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>')
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
                                 if(e.which == 13) {
