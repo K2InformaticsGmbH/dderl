@@ -175,6 +175,56 @@ function logout() {
     process_logout();
 }
 
+function restart() {
+
+    if (!dderlState.session) {
+        return;
+    }
+
+    var headers = new Object();
+
+    if (dderlState.adapter != null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
+    }
+    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/restart',
+        data: JSON.stringify({}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus, request) {
+            console.log('Request restart Result ' + textStatus);
+            clearTimeout(dderlState.pingTimer);
+        },
+
+        error: function (request, textStatus, errorThrown) {
+            console.log('Request restart Error, status: ' + textStatus);
+        }
+    });
+
+    function checkRestartComplete(url) {
+        $.ajax({
+            type: 'GET',
+            url: url,
+            success: function(_data, textStatus, request) {
+                console.log('Restart complete, status: ' + textStatus);
+                process_logout();
+            },
+            error: function (request, textStatus, errorThrown) {
+                console.log('Restarting... status: ' + textStatus);
+                setTimeout(checkRestartComplete, 0, url);
+            }
+        });
+    }
+    setTimeout(checkRestartComplete, 0, window.location.href);
+}
+
+
 function process_logout() {
     dderlState.connection = null;
     dderlState.adapter = null;
