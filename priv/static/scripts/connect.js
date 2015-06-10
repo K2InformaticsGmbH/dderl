@@ -3,6 +3,7 @@ var connects = null;
 
 function load_connections()
 {
+    ajaxCall(null, 'connect_info', {}, 'connect_info', function(resp) {console.log(resp);});
     ajaxCall(null,'adapters',{}, 'adapters', function(data) {
         var adapters = data;
         for(var i=0; i < adapters.length; ++i)
