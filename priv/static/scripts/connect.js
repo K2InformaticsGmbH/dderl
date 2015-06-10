@@ -259,14 +259,14 @@ function connect_dlg()
                                              service   :$('#service').val(),
                                              type      :$('input:radio[name=db_type]:checked').val(),
                                              user      :$('#user').val(),
-                                             password  :Password,
+                                             password  :md5Arr(Password),
                                              tnsstr    :$('#tnsstr').val(),
                                              languange :$('#languange').val(),
                                              territory :$('#territory').val(),
                                              charset   :$('#charset').val()}};
 
                 if(NewPassword && urlConnect == 'connect_change_pswd') {
-                    connectJson.connect.new_password = NewPassword;
+                    connectJson.connect.new_password = md5Arr(NewPassword);
                 }
                 // Add the current id if we are not creating a new connection
                 if(connName === $("#connection_list option:selected").text()) {
