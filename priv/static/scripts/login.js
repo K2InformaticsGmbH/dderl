@@ -321,12 +321,3 @@ function change_login_password(loggedInUser, shouldConnect)
     .dialog("open")
     .dialog("widget").draggable("option","containment","#main-body");
 }
-
-function md5Arr(data) {
-    var dataMd5 = md5(data);
-    var dataArr = [];
-    for(var i = 0; i < dataMd5.length; i += 2) {
-        dataArr.push(parseInt(dataMd5.substring(i,i+2), 16));
-    }
-    return dataArr;
-}
