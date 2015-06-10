@@ -33,6 +33,7 @@
         ,save_dashboard/5
         ,get_dashboards/2
         ,add_adapter_to_cmd/3
+        ,user_name/1
         ]).
 
 -record(state, { schema :: term()
@@ -108,6 +109,12 @@ update_command(Sess, Id, Owner, Name, Sql, Opts) ->
     Sess:run_cmd(write, [ddCmd, NewCmd]),
     Id.
 
+-spec user_name(atom() | integer() | binary()) -> binary().
+user_name(system) -> <<"system">>;
+user_name(Name) when is_binary(Name) -> Name;
+user_name(Id) when is_integer(Id) ->
+    {[Name],true} = imem_meta:select(ddAccount, [{#ddAccount{id=Id,name='$1',_='_'},[],['$1']}]),
+    Name.
 
 -spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
 add_view(undefined, Owner, Name, CmdId, ViewsState) ->
