@@ -284,6 +284,7 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
     State;
 
+%% TODO Deprecate
 process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
     case dderl_dal:get_adapters(Sess) of
         {error, Reason} ->
@@ -298,6 +299,7 @@ process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
     end,
     State;
 
+%% TODO Deprecate
 process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
     case dderl_dal:get_connects(Sess, UserId) of
         {error, Reason} ->
@@ -327,6 +329,37 @@ process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, use
             ?Debug("connections as json ~s", [jsx:prettify(Res)]),
             From ! {reply, Res}
     end,
+    State;
+
+process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
+    ConnInfo
+    = case dderl_dal:get_adapters(Sess) of
+          {error, Reason} when is_binary(Reason) -> #{error => Reason};
+          Adapters when is_list(Adapters) ->
+              case dderl_dal:get_connects(Sess, UserId) of
+                  {error, Reason} when is_binary(Reason) -> #{error => Reason};
+                  UnsortedConns when is_list(UnsortedConns) ->
+                      Connections
+                      = lists:foldl(
+                          fun(C,Cm) ->
+                                  Adapter = list_to_existing_atom(
+                                              atom_to_list(C#ddConn.adapter)++"_adapter"),
+                                  {CId,CMap} = Adapter:connect_map(C),
+                                  maps:put(CId,CMap,Cm)
+                          end, #{},
+                          lists:sort(fun(#ddConn{name = Name},
+                                         #ddConn{name = Name2}) ->
+                                             Name > Name2
+                                     end, UnsortedConns)
+                         ),
+                      #{connect_info =>
+                        #{adapters =>
+                          [#{id => jsq(A#ddAdapter.id),
+                             fullName => A#ddAdapter.fullName} || A <- Adapters],
+                          connections => Connections}}
+              end
+      end,
+    From ! {reply, jsx:encode(ConnInfo)},
     State;
 
 process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
@@ -391,10 +424,6 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active
             State#state{active_sender = undefined}
     end;
 
-%%process_cmd({[<<"activate_receiver">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
-%%    [{<<"activate_receiver">>, BodyJson}] = ReqBody,
-
-
 % commands handled generically
 process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
@@ -414,17 +443,20 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv} = State) when
-      Cmd =:= [<<"connect">>];
-      Cmd =:= [<<"connect_change_pswd">>];
-      Cmd =:= [<<"disconnect">>] ->
+process_call({Cmd, ReqData}, Adapter, From,
+             #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv,
+                    conn_info = ConnInfo} = State)
+  when Cmd =:= [<<"connect">>];
+       Cmd =:= [<<"connect_change_pswd">>];
+       Cmd =:= [<<"disconnect">>] ->
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
     SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
+    CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
-        try Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
+        try
+            Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
