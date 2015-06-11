@@ -70,17 +70,19 @@ add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Con
     Conn = Conn0#{user => proplists:get_value(user, Access, <<>>),
                   languange => proplists:get_value(languange, Access, <<>>),
                   territory => proplists:get_value(territory, Access, <<>>),
-                  charset => proplists:get_value(charset, Access, <<>>)},
+                  charset => proplists:get_value(charset, Access, <<>>),
+                  tns => proplists:get_value(tnstr, Access, <<>>),
+                  service => proplists:get_value(service, Access, <<>>),
+                  sid => proplists:get_value(sid, Access, <<>>),
+                  host => proplists:get_value(ip, Access, <<>>),
+                  port => proplists:get_value(port, Access, <<>>)},
     case proplists:get_value(type, Access, service) of
         Type when Type == tns; Type == <<"tns">> ->
-            Conn#{method => <<"tns">>,
-                  tns => proplists:get_value(tnstr, Access, <<>>)};
+            Conn#{method => <<"tns">>};
         Type when Type == service; Type == <<"service">>; Type == <<"DB Name">> ->
-            Conn#{method => <<"service">>,
-                  service => proplists:get_value(service, Access, <<>>)};
+            Conn#{method => <<"service">>};
         Type when Type == sid; Type == <<"sid">> ->
-            Conn#{method => <<"sid">>,
-                  sid => proplists:get_value(sid, Access, <<>>)}
+            Conn#{method => <<"sid">>}
     end.
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
