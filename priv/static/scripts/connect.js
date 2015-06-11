@@ -41,196 +41,7 @@ function connect_dlg()
                 .append(connection_list)
         )
     );
-    
-    function add_methods(keyVals, defaultSelectedId, fn) {
-        var div = $('<div>');
-        for(var k in keyVals) {
-            div.append(
-                $('<input type="radio" id="'+k+'" name="method" value="'+k+'">'+
-                  '<label for="'+k+'">'+keyVals[k]+'</label>'));
-        }
-        
-        div
-        .appendTo(connect_options)
-        .buttonset()
-        .change(function() {
-            var newconn = {};
-            fn({method : $("input:radio[name=method]:checked").val()});
-        });
-        $('#'+defaultSelectedId).attr("checked", true).button("refresh");
-    }
-    
-    function add_imem_options(connect) {
-        connect_options.empty();
-        add_methods({local: 'Local', rpc : 'RPC', tcp : 'TCP'},
-                    connect.method, add_imem_options);
-        
-        var options = $('<table>')
-        .attr({border: 0, width: '100%', height: '100%', cellpadding: 0, cellspacing: 2})
-        .appendTo(connect_options);
-        if(connect.method == 'local') {
-            options.append(
-                $('<tr>').append(
-                    $('<td>Schema</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="schema">').val(connect.schema)
-                    )
-                )
-            );
-        } else if (connect.method == 'rpc') {
-            options.append(
-                $('<tr>').append(
-                    $('<td>Schema</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="schema">').val(connect.schema)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Node</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="node">').val(connect.node)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>User</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="user">').val(connect.user)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Password</td>'),
-                    $('<td>').append(
-                        $('<input type="password" id="password">')
-                    )
-                )
-            );
-        } else if (connect.method == 'tcp') {
-            options.append(
-                $('<tr>').append(
-                    $('<td>Schema</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="schema">').val(connect.schema)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Host / IP</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="host">').val(connect.host)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Port</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="port">').val(connect.port)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>User</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="user">').val(connect.user)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Password</td>'),
-                    $('<td>').append(
-                        $('<input type="password" id="password">')
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Secure</td>'),
-                    $('<td>').append(
-                        $('<input type="checkbox" id="secure">').attr('checked', connect.secure)
-                    )
-                )
-            );
-        } else {
-            throw("Unknown connect method" + connect.method);
-        }
-    }
 
-    function add_oci_options(connect) {
-        connect_options.empty();
-        add_methods({tns: 'TNS', service : 'Service', sid : 'SID'},
-                    connect.method, add_oci_options);
-        var options = $('<table>')
-        .attr({border: 0, width: '100%', height: '100%', cellpadding: 0, cellspacing: 2})
-        .appendTo(connect_options);
-        if(connect.method == 'tns') {
-            options.append(
-                $('<tr>').append(
-                    $('<td>').attr('colspan',2)
-                    .append(
-                        $('<textarea rows=10 cols=41 id="tns">').val(connect.tns)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>User</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="user">').val(connect.user)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Password</td>'),
-                    $('<td>').append(
-                        $('<input type="password" id="password">')
-                    )
-                )
-            );
-        } else if (connect.method == 'service' || connect.method == 'sid') {
-            var mthdLbl = $('<td>');
-            var mthdVal = $('<td>');
-
-            if(connect.method == 'service') {
-                mthdLbl.append("Service");
-                mthdVal.append($('<input type="text" id="service">').val(connect.service));
-            } else if(connect.method == 'sid') {
-                mthdLbl.append("SID");
-                mthdVal.append($('<input type="text" id="sid">').val(connect.sid));
-            }
-
-            options.append(
-                $('<tr>').append(mthdLbl, mthdVal),
-                $('<tr>').append(
-                    $('<td>Host / IP</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="host">').val(connect.host)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Port</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="port">').val(connect.port)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>User</td>'),
-                    $('<td>').append(
-                        $('<input type="text" id="user">').val(connect.user)
-                    )
-                ),
-                $('<tr>').append(
-                    $('<td>Password</td>'),
-                    $('<td>').append(
-                        $('<input type="password" id="password">')
-                    )
-                )
-            );
-        } else {
-            throw("Unknown connect method" + connect.method);
-        }
-    }
-
-    function load_connect_option() {
-        var connect = connects[connection_list.val()];
-        connect_options.empty();
-        if(connect.adapter == "imem") {
-            add_imem_options(connect);
-        } else if (connect.adapter == "oci") {
-            add_oci_options(connect);
-        }
-        connect_options.find("input:text,input:password,textarea")
-            .addClass("text ui-widget-content ui-corner-all");
-    }
 
     dlg = dlg.appendTo(document.body)
     .dialog({
@@ -265,22 +76,30 @@ function connect_dlg()
                         conn.password = $('#password').val();
                         conn.secure = $('#secure').is(':checked');
                     }
+                    // imem (rpc/tcp) expects passwords are md5
+                    if (conn.hasOwnProperty('password'))
+                        conn.password = md5Arr(conn.password);
                 } else if(conn.adapter == 'oci') {
+                    // 'service', 'sid' and 'tns' input fields are
+                    // prefixed with inp_ to resolve conflict with
+                    // method radios
                     if(conn.method == 'tns') {
-                        conn.tns = $('#tns').val();
+                        conn.tns = $('#inp_tns').val();
                         conn.user = $('#user').val();
                         conn.password = $('#password').val();
                     } else if(conn.method == 'service' || conn.method == 'sid') {
                         if(conn.method == 'service') {
-                            conn.service = $('#service').val();
+                            conn.service = $('#inp_service').val();
                         } else if(conn.method == 'sid') {
-                            conn.sid = $('#sid').val();
+                            conn.sid = $('#inp_sid').val();
                         }
                         conn.host = $('#host').val();
                         conn.port = $('#port').val();
                         conn.user = $('#user').val();
                         conn.password = $('#password').val();
                     }
+                    if($('#language').length > 0) conn.language = $('#language').val();
+                    if($('#territory').length > 0) conn.territory = $('#territory').val();
                 }
 
                 console.log(conn);
@@ -340,7 +159,7 @@ function connect_dlg()
             connection_list.parent().find('input')
                 .val(connection_list.find('option:selected').text());
         }
-        load_connect_option();
+        load_connect_option(connection_list, connect_options);
     });
 
     owners_list.change(function() {
@@ -358,7 +177,7 @@ function connect_dlg()
         }
     });
 
-    // AJAX Simulation
+    /*/ AJAX Simulation
     setTimeout(function() {
         var connect_info = {
             adapters : [{id:"imem", fullName:"IMEM DB"},
@@ -428,3 +247,200 @@ function connect_dlg()
 //*/
 }
 
+function load_connect_option(connection_list, connect_options) {
+    var connect = connection_list.find("option:selected").data('connect');
+    connect_options.empty();
+    if(connect.adapter == "imem") {
+        add_imem_options(connection_list, connect_options, connect);
+    } else if (connect.adapter == "oci") {
+        add_oci_options(connection_list, connect_options, connect);
+    }
+    connect_options.find("input:text,input:password,textarea")
+        .addClass("text ui-widget-content ui-corner-all");
+
+    var emptyInputs = connect_options.find('input:text[value=""],input:password[value=""]');
+    if (emptyInputs.length > 0) emptyInputs[0].focus();
+}
+
+function add_methods(connection_list, connect_options, keyVals, defaultSelectedId, fn) {
+    var div = $('<div>');
+    for(var k in keyVals) {
+        div.append(
+            $('<input type="radio" id="'+k+'" name="method" value="'+k+'">'+
+              '<label for="'+k+'">'+keyVals[k]+'</label>'));
+    }
+    
+    div
+    .appendTo(connect_options)
+    .buttonset()
+    .change(function() {
+        var connect = connection_list.find("option:selected").data('connect');
+        connect.method = $("input:radio[name=method]:checked").val();
+        fn(connection_list, connect_options, connect);
+        connect_options.find("input:text,input:password,textarea")
+        .addClass("text ui-widget-content ui-corner-all");
+        var emptyInputs = connect_options.find('input:text[value=""],input:password[value=""]');
+        if (emptyInputs.length > 0) emptyInputs[0].focus();
+    });
+    $('#'+defaultSelectedId).attr("checked", true).button("refresh");
+}
+
+function add_oci_options(connection_list, connect_options, connect) {
+    connect_options.empty();
+    add_methods(connection_list, connect_options,
+                {tns: 'TNS', service : 'Service', sid : 'SID'},
+                connect.method, add_oci_options);
+    var options = $('<table>')
+    .attr({border: 0, width: '100%', height: '100%', cellpadding: 0, cellspacing: 2})
+    .appendTo(connect_options);
+    if(connect.method == 'tns') {
+        options.append(
+            $('<tr>').append(
+                $('<td>').attr('colspan',2)
+                .append(
+                    $('<textarea rows=10 cols=41 id="inp_tns">').val(connect.tns)
+                )
+            )
+        );
+    } else if (connect.method == 'service' || connect.method == 'sid') {
+        var mthdLbl = $('<td>');
+        var mthdVal = $('<td>');
+
+        if(connect.method == 'service') {
+            mthdLbl.append("Service");
+            mthdVal.append($('<input type="text" id="inp_service">').val(connect.service));
+        } else if(connect.method == 'sid') {
+            mthdLbl.append("SID");
+            mthdVal.append($('<input type="text" id="inp_sid">').val(connect.sid));
+        }
+
+        options.append(
+            $('<tr>').append(mthdLbl, mthdVal),
+            $('<tr>').append(
+                $('<td>Host / IP</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="host">').val(connect.host)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>Port</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="port">').val(connect.port)
+                )
+            )
+        );
+    } else {
+        throw("Unknown connect method" + connect.method);
+    }
+    options.append(
+            $('<tr>').append(
+                $('<td>User</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="user">').val(connect.user)
+                    )
+                ),
+            $('<tr>').append(
+                $('<td>Password</td>'),
+                $('<td>').append(
+                    $('<input type="password" id="password">')
+                    )
+                )
+            );
+    if(connect.hasOwnProperty('language'))
+        options.append(
+                $('<tr>').append(
+                    $('<td>Language</td>'),
+                    $('<td>').append(
+                        $('<input type="text" id="language">').val(connect.language)
+                        )
+                    )
+                );
+    if(connect.hasOwnProperty('territory'))
+        options.append(
+                $('<tr>').append(
+                    $('<td>Territory</td>'),
+                    $('<td>').append(
+                        $('<input type="text" id="territory">').val(connect.territory)
+                        )
+                    )
+                );
+}
+
+function add_imem_options(connection_list, connect_options, connect) {
+    connect_options.empty();
+    add_methods(connection_list, connect_options,
+                {local: 'Local', rpc : 'RPC', tcp : 'TCP'},
+                connect.method, add_imem_options);
+    
+    var options = $('<table>')
+    .attr({border: 0, width: '100%', height: '100%', cellpadding: 0, cellspacing: 2})
+    .appendTo(connect_options);
+    options.append(
+            $('<tr>').append(
+                $('<td>Schema</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="schema">').val(connect.schema)
+                    )
+                )
+            );
+    if(connect.method == 'local') {
+    } else if (connect.method == 'rpc') {
+        options.append(
+            $('<tr>').append(
+                $('<td>Node</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="node">').val(connect.node)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>User</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="user">').val(connect.user)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>Password</td>'),
+                $('<td>').append(
+                    $('<input type="password" id="password">')
+                )
+            )
+        );
+    } else if (connect.method == 'tcp') {
+        options.append(
+            $('<tr>').append(
+                $('<td>Host / IP</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="host">').val(connect.host)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>Port</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="port">').val(connect.port)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>User</td>'),
+                $('<td>').append(
+                    $('<input type="text" id="user">').val(connect.user)
+                )
+            ),
+            $('<tr>').append(
+                $('<td>Password</td>'),
+                $('<td>').append(
+                    $('<input type="password" id="password">')
+                )
+            ),
+            $('<tr>').append(
+                $('<td>Secure</td>'),
+                $('<td>').append(
+                    $('<input type="checkbox" id="secure">')
+                    .css('margin-left',0)
+                    .attr('checked', connect.secure)
+                )
+            )
+        );
+    } else {
+        throw("Unknown connect method" + connect.method);
+    }
+}

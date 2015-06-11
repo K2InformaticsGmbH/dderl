@@ -59,16 +59,16 @@ add_conn_info(#priv{} = Priv, ConnInfo) when is_map(ConnInfo) ->
 
 -spec connect_map(#ddConn{}) -> map().
 connect_map(#ddConn{adapter = oci} = C) ->
-    {integer_to_binary(C#ddConn.id),
-     add_conn_extra(C, #{name => C#ddConn.name,
-                         adapter => <<"oci">>,
-                         owner => dderl_dal:user_name(C#ddConn.owner)})}.
+    add_conn_extra(C, #{id => C#ddConn.id,
+                        name => C#ddConn.name,
+                        adapter => <<"oci">>,
+                        owner => dderl_dal:user_name(C#ddConn.owner)}).
 
 add_conn_extra(#ddConn{access = Access}, Conn)
   when is_map(Access), is_map(Conn) -> maps:merge(Conn, Access);
 add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Conn0) ->
     Conn = Conn0#{user => proplists:get_value(user, Access, <<>>),
-                  languange => proplists:get_value(languange, Access, <<>>),
+                  language => proplists:get_value(languange, Access, proplists:get_value(language, Access, <<>>)),
                   territory => proplists:get_value(territory, Access, <<>>),
                   charset => proplists:get_value(charset, Access, <<>>),
                   tns => proplists:get_value(tnstr, Access, <<>>),

@@ -341,12 +341,11 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, #state{sess=Sess,
                   UnsortedConns when is_list(UnsortedConns) ->
                       Connections
                       = lists:foldl(
-                          fun(C,Cm) ->
+                          fun(C,Cl) ->
                                   Adapter = list_to_existing_atom(
                                               atom_to_list(C#ddConn.adapter)++"_adapter"),
-                                  {CId,CMap} = Adapter:connect_map(C),
-                                  maps:put(CId,CMap,Cm)
-                          end, #{},
+                                  [Adapter:connect_map(C)|Cl]
+                          end, [],
                           lists:sort(fun(#ddConn{name = Name},
                                          #ddConn{name = Name2}) ->
                                              Name > Name2
