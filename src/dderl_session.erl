@@ -63,8 +63,12 @@ get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
         Ref = binary_to_term(RefBin),
         Bytes = << First/binary, Last/binary >>,
         DDerlSession = {?MODULE, Ref, Bytes},
-        case is_process_alive(whereis_name(Ref)) of
-            true -> {ok, DDerlSession};
+        case whereis_name(Ref) of
+            Pid when is_pid(Pid) ->
+                case is_process_alive(Pid) of
+                    true -> {ok, DDerlSession};
+                    _ -> {error, <<"process not found">>}
+                end;
             _ -> {error, <<"process not found">>}
         end
     catch
