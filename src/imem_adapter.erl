@@ -102,157 +102,47 @@ add_conn_extra(#ddConn{access = Access}, Conn) when is_list(Access), is_map(Conn
                      secure => proplists:get_value(secure, Access, false)}
     end.
 
+-spec conn_method([{binary(),binary()}]|binary()) -> tcp | rpc | local | local_sec.
+conn_method(<<"rpc">>)          -> rpc;
+conn_method(<<"local">>)        -> local;
+conn_method(<<"local_sec">>)    -> local_sec;
+conn_method(Other)
+  when Other == <<"tcp">>;
+       Other == '$not_defined'  -> tcp;
+conn_method([{K,V}|_] = PropList) when is_binary(K), is_binary(V) ->
+    conn_method(proplists:get_value(<<"method">>, PropList, '$not_defined')).
+
+-spec connect_erlimem(tcp | rpc | local | local_sec,
+                      binary(), list({binary(),binary()}), map()) ->
+    {ok, {atom(),pid()}}.
+connect_erlimem(local, _Sess, _Params, _ConnInfo) ->
+    ?Info("_Params ~p, _ConnInfo ~p", [_Params, _ConnInfo]),
+    erlimem:open(local, imem_meta:schema()).
+
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), #priv{}, pid()) -> #priv{}.
-process_cmd({[<<"connect">>], ReqBody, SessionId}, Sess, UserId, From,
+process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
             #priv{connections = Connections, conn_info = ConnInfo} = Priv, _SessPid) ->
-    [{<<"connect">>, BodyJson}] = ReqBody,
-    Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
-    Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
-    Schema      = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password    = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
-    Type        = get_connection_type(Ip),
-    ?Debug("session:open ~p", [{Type, Ip, Port, Schema, User, Secure}]),
-    ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip),
-                                       Port, Secure, Schema,
-                                       {User, Password, SessionId},
-                                       ConnInfo),
-    case ResultConnect of
-        {error, {{Exception, {"Password expired. Please change it", _} = M}, Stacktrace}} ->
-            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}], Stacktrace),
-            From ! {reply, jsx:encode([{<<"connect">>,<<"expired">>}])},
-            Priv;
-        {error, {{Exception, M}, Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result: ~n~p", [User, Error], Stacktrace),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"connect">>, [{<<"error">>, Err}]}])},
-            Priv;
-        {error, Error} ->
-            ?Error("DB connect error ~p", [Error]),
-            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
-            Priv;
-        {ok, {_,_ConPid} = Connection} ->
-            ?Debug("session ~p", [Connection]),
-            ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
+    {value, Id, BodyJson1} = lists:keytake(<<"id">>, 1, BodyJson),
+    {value, Name, BodyJson2} = lists:keytake(<<"name">>, 1, BodyJson1),
+    {value, Schema, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
+    SchemaAtom = binary_to_existing_atom(Schema, utf8),
+    case connect_erlimem(conn_method(BodyJson), Sess, BodyJson, ConnInfo) of
+        {ok, Connection} ->
             %% Id undefined if we are creating a new connection.
-            Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
-                          , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner   = UserId
-                          , adapter = imem
-                          , access  = [{ip,     Ip}
-                                      ,{port,   Port}
-                                      ,{type,   Type}
-                                      ,{user,   User}
-                                      ,{secure, Secure}
-                                      ]
-                          , schm    = binary_to_atom(Schema, utf8)
-                          },
-            ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            case dderl_dal:add_connect(Sess, Con) of
+            case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
+                          owner = UserId, schm = SchemaAtom,
+                          access = BodyJson3}) of
                 {error, Msg} ->
                     Connection:close(),
-                    From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
+                    From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};
                 #ddConn{owner = Owner} = NewConn ->
-                    From ! {reply
-                            , jsx:encode(
-                                [{<<"connect">>
-                                  , [{<<"conn_id">>, NewConn#ddConn.id}
-                                     , {<<"owner">>, Owner}
-                                     , {<<"conn">>
-                                        , ?E2B(Connection)}
-                                    ]}])}
+                    From ! {reply,
+                            jsx:encode(
+                              #{connect=>#{conn_id=>NewConn#ddConn.id,
+                                           owner=>Owner, conn=>?E2B(Connection)}}
+                             )}
             end,
             Priv#priv{connections = [Connection|Connections]}
-    end;
-process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From, undefined, SessPid) ->
-    process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From, #priv{connections = []}, SessPid);
-process_cmd({[<<"connect_change_pswd">>], ReqBody, SessionId}, Sess, UserId, From,
-            #priv{connections = Connections, conn_info = ConnInfo} = Priv, _SessPid) ->
-    [{<<"connect">>, BodyJson}] = ReqBody,
-    Ip          = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port        = proplists:get_value(<<"port">>, BodyJson, <<>>),
-    Secure      = proplists:get_value(<<"secure">>, BodyJson, false),
-    Schema      = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password    = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
-    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
-    Type        = get_connection_type(Ip),
-    ?Debug("connect change password ~p", [{Type, Ip, Port, Schema, User}]),
-    ResultConnect = connect_to_erlimem(Type, Sess, binary_to_list(Ip), Port, Secure, Schema,
-                                       {User, Password, NewPassword, SessionId},
-                                       ConnInfo),
-    case ResultConnect of
-        {error, {{Exception, M}, Stacktrace} = Error} ->
-            ?Error("Db connect failed for ~p, result ~n~p", [User, Error], Stacktrace),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>, [{<<"error">>, Err}]}])},
-            Priv;
-        {error, Error} ->
-            ?Error("DB connect error ~p", [Error]),
-            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Err}]}])},
-            Priv;
-        {ok, {_,_ConPid} = Connection} ->
-            ?Debug("session ~p", [Connection]),
-            ?Debug("connected to params ~p", [{Type, {Ip, Port, Schema}}]),
-            %% Id undefined if we are creating a new connection.
-            Con = #ddConn { id      = proplists:get_value(<<"id">>, BodyJson)
-                          , name    = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner   = UserId
-                          , adapter = imem
-                          , access  = [{ip,     Ip}
-                                      ,{port,   Port}
-                                      ,{type,   Type}
-                                      ,{user,   User}
-                                      ,{secure, Secure}
-                                      ]
-                          , schm    = binary_to_atom(Schema, utf8)
-                          },
-            ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
-            case dderl_dal:add_connect(Sess, Con) of
-                {error, Msg} ->
-                    Connection:close(),
-                    From ! {reply, jsx:encode([{<<"connect_change_pswd">>,[{<<"error">>, Msg}]}])};
-                #ddConn{owner = Owner} = NewConn ->
-                    From ! {reply
-                            , jsx:encode(
-                                [{<<"connect_change_pswd">>
-                                  , [{<<"conn_id">>, NewConn#ddConn.id}
-                                     , {<<"owner">>, Owner}
-                                     , {<<"conn">>
-                                        , ?E2B(Connection)}
-                                    ]}])}
-            end,
-            Priv#priv{connections = [Connection|Connections]}
-    end;
-process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
-    [{<<"change_pswd">>, BodyJson}] = ReqBody,
-    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Schema   = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
-    SessionId = iolist_to_binary(io_lib:format("password changed for user ~s", [User])),
-    case lists:member(Connection, Connections) of
-        true ->
-            case erlimem:open(rpc, {node(), Schema}, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
-                {error, Error} ->
-                    ?Error("change password exception ~n~p~n", [Error]),
-                    Err = iolist_to_binary(io_lib:format("~p", [Error])),
-                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,[{<<"error">>, Err}]}])},
-                    Priv;
-                {ok, SessRes} ->
-                    SessRes:close(),
-                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,<<"ok">>}])},
-                    Priv
-            end;
-        false ->
-            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
-            Priv
     end;
 process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
@@ -849,12 +739,6 @@ connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, _Credentials, ConnI
             erlimem:open(local, Schema);
         _ -> {error, "Local connection unauthorized"}
     end.
-
--spec get_connection_type(binary()) -> atom().
-get_connection_type(<<"local_sec">>) -> local_sec;
-get_connection_type(<<"local">>) -> local;
-get_connection_type(<<"rpc">>) -> rpc;
-get_connection_type(_Ip) -> tcp.
 
 -spec error_invalid_conn({atom(), pid()}, [{atom(), pid()}]) -> term().
 error_invalid_conn(Connection, Connections) ->

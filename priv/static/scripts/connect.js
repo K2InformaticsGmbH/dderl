@@ -102,7 +102,11 @@ function connect_dlg()
                     if($('#territory').length > 0) conn.territory = $('#territory').val();
                 }
 
-                console.log(conn);
+                dderlState.adapter = conn.adapter;
+                ajaxCall(null, 'connect', conn, 'connect', function(resp) {
+                    console.log(conn);
+                    console.log(resp);
+                });
             },
             'Delete': function() {
                 console.log('Delete '+ JSON.stringify({id : connection_list.val()}));
