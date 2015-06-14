@@ -52,10 +52,11 @@ start(_Type, _Args) ->
                          case ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf') of
                              '$no_ssl_conf' ->
                                  {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
-                                 [{'Certificate',Cert,not_encrypted} | Certs] = public_key:pem_decode(PemCrt),
+                                 [{'Certificate',Cert,not_encrypted} | Certs]
+                                 = AllCerts = public_key:pem_decode(PemCrt),
                                  CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
                                  {ok, PemKey} = file:read_file(check_file("certs/server.key")),
-                                 [{KeyType,Key, not_encrypted}] = public_key:pem_decode(PemKey),
+                                 [{KeyType,Key,not_encrypted}|_] = AllKeys = public_key:pem_decode(PemKey),
                                  DDErlSslDefault =
                                     [{cert, Cert},
                                      {key, {KeyType,Key}},
@@ -64,7 +65,9 @@ start(_Type, _Args) ->
                                          [{cacerts,CACerts}];
                                             true -> []
                                       end],
-                                 ?Info("Installing SSL configurations ~p", [DDErlSslDefault]),
+                                 ?Info("Installing SSL certificates ~p~nKeys ~p",
+                                       [[public_key:pem_entry_decode(C)||C<-AllCerts],
+                                        [public_key:pem_entry_decode(K)||K<-AllKeys]]),
                                  ?PUT_CONFIG(dderlSslOpts, [], DDErlSslDefault,
                                      list_to_binary(
                                          io_lib:format("Installed at ~p on ~s",
