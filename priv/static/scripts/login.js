@@ -24,8 +24,8 @@ function loginAjax(data) {
 
 function loginCb(resp) {
     if (resp.hasOwnProperty('error')) {
-        alert('Login falied : ' + resp.error);
-        return null;
+        alert_jq('Login falied : ' + resp.error);
+        loginAjax(null);
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
@@ -50,8 +50,7 @@ function loginCb(resp) {
         resetPingTimer();
         connect_dlg();
     } else {
-        throw(resp);
-        alert("Unexpected "+JSON.stringify(resp));
+        alert_jq("Unexpected "+JSON.stringify(resp));
     }
 }
 
@@ -265,14 +264,17 @@ function change_login_password(loggedInUser, shouldConnect)
     $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td valign=center>User <b>'+loggedInUser+'</b></td></tr>' +
-      '      <tr><td valign=bottom>' +
-      '             <input type="password" id="old_password_login" placeholder="Old Password" class="text ui-widget-content ui-corner-all"/>' +
+      '      <tr><td>Old Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
       '         </td></tr>' +
-      '      <tr><td valign=bottom>' +
-      '             <input type="password" id="password_change_login" placeholder="New Password" class="text ui-widget-content ui-corner-all"/>' +
+      '      <tr><td>New Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
       '         </td></tr>' +
-      '      <tr><td valign=bottom>' +
-      '             <input type="password" id="conf_password_login" placeholder="Confirm New Password" class="text ui-widget-content ui-corner-all"/>' +
+      '      <tr><td>Confirm New Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
       '         </td></tr>' +
       '  </table>' +
       '</div>').appendTo(document.body);

@@ -180,13 +180,14 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
     {value, {<<"id">>, Id}, BodyJson1} = lists:keytake(<<"id">>, 1, BodyJson),
     {value, {<<"name">>, Name}, BodyJson2} = lists:keytake(<<"name">>, 1, BodyJson1),
     {value, {<<"schema">>, Schema}, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
+    {value, {<<"adapter">>, <<"imem">>}, BodyJson4} = lists:keytake(<<"adapter">>, 1, BodyJson3),
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
     case catch connect_erlimem(conn_method(BodyJson), SessionId, BodyJson, ConnInfo) of
         {ok, Connection} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
                           owner = UserId, schm = SchemaAtom,
-                          access = jsx:decode(jsx:encode(BodyJson3), [return_maps])}) of
+                          access = jsx:decode(jsx:encode(BodyJson4), [return_maps])}) of
                 {error, Msg} ->
                     Connection:close(),
                     From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};

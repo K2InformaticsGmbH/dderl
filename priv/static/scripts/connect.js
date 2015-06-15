@@ -549,3 +549,62 @@ function disconnect_tab() {
         }
     });
 }
+
+function change_connect_password(loggedInUser)
+{
+    $('<div id="dialog-change-password" title="Change account password">' +
+      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
+      '      <tr><td align=right valign=center>User&nbsp;</td>' +
+      '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
+      '      <tr><td align=right valign=center>Old Password&nbsp;</td>' +
+      '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
+      '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
+      '          <td valign=bottom><input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '  </table>' +
+      '</div>').appendTo(document.body);
+    $('#dialog-change-password').dialog({
+        autoOpen: false,
+        height: 200,
+        width: 300,
+        resizable: false,
+        modal: false,
+        open: function() {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        close: function() {
+            $("#dialog-change-password").dialog('destroy');
+            $("#dialog-change-password").remove();
+        },
+        buttons: {
+            "Change Password": function() {
+                if($('#conf_password_login').val() == $('#password_change_login').val()) {
+                    var newPassJson = {
+                        change_pswd: {
+                            connection: dderlState.connection,
+                            service : dderlState.service,
+                            user  : loggedInUser,
+                            password  : $('#old_password_login').val(),
+                            new_password  : $('#password_change_login').val()
+                        }};
+                    ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function(data) {
+                        if(data == "ok") {
+                            $("#dialog-change-password").dialog("close");
+                            resetPingTimer();
+                        }
+                        else {
+                            alert('Change password falied : ' + data);
+                        }
+                    });
+                }
+                else alert("Confirm password missmatch!");
+            },
+            Cancel: function() {
+                $(this).dialog("close");
+            }
+        }
+    })
+    .dialog("open")
+    .dialog("widget").draggable("option","containment","#main-body");
+}

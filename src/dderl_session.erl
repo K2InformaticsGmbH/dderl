@@ -168,8 +168,7 @@ process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
 process_login_reply(ok)                         -> #{login=>ok};
 process_login_reply({ok, []})                   -> #{login=>ok};
 process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{login=>#{pwdmd5=>process_data(Data)}};
-process_login_reply({ok, [{smsott,Data}|_]})    -> #{login=>#{smsott=>process_data(Data)}};
-process_login_reply(Error)                      -> #{login=>#{error=>list_to_binary(io_lib:format("~p", [Error]))}}.
+process_login_reply({ok, [{smsott,Data}|_]})    -> #{login=>#{smsott=>process_data(Data)}}.
 
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
 process_data(Data) -> Data.
@@ -179,22 +178,35 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    {Reply, State1} = process_login(SessionId,jsx:decode(ReqData,[return_maps]),State),
-    {Reply1, State2}
-    = case Reply of
-          #{login:=ok} ->
-              ErlImemSess:run_cmd(login,[]),
-              {[UserId],true} = imem_meta:select(
-                                  ddAccount,
-                                  [{#ddAccount{name=State1#state.user,
-                                               id='$1',_='_'},
-                                    [], ['$1']}]),
-              {Reply#{login=>#{accountName=>State1#state.user}},
-               State1#state{user_id = UserId}};
-          _ -> {Reply, State1}
-      end,
-    From ! {reply, jsx:encode(Reply1)},
-    State2;
+    case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
+        {{E,M},St} when is_atom(E) ->
+            ?Error("Error(~p) ~p~n~p", [E,M,St]),
+            From ! {reply, jsx:encode(
+                             #{login=>
+                               #{error=>
+                                 if is_binary(M) -> M;
+                                    is_list(M) -> list_to_binary(M);
+                                    true -> list_to_binary(io_lib:format("~p", [M]))
+                               end}})
+                   },
+            State;
+        {Reply, State1} ->
+            {Reply1, State2}
+            = case Reply of
+                  #{login:=ok} ->
+                      ErlImemSess:run_cmd(login,[]),
+                      {[UserId],true} = imem_meta:select(
+                                          ddAccount,
+                                          [{#ddAccount{name=State1#state.user,
+                                                       id='$1',_='_'},
+                                            [], ['$1']}]),
+                      {Reply#{login=>#{accountName=>State1#state.user}},
+                       State1#state{user_id = UserId}};
+                  _ -> {Reply, State1}
+              end,
+            From ! {reply, jsx:encode(Reply1)},
+            State2
+    end;
 
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
              #state{sess = ErlImemSess} = State) ->
@@ -287,53 +299,6 @@ process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
 
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
-    State;
-
-%% TODO Deprecate
-process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    case dderl_dal:get_adapters(Sess) of
-        {error, Reason} ->
-            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
-        Adapters ->
-            Res = jsx:encode([{<<"adapters">>,
-                [[{<<"id">>, jsq(A#ddAdapter.id)}
-                 ,{<<"fullName">>, A#ddAdapter.fullName}]
-                 || A <- Adapters]}]),
-            ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
-            From ! {reply, Res}
-    end,
-    State;
-
-%% TODO Deprecate
-process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
-    case dderl_dal:get_connects(Sess, UserId) of
-        {error, Reason} ->
-            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
-        [] ->
-            From ! {reply, jsx:encode([{<<"connects">>,[]}])};
-        UnsortedConns ->
-            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) ->
-                                             Name > Name2
-                                     end
-                                     , UnsortedConns),
-            ?Debug("conections ~p", [Connections]),
-            Res = jsx:encode([{<<"connects">>,
-                lists:foldl(fun(C, Acc) ->
-                    [{integer_to_binary(C#ddConn.id), [
-                            {<<"name">>, C#ddConn.name}
-                          , {<<"adapter">>, jsq(C#ddConn.adapter)}
-                          , {<<"service">>, jsq(C#ddConn.schm)}
-                          , {<<"owner">>, jsq(C#ddConn.owner)}
-                          ] ++
-                          [{atom_to_binary(N, utf8), jsq(V)} || {N,V} <- C#ddConn.access]
-                     } | Acc]
-                end,
-                [],
-                Connections)
-            }]),
-            ?Debug("connections as json ~s", [jsx:prettify(Res)]),
-            From ! {reply, Res}
-    end,
     State;
 
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
