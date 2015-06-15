@@ -208,6 +208,28 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                                        })},
             Priv
     end;
+process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+    [{<<"change_pswd">>, BodyJson}] = ReqBody,
+    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
+    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    case lists:member(Connection, Connections) of
+        true ->
+            case dderloci:change_password(Connection, User, Password, NewPassword) of
+                {error, Error} ->
+                    ?Error("change password exception ~n~p~n", [Error]),
+                    Err = iolist_to_binary(io_lib:format("~p", [Error])),
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,[{<<"error">>, Err}]}])},
+                    Priv;
+                ok ->
+                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,<<"ok">>}])},
+                    Priv
+            end;
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
+    end;
 process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
