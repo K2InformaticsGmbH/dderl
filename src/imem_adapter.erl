@@ -88,18 +88,22 @@ connect_map(#ddConn{adapter = imem} = C) ->
 add_conn_extra(#ddConn{access = Access}, Conn)
   when is_map(Access), is_map(Conn) -> maps:merge(Conn, Access);
 add_conn_extra(#ddConn{access = Access}, Conn) when is_list(Access), is_map(Conn) ->
-    case proplists:get_value(type, Access, tcp) of
-        local -> Conn#{method => <<"local">>};
-        local_sec -> Conn#{method => <<"local_sec">>,
+    case proplists:get_value(type, Access, proplists:get_value(<<"method">>, Access, tcp)) of
+        Local when Local == local; Local == <<"local">> ->
+            Conn#{method => <<"local">>};
+        LocalSec when LocalSec == local_sec; LocalSec == <<"local_sec">> ->
+            Conn#{method => <<"local_sec">>,
                            user => proplists:get_value(user, Access, <<>>)};
-        rpc -> Conn#{method => <<"rpc">>,
-                     node => proplists:get_value(node, Access, <<>>),
-                     user => proplists:get_value(user, Access, <<>>)};
-        tcp -> Conn#{method => <<"tcp">>,
-                     host => proplists:get_value(ip, Access, <<>>),
-                     port => proplists:get_value(port, Access, <<>>),
-                     user => proplists:get_value(user, Access, <<>>),
-                     secure => proplists:get_value(secure, Access, false)}
+        Rpc when Rpc == rpc; Rpc == <<"rpc">> ->
+            Conn#{method => <<"rpc">>,
+                  node => proplists:get_value(node, Access, <<>>),
+                  user => proplists:get_value(user, Access, <<>>)};
+        Tcp when Tcp == tcp; Tcp == <<"tcp">> ->
+            Conn#{method => <<"tcp">>,
+                  host => proplists:get_value(ip, Access, <<>>),
+                  port => proplists:get_value(port, Access, <<>>),
+                  user => proplists:get_value(user, Access, <<>>),
+                  secure => proplists:get_value(secure, Access, false)}
     end.
 
 -spec conn_method([{binary(),binary()}]|binary()) -> tcp | rpc | local | local_sec.
@@ -115,23 +119,74 @@ conn_method([{K,V}|_] = PropList) when is_binary(K), is_binary(V) ->
 -spec connect_erlimem(tcp | rpc | local | local_sec,
                       binary(), list({binary(),binary()}), map()) ->
     {ok, {atom(),pid()}}.
+connect_erlimem(tcp, SessionId, Params, ConnInfo) ->
+    Opts = case proplists:get_value(<<"secure">>, Params, false) of
+               false -> [];
+               true -> [ssl]
+           end,
+    IpAddr = binary_to_list(proplists:get_value(<<"host">>, Params)),
+    Port = binary_to_integer(proplists:get_value(<<"port">>, Params)),
+    Schema = try binary_to_existing_atom(
+                 proplists:get_value(<<"schema">>, Params, '$bad_schema'),
+                 utf8) of
+               AtomSchema -> AtomSchema
+           catch _:_ -> error("Invalid schema for tcp")
+           end,
+    {ok, ErlImemSess} = erlimem:open({tcp, IpAddr, Port, Opts}, Schema),
+    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
+        {ok, [{pwdmd5,_}|_]} ->
+            User = proplists:get_value(<<"user">>, Params, <<>>),
+            Password = proplists:get_value(<<"password">>, Params, []),
+            case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
+                Ok when Ok == {ok,[]}; Ok == ok ->
+                    ErlImemSess:run_cmd(login,[]),
+                    {ok, ErlImemSess};
+                {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
+            end
+    end;
+connect_erlimem(rpc, SessionId, Params, ConnInfo) ->
+    Node = try binary_to_existing_atom(
+                 proplists:get_value(<<"node">>, Params, '$bad_node'),
+                 utf8) of
+               AtomPort -> AtomPort
+           catch _:_ -> error("Invalid node for rpc")
+           end,
+    Schema = try binary_to_existing_atom(
+                 proplists:get_value(<<"schema">>, Params, '$bad_schema'),
+                 utf8) of
+               AtomSchema -> AtomSchema
+           catch _:_ -> error("Invalid schema for rpc")
+           end,
+    {ok, ErlImemSess} = erlimem:open({rpc, Node}, Schema),
+    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
+        {ok, [{pwdmd5,_}|_]} ->
+            User = proplists:get_value(<<"user">>, Params, <<>>),
+            Password = proplists:get_value(<<"password">>, Params, []),
+            case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
+                Ok when Ok == {ok,[]}; Ok == ok ->
+                    ErlImemSess:run_cmd(login,[]),
+                    {ok, ErlImemSess};
+                {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
+            end
+    end;
 connect_erlimem(local, _Sess, _Params, _ConnInfo) ->
-    ?Info("_Params ~p, _ConnInfo ~p", [_Params, _ConnInfo]),
-    erlimem:open(local, imem_meta:schema()).
+    erlimem:open(local, imem_meta:schema());
+connect_erlimem(local_sec, _Sess, _Params, _ConnInfo) ->
+    error({local_sec,notsupported}).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), #priv{}, pid()) -> #priv{}.
 process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
             #priv{connections = Connections, conn_info = ConnInfo} = Priv, _SessPid) ->
-    {value, Id, BodyJson1} = lists:keytake(<<"id">>, 1, BodyJson),
-    {value, Name, BodyJson2} = lists:keytake(<<"name">>, 1, BodyJson1),
-    {value, Schema, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
+    {value, {<<"id">>, Id}, BodyJson1} = lists:keytake(<<"id">>, 1, BodyJson),
+    {value, {<<"name">>, Name}, BodyJson2} = lists:keytake(<<"name">>, 1, BodyJson1),
+    {value, {<<"schema">>, Schema}, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
-    case connect_erlimem(conn_method(BodyJson), Sess, BodyJson, ConnInfo) of
+    case catch connect_erlimem(conn_method(BodyJson), SessionId, BodyJson, ConnInfo) of
         {ok, Connection} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
                           owner = UserId, schm = SchemaAtom,
-                          access = BodyJson3}) of
+                          access = jsx:decode(jsx:encode(BodyJson3), [return_maps])}) of
                 {error, Msg} ->
                     Connection:close(),
                     From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};
@@ -142,7 +197,15 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                                            owner=>Owner, conn=>?E2B(Connection)}}
                              )}
             end,
-            Priv#priv{connections = [Connection|Connections]}
+            Priv#priv{connections = [Connection|Connections]};
+        {'EXIT', Error} ->
+            From ! {reply, jsx:encode(#{connect=>
+                                        #{error=>
+                                          list_to_binary(
+                                            io_lib:format(
+                                              "~p", [Error]))}
+                                       })},
+            Priv
     end;
 process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"disconnect">>, BodyJson}] = ReqBody,
@@ -708,37 +771,37 @@ build_srtspec_json(SP, IsAsc) when is_binary(SP) ->
             {SP, [{<<"id">>, -1}, {<<"asc">>, IsAsc}]}
     end.
 
--spec connect_to_erlimem(atom(), {atom(), pid()}, list(), binary(), atom(), binary(), tuple(), map()) ->
-    {ok, {atom(), pid()}} | {error, term()}.
-connect_to_erlimem(rpc, _Sess, _Ip, Port, _Secure, Schema, Credentials, ConnInfo)
-  when is_map(ConnInfo) ->
-    try binary_to_existing_atom(Port, utf8) of
-        AtomPort ->
-            {ok, ErlImemSess} = erlimem:open({rpc, AtomPort}, Schema),
-            ?Info("Credentials ~p", [Credentials]),
-            ErlImemSess:run_cmd(login,[]),
-            {ok, ErlImemSess}
-    catch _:_ -> {error, "Invalid port for connection type rpc"}
-    end;
-connect_to_erlimem(tcp, _Sess, Ip, Port, Secure, Schema, Credentials, ConnInfo)
-  when is_map(ConnInfo) ->
-    SSL = if Secure =:= true -> [ssl]; true -> [] end,
-    try binary_to_integer(Port) of
-        IntPort ->
-            {ok, ErlImemSess} = erlimem:open({tcp, Ip, IntPort, SSL}, Schema),
-            ?Info("Credentials ~p", [Credentials]),
-            ErlImemSess:run_cmd(login,[]),
-            {ok, ErlImemSess}
-    catch _:_ -> {error, "Invalid port for connection type tcp"}
-    end;
-connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, _Credentials, ConnInfo)
-  when is_map(ConnInfo) ->
-    ?Info("Got conn info ~p", [ConnInfo]),
-    case dderl_dal:is_admin(Sess) of
-        true ->
-            erlimem:open(local, Schema);
-        _ -> {error, "Local connection unauthorized"}
-    end.
+%% -spec connect_to_erlimem(atom(), {atom(), pid()}, list(), binary(), atom(), binary(), tuple(), map()) ->
+%%     {ok, {atom(), pid()}} | {error, term()}.
+%% connect_to_erlimem(rpc, _Sess, _Ip, Port, _Secure, Schema, Credentials, ConnInfo)
+%%   when is_map(ConnInfo) ->
+%%     try binary_to_existing_atom(Port, utf8) of
+%%         AtomPort ->
+%%             {ok, ErlImemSess} = erlimem:open({rpc, AtomPort}, Schema),
+%%             ?Info("Credentials ~p", [Credentials]),
+%%             ErlImemSess:run_cmd(login,[]),
+%%             {ok, ErlImemSess}
+%%     catch _:_ -> {error, "Invalid port for connection type rpc"}
+%%     end;
+%% connect_to_erlimem(tcp, _Sess, Ip, Port, Secure, Schema, Credentials, ConnInfo)
+%%   when is_map(ConnInfo) ->
+%%     SSL = if Secure =:= true -> [ssl]; true -> [] end,
+%%     try binary_to_integer(Port) of
+%%         IntPort ->
+%%             {ok, ErlImemSess} = erlimem:open({tcp, Ip, IntPort, SSL}, Schema),
+%%             ?Info("Credentials ~p", [Credentials]),
+%%             ErlImemSess:run_cmd(login,[]),
+%%             {ok, ErlImemSess}
+%%     catch _:_ -> {error, "Invalid port for connection type tcp"}
+%%     end;
+%% connect_to_erlimem(local, Sess, _Ip, _Port, _Secure, Schema, _Credentials, ConnInfo)
+%%   when is_map(ConnInfo) ->
+%%     ?Info("Got conn info ~p", [ConnInfo]),
+%%     case dderl_dal:is_admin(Sess) of
+%%         true ->
+%%             erlimem:open(local, Schema);
+%%         _ -> {error, "Local connection unauthorized"}
+%%     end.
 
 -spec error_invalid_conn({atom(), pid()}, [{atom(), pid()}]) -> term().
 error_invalid_conn(Connection, Connections) ->

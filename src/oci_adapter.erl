@@ -29,17 +29,16 @@ bind_arg_types() -> erloci:bind_arg_types().
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
     dderl_dal:add_connect(undefined,
-                          #ddConn{ id = undefined
+                          #ddConn{ id = null
                                  , name = <<"local oracle">>
                                  , owner = system
                                  , adapter = oci
-                                 , access = [{ip, <<"localhost">>},
-                                             {user, <<"scott">>},
-                                             {port, 1521},
-                                             {type, service},
-                                             {service, xe},
-                                             {secure, true}
-                                            ]
+                                 , access = #{ip=><<"localhost">>,
+                                             user=><<"scott">>,
+                                             port=>1521,
+                                             type=>service,
+                                             service=>xe,
+                                             secure=>true}
                                  }),
     gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>

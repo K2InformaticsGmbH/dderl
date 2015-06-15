@@ -50,6 +50,14 @@ function connect_dlg()
         width: 'auto',
         resizable: false,
         modal: true,
+        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        },
+        open: function(evt, ui) {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
         buttons: {
             'Login / Save': function() {
                 var conn = connection_list.find("option:selected").data('connect');
@@ -103,13 +111,46 @@ function connect_dlg()
                 }
 
                 dderlState.adapter = conn.adapter;
+                var dlg = $(this);
                 ajaxCall(null, 'connect', conn, 'connect', function(resp) {
-                    console.log(conn);
-                    console.log(resp);
+                    if(resp.hasOwnProperty('owner') && resp.hasOwnProperty('conn_id')) {
+                        dderlState.connectionSelected =
+                            {adapter: conn.adapter,
+                             owner: resp.owner,
+                             connection: ''+resp.conn_id};
+                        // Setting up the global connection.
+                        dderlState.connection = resp.conn;
+                        dderlState.connected_user = conn.owner;
+                        dlg.dialog("close");
+                        initDashboards();
+                        show_qry_files(false);
+                    } else {
+                        alert_jq(JSON.stringify(resp));
+                    }
                 });
             },
             'Delete': function() {
                 console.log('Delete '+ JSON.stringify({id : connection_list.val()}));
+/*
+                                    ajaxCall(null,'del_con', {del_con: {conid: parseInt(selectedId)}}, 'del_con', function(data) {
+                        if(data.hasOwnProperty('error')) {
+                            alert_jq(JSON.stringify(data.error));
+                        } else {
+                            // update list on success
+                            $('#connection_list option[value="'+selectedId+'"]').remove();
+                            delete connects[selectedId];
+                            var id = null;
+                            for(id in connects);
+                            if(null != id) {
+                                $('#connection_list-input').val(connects[id].name);
+                                load_login_form(id);
+                            } else {
+                                $('#connection_list-input').val("");
+                                load_login_form('');
+                            }
+                        }
+                    });
+*/
             }
         }
     })
@@ -447,4 +488,64 @@ function add_imem_options(connection_list, connect_options, connect) {
     } else {
         throw("Unknown connect method" + connect.method);
     }
+}
+
+var children;
+function new_connection_tab() {
+    if(dderlState.session) {
+        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+            connect_dlg();
+        } else {
+            if(!children) {
+                children = new Array();
+            }
+            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
+            console.log(newURL);
+            children.push(window.open(newURL, "_blank"));
+        }
+    }
+}
+
+function disconnect_tab() {
+    if (!dderlState.connection) {
+        return;
+    }
+    var headers = new Object();
+
+    if (dderlState.adapter != null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
+    }
+    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+    $(".ui-dialog-content").dialog('close');
+    $('#dashboard-menu').empty();
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/disconnect',
+        data: JSON.stringify({disconnect: {connection: dderlState.connection}}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus, request) {
+            console.log('Request disconnect result ' + textStatus);
+            dderlState.connection = null;
+            dderlState.adapter = null;
+            dderlState.connected_user = null;
+            dderlState.service = null;
+            connect_dlg();
+        },
+
+        error: function (request, textStatus, errorThrown) {
+            console.log('Request disconnect result ' + textStatus);
+            dderlState.connection = null;
+            dderlState.adapter = null;
+            dderlState.connected_user = null;
+            dderlState.service = null;
+            $(".ui-dialog-content").dialog('close');
+            $('#dashboard-menu').empty();
+            connect_dlg();
+        }
+    });
 }

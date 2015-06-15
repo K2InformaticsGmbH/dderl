@@ -161,10 +161,11 @@ process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
     {ok, ErlImemSess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State#state{sess=ErlImemSess}}.
 
+process_login_reply(ok)                         -> #{login=>ok};
+process_login_reply({ok, []})                   -> #{login=>ok};
 process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{login=>#{pwdmd5=>process_data(Data)}};
 process_login_reply({ok, [{smsott,Data}|_]})    -> #{login=>#{smsott=>process_data(Data)}};
-process_login_reply({ok, []})                   -> #{login=>ok};
-process_login_reply(ok)                         -> #{login=>ok}.
+process_login_reply(Error)                      -> #{login=>#{error=>list_to_binary(io_lib:format("~p", [Error]))}}.
 
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
 process_data(Data) -> Data.
