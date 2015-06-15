@@ -19,9 +19,13 @@
         , encrypt_to_binary/1 
         , get_deps/0
         , opt_bind_json_obj/2
+        , add_conn_info/2
         ]).
 
 init() -> ok.
+
+-spec add_conn_info(any(), map()) -> any().
+add_conn_info(Priv, ConnInfo) when is_map(ConnInfo) -> Priv.
 
 -spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> [ddEntityId() | need_replace] | {error, binary()}.
 add_cmds_views(_, _, _, _, []) -> [];

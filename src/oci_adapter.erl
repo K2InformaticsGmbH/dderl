@@ -14,9 +14,11 @@
         , rows_limit/3
         , bind_arg_types/0
         , logfun/1
+        , add_conn_info/2
+        , connect_map/1
         ]).
 
--record(priv, {connections = [], stmts_info = []}).
+-record(priv, {connections = [], stmts_info = [], conn_info}).
 
 -define(E2B(__T), gen_adapter:encrypt_to_binary(__T)).
 -define(D2T(__B), gen_adapter:decrypt_to_term(__B)).
@@ -27,17 +29,16 @@ bind_arg_types() -> erloci:bind_arg_types().
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
     dderl_dal:add_connect(undefined,
-                          #ddConn{ id = undefined
+                          #ddConn{ id = null
                                  , name = <<"local oracle">>
                                  , owner = system
                                  , adapter = oci
-                                 , access = [{ip, <<"localhost">>},
-                                             {user, <<"scott">>},
-                                             {port, 1521},
-                                             {type, <<"DB Name">>},
-                                             {service, xe},
-                                             {secure, true}
-                                            ]
+                                 , access = #{ip=><<"localhost">>,
+                                             user=><<"scott">>,
+                                             port=>1521,
+                                             type=>service,
+                                             service=>xe,
+                                             secure=>true}
                                  }),
     gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>
@@ -50,6 +51,38 @@ init() ->
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
         , [] }
     ]).
+
+-spec add_conn_info(#priv{}, map()) -> #priv{}.
+add_conn_info(#priv{} = Priv, ConnInfo) when is_map(ConnInfo) ->
+    Priv#priv{conn_info = ConnInfo}.
+
+-spec connect_map(#ddConn{}) -> map().
+connect_map(#ddConn{adapter = oci} = C) ->
+    add_conn_extra(C, #{id => C#ddConn.id,
+                        name => C#ddConn.name,
+                        adapter => <<"oci">>,
+                        owner => dderl_dal:user_name(C#ddConn.owner)}).
+
+add_conn_extra(#ddConn{access = Access}, Conn)
+  when is_map(Access), is_map(Conn) -> maps:merge(Conn, Access);
+add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Conn0) ->
+    Conn = Conn0#{user => proplists:get_value(user, Access, <<>>),
+                  language => proplists:get_value(languange, Access, proplists:get_value(language, Access, <<>>)),
+                  territory => proplists:get_value(territory, Access, <<>>),
+                  charset => proplists:get_value(charset, Access, <<>>),
+                  tns => proplists:get_value(tnstr, Access, <<>>),
+                  service => proplists:get_value(service, Access, <<>>),
+                  sid => proplists:get_value(sid, Access, <<>>),
+                  host => proplists:get_value(ip, Access, <<>>),
+                  port => proplists:get_value(port, Access, <<>>)},
+    case proplists:get_value(type, Access, service) of
+        Type when Type == tns; Type == <<"tns">> ->
+            Conn#{method => <<"tns">>};
+        Type when Type == service; Type == <<"service">>; Type == <<"DB Name">> ->
+            Conn#{method => <<"service">>};
+        Type when Type == sid; Type == <<"sid">> ->
+            Conn#{method => <<"sid">>}
+    end.
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
