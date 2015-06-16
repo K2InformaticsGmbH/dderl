@@ -209,10 +209,12 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                                           list_to_binary(
                                             io_lib:format(
                                               "~p:~s", [E,M]))}
-                                       })};
+                                       })},
+            Priv;
         {'EXIT', {M, ST}} when is_binary(M) ->
             ?Error("~s~n~p", [M,ST]),
-            From ! {reply, jsx:encode(#{connect=>#{error=>M}})};
+            From ! {reply, jsx:encode(#{connect=>#{error=>M}})},
+            Priv;
         {'EXIT', Error} ->
             From ! {reply, jsx:encode(#{connect=>
                                         #{error=>
