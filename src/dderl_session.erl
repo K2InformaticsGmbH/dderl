@@ -301,7 +301,8 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
     State;
 
-process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
+process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
+             #state{sess=Sess, user_id=UserId, user=User} = State) ->
     ConnInfo
     = case dderl_dal:get_adapters(Sess) of
           {error, Reason} when is_binary(Reason) -> #{error => Reason};
@@ -321,11 +322,27 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, #state{sess=Sess,
                                              Name > Name2
                                      end, UnsortedConns)
                          ),
+                      CInfo = #{adapters =>
+                                  [#{id => jsq(A#ddAdapter.id),
+                                     fullName => A#ddAdapter.fullName}
+                                   || A <- Adapters],
+                                  connections => Connections},
                       #{connect_info =>
-                        #{adapters =>
-                          [#{id => jsq(A#ddAdapter.id),
-                             fullName => A#ddAdapter.fullName} || A <- Adapters],
-                          connections => Connections}}
+                        case Connections of
+                            [] -> CInfo#{connections =>
+                                         [#{adapter => <<"oci">>,
+                                            id => null,
+                                            name => <<"template oracle">>,
+                                            owner => User,
+                                            method => <<"tns">>},
+                                          #{adapter => <<"imem">>,
+                                            id => null,
+                                            name => <<"template imem">>,
+                                            owner => User,
+                                            method => <<"tcp">>}]};
+                            _ -> CInfo
+                        end
+                       }
               end
       end,
     From ! {reply, jsx:encode(ConnInfo)},

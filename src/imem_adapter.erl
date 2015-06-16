@@ -116,10 +116,10 @@ conn_method(Other)
 conn_method([{K,V}|_] = PropList) when is_binary(K), is_binary(V) ->
     conn_method(proplists:get_value(<<"method">>, PropList, '$not_defined')).
 
--spec connect_erlimem(tcp | rpc | local | local_sec,
+-spec connect_erlimem(tcp | rpc | local | local_sec, {atom(), pid()},
                       binary(), list({binary(),binary()}), map()) ->
     {ok, {atom(),pid()}}.
-connect_erlimem(tcp, SessionId, Params, ConnInfo) ->
+connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
     Opts = case proplists:get_value(<<"secure">>, Params, false) of
                false -> [];
                true -> [ssl]
@@ -144,7 +144,7 @@ connect_erlimem(tcp, SessionId, Params, ConnInfo) ->
                 {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
             end
     end;
-connect_erlimem(rpc, SessionId, Params, ConnInfo) ->
+connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
     Node = try binary_to_existing_atom(
                  proplists:get_value(<<"node">>, Params, '$bad_node'),
                  utf8) of
@@ -169,10 +169,13 @@ connect_erlimem(rpc, SessionId, Params, ConnInfo) ->
                 {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
             end
     end;
-connect_erlimem(local, _Sess, _Params, _ConnInfo) ->
-    erlimem:open(local, imem_meta:schema());
-connect_erlimem(local_sec, _Sess, _Params, _ConnInfo) ->
-    error({local_sec,notsupported}).
+connect_erlimem(local, Sess, _SessionId, _Params, _ConnInfo) ->
+    case dderl_dal:is_admin(Sess) of
+        true -> erlimem:open(local, imem_meta:schema());
+        _ -> error(<<"Local connection unauthorized">>)
+    end;
+connect_erlimem(local_sec, _Sess, _SessionId, _Params, _ConnInfo) ->    
+    error(<<"local_sec is not supported">>).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), #priv{}, pid()) -> #priv{}.
 process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
@@ -182,7 +185,7 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
     {value, {<<"schema">>, Schema}, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
     {value, {<<"adapter">>, <<"imem">>}, BodyJson4} = lists:keytake(<<"adapter">>, 1, BodyJson3),
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
-    case catch connect_erlimem(conn_method(BodyJson), SessionId, BodyJson, ConnInfo) of
+    case catch connect_erlimem(conn_method(BodyJson), Sess, SessionId, BodyJson, ConnInfo) of
         {ok, Connection} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
@@ -207,6 +210,9 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                                             io_lib:format(
                                               "~p:~s", [E,M]))}
                                        })};
+        {'EXIT', {M, ST}} when is_binary(M) ->
+            ?Error("~s~n~p", [M,ST]),
+            From ! {reply, jsx:encode(#{connect=>#{error=>M}})};
         {'EXIT', Error} ->
             From ! {reply, jsx:encode(#{connect=>
                                         #{error=>
