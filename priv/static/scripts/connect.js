@@ -124,6 +124,8 @@ function connect_dlg()
                         dlg.dialog("close");
                         initDashboards();
                         show_qry_files(false);
+                    } else if (resp.hasOwnProperty('error')) {
+                        alert_jq(resp.error);
                     } else {
                         alert_jq(JSON.stringify(resp));
                     }
