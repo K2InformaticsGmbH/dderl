@@ -425,7 +425,7 @@ function resetPingTimer() {
 
 function login_first()
 {
-    alert("Please log in first!");
+    alert_jq("Please log in first!");
 }
 
 function show_qry_files(useSystem)

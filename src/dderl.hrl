@@ -2,6 +2,7 @@
 -define(DDERL_HRL, true).
 
 -include_lib("imem/include/imem_meta.hrl").
+-include_lib("imem/include/imem_exports.hrl").
 
 -define(DEFAULT_ROW_SIZE, 100).
 -record(viewstate, { table_layout = []

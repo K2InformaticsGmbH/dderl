@@ -132,23 +132,7 @@ connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
                AtomSchema -> AtomSchema
            catch _:_ -> error("Invalid schema for tcp")
            end,
-    {ok, ErlImemSess} = case erlimem:open({tcp, IpAddr, Port, Opts}, Schema) of
-                            {ok, _} = E -> E;
-                            Error ->
-                                error(list_to_binary(io_lib:format("~p", [Error])))
-                        end,
-    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
-        {ok, [{pwdmd5,_}|_]} ->
-            User = proplists:get_value(<<"user">>, Params, <<>>),
-            Password = proplists:get_value(<<"password">>, Params, []),
-            case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
-                Ok when Ok == {ok,[]}; Ok == ok ->
-                    ErlImemSess:run_cmd(login,[]),
-                    {ok, ErlImemSess, '$no_extra'};
-                {ok, [{smsott,Data}|_]} ->
-                    {ok, ErlImemSess, maps:remove(accountName,Data)}
-            end
-    end;
+    connect_erlimem_password({tcp, IpAddr, Port, Opts}, Schema, SessionId, ConnInfo, Params);
 connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
     Node = try binary_to_existing_atom(
                  proplists:get_value(<<"node">>, Params, '$bad_node'),
@@ -162,18 +146,7 @@ connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
                AtomSchema -> AtomSchema
            catch _:_ -> error("Invalid schema for rpc")
            end,
-    {ok, ErlImemSess} = erlimem:open({rpc, Node}, Schema),
-    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
-        {ok, [{pwdmd5,_}|_]} ->
-            User = proplists:get_value(<<"user">>, Params, <<>>),
-            Password = proplists:get_value(<<"password">>, Params, []),
-            case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
-                Ok when Ok == {ok,[]}; Ok == ok ->
-                    ErlImemSess:run_cmd(login,[]),
-                    {ok, ErlImemSess, '$no_extra'};
-                {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
-            end
-    end;
+    connect_erlimem_password({rpc, Node}, Schema, SessionId, ConnInfo, Params);
 connect_erlimem(local, Sess, _SessionId, _Params, _ConnInfo) ->
     case dderl_dal:is_admin(Sess) of
         true ->
@@ -184,6 +157,31 @@ connect_erlimem(local, Sess, _SessionId, _Params, _ConnInfo) ->
 connect_erlimem(local_sec, _Sess, _SessionId, _Params, _ConnInfo) ->    
     error(<<"local_sec is not supported">>).
 
+connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
+    {ok, ErlImemSess}
+    = case erlimem:open(Connect, Schema) of
+          {ok, _} = E -> E;
+          Error ->
+              error(list_to_binary(io_lib:format("~p", [Error])))
+      end,
+    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
+        {ok, [{pwdmd5,_}|_]} ->
+            User = proplists:get_value(<<"user">>, Params, <<>>),
+            Password = proplists:get_value(<<"password">>, Params, []),
+            case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
+                Ok when Ok == {ok,[]}; Ok == ok ->
+                    case ErlImemSess:run_cmd(login,[]) of
+                        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+                            ?Warn("Password expired ~s~n~p", [User, ST]),
+                            {ok, ErlImemSess, #{changePass=>User}};
+                        _ ->
+                            {ok, ErlImemSess, '$no_extra'}
+                    end;
+                {ok, [{smsott,Data}|_]} ->
+                    {ok, ErlImemSess, maps:remove(accountName,Data)}
+            end
+    end.
+
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), #priv{}, pid()) -> #priv{}.
 process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
             #priv{connections = Connections, conn_info = ConnInfo} = Priv, _SessPid) ->
@@ -191,19 +189,23 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
     {value, {<<"name">>, Name}, BodyJson2} = lists:keytake(<<"name">>, 1, BodyJson1),
     {value, {<<"schema">>, Schema}, BodyJson3} = lists:keytake(<<"schema">>, 1, BodyJson2),
     {value, {<<"adapter">>, <<"imem">>}, BodyJson4} = lists:keytake(<<"adapter">>, 1, BodyJson3),
+    BodyJson5 = case lists:keytake(<<"password">>, 1, BodyJson4) of
+                    {value, {<<"password">>, _}, BJ} -> BJ;
+                    false -> BodyJson4
+                end,
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
     case catch connect_erlimem(conn_method(BodyJson), Sess, SessionId, BodyJson, ConnInfo) of
         {ok, ErlImemSess, Extra} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
                           owner = UserId, schm = SchemaAtom,
-                          access = jsx:decode(jsx:encode(BodyJson4), [return_maps])}) of
+                          access = jsx:decode(jsx:encode(BodyJson5), [return_maps])}) of
                 {error, Msg} ->
                     ErlImemSess:close(),
                     From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};
                 #ddConn{owner = Owner} = NewConn ->
                     ConnReply = #{conn_id=>NewConn#ddConn.id,
-                                             owner=>Owner, conn=>?E2B(ErlImemSess)},
+                                  owner=>Owner, conn=>?E2B(ErlImemSess)},
                     From ! {reply,
                             jsx:encode(
                               #{connect =>
@@ -242,8 +244,14 @@ process_cmd({[<<"smstoken">>], BodyJson}, _Sess, _UserId, From, #priv{connection
             Token = proplists:get_value(<<"smstoken">>, BodyJson, <<>>),
             case ErlImemSess:auth(dderl,<<>>,{smsott,Token}) of
                 Ok when Ok == {ok,[]}; Ok == ok ->
-                    ErlImemSess:run_cmd(login,[]),
-                    From ! {reply, jsx:encode(#{smstoken=>ok})},
+                    case ErlImemSess:run_cmd(login,[]) of
+                        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+                            User = proplists:get_value(<<"user">>, BodyJson, <<>>),
+                            ?Warn("Password expired ~s~n~p", [User, ST]),
+                            From ! {reply, jsx:encode(#{smstoken=>#{changePass=>User}})};
+                        _ ->
+                            From ! {reply, jsx:encode(#{smstoken=>ok})}
+                    end,
                     Priv;
                 Unexpected ->
                     ?Error("Not expected ~p", [Unexpected]),
@@ -254,26 +262,37 @@ process_cmd({[<<"smstoken">>], BodyJson}, _Sess, _UserId, From, #priv{connection
             From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
             Priv
     end;
-process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
-    [{<<"change_pswd">>, BodyJson}] = ReqBody,
+process_cmd({[<<"change_conn_pswd">>], BodyJson}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     ErlImemSess = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
+    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
+    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
     case lists:member(ErlImemSess, Connections) of
         true ->
-            case dderloci:change_password(ErlImemSess, User, Password, NewPassword) of
-                {error, Error} ->
-                    ?Error("change password exception ~n~p~n", [Error]),
-                    Err = iolist_to_binary(io_lib:format("~p", [Error])),
-                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,[{<<"error">>, Err}]}])},
-                    Priv;
-                ok ->
-                    From ! {reply, jsx:encode([{<<"change_conn_pswd">>,<<"ok">>}])},
-                    Priv
-            end;
+            case ErlImemSess:run_cmd(
+                   change_credentials,
+                   [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
+                  ) of
+                SeKey when is_integer(SeKey) ->
+                    ?Debug("change password successful for ~p", [User]),
+                    From ! {reply, jsx:encode(#{change_conn_pswd=><<"ok">>})};
+                {error, {error, {E, M}}} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, {E, M}]),
+                    From ! {reply, jsx:encode(#{change_conn_pswd=>
+                                                #{error=>
+                                                  list_to_binary(io_lib:format("~p: ~p", [E,M]))
+                                                 }})};
+                {error, {{E, M}, ST}} ->
+                    ?Error("change password failed for ~p, result ~p~n~p", [User, {E, M}, ST]),
+                    From ! {reply, jsx:encode(#{change_conn_pswd=>
+                                                #{error=>
+                                                  list_to_binary(io_lib:format("~p: ~p", [E,M]))
+                                                 }})}
+            end,
+            Priv;
         false ->
-            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            From ! {reply, jsx:encode(#{change_conn_pswd=>
+                                        #{error=><<"Connection not found">>}})},
             Priv
     end;
 process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->

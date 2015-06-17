@@ -314,11 +314,11 @@ function change_login_password(loggedInUser, shouldConnect)
                             }
                         }
                         else {
-                            alert('Change password falied : ' + data);
+                            alert_jq('Change password falied : ' + data);
                         }
                     });
                 }
-                else alert("Confirm password missmatch!");
+                else alert_jq("Confirm password missmatch!");
             },
             Cancel: function() {
                 $(this).dialog("close");

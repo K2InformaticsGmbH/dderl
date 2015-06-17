@@ -60,83 +60,7 @@ function connect_dlg()
         },
         buttons: {
             'Login / Save': function() {
-                var conn = connection_list.find("option:selected").data('connect');
-                var conn_name = connection_list.parent().find('input').val();
-                if(conn.name != conn_name)
-                    conn.id = null;
-                conn.name    = conn_name;
-                conn.adapter = adapter_list.val();
-                conn.owner   = owners_list.parent().find('input').val();
-                conn.method  = $("input:radio[name=method]:checked").val();
-                if(conn.adapter == 'imem') {
-                    if(conn.method == 'local') {
-                        conn.schema = $('#schema').val();
-                    } else if(conn.method == 'rpc') {
-                        conn.schema = $('#schema').val();
-                        conn.node = $('#node').val();
-                        conn.user = $('#user').val();
-                        conn.password = $('#password').val();
-                    } else if(conn.method == 'tcp') {
-                        conn.schema = $('#schema').val();
-                        conn.host = $('#host').val();
-                        conn.port = $('#port').val();
-                        conn.user = $('#user').val();
-                        conn.password = $('#password').val();
-                        conn.secure = $('#secure').is(':checked');
-                    }
-                    // imem (rpc/tcp) expects passwords are md5
-                    if (conn.hasOwnProperty('password'))
-                        conn.password = md5Arr(conn.password);
-                } else if(conn.adapter == 'oci') {
-                    // 'service', 'sid' and 'tns' input fields are
-                    // prefixed with inp_ to resolve conflict with
-                    // method radios
-                    if(conn.method == 'tns') {
-                        conn.tns = $('#inp_tns').val();
-                        conn.user = $('#user').val();
-                        conn.password = $('#password').val();
-                    } else if(conn.method == 'service' || conn.method == 'sid') {
-                        if(conn.method == 'service') {
-                            conn.service = $('#inp_service').val();
-                        } else if(conn.method == 'sid') {
-                            conn.sid = $('#inp_sid').val();
-                        }
-                        conn.host = $('#host').val();
-                        conn.port = $('#port').val();
-                        conn.user = $('#user').val();
-                        conn.password = $('#password').val();
-                    }
-                    if($('#language').length > 0) conn.language = $('#language').val();
-                    if($('#territory').length > 0) conn.territory = $('#territory').val();
-                }
-
-                dderlState.adapter = conn.adapter;
-                var dlg = $(this);
-                ajaxCall(null, 'connect', conn, 'connect', function(resp) {
-                    if(resp.hasOwnProperty('owner') && resp.hasOwnProperty('conn_id')) {
-                        dderlState.connectionSelected =
-                            {adapter: conn.adapter,
-                             owner: resp.owner,
-                             connection: ''+resp.conn_id};
-                        // Setting up the global connection.
-                        dderlState.connection = resp.conn;
-                        dderlState.connected_user = conn.owner;
-                        function connectSuccessCb() {
-                            dlg.dialog("close");
-                            initDashboards();
-                            show_qry_files(false);
-                        };
-                        if (resp.hasOwnProperty('extra')) {
-                            validateSmsToken(conn.user, resp.extra, connectSuccessCb);
-                        } else {
-                            connectSuccessCb();
-                        }
-                    } else if (resp.hasOwnProperty('error')) {
-                        alert_jq(resp.error);
-                    } else {
-                        alert_jq(JSON.stringify(resp));
-                    }
-                });
+                login_save($(this), connection_list, adapter_list, owners_list);
             },
             'Delete': function() {
                 var conn = connection_list.find("option:selected");
@@ -211,6 +135,12 @@ function connect_dlg()
                 .val(connection_list.find('option:selected').text());
         }
         load_connect_option(connection_list, connect_options);
+        connect_options.find('input:password')
+            .keypress(function(e) {
+                if(e.which == 13) {
+                    login_save(dlg, connection_list, adapter_list, owners_list);
+                }
+            });
     });
 
     owners_list.change(function() {
@@ -296,6 +226,88 @@ function connect_dlg()
         connection_list.change();
     });
 //*/
+}
+
+function login_save(dlg, connection_list, adapter_list, owners_list)
+{
+    var conn = connection_list.find("option:selected").data('connect');
+    var conn_name = connection_list.parent().find('input').val();
+    if(conn.name != conn_name)
+        conn.id = null;
+    conn.name    = conn_name;
+    conn.adapter = adapter_list.val();
+    conn.owner   = owners_list.parent().find('input').val();
+    conn.method  = $("input:radio[name=method]:checked").val();
+    if(conn.adapter == 'imem') {
+        if(conn.method == 'local') {
+            conn.schema = $('#schema').val();
+        } else if(conn.method == 'rpc') {
+            conn.schema = $('#schema').val();
+            conn.node = $('#node').val();
+            conn.user = $('#user').val();
+            conn.password = $('#password').val();
+        } else if(conn.method == 'tcp') {
+            conn.schema = $('#schema').val();
+            conn.host = $('#host').val();
+            conn.port = $('#port').val();
+            conn.user = $('#user').val();
+            conn.password = $('#password').val();
+            conn.secure = $('#secure').is(':checked');
+        }
+        // imem (rpc/tcp) expects passwords are md5
+        if (conn.hasOwnProperty('password'))
+            conn.password = md5Arr(conn.password);
+    } else if(conn.adapter == 'oci') {
+        // 'service', 'sid' and 'tns' input fields are
+        // prefixed with inp_ to resolve conflict with
+        // method radios
+        if(conn.method == 'tns') {
+            conn.tns = $('#inp_tns').val();
+            conn.user = $('#user').val();
+            conn.password = $('#password').val();
+        } else if(conn.method == 'service' || conn.method == 'sid') {
+            if(conn.method == 'service') {
+                conn.service = $('#inp_service').val();
+            } else if(conn.method == 'sid') {
+                conn.sid = $('#inp_sid').val();
+            }
+            conn.host = $('#host').val();
+            conn.port = $('#port').val();
+            conn.user = $('#user').val();
+            conn.password = $('#password').val();
+        }
+        if($('#language').length > 0) conn.language = $('#language').val();
+        if($('#territory').length > 0) conn.territory = $('#territory').val();
+    }
+
+    dderlState.adapter = conn.adapter;
+    ajaxCall(null, 'connect', conn, 'connect', function(resp) {
+        if(resp.hasOwnProperty('owner') && resp.hasOwnProperty('conn_id')) {
+            dderlState.connectionSelected =
+                {adapter: conn.adapter,
+                 owner: resp.owner,
+                 connection: ''+resp.conn_id};
+            // Setting up the global connection.
+            dderlState.connection = resp.conn;
+            dderlState.connected_user = conn.owner;
+            function connectSuccessCb() {
+                dlg.dialog("close");
+                initDashboards();
+                show_qry_files(false);
+            };
+            if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('changePass')) {
+                change_connect_password(resp.extra.changePass, connectSuccessCb);
+            } else if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('to')) {
+                validateSmsToken(conn.user, resp.extra, connectSuccessCb);
+            } else {
+                connectSuccessCb();
+            }
+        } else if (resp.hasOwnProperty('error')) {
+            alert_jq(resp.error);
+        } else {
+            alert_jq(JSON.stringify(resp));
+        }
+    });
 }
 
 function load_connect_option(connection_list, connect_options) {
@@ -556,7 +568,7 @@ function disconnect_tab() {
     });
 }
 
-function change_connect_password(loggedInUser)
+function change_connect_password(loggedInUser, connectSuccessCb)
 {
     $('<div id="dialog-change-password" title="Change account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
@@ -587,24 +599,26 @@ function change_connect_password(loggedInUser)
             "Change Password": function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {
-                        change_pswd: {
                             connection: dderlState.connection,
                             service : dderlState.service,
                             user  : loggedInUser,
-                            password  : $('#old_password_login').val(),
-                            new_password  : $('#password_change_login').val()
-                        }};
-                    ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function(data) {
-                        if(data == "ok") {
+                            password  : md5Arr($('#old_password_login').val()),
+                            new_password  : md5Arr($('#password_change_login').val())
+                        };
+                    ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function(resp) {
+                        if(resp == "ok") {
                             $("#dialog-change-password").dialog("close");
                             resetPingTimer();
-                        }
-                        else {
-                            alert('Change password falied : ' + data);
+                            if($.isFunction(connectSuccessCb))
+                                connectSuccessCb();
+                        } else if (resp.hasOwnProperty('error')) {
+                            alert_jq('Change password falied : ' + resp.error);
+                        } else {
+                            alert_jq('Change password falied : ' + JSON.stringify(resp));
                         }
                     });
                 }
-                else alert("Confirm password missmatch!");
+                else alert_jq("Confirm password missmatch!");
             },
             Cancel: function() {
                 $(this).dialog("close");
@@ -666,10 +680,17 @@ function validateSmsToken(user, data, connectSuccessCb)
     tokenInp.keypress(function(e) {
         if(e.which == 13) {
             ajaxCall(null, 'smstoken',
-                    {connection: dderlState.connection,
+                    {user: user,
+                     connection: dderlState.connection,
                      smstoken : tokenInp.val()}, 'smstoken', function(resp) {
                 if(resp.hasOwnProperty('error')) {
                     alert_jq(resp.error);
+                } else if (resp.hasOwnProperty('changePass')) {
+                    change_connect_password(resp.changePass,
+                        function() {
+                            connectSuccessCb();
+                            dlg.dialog("close");
+                        });
                 } else {
                     connectSuccessCb();
                     dlg.dialog("close");
