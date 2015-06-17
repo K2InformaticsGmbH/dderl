@@ -23,6 +23,15 @@ function loginAjax(data) {
 }
 
 function loginCb(resp) {
+    $('#disconnect-button').removeClass('disabled');
+
+    if (resp.hasOwnProperty('vsn')) {
+        $('#version').text(' | '+resp.vsn);
+    }
+    if (resp.hasOwnProperty('node')) {
+        $('#node').text(resp.node);
+    }
+
     if (resp.hasOwnProperty('error')) {
         alert_jq('Login falied : ' + resp.error);
         loginAjax(null);

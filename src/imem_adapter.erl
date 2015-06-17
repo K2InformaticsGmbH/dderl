@@ -106,10 +106,9 @@ add_conn_extra(#ddConn{access = Access}, Conn) when is_list(Access), is_map(Conn
                   secure => proplists:get_value(secure, Access, false)}
     end.
 
--spec conn_method([{binary(),binary()}]|binary()) -> tcp | rpc | local | local_sec.
+-spec conn_method([{binary(),binary()}]|binary()) -> tcp | rpc | local.
 conn_method(<<"rpc">>)          -> rpc;
 conn_method(<<"local">>)        -> local;
-conn_method(<<"local_sec">>)    -> local_sec;
 conn_method(Other)
   when Other == <<"tcp">>;
        Other == '$not_defined'  -> tcp;
@@ -147,15 +146,20 @@ connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
            catch _:_ -> error("Invalid schema for rpc")
            end,
     connect_erlimem_password({rpc, Node}, Schema, SessionId, ConnInfo, Params);
-connect_erlimem(local, Sess, _SessionId, _Params, _ConnInfo) ->
-    case dderl_dal:is_admin(Sess) of
+connect_erlimem(local, Sess, SessionId, Params, ConnInfo) ->
+    case proplists:get_value(<<"secure">>, Params, false) of
         true ->
-            {ok, ErlImemSess} = erlimem:open(local, imem_meta:schema()),
-            {ok, ErlImemSess, '$no_extra'};
-        _ -> error(<<"Local connection unauthorized">>)
+            connect_erlimem(local_sec, Sess, SessionId, Params, ConnInfo);
+        false ->
+            case dderl_dal:is_admin(Sess) of
+                true ->
+                    {ok, ErlImemSess} = erlimem:open(local, imem_meta:schema()),
+                    {ok, ErlImemSess, '$no_extra'};
+                _ -> error(<<"Local connection unauthorized">>)
+            end
     end;
-connect_erlimem(local_sec, _Sess, _SessionId, _Params, _ConnInfo) ->    
-    error(<<"local_sec is not supported">>).
+connect_erlimem(local_sec, ErlImemSess, _SessionId, _Params, _ConnInfo) ->
+    {ok, ErlImemSess, #{node => list_to_binary(imem_meta:node_shard())}}.
 
 connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
     {ok, ErlImemSess}

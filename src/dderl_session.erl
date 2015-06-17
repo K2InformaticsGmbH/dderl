@@ -165,10 +165,10 @@ process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
     {ok, ErlImemSess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State#state{sess=ErlImemSess}}.
 
-process_login_reply(ok)                         -> #{login=>ok};
-process_login_reply({ok, []})                   -> #{login=>ok};
-process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{login=>#{pwdmd5=>process_data(Data)}};
-process_login_reply({ok, [{smsott,Data}|_]})    -> #{login=>#{smsott=>process_data(Data)}}.
+process_login_reply(ok)                         -> ok;
+process_login_reply({ok, []})                   -> ok;
+process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{pwdmd5=>process_data(Data)};
+process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}.
 
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
 process_data(Data) -> Data.
@@ -193,7 +193,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
         {Reply, State1} ->
             {Reply1, State2}
             = case Reply of
-                  #{login:=ok} ->
+                  ok ->
                       case ErlImemSess:run_cmd(login,[]) of
                           {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
                               ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
@@ -204,12 +204,16 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
                                                   [{#ddAccount{name=State1#state.user,
                                                                id='$1',_='_'},
                                                     [], ['$1']}]),
-                              {Reply#{login=>#{accountName=>State1#state.user}},
+                              {#{accountName=>State1#state.user},
                                State1#state{user_id = UserId}}
                       end;
                   _ -> {Reply, State1}
               end,
-            From ! {reply, jsx:encode(Reply1)},
+            {ok,Vsn} = application:get_key(dderl, vsn),            
+            From ! {reply, jsx:encode(
+                             #{login => Reply1#{vsn => list_to_binary(Vsn),
+                                                node => list_to_binary(imem_meta:node_shard())
+                                               }})},
             State2
     end;
 

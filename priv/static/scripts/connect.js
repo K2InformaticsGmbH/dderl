@@ -241,6 +241,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
     if(conn.adapter == 'imem') {
         if(conn.method == 'local') {
             conn.schema = $('#schema').val();
+            conn.secure = $('#secure').is(':checked');
         } else if(conn.method == 'rpc') {
             conn.schema = $('#schema').val();
             conn.node = $('#node').val();
@@ -295,6 +296,15 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
                 initDashboards();
                 show_qry_files(false);
             };
+
+            document.title = 'DDErl ('+conn.name+')';
+            if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
+                document.title = 'DDErl ('+resp.extra.node+')';
+            }
+
+            if(conn.method == 'local' && conn.secure == true)
+                $('#disconnect-button').addClass('disabled');
+                
             if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('changePass')) {
                 change_connect_password(resp.extra.changePass, connectSuccessCb);
             } else if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('to')) {
@@ -444,9 +454,19 @@ function add_imem_options(connection_list, connect_options, connect) {
                 $('<td>').append(
                     $('<input type="text" id="schema">').val(connect.schema)
                     )
-                )
-            );
+            )
+    );
     if(connect.method == 'local') {
+        options.append(
+            $('<tr>').append(
+                $('<td>Secure</td>'),
+                $('<td>').append(
+                    $('<input type="checkbox" id="secure">')
+                    .css('margin-left',0)
+                    .attr('checked', connect.secure)
+                )
+            )
+        );
     } else if (connect.method == 'rpc') {
         options.append(
             $('<tr>').append(
@@ -525,9 +545,12 @@ function new_connection_tab() {
 }
 
 function disconnect_tab() {
-    if (!dderlState.connection) {
+    if($('#disconnect-button').hasClass('disabled'))
         return;
-    }
+
+    if (!dderlState.connection)
+        return;
+
     var headers = new Object();
 
     if (dderlState.adapter != null) {

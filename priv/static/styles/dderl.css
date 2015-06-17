@@ -548,3 +548,7 @@ div#main_footer {
 .slick-group-count {
     color:grey;
 }
+
+#disconnect-button.disabled {
+    color: grey !important;
+}
