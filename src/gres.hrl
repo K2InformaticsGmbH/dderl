@@ -1,3 +1,6 @@
+-ifndef(GRES_HRL).
+-define(GRES_HRL, true).
+
 -record(gres,   { %% response sent back to gui
                   operation           %% rpl (replace) | app (append) | prp (prepend) | nop | close
                 , cnt = 0             %% current buffer size (raw table or index table size)
@@ -31,3 +34,5 @@
                 , bind_vals
                 , table_name
                 }).
+
+-endif.
