@@ -194,14 +194,19 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
             {Reply1, State2}
             = case Reply of
                   #{login:=ok} ->
-                      ErlImemSess:run_cmd(login,[]),
-                      {[UserId],true} = imem_meta:select(
-                                          ddAccount,
-                                          [{#ddAccount{name=State1#state.user,
-                                                       id='$1',_='_'},
-                                            [], ['$1']}]),
-                      {Reply#{login=>#{accountName=>State1#state.user}},
-                       State1#state{user_id = UserId}};
+                      case ErlImemSess:run_cmd(login,[]) of
+                          {error,{{'SecurityException',{"Password expired. Please change it",_}},ST}} ->
+                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
+                              {#{login=>#{changePass=>State1#state.user}}, State1};
+                          _ ->
+                              {[UserId],true} = imem_meta:select(
+                                                  ddAccount,
+                                                  [{#ddAccount{name=State1#state.user,
+                                                               id='$1',_='_'},
+                                                    [], ['$1']}]),
+                              {Reply#{login=>#{accountName=>State1#state.user}},
+                               State1#state{user_id = UserId}}
+                      end;
                   _ -> {Reply, State1}
               end,
             From ! {reply, jsx:encode(Reply1)},
@@ -328,20 +333,25 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
                                    || A <- Adapters],
                                   connections => Connections},
                       #{connect_info =>
-                        case Connections of
-                            [] -> CInfo#{connections =>
-                                         [#{adapter => <<"oci">>,
+                        CInfo#{connections =>
+                               Connections ++
+                               case [A || #{adapter := A} <- Connections, A == <<"oci">>] of
+                                   [] -> [#{adapter => <<"oci">>,
                                             id => null,
                                             name => <<"template oracle">>,
                                             owner => User,
-                                            method => <<"tns">>},
-                                          #{adapter => <<"imem">>,
+                                            method => <<"tns">>}];
+                                   _ -> []
+                               end ++
+                               case [A || #{adapter := A} <- Connections, A == <<"imem">>] of
+                                   [] -> [#{adapter => <<"imem">>,
                                             id => null,
                                             name => <<"template imem">>,
                                             owner => User,
-                                            method => <<"tcp">>}]};
-                            _ -> CInfo
-                        end
+                                            method => <<"tcp">>}];
+                                   _ -> []
+                               end
+                              }
                        }
               end
       end,

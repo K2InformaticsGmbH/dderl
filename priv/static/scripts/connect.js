@@ -121,9 +121,16 @@ function connect_dlg()
                         // Setting up the global connection.
                         dderlState.connection = resp.conn;
                         dderlState.connected_user = conn.owner;
-                        dlg.dialog("close");
-                        initDashboards();
-                        show_qry_files(false);
+                        function connectSuccessCb() {
+                            dlg.dialog("close");
+                            initDashboards();
+                            show_qry_files(false);
+                        };
+                        if (resp.hasOwnProperty('extra')) {
+                            validateSmsToken(conn.user, resp.extra, connectSuccessCb);
+                        } else {
+                            connectSuccessCb();
+                        }
                     } else if (resp.hasOwnProperty('error')) {
                         alert_jq(resp.error);
                     } else {
@@ -132,27 +139,24 @@ function connect_dlg()
                 });
             },
             'Delete': function() {
-                console.log('Delete '+ JSON.stringify({id : connection_list.val()}));
-/*
-                                    ajaxCall(null,'del_con', {del_con: {conid: parseInt(selectedId)}}, 'del_con', function(data) {
+                var conn = connection_list.find("option:selected");
+                var connId = conn.data('connect').id;
+                var dlg = $(this);
+                ajaxCall(null,'del_con', {del_con: {conid: connId}}, 'del_con', function(data) {
                         if(data.hasOwnProperty('error')) {
                             alert_jq(JSON.stringify(data.error));
                         } else {
-                            // update list on success
-                            $('#connection_list option[value="'+selectedId+'"]').remove();
-                            delete connects[selectedId];
-                            var id = null;
-                            for(id in connects);
-                            if(null != id) {
-                                $('#connection_list-input').val(connects[id].name);
-                                load_login_form(id);
+                            conn.remove();
+                            if(connection_list.find("option:selected").length == 0) {
+                                dlg.dialog("close");
+                                loginAjax(null);
                             } else {
-                                $('#connection_list-input').val("");
-                                load_login_form('');
+                                connection_list.parent().find('input').val(
+                                    connection_list.find("option:selected").data('connect').name);
+                                connection_list.change();
                             }
                         }
                     });
-*/
             }
         }
     })
@@ -609,4 +613,70 @@ function change_connect_password(loggedInUser)
     })
     .dialog("open")
     .dialog("widget").draggable("option","containment","#main-body");
+}
+
+function validateSmsToken(user, data, connectSuccessCb)
+{
+    var dlg = $('<div title="Enter Token" style="diaply:none">')
+        .appendTo(document.body);
+
+    var tokenInp = $('<input type="text" class="text ui-widget-content ui-corner-all"/>');
+
+    $('<table border=0 width=100% cellspacing=0>').append(
+        $('<tr>').append(
+            $('<td valign=bottom>')
+            .attr('colspan',2)
+            .append(
+                $('<span>')
+                .css({'word-wrap' : 'break-word',
+                      display     : 'block',
+                      width       : '300px'})
+                .text("A token is send through SMS to "+data.to+
+                      " for user "+user+". Please enter the token below"))
+        ),
+        $('<tr>').append(
+            $('<td valign=bottom>')
+            .attr('colspan',2)
+            .append(tokenInp)
+        )
+    ).appendTo(dlg);
+
+    dlg.dialog({
+        autoOpen: false,
+        minHeight: 100,
+        height: 'auto',
+        width: 'auto',
+        resizable: false,
+        modal: false,
+        position: { my: "left top", at: "left+80 top+300", of: "#main-body" },
+        closeOnEscape: false,
+        dialogClass: 'no-close',
+        open: function(event, ui) {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        }
+    })
+    .dialog("open")
+    .dialog("widget")
+    .draggable("option","containment","#main-body");
+
+    tokenInp.keypress(function(e) {
+        if(e.which == 13) {
+            ajaxCall(null, 'smstoken',
+                    {connection: dderlState.connection,
+                     smstoken : tokenInp.val()}, 'smstoken', function(resp) {
+                if(resp.hasOwnProperty('error')) {
+                    alert_jq(resp.error);
+                } else {
+                    connectSuccessCb();
+                    dlg.dialog("close");
+                }
+            });
+        }
+    });
+
+    setTimeout(function() { tokenInp.focus(); }, 100);
 }

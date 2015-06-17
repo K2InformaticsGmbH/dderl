@@ -118,7 +118,7 @@ conn_method([{K,V}|_] = PropList) when is_binary(K), is_binary(V) ->
 
 -spec connect_erlimem(tcp | rpc | local | local_sec, {atom(), pid()},
                       binary(), list({binary(),binary()}), map()) ->
-    {ok, {atom(),pid()}}.
+    {ok, {atom(),pid()}, any()}.
 connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
     Opts = case proplists:get_value(<<"secure">>, Params, false) of
                false -> [];
@@ -132,7 +132,11 @@ connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
                AtomSchema -> AtomSchema
            catch _:_ -> error("Invalid schema for tcp")
            end,
-    {ok, ErlImemSess} = erlimem:open({tcp, IpAddr, Port, Opts}, Schema),
+    {ok, ErlImemSess} = case erlimem:open({tcp, IpAddr, Port, Opts}, Schema) of
+                            {ok, _} = E -> E;
+                            Error ->
+                                error(list_to_binary(io_lib:format("~p", [Error])))
+                        end,
     case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
         {ok, [{pwdmd5,_}|_]} ->
             User = proplists:get_value(<<"user">>, Params, <<>>),
@@ -140,8 +144,9 @@ connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
             case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
                 Ok when Ok == {ok,[]}; Ok == ok ->
                     ErlImemSess:run_cmd(login,[]),
-                    {ok, ErlImemSess};
-                {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
+                    {ok, ErlImemSess, '$no_extra'};
+                {ok, [{smsott,Data}|_]} ->
+                    {ok, ErlImemSess, maps:remove(accountName,Data)}
             end
     end;
 connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
@@ -165,13 +170,15 @@ connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
             case ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}) of
                 Ok when Ok == {ok,[]}; Ok == ok ->
                     ErlImemSess:run_cmd(login,[]),
-                    {ok, ErlImemSess};
+                    {ok, ErlImemSess, '$no_extra'};
                 {ok, [{smsott,Data}|_]} -> {ok, ErlImemSess, maps:remove(accountName,Data)}
             end
     end;
 connect_erlimem(local, Sess, _SessionId, _Params, _ConnInfo) ->
     case dderl_dal:is_admin(Sess) of
-        true -> erlimem:open(local, imem_meta:schema());
+        true ->
+            {ok, ErlImemSess} = erlimem:open(local, imem_meta:schema()),
+            {ok, ErlImemSess, '$no_extra'};
         _ -> error(<<"Local connection unauthorized">>)
     end;
 connect_erlimem(local_sec, _Sess, _SessionId, _Params, _ConnInfo) ->    
@@ -186,22 +193,26 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
     {value, {<<"adapter">>, <<"imem">>}, BodyJson4} = lists:keytake(<<"adapter">>, 1, BodyJson3),
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
     case catch connect_erlimem(conn_method(BodyJson), Sess, SessionId, BodyJson, ConnInfo) of
-        {ok, Connection} ->
+        {ok, ErlImemSess, Extra} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
                           owner = UserId, schm = SchemaAtom,
                           access = jsx:decode(jsx:encode(BodyJson4), [return_maps])}) of
                 {error, Msg} ->
-                    Connection:close(),
+                    ErlImemSess:close(),
                     From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};
                 #ddConn{owner = Owner} = NewConn ->
+                    ConnReply = #{conn_id=>NewConn#ddConn.id,
+                                             owner=>Owner, conn=>?E2B(ErlImemSess)},
                     From ! {reply,
                             jsx:encode(
-                              #{connect=>#{conn_id=>NewConn#ddConn.id,
-                                           owner=>Owner, conn=>?E2B(Connection)}}
+                              #{connect =>
+                                if '$no_extra' == Extra -> ConnReply;
+                                   true -> maps:put(extra, Extra, ConnReply)
+                                end}
                              )}
             end,
-            Priv#priv{connections = [Connection|Connections]};
+            Priv#priv{connections = [ErlImemSess|Connections]};
         {{E,M},ST} when is_list(M); is_binary(M) ->
             ?Error("~p:~s~n~p", [E,M,ST]),
             From ! {reply, jsx:encode(#{connect=>
@@ -224,15 +235,34 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                                        })},
             Priv
     end;
+process_cmd({[<<"smstoken">>], BodyJson}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+    ErlImemSess = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+    case lists:member(ErlImemSess, Connections) of
+        true ->
+            Token = proplists:get_value(<<"smstoken">>, BodyJson, <<>>),
+            case ErlImemSess:auth(dderl,<<>>,{smsott,Token}) of
+                Ok when Ok == {ok,[]}; Ok == ok ->
+                    ErlImemSess:run_cmd(login,[]),
+                    From ! {reply, jsx:encode(#{smstoken=>ok})},
+                    Priv;
+                Unexpected ->
+                    ?Error("Not expected ~p", [Unexpected]),
+                    From ! {reply, jsx:encode(#{smstoken=>#{error=>"More steps"}})}
+            end,
+            Priv;
+        false ->
+            From ! {reply, jsx:encode([{<<"error">>, <<"Connection not found">>}])},
+            Priv
+    end;
 process_cmd({[<<"change_conn_pswd">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     [{<<"change_pswd">>, BodyJson}] = ReqBody,
-    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+    ErlImemSess = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
     NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
-    case lists:member(Connection, Connections) of
+    case lists:member(ErlImemSess, Connections) of
         true ->
-            case dderloci:change_password(Connection, User, Password, NewPassword) of
+            case dderloci:change_password(ErlImemSess, User, Password, NewPassword) of
                 {error, Error} ->
                     ?Error("change password exception ~n~p~n", [Error]),
                     Err = iolist_to_binary(io_lib:format("~p", [Error])),

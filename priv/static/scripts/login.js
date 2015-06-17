@@ -49,6 +49,8 @@ function loginCb(resp) {
         update_user_information(resp.accountName);
         resetPingTimer();
         connect_dlg();
+    } else if (resp.hasOwnProperty('changePass')) {
+        change_login_password(resp.changePass, true);
     } else {
         alert_jq("Unexpected "+JSON.stringify(resp));
     }
@@ -105,7 +107,7 @@ function display(layout) {
             layout.fields[fldIdx].elm = txt;
             if(!focused && layout.fields[fldIdx].val.length == 0) {
                 focused = true;
-                setTimeout(function() { txt.focus(); }, 10);
+                setTimeout(function() { txt.focus(); }, 100);
             }
        } else if(layout.fields[fldIdx].type == "password") {
             td.append(layout.fields[fldIdx].placeholder);
@@ -122,7 +124,7 @@ function display(layout) {
             layout.fields[fldIdx].elm = pass;
             if(!focused) {
                 focused = true;
-                setTimeout(function() { pass.focus(); }, 10);
+                setTimeout(function() { pass.focus(); }, 100);
             }
         }
     }
@@ -263,7 +265,10 @@ function change_login_password(loggedInUser, shouldConnect)
 {
     $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td valign=center>User <b>'+loggedInUser+'</b></td></tr>' +
+      '      <tr><td>User</td>'+
+      '         <td valign=bottom>'+
+      '             <b>'+loggedInUser+'</b>'+
+      '         </td></tr>' +
       '      <tr><td>Old Password</td>'+
       '         <td valign=bottom>' +
       '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
