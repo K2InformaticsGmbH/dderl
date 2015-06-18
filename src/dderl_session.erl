@@ -197,7 +197,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
                       case ErlImemSess:run_cmd(login,[]) of
                           {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
                               ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
-                              {#{login=>#{changePass=>State1#state.user}}, State1};
+                              {#{changePass=>State1#state.user}, State1};
                           _ ->
                               {[UserId],true} = imem_meta:select(
                                                   ddAccount,
