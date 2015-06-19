@@ -601,6 +601,9 @@ function get_remote_apps(table) {
 
 function show_about_dlg()
 {
+    // (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion
+    // $.fn.jquery
+    // $.ui.version
     ajaxCall(null, 'about', null, 'about', function(applications) {
         var aboutDlg =
             $('<div id="about-dderl-dlg" title ="About"></div>')
