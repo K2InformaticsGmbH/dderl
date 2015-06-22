@@ -557,7 +557,7 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = null, owner = Owner} = Conn
                     NewCon = Conn#ddConn{id=Id},
                     ?Info("adding new connection ~p", [NewCon]),
                     check_save_conn(UserSess, DalSess, insert, NewCon);
-                _ -> Conn
+                _ -> {error, <<"Create connections unauthorized">>}
             end
     end;
 add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Conn)
@@ -565,13 +565,13 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Con
     case UserSess:run_cmd(select, [ddConn, [{#ddConn{id=OldId, _='_'}, [], ['$_']}]]) of
         {[#ddConn{owner = OldOwner} = OldCon], true} ->
             %% Save the conn only if there is some difference.
-            NewCon = Conn#ddConn{owner = OldOwner},
-            if OldCon == NewCon ->
-                   %% If the connection is not changed then do not save a copy.
-                   OldCon#ddConn{owner = get_name(DalSess, OldCon#ddConn.owner)};
-               true ->
-                   if
-                       Owner =:= OldOwner -> %% Same owner update the connection.
+            case is_same_conn(OldCon, Conn) of
+                true ->
+                    %% If the connection is not changed then do not save a copy.
+                    OldCon#ddConn{owner = get_name(DalSess, OldCon#ddConn.owner)};
+                false ->
+                    if
+                        Owner =:= OldOwner -> %% Same owner update the connection.
                            check_save_conn(UserSess, DalSess, update, {OldCon, Conn});
                        true -> %% Different owner, create a copy.
                            add_connect_internal(UserSess, DalSess, Conn#ddConn{id = null})
@@ -585,8 +585,14 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Con
             {error, <<"Error saving the connection">>}
     end.
 
+is_same_conn(Conn1, Conn2) ->
+    Conn1#ddConn{access = maps:remove(<<"user">>,maps:remove(user,Conn1#ddConn.access))} ==
+    Conn2#ddConn{owner = Conn1#ddConn.owner,
+                 access = maps:remove(<<"user">>,maps:remove(user, Conn2#ddConn.access))}.
+
 -spec check_save_conn({atom(), pid()}, {atom(), pid()}, atom(), #ddConn{}) -> #ddConn{} | {error, binary()}.
-check_save_conn(UserSess, DalSess, Op, Conn) ->
+check_save_conn(UserSess, DalSess, Op, Conn0) ->
+    Conn = Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)},
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("~p connection failed : ~n~p", [Op, Error]),
