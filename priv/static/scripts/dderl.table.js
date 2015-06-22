@@ -1435,23 +1435,11 @@
                        'browse_data', 'browseData');
     },
 
-    _runTableCmd: function(tableCmd, callback, ranges) {
+    _runTableCmd: function(tableCmd, callback, tables) {
         var self = this;
 
-        console.log(tableCmd + ' for '+ ranges.length + ' slick range(s)');
-        var columns = self._grid.getColumns();
+        console.log(tableCmd + ' for '+ tables);
 
-        var tables = [];
-
-        for(var i = 0; i < ranges.length; ++i) {
-            for(var j = ranges[i].fromCell; j <= ranges[i].toCell; ++j) {
-                var cell = columns[j];
-                for(var k = ranges[i].fromRow; k <= ranges[i].toRow; ++k) {
-                    var row    = self._gdata[k];
-                    tables.push(row[cell.field]);
-                }
-            }
-        }
         var context = {};
         context[tableCmd] = {connection  : dderlState.connection,
                              statement   : self._stmt,
@@ -1460,18 +1448,55 @@
         self._grid.resetActiveCell();
         self._grid.setSelectedRows([]);
     },
+    _get_range_values: function(ranges) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        var rangeValues = [];
+        console.log('select ranges ' + ranges.length + ' slick range(s)');
 
+        for(var i = 0; i < ranges.length; ++i) {
+            for(var j = ranges[i].fromCell; j <= ranges[i].toCell; ++j) {
+                var cell = columns[j];
+                for(var k = ranges[i].fromRow; k <= ranges[i].toRow; ++k) {
+                    var row    = self._gdata[k];
+                    rangeValues.push(row[cell.field]);
+                }
+            }
+        }
+
+        return rangeValues;
+    },
     _truncateTable: function(ranges) {
-        this._runTableCmd('truncate_table', 'truncateResult', ranges);
+        var self = this;
+        var truncateTables = self._get_range_values(ranges);
+        confirm_jq({title: "Confirm truncate", content:truncateTables}, 
+                function() {
+                    self._runTableCmd.apply(self, ['truncate_table', 'truncateResult', truncateTables]);
+                });
     },
     _dropTable: function (ranges) {
-        this._runTableCmd('drop_table', 'dropResult', ranges);
+        var self = this;
+        var dropTables = self._get_range_values(ranges);
+        confirm_jq({title: "Confirm delete", content:dropTables}, 
+                function() {
+                    self._runTableCmd.apply(self, ['drop_table', 'dropResult', dropTables]);
+                });
     },
     _snapshotTable: function(ranges) {
-        this._runTableCmd('snapshot_table', 'snapshotResult', ranges);
+        var self = this;
+        var snapshotTables = self._get_range_values(ranges);
+        confirm_jq({title: "Confirm snapshot", content:snapshotTables}, 
+                function() {
+                    self._runTableCmd.apply(self, ['snapshot_table', 'snapshotResult', snapshotTables]);
+                });
     },
     _restoreTable: function(ranges) {
-        this._runTableCmd('restore_table', 'restoreResult', ranges);
+        var self = this;
+        var restoreTables = self._get_range_values(ranges);
+        confirm_jq({title: "Confirm restore from snapshot", content:restoreTables}, 
+                function() {
+                    self._runTableCmd.apply(self, ['restore_table', 'restoreResult', restoreTables]);
+                });
     },
     _restoreTableAs: function(ranges) {
         var self = this;

@@ -702,6 +702,43 @@ function alert_jq(string)
     return dlgDiv;
 }
 
+function confirm_jq(dom, callback)
+{
+    var content = dom.content;
+    if ($.isArray(content))
+        content = content.join('<br>');
+    var dlgDiv =
+        $('<div>')
+        .appendTo(document.body)
+        .append(content)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: dom.title,
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
+            close: function() {
+                //We have to remove the added child p
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    $(this).dialog("close");
+                    callback();
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
+}
+
 function create_ws()
 {
     var url = (window.location.protocol==='https:'?'wss://':'ws://')+
