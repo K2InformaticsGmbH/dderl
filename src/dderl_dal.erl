@@ -557,8 +557,7 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = null, owner = Owner} = Conn
                     NewCon = Conn#ddConn{id=Id},
                     ?Info("adding new connection ~p", [NewCon]),
                     check_save_conn(UserSess, DalSess, insert, NewCon);
-                _ ->
-                    {error, <<"Create connections unauthorized">>}
+                _ -> Conn
             end
     end;
 add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Conn)
