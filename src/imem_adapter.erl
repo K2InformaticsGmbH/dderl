@@ -86,7 +86,8 @@ connect_map(#ddConn{adapter = imem} = C) ->
                         schema => atom_to_binary(C#ddConn.schm, utf8)}).
 
 add_conn_extra(#ddConn{access = Access}, Conn)
-  when is_map(Access), is_map(Conn) -> maps:merge(Conn, Access);
+  when is_map(Access), is_map(Conn) ->
+       	maps:merge(Conn, maps:remove(owner,maps:remove(<<"owner">>,Access)));
 add_conn_extra(#ddConn{access = Access}, Conn) when is_list(Access), is_map(Conn) ->
     case proplists:get_value(type, Access, proplists:get_value(<<"method">>, Access, tcp)) of
         Local when Local == local; Local == <<"local">> ->
@@ -197,13 +198,14 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                     {value, {<<"password">>, _}, BJ} -> BJ;
                     false -> BodyJson4
                 end,
+    {value, {<<"owner">>, _Owner}, BodyJson6} = lists:keytake(<<"owner">>, 1, BodyJson5),
     SchemaAtom = binary_to_existing_atom(Schema, utf8),
     case catch connect_erlimem(conn_method(BodyJson), Sess, SessionId, BodyJson, ConnInfo) of
         {ok, ErlImemSess, Extra} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
                           owner = UserId, schm = SchemaAtom,
-                          access = jsx:decode(jsx:encode(BodyJson5), [return_maps])}) of
+                          access = jsx:decode(jsx:encode(BodyJson6), [return_maps])}) of
                 {error, Msg} ->
                     ErlImemSess:close(),
                     From ! {reply, jsx:encode(#{connect=>#{error=>Msg}})};

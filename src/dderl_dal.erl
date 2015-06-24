@@ -585,6 +585,10 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Con
             {error, <<"Error saving the connection">>}
     end.
 
+is_same_conn(#ddConn{access = Access1} = Conn1, Conn2) when not is_map(Access1) ->
+	is_same_conn(Conn1#ddConn{access = maps:from_list(Access1)}, Conn2);
+is_same_conn(Conn1, #ddConn{access = Access2} = Conn2) when not is_map(Access2) ->
+	is_same_conn(Conn1, Conn2#ddConn{access = maps:from_list(Access2)});
 is_same_conn(Conn1, Conn2) ->
     Conn1#ddConn{access = maps:remove(<<"user">>,maps:remove(user,Conn1#ddConn.access))} ==
     Conn2#ddConn{owner = Conn1#ddConn.owner,
@@ -592,7 +596,13 @@ is_same_conn(Conn1, Conn2) ->
 
 -spec check_save_conn({atom(), pid()}, {atom(), pid()}, atom(), #ddConn{}) -> #ddConn{} | {error, binary()}.
 check_save_conn(UserSess, DalSess, Op, Conn0) ->
-    Conn = Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)},
+    Conn = case Conn0 of
+		   Conn0 when is_record(Conn0, ddConn) ->
+			   Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)};
+		   {C1, C2} when is_record(C1, ddConn), is_record(C2, ddConn) ->
+			   {C1#ddConn{access = maps:remove(password, C1#ddConn.access)},
+ 			    C2#ddConn{access = maps:remove(password, C2#ddConn.access)}}
+	   end,
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("~p connection failed : ~n~p", [Op, Error]),

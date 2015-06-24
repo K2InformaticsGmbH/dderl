@@ -51,7 +51,8 @@ connect_map(#ddConn{adapter = oci} = C) ->
                         owner => dderl_dal:user_name(C#ddConn.owner)}).
 
 add_conn_extra(#ddConn{access = Access}, Conn)
-  when is_map(Access), is_map(Conn) -> maps:merge(Conn, Access);
+  when is_map(Access), is_map(Conn) ->
+       	maps:merge(Conn, maps:remove(owner,maps:remove(<<"owner">>,Access)));
 add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Conn0) ->
     Conn = Conn0#{user => proplists:get_value(user, Access, <<>>),
                   language => proplists:get_value(languange, Access, proplists:get_value(language, Access, <<>>)),
@@ -82,15 +83,16 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From,
             undefined, SessPid) ->
     process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From,
                 #priv{connections = []}, SessPid);
-process_cmd({[<<"connect">>], BodyJson3, _SessionId}, Sess, UserId, From,
+process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
             #priv{connections = Connections} = Priv, _SessPid) ->
+    {value, {<<"password">>, Password}, BodyJson4} = lists:keytake(<<"password">>, 1, BodyJson5),
+    {value, {<<"owner">>, _Owner}, BodyJson3} = lists:keytake(<<"owner">>, 1, BodyJson4),
     {value, {<<"id">>, Id}, BodyJson2} = lists:keytake(<<"id">>, 1, BodyJson3),
     {value, {<<"name">>, Name}, BodyJson1} = lists:keytake(<<"name">>, 1, BodyJson2),
     {value, {<<"adapter">>, <<"oci">>}, BodyJson} = lists:keytake(<<"adapter">>, 1, BodyJson1),
 
     Method    = proplists:get_value(<<"method">>, BodyJson, <<"service">>),
     User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password  = proplists:get_value(<<"password">>, BodyJson, <<>>),
     Defaults  = ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
                                             territory   => <<"SWITZERLAND">>,
                                             charset     => <<"AL32UTF8">>}),
