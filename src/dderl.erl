@@ -82,7 +82,9 @@ start(_Type, _Args) ->
     DDerlRoutes = get_routes(),
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     {ok, _} = cowboy:start_https(
-                https, 100, [{ip, Interface}, {port, Port} | SslOptions],
+                https, ?GET_CONFIG(maxNumberOfAcceptors, [], 100),
+                [{ip, Interface}, {port, Port},
+                 {max_connections, ?GET_CONFIG(maxNumberOfSockets, [], 5000)} | SslOptions],
                 [{env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
