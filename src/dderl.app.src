@@ -9,8 +9,8 @@
                   stdlib,
                   sasl,
                   cowlib,
-                  bullet,
                   cowboy,
+                  bullet,
                   erlimem,
                   imem,
                   dderloci
