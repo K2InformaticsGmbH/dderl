@@ -25,6 +25,7 @@ start() ->
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
+    ok = application:start(bullet),
     erlimem:start(),
     catch dderloci:start(),
 	ok = application:start(?MODULE).
@@ -33,6 +34,7 @@ stop() ->
     ok = application:stop(?MODULE),
     catch dderloci:stop(),
     erlimem:stop(),
+    ok = application:stop(bullet),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
     imem:stop().
