@@ -213,8 +213,8 @@
                     }
                 };
 
-                var inph = self.options.toolBarHeight;
-                if($.browser.msie) inph -= 2;
+                //var inph = self.options.toolBarHeight;
+                //if($.browser.msie) inph -= 2;
 
                 if(elm.typ === 'btn')
                     self[elm.dom] =
@@ -813,6 +813,8 @@
             }
 
             self._dlg.dialog("moveToTop");
+            // TODO: test a workaround for this...
+            /*
             if($.browser.msie) {
                 //Ie steals the focus to the scrollbar even after preventDefaults.
                 //Added the timer to get the focus back.
@@ -825,13 +827,14 @@
                     console.log("Focus set");
                 }, 50);
             } else {
-                self._grid.focus();
-                var cellEditor = self._grid.getCellEditor();
-                if(cellEditor && !cellEditor.isFocused()) {
-                    cellEditor.focus();
-                }
-                console.log("Focus set");
+            */
+            self._grid.focus();
+            var cellEditor = self._grid.getCellEditor();
+            if(cellEditor && !cellEditor.isFocused()) {
+                cellEditor.focus();
             }
+            console.log("Focus set");
+            //}
         },
 
         _handleDragInit: function(e, args) {

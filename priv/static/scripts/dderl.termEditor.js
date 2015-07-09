@@ -164,7 +164,7 @@
                 };
 
                 var inph = self.options.toolBarHeight;
-                if($.browser.msie) inph -= 2;
+                //if($.browser.msie) inph -= 2;
 
                 if(elm.typ === 'btn')
                     self[elm.dom] =

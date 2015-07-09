@@ -7,11 +7,10 @@
     <link rel="icon" type="image/png" href="dderl_icon.png">
     <link rel="stylesheet" href="static/styles/dderl.css" type="text/css"/>
 
-    <script src="static/lib/jquery.min.js"></script>
-    <script src="static/lib/jquery-ui.min.js"></script>
-    <script src="static/lib/jquery.combobox.js"></script>
-    <script src="static/lib/jquery.contextMenu.js"></script>
-    <script src="static/lib/jquery.event.drag-2.0.min.js"></script>
+    <script src="bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="bower_components/jquery-ui/jquery-ui.min.js"></script>
+    <script src="bower_components/ui-contextmenu/jquery.ui-contextmenu.min.js"></script>
+    <script src="bower_components/jquery.threedubmedia/event.drag/jquery.event.drag.js"></script>
 
     <script src="static/slickgrid/slick.core.js"></script>
     <script src="static/slickgrid/slick.grid.js"></script>
@@ -30,6 +29,7 @@
 
     <script src="bullet.js"></script>
 
+    <script src="static/scripts/dderl.combobox.js"></script>
     <script src="static/scripts/login.js"></script>
     <script src="static/scripts/dderl.js"></script>
     <script src="static/scripts/connect.js"></script>
@@ -46,7 +46,6 @@
         $(document).ready(function() {
             $('#main-body').css('top', $('#main-menu-bar').height());
             if(Object.hasOwnProperty('freeze')) {
-                patch_jquery_ui();
                 check_already_connected();
             } else {
                 $('#main-menu-bar').hide();

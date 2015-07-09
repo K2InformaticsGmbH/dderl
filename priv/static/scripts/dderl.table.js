@@ -1258,11 +1258,11 @@
             for(var c in self._filters) {
                 var strs = [];
                 for(s in self._filters[c].vals) strs.push(s);
-                if($.browser.msie) {
-                    self._filters[c].inp.val(strs.join('\r\n'));
-                } else {
+                //if($.browser.msie) {
+                //    self._filters[c].inp.val(strs.join('\r\n'));
+                //} else {
                     self._filters[c].inp.val(strs.join('\n'));
-                }
+                //}
             }
             var filterspec = self._filterSpec2Json('and');
             self._ajax('filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
@@ -1301,11 +1301,11 @@
         for(var c in self._filters) {
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
-            if($.browser.msie) {
-                self._filters[c].inp.val(strs.join('\r\n'));
-            } else {
+            //if($.browser.msie) {
+            //    self._filters[c].inp.val(strs.join('\r\n'));
+            //} else {
                 self._filters[c].inp.val(strs.join('\n'));
-            }
+            //}
             $('<tr>')
                 .append('<td>'+ self._filters[c].name +'</td>')
                 .append($('<td>').append(self._filters[c].typeSelect))
@@ -1706,7 +1706,7 @@
             };
 
             var inph = self.options.toolBarHeight;
-            if($.browser.msie) inph -= 2;
+            //if($.browser.msie) inph -= 2;
 
             if(elm.typ === 'btn')
                 self[elm.dom] =
@@ -2708,7 +2708,8 @@
         }
 
         self._dlg.dialog("moveToTop");
-        if($.browser.msie) {
+        //TODO: Why is this duplicated ?... find a replacement.
+        /*if($.browser.msie) {
             //Ie steals the focus to the scrollbar even after preventDefaults.
             //Added the timer to get the focus back.
             setTimeout(function() {
@@ -2720,13 +2721,14 @@
                 console.log("Focus set");
             }, 50);
         } else {
-            self._grid.focus();
-            var cellEditor = self._grid.getCellEditor();
-            if(cellEditor && !cellEditor.isFocused()) {
-                cellEditor.focus();
-            }
-            console.log("Focus set");
+        */
+        self._grid.focus();
+        var cellEditor = self._grid.getCellEditor();
+        if(cellEditor && !cellEditor.isFocused()) {
+            cellEditor.focus();
         }
+        console.log("Focus set");
+        //}
     },
 
     _handleDragInit: function(e, args) {
