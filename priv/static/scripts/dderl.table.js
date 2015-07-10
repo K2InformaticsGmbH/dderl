@@ -153,9 +153,7 @@
         closeOnEscape     : false,
         clear             : null,
         toolBarHeight     : 20,
-        open              : function(e,ui) {
-                              $(this).dialog("widget").appendTo("#main-body");
-                            },
+        appendTo          : "#main-body",
         focus             : function(e,ui) {},
         close             : function() {
                               $(this).table('close_stmt');
@@ -1094,6 +1092,7 @@
             width : 336,
             modal : false,
             title : 'Sorts',
+            appendTo: "#main-body",
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
                 $(this).dialog('close');
@@ -1110,7 +1109,6 @@
         });
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
-        self._sortDlg.dialog("widget").appendTo("#main-body");
         //Set the height of the sort dialog depending on the number of rows...
         var sortGridHeight = (data.length + 2) * self.options.slickopts.rowHeight;
         self._sortDlg.height(sortGridHeight);
@@ -1332,11 +1330,11 @@
                         self._filters[c].inp.width(dW);
                         self._filters[c].inp.height(dH);
                     }
-                }
+                },
+                appendTo: "#main-body"
             });
 
         self._fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
-        self._fltrDlg.dialog("widget").appendTo("#main-body");
         //Lets put it where we have space...
         smartDialogPosition($("#main-body"), this._dlg, self._fltrDlg, ['center']);
 
@@ -1563,6 +1561,7 @@
                 width :   100 + 12 * maxFieldLen,
                 modal :   false,
                 title :   'Restore As',
+                appendTo: "#main-body",
                 position : {my: "left top", at: "left bottom", of: this._dlg},
                 close : function() {
                         $(this).dialog('close');
@@ -1575,7 +1574,6 @@
             });
 
         self._restoreAsDlg.dialog("widget").draggable("option","containment", "#main-body");
-        self._restoreAsDlg.dialog("widget").appendTo("#main-body");
         smartDialogPosition($("#main-body"), this._dlg, self._restoreAsDlg, ['center']);
 
         var applyRestoreAsFn = function() {

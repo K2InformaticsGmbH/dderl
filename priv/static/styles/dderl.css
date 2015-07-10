@@ -1,13 +1,9 @@
-@import url('font.droid_sans.css');
-@import url('jquery-ui.css');
-@import url('jquery.contextMenu.css');
-@import url('slick.grid.css');
-@import url('slick.columnpicker.css');
-@import url('jquery.jscrollpane.css');
-
-@import url('dropdown.css');
-
-@import url('dderl.sql.css');
+@font-face {
+  font-family: 'Droid Sans Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Droid Sans Mono'), local('DroidSansMono'), url('../media/gfont.woff') format('woff');
+}
 
 body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }

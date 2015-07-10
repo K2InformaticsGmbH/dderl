@@ -282,6 +282,7 @@ function checkTablesNotSaved() {
             width: 450,
             height:220,
             modal: true,
+            appendTo: "#main-body",
             buttons: {
                 "Create views": function() {
                     $( this ).dialog( "close" );
@@ -606,8 +607,8 @@ function show_about_dlg()
     // $.ui.version
     ajaxCall(null, 'about', null, 'about', function(applications) {
         var aboutDlg =
-            $('<div id="about-dderl-dlg" title ="About"></div>')
-            .appendTo(document.body);
+            $('<div id="about-dderl-dlg"></div>')
+            .appendTo("#main-body");
 
         if(dderlState.connection) {
             aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
@@ -662,12 +663,12 @@ function show_about_dlg()
         aboutDlg.append(divMore);
 
         aboutDlg.dialog({
-            modal:false,
+            modal: false,
             width: 230,
-            resizable:false,
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            resizable: false,
+            title: "About",
+            appendTo: "#main-body",
+            position: {my: "center top", at: "center top+75", of: "#main-body"},
             close: function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -688,9 +689,7 @@ function alert_jq(string)
             width: 300,
             height: 300,
             title: "DDerl message",
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');
@@ -705,8 +704,9 @@ function alert_jq(string)
 function confirm_jq(dom, callback)
 {
     var content = dom.content;
-    if ($.isArray(content))
+    if ($.isArray(content)) {
         content = content.join('<br>');
+    }
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -716,9 +716,7 @@ function confirm_jq(dom, callback)
             width: 300,
             height: 300,
             title: dom.title,
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');

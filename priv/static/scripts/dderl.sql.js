@@ -114,6 +114,7 @@ function insertAtCursor(myField, myValue) {
         closeOnEscape   : false,
         clear           : null,
         toolBarHeight   : 27,
+        appendTo        : "#main-body",
         open            : function(e,ui) {
                           },
         focus           : function(e,ui) {},
@@ -994,7 +995,6 @@ function insertAtCursor(myField, myValue) {
     open: function() {
         this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
-        this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
             smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['center']);
         } else {

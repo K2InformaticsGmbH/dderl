@@ -5,61 +5,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>DDErl</title>
     <link rel="icon" type="image/png" href="dderl_icon.png">
+    <link rel="stylesheet" href="bower_components/jquery-ui/themes/base/jquery-ui.min.css" type="text/css"/>
+    <link rel="stylesheet" href="static/styles/dropdown.css" type="text/css"/>
+    <link rel="stylesheet" href="static/styles/dderl.sql.css" type="text/css"/>
+    <link rel="stylesheet" href="static/styles/slick.grid.css" type="text/css"/>
+    <link rel="stylesheet" href="static/styles/slick.columnpicker.css" type="text/css"/>
     <link rel="stylesheet" href="static/styles/dderl.css" type="text/css"/>
-
-    <script src="bower_components/jquery/dist/jquery.min.js"></script>
-    <script src="bower_components/jquery-ui/jquery-ui.min.js"></script>
-    <script src="bower_components/ui-contextmenu/jquery.ui-contextmenu.min.js"></script>
-    <script src="bower_components/jquery.threedubmedia/event.drag/jquery.event.drag.js"></script>
-
-    <script src="static/slickgrid/slick.core.js"></script>
-    <script src="static/slickgrid/slick.grid.js"></script>
-    <script src="static/slickgrid/slick.formatters.js"></script>
-    <script src="static/slickgrid/slick.editors.js"></script>
-    <script src="static/slickgrid/slick.groupitemmetadataprovider.js"></script>
-    <script src="static/slickgrid/slick.dataview.js"></script>
-    <script src="static/slickgrid/plugins/slick.cellexternalcopymanager.js"></script>
-    <script src="static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
-    <script src="static/slickgrid/plugins/slick.cellrangeselector.js"></script>
-    <script src="static/slickgrid/plugins/slick.rowselectionmodel.js"></script>
-    <script src="static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
-    <script src="static/slickgrid/plugins/slick.rowmovemanager.js"></script>
-    <script src="static/slickgrid/plugins/slick.unicodeEditorFormatter.js"></script>
-    <script src="static/slickgrid/controls/slick.columnpicker.js"></script>
-
-    <script src="bullet.js"></script>
-
-    <script src="static/scripts/dderl.combobox.js"></script>
-    <script src="static/scripts/login.js"></script>
-    <script src="static/scripts/dderl.js"></script>
-    <script src="static/scripts/connect.js"></script>
-    <script src="static/scripts/dderl.table.js"></script>
-    <script src="static/scripts/dderl.sql.js"></script>
-    <script src="static/scripts/dderl.sqlparams.js"></script>
-    <script src="static/scripts/dderl.termEditor.js"></script>
-    <script src="static/scripts/dderl.statsTable.js"></script>
-    <script src="static/scripts/dderl.dashboard.js"></script>
-    <script src="static/scripts/dderl.dashView.js"></script>
-    <script src="static/scripts/md5.js"></script>
-
-    <script language='javascript'>        
-        $(document).ready(function() {
-            $('#main-body').css('top', $('#main-menu-bar').height());
-            if(Object.hasOwnProperty('freeze')) {
-                check_already_connected();
-            } else {
-                $('#main-menu-bar').hide();
-                alert_jq("We are really sorry, but we don't support your current browser version.");
-            }
-
-            $(window).on('beforeunload', function() {
-                if(dderlState.connection) {
-                    return "You will lose all unsaved data, are you sure you want to continue?";
-                }
-            });
-            //beep(); // beep test
-        });
-    </script>
 </head>
 
 <body>
@@ -112,5 +63,57 @@
       <source src="static/media/success.ogg" type="audio/ogg">
       <source src="static/media/success.mp3" type="audio/mpeg">
     </audio>
+    <script src="bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="bower_components/jquery-ui/jquery-ui.min.js"></script>
+    <script src="bower_components/jquery.threedubmedia/event.drag/jquery.event.drag.js"></script>
+
+    <script src="static/slickgrid/slick.core.js"></script>
+    <script src="static/slickgrid/slick.grid.js"></script>
+    <script src="static/slickgrid/slick.formatters.js"></script>
+    <script src="static/slickgrid/slick.editors.js"></script>
+    <script src="static/slickgrid/slick.groupitemmetadataprovider.js"></script>
+    <script src="static/slickgrid/slick.dataview.js"></script>
+    <script src="static/slickgrid/plugins/slick.cellexternalcopymanager.js"></script>
+    <script src="static/slickgrid/plugins/slick.cellrangedecorator.js"></script>
+    <script src="static/slickgrid/plugins/slick.cellrangeselector.js"></script>
+    <script src="static/slickgrid/plugins/slick.rowselectionmodel.js"></script>
+    <script src="static/slickgrid/plugins/slick.cellrowcolselectionmodel.js"></script>
+    <script src="static/slickgrid/plugins/slick.rowmovemanager.js"></script>
+    <script src="static/slickgrid/plugins/slick.unicodeEditorFormatter.js"></script>
+    <script src="static/slickgrid/controls/slick.columnpicker.js"></script>
+
+    <script src="bullet.js"></script>
+
+    <script src="static/scripts/dderl.combobox.js"></script>
+    <script src="static/scripts/login.js"></script>
+    <script src="static/scripts/dderl.js"></script>
+    <script src="static/scripts/connect.js"></script>
+    <script src="static/scripts/dderl.table.js"></script>
+    <script src="static/scripts/dderl.sql.js"></script>
+    <script src="static/scripts/dderl.sqlparams.js"></script>
+    <script src="static/scripts/dderl.termEditor.js"></script>
+    <script src="static/scripts/dderl.statsTable.js"></script>
+    <script src="static/scripts/dderl.dashboard.js"></script>
+    <script src="static/scripts/dderl.dashView.js"></script>
+    <script src="static/scripts/md5.js"></script>
+
+    <script language='javascript'>        
+        $(document).ready(function() {
+            $('#main-body').css('top', $('#main-menu-bar').height());
+            if(Object.hasOwnProperty('freeze')) {
+                check_already_connected();
+            } else {
+                $('#main-menu-bar').hide();
+                alert_jq("We are really sorry, but we don't support your current browser version.");
+            }
+
+            $(window).on('beforeunload', function() {
+                if(dderlState.connection) {
+                    return "You will lose all unsaved data, are you sure you want to continue?";
+                }
+            });
+            //beep(); // beep test
+        });
+    </script>
 </body>
 </html>

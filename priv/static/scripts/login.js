@@ -81,9 +81,7 @@ function display(layout) {
         position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
         closeOnEscape: false,
         dialogClass: 'no-close',
-        open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
-        },
+        appendTo: "#main-body",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
@@ -298,9 +296,7 @@ function change_login_password(loggedInUser, shouldConnect)
         width: 300,
         resizable: false,
         modal: false,
-        open: function() {
-            $(this).dialog("widget").appendTo("#main-body");
-        },
+        appendTo: "#main-body",
         close: function() {
             $("#dialog-change-password").dialog('destroy');
             $("#dialog-change-password").remove();

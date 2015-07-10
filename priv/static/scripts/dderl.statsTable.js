@@ -40,6 +40,7 @@
             resizable       : true,
             modal           : false,
             title           : "",
+            appendTo        : "#main-body",
             canMinimize     : true,
             canMaximize     : true,
             closeOnEscape   : false,
@@ -213,7 +214,7 @@
                     }
                 };
 
-                //var inph = self.options.toolBarHeight;
+                var inph = self.options.toolBarHeight;
                 //if($.browser.msie) inph -= 2;
 
                 if(elm.typ === 'btn')
@@ -400,7 +401,6 @@
             }
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
-            self._dlg.dialog("widget").appendTo("#main-body");
             if(self._parent) {
                 smartDialogPosition($("#main-body"), self._parent, self._dlg, ['center']);
             } else {
