@@ -21,7 +21,8 @@ $.widget( "custom.combobox", {
             .autocomplete({
                 delay: 0,
                 minLength: 0,
-                source: $.proxy( this, "_source" )
+                source: $.proxy( this, "_source" ),
+                appendTo: this.wrapper
             })
             .tooltip({
                 tooltipClass: "ui-state-highlight"

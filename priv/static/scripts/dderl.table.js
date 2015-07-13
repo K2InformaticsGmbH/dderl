@@ -153,6 +153,7 @@
         closeOnEscape     : false,
         clear             : null,
         toolBarHeight     : 20,
+        position          : {at: "left top", my: "left top", of: "#main-body"},
         appendTo          : "#main-body",
         focus             : function(e,ui) {},
         close             : function() {
@@ -1873,10 +1874,11 @@
             updateWindowTitle(self._windowFinderTextLink, self.options.title);
             self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
         } else if(_saveView.hasOwnProperty('need_replace')) {
-            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').dialog({
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -1997,7 +1999,11 @@
             // Set the options.
             self.options.width = self._tbllay.width;
             self.options.height = self._tbllay.height;
-            self.options.position = [self._tbllay.x, self._tbllay.y];
+            self.options.position = {
+                my: "left top",
+                at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
+                of: "#main-body"
+            };
 
             // Override default dialog options.
             self._dlg.dialog("option", "position", self.options.position);
@@ -2080,6 +2086,8 @@
         var tl = null;
         var cl = null;
         var viewId = null;
+        var left = 0;
+        var top = 0;
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
@@ -2090,16 +2098,23 @@
             return;
         }
 
-        var pos = [];
         if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
             var dlg = this._dlg.dialog('widget');
-            var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
-            pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
+            var titleBarHeight = dlg.find('.ui-dialog-titlebar').height();
+            left = (dlg.position().left + titleBarHeight + 10);
+            top = (dlg.position().top + titleBarHeight + 10);
         } else {
-            pos = [_table.table_layout.x, _table.table_layout.y];
+            left = _table.table_layout.x;
+            top = _table.table_layout.y;
             tl = _table.table_layout;
         }
-
+        
+        var pos = {
+            my: "left top",
+            at: "left+" + left + " top+" + top,
+            of: "#main-body"
+        };
+            
         if(_table.hasOwnProperty('view_id')) {
             viewId = _table.view_id;
         }
@@ -2267,6 +2282,7 @@
                         termOwner : self,
                         readOnly  : readOnly,
                         container : $("#main-body"),
+                        appendTo  : "#main-body",
                         term      : content,
                         isJson    : isJson
                     }
@@ -2280,7 +2296,18 @@
         if(self._tbllay !== null) {
             self.options['width'] = self._tbllay.width;
             self.options['height'] = self._tbllay.height;
-            self.options['position'] = [self._tbllay.x, self._tbllay.y];
+            self.options['position'] = {
+                my: "left top",
+                at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
+                of: "#main-body"
+            };
+        } else if(!self.options.position || !self.options.position.my) {
+            self.options['position'] = {
+                at : "left top",
+                my : "left top",
+                of : "#main-body",
+                collision : 'none'
+            };
         }
 
         // dlg width can't be less than footer width
@@ -2307,9 +2334,7 @@
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
-        if(self.options.position.length === undefined) {
-            self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'none'} );
-        }
+        
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
@@ -3326,10 +3351,18 @@
                             var orig_top = dlg.offset().top;
                             var new_left = dlg.offset().left - gWidth + rWindowWidth;
                             if(new_left > 0) {
-                                self._dlg.dialog("option", "position", [new_left, orig_top]);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left+" + new_left + " top+" + orig_top,
+                                    of: "#main-body"
+                                });
                                 dlg.width(gWidth);
                             } else {
-                                self._dlg.dialog("option", "position", [0, orig_top]);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left top+" + orig_top,
+                                    of: "#main-body"
+                                });
                                 dlg.width($(window).width() - 40);
                             }
                         }
