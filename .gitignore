@@ -203,3 +203,7 @@ rel/rpmbuild/SPECS
 rel/erlpkg*
 
 .rebar
+
+# Javascript building tools
+priv/static/public
+node_modules
