@@ -82,7 +82,8 @@ function connect_dlg()
             }
         }
     })
-    .dialog('open');
+    .dialog('open')
+    .dialog("widget").draggable("option","containment","#main-body");
     
     adapter_list.change(function() {
         if(adapter_list.children().length < 1) {
@@ -599,8 +600,7 @@ function change_connect_password(loggedInUser, connectSuccessCb)
       '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
       '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td align=right valign=center>Confirm Pass" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
       '  </table>' +
       '</div>').appendTo(document.body);
     $('#dialog-change-password').dialog({

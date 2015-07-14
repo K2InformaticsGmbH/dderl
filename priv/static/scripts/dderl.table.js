@@ -1874,7 +1874,7 @@
             updateWindowTitle(self._windowFinderTextLink, self.options.title);
             self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
         } else if(_saveView.hasOwnProperty('need_replace')) {
-            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').dialog({
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
                 resizable: false,
                 height:180,
                 modal: true,
@@ -1887,6 +1887,11 @@
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');
@@ -1933,6 +1938,7 @@
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -1941,6 +1947,11 @@
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');
@@ -2232,18 +2243,28 @@
         var self = this;
         var title = "Image editor (read only)";
 
+        var dlgHeight = $("#main-body").height()-50;
+        var dlgWidth = $("#main-body").width()-50;
         $('<div><img src="'+dataImg+'"></div>')
-            .appendTo(document.body)
             .dialog(
                 { // dialog options default override
                     width           : 'auto',
-                    minHeight       : 50,
-                    minWidth        : 100,
+                    minHeight       : 250,
+                    minWidth        : 250,
+                    height          : dlgHeight,
+                    width           : dlgWidth,
                     resizable       : true,
                     modal           : false,
                     title           : title,
                     clear           : null,
+                    appendTo        : "#main-body",
+                    position        : {my: "top left", at: "top left", of: "#main-body"},
                     focus           : function(e,ui) {},
+                    open: function() {
+                        $(this)
+                            .dialog("widget")
+                            .draggable("option","containment","#main-body");
+                    },
                     close           : function() {
                         $(this).dialog('destroy');
                         $(this).remove();

@@ -450,6 +450,7 @@ function insertAtCursor(myField, myValue) {
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -458,6 +459,11 @@ function insertAtCursor(myField, myValue) {
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');

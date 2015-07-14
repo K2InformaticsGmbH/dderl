@@ -299,6 +299,11 @@ function checkTablesNotSaved() {
                     $( this ).dialog( "close" );
                 }
             },
+            open: function() {
+                $(this)
+                    .dialog("widget")
+                    .draggable("option","containment","#main-body");
+            },
             close : function() {
                 $(this).dialog('destroy');
                 $(this).remove();
