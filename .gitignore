@@ -158,8 +158,6 @@ Desktop.ini
 # Packages
 *.egg
 *.egg-info
-dist
-build
 eggs
 parts
 bin
@@ -184,7 +182,7 @@ pip-log.txt
 # Mac crap
 .DS_Store
 
-# Release gurbage
+# Release garbage
 apps/dderl/priv
 apps/dderl/src
 rel/wixsetup/*.wixobj
