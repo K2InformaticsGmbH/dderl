@@ -97,12 +97,12 @@
     <script src="static/scripts/dderl.dashView.js"></script>
     <script src="static/scripts/md5.js"></script>
 
-    <script language='javascript'>        
+    <script language='javascript'>
         $(document).ready(function() {
             $('#main-body').css('top', $('#main-menu-bar').height());
             if(Object.hasOwnProperty('freeze')) {
                 patch_jquery_ui(); // Add support for html titles to dialogs.
-                check_already_connected();        
+                check_already_connected();
             } else {
                 $('#main-menu-bar').hide();
                 alert_jq("We are really sorry, but we don't support your current browser version.");
