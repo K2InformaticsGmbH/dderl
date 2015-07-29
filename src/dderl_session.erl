@@ -476,10 +476,9 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     State.
 
 spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
     try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
     catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
             error
     end.
