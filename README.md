@@ -17,8 +17,8 @@ WEB DataBase Browser Application.
 3. [Install Wix](http://wix.codeplex.com/downloads/get/762937)
 4. Create Environment variable `%WIXBIN%` pointing to  WIX installation binary path (e.g. `C:\Program Files (x86)\WiX Toolset v3.8\bin`)
 5. Append `%WIXBIN%` to `%PATH%` environment variable
-6. Navigate to `dderl/rel/wixsetup` and execute `./build_msi.escript`
-7. Installer MSI will be generated in `dderl/rel/wixsetup`
+6. Execude `deps/erlpkg/windows/build_msi.escript -v`
+7. Installer MSI will be generated in `dderl/rel/erlpkg_release/build/`
 
 ###Hacks
 Unlock account

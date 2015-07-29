@@ -351,6 +351,7 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
                                    [] -> [#{adapter => <<"imem">>,
                                             id => null,
                                             name => <<"template imem">>,
+                                            schema => atom_to_binary(imem_meta:schema(),utf8),
                                             owner => User,
                                             method => <<"tcp">>}];
                                    _ -> []
