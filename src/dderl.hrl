@@ -155,6 +155,7 @@
 % Function shortcuts
 -define(Encrypt(__T), dderl:encrypt(__T)).
 -define(Decrypt(__S), dderl:decrypt(__S)).
+-define(Hash(__T), erlang:phash2(dderl:encrypt(__T))).
 
 % CSV Export
 -define(CSV_FIELD_SEP, ";").

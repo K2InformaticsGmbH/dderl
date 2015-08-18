@@ -274,8 +274,9 @@
 
     _init: function() {
         // default dialog open behavior
-    	if ( this.options.autoOpen )
+    	if ( this.options.autoOpen ) {
             this._dlg.dialog("open");
+        }
     },
 
     _createContextMenus: function() {
@@ -1669,8 +1670,9 @@
     _setupEventHandlers: function() {
         // make this as context to private event handler functions
         // and register for named events
-        for(var fun in this._handlers)
+        for(var fun in this._handlers) {
             this.element.on(fun, null, this, this._handlers[fun]);
+        }
     },
 
     _createDlgFooter: function() {
@@ -1748,8 +1750,9 @@
         // footer total width
         var childs = self._footerDiv.children();
         var totWidth = 0;
-        for(var i=0; i<childs.length; ++i)
+        for(var i=0; i<childs.length; ++i) {
             totWidth += $(childs[i]).width();
+        }
 
         self._footerWidth = totWidth;
     },
@@ -2805,12 +2808,11 @@
         self._removeImgPreview();
     },
 
-      _handleSelectionChanged: function(e, args) {
-          var self = this;
-          var columns = self._grid.getColumns();
-          columns[0].name = args.rows.length.toString();
-          self._grid.setColumns(columns);
-      },
+    _handleSelectionChanged: function(e, args) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        self._grid.updateColumnHeader(columns[0].id, args.rows.length.toString());
+    },
 
     _addImgPreview: function(value, top, left) {
         var self = this;

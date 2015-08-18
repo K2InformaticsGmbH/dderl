@@ -177,7 +177,7 @@ process_data(Data) -> Data.
 process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),
@@ -451,7 +451,7 @@ process_call({Cmd, ReqData}, Adapter, From,
        Cmd =:= [<<"connect_change_pswd">>];
        Cmd =:= [<<"disconnect">>] ->
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
@@ -477,10 +477,9 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     State.
 
 spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
     try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
     catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
             error
     end.
