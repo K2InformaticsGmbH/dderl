@@ -425,7 +425,7 @@ function resetPingTimer() {
 
 function login_first()
 {
-    alert("Please log in first!");
+    alert_jq("Please log in first!");
 }
 
 function show_qry_files(useSystem)
@@ -601,6 +601,9 @@ function get_remote_apps(table) {
 
 function show_about_dlg()
 {
+    // (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion
+    // $.fn.jquery
+    // $.ui.version
     ajaxCall(null, 'about', null, 'about', function(applications) {
         var aboutDlg =
             $('<div id="about-dderl-dlg" title ="About"></div>')
@@ -693,6 +696,43 @@ function alert_jq(string)
                 dlgDiv.dialog('destroy');
                 dlgDiv.remove();
                 dlgDiv.empty();
+            }
+        });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
+}
+
+function confirm_jq(dom, callback)
+{
+    var content = dom.content;
+    if ($.isArray(content))
+        content = content.join('<br>');
+    var dlgDiv =
+        $('<div>')
+        .appendTo(document.body)
+        .append(content)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: dom.title,
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
+            close: function() {
+                //We have to remove the added child p
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    $(this).dialog("close");
+                    callback();
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
             }
         });
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
@@ -1045,4 +1085,14 @@ function groupByColumn(dataView,col,seperator)
         };
     }
     dataView.setGrouping(getters);
+}
+
+
+function md5Arr(data) {
+    var dataMd5 = md5(data);
+    var dataArr = [];
+    for(var i = 0; i < dataMd5.length; i += 2) {
+        dataArr.push(parseInt(dataMd5.substring(i,i+2), 16));
+    }
+    return dataArr;
 }

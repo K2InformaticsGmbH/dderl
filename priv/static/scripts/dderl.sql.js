@@ -224,18 +224,10 @@ function insertAtCursor(myField, myValue) {
             })
             .val(self._cmdPretty);
 
-        if(is_angular_boxing()) {
-            self._boxDiv = $("#boxdiv");
-        } else if(is_ace_editor()) {
-            var boxDivId = create_ace_editor(self);
-            boxBg = 'rgb(255, 255, 255)';
-            self._boxDiv = $("#" + boxDivId);
-        } else {
-            self._boxDiv =
-                $('<div>')
-                .addClass('sql_text_box')
-                .css('font-family', self._fnt);
-        }
+        self._boxDiv =
+            $('<div>')
+            .addClass('sql_text_box')
+            .css('font-family', self._fnt);
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
@@ -701,7 +693,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         self._renderParsed(_parsed, false);
         if(_parsed.hasOwnProperty("flat_list")) {
-            self._pendingQueries = angular.copy(_parsed.flat_list);
+            self._pendingQueries = $.extend(true, {}, _parsed.flat_list); // deep copy
             self._execMultStmts();
         } else {
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
@@ -810,11 +802,7 @@ function insertAtCursor(myField, myValue) {
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 2:
-                if(is_ace_editor()) {
-                    self.setAceFocus();
-                } else {
-                    self._boxDiv.focus();
-                }
+                self._boxDiv.focus();
                 break;
             case 3:
                 self._paramsDiv.focus();
@@ -835,24 +823,16 @@ function insertAtCursor(myField, myValue) {
         if(!skipFocus) {
             self._setTabFocus();
         }
-        //TODO: pass the boxing to the ace editor for sections.
-        if(_parsed.hasOwnProperty('sqlbox') && !is_ace_editor()) {
+        if(_parsed.hasOwnProperty('sqlbox')) {
             console.log(self._boxJson);
             self._boxJson = _parsed.sqlbox;
-            if(is_angular_boxing()) {
-                set_boxing(self._boxJson);
-            } else {
-                boxResult = self._boxing(self._boxJson, self._boxDiv.width(), null, self._boxDiv[0]);
-                self._boxDiv.html('');
-                boxResult.div.appendTo(self._boxDiv);
-            }
+            boxResult = self._boxing(self._boxJson, self._boxDiv.width(), null, self._boxDiv[0]);
+            self._boxDiv.html('');
+            boxResult.div.appendTo(self._boxDiv);
         }
         if(_parsed.hasOwnProperty('flat')) {
             self._flatTb.val(_parsed.flat);
             self._cmdFlat = self._flatTb.val();
-            if (is_ace_editor() && !(_parsed.hasOwnProperty('pretty'))) {
-                set_sql_content(self._boxDiv.attr('id'), _parsed.flat);
-            }
         }
         if(_parsed.hasOwnProperty('pretty')) {
             self._prettyTb.val(_parsed.pretty);
@@ -871,9 +851,6 @@ function insertAtCursor(myField, myValue) {
                     self._dlg.dialog("option", "position", [dialogPos.left, dialogPos.top + distanceToBottom]);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
-            }
-            if (is_ace_editor()) {
-                set_sql_content(self._boxDiv.attr('id'), _parsed.pretty);
             }
         }
         if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
@@ -1007,7 +984,6 @@ function insertAtCursor(myField, myValue) {
             .dialog(self.options)
             .bind("dialogresizestop", function(event, ui) {
                 self._refreshHistoryBoxSize();
-                resize_ace_editor(self._boxDiv.attr('id'));
             });
 
         // Update title to add context menu handlers.

@@ -4,7 +4,7 @@
 -include("dderl.hrl").
 
 -export([init/1
-        ,start_link/1
+        ,start_link/0
         ,handle_call/3
         ,handle_cast/2
         ,handle_info/2
@@ -15,7 +15,6 @@
 
 -export([get_adapters/1
         ,login/3
-        ,change_password/4
         ,add_adapter/2
         ,add_command/7
         ,update_command/6
@@ -34,6 +33,7 @@
         ,save_dashboard/5
         ,get_dashboards/2
         ,add_adapter_to_cmd/3
+        ,user_name/1
         ]).
 
 -record(state, { schema :: term()
@@ -49,11 +49,17 @@
 %% Validate this permission.
 -define(USE_ADAPTER, {dderl, adapter, {id, __AdaptId}, use}).
 
--spec login(binary(), binary(), binary()) -> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-login(User, Password, SessionId) -> gen_server:call(?MODULE, {login, User, Password, SessionId}).
-
--spec change_password(binary(), binary(), binary(), binary())-> {error, term()} | {true, {atom(), pid()}, ddEntityId()}.
-change_password(User, Password, NewPassword, SessionId) -> gen_server:call(?MODULE, {change_password, User, Password, NewPassword, SessionId}).
+-spec login(binary(), binary(), binary()) -> {error, term()} | {ok, {atom(), pid()}, ddEntityId()}.
+login(User, Password, SessionId) ->
+    case erlimem:open(rpc, {node(), imem_meta:schema()}, {User, erlang:md5(Password), SessionId}) of
+        {error, Error} ->
+            ?Debug("login exception ~n~p~n", [Error]),
+            {error, Error};
+        {ok, UserSess} ->
+            UserId = get_id(UserSess, User),
+            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
+            {ok, UserSess, UserId}
+    end.
 
 -spec add_adapter(atom(), binary()) -> ok.
 add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
@@ -103,6 +109,12 @@ update_command(Sess, Id, Owner, Name, Sql, Opts) ->
     Sess:run_cmd(write, [ddCmd, NewCmd]),
     Id.
 
+-spec user_name(atom() | integer() | binary()) -> binary().
+user_name(system) -> <<"system">>;
+user_name(Name) when is_binary(Name) -> Name;
+user_name(Id) when is_integer(Id) ->
+    {[Name],true} = imem_meta:select(ddAccount, [{#ddAccount{id=Id,name='$1',_='_'},[],['$1']}]),
+    Name.
 
 -spec add_view({atom(), pid()} | undefined, ddEntityId(), binary(), ddEntityId(), #viewstate{}) -> ddEntityId().
 add_view(undefined, Owner, Name, CmdId, ViewsState) ->
@@ -317,10 +329,10 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) ->
     Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     CmdId.
 
--spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(SchemaName) ->
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
     ?Info("~p starting...~n", [?MODULE]),
-    case gen_server:start_link({local, ?MODULE}, ?MODULE, [SchemaName], []) of
+    case gen_server:start_link({local, ?MODULE}, ?MODULE, [], []) of
         {ok, _} = Success ->
             ?Info("~p started!~n", [?MODULE]),
             Success;
@@ -329,11 +341,12 @@ start_link(SchemaName) ->
             Error
     end.
 
-init([SchemaName]) ->
-    case erlimem:open(local, {SchemaName}, {<<>>, <<>>, dderl_dal}) of
+init([]) ->
+    SchemaName = imem_meta:schema(),
+    case erlimem:open(local, SchemaName) of
         {ok, Sess} ->
             {ok, Vsn} = application:get_key(dderl,vsn),
-            case code:lib_dir(dderl) of                
+            case code:lib_dir(dderl) of
                 {error,bad_name} -> ?Info("Application not running from installation", []);
                 LibDir ->
                     ConfigPath = filename:join([LibDir,"..","..","releases",Vsn]),
@@ -376,30 +389,6 @@ build_tables_on_boot(_, []) -> ok;
 build_tables_on_boot(Sess, [{N, Cols, Types, Default}|R]) ->
     Sess:run_cmd(init_create_check_table, [N, {Cols, Types, Default}, []]),
     build_tables_on_boot(Sess, R).
-
-handle_call({login, User, Password, SessionId}, _From, #state{sess=DalSess, schema=SchemaName} = State) ->
-    ?Debug("login for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), SessionId}) of
-        {error, Error} ->
-            ?Debug("login exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, UserSess} ->
-            UserId = get_id(DalSess, User),
-            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
-            {reply, {true, UserSess, UserId}, State}
-    end;
-
-handle_call({change_password, User, Password, NewPassword, SessionId}, _From, #state{sess=DalSess, schema=SchemaName} = State) ->
-    ?Debug("changing password for user ~p", [User]),
-    case erlimem:open(rpc, {node(), SchemaName}, {User, erlang:md5(Password), erlang:md5(NewPassword), SessionId}) of
-        {error, Error} ->
-            ?Error("change password exception ~n~p~n", [Error]),
-            {reply, {error, Error}, State};
-        {ok, UserSess} ->
-            UserId = get_id(DalSess, User),
-            ?Info("login with new password user ~p with id = ~p", [User, UserId]),
-            {reply, {true, UserSess, UserId}, State}
-    end;
 
 handle_call({add_connect, Conn}, _From, #state{sess=Sess} = State) ->
     {reply, add_connect_internal(Sess, Sess, Conn), State};
@@ -546,19 +535,18 @@ conn_permission(Sess, _UserId, #ddConn{id=ConnId}) ->
 add_connect_internal(UserSess, DalSess, #ddConn{schm = undefined} = Conn) ->
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
     add_connect_internal(UserSess, DalSess, Conn#ddConn{schm = SchemaName});
-add_connect_internal(UserSess, DalSess, #ddConn{id = undefined, owner = Owner} = Conn) ->
+add_connect_internal(UserSess, DalSess, #ddConn{id = null, owner = Owner} = Conn) ->
     case UserSess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
                                          , [{'=:=','$1',Conn#ddConn.name},{'=:=','$2',Owner}]
                                          , ['$_']}]]) of
         {[#ddConn{id = Id} = OldCon | _], true} ->
             %% User is updating is own connection no need for privileges
             NewCon = Conn#ddConn{id=Id},
-            case compare_connections(OldCon, NewCon) of
-                true -> %% Connection not changed
-                    Conn#ddConn{owner = get_name(DalSess, Conn#ddConn.owner)};
-                false ->
-                    ?Info("replacing connection ~p, owner ~p", [NewCon, Owner]),
-                    check_save_conn(UserSess, DalSess, update, {OldCon, NewCon})
+            if OldCon == NewCon -> %% Connection not changed
+                   Conn#ddConn{owner = get_name(DalSess, Conn#ddConn.owner)};
+               true ->
+                   ?Info("replacing connection ~p, owner ~p", [NewCon, Owner]),
+                   check_save_conn(UserSess, DalSess, update, {OldCon, NewCon})
             end;
         _ ->
             HavePermission = (UserSess =:= DalSess) orelse
@@ -569,38 +557,52 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = undefined, owner = Owner} =
                     NewCon = Conn#ddConn{id=Id},
                     ?Info("adding new connection ~p", [NewCon]),
                     check_save_conn(UserSess, DalSess, insert, NewCon);
-                _ ->
-                    {error, <<"Create connections unauthorized">>}
+                _ -> {error, <<"Create connections unauthorized">>}
             end
     end;
-add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Conn) ->
-    case UserSess:run_cmd(select, [ddConn, [{#ddConn{id='$1', _='_'}
-                                         , [{'=:=', '$1', OldId}]
-                                         , ['$_']}]]) of
+add_connect_internal(UserSess, DalSess, #ddConn{id = OldId, owner = Owner} = Conn)
+  when is_integer(OldId) ->
+    case UserSess:run_cmd(select, [ddConn, [{#ddConn{id=OldId, _='_'}, [], ['$_']}]]) of
         {[#ddConn{owner = OldOwner} = OldCon], true} ->
             %% Save the conn only if there is some difference.
-            case compare_connections(OldCon, Conn#ddConn{owner = OldOwner}) of
+            case is_same_conn(OldCon, Conn) of
                 true ->
                     %% If the connection is not changed then do not save a copy.
                     OldCon#ddConn{owner = get_name(DalSess, OldCon#ddConn.owner)};
                 false ->
                     if
                         Owner =:= OldOwner -> %% Same owner update the connection.
-                            check_save_conn(UserSess, DalSess, update, {OldCon, Conn});
-                        true -> %% Different owner, create a copy.
-                            add_connect_internal(UserSess, DalSess, Conn#ddConn{id = undefined})
-                    end
+                           check_save_conn(UserSess, DalSess, update, {OldCon, Conn});
+                       true -> %% Different owner, create a copy.
+                           add_connect_internal(UserSess, DalSess, Conn#ddConn{id = null})
+                   end
             end;
         {[], true} ->
             %% Connection with id not found, adding a new one.
-            add_connect_internal(UserSess, DalSess, Conn#ddConn{id = undefined});
+            add_connect_internal(UserSess, DalSess, Conn#ddConn{id = null});
         Result ->
             ?Error("Error getting connection with id ~p, Result:~n~p", [OldId, Result]),
             {error, <<"Error saving the connection">>}
     end.
 
+is_same_conn(#ddConn{access = Access1} = Conn1, Conn2) when not is_map(Access1) ->
+	is_same_conn(Conn1#ddConn{access = maps:from_list(Access1)}, Conn2);
+is_same_conn(Conn1, #ddConn{access = Access2} = Conn2) when not is_map(Access2) ->
+	is_same_conn(Conn1, Conn2#ddConn{access = maps:from_list(Access2)});
+is_same_conn(Conn1, Conn2) ->
+    Conn1#ddConn{access = maps:remove(<<"user">>,maps:remove(user,Conn1#ddConn.access))} ==
+    Conn2#ddConn{owner = Conn1#ddConn.owner,
+                 access = maps:remove(<<"user">>,maps:remove(user, Conn2#ddConn.access))}.
+
 -spec check_save_conn({atom(), pid()}, {atom(), pid()}, atom(), #ddConn{}) -> #ddConn{} | {error, binary()}.
-check_save_conn(UserSess, DalSess, Op, Conn) ->
+check_save_conn(UserSess, DalSess, Op, Conn0) ->
+    Conn = case Conn0 of
+		   Conn0 when is_record(Conn0, ddConn) ->
+			   Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)};
+		   {C1, C2} when is_record(C1, ddConn), is_record(C2, ddConn) ->
+			   {C1#ddConn{access = maps:remove(password, C1#ddConn.access)},
+ 			    C2#ddConn{access = maps:remove(password, C2#ddConn.access)}}
+	   end,
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("~p connection failed : ~n~p", [Op, Error]),
@@ -636,14 +638,6 @@ check_cmd_select(UserSess, Args) ->
             ?Error("Invalid return on select, args ~p: The result:~n~p", [Args, InvalidReturn]),
             {error, <<"Error on select (Invalid value returned from DB)">>}
     end.
-
--spec compare_connections(#ddConn{}, #ddConn{}) -> boolean().
-compare_connections(Connection, Connection) -> true;
-compare_connections(#ddConn{access = []}, _) -> false;
-compare_connections(_, #ddConn{access = []}) -> false;
-compare_connections(#ddConn{access = A1} = Con1, #ddConn{access = A2} = Con2) ->
-    lists:sort(A1) =:= lists:sort(A2)
-        andalso compare_connections(Con1#ddConn{access = []}, Con2#ddConn{access = []}).
 
 -spec check_dependencies([atom()]) -> boolean().
 check_dependencies([]) -> true;

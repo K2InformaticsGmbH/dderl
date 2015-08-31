@@ -17,8 +17,8 @@ WEB DataBase Browser Application.
 3. [Install Wix](http://wix.codeplex.com/downloads/get/762937)
 4. Create Environment variable `%WIXBIN%` pointing to  WIX installation binary path (e.g. `C:\Program Files (x86)\WiX Toolset v3.8\bin`)
 5. Append `%WIXBIN%` to `%PATH%` environment variable
-6. Navigate to `dderl/rel/wixsetup` and execute `./build_msi.escript`
-7. Installer MSI will be generated in `dderl/rel/wixsetup`
+6. Execude `deps/erlpkg/windows/build_msi.escript -v`
+7. Installer MSI will be generated in `dderl/rel/erlpkg_release/build/`
 
 ###Hacks
 Unlock account
@@ -47,3 +47,29 @@ To convert a PEM crt/key files to DER (accepted by erlang SSL binary certificate
 > public_key:pem_decode(PemKey).              
 [{'RSAPrivateKey',<<48,130,2,92,2,1,0,2,129,129,0,160,95,...>>,not_encrypted}]
 ```
+
+####For chaning the partition time of rolling tables
+
+1. partition time in the dderl tables are saved in seconds. So 86400 corresponds to a day
+2. On [line 65 in dderl.erl](https://github.com/K2InformaticsGmbH/dderl/blob/master/src/dderl.erl#L65) change the number at the end of the table name to the partion time that you want to set. For example setting the partition time from day to a minute you have replace 
+  ```erlang
+  -define(cproLogTable,"dderlLog_86400@_").
+  ```
+  with
+  
+  ```erlang 
+  -define(cproLogTable,"dderlLog_60@_").
+  ```
+3. Compile and load the code hot update the code into the node.
+4. In dderl on table ddAlias change the row with qname as 
+
+  ```erlang
+  {sbsgui,dderlLog_86400@}
+  ```
+  to 
+  ```erlang
+  {sbsgui,dderlLog_60@}
+  ```
+for partitioning the table every minute.
+5. Also make the similar change in table ddConfig for the record with hkl value [{dderl,dderl,dderlLogTable}]. Edit the column val.
+

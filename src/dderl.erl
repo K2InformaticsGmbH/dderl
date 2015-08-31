@@ -25,6 +25,7 @@ start() ->
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
+    ok = application:start(bullet),
     erlimem:start(),
     catch dderloci:start(),
 	ok = application:start(?MODULE).
@@ -33,6 +34,7 @@ stop() ->
     ok = application:stop(?MODULE),
     catch dderloci:stop(),
     erlimem:stop(),
+    ok = application:stop(bullet),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
     imem:stop().
@@ -43,28 +45,18 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
-    DDerlRoutes = get_routes(),
-    Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
-    ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
-                                              io_lib:format("~p",[NRP]))
-                                            ||NRP<-DDerlRoutes], "\n")]),    
-
+    ?Info("---------------------------------------------------"),
+    ?Info("STARTING DDERL"),
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
-    {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
-    [{'Certificate',Cert,not_encrypted}] = public_key:pem_decode(PemCrt),
-    {ok, PemKey} = file:read_file(check_file("certs/server.key")),
-    [{'RSAPrivateKey',Key, not_encrypted}] = public_key:pem_decode(PemKey),
-    SslOptions = case application:get_env(dderl, ssl_opts) of
-                     {ok, []} ->
-                         ?GET_CONFIG(dderlSslOpts,[],
-                                     [{cert, Cert}, {key, {'RSAPrivateKey',Key}},
-                                      {versions, ['tlsv1.2','tlsv1.1',tlsv1]}]);
-                     {ok, SslOpts} -> SslOpts
-                 end,
     {ok, Interface} = inet:getaddr(Ip, inet),
+    DDerlRoutes = get_routes(),
+    Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
+    SslOptions = get_ssl_options(),
     {ok, _} = cowboy:start_https(
-                https, 100, [{ip, Interface}, {port, Port} | SslOptions],
+                https, ?GET_CONFIG(maxNumberOfAcceptors, [], 100),
+                [{ip, Interface}, {port, Port},
+                 {max_connections, ?GET_CONFIG(maxNumberOfSockets, [], 5000)} | SslOptions],
                 [{env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
@@ -77,12 +69,13 @@ start(_Type, _Args) ->
            [{level,info},{tablefun,LogTableNameFun},{application,dderl},
             {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
           ),
-    ?Info("---------------------------------------------------"),
-    ?Info("STARTING DDERL"),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
                          end, ":~p~s"]), [Port,?URLSUFFIX]),
+    ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
+                                              io_lib:format("~p",[NRP]))
+                                            ||NRP<-DDerlRoutes], "\n")]),
     SupRef = dderl_sup:start_link(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
@@ -200,4 +193,38 @@ check_file(F) ->
             throw("File "++File++" doesn't exists")
     end,
     File.
+
+get_ssl_options() ->
+    get_ssl_options(application:get_env(dderl, ssl_opts)).
+get_ssl_options({ok, []}) ->
+    case ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf') of
+        '$no_ssl_conf' ->
+            {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
+            [{'Certificate',Cert,not_encrypted} | Certs]
+            = AllCerts = public_key:pem_decode(PemCrt),
+            CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
+            {ok, PemKey} = file:read_file(check_file("certs/server.key")),
+            [{KeyType,Key,not_encrypted}|_] = AllKeys = public_key:pem_decode(PemKey),
+            DDErlSslDefault =
+            [{cert, Cert},
+             {key, {KeyType,Key}},
+             {versions, ['tlsv1.2','tlsv1.1',tlsv1]}
+             | if length(CACerts) > 0 ->
+                      [{cacerts,CACerts}];
+                  true -> []
+               end],
+            ?Info("Installing SSL certificates ~p~nKeys ~p",
+                  [[public_key:pem_entry_decode(C)||C<-AllCerts],
+                   [public_key:pem_entry_decode(K)||K<-AllKeys]]),
+            ?PUT_CONFIG(dderlSslOpts, [], DDErlSslDefault,
+                        list_to_binary(
+                          io_lib:format("Installed at ~p on ~s",
+                                        [node(), imem_datatype:timestamp_to_io(os:timestamp())]
+                                       ))),
+            DDErlSslDefault;
+        DDErlSslOpts -> DDErlSslOpts
+    end;
+get_ssl_options({ok, SslOpts}) ->
+    SslOpts.
+
 %%-----------------------------------------------------------------------------

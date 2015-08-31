@@ -41,6 +41,7 @@
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
           , registered_name             :: reference()
+          , conn_info                   :: map()
          }).
 
 %% Helper functions
@@ -62,8 +63,12 @@ get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
         Ref = binary_to_term(RefBin),
         Bytes = << First/binary, Last/binary >>,
         DDerlSession = {?MODULE, Ref, Bytes},
-        case is_process_alive(whereis_name(Ref)) of
-            true -> {ok, DDerlSession};
+        case whereis_name(Ref) of
+            Pid when is_pid(Pid) ->
+                case is_process_alive(Pid) of
+                    true -> {ok, DDerlSession};
+                    _ -> {error, <<"process not found">>}
+                end;
             _ -> {error, <<"process not found">>}
         end
     catch
@@ -95,10 +100,9 @@ process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Ref, Bytes}) ->
 
 init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
-    Self = self(),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    ?Info("~p started by ~p!", [{?MODULE, Self}, ConnInfo]),
-    {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName}}.
+    {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName,
+                conn_info = ConnInfo}}.
 
 handle_call({verify, InBytes}, _From, State) ->
     {reply, InBytes =:= State#state.id, State};
@@ -132,7 +136,7 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{} = State) ->
+handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, normal, State};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
@@ -151,67 +155,93 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+process_login(SessionId,#{<<"SMS Token">>:=Token}, #state{sess=ErlImemSess}=State) ->
+    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token})), State};
+process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{sess = ErlImemSess} = State) ->
+    {process_login_reply(
+       ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
+      ), State#state{user=User}};
+process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
+    {ok, ErlImemSess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State#state{sess=ErlImemSess}}.
+
+process_login_reply(ok)                         -> ok;
+process_login_reply({ok, []})                   -> ok;
+process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{pwdmd5=>process_data(Data)};
+process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}.
+
+process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
+process_data(Data) -> Data.
+
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
-    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    [{<<"login">>, BodyJson}] = jsx:decode(ReqData),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    case dderl_dal:login(User, Password, SessionId) of
-        {true, Sess, UserId} ->
-            ?Info("login successful for ~p", [{self(), User}]),
-            From ! {reply, jsx:encode([{<<"login">>,<<"ok">>}])},
-            State#state{sess=Sess, user=User, user_id=UserId};
-        {_, {error, {Exception, {"Password expired. Please change it", _} = M}}} ->
-            ?Debug("Password expired for ~p, result ~p", [User, {Exception, M}]),
-            From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
+    #state{id = << First:32/binary, Last:32/binary >>,
+           registered_name = RegisteredName, sess = ErlImemSess} = State,
+    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
+        {{E,M},St} when is_atom(E) ->
+            ?Error("Error(~p) ~p~n~p", [E,M,St]),
+            From ! {reply, jsx:encode(
+                             #{login=>
+                               #{error=>
+                                 if is_binary(M) -> M;
+                                    is_list(M) -> list_to_binary(M);
+                                    true -> list_to_binary(io_lib:format("~p", [M]))
+                               end}})
+                   },
             State;
-        {_, {error, {Exception, M}}} ->
-            ?Error("login failed for ~p, result ~n~p", [User, {Exception, M}]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login">>,Err}])},
-            self() ! invalid_credentials,
-            State;
-        {error, {{Exception, {"Password expired. Please change it", _} = M}, _Stacktrace}} ->
-            ?Error("Password expired for ~p, result ~p", [User, {Exception, M}]),
-            From ! {reply, jsx:encode([{<<"login">>,<<"expired">>}])},
-            State;
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Debug("login failed for ~p, result ~n~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login">>, Err}])},
-            self() ! invalid_credentials,
-            State
+        {Reply, State1} ->
+            {Reply1, State2}
+            = case Reply of
+                  ok ->
+                      case ErlImemSess:run_cmd(login,[]) of
+                          {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
+                              {#{changePass=>State1#state.user}, State1};
+                          _ ->
+                              {[UserId],true} = imem_meta:select(
+                                                  ddAccount,
+                                                  [{#ddAccount{name=State1#state.user,
+                                                               id='$1',_='_'},
+                                                    [], ['$1']}]),
+                              {#{accountName=>State1#state.user},
+                               State1#state{user_id = UserId}}
+                      end;
+                  _ -> {Reply, State1}
+              end,
+            {ok,Vsn} = application:get_key(dderl, vsn),            
+            From ! {reply, jsx:encode(
+                             #{login => Reply1#{vsn => list_to_binary(Vsn),
+                                                node => list_to_binary(imem_meta:node_shard())
+                                               }})},
+            State2
     end;
 
-process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, #state{} = State) ->
-    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
+             #state{sess = ErlImemSess} = State) ->
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password = binary_to_list(proplists:get_value(<<"password">>, BodyJson, <<>>)),
-    NewPassword = binary_to_list(proplists:get_value(<<"new_password">>, BodyJson, <<>>)),
-    case dderl_dal:change_password(User, Password, NewPassword, SessionId) of
-        {true, Sess, UserId} ->
+    OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
+    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
+    case ErlImemSess:run_cmd(
+           change_credentials,
+           [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
+          ) of
+        SeKey when is_integer(SeKey)  ->
             ?Debug("change password successful for ~p", [User]),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])},
-            State#state{sess=Sess, user=User, user_id=UserId};
-        {_, {error, {Exception, M}}} ->
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])};
+        {error, {error, {Exception, M}}} ->
             ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])},
-            State;
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])};
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("change password failed for ~p, result ~n~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])},
-            State
-    end;
+            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])}
+    end,
+    State;
 
 process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
     NewState = logout(State),
@@ -280,49 +310,57 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
     From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
     State;
 
-process_call({[<<"adapters">>], _ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
-    case dderl_dal:get_adapters(Sess) of
-        {error, Reason} ->
-            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
-        Adapters ->
-            Res = jsx:encode([{<<"adapters">>,
-                [[{<<"id">>, jsq(A#ddAdapter.id)}
-                 ,{<<"fullName">>, A#ddAdapter.fullName}]
-                 || A <- Adapters]}]),
-            ?Debug([{user, User}], "adapters ~s", [jsx:prettify(Res)]),
-            From ! {reply, Res}
-    end,
-    State;
-
-process_call({[<<"connects">>], _ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
-    case dderl_dal:get_connects(Sess, UserId) of
-        {error, Reason} ->
-            From ! {reply, jsx:encode([{<<"error">>, Reason}])};
-        [] ->
-            From ! {reply, jsx:encode([{<<"connects">>,[]}])};
-        UnsortedConns ->
-            Connections = lists:sort(fun(#ddConn{name = Name}, #ddConn{name = Name2}) ->
+process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
+             #state{sess=Sess, user_id=UserId, user=User} = State) ->
+    ConnInfo
+    = case dderl_dal:get_adapters(Sess) of
+          {error, Reason} when is_binary(Reason) -> #{error => Reason};
+          Adapters when is_list(Adapters) ->
+              case dderl_dal:get_connects(Sess, UserId) of
+                  {error, Reason} when is_binary(Reason) -> #{error => Reason};
+                  UnsortedConns when is_list(UnsortedConns) ->
+                      Connections
+                      = lists:foldl(
+                          fun(C,Cl) ->
+                                  Adapter = list_to_existing_atom(
+                                              atom_to_list(C#ddConn.adapter)++"_adapter"),
+                                  [Adapter:connect_map(C)|Cl]
+                          end, [],
+                          lists:sort(fun(#ddConn{name = Name},
+                                         #ddConn{name = Name2}) ->
                                              Name > Name2
-                                     end
-                                     , UnsortedConns),
-            ?Debug("conections ~p", [Connections]),
-            Res = jsx:encode([{<<"connects">>,
-                lists:foldl(fun(C, Acc) ->
-                    [{integer_to_binary(C#ddConn.id), [
-                            {<<"name">>, C#ddConn.name}
-                          , {<<"adapter">>, jsq(C#ddConn.adapter)}
-                          , {<<"service">>, jsq(C#ddConn.schm)}
-                          , {<<"owner">>, jsq(C#ddConn.owner)}
-                          ] ++
-                          [{atom_to_binary(N, utf8), jsq(V)} || {N,V} <- C#ddConn.access]
-                     } | Acc]
-                end,
-                [],
-                Connections)
-            }]),
-            ?Debug("connections as json ~s", [jsx:prettify(Res)]),
-            From ! {reply, Res}
-    end,
+                                     end, UnsortedConns)
+                         ),
+                      CInfo = #{adapters =>
+                                  [#{id => jsq(A#ddAdapter.id),
+                                     fullName => A#ddAdapter.fullName}
+                                   || A <- Adapters],
+                                  connections => Connections},
+                      #{connect_info =>
+                        CInfo#{connections =>
+                               Connections ++
+                               case [A || #{adapter := A} <- Connections, A == <<"oci">>] of
+                                   [] -> [#{adapter => <<"oci">>,
+                                            id => null,
+                                            name => <<"template oracle">>,
+                                            owner => User,
+                                            method => <<"tns">>}];
+                                   _ -> []
+                               end ++
+                               case [A || #{adapter := A} <- Connections, A == <<"imem">>] of
+                                   [] -> [#{adapter => <<"imem">>,
+                                            id => null,
+                                            name => <<"template imem">>,
+                                            schema => atom_to_binary(imem_meta:schema(),utf8),
+                                            owner => User,
+                                            method => <<"tcp">>}];
+                                   _ -> []
+                               end
+                              }
+                       }
+              end
+      end,
+    From ! {reply, jsx:encode(ConnInfo)},
     State;
 
 process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
@@ -387,10 +425,6 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active
             State#state{active_sender = undefined}
     end;
 
-%%process_cmd({[<<"activate_receiver">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
-%%    [{<<"activate_receiver">>, BodyJson}] = ReqBody,
-
-
 % commands handled generically
 process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
@@ -410,17 +444,20 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
     State;
 
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv} = State) when
-      Cmd =:= [<<"connect">>];
-      Cmd =:= [<<"connect_change_pswd">>];
-      Cmd =:= [<<"disconnect">>] ->
+process_call({Cmd, ReqData}, Adapter, From,
+             #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv,
+                    conn_info = ConnInfo} = State)
+  when Cmd =:= [<<"connect">>];
+       Cmd =:= [<<"connect_change_pswd">>];
+       Cmd =:= [<<"disconnect">>] ->
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Encrypt(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
+    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     BodyJson = jsx:decode(ReqData),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
+    CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
-        try Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
+        try
+            Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
@@ -440,10 +477,9 @@ process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, ad
     State.
 
 spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    ?NoDbLog(debug, [{user, UserId}], "~p processing ~p", [Adapter, Cmd]),
     try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
     catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
+            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
             From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
             error
     end.

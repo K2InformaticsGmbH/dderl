@@ -1,19 +1,75 @@
-function display_login()
-{
-    if($('#login-button').html().indexOf('out') > 0) {
-        $('#login-button').html('');
-        $('#change-pswd-button').data("logged_in_user", "");
-        $('#login-msg').html('Welcome guest');
+function update_user_information(user) {
+    create_ws();
+    $('#change-pswd-button').data("logged_in_user", user);
+    $('#login-button').html('Log out ' + user);
+}
+
+function check_already_connected() {
+    if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
+       !window.opener.$('#change-pswd-button').data("logged_in_user")) {
+        loginAjax(null);
+    } else {
+        dderlState.session = window.opener.dderlState.session;
+        dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
+        var user = window.opener.$('#change-pswd-button').data("logged_in_user");
+        update_user_information(user);
+        connect_dlg();
     }
-    var dlg = $('<div id="dialog-login" title="Login to Query Server" style="diaply:none">'
-     +'  <table border=0 width=100% cellpadding=0 cellspacing=0>'
-     +'      <tr><td align=right valign=center>User&nbsp;</td>'
-     +'          <td valign=bottom><input type="text" id="user_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
-     +'      <tr><td align=right valign=center>Password&nbsp;</td>'
-     +'          <td valign=bottom><input type="password" id="password_login" class="text ui-widget-content ui-corner-all"/></td></tr>'
-     +'  </table>'
-     +'</div>')
-    .appendTo(document.body);
+}
+
+function loginAjax(data) {
+    ajaxCall(null, 'login', (data == null ? {} : data),
+            'login', loginCb);
+}
+
+function loginCb(resp) {
+    $('#disconnect-button').removeClass('disabled');
+
+    if (resp.hasOwnProperty('vsn')) {
+        $('#version').text(' | '+resp.vsn);
+    }
+    if (resp.hasOwnProperty('node')) {
+        $('#node').text(resp.node);
+    }
+
+    if (resp.hasOwnProperty('error')) {
+        alert_jq('Login falied : ' + resp.error);
+        loginAjax(null);
+    } else if(resp.hasOwnProperty('pwdmd5')) {
+        display({title  : "Login",
+                 fields : [{type        : "text",
+                            placeholder : "User",
+                            val         : resp.pwdmd5.accountName},
+                           {type        : "password",
+                            placeholder : "Password",
+                            val         : ""}]
+        });
+    } else if(resp.hasOwnProperty('smsott')) {
+        display({title  : "Enter Token",
+                 fields : [{type        : "label",
+                            val         : "A token is send through SMS to "+resp.smsott.to+
+                                          " for user "+resp.smsott.accountName+
+                                          ". Please enter the token below"},
+                           {type        : "text",
+                            placeholder : "SMS Token",
+                            val         : ""}]
+        });
+    } else if (resp.hasOwnProperty('accountName')) {
+        update_user_information(resp.accountName);
+        resetPingTimer();
+        connect_dlg();
+    } else if (resp.hasOwnProperty('changePass')) {
+        change_login_password(resp.changePass, true);
+    } else {
+        alert_jq("Unexpected "+JSON.stringify(resp));
+    }
+}
+
+function display(layout) {
+    var dlg = $('<div title="'+layout.title+'" style="diaply:none">')
+        .appendTo(document.body);
+    var tab = $('<table border=0 width=100% cellspacing=0>')
+        .appendTo(dlg);
 
     dlg.dialog({
         autoOpen: false,
@@ -26,63 +82,82 @@ function display_login()
         closeOnEscape: false,
         dialogClass: 'no-close',
         open: function(event, ui) {
-            $('#user_login').val("system");
             $(this).dialog("widget").appendTo("#main-body");
-            setTimeout(function() {
-                $('#password_login').focus();
-            }, 10);
         },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
         }
-    })
-    .dialog("open")
-    .dialog("widget").draggable("option","containment","#main-body");
-
-    $("#password_login").keypress(function(e) {
-        if(e.which == 13) {
-            var loginJson = {login: { user      :   $('#user_login').val(),
-                                      password  :   $('#password_login').val()}};
-            ajaxCall(null, 'login', loginJson, 'login', function(data) {
-                if(data == "ok") {
-                    var user = $('#user_login').val();
-                    update_user_information(user);
-                    $("#dialog-login").dialog("close");
-                    resetPingTimer();
-                    connect_dlg();
-                } else if (data == "expired") {
-                    var user = $('#user_login').val();
-                    update_user_information(user);
-                    $("#dialog-login").dialog("close");
-                    change_login_password(user, true);
-                } else {
-                    dderlState.session = null;
-                    resetPingTimer();
-                    alert('Login falied : ' + data);
-                }
-            });
-        }
     });
-}
 
-function update_user_information(user) {
-    create_ws();
-    $('#change-pswd-button').data("logged_in_user", user);
-    $('#login-button').html('Log out ' + user);
-}
-
-function check_already_connected() {
-    if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
-       !window.opener.$('#change-pswd-button').data("logged_in_user")) {
-        display_login();
-    } else {
-        dderlState.session = window.opener.dderlState.session;
-        dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
-        var user = window.opener.$('#change-pswd-button').data("logged_in_user");
-        update_user_information(user);
-        connect_dlg();
+    var focused = false;
+    for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
+        var tr = $('<tr>').appendTo(tab);
+        var td = $('<td valign=bottom>').appendTo(tr);
+        if(layout.fields[fldIdx].type == "label") {            
+            $('<span>')
+                .css('word-wrap', 'break-word')
+                .css('display', 'block')
+                .css('width', '300px')
+                .text(layout.fields[fldIdx].val)
+                .appendTo(td.attr('colspan',2));
+        } else if(layout.fields[fldIdx].type == "text") {
+            td.append(layout.fields[fldIdx].placeholder);
+            td = $('<td valign=bottom>').appendTo(tr);
+            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>')
+                            .val(layout.fields[fldIdx].val)
+                            .keypress(function(e) {
+                                if(e.which == 13) {
+                                    inputEnter(layout);
+                                    dlg.dialog("close");
+                                }
+                            })
+                            .appendTo(td);
+            layout.fields[fldIdx].elm = txt;
+            if(!focused && layout.fields[fldIdx].val.length == 0) {
+                focused = true;
+                setTimeout(function() { txt.focus(); }, 100);
+            }
+       } else if(layout.fields[fldIdx].type == "password") {
+            td.append(layout.fields[fldIdx].placeholder);
+            td = $('<td valign=bottom>').appendTo(tr);
+            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>')
+                            .val(layout.fields[fldIdx].val)
+                            .keypress(function(e) {
+                                if(e.which == 13) {
+                                    inputEnter(layout);
+                                    dlg.dialog("close");
+                                }
+                            })
+                            .appendTo(td);
+            layout.fields[fldIdx].elm = pass;
+            if(!focused) {
+                focused = true;
+                setTimeout(function() { pass.focus(); }, 100);
+            }
+        }
     }
+
+    dlg.dialog("open")
+       .dialog("widget")
+       .draggable("option","containment","#main-body");
+}
+
+function inputEnter(layout) {
+    var data = {};
+    for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
+        if (layout.fields[fldIdx].hasOwnProperty('elm')) {
+            layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
+        }
+        if (layout.fields[fldIdx].type != "label") {
+            if(layout.fields[fldIdx].type == "password") {
+                data[layout.fields[fldIdx].placeholder] = md5Arr(layout.fields[fldIdx].val);
+            } else {
+                data[layout.fields[fldIdx].placeholder] = layout.fields[fldIdx].val;
+            }
+        }
+    }
+    loginAjax(data);
 }
 
 function logout() {
@@ -118,6 +193,56 @@ function logout() {
     process_logout();
 }
 
+function restart() {
+
+    if (!dderlState.session) {
+        return;
+    }
+
+    var headers = new Object();
+
+    if (dderlState.adapter != null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
+    }
+    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/restart',
+        data: JSON.stringify({}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus, request) {
+            console.log('Request restart Result ' + textStatus);
+            clearTimeout(dderlState.pingTimer);
+        },
+
+        error: function (request, textStatus, errorThrown) {
+            console.log('Request restart Error, status: ' + textStatus);
+        }
+    });
+
+    function checkRestartComplete(url) {
+        $.ajax({
+            type: 'GET',
+            url: url,
+            success: function(_data, textStatus, request) {
+                console.log('Restart complete, status: ' + textStatus);
+                process_logout();
+            },
+            error: function (request, textStatus, errorThrown) {
+                console.log('Restarting... status: ' + textStatus);
+                setTimeout(checkRestartComplete, 0, url);
+            }
+        });
+    }
+    setTimeout(checkRestartComplete, 0, window.location.href);
+}
+
+
 function process_logout() {
     dderlState.connection = null;
     dderlState.adapter = null;
@@ -142,21 +267,29 @@ function process_logout() {
             }
         }
     }
-    display_login();
+    loginAjax(null);
 }
 
 function change_login_password(loggedInUser, shouldConnect)
 {
     $('<div id="dialog-change-password" title="Change DDerl account password">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td align=right valign=center>User&nbsp;</td>' +
-      '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
-      '      <tr><td align=right valign=center>Old Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
+      '      <tr><td>User</td>'+
+      '         <td valign=bottom>'+
+      '             <b>'+loggedInUser+'</b>'+
+      '         </td></tr>' +
+      '      <tr><td>Old Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td>New Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td>Confirm New Password</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
       '  </table>' +
       '</div>').appendTo(document.body);
     $('#dialog-change-password').dialog({
@@ -178,8 +311,8 @@ function change_login_password(loggedInUser, shouldConnect)
                     var newPassJson = {
                         change_pswd: {
                             user  : loggedInUser,
-                            password  : $('#old_password_login').val(),
-                            new_password  : $('#password_change_login').val()
+                            password  : md5Arr($('#old_password_login').val()),
+                            new_password  : md5Arr($('#password_change_login').val())
                         }};
                     ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                         if(data == "ok") {
@@ -190,11 +323,11 @@ function change_login_password(loggedInUser, shouldConnect)
                             }
                         }
                         else {
-                            alert('Change password falied : ' + data);
+                            alert_jq('Change password falied : ' + data);
                         }
                     });
                 }
-                else alert("Confirm password missmatch!");
+                else alert_jq("Confirm password missmatch!");
             },
             Cancel: function() {
                 $(this).dialog("close");

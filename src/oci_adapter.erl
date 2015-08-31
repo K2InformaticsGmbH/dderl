@@ -14,6 +14,8 @@
         , rows_limit/3
         , bind_arg_types/0
         , logfun/1
+        , add_conn_info/2
+        , connect_map/1
         ]).
 
 -record(priv, {connections = [], stmts_info = []}).
@@ -26,19 +28,6 @@ bind_arg_types() -> erloci:bind_arg_types().
 -spec init() -> ok.
 init() ->
     dderl_dal:add_adapter(oci, <<"Oracle/OCI">>),
-    dderl_dal:add_connect(undefined,
-                          #ddConn{ id = undefined
-                                 , name = <<"local oracle">>
-                                 , owner = system
-                                 , adapter = oci
-                                 , access = [{ip, <<"localhost">>},
-                                             {user, <<"scott">>},
-                                             {port, 1521},
-                                             {type, <<"DB Name">>},
-                                             {service, xe},
-                                             {secure, true}
-                                            ]
-                                 }),
     gen_adapter:add_cmds_views(undefined, system, oci, false, [
         { <<"Remote Users">>
         , <<"select USERNAME from ALL_USERS">>
@@ -51,41 +40,80 @@ init() ->
         , [] }
     ]).
 
+-spec add_conn_info(any(), any()) -> any().
+add_conn_info(Priv, _ConnInfo) -> Priv.
+
+-spec connect_map(#ddConn{}) -> map().
+connect_map(#ddConn{adapter = oci} = C) ->
+    add_conn_extra(C, #{id => C#ddConn.id,
+                        name => C#ddConn.name,
+                        adapter => <<"oci">>,
+                        owner => dderl_dal:user_name(C#ddConn.owner)}).
+
+add_conn_extra(#ddConn{access = Access}, Conn)
+  when is_map(Access), is_map(Conn) ->
+       	maps:merge(Conn, maps:remove(owner,maps:remove(<<"owner">>,Access)));
+add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Conn0) ->
+    Conn = Conn0#{user => proplists:get_value(user, Access, <<>>),
+                  language => proplists:get_value(languange, Access, proplists:get_value(language, Access, <<>>)),
+                  territory => proplists:get_value(territory, Access, <<>>),
+                  charset => proplists:get_value(charset, Access, <<>>),
+                  tns => proplists:get_value(tnsstr, Access, <<>>),
+                  service => proplists:get_value(service, Access, <<>>),
+                  sid => proplists:get_value(sid, Access, <<>>),
+                  host => proplists:get_value(ip, Access, <<>>),
+                  port => proplists:get_value(port, Access, <<>>)},
+    case proplists:get_value(type, Access, service) of
+        Type when Type == tns; Type == <<"tns">> ->
+            Conn#{method => <<"tns">>};
+        Type when Type == service; Type == <<"service">>; Type == <<"DB Name">> ->
+            Conn#{method => <<"service">>};
+        Type when Type == sid; Type == <<"sid">> ->
+            Conn#{method => <<"sid">>}
+    end.
+
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
         lager:__L(__File, "[" ++ ?LOG_TAG ++ "] {~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg])
     end).
 
--spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(), undefined | #priv{}, pid()) -> #priv{}.
-process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, undefined, SessPid) ->
-    process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{connections = []}, SessPid);
-process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
-    [{<<"connect">>,BodyJson}] = ReqBody,
-    IpAddr   = proplists:get_value(<<"ip">>, BodyJson, <<>>),
-    Port     =
-        try list_to_integer(binary_to_list(proplists:get_value(<<"port">>, BodyJson, <<>>)))
-        catch _:_ -> undefined
-        end,
-    Service   = proplists:get_value(<<"service">>, BodyJson, <<>>),
-    Type      = proplists:get_value(<<"type">>, BodyJson, <<>>),
-    Secure    = proplists:get_value(<<"secure">>, BodyJson, false),
+-spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(),
+                  undefined | #priv{}, pid()) -> #priv{}.
+process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From,
+            undefined, SessPid) ->
+    process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From,
+                #priv{connections = []}, SessPid);
+process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
+            #priv{connections = Connections} = Priv, _SessPid) ->
+    {value, {<<"password">>, Password}, BodyJson4} = lists:keytake(<<"password">>, 1, BodyJson5),
+    {value, {<<"owner">>, _Owner}, BodyJson3} = lists:keytake(<<"owner">>, 1, BodyJson4),
+    {value, {<<"id">>, Id}, BodyJson2} = lists:keytake(<<"id">>, 1, BodyJson3),
+    {value, {<<"name">>, Name}, BodyJson1} = lists:keytake(<<"name">>, 1, BodyJson2),
+    {value, {<<"adapter">>, <<"oci">>}, BodyJson} = lists:keytake(<<"adapter">>, 1, BodyJson1),
+
+    Method    = proplists:get_value(<<"method">>, BodyJson, <<"service">>),
     User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Password  = proplists:get_value(<<"password">>, BodyJson, <<>>),
-    Tnsstr    = proplists:get_value(<<"tnsstr">>, BodyJson, <<>>),
-    Defaults  = ?GET_CONFIG(nls_lang, [], [{<<"languange">>, <<"GERMAN">>},
-                                           {<<"territory">>, <<"SWITZERLAND">>},
-                                           {<<"charset">>, <<"AL32UTF8">>}]),
+    Defaults  = ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
+                                            territory   => <<"SWITZERLAND">>,
+                                            charset     => <<"AL32UTF8">>}),
     Language  = get_value_empty_default(<<"languange">>, BodyJson, Defaults),
     Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
     NLS_LANG  = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
-    if
-        Tnsstr =:= <<>> ->
-            case Port of
-            undefined ->
-                    ErlOciSession = {error, "Invalid port"};
-            Port ->
-                NewTnsstr = list_to_binary(io_lib:format(
+
+    ErlOciSession
+    = case Method of
+          <<"tns">> ->
+              Tns = proplists:get_value(<<"tns">>, BodyJson, <<>>),
+              ?Info("user ~p, TNS ~p", [User, Tns]),
+              OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
+              OciPort:get_session(Tns, User, Password);
+          ServiceOrSid when ServiceOrSid == <<"service">>; ServiceOrSid == <<"sid">> ->
+              IpAddr   = proplists:get_value(<<"host">>, BodyJson, <<>>),
+              Port     = binary_to_integer(proplists:get_value(<<"port">>, BodyJson, <<>>)),
+              NewTnsstr
+              = list_to_binary(
+                  io_lib:format(
                     "(DESCRIPTION="
                     "  (ADDRESS_LIST="
                     "      (ADDRESS=(PROTOCOL=tcp)"
@@ -93,39 +121,27 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
                     "          (PORT=~p)"
                     "      )"
                     "  )"
-                    "  (CONNECT_DATA=(SERVICE_NAME=~s)))",
-                        [ binary_to_list(IpAddr)
-                        , Port
-                        , binary_to_list(Service)])),
-                ?Debug("session:open ~p", [{User, Password, NewTnsstr}]),
-                OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-                ErlOciSession = OciPort:get_session(NewTnsstr, User, Password)
-            end;
-        true ->
-            ?Debug("session:open ~p", [{User, Password, Tnsstr}]),
-            OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-            ErlOciSession = OciPort:get_session(Tnsstr, User, Password)
-    end,
+                    "  (CONNECT_DATA=("++
+                    case ServiceOrSid of
+                        <<"service">> -> "SERVICE_NAME";
+                        <<"sid">> -> "SID"
+                    end
+                    ++"=~s)))",
+                    [IpAddr, Port,
+                     case ServiceOrSid of
+                         <<"service">> -> proplists:get_value(<<"service">>, BodyJson, <<>>);
+                         <<"sid">> -> proplists:get_value(<<"sid">>, BodyJson, <<>>)
+                     end])),
+              ?Info("user ~p, TNS ~p", [User, NewTnsstr]),
+              OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
+              OciPort:get_session(NewTnsstr, User, Password)
+      end,
     case ErlOciSession of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
             ?Debug("ErlOciSession ~p", [ErlOciSession]),
-            Con = #ddConn { id       = proplists:get_value(<<"id">>, BodyJson)
-                          , name     = proplists:get_value(<<"name">>, BodyJson, <<>>)
-                          , owner    = UserId
-                          , adapter  = oci
-                          , access   = [ {ip,       IpAddr}
-                                       , {port,     Port}
-                                       , {service,  Service}
-                                       , {type,     Type}
-                                       , {secure,   Secure}
-                                       , {user,     User}
-                                       , {tnsstr,   Tnsstr}
-                                       , {languange,Language}
-                                       , {territory,Territory}
-                                       , {charset,  Charset}
-                                       ]
-                          , schm    = binary_to_atom(Service, utf8)
-                          },
+            Con = #ddConn {id = Id, name = Name, owner = UserId, adapter = oci,
+                           access  = jsx:decode(jsx:encode(BodyJson),
+                                                [return_maps])},
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
@@ -144,12 +160,11 @@ process_cmd({[<<"connect">>], ReqBody, _SessionId}, Sess, UserId, From, #priv{co
             Priv#priv{connections = [ErlOciSession|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
             ?Error("DB connect error ~p", [Error]),
-            From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, list_to_binary(Msg)}]}])},
+            From ! {reply, jsx:encode(#{connect=>#{error=>list_to_binary(Msg)}})},
             Priv;
         Error ->
             ?Error("DB connect error ~p", [Error]),
-            Err = list_to_binary(lists:flatten(io_lib:format("~p", [Error]))),
-            From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Err}]}])},
+            From ! {reply, jsx:encode(#{connect=>#{error=>list_to_binary(io_lib:format("~p",[Error]))}})},
             Priv
     end;
 
@@ -782,10 +797,13 @@ generate_fsmctx_oci(#stmtResult{
            }.
 
 get_value_empty_default(Key, Proplist, Defaults) ->
-    case proplists:get_value(Key, Proplist, <<>>) of
-        <<>> -> proplists:get_value(Key, Defaults, <<>>);
-        Value -> Value
-    end.
+    proplists:get_value(
+      Key, Proplist,
+      case Key of
+          <<"languange">> -> maps:get(languange, Defaults, <<>>);
+          <<"territory">> -> maps:get(territory, Defaults, <<>>);
+          <<"charset">> -> maps:get(charset, Defaults, <<>>)
+      end).
 
 -spec get_deps() -> [atom()].
 get_deps() -> [dderloci, erloci].
