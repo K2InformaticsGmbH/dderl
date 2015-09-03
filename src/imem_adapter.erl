@@ -628,11 +628,12 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             From ! {reply_csv, FileName, Error, single}
     end,
     Priv;
-process_cmd({[<<"restore_table_as">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
-    [{<<"restore_table_as">>, BodyJson}] = ReqBody,
-    ?Info("TBD restore_table_as ~p", [BodyJson]),
-    From ! {reply, jsx:encode([{<<"restore_table_as">>,
-                                [{T, <<"ok">>} || {T,_} <- BodyJson]}])},
+process_cmd({[<<"restore_tables_as">>], ReqBody}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
+    [{<<"restore_tables_as">>, BodyJson}] = ReqBody,
+    TableNames = [{sql_name(Tn),NTn} || {Tn,NTn} <- BodyJson],
+    ?Info("TBD restore_tables_as ~p", [TableNames]),
+    Results = [process_table_cmd(restore_tables_as, TableName, BodyJson, Connections) || TableName <- TableNames],
+    send_result_table_cmd(From, <<"restore_tables_as">>, Results),
     Priv;
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
