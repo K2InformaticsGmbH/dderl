@@ -116,20 +116,22 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
-handle_cast({process, Adapter, Typ, WReq, ReplyPid}, #state{tref=TRef} = State) ->
+handle_cast({process, Adapter, Typ, WReq, From}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
-    State0 = try process_call({Typ, WReq}, Adapter, ReplyPid, State)
+    State0 = try process_call({Typ, WReq}, Adapter, From, State)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-            ReplyPid ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
+            reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
             State
     end,
-    {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {noreply, State0#state{tref=NewTRef}};
+    {noreply, State0#state{tref=undefined}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
+handle_info(rearm_session_idle_timer, State) ->
+    {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
+    {noreply, State#state{tref=NewTRef}};
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
     {stop, normal, State};
@@ -181,14 +183,12 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),
-            From ! {reply, jsx:encode(
-                             #{login=>
+            reply(From, #{login=>
                                #{error=>
                                  if is_binary(M) -> M;
                                     is_list(M) -> list_to_binary(M);
                                     true -> list_to_binary(io_lib:format("~p", [M]))
-                               end}})
-                   },
+                               end}}, self()),
             State;
         {Reply, State1} ->
             {Reply1, State2}
@@ -210,10 +210,8 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
                   _ -> {Reply, State1}
               end,
             {ok,Vsn} = application:get_key(dderl, vsn),            
-            From ! {reply, jsx:encode(
-                             #{login => Reply1#{vsn => list_to_binary(Vsn),
-                                                node => list_to_binary(imem_meta:node_shard())
-                                               }})},
+            reply(From, #{login => Reply1#{vsn => list_to_binary(Vsn),
+                                           node => list_to_binary(imem_meta:node_shard())}}, self()),
             State2
     end;
 
@@ -229,23 +227,23 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
           ) of
         SeKey when is_integer(SeKey)  ->
             ?Debug("change password successful for ~p", [User]),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,<<"ok">>}])};
+            reply(From, [{<<"login_change_pswd">>,<<"ok">>}], self());
         {error, {error, {Exception, M}}} ->
             ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>,Err}])};
+            reply(From, [{<<"login_change_pswd">>, Err}], self());
         {error, {{Exception, M}, _Stacktrace} = Error} ->
             ?Error("change password failed for ~p, result ~n~p", [User, Error]),
             Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
-            From ! {reply, jsx:encode([{<<"login_change_pswd">>, Err}])}
+            reply(From, [{<<"login_change_pswd">>, Err}], self())
     end,
     State;
 
 process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
     NewState = logout(State),
-    From ! {reply, jsx:encode([{<<"logout">>, <<"ok">>}])},
+    reply(From, [{<<"logout">>, <<"ok">>}], self()),
     self() ! logout,
     NewState;
 
@@ -262,14 +260,12 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     case erlformat:format(StringToFormat, ExpandLevel, Force) of
         {error, ErrorInfo} ->
             ?Debug("Error trying to format the erlang term ~p~n~p", [StringToFormat, ErrorInfo]),
-            From ! {reply, jsx:encode([{<<"format_erlang_term">>,
-                                        [
-                                            {<<"error">>, <<"Invalid erlang term">>},
-                                            {<<"originalText">>, StringToFormat}
-                                        ]}])};
+            reply(From, [{<<"format_erlang_term">>,
+                          [{<<"error">>, <<"Invalid erlang term">>},
+                           {<<"originalText">>, StringToFormat}]}], self());
         Formatted ->
             ?Debug("The formatted text: ~p", [Formatted]),
-            From ! {reply, jsx:encode([{<<"format_erlang_term">>, Formatted}])}
+            reply(From, [{<<"format_erlang_term">>, Formatted}], self())
     end,
     State;
 
@@ -280,14 +276,12 @@ process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, #state{} = 
         true ->
             Formatted = jsx:encode(jsx:decode(StringToFormat)),
             ?Debug("The formatted text: ~p", [Formatted]),
-            From ! {reply, jsx:encode([{<<"format_json_to_save">>, Formatted}])};
+            reply(From, [{<<"format_json_to_save">>, Formatted}], self());
         _ ->
             ?Error("Error trying to format the json string ~p~n", [StringToFormat]),
-            From ! {reply, jsx:encode([{<<"format_json_to_save">>,
-                                        [
-                                            {<<"error">>, <<"Invalid json string">>},
-                                            {<<"originalText">>, StringToFormat}
-                                        ]}])}
+            reply(From, [{<<"format_json_to_save">>,
+                          [{<<"error">>, <<"Invalid json string">>},
+                           {<<"originalText">>, StringToFormat}]}], self())
     end,
     State;
 
@@ -298,16 +292,16 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     end,
     Apps = application:which_applications(),
     Versions = get_apps_version(Apps, [dderl|Deps]),
-    From ! {reply, jsx:encode([{<<"about">>, Versions}])},
+    reply(From, [{<<"about">>, Versions}], self()),
     State;
 
 process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
     ?Debug("Request from a not logged in user: ~n~p", [Req]),
-    From ! {reply, jsx:encode([{<<"error">>, <<"user not logged in">>}])},
+    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
-    From ! {reply, jsx:encode([{<<"ping">>, <<"pong">>}])},
+    reply(From, [{<<"ping">>, <<"pong">>}], self()),
     State;
 
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
@@ -360,7 +354,7 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
                        }
               end
       end,
-    From ! {reply, jsx:encode(ConnInfo)},
+    reply(From, ConnInfo, self()),
     State;
 
 process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
@@ -371,7 +365,7 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=
         ok -> <<"success">>;
         Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
     end,
-    From ! {reply, jsx:encode([{<<"del_con">>, Resp}])},
+    reply(From, [{<<"del_con">>, Resp}], self()),
     State;
 
 process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
@@ -381,11 +375,11 @@ process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, #state{active_s
     %% TODO: Add options to override default parameters
     case dderl_data_sender_sup:start_sender(Statement, ColumnPositions) of
         {ok, Pid} ->
-            From ! {reply, jsx:encode([{<<"activate_sender">>, <<"ok">>}])},
+            reply(From, [{<<"activate_sender">>, <<"ok">>}], self()),
             State#state{active_sender = Pid};
         {error, Reason} ->
             Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
-            From ! {reply, jsx:encode([{<<"activate_sender">>, Error}])},
+            reply(From, [{<<"activate_sender">>, Error}], self()),
             State
     end;
 process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_sender = PidSender} = State) ->
@@ -393,7 +387,7 @@ process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_se
         true ->
             ?Error("Sender ~p already waiting for connection", [PidSender]), %% Log more details user, active sender etc...
             %% TODO: Add information about the active sender. ( if possible block this from browser & show status of sender)
-            From ! {reply, jsx:encode([{<<"activate_sender">>, [{<<"error">>, <<"Sender already waiting for connection">>}]}])},
+            reply(From, [{<<"activate_sender">>, [{<<"error">>, <<"Sender already waiting for connection">>}]}], self()),
             State;
         false ->
             process_call({[<<"activate_sender">>], ReqData}, Adapter, From, State#state{active_sender = undefined})
@@ -401,7 +395,7 @@ process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_se
 
 process_call({[<<"activate_receiver">>], _ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
     ?Error("No active data sender found"), %% TODO: Log more 
-    From ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}])},
+    reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
     State;
 process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active_sender = PidSender} = State) ->
     case erlang:is_process_alive(PidSender) of
@@ -416,12 +410,12 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active
                     State#state{active_sender = undefined};
                 {error, Reason} ->
                     Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
-                    From ! {reply, jsx:encode([{<<"activate_receiver">>, Error}])},
+                    reply(From, [{<<"activate_receiver">>, Error}], self()),
                     State
             end;
         false ->
             ?Error("No active data sender found"), %% Log more details...
-            From ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}])},
+            reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
             State#state{active_sender = undefined}
     end;
 
@@ -441,7 +435,8 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"get_sql">>;
       C =:= <<"cache_data">> ->
     BodyJson = jsx:decode(ReqData),
-    spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) end),
+    Self = self(),
+    spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, Self) end),
     State;
 
 process_call({Cmd, ReqData}, Adapter, From,
@@ -460,7 +455,7 @@ process_call({Cmd, ReqData}, Adapter, From,
             Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-                From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
+                reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
                 CurrentPriv
         end,
     case proplists:is_defined(Adapter, AdaptPriv) of
@@ -480,16 +475,19 @@ spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self
     try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])},
-            error
+            reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
 
-spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId) ->
+spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
     try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
-            From ! {reply, jsx:encode([{<<"error">>, <<"Unable to process the request">>}])}
+            reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
+
+reply(From, Data, Master) ->    
+    From ! {reply, jsx:encode(Data)},
+    Master ! rearm_session_idle_timer.
 
 -spec jsq(term()) -> term().
 jsq(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
