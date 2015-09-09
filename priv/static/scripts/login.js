@@ -66,8 +66,8 @@ function loginCb(resp) {
 }
 
 function display(layout) {
-    var dlg = $('<div title="'+layout.title+'" style="diaply:none">')
-        .appendTo(document.body);
+    var dlg = $('<div title="'+layout.title+'" style="display:none">')
+        .appendTo($('#login-bg').css('display', 'block'));
     var tab = $('<table border=0 width=100% cellspacing=0>')
         .appendTo(dlg);
 
@@ -78,15 +78,17 @@ function display(layout) {
         width: 'auto',
         resizable: false,
         modal: false,
-        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
         dialogClass: 'no-close',
         open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
+            $(this).dialog("widget").appendTo("#login-bg");
+            $(this).dialog("widget").css('z-index', 99999);
         },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
+            $('#login-bg').css('display', 'none');
         }
     });
 
