@@ -215,6 +215,15 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
             State2
     end;
 
+%% IMPORTANT:
+% This function clause is placed right after login to be able to catch all
+% request (other than login above) which are NOT to be allowed without a login
+%
+process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
+    ?Debug("Request from a not logged in user: ~n~p", [Req]),
+    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
+    State;
+
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
              #state{sess = ErlImemSess} = State) ->
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
@@ -293,11 +302,6 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     Apps = application:which_applications(),
     Versions = get_apps_version(Apps, [dderl|Deps]),
     reply(From, [{<<"about">>, Versions}], self()),
-    State;
-
-process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
-    ?Debug("Request from a not logged in user: ~n~p", [Req]),
-    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
