@@ -78,7 +78,7 @@
                         reorderResult   : function(e, _result) { e.data._renderRows             (_result); },
                         truncateResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        snapshotResult  : function(e, _result) { e.data._noReloadOnSuccess      (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreAsResult : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
@@ -1486,10 +1486,7 @@
     _snapshotTable: function(ranges) {
         var self = this;
         var snapshotTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm snapshot", content:snapshotTables}, 
-                function() {
-                    self._runTableCmd.apply(self, ['snapshot_table', 'snapshotResult', snapshotTables]);
-                });
+        self._runTableCmd.apply(self, ['snapshot_table', 'snapshotResult', snapshotTables]);
     },
     _restoreTable: function(ranges) {
         var self = this;
@@ -2183,6 +2180,14 @@
             }
         } else if(_rows.hasOwnProperty('error')) {
             alert_jq(_rows.error);
+        }
+    },
+
+    _noReloadOnSuccess: function(result) {
+        // received response clear wait wheel
+        this.removeWheel();
+        if(result.hasOwnProperty('error')) {
+            alert_jq(result.error);
         }
     },
 
