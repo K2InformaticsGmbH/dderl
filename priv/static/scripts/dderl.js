@@ -560,6 +560,9 @@ function unescapeNewLines(str) {
 
 function get_local_apps(table) {
     ajaxCall(null, 'about', null, 'about', function(applications) {
+        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
+        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
+        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
         var apps = '';
         for(app in applications) {
             var version = applications[app].version;
@@ -601,10 +604,11 @@ function get_remote_apps(table) {
 
 function show_about_dlg()
 {
-    // (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion
-    // $.fn.jquery
-    // $.ui.version
     ajaxCall(null, 'about', null, 'about', function(applications) {
+        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
+        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
+        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
+
         var aboutDlg =
             $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
@@ -620,8 +624,7 @@ function show_about_dlg()
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
-                p += '<p class="about-vsn">Version ' + version + '</p>';
-                p += '<p class="about-vsn">Gui Version 1.0.9</p>';
+                p += '<p class="about-vsn">' + version + ' GUI 1.0.9</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
