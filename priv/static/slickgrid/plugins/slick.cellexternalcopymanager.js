@@ -387,6 +387,8 @@
             //We need to process max 50 rows to not block the gui.
             var self = this;
             var batchLimit = y + Math.min(limit - y, 50);
+            var parsedNewValue = unescapeNewLines(clippedRange[0][0]);
+            
             for(; y < batchLimit; ++y) {
                 this.oldValues[y] = [];
                 this.w=0;
@@ -395,6 +397,7 @@
                 if(!oneCellToMultiple) {
                     rowW = clippedRange[y].length;
                 }
+                
                 for (var x = 0; x < rowW; x++) {
                     this.w++;
                     var desty = activeRow + y;
@@ -412,9 +415,10 @@
                         if (dt != undefined) {
                             this.oldValues[y][x] = dt[columns[destx]['id']];
                             if (oneCellToMultiple) {
-                                this.setDataItemValueForColumn(dt, columns[destx], clippedRange[0][0]);
+                                this.setDataItemValueForColumn(dt, columns[destx], parsedNewValue);
                             } else {
-                                this.setDataItemValueForColumn(dt, columns[destx], clippedRange[y][x]);
+                                parsedNewValue = unescapeNewLines(clippedRange[y][x]);
+                                this.setDataItemValueForColumn(dt, columns[destx], parsedNewValue);
                             }
                             _grid.updateCell(desty, destx);
                         }
