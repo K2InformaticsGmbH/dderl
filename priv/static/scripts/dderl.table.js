@@ -2249,7 +2249,6 @@
     _openErlangTermEditor: function(formattedString) {
         var self = this;
         var title = "Erlang term editor";
-        var readOnly = false;
         var content = formattedString;
         var isJson = false;
 
@@ -2257,13 +2256,11 @@
         self.removeWheel();
 
         if(formattedString.hasOwnProperty('error')) {
-            title = "Text editor (Read Only)";
-            readOnly = true;
+            title = "Text editor";
             content = formattedString.originalText;
         } else if(formattedString.isJson === true) {
             isJson = true;
             title = "Json editor";
-            readOnly = false;
             content = formattedString.formattedJson;
         }
 
@@ -2275,7 +2272,7 @@
                         autoOpen  : false,
                         title     : title,
                         termOwner : self,
-                        readOnly  : readOnly,
+                        readOnly  : false,
                         container : $("#main-body"),
                         term      : content,
                         isJson    : isJson
