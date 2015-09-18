@@ -1581,8 +1581,8 @@
             for(var t = 0; t < restoreAsData.length; ++t) {
                 restoreAsJson[restoreAsData[t].field] = restoreAsData[t].inp.val();
             }
-            self._ajax('restore_table_as', {restore_table_as: restoreAsJson, connection : dderlState.connection},
-                    'restore_table_as', 'restoreAsResult');
+            self._ajax('restore_tables_as', {restore_tables_as: restoreAsJson, connection : dderlState.connection},
+                    'restore_tables_as', 'restoreAsResult');
             $(this).dialog('close');
             $(this).remove();
         };
