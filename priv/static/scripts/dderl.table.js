@@ -129,13 +129,13 @@
                        'Filter...'        : '_filterCellDialog',
                        'Edit'             : '_editErlangTerm',
                        'Truncate Table'   : '_truncateTable',
-                       'Drop Table'       : '_dropTable',
-                       'Snapshot Table'   : '_snapshotTable',
                        'Statistics'       : '_showStatistics',
-                       'Restore Table'    : '_restoreTable',
-                       'Restore Table As' : '_restoreTableAs',
+                       'Drop Table'       : '_dropTable',
                        'Update Sql'       : '_updateSql',
-                       'Insert Sql'       : '_insertSql'},
+                       'Snapshot Table'   : '_snapshotTable',
+                       'Insert Sql'       : '_insertSql',
+                       'Restore Table'    : '_restoreTable',
+                       'Restore Table As' : '_restoreTableAs'},
 
     // These options will be used as defaults
     options: {
