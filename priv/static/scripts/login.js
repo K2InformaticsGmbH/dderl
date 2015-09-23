@@ -1,5 +1,4 @@
 function update_user_information(user) {
-    create_ws();
     $('#change-pswd-button').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
 }
