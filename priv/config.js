@@ -29,7 +29,13 @@ exports.config = {
         },
         stylesheets: {
             joinTo: {
-                'css/app.css': /^static/,
+                'css/app.css': [
+                    'static/styles/slick.grid.css',
+                    'static/styles/slick.columnpicker.css',
+                    'static/styles/dropdown.css',
+                    'static/styles/dderl.sql.css',
+                    'static/styles/dderl.css'
+                ],
                 'css/vendor.css': [
                     'bower_components/jquery-ui/themes/smoothness/jquery-ui.css'
                 ]
