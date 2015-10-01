@@ -745,35 +745,6 @@ function confirm_jq(dom, callback)
     return dlgDiv;
 }
 
-function create_ws()
-{
-    var url = (window.location.protocol==='https:'?'wss://':'ws://')+
-                window.location.host+window.location.pathname+'ws';
-    if(!dderlState.ws) {
-        dderlState.ws = $.bullet(url, {});
-
-        dderlState.ws.onopen = function(){
-            console.log('WebSocket: opened');
-            dderlState.ws.send("time");
-        };
-        dderlState.ws.onclose = function(){
-            console.log('WebSocket: closed');
-            $('#server-time').text("");
-        };
-        dderlState.ws.onmessage = function(e) {
-            if(e.data != 'pong') {
-                $('#server-time').text(e.data);
-            }
-        };
-        dderlState.ws.onheartbeat = function() {
-			dderlState.ws.send('ping');
-        };
-        dderlState.ws.ondisconnect = function() {
-            console.log('WebSocket: disconnected');
-        }
-    }
-}
-
 function beep()
 {
     var beepStorage = sessionStorage.getItem("beep-sound");

@@ -55,33 +55,33 @@ stream_file(Req, Buffer) ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
 
-find_deps_app_seq(App) -> find_deps_app_seq(App, []).
-find_deps_app_seq(App,Chain) ->
-    case lists:foldl(
-           fun({A,_,_}, Acc) ->
-                   {ok, Apps} = application:get_key(A,applications),
-                   case lists:member(App, Apps) of
-                       true -> [A|Acc];
-                       false -> Acc
-                   end
-           end, [], application:which_applications()) of
-        [] -> Chain;
-        [A|_] -> % Follow signgle chain for now
-            find_deps_app_seq(A,[A|Chain])
-    end.
-
-process_request(_, _, Req, [<<"restart">>]) ->
-    spawn(fun() ->
-                  {ok, App} = application:get_application(?MODULE),
-                  StopApps = find_deps_app_seq(App) ++ [App],
-                  ?Info("Stopping... ~p", [StopApps]),
-                  _ = [application:stop(A) || A <- StopApps],
-                  StartApps = lists:reverse(StopApps),
-                  ?Info("Starting... ~p", [StartApps]),
-                  _ = [application:start(A) || A <- StartApps]
-          end),
-    self() ! {reply, jsx:encode(#{restart => <<"ok">>})},
-    {loop, Req, <<>>, 5000, hibernate};
+%find_deps_app_seq(App) -> find_deps_app_seq(App, []).
+%find_deps_app_seq(App,Chain) ->
+%    case lists:foldl(
+%           fun({A,_,_}, Acc) ->
+%                   {ok, Apps} = application:get_key(A,applications),
+%                   case lists:member(App, Apps) of
+%                       true -> [A|Acc];
+%                       false -> Acc
+%                   end
+%           end, [], application:which_applications()) of
+%        [] -> Chain;
+%        [A|_] -> % Follow signgle chain for now
+%            find_deps_app_seq(A,[A|Chain])
+%    end.
+%
+%process_request(_, _, Req, [<<"restart">>]) ->
+%    spawn(fun() ->
+%                  {ok, App} = application:get_application(?MODULE),
+%                  StopApps = find_deps_app_seq(App) ++ [App],
+%                  ?Info("Stopping... ~p", [StopApps]),
+%                  _ = [application:stop(A) || A <- StopApps],
+%                  StartApps = lists:reverse(StopApps),
+%                  ?Info("Starting... ~p", [StartApps]),
+%                  _ = [application:start(A) || A <- StartApps]
+%          end),
+%    self() ! {reply, jsx:encode(#{restart => <<"ok">>})},
+%    {loop, Req, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),

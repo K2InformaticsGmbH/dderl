@@ -10,7 +10,6 @@
                   sasl,
                   cowlib,
                   cowboy,
-                  bullet,
                   erlimem,
                   imem,
                   dderloci

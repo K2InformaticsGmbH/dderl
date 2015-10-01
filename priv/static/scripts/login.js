@@ -1,5 +1,4 @@
 function update_user_information(user) {
-    create_ws();
     $('#change-pswd-button').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
 }
@@ -195,7 +194,7 @@ function logout() {
     process_logout();
 }
 
-function restart() {
+/* function restart() {
 
     if (!dderlState.session) {
         return;
@@ -242,7 +241,7 @@ function restart() {
         });
     }
     setTimeout(checkRestartComplete, 0, window.location.href);
-}
+} */
 
 
 function process_logout() {
