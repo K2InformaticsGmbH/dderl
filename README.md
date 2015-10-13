@@ -48,7 +48,7 @@ To convert a PEM crt/key files to DER (accepted by erlang SSL binary certificate
 [{'RSAPrivateKey',<<48,130,2,92,2,1,0,2,129,129,0,160,95,...>>,not_encrypted}]
 ```
 
-####For chaning the partition time of rolling tables
+####For changing the partition time of rolling tables
 
 1. partition time in the dderl tables are saved in seconds. So 86400 corresponds to a day
 2. On [line 65 in dderl.erl](https://github.com/K2InformaticsGmbH/dderl/blob/master/src/dderl.erl#L65) change the number at the end of the table name to the partion time that you want to set. For example setting the partition time from day to a minute you have replace 
