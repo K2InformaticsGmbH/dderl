@@ -73,8 +73,7 @@ get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
         end
     catch
         Error:Reason ->
-            ?Error("Eror ~p~nDDerlSessionString = ~p~n~p"
-                   , [Reason, DDerlSessStr, erlang:get_stacktrace()]),
+            ?Warn("Request attempted on a dead session"),
             {error, {Error, Reason}}
     end;
 get_session(S, ConnInfoFun) when is_binary(S) ->
