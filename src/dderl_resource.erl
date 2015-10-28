@@ -124,7 +124,8 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             {{Ip, Port}, Req} = cowboy_req:peer(Req),
             ?Info("session ~p doesn't exist (~p), from ~s:~p",
                   [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
-            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
+            Node = atom_to_binary(node(), utf8),
+            self() ! {reply, jsx:encode([{<<"error">>, <<<<"Session is not valid ">>/binary, Node/binary>>}])},
             {loop, Req, Session, 5000, hibernate}
     end.
 

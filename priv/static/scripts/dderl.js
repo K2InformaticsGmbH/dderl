@@ -134,7 +134,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping' && _data.error === "Session is not valid") {
+                if(_url == 'app/ping' && _data.error) {
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     dderlState.session = null;
@@ -414,7 +414,7 @@ function resetPingTimer() {
         function() {
             ajaxCall(null, 'ping', null, 'ping', function(response) {
                 console.log("ping " + response);
-                if(response != "pong") {
+                if(!response) {
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
                 }

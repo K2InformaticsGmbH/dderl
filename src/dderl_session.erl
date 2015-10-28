@@ -304,7 +304,7 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     State;
 
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
-    reply(From, [{<<"ping">>, <<"pong">>}], self()),
+    reply(From, [{<<"ping">>, atom_to_binary(node(), utf8)}], self()),
     State;
 
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
