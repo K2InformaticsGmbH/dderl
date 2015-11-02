@@ -430,7 +430,7 @@ function login_first()
 
 function show_qry_files(useSystem)
 {
-    var loggedInUser = $('#change-pswd-button').data("logged_in_user");
+    var loggedInUser = $('#btn-change-password').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
         login_first();
         return;
@@ -709,7 +709,14 @@ function confirm_jq(dom, callback)
 {
     var content = dom.content;
     if ($.isArray(content))
-        content = content.join('<br>');
+        content = content.join('<br>');    
+    content = '<h1 style="color:red">CAUTION : IRREVERSIBLE ACTION</h1>'+
+              '<p style="background-color:black;color:yellow;font-weight:bold;text-align:center;">'+
+              'If confirmed can NOT be undone</p>'+
+              (content.length > 0
+               ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
+                 content+'</div>'
+               : '');
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -803,7 +810,7 @@ function change_password(shouldConnect) {
         loggedInUser = dderlState.connected_user;
         change_connect_password(loggedInUser);
     } else {
-        loggedInUser = $('#change-pswd-button').data("logged_in_user");
+        loggedInUser = $('#btn-change-password').data("logged_in_user");
         if(loggedInUser == undefined || loggedInUser.length == 0) {
             login_first();
             return;

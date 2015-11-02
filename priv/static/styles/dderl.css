@@ -560,6 +560,6 @@ div#main_footer {
     color:grey;
 }
 
-#disconnect-button.disabled {
+#btn-disconnect.disabled {
     color: grey !important;
 }

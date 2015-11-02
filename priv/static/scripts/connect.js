@@ -303,7 +303,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
             }
 
             if(conn.method == 'local' && conn.secure == true)
-                $('#disconnect-button').addClass('disabled');
+                $('#btn-disconnect').addClass('disabled');
                 
             if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('changePass')) {
                 change_connect_password(resp.extra.changePass, connectSuccessCb);
@@ -545,7 +545,7 @@ function new_connection_tab() {
 }
 
 function disconnect_tab() {
-    if($('#disconnect-button').hasClass('disabled'))
+    if($('#btn-disconnect').hasClass('disabled'))
         return;
 
     if (!dderlState.connection)

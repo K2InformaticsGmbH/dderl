@@ -175,6 +175,25 @@ process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=>
 process_data(Data) -> Data.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
+process_call({[<<"restart">>], _ReqData}, _Adapter, From, #state{sess = ErlImemSess} = State) ->
+    case ErlImemSess:run_cmd(have_permission, [{dderl,restart}]) of
+        true ->
+            From ! {spawn,
+                    fun() ->
+                            {ok, CurrApp} = application:get_application(?MODULE),
+                            [App|_] = ?GET_CONFIG(restartApplications, [], [CurrApp]),
+                            StopApps = find_deps_app_seq(App) ++ [App],
+                            ?Info("Stopping... ~p", [StopApps]),
+                            _ = [application:stop(A) || A <- StopApps],
+                            StartApps = lists:reverse(StopApps),
+                            ?Info("Starting... ~p", [StartApps]),
+                            _ = [application:start(A) || A <- StartApps]
+                    end},
+            reply(From, #{restart => <<"ok">>}, self());
+        _ ->
+            reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
+    end,
+    State;
 process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
@@ -488,7 +507,7 @@ spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
 
-reply(From, Data, Master) ->    
+reply(From, Data, Master) ->
     From ! {reply, jsx:encode(Data)},
     Master ! rearm_session_idle_timer.
 
@@ -541,3 +560,18 @@ register_name(Name, Pid, Resolve) ->
 unregister_name(Name) -> global:unregister_name(Name).
 whereis_name(Name) -> global:whereis_name(Name).
 send(Name, Msg) -> global:send(Name, Msg).
+
+find_deps_app_seq(App) -> find_deps_app_seq(App, []).
+find_deps_app_seq(App,Chain) ->
+    case lists:foldl(
+           fun({A,_,_}, Acc) ->
+                   {ok, Apps} = application:get_key(A,applications),
+                   case lists:member(App, Apps) of
+                       true -> [A|Acc];
+                       false -> Acc
+                   end
+           end, [], application:which_applications()) of
+        [] -> Chain;
+        [A|_] -> % Follow signgle chain for now
+            find_deps_app_seq(A,[A|Chain])
+    end.
