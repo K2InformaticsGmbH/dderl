@@ -55,33 +55,6 @@ stream_file(Req, Buffer) ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
 
-find_deps_app_seq(App) -> find_deps_app_seq(App, []).
-find_deps_app_seq(App,Chain) ->
-    case lists:foldl(
-           fun({A,_,_}, Acc) ->
-                   {ok, Apps} = application:get_key(A,applications),
-                   case lists:member(App, Apps) of
-                       true -> [A|Acc];
-                       false -> Acc
-                   end
-           end, [], application:which_applications()) of
-        [] -> Chain;
-        [A|_] -> % Follow signgle chain for now
-            find_deps_app_seq(A,[A|Chain])
-    end.
-
-process_request(_, _, Req, [<<"restart">>]) ->
-    spawn(fun() ->
-                  {ok, App} = application:get_application(?MODULE),
-                  StopApps = find_deps_app_seq(App) ++ [App],
-                  ?Info("Stopping... ~p", [StopApps]),
-                  _ = [application:stop(A) || A <- StopApps],
-                  StartApps = lists:reverse(StopApps),
-                  ?Info("Starting... ~p", [StartApps]),
-                  _ = [application:start(A) || A <- StartApps]
-          end),
-    self() ! {reply, jsx:encode(#{restart => <<"ok">>})},
-    {loop, Req, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
@@ -124,7 +97,8 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             {{Ip, Port}, Req} = cowboy_req:peer(Req),
             ?Info("session ~p doesn't exist (~p), from ~s:~p",
                   [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
-            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
+            Node = atom_to_binary(node(), utf8),
+            self() ! {reply, jsx:encode([{<<"error">>, <<<<"Session is not valid ">>/binary, Node/binary>>}])},
             {loop, Req, Session, 5000, hibernate}
     end.
 
@@ -149,6 +123,10 @@ conn_info(Req) ->
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
 
+info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
+    ?Debug("spawn fun~n to ~p", [DDerlSessPid]),
+    spawn(SpawnFun),
+    {loop, Req, DDerlSessPid, hibernate};
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),

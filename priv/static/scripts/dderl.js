@@ -134,7 +134,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping' && _data.error === "Session is not valid") {
+                if(_url == 'app/ping' && _data.error) {
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     dderlState.session = null;
@@ -414,7 +414,7 @@ function resetPingTimer() {
         function() {
             ajaxCall(null, 'ping', null, 'ping', function(response) {
                 console.log("ping " + response);
-                if(response != "pong") {
+                if(!response) {
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
                 }
@@ -430,7 +430,7 @@ function login_first()
 
 function show_qry_files(useSystem)
 {
-    var loggedInUser = $('#change-pswd-button').data("logged_in_user");
+    var loggedInUser = $('#btn-change-password').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
         login_first();
         return;
@@ -560,6 +560,9 @@ function unescapeNewLines(str) {
 
 function get_local_apps(table) {
     ajaxCall(null, 'about', null, 'about', function(applications) {
+        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
+        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
+        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
         var apps = '';
         for(app in applications) {
             var version = applications[app].version;
@@ -601,10 +604,11 @@ function get_remote_apps(table) {
 
 function show_about_dlg()
 {
-    // (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion
-    // $.fn.jquery
-    // $.ui.version
     ajaxCall(null, 'about', null, 'about', function(applications) {
+        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
+        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
+        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
+
         var aboutDlg =
             $('<div id="about-dderl-dlg" title ="About"></div>')
             .appendTo(document.body);
@@ -620,8 +624,7 @@ function show_about_dlg()
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
-                p += '<p class="about-vsn">Version ' + version + '</p>';
-                p += '<p class="about-vsn">Gui Version 1.0.9</p>';
+                p += '<p class="about-vsn">' + version + ' GUI 1.0.9</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
@@ -706,7 +709,14 @@ function confirm_jq(dom, callback)
 {
     var content = dom.content;
     if ($.isArray(content))
-        content = content.join('<br>');
+        content = content.join('<br>');    
+    content = '<h1 style="color:red">CAUTION : IRREVERSIBLE ACTION</h1>'+
+              '<p style="background-color:black;color:yellow;font-weight:bold;text-align:center;">'+
+              'If confirmed can NOT be undone</p>'+
+              (content.length > 0
+               ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
+                 content+'</div>'
+               : '');
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -737,35 +747,6 @@ function confirm_jq(dom, callback)
         });
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
-}
-
-function create_ws()
-{
-    var url = (window.location.protocol==='https:'?'wss://':'ws://')+
-                window.location.host+window.location.pathname+'ws';
-    if(!dderlState.ws) {
-        dderlState.ws = $.bullet(url, {});
-
-        dderlState.ws.onopen = function(){
-            console.log('WebSocket: opened');
-            dderlState.ws.send("time");
-        };
-        dderlState.ws.onclose = function(){
-            console.log('WebSocket: closed');
-            $('#server-time').text("");
-        };
-        dderlState.ws.onmessage = function(e) {
-            if(e.data != 'pong') {
-                $('#server-time').text(e.data);
-            }
-        };
-        dderlState.ws.onheartbeat = function() {
-			dderlState.ws.send('ping');
-        };
-        dderlState.ws.ondisconnect = function() {
-            console.log('WebSocket: disconnected');
-        }
-    }
 }
 
 function beep()
@@ -829,7 +810,7 @@ function change_password(shouldConnect) {
         loggedInUser = dderlState.connected_user;
         change_connect_password(loggedInUser);
     } else {
-        loggedInUser = $('#change-pswd-button').data("logged_in_user");
+        loggedInUser = $('#btn-change-password').data("logged_in_user");
         if(loggedInUser == undefined || loggedInUser.length == 0) {
             login_first();
             return;

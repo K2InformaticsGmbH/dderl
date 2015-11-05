@@ -1,17 +1,16 @@
 function update_user_information(user) {
-    create_ws();
-    $('#change-pswd-button').data("logged_in_user", user);
+    $('#btn-change-password').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
 }
 
 function check_already_connected() {
     if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
-       !window.opener.$('#change-pswd-button').data("logged_in_user")) {
+       !window.opener.$('#btn-change-password').data("logged_in_user")) {
         loginAjax(null);
     } else {
         dderlState.session = window.opener.dderlState.session;
         dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
-        var user = window.opener.$('#change-pswd-button').data("logged_in_user");
+        var user = window.opener.$('#btn-change-password').data("logged_in_user");
         update_user_information(user);
         connect_dlg();
     }
@@ -23,7 +22,7 @@ function loginAjax(data) {
 }
 
 function loginCb(resp) {
-    $('#disconnect-button').removeClass('disabled');
+    $('#btn-disconnect').removeClass('disabled');
 
     if (resp.hasOwnProperty('vsn')) {
         $('#version').text(' | '+resp.vsn);
@@ -66,8 +65,8 @@ function loginCb(resp) {
 }
 
 function display(layout) {
-    var dlg = $('<div title="'+layout.title+'" style="diaply:none">')
-        .appendTo(document.body);
+    var dlg = $('<div title="'+layout.title+'" style="display:none">')
+        .appendTo($('#login-bg').css('display', 'block'));
     var tab = $('<table border=0 width=100% cellspacing=0>')
         .appendTo(dlg);
 
@@ -78,15 +77,17 @@ function display(layout) {
         width: 'auto',
         resizable: false,
         modal: false,
-        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
         dialogClass: 'no-close',
         open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
+            $(this).dialog("widget").appendTo("#login-bg");
+            $(this).dialog("widget").css('z-index', 99999);
         },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
+            $('#login-bg').css('display', 'none');
         }
     });
 
@@ -194,54 +195,43 @@ function logout() {
 }
 
 function restart() {
-
     if (!dderlState.session) {
         return;
     }
-
     var headers = new Object();
-
     if (dderlState.adapter != null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
     headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
-
-    $.ajax({
-        type: 'POST',
-        url: 'app/restart',
-        data: JSON.stringify({}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
-
-        success: function(_data, textStatus, request) {
-            console.log('Request restart Result ' + textStatus);
-            clearTimeout(dderlState.pingTimer);
-        },
-
-        error: function (request, textStatus, errorThrown) {
-            console.log('Request restart Error, status: ' + textStatus);
-        }
-    });
-
-    function checkRestartComplete(url) {
-        $.ajax({
-            type: 'GET',
-            url: url,
-            success: function(_data, textStatus, request) {
-                console.log('Restart complete, status: ' + textStatus);
-                process_logout();
-            },
-            error: function (request, textStatus, errorThrown) {
-                console.log('Restarting... status: ' + textStatus);
-                setTimeout(checkRestartComplete, 0, url);
-            }
-        });
-    }
-    setTimeout(checkRestartComplete, 0, window.location.href);
+    confirm_jq({title: "Confirm restart", content:''},
+            function() {
+                $.ajax({
+                    type: 'POST',
+                    url: 'app/restart',
+                    data: JSON.stringify({}),
+                    dataType: "JSON",
+                    contentType: "application/json; charset=utf-8",
+                    headers: headers,
+                    context: null,
+                    success: function(response, textStatus, request) {
+                        if (response.hasOwnProperty('restart')) {
+                           if (response.restart == 'ok') { location.reload(true); }
+                           else if (response.restart.hasOwnProperty('error')) {
+                               alert_jq(response.restart.error);
+                           }
+                           else {
+                               console.error("malformed response " + JSON.stringify(response));
+                           }
+                        } else {
+                            console.error("malformed response " + JSON.stringify(response));
+                        }
+                    },
+                    error: function (request, textStatus, errorThrown) {
+                        console.log('Request restart Error, status: ' + textStatus);
+                    }
+                });
+            });
 }
-
 
 function process_logout() {
     dderlState.connection = null;
@@ -255,7 +245,7 @@ function process_logout() {
     resetPingTimer();
 
     $('#login-button').html('');
-    $('#change-pswd-button').data("logged_in_user", "");
+    $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
     if(window.opener) {
         window.opener.process_logout();

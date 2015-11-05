@@ -9,6 +9,17 @@
 
 @import url('dderl.sql.css');
 
+div#login-bg {
+    position: absolute;
+    display: none;
+    top : 0px;
+    left : 0px;
+    right : 0px;
+    bottom : 0px;
+    background:rgba(0,0,0,0.5);
+    z-index:99998;
+}
+
 body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
 input.text { width:95%; padding: .4em; }
 fieldset { padding:0; border:0; margin-top:25px; }
@@ -119,7 +130,7 @@ button.menubutton
 
 .menubar {
     background:#AFAFAF;
-    z-index:99999;
+    z-index:99997;
 }
 
 /* dashboard save button */
@@ -549,6 +560,6 @@ div#main_footer {
     color:grey;
 }
 
-#disconnect-button.disabled {
+#btn-disconnect.disabled {
     color: grey !important;
 }

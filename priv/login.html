@@ -28,8 +28,6 @@
     <script src="static/slickgrid/plugins/slick.unicodeEditorFormatter.js"></script>
     <script src="static/slickgrid/controls/slick.columnpicker.js"></script>
 
-    <script src="bullet.js"></script>
-
     <script src="static/scripts/login.js"></script>
     <script src="static/scripts/dderl.js"></script>
     <script src="static/scripts/connect.js"></script>
@@ -64,18 +62,18 @@
 </head>
 
 <body>
+    <div id="login-bg"></div>
     <div id="main-menu-bar" class = "menubar">
         <ul class="dropdown menubar">
             <li><a>Query Server</a>
                 <ul class="sub_menu">
-                    <li><a id="files-list-button" onclick='show_qry_files(true)'>Tables and Views</a></li>
-                    <li><a id="files-list-button" onclick='import_query()'>Import Query</a></li>
-                    <li><a id="change-pswd-button" onclick='change_password(false)'>Change Password</a></li>
-                    <li><a id="about-dderl-button" onclick='show_about_dlg()'>About</a></li>
-                    <li><a id="disconnect-button" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="logout-dderl-button" onclick='logout()'>Log out</a></li>
-                    <!-- FOR DEVELOPER EMERGENCY USE -->
-                    <!-- li><a id="logout-dderl-button" onclick='restart()'>Restart</a></li -->
+                    <li><a id="btn-tables" onclick='show_qry_files(true)'>Tables and Views</a></li>
+                    <li><a id="btn-import-query" onclick='import_query()'>Import Query</a></li>
+                    <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
+                    <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
+                    <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
+                    <li><a id="btn-logout" onclick='logout()'>Log out</a></li>
+                    <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
                 </ul>
             </li>
             <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
@@ -107,7 +105,6 @@
     </div>
     <div id="main_footer">
         <a id="login-button" href="#" onclick='logout()'></a>
-        <span id="server-time"></span>
     </div>
     <audio class="tr_audio" id="beep-sound">
       <source src="static/media/success.ogg" type="audio/ogg">

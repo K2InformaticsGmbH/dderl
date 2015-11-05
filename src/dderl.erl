@@ -25,7 +25,6 @@ start() ->
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
-    ok = application:start(bullet),
     erlimem:start(),
     catch dderloci:start(),
 	ok = application:start(?MODULE).
@@ -34,7 +33,6 @@ stop() ->
     ok = application:stop(?MODULE),
     catch dderloci:stop(),
     erlimem:stop(),
-    ok = application:stop(bullet),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
     imem:stop().
@@ -173,9 +171,7 @@ get_routes() ->
     PrivDir = get_priv_dir(),
     UrlPathPrefix = ?URLSUFFIX,
     [{UrlPathPrefix++"/", dderl, []},
-     {UrlPathPrefix++"/ws", bullet_handler, [{handler, dderl_stream}]},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
-     {UrlPathPrefix++"/bullet.js", cowboy_static, {priv_file, bullet, "bullet.js"}},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
 get_priv_dir() ->

@@ -78,7 +78,7 @@
                         reorderResult   : function(e, _result) { e.data._renderRows             (_result); },
                         truncateResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
-                        snapshotResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        snapshotResult  : function(e, _result) { e.data._noReloadOnSuccess      (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         restoreAsResult : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         editTermOrView  : function(e, _result) { e.data._openTermOrViewEditor   (_result); },
@@ -129,13 +129,13 @@
                        'Filter...'        : '_filterCellDialog',
                        'Edit'             : '_editErlangTerm',
                        'Truncate Table'   : '_truncateTable',
-                       'Drop Table'       : '_dropTable',
-                       'Snapshot Table'   : '_snapshotTable',
                        'Statistics'       : '_showStatistics',
-                       'Restore Table'    : '_restoreTable',
-                       'Restore Table As' : '_restoreTableAs',
+                       'Drop Table'       : '_dropTable',
                        'Update Sql'       : '_updateSql',
-                       'Insert Sql'       : '_insertSql'},
+                       'Snapshot Table'   : '_snapshotTable',
+                       'Insert Sql'       : '_insertSql',
+                       'Restore Table'    : '_restoreTable',
+                       'Restore Table As' : '_restoreTableAs'},
 
     // These options will be used as defaults
     options: {
@@ -1486,10 +1486,7 @@
     _snapshotTable: function(ranges) {
         var self = this;
         var snapshotTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm snapshot", content:snapshotTables}, 
-                function() {
-                    self._runTableCmd.apply(self, ['snapshot_table', 'snapshotResult', snapshotTables]);
-                });
+        self._runTableCmd.apply(self, ['snapshot_table', 'snapshotResult', snapshotTables]);
     },
     _restoreTable: function(ranges) {
         var self = this;
@@ -1584,8 +1581,8 @@
             for(var t = 0; t < restoreAsData.length; ++t) {
                 restoreAsJson[restoreAsData[t].field] = restoreAsData[t].inp.val();
             }
-            self._ajax('restore_table_as', {restore_table_as: restoreAsJson, connection : dderlState.connection},
-                    'restore_table_as', 'restoreAsResult');
+            self._ajax('restore_tables_as', {restore_tables_as: restoreAsJson, connection : dderlState.connection},
+                    'restore_tables_as', 'restoreAsResult');
             $(this).dialog('close');
             $(this).remove();
         };
@@ -2186,6 +2183,14 @@
         }
     },
 
+    _noReloadOnSuccess: function(result) {
+        // received response clear wait wheel
+        this.removeWheel();
+        if(result.hasOwnProperty('error')) {
+            alert_jq(result.error);
+        }
+    },
+
     _reloadOnSuccess: function(result) {
         // received response clear wait wheel
         this.removeWheel();
@@ -2244,7 +2249,6 @@
     _openErlangTermEditor: function(formattedString) {
         var self = this;
         var title = "Erlang term editor";
-        var readOnly = false;
         var content = formattedString;
         var isJson = false;
 
@@ -2252,13 +2256,11 @@
         self.removeWheel();
 
         if(formattedString.hasOwnProperty('error')) {
-            title = "Text editor (Read Only)";
-            readOnly = true;
+            title = "Text editor";
             content = formattedString.originalText;
         } else if(formattedString.isJson === true) {
             isJson = true;
             title = "Json editor";
-            readOnly = false;
             content = formattedString.formattedJson;
         }
 
@@ -2270,7 +2272,7 @@
                         autoOpen  : false,
                         title     : title,
                         termOwner : self,
-                        readOnly  : readOnly,
+                        readOnly  : false,
                         container : $("#main-body"),
                         term      : content,
                         isJson    : isJson
