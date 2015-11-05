@@ -2,6 +2,7 @@
 -behaviour(gen_server).
 
 -include("dderl.hrl").
+-include("imem_meta.hrl").                  %% Included for config access
 
 -export([start_link/2
         ,connect/2
@@ -29,8 +30,8 @@
                ,receiver_pid     :: pid()
                ,receiver_monitor :: reference()}).
 
--define(CONNECT_TIMEOUT, 100000).
--define(BLOCK_SIZE, 100). %% TODO: Change this maybe to a receiver parameter ?.
+-define(CONNECT_TIMEOUT, ?GET_CONFIG(connectTimeout,[],100000)).
+-define(BLOCK_SIZE, ?GET_CONFIG(commitBlockSize,[],10)). %% TODO: Change this maybe to a receiver parameter ?.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API Sender-Receiver Communication (Sender API)
