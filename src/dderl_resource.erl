@@ -73,12 +73,14 @@ process_request(_, _, Req, [<<"download_query">>] = Typ) ->
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
+    BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
     process_request_low(Session, Adapter, Req1,
                         jsx:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
                                       {<<"fileToDownload">>, FileToDownload},
-                                      {<<"queryToDownload">>, QueryToDownload}]
+                                      {<<"queryToDownload">>, QueryToDownload},
+                                      {<<"binds">>,BindVals}]
                                     }]), Typ);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
