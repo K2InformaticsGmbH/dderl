@@ -72,7 +72,6 @@
                     <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
                     <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
                     <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="btn-logout" onclick='logout()'>Log out</a></li>
                     <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
                 </ul>
             </li>
@@ -94,6 +93,7 @@
         <div id="dashboard-menu">
         </div>
         <div style="position:absolute;top:0px;right:0px">
+            <span><a id="btn-logout" onclick='logout()'>Logout</a> | </span>
             <span id="node"></span>
             <span id="version"></span>
         </div>
@@ -102,9 +102,6 @@
       <div id="main-body">
       </div>
       <div ng-view id="angular-view"></div>
-    </div>
-    <div id="main_footer">
-        <a id="login-button" href="#" onclick='logout()'></a>
     </div>
     <audio class="tr_audio" id="beep-sound">
       <source src="static/media/success.ogg" type="audio/ogg">
