@@ -563,3 +563,7 @@ div#main_footer {
 #btn-disconnect.disabled {
     color: grey !important;
 }
+
+#btn-logout {
+    cursor: pointer;
+}
