@@ -2,6 +2,12 @@ Application dderl
 =================
 
 Release history with new or improved features and bugfixes
+
+Version 1.3.7 (Release Date 07.12.2015)
+======================================
+* imem 1.4.0
+* Cosmetics and minor bug fixes
+
 Version 1.0.9 (Release Date 05.02.2015)
 ======================================
 * Added support for multiple sql queries
