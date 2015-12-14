@@ -3,6 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.9 (Release Date 14.12.2015)
+======================================
+* imem 1.4.2
+* export to CSV from bind Oracle-SQL
+
+Version 1.3.8 (Release Date 10.12.2015)
+======================================
+* imem 1.4.1
+
 Version 1.3.7 (Release Date 07.12.2015)
 ======================================
 * imem 1.4.0
