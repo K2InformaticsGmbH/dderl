@@ -552,7 +552,6 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
                                    {error, _Error} -> undefined;
                                    BindVals0 -> BindVals0
                                 end, 
-    io:format("DEBUG:      BindVals is: ~p", [BindVals]),
     case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(Clms),
