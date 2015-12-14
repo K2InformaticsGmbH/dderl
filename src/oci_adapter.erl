@@ -548,7 +548,11 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    case dderloci:exec(Connection, Query, ?GET_ROWNUM_LIMIT) of
+    BindVals = case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
+                                   {error, _Error} -> undefined;
+                                   BindVals0 -> BindVals0
+                                end, 
+    case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(Clms),
             From ! {reply_csv, FileName, Columns, first},
