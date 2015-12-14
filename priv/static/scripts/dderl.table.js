@@ -463,6 +463,9 @@
         var adapter = this._adapter;
         var connection = dderlState.connection;
         var dderl_sess = (dderlState.session != null ? '' + dderlState.session : '');
+        var binds = JSON.stringify(this._optBinds != null && this._optBinds.hasOwnProperty('pars')
+                                            ? this._optBinds.pars : null);
+
 
         $('<iframe>')
             .on('load',function() {
@@ -472,7 +475,8 @@
                     .append($('<input type="hidden" name="connection">').val(connection))
                     .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                     .append($('<input type="hidden" name="fileToDownload">').val(filename))
-                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
+                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                    .append($('<input type="hidden" name="binds">').val(binds));
                 $(this).contents().find('body').append(form);
                 form.submit();
                 setTimeout(function() {iframe.remove();}, 500);
