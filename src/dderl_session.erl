@@ -180,8 +180,7 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, #state{sess = ErlImemS
         true ->
             From ! {spawn,
                     fun() ->
-                            {ok, CurrApp} = application:get_application(?MODULE),
-                            [App|_] = ?GET_CONFIG(restartApplications, [], [CurrApp]),
+                            [App|_] = dderl_dal:get_restartable_apps(),
                             StopApps = find_deps_app_seq(App) ++ [App],
                             ?Info("Stopping... ~p", [StopApps]),
                             _ = [application:stop(A) || A <- StopApps],

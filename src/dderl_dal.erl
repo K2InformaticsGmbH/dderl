@@ -34,6 +34,7 @@
         ,get_dashboards/2
         ,add_adapter_to_cmd/3
         ,user_name/1
+        ,get_restartable_apps/0
         ]).
 
 -record(state, { schema :: term()
@@ -598,14 +599,13 @@ is_same_conn(Conn1, Conn2) ->
 check_save_conn(UserSess, DalSess, Op, Conn0) ->
     Conn = case Conn0 of
 		   Conn0 when is_record(Conn0, ddConn) ->
-			   Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)};
+			   Conn0#ddConn{access = maps:remove(password, pl2m(Conn0#ddConn.access))};
 		   {C1, C2} when is_record(C1, ddConn), is_record(C2, ddConn) ->
-			   {C1#ddConn{access = maps:remove(password, C1#ddConn.access)},
- 			    C2#ddConn{access = maps:remove(password, C2#ddConn.access)}}
+			   {C1, C2#ddConn{access = maps:remove(password, pl2m(C2#ddConn.access))}}
 	   end,
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("~p connection failed : ~n~p", [Op, Error]),
+            ?Error("failed to ~p connection with ~p : ~n~p", [Op, Conn, Error]),
             Msg = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             {error, Msg};
@@ -619,6 +619,10 @@ check_save_conn(UserSess, DalSess, Op, Conn0) ->
             ?Error("Invalid return on ~p connection ~p: The result:~n~p", [Op, Conn, InvalidReturn]),
             {error, <<"Error saving the connection (Invalid value returned from DB)">>}
     end.
+
+-spec pl2m([tuple()] | map()) -> map().
+pl2m(Map) when is_map(Map) -> Map;
+pl2m([{_,_}|_] = PL) -> maps:from_list(PL).
 
 -spec check_cmd_select({atom(), pid()}, list()) -> {error, binary()} | list().
 check_cmd_select(UserSess, Args) ->
@@ -662,3 +666,8 @@ filter_view_result([V | Views], Sess, Adapter) ->
             ?Error("Command id ~p not found for view ~p, with id ~p", [V#ddView.cmd, V#ddView.name, V#ddView.id]),
             {error, iolist_to_binary(["Command not found for view ", V#ddView.name])}
     end.
+
+-spec get_restartable_apps() -> [atom()].
+get_restartable_apps() ->
+    {ok, CurrApp} = application:get_application(?MODULE),
+    ?GET_CONFIG(restartApplications, [], [CurrApp]).

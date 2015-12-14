@@ -6,7 +6,7 @@ nid=$1
 cid=$2
 port=$3
 dderlport=$4
-if [ "$#" -ne 3 ]; then
+if [ "$#" -ne 4 ]; then
     nid=1
     cid=2
     port=1236
@@ -17,6 +17,7 @@ unamestr=`uname`
 host=`hostname`
 hostArrayIn=(${host//./ })
 host=${hostArrayIn[0]}
+host=127.0.0.1
 name=dderl$nid@$host
 cmname=dderl$cid@$host
 imemtyp=disc
@@ -29,7 +30,7 @@ else
 fi
 
 # Node name
-node_name="-sname $name"
+node_name="-name $name"
 
 # Cookie
 cookie="-setcookie $ck"

@@ -266,7 +266,7 @@ foldb(Ind, P, {'as', {'fun',Fun,List}, Alias}) ->
             [BChild] = B#box.children,
             GChildren = BChild#box.children,
             {CF,[CL]} = lists:split(length(GChildren)-1,GChildren),
-            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," as ",Alias])}],
+            NewGChildren = CF ++ [CL#box{name=list_to_binary([CL#box.name," ",Alias])}],
             NewChild = BChild#box{children=NewGChildren},
             B#box{children=[NewChild]}
     end;
@@ -1018,7 +1018,7 @@ foldb_concat(Boxes) ->
 
 -spec append_alias(#box{}, binary()) -> #box{}.
 append_alias(#box{children = []} = B, Alias) ->
-    B#box{name=list_to_binary([B#box.name," as ",Alias])};
+    B#box{name=list_to_binary([B#box.name," ",Alias])};
 append_alias(#box{children = Ch} = B, Alias) ->
     {CF,[CL]} = lists:split(length(Ch)-1,Ch),
     EChildren = CF ++ [append_alias(CL, Alias)],
