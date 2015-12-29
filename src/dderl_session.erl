@@ -163,8 +163,13 @@ process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{ses
        ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
       ), State#state{user=User}};
 process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
-    {ok, ErlImemSess} = erlimem:open({rpc, node()}, imem_meta:schema()),
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State#state{sess=ErlImemSess}}.
+    case erlimem:open({rpc, node()}, imem_meta:schema()) of
+        {error, Error} ->
+            {{error, Error}, State};
+        {ok, ErlImemSess} ->
+            {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), 
+                State#state{sess=ErlImemSess}}
+    end.
 
 process_login_reply(ok)                         -> ok;
 process_login_reply({ok, []})                   -> ok;
