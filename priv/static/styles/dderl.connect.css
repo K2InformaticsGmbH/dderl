@@ -1,0 +1,19 @@
+span.password_strength_ok {
+    color:green;
+    font-weight:bold;
+}
+
+span.password_strength_alert {
+    color:orange;
+    font-weight:bold;
+}
+
+span.password_strength_error {
+    color:red;
+    font-weight:bold;
+}
+
+span.password_strength_more {
+    color:blue;
+    font-weight:bold;
+}

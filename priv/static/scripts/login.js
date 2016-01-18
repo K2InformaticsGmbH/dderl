@@ -262,41 +262,8 @@ function process_logout() {
 
 function change_login_password(loggedInUser, shouldConnect)
 {
-    $('<div id="dialog-change-password" title="Change DDerl account password">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td>User</td>'+
-      '         <td valign=bottom>'+
-      '             <b>'+loggedInUser+'</b>'+
-      '         </td></tr>' +
-      '      <tr><td>Old Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '      <tr><td>New Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '      <tr><td>Confirm New Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '  </table>' +
-      '</div>').appendTo(document.body);
-    $('#dialog-change-password').dialog({
-        autoOpen: false,
-        height: 200,
-        width: 300,
-        resizable: false,
-        modal: false,
-        open: function() {
-            $(this).dialog("widget").appendTo("#main-body");
-        },
-        close: function() {
-            $("#dialog-change-password").dialog('destroy');
-            $("#dialog-change-password").remove();
-        },
-        buttons: {
-            "Change Password": function() {
+    password_change_dlg("Change DDerl account password", loggedInUser,
+            function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {
                         change_pswd: {
@@ -318,12 +285,5 @@ function change_login_password(loggedInUser, shouldConnect)
                     });
                 }
                 else alert_jq("Confirm password missmatch!");
-            },
-            Cancel: function() {
-                $(this).dialog("close");
-            }
-        }
-    })
-    .dialog("open")
-    .dialog("widget").draggable("option","containment","#main-body");
+            });
 }
