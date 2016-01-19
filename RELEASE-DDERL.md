@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.10 (Release Date 19.01.2016)
+======================================
+* imem 1.4.3
+* erlimem 1.2.5
+* Added complexity check for passwords
+
 Version 1.3.9 (Release Date 14.12.2015)
 ======================================
 * imem 1.4.2

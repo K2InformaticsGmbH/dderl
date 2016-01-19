@@ -1077,3 +1077,78 @@ function md5Arr(data) {
     }
     return dataArr;
 }
+
+function password_change_dlg(title, loggedInUser, change_pass_fn)
+{
+    $('<div id="dialog-change-password" title="'+title+'">' +
+      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
+      '      <tr><td align=right valign=center>User&nbsp;</td>'+
+      '         <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
+      '      <tr><td align=right valign=center>Old Password&nbsp;</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td align=right valign=center>New Password&nbsp;</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td></td>'+
+      '          <td><span id="passstrength"></span></td></tr>' +
+      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
+      '         <td valign=bottom>' +
+      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '  </table>' +
+      '</div>').appendTo(document.body);
+
+    $('#password_change_login').keyup(function(e) {
+        var strongRegex = new RegExp("^(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*\\W).*$", "g");
+        var mediumRegex = new RegExp("^(?=.{7,})(((?=.*[A-Z])(?=.*[a-z]))|((?=.*[A-Z])(?=.*[0-9]))|((?=.*[a-z])(?=.*[0-9]))).*$", "g");
+        var enoughRegex = new RegExp("(?=.{6,}).*", "g");
+        if (false == enoughRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_more')
+                .html('More Characters');
+        } else if (strongRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_ok')
+                .html('Strong');
+        } else if (mediumRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_alert')
+                .html('Medium');
+        } else {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_error')
+                .html('Weak');
+        }
+        return true;
+    });
+    $('#dialog-change-password').dialog({
+        autoOpen: false,
+        height: 200,
+        width: 300,
+        resizable: false,
+        modal: false,
+        open: function() {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        close: function() {
+            $("#dialog-change-password").dialog('destroy');
+            $("#dialog-change-password").remove();
+        },
+        buttons: {
+            "Change Password": change_pass_fn,
+            Cancel: function() {
+                $(this).dialog("close");
+            }
+        }
+    })
+    .dialog("open")
+    .dialog("widget")
+    .draggable("option","containment","#main-body");
+}
