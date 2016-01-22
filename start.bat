@@ -5,7 +5,7 @@ REM Parameters:  NodeID ClusterID IMEMPort DDERLPort
 SET nid=%1
 SET cid=%2
 SET port=%3
-SET dderlport=%
+SET dderlport=%4
 
 IF "%4" == "" (
    SET nid=1
@@ -82,18 +82,17 @@ SET dderl_opts=%dderl_opts% port %dderlport%
 SET start_opts=%paths% %cookie% %node_name% %dist_opts% %kernel_opts% %imem_opts% %dderl_opts%
 
 REM DDERL start options
-ECHO "------------------------------------------"
-ECHO "Starting DDERL (Opts)"
-ECHO "------------------------------------------"
-ECHO "Node Name : %node_name%
-ECHO "Cookie    : %cookie%
-ECHO "EBIN Path : %paths%
-ECHO "Dist      : %dist_opts%
-ECHO "Kernel    : %kernel_opts%
-ECHO "IMEM      : %imem_opts%
-ECHO "DDERL     : %dderl_opts%
-ECHO "------------------------------------------"
+ECHO ------------------------------------------
+ECHO Starting DDERL (Opts)
+ECHO ------------------------------------------
+ECHO Node Name : %node_name%
+ECHO Cookie    : %cookie%
+ECHO EBIN Path : %paths%
+ECHO Dist      : %dist_opts%
+ECHO Kernel    : %kernel_opts%
+ECHO IMEM      : %imem_opts%
+ECHO DDERL     : %dderl_opts%
+ECHO ------------------------------------------
 
 REM Starting dderl
 START /MAX werl %start_opts% -s dderl
-
