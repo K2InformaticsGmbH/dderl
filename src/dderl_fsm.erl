@@ -1285,7 +1285,20 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
     end, {0, []}, TableUsed),
     ?Debug("Histo Rows ~p", [Result]),
     HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
-    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
+    SortFun = fun(X,Y) ->
+        X2 = lists:nth(2,X),
+        Y2 = lists:nth(2,Y),
+        X3 = lists:nth(3,X),
+        Y3 = lists:nth(3,Y),
+        if
+            X3 > Y3 -> true;
+            X3 < Y3 -> false;
+            X2 > Y2 -> false;
+            true -> true
+        end
+    end,
+    HistoRowsSort = lists:sort(SortFun,HistoRows),
+    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRowsSort)] || Idx <- lists:seq(1, length(HistoRowsSort))],
     ColInfoRaw = lists:nth(lists:nth(1,ColumnId), StmtCols),
     ColInfo = ColInfoRaw#stmtCol{alias=list_to_bitstring(tl(lists:flatten([[?HISTOGRAM_DELIMITER, StmtCol#stmtCol.alias] || StmtCol <- [lists:nth(Column, StmtCols) || Column <- ColumnId]])))},
     HistoColumns =
