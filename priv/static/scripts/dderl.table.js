@@ -339,8 +339,15 @@
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram" ||
-                       _action === "Toggle Grouping") {
+                    if(_action === "Histogram") {
+                        _ranges = this._grid.getSelectionModel().getSelectedRanges();
+                        var _columnIds = [];
+                        for (var i = 0; i < _ranges.length; i++) {
+                            _columnIds[i] = _ranges[i].fromCell;
+                        }
+                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
+                                columnId: _columnIds};
+                    } else if(_action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
                     } else {
@@ -547,23 +554,29 @@
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
 
-        var title = " histogram";
-        for(var colId in self._origcolumns) {
-            if(self._origcolumns[colId] === columnId) {
-                var columns = self._grid.getColumns();
-                for(var i = 0; i < columns.length; ++i) {
-                    if(columns[i].field === colId) {
-                        title = columns[i].name + title;
-                        console.log(columns[i].name);
+        var title = '';
+        var _separator = '';
+        for(var c = 0; c < columnId.length; ++c) {
+           for(var colId in self._origcolumns) {
+                if(self._origcolumns[colId] === columnId[c]) {
+                    var columns = self._grid.getColumns();
+                    for(var i = 0; i < columns.length; ++i) {
+                        if(columns[i].field === colId) {
+                            title += _separator + columns[i].name;
+                            _separator = ' | ';
+                            console.log(columns[i].name);
+                            break;
+                        }
                     }
+                    break;
                 }
             }
         }
         $('<div>').appendTo(document.body)
             .statsTable({
-                title          : title,
+                title          : title + " histogram",
                 initialQuery   : self._cmd,
-                columnIds      : [self._origcolumns[columnId]],
+                columnIds      : columnId,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
