@@ -187,7 +187,7 @@
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
     },
- 
+
     // Set up the widget
     _create: function() {
         var self = this;
@@ -287,7 +287,7 @@
         self._cnxtMenu('_slkHdrCnxtMnu');  // header context menu
         self._cnxtMenu('_dlgTtlCnxtMnu');  // header context menu
     },
-                    
+
     // create the context menu and add them to document.body
     // only if they do not exist
     // TODO: Create a context menu once per table instead of the global
@@ -339,8 +339,15 @@
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram" ||
-                       _action === "Toggle Grouping") {
+                    if(_action === "Histogram") {
+                        _ranges = this._grid.getSelectionModel().getSelectedRanges();
+                        var _columnIds = [];
+                        for (var i = 0; i < _ranges.length; i++) {
+                            _columnIds[i] = _ranges[i].fromCell;
+                        }
+                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
+                                columnId: _columnIds};
+                    } else if(_action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
                     } else {
@@ -453,7 +460,7 @@
         }
     },
 
-    _exportCsv: function() {        
+    _exportCsv: function() {
         var filename = this.options.title;
         var csv_ext = /\.csv$/g;
         if(!csv_ext.test(filename))
@@ -547,23 +554,11 @@
         var columnId = data.columnId;
         console.log('show histogram ' + JSON.stringify(data));
 
-        var title = " histogram";
-        for(var colId in self._origcolumns) {
-            if(self._origcolumns[colId] === columnId) {
-                var columns = self._grid.getColumns();
-                for(var i = 0; i < columns.length; ++i) {
-                    if(columns[i].field === colId) {
-                        title = columns[i].name + title;
-                        console.log(columns[i].name);
-                    }
-                }
-            }
-        }
         $('<div>').appendTo(document.body)
             .statsTable({
-                title          : title,
+                title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : [self._origcolumns[columnId]],
+                columnIds      : columnId,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
@@ -1031,7 +1026,7 @@
                     break;
             }
         });
-        
+
         var moveRowsPlugin = new Slick.RowMoveManager({
           cancelEditOnDrag: true
         });
@@ -1094,7 +1089,7 @@
             }
             return self._sortSpec2Json();
         }
-        
+
         self._sortDlg.dialog({
             width : 336,
             modal : false,
@@ -1132,7 +1127,7 @@
         this.addWheel();
         ajaxCall(this, url, data, resp, callback);
     },
-    
+
     _sortSpec2Json: function() {
         var self = this;
         var sortspec = new Array();
@@ -1147,7 +1142,7 @@
         }
         return sortspec;
     },
-    
+
     _setSortSpecFromJson: function(self, origJson) {
         if(self._sorts === null) {
             self._sorts = new Object();
@@ -1406,12 +1401,12 @@
         }
         return filterspec;
     },
-    
+
     // table actions
     _browseCellData: function(ranges) {
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
-        
+
 
         // test the range and throw unsupported exceptions
         if(!self._singleCellSelected(ranges)) {
@@ -1474,7 +1469,7 @@
     _truncateTable: function(ranges) {
         var self = this;
         var truncateTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm truncate", content:truncateTables}, 
+        confirm_jq({title: "Confirm truncate", content:truncateTables},
                 function() {
                     self._runTableCmd.apply(self, ['truncate_table', 'truncateResult', truncateTables]);
                 });
@@ -1482,7 +1477,7 @@
     _dropTable: function (ranges) {
         var self = this;
         var dropTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm delete", content:dropTables}, 
+        confirm_jq({title: "Confirm delete", content:dropTables},
                 function() {
                     self._runTableCmd.apply(self, ['drop_table', 'dropResult', dropTables]);
                 });
@@ -1495,7 +1490,7 @@
     _restoreTable: function(ranges) {
         var self = this;
         var restoreTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm restore from snapshot", content:restoreTables}, 
+        confirm_jq({title: "Confirm restore from snapshot", content:restoreTables},
                 function() {
                     self._runTableCmd.apply(self, ['restore_table', 'restoreResult', restoreTables]);
                 });
@@ -1540,7 +1535,7 @@
 
         var restoreAsData = new Array();
         var fCount = 0;
-        var maxFieldLen = 0; 
+        var maxFieldLen = 0;
         for(fCount = 0; fCount < tables.length; ++fCount) {
             if (maxFieldLen < tables[fCount].length)
                 maxFieldLen = tables[fCount].length;
@@ -1830,7 +1825,7 @@
         self.buttonPress("rollback");
     },
     ////////////////////////////
-    
+
     /*
      * ajaxCall success callbacks
      */
@@ -1842,7 +1837,7 @@
     },
     _checkUpdateResult: function(_update) {
         this.appendRows(_update);
-        /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));        
+        /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));
         if(_update === 'ok') {
             console.log('update success');
         } else {
@@ -2131,7 +2126,7 @@
             dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0)
                                  ? _table.sort_spec : null)
         };
-        
+
         if(_table.hasOwnProperty('table_layout')) {
             if(_table.table_layout.hasOwnProperty('width')) {
                 baseOptions.width = _table.table_layout.width;
@@ -2347,7 +2342,7 @@
         if(!g.getData().getItem(cell.row)) {
             return;
         }
-        
+
         var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
 
@@ -2690,7 +2685,7 @@
 
                 // would be nice to have xor in javascript to avoid confusing ternary operator.
                 if (this._grid.getColumns()[col].editor && !(e.ctrlKey? !e.altKey : e.altKey)) {
-                    // If we have an active cell but no range means that we are in a new cell, 
+                    // If we have an active cell but no range means that we are in a new cell,
                     // so we open the editor.
                     var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
                     if(currentSelectedRanges.length == 0 ||
@@ -2946,7 +2941,7 @@
                 $.error('adapter is already set to '+self._adapter+' and can\'t be changed to '+value);
             break;
         }
- 
+
         // In jQuery UI 1.9 and above, you use the _super method instead
         if (save) this._super( "_setOption", key, value );
     },
@@ -3298,7 +3293,7 @@
         } else if(_rows.focus > 0) {
             computedFocus = _rows.focus - 1;
         }
-        
+
         if(!redraw && needScroll) {
             self._grid.scrollRowIntoView(computedFocus);
         }
@@ -3321,7 +3316,7 @@
                     if (!self._dlgResized) {
                         var gWidth = self._getGridWidth() + 13;
                         var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
-                        
+
                         // Dialog width adjustment
                         if (self._footerWidth > gWidth) {
                             // table is smaller than the footer
@@ -3366,7 +3361,7 @@
                 }
             }
 
-            // 
+            //
             // loading of rows is the costliest of the operations
             // compared to computing and adjusting the table width/height
             // (so for now total time of function entry/exit is appromately equal to only row loading)
