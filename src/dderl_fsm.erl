@@ -1263,7 +1263,7 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
-    end,            
+    end,
     ?Info("Getting the histogram of the column ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
