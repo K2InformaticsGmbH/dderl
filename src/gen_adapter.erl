@@ -238,7 +238,7 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
 process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"histogram">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    [ColumnId|_] = proplists:get_value(<<"column_ids">>, BodyJson, []),
+    [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
     {Total, ColRecs, HistoRows, SN} = Statement:get_histogram(ColumnId),
     HistoJson = gui_resp(#gres{ operation    = <<"rpl">>
                               , cnt          = Total
