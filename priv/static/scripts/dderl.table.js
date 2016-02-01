@@ -346,7 +346,7 @@
                             _columnIds[i] = _ranges[i].fromCell;
                         }
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
-                                columnId: _columnIds};
+                                columnIds: _columnIds};
                     } else if(_action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
@@ -551,14 +551,14 @@
 
     _showHistogram: function(data) {
         var self = this;
-        var columnId = data.columnId;
+        var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : columnId,
+                columnIds      : columnIds,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
