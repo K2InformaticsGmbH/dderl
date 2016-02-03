@@ -25,7 +25,6 @@
 -define(IndKey(__R,__SortFun),{__SortFun(element(3,__R)),element(1,__R)}).
 -define(NoKey,{}).      %% placeholder for unavailable key tuple within RowKey tuple
 
--define(HISTOGRAM_DELIMITER, <<" | ">>). %% Delimits two fields in histograms.
 -define(TAIL_TIMEOUT, 10000). %% 10 Seconds.
 
 %% --------------------------------------------------------------------
@@ -1273,24 +1272,21 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
         case RealRow of
             {_,_,RK} ->
                 ExpandedRow = RowFun(RK),
-                ValueRaw = [[?HISTOGRAM_DELIMITER, lists:nth(Column, ExpandedRow)] || Column <- ColumnId];
+                Value = [lists:nth(Column, ExpandedRow) || Column <- ColumnId];
             _ ->
-                ValueRaw = [[?HISTOGRAM_DELIMITER, element(3 + Column, RealRow)] || Column <- ColumnId]
+                Value = [element(3 + Column, RealRow) || Column <- ColumnId]
         end,
-        Value = list_to_bitstring(tl(lists:flatten(ValueRaw))),
         case proplists:get_value(Value, CountList) of
             undefined -> {Total+1, [{Value, 1} | CountList]};
             OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
         end
     end, {0, []}, TableUsed),
     ?Debug("Histo Rows ~p", [Result]),
-    HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    HistoRows = [lists:flatten([nop, Value, integer_to_binary(Count), 100 * Count / Total]) || {Value, Count} <- Result],
     HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
-    ColInfoRaw = lists:nth(lists:nth(1,ColumnId), StmtCols),
-    ColInfo = ColInfoRaw#stmtCol{alias=list_to_bitstring(tl(lists:flatten([[?HISTOGRAM_DELIMITER, StmtCol#stmtCol.alias] || StmtCol <- [lists:nth(Column, StmtCols) || Column <- ColumnId]])))},
-    HistoColumns =
-        [#stmtCol{alias = ColInfo#stmtCol.alias, type = binstr, readonly = true}
-        ,#stmtCol{alias = <<"count">>, type = float, readonly = true}
+    ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
+    HistoColumns = ColInfo ++
+        [#stmtCol{alias = <<"count">>, type = float, readonly = true}
         ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
     {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
