@@ -22,7 +22,7 @@ name=dderl$nid@$host
 cmname=dderl$cid@$host
 imemtyp=disc
 ck=dderl
-if [[ "$unamestr" == 'Linux' ]]; then
+if [[ "$unamestr" == 'Linux' || "$unamestr" == 'Darwin' ]]; then
      exename=erl
 else
     exename='start //MAX werl.exe'
