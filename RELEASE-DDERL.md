@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.13 (Release Date 05.02.2016)
+======================================
+* Added support for histogram using multiple columns
+* imem 1.4.6
+
 Version 1.3.12 (Release Date 29.01.2016)
 ======================================
 * imem 1.4.5
