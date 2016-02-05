@@ -47,13 +47,9 @@
 
         function wrapHandler(handler) {
             return function () {
-                //console.log("wrapHandler, already in handler: ", _inHandler);
                 if (!_inHandler) {
                     _inHandler = true;
-                    //console.log("before this ", handler.toSource());
-                    //console.log("arguments", arguments);
                     handler.apply(this, arguments);
-                    //console.log("cha after setting to false :D");
                     _inHandler = false;
                 }
             };
