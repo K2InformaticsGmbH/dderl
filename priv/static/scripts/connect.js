@@ -59,28 +59,36 @@ function connect_dlg()
             $(this).dialog("widget").appendTo("#main-body");
         },
         buttons: {
+            'Clear' : function() {
+                console.log("clear all input");
+            },
             'Login / Save': function() {
                 login_save($(this), connection_list, adapter_list, owners_list);
             },
             'Delete': function() {
                 var conn = connection_list.find("option:selected");
-                var connId = conn.data('connect').id;
+                var connData = conn.data('connect');
                 var dlg = $(this);
-                ajaxCall(null,'del_con', {del_con: {conid: connId}}, 'del_con', function(data) {
-                        if(data.hasOwnProperty('error')) {
-                            alert_jq(JSON.stringify(data.error));
-                        } else {
-                            conn.remove();
-                            if(connection_list.find("option:selected").length == 0) {
-                                dlg.dialog("close");
-                                loginAjax(null);
-                            } else {
-                                connection_list.parent().find('input').val(
-                                    connection_list.find("option:selected").data('connect').name);
-                                connection_list.change();
-                            }
-                        }
-                    });
+                confirm_jq(
+                        {title: "Confirm delete connection",
+                         content: connData.name+' ('+connData.adapter+')'},
+                         function() {
+                             ajaxCall(null,'del_con', {del_con: {conid: connData.id}}, 'del_con', function(data) {
+                                 if(data.hasOwnProperty('error')) {
+                                     alert_jq(JSON.stringify(data.error));
+                                 } else {
+                                     conn.remove();
+                                     if(connection_list.find("option:selected").length == 0) {
+                                         dlg.dialog("close");
+                                         loginAjax(null);
+                                     } else {
+                                         connection_list.parent().find('input').val(
+                                             connection_list.find("option:selected").data('connect').name);
+                                         connection_list.change();
+                                     }
+                                 }
+                             });
+                         });
             }
         }
     })
