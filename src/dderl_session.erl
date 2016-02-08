@@ -383,11 +383,11 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
     reply(From, ConnInfo, self()),
     State;
 
-process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user=User} = State) ->
+process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
-    ?Info([{user, User}], "connection to delete ~p", [ConId]),
-    Resp = case dderl_dal:del_conn(Sess, ConId) of
+    ?Info([{user, State#state.user}], "connection to delete ~p", [ConId]),
+    Resp = case dderl_dal:del_conn(Sess, UserId, ConId) of
         ok -> <<"success">>;
         Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
     end,

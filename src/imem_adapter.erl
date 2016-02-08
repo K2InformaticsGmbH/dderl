@@ -152,7 +152,7 @@ connect_erlimem(local, Sess, SessionId, Params, ConnInfo) ->
         true ->
             connect_erlimem(local_sec, Sess, SessionId, Params, ConnInfo);
         false ->
-            case dderl_dal:is_admin(Sess) of
+            case dderl_dal:can_connect_locally(Sess) of
                 true ->
                     {ok, ErlImemSess} = erlimem:open(local, imem_meta:schema()),
                     {ok, ErlImemSess, '$no_extra'};
