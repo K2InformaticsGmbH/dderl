@@ -60,7 +60,8 @@ function connect_dlg()
         },
         buttons: {
             'Clear' : function() {
-                console.log("clear all input");
+                connect_options.find('input').val('');
+                connect_options.find('textarea').val('');
             },
             'Login / Save': function() {
                 login_save($(this), connection_list, adapter_list, owners_list);
