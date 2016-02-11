@@ -59,10 +59,6 @@ function connect_dlg()
             $(this).dialog("widget").appendTo("#main-body");
         },
         buttons: {
-            'Clear' : function() {
-                connect_options.find('input').val('');
-                connect_options.find('textarea').val('');
-            },
             'Login / Save': function() {
                 login_save($(this), connection_list, adapter_list, owners_list);
             },
@@ -90,6 +86,10 @@ function connect_dlg()
                                  }
                              });
                          });
+            },
+            'Clear' : function() {
+                connect_options.find('input').val('');
+                connect_options.find('textarea').val('');
             }
         }
     })
