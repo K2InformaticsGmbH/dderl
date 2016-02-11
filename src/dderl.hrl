@@ -160,6 +160,22 @@
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
 
--define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl")).
+-define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl","Suffix for access URL")).
+-define(MAXACCEPTORS, ?GET_CONFIG(maxNumberOfAcceptors, [], 100, "Maximum number of TCP acceptors")).
+-define(MAXCONNS, ?GET_CONFIG(maxNumberOfSockets, [], 5000, "Maximum number of simulteneous connections")).
+-define(LOGTABLE, ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@',"Rolling log table name")).
+-define(SSLOPTS, ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf',"SSL listen socket options")).
+-define(RESTARTAPPS(__CurrApp), ?GET_CONFIG(restartApplications, [], [__CurrApp], "Erlang applicationns to restart inside VM")).
+
+-define(CONNECT_TIMEOUT, ?GET_CONFIG(connectTimeout,[],100000,"Connect timeout for data sender")).
+%% TODO: Change this maybe to a receiver parameter ?.
+-define(BLOCK_SIZE, ?GET_CONFIG(commitBlockSize,[],10,"Commit block size of data sender")).
+%% TODO: Timeout should be defined by options
+-define(RESPONSE_TIMEOUT, ?GET_CONFIG(responseTimeout,[],100000,"Response timeout of data receiver")).
+
+%% OCI Adapter configs
+-define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
+                                            territory   => <<"SWITZERLAND">>,
+                                            charset     => <<"AL32UTF8">>}, "OCI NSL Language connect option")).
 
 -endif.

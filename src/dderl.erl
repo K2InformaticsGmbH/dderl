@@ -52,19 +52,15 @@ start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     SslOptions = get_ssl_options(),
     {ok, _} = cowboy:start_https(
-                https, ?GET_CONFIG(maxNumberOfAcceptors, [], 100),
+                https, ?MAXACCEPTORS,
                 [{ip, Interface}, {port, Port},
-                 {max_connections, ?GET_CONFIG(maxNumberOfSockets, [], 5000)} | SslOptions],
+                 {max_connections, ?MAXCONNS} | SslOptions],
                 [{env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
-    LogTableNameFun =
-        fun() ->
-            ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@')
-        end,
     ok = gen_event:add_handler(
            lager_event, {imem_lager_backend, dderl},
-           [{level,info},{tablefun,LogTableNameFun},{application,dderl},
+           [{level,info},{tablefun, fun() -> ?LOGTABLE end},{application,dderl},
             {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
           ),
     ?Info(lists:flatten(["URL https://",
@@ -194,7 +190,7 @@ check_file(F) ->
 get_ssl_options() ->
     get_ssl_options(application:get_env(dderl, ssl_opts)).
 get_ssl_options({ok, []}) ->
-    case ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf') of
+    case ?SSLOPTS of
         '$no_ssl_conf' ->
             {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
             [{'Certificate',Cert,not_encrypted} | Certs]

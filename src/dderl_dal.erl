@@ -671,4 +671,4 @@ filter_view_result([V | Views], Sess, Adapter) ->
 -spec get_restartable_apps() -> [atom()].
 get_restartable_apps() ->
     {ok, CurrApp} = application:get_application(?MODULE),
-    ?GET_CONFIG(restartApplications, [], [CurrApp]).
+    ?RESTARTAPPS(CurrApp).

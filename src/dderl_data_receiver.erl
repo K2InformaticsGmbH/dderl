@@ -29,8 +29,6 @@
         ,sender_monitor            :: reference()
         ,browser_pid               :: pid()}).
 
--define(RESPONSE_TIMEOUT, ?GET_CONFIG(responseTimeout,[],100000)). %% TODO: Timeout should be defined by options
-
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
     ?Info("~p starting...~n", [?MODULE]),
