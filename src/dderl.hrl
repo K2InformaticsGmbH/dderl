@@ -177,5 +177,8 @@
 -define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
                                             territory   => <<"SWITZERLAND">>,
                                             charset     => <<"AL32UTF8">>}, "OCI NSL Language connect option")).
+%% CSV Configs
+-define(COL_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiter, [__Adapter], "\t", "Character to seperate each column of a CSV export")).
+-define(ROW_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiterNewLine, [__Adapter], "\n", "Character to seperate each rows of a CSV export")).
 
 -endif.

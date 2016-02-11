@@ -13,7 +13,7 @@
         , build_resp_fun/3
         , process_query/4
         , build_column_json/1
-        , build_column_csv/1
+        , build_column_csv/2
         , extract_modified_rows/1
         , decrypt_to_term/1
         , encrypt_to_binary/1 
@@ -21,6 +21,8 @@
         , opt_bind_json_obj/2
         , add_conn_info/2
         ]).
+
+-export([get_csv_col_sep_char/1, get_csv_row_sep_char/1]).
 
 init() -> ok.
 
@@ -625,9 +627,9 @@ build_column_json([C|Cols], JCols, Counter) ->
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
 
--spec build_column_csv([#stmtCol{}]) -> binary().
-build_column_csv(Cols) ->
-    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
+-spec build_column_csv(atom(),[#stmtCol{}]) -> binary().
+build_column_csv(Adapter,Cols) ->
+    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?COL_SEP_CHAR(Adapter)), ?ROW_SEP_CHAR(Adapter)]).
 
 -spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
 extract_modified_rows([]) -> [];
@@ -761,3 +763,9 @@ escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
 
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].
+
+-spec get_csv_col_sep_char(atom()) -> string().
+get_csv_col_sep_char(Adapter) -> ?COL_SEP_CHAR(Adapter).
+
+-spec get_csv_row_sep_char(atom()) -> string().
+get_csv_row_sep_char(Adapter) -> ?ROW_SEP_CHAR(Adapter).

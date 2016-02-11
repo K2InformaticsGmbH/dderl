@@ -552,7 +552,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
                                 end, 
     case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
-            Columns = gen_adapter:build_column_csv(Clms),
+            Columns = gen_adapter:build_column_csv(oci,Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(From, StmtRef, RowFun)
@@ -595,12 +595,14 @@ produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     dderloci:close(StmtRef);
 produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(From, StmtRef, RowFun);
 produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).

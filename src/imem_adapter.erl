@@ -602,7 +602,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
-            Columns = gen_adapter:build_column_csv(Clms),
+            Columns = gen_adapter:build_column_csv(imem,Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(Connection, From, StmtRef, RowFun)
@@ -669,13 +669,15 @@ produce_csv_rows_result({error, Error}, Connection, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     Connection:run_cmd(close, [StmtRef]);
 produce_csv_rows_result({Rows,false}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(imem)), gen_adapter:get_csv_row_sep_char(imem)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows intermediate ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(Connection, From, StmtRef, RowFun);
 produce_csv_rows_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(imem)), gen_adapter:get_csv_row_sep_char(imem)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     ?Debug("Rows last ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, last},
