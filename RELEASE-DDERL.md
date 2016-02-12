@@ -3,6 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.14 (Release Date 12.02.2016)
+======================================
+* Histogram with multiple columns result separated
+* Added clear button to avoid confusion with delete connections
+* Fixed privileges for delete connections
+* Added confirmation to delete connections
+* Configurable export csv delimiter
+* imem 1.4.7
+
 Version 1.3.13 (Release Date 05.02.2016)
 ======================================
 * Added support for histogram using multiple columns
