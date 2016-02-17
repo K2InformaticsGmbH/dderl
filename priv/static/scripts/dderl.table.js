@@ -2949,12 +2949,13 @@
     _setTitleHtml: function(newTitle) {
         var self = this;
         self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
-        self._dlg.dialog("widget").find(".table-title").click(function(e) {
+        self._dlg.dialog("widget").find(".table-title").on("contextmenu click", function(e) {
             self._dlgTtlCnxtMnu.dom
                 .css("top", e.clientY - 10)
                 .css("left", e.clientX)
                 .data('cnxt', self)
                 .show();
+            return false;
         });
     },
 
