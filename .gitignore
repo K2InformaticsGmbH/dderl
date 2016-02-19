@@ -205,5 +205,3 @@ rel/rpmbuild/SPECS
 rel/erlpkg*
 
 .rebar
-/.idea
-/dderl.iml
