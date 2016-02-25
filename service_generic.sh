@@ -143,8 +143,8 @@ case $1 in
             idx=$[idx+1]
         done
         echo 
-        echo "Connecting local node start //MAX werl.exe -remsh $node -name remoteattach@$host -setcookie $cookie_service"
-        start //MAX werl.exe -remsh $node -name remoteattach@$host -setcookie $cookie_service
+        echo "Connecting local node start //MAX werl.exe -remsh $node -name remsh_$node -setcookie $cookie_service"
+        start //MAX werl.exe -remsh $node -name remsh_$node -setcookie $cookie_service
         ;;
     *)
         erlsrv.exe list $app_name
