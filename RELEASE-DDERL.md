@@ -3,7 +3,7 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.3.15 (Release Date 26.02.2016)
+Version 1.3.16 (Release Date 26.02.2016)
 ======================================
 * imem 1.4.9
 
