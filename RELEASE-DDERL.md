@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.17 (Release Date 01.03.2016)
+======================================
+* Export CSV bug fix [#173](https://github.com/K2InformaticsGmbH/dderl/issues/173)
+* imem 1.4.10
+
 Version 1.3.16 (Release Date 26.02.2016)
 ======================================
 * imem 1.4.9
