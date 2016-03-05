@@ -18,6 +18,8 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
+-export([log/0]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -63,6 +65,10 @@ start(_Type, _Args) ->
            [{level,info},{tablefun, fun() -> ?LOGTABLE end},{application,dderl},
             {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
           ),
+    ok = gen_event:add_handler(
+           lager_event, {dderl_lager_file_backend, dderl_access},
+           [{file, "log/dderl_access.log"}, {level, debug}, {size, 10485760},
+            {date, "$D0"}, {count, 5}]),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
@@ -78,6 +84,8 @@ start(_Type, _Args) ->
 
 stop(_State) ->
     ok = gen_event:delete_handler(lager_event, {imem_lager_backend, dderl}, []),
+    ok = gen_event:delete_handler(lager_event,
+                                  {dderl_lager_file_backend, dderl_access}, []),
     ok = cowboy:stop_listener(https),
     ?Info("SHUTDOWN DDERL"),
     ?Info("---------------------------------------------------").
@@ -220,4 +228,6 @@ get_ssl_options({ok, []}) ->
 get_ssl_options({ok, SslOpts}) ->
     SslOpts.
 
+log() ->
+    ?Info([{type,dderl_access}], "A test loggin", []).
 %%-----------------------------------------------------------------------------
