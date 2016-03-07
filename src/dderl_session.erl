@@ -207,7 +207,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "login", ReqData, "", "", "", "", ""),
+    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", "login", ReqData, "", "", "", "", ""),
     case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),

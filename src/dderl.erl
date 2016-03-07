@@ -250,7 +250,7 @@ access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
         ConnTarget, ConnDBType, ConnStr, SQL).
 
 log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
-  when MinLogLevel > LogLevel -> ok;
+  when MinLogLevel < LogLevel -> ok;
 log(_, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
     ConnStr, SQL) ->
     Proxy = case ?PROXY of
