@@ -3,11 +3,13 @@
 
 -behavior(gen_server).
 
+-type ipport() :: {inet:ip_address(), inet:port_number()}.
+
 -include("dderl.hrl").
 
 -export([start_link/3
         , get_session/2
-        , process_request/5
+        , process_request/6
         , get_state/1
         , get_apps_version/2
         ]).
@@ -89,13 +91,14 @@ start_link(Ref, Bytes, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
 get_state({?MODULE, Ref, Bytes}) ->
     gen_server:call({via, ?MODULE, Ref}, {get_state, Bytes}, infinity).
 
--spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()}) -> term().
-process_request(undefined, Type, Body, ReplyPid, Ref) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, Ref);
-process_request(Adapter, Type, Body, ReplyPid, {?MODULE, Ref, Bytes}) ->
+-spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
+                      ipport()) -> term().
+process_request(undefined, Type, Body, ReplyPid, Ref, RemoteEp) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, Ref, RemoteEp);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, {?MODULE, Ref, Bytes}) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
     true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
-    gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid}).
+    gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
 init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
@@ -115,9 +118,9 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
-handle_cast({process, Adapter, Typ, WReq, From}, #state{tref=TRef} = State) ->
+handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef} = State) ->
     timer:cancel(TRef),
-    State0 = try process_call({Typ, WReq}, Adapter, From, State)
+    State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
@@ -179,8 +182,10 @@ process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
 process_data(Data) -> Data.
 
--spec process_call({[binary()], term()}, atom(), pid(), #state{}) -> #state{}.
-process_call({[<<"restart">>], _ReqData}, _Adapter, From, #state{sess = ErlImemSess} = State) ->
+-spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
+process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
+             #state{sess = ErlImemSess} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, State#state.user_id, "restart", "", "", "", "", "", ""),
     case ErlImemSess:run_cmd(have_permission, [{dderl,restart}]) of
         true ->
             From ! {spawn,
@@ -198,10 +203,11 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, #state{sess = ErlImemS
             reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
     end,
     State;
-process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
     #state{id = << First:32/binary, Last:32/binary >>,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "login", ReqData, "", "", "", "", ""),
     case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),
@@ -241,13 +247,15 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, #state{} = State) ->
 % This function clause is placed right after login to be able to catch all
 % request (other than login above) which are NOT to be allowed without a login
 %
-process_call(Req, _Adapter, From, #state{user = <<>>} = State) ->
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "invalid", io_lib:format("~p", [Req]), "", "", "", "", ""),
     ?Debug("Request from a not logged in user: ~n~p", [Req]),
     reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
-process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
+process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "login_change_pswd", ReqData, "", "", "", "", ""),
     [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
     OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
@@ -272,13 +280,15 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From,
     end,
     State;
 
-process_call({[<<"logout">>], _ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"logout">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    catch dderl:access(?LOGIN_CONNECT, SrcIp, State#state.user_id, "logout", "", "", "", "", "", ""),
     NewState = logout(State),
     reply(From, [{<<"logout">>, <<"ok">>}], self()),
     self() ! logout,
     NewState;
 
-process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "format_erlang_term", ReqData, "", "", "", "", ""),
     [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
     ?Debug("The string to format: ~p", [StringToFormat]),
@@ -300,7 +310,8 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, #state{} = S
     end,
     State;
 
-process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "format_json_to_save", ReqData, "", "", "", "", ""),
     [{<<"format_json_to_save">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"json_string">>, BodyJson, <<>>),
     case jsx:is_json(StringToFormat) of
@@ -316,7 +327,8 @@ process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, #state{} = 
     end,
     State;
 
-process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"about">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, State#state.user_id, "about", "", "", "", "", "", ""),
     case application:get_key(dderl, applications) of
         undefined -> Deps = [];
         {ok, Deps} -> Deps
@@ -326,12 +338,14 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, #state{} = State) ->
     reply(From, [{<<"about">>, Versions}], self()),
     State;
 
-process_call({[<<"ping">>], _ReqData}, _Adapter, From, #state{} = State) ->
+process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, State#state.user_id, "ping", "", "", "", "", "", ""),
     reply(From, [{<<"ping">>, atom_to_binary(node(), utf8)}], self()),
     State;
 
-process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
+process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess=Sess, user_id=UserId, user=User} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, State#state.user_id, "connect_info", "", "", "", "", "", ""),
     ConnInfo
     = case dderl_dal:get_adapters(Sess) of
           {error, Reason} when is_binary(Reason) -> #{error => Reason};
@@ -383,7 +397,8 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From,
     reply(From, ConnInfo, self()),
     State;
 
-process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user_id=UserId} = State) ->
+process_call({[<<"del_con">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{sess=Sess, user_id=UserId} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "del_con", ReqData, "", "", "", "", ""),
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, State#state.user}], "connection to delete ~p", [ConId]),
@@ -394,7 +409,8 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, #state{sess=Sess, user_
     reply(From, [{<<"del_con">>, Resp}], self()),
     State;
 
-process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
+process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{active_sender = undefined} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "activate_sender", ReqData, "", "", "", "", ""),
     [{<<"activate_sender">>, BodyJson}] = jsx:decode(ReqData),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
@@ -408,7 +424,8 @@ process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, #state{active_s
             reply(From, [{<<"activate_sender">>, Error}], self()),
             State
     end;
-process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_sender = PidSender} = State) ->
+process_call({[<<"activate_sender">>], ReqData}, Adapter, From, {SrcIp,_} = RemoteEp, #state{active_sender = PidSender} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "activate_sender", ReqData, "", "", "", "", ""),
     case erlang:is_process_alive(PidSender) of
         true ->
             ?Error("Sender ~p already waiting for connection", [PidSender]), %% Log more details user, active sender etc...
@@ -416,14 +433,16 @@ process_call({[<<"activate_sender">>], ReqData}, Adapter, From, #state{active_se
             reply(From, [{<<"activate_sender">>, [{<<"error">>, <<"Sender already waiting for connection">>}]}], self()),
             State;
         false ->
-            process_call({[<<"activate_sender">>], ReqData}, Adapter, From, State#state{active_sender = undefined})
+            process_call({[<<"activate_sender">>], ReqData}, Adapter, From, RemoteEp, State#state{active_sender = undefined})
     end;
 
-process_call({[<<"activate_receiver">>], _ReqData}, _Adapter, From, #state{active_sender = undefined} = State) ->
+process_call({[<<"activate_receiver">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{active_sender = undefined} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, State#state.user_id, "activate_receiver", "", "", "", "", "", ""),
     ?Error("No active data sender found"), %% TODO: Log more 
     reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
     State;
-process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active_sender = PidSender} = State) ->
+process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{active_sender = PidSender} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, "activate_receiver", ReqData, "", "", "", "", ""),
     case erlang:is_process_alive(PidSender) of
         true ->
             [{<<"activate_receiver">>, BodyJson}] = jsx:decode(ReqData),
@@ -446,7 +465,7 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, #state{active
     end;
 
 % commands handled generically
-process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = State) when
+process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess=Sess, user_id=UserId} = State) when
       C =:= <<"parse_stmt">>;
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
@@ -460,17 +479,19 @@ process_call({[C], ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId} = 
       C =:= <<"edit_term_or_view">>;
       C =:= <<"get_sql">>;
       C =:= <<"cache_data">> ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, binary_to_list(C), ReqData, "", "", "", "", ""),
     BodyJson = jsx:decode(ReqData),
     Self = self(),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, Self) end),
     State;
 
-process_call({Cmd, ReqData}, Adapter, From,
+process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
              #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv,
                     conn_info = ConnInfo} = State)
   when Cmd =:= [<<"connect">>];
        Cmd =:= [<<"connect_change_pswd">>];
        Cmd =:= [<<"disconnect">>] ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, State#state.user_id, binary_to_list(hd(Cmd)), ReqData, "", "", "", "", ""),
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     BodyJson = jsx:decode(ReqData),
@@ -490,7 +511,8 @@ process_call({Cmd, ReqData}, Adapter, From,
     end,
     State#state{adapt_priv = NewAdaptPriv};
 
-process_call({Cmd, ReqData}, Adapter, From, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
+process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess=Sess, user_id=UserId, adapt_priv=AdaptPriv} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, binary_to_list(hd(Cmd)), ReqData, "", "", "", "", ""),
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     Self = self(),

@@ -104,6 +104,8 @@
 -define(LOG_TAG, "_DDRL_").
 -endif.
 
+-define(Access(__Access), lager:debug([{type,dderl_access}], __Access)).
+
 -define(NoDbLog(__L,__M,__F,__A),
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -define(Log(__L,__M,__F,__A,__S),
@@ -180,5 +182,15 @@
 %% CSV Configs
 -define(COL_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiter, [__Adapter], "\t", "Character to seperate each column of a CSV export")).
 -define(ROW_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiterNewLine, [__Adapter], "\n", "Character to seperate each rows of a CSV export")).
+
+%% DDErl Activity Logging
+-define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
+-define(PROXY,        ?GET_CONFIG(proxAddress, [], {0,0,0,0}, "Proxy Address")).
+
+%% Access Log levels
+-define(LOGIN_CONNECT,  1).
+-define(CMD_NOARGS,     2).
+-define(CMD_WITHARGS,   3).
+-define(CUST_SQL,       4).
 
 -endif.
