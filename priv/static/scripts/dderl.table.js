@@ -421,9 +421,11 @@
         if(this._viewId) {
             var self = this;
             var viewName = prompt("View new name",this.options.title);
-            console.log("saving "+this._viewId+" with name "+viewName);
-            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            if(viewName) {
+                console.log("saving "+this._viewId+" with name "+viewName);
+                var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
+                self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            }
         }
     },
 
