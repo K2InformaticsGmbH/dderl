@@ -554,11 +554,17 @@
         var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : columnIds,
+                columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
