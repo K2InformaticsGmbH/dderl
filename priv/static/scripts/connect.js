@@ -90,6 +90,8 @@ function connect_dlg()
             'Clear' : function() {
                 connect_options.find('input').val('');
                 connect_options.find('textarea').val('');
+                $("input:radio[name=method]:checked").val("local");
+                console.log($("input:radio[name=method]:checked").val());
             }
         }
     })

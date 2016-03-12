@@ -669,11 +669,14 @@ produce_csv_rows_result({error, Error}, Connection, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     Connection:run_cmd(close, [StmtRef]);
 produce_csv_rows_result({Rows,false}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
-                                                          gen_adapter:get_csv_col_sep_char(imem)), gen_adapter:get_csv_row_sep_char(imem)])
-                             || Row <- [RowFun(R) || R <- Rows]]),
-    ?Debug("Rows intermediate ~p", [CsvRows]),
-    From ! {reply_csv, <<>>, CsvRows, continue},
+    if length(Rows) > 0 ->
+           CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                                 gen_adapter:get_csv_col_sep_char(imem)), gen_adapter:get_csv_row_sep_char(imem)])
+                                     || Row <- [RowFun(R) || R <- Rows]]),
+           ?Debug("Rows intermediate ~p", [CsvRows]),
+           From ! {reply_csv, <<>>, CsvRows, continue};
+       true -> ok
+    end,
     produce_csv_rows(Connection, From, StmtRef, RowFun);
 produce_csv_rows_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
     CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],

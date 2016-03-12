@@ -3,6 +3,24 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.18 (Release Date 05.03.2016)
+======================================
+* Bug fix on [issue 156](https://github.com/K2InformaticsGmbH/dderl/issues/156)
+* imem 1.4.11
+
+Version 1.3.17 (Release Date 01.03.2016)
+======================================
+* Export CSV bug fix [#173](https://github.com/K2InformaticsGmbH/dderl/issues/173)
+* imem 1.4.10
+
+Version 1.3.16 (Release Date 26.02.2016)
+======================================
+* imem 1.4.9
+
+Version 1.3.15 (Release Date 18.02.2016)
+======================================
+* imem 1.4.8
+
 Version 1.3.14 (Release Date 12.02.2016)
 ======================================
 * Histogram with multiple columns result separated
