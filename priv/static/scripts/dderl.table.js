@@ -431,11 +431,29 @@
      * Delete a view
      */
     _deleteView: function() {
-        if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+        if(this._viewId) {
             var self = this;
-            console.log("deleting a view "+this._viewId+" with name "+this.options.title);
-            var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
-            self._ajax('view_op', delView, 'view_op', 'opViewResult');
+            var viewName = self.options.title;
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>Are you sure to delete view ' + viewName + '?</p></div>').appendTo(document.body).dialog({
+                resizable: false,
+                height:150,
+                modal: true,
+                buttons: {
+                    "Delete the view": function() {
+                        console.log("deleting a view " + self._viewId + " with name " + viewName);
+                        var delView = {view_op : {operation : "delete", view_id : self._viewId, newname : ""}};
+                        self._ajax('view_op', delView, 'view_op', 'opViewResult');
+                        $( this ).dialog( "close" );
+                    },
+                    Cancel: function() {
+                        $( this ).dialog( "close" );
+                    }
+                },
+                close : function() {
+                    $(this).dialog('destroy');
+                    $(this).remove();
+                }
+            });
         }
     },
 
