@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.3.19 (Release Date 14.03.2016)
+======================================
+* Added background svg image
+* imem 1.4.12
+
 Version 1.3.18 (Release Date 05.03.2016)
 ======================================
 * Bug fix on [issue 156](https://github.com/K2InformaticsGmbH/dderl/issues/156)
