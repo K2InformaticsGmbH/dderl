@@ -418,12 +418,16 @@
      * Renaming a view
      */
     _renameView: function() {
-        if(this._viewId) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views'' may not be renamed");
+        } else if(this._viewId) {
             var self = this;
             var viewName = prompt("View new name",this.options.title);
-            console.log("saving "+this._viewId+" with name "+viewName);
-            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            if(viewName) {
+                console.log("saving "+this._viewId+" with name "+viewName);
+                var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
+                self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            }
         }
     },
 
@@ -431,7 +435,9 @@
      * Delete a view
      */
     _deleteView: function() {
-        if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views' may not be deleted");
+        } else if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
             var self = this;
             console.log("deleting a view "+this._viewId+" with name "+this.options.title);
             var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
@@ -563,11 +569,17 @@
         var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : columnIds,
+                columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
