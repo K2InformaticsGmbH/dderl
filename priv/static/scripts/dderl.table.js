@@ -454,10 +454,19 @@
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+//        var viewName = prompt("View name",this.options.title);
+//        if (null !== viewName) {
+//            this._saveViewWithName(viewName, false);
+//        }
+        self = this;
+        prompt_jq({label: "View name", content: ''},
+            function() {
+                var viewName = $("#prompt_jq_input").val();
+                console.log("wwe viewName=" + viewName);
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _exportCsv: function() {        

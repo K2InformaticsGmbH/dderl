@@ -749,6 +749,54 @@ function confirm_jq(dom, callback)
     return dlgDiv;
 }
 
+function prompt_jq(dom, callback)
+{
+    var content = dom.content;
+    if ($.isArray(content))
+        content = content.join('<br>');
+        content = '<form><fieldset>' +
+                  '<label for="prompt_jq_input">' + dom.label + ':</label>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all"/>' +
+                  (content.length > 0
+                   ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
+                     content + '</div>'
+                   : '') +
+                   '</fieldset></form>';
+    var dlgDiv =
+        $('<div>')
+        .appendTo(document.body)
+        .append(content)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: "DDerl parameter input",
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
+            close: function() {
+                //We have to remove the added child p
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    var inputValue = $("#prompt_jq_input").val();
+                    if (inputValue) {
+                        $(this).dialog("close");
+                        callback();
+                    }
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
+}
+
 function beep()
 {
     var beepStorage = sessionStorage.getItem("beep-sound");
