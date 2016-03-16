@@ -430,6 +430,8 @@
                         self._ajax('view_op', renameView, 'view_op', 'opViewResult');
                     }
                 });
+        } else {
+            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be renamed here!");
         }
     },
 
@@ -448,6 +450,8 @@
                     var delView = {view_op : {operation : "delete", view_id : self._viewId, newname : ""}};
                     self._ajax('view_op', delView, 'view_op', 'opViewResult');
                 });
+        } else {
+            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be deleted here!");
         }
     },
 
