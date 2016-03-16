@@ -418,12 +418,16 @@
      * Renaming a view
      */
     _renameView: function() {
-        if(this._viewId) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views'' may not be renamed");
+        } else if(this._viewId) {
             var self = this;
             var viewName = prompt("View new name",this.options.title);
-            console.log("saving "+this._viewId+" with name "+viewName);
-            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            if(viewName) {
+                console.log("saving "+this._viewId+" with name "+viewName);
+                var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
+                self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            }
         }
     },
 
@@ -431,7 +435,9 @@
      * Delete a view
      */
     _deleteView: function() {
-        if(this._viewId) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views' may not be deleted");
+        } else if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
             var self = this;
             var viewName = self.options.title;
             confirm_jq({title: "Confirm delete view " + viewName, content: ''},
