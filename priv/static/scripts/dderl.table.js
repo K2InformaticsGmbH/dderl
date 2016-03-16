@@ -422,12 +422,14 @@
             alert_jq("Error: The view 'All Views'' may not be renamed");
         } else if(this._viewId) {
             var self = this;
-            var viewName = prompt("View new name",this.options.title);
-            if(viewName) {
-                console.log("saving "+this._viewId+" with name "+viewName);
-                var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-                self._ajax('view_op', renameView, 'view_op', 'opViewResult');
-            }
+            prompt_jq({label: "View new name", content: ''},
+                function(viewName) {
+                    if (viewName) {
+                        console.log("saving "+self._viewId+" with name "+viewName);
+                        var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
+                        self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                    }
+                });
         }
     },
 
@@ -464,10 +466,13 @@
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+        self = this;
+        prompt_jq({label: "View name", content: ''},
+            function(viewName) {
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _exportCsv: function() {        
