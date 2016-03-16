@@ -439,9 +439,13 @@
             alert_jq("Error: The view 'All Views' may not be deleted");
         } else if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
             var self = this;
-            console.log("deleting a view "+this._viewId+" with name "+this.options.title);
-            var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
-            self._ajax('view_op', delView, 'view_op', 'opViewResult');
+            var viewName = self.options.title;
+            confirm_jq({title: "Confirm delete view " + viewName, content: ''},
+                function() {
+                    console.log("deleting a view " + self._viewId + " with name " + viewName);
+                    var delView = {view_op : {operation : "delete", view_id : self._viewId, newname : ""}};
+                    self._ajax('view_op', delView, 'view_op', 'opViewResult');
+                });
         }
     },
 
