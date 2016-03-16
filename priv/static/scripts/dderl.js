@@ -756,7 +756,7 @@ function prompt_jq(dom, callback)
         content = content.join('<br>');
         content = '<form><fieldset>' +
                   '<label for="prompt_jq_input">' + dom.label + ':</label>' +
-                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all"/>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" autofocus/>' +
                   (content.length > 0
                    ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
                      content + '</div>'
@@ -785,7 +785,7 @@ function prompt_jq(dom, callback)
                     var inputValue = $("#prompt_jq_input").val();
                     if (inputValue) {
                         $(this).dialog("close");
-                        callback();
+                        callback(inputValue);
                     }
                 },
                 'Cancel': function() {
