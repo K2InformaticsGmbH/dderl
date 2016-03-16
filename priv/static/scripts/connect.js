@@ -308,9 +308,9 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
                 show_qry_files(false);
             };
 
-            document.title = 'DDErl ('+conn.name+')';
+            document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+conn.name+')';
             if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
-                document.title = 'DDErl ('+resp.extra.node+')';
+                document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+resp.extra.node+')';
             }
 
             if(conn.method == 'local' && conn.secure == true)
