@@ -439,7 +439,7 @@
     _deleteView: function() {
         if("All Views" === this.options.title) {
             alert_jq("Error: The view 'All Views' may not be deleted");
-        } else if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+        } else if(this._viewId) {
             var self = this;
             var viewName = self.options.title;
             confirm_jq({title: "Confirm delete view " + viewName, content: ''},
