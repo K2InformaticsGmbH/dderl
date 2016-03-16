@@ -21,6 +21,7 @@ function loginAjax(data) {
             'login', loginCb);
 }
 
+var app = "";
 function loginCb(resp) {
     $('#btn-disconnect').removeClass('disabled');
 
@@ -29,6 +30,10 @@ function loginCb(resp) {
     }
     if (resp.hasOwnProperty('node')) {
         $('#node').text(resp.node);
+    }
+    if (resp.hasOwnProperty('app')) {
+        app = resp.app;
+        document.title = 'DDErl - '+app;
     }
 
     if (resp.hasOwnProperty('error')) {
