@@ -418,12 +418,20 @@
      * Renaming a view
      */
     _renameView: function() {
-        if(this._viewId) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views'' may not be renamed");
+        } else if(this._viewId) {
             var self = this;
-            var viewName = prompt("View new name",this.options.title);
-            console.log("saving "+this._viewId+" with name "+viewName);
-            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            prompt_jq({label: "View new name", content: ''},
+                function(viewName) {
+                    if (viewName) {
+                        console.log("saving "+self._viewId+" with name "+viewName);
+                        var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
+                        self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                    }
+                });
+        } else {
+            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be renamed here!");
         }
     },
 
@@ -431,11 +439,19 @@
      * Delete a view
      */
     _deleteView: function() {
-        if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+        if("All Views" === this.options.title) {
+            alert_jq("Error: The view 'All Views' may not be deleted");
+        } else if(this._viewId) {
             var self = this;
-            console.log("deleting a view "+this._viewId+" with name "+this.options.title);
-            var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
-            self._ajax('view_op', delView, 'view_op', 'opViewResult');
+            var viewName = self.options.title;
+            confirm_jq({title: "Confirm delete view " + viewName, content: ''},
+                function() {
+                    console.log("deleting a view " + self._viewId + " with name " + viewName);
+                    var delView = {view_op : {operation : "delete", view_id : self._viewId, newname : ""}};
+                    self._ajax('view_op', delView, 'view_op', 'opViewResult');
+                });
+        } else {
+            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be deleted here!");
         }
     },
 
@@ -454,10 +470,13 @@
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+        self = this;
+        prompt_jq({label: "View name", content: ''},
+            function(viewName) {
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _exportCsv: function() {        
@@ -554,11 +573,17 @@
         var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
         $('<div>').appendTo(document.body)
             .statsTable({
                 title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : columnIds,
+                columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })

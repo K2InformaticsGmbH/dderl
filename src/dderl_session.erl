@@ -237,8 +237,20 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
                       end;
                   _ -> {Reply, State1}
               end,
-            {ok,Vsn} = application:get_key(dderl, vsn),            
-            reply(From, #{login => Reply1#{vsn => list_to_binary(Vsn),
+            {ok,Vsn} = application:get_key(dderl, vsn),
+            Host =
+            lists:foldl(
+              fun({App,_,_}, undefined) ->
+                      {ok, Apps} = application:get_key(App, applications),
+                      case lists:member(dderl, Apps) of
+                          true -> atom_to_binary(App, utf8);
+                          _ -> undefined
+                      end;
+                 (_, App) -> App
+              end, undefined, application:which_applications()),
+            Reply2 = if is_binary(Host) -> Reply1#{app => Host};
+                        true -> Reply1 end,
+            reply(From, #{login => Reply2#{vsn => list_to_binary(Vsn),
                                            node => list_to_binary(imem_meta:node_shard())}}, self()),
             State2
     end;

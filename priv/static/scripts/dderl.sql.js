@@ -396,10 +396,13 @@ function insertAtCursor(myField, myValue) {
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+        self = this;
+        prompt_jq({label: "View name", content: ''},
+            function(viewName) {
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _getSaveStructure: function(viewName) {
