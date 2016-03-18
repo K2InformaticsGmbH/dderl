@@ -337,10 +337,11 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     case {IsView, element(3, R)} of
-        {true, {_, #ddView{}, #ddCmd{}=OldC}} ->
+        {true, {_, #ddView{}=OldV, #ddCmd{}=OldC}} ->
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                         [{<<"isView">>, true}
+                                         ,{<<"view_id">>, OldV#ddView.id}
                                          ,{<<"title">>, StringToFormat}
                                          ,{<<"cmd">>, C#ddCmd.command}]
                                        }])};
