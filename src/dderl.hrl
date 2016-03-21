@@ -185,7 +185,7 @@
 
 %% DDErl Activity Logging
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
--define(PROXY,        ?GET_CONFIG(proxAddress, [], {0,0,0,0}, "Proxy Address")).
+-define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
 
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).
