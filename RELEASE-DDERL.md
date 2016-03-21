@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.4.0 (Release Date 21.03.2016)
+======================================
+* Replaced alert with jquery equivalent functions
+* Replaced prompt with custom javascript control
+* Added app name in page title
+* Added error message trying to delete rename invalid views
+
 Version 1.3.19 (Release Date 14.03.2016)
 ======================================
 * Added background svg image
