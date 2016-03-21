@@ -58,6 +58,8 @@ stream_file(Req, Buffer) ->
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
+    {{SrcIp, _}, Req} = cowboy_req:peer(Req),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "upload", io_lib:format("~p", [Files]), "", "", "", "", ""),
     self() ! {reply, jsx:encode(
                        #{upload =>
                          [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
@@ -93,14 +95,15 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
                 is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
                 true -> undefined
             end,
-            DderlSess:process_request(AdaptMod, Typ, Body, self()),
+            {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
+            DderlSess:process_request(AdaptMod, Typ, Body, self(), {PeerIp, PeerPort}),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
             {{Ip, Port}, Req} = cowboy_req:peer(Req),
             ?Info("session ~p doesn't exist (~p), from ~s:~p",
                   [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
             Node = atom_to_binary(node(), utf8),
-            self() ! {reply, jsx:encode([{<<"error">>, <<<<"Session is not valid ">>/binary, Node/binary>>}])},
+            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
             {loop, Req, Session, 5000, hibernate}
     end.
 
