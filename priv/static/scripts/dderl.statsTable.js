@@ -443,6 +443,7 @@
             self._grid.onMouseDown.subscribe($.proxy(self._handleMouseDown, self));
             self._grid.onDragInit.subscribe($.proxy(self._handleDragInit, self));
             self._grid.onSort.subscribe($.proxy(self._handleSort, self));
+            self._grid.onSelectedRowsChanged.subscribe($.proxy(self._handleSelectionChanged, self));
             self._gdata = self._grid.getData();
         },
 
@@ -470,6 +471,8 @@
             var fldWidth = 0;
             self._origcolumns = {};
             columns[0].formatter = Slick.Formatters.IdFormatter;
+            columns[0].headerCssClass = "numeric";
+            columns[0].name = "0";
             columns[0]['cannotTriggerInsert'] = true;
             columns[0]['resizable']     = false;
             columns[0]['sortable']      = false;
@@ -868,6 +871,12 @@
                 // 225 -> altgr on firefox ?
                 return;
             }
+        },
+
+        _handleSelectionChanged: function(e, args) {
+            var self = this;
+            var columns = self._grid.getColumns();
+            self._grid.updateColumnHeader(columns[0].id, args.rows.length.toString());
         },
 
         _handleSort: function(e, args) {
