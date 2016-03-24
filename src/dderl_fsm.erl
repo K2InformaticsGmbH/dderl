@@ -1282,8 +1282,20 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
         end
     end, {0, []}, TableUsed),
     ?Debug("Histo Rows ~p", [Result]),
-    HistoRows = [lists:flatten([nop, Value, integer_to_binary(Count), 100 * Count / Total]) || {Value, Count} <- Result],
-    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
+    HistoRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    HistoRowsCount = length(lists:nth(1, HistoRows)) - 1,
+    HistoRowsLen = HistoRowsCount - 2,
+    SortFun = fun(X,Y) ->
+        XCount = binary_to_integer(lists:nth(HistoRowsCount, X)),
+        YCount = binary_to_integer(lists:nth(HistoRowsCount, Y)),
+        if
+             XCount > YCount -> true;
+             XCount < YCount -> false;
+             true -> sort_histo_rows(lists:sublist(X, 2, HistoRowsLen), lists:sublist(Y, 2, HistoRowsLen))
+        end
+    end,
+    HistoRowsSort = lists:sort(SortFun,HistoRows),
+    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRowsSort)] || Idx <- lists:seq(1, length(HistoRowsSort))],
     ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
     HistoColumns = ColInfo ++
         [#stmtCol{alias = <<"count">>, type = float, readonly = true}
@@ -1323,6 +1335,11 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
     {reply, ok, SN, State, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
+
+sort_histo_rows([], []) -> true;
+sort_histo_rows([XH | _], [YH | _]) when XH < YH -> true;
+sort_histo_rows([XH | _], [YH | _]) when XH > YH -> false;
+sort_histo_rows([_ | XT], [_ | YT]) -> sort_histo_rows(XT, YT).
 
 %% --------------------------------------------------------------------
 %% Func: handle_info/3
