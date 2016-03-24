@@ -573,21 +573,25 @@
         var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
-        // Considering hidden columns
-        var columnIdsEff = [];
-        for(var i = 0; i < columnIds.length; i++) {
-            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
-        }
+        if (0 == columnIds) {
+            alert_jq('No appropriate column for the histogramm selected!');
+        } else {
+            // Considering hidden columns
+            var columnIdsEff = [];
+            for(var i = 0; i < columnIds.length; i++) {
+                columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+            }
 
-        $('<div>').appendTo(document.body)
-            .statsTable({
-                title          : "Histogram",
-                initialQuery   : self._cmd,
-                columnIds      : columnIdsEff,
-                dderlStatement : self._stmt,
-                parent         : self._dlg
-            })
-            .statsTable('load', 'histogram');
+            $('<div>').appendTo(document.body)
+                .statsTable({
+                    title          : "Histogram",
+                    initialQuery   : self._cmd,
+                    columnIds      : columnIdsEff,
+                    dderlStatement : self._stmt,
+                    parent         : self._dlg
+                })
+                .statsTable('load', 'histogram');
+        }
     },
 
     _showStatistics: function(_ranges) {
