@@ -672,6 +672,7 @@
                     }
                 }
                 self._grid.invalidate();
+                self._grid.scrollRowIntoView(1);
             }
 
             //console.timeEnd('appendRows');
@@ -892,7 +893,7 @@
             });
 
             self._grid.invalidate();
-            self._grid.render();
+            self._grid.scrollRowIntoView(1);
         },
 
         /*
