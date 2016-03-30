@@ -3434,7 +3434,7 @@
             self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
                 function (row, cell, value, columnDef, dataContext) {
                     var newValue;
-                    if (value == null) {
+                    if ((value == null) || (value === undefined)) {
                         newValue = "";
                     } else {
                         newValueParts = value.split(seperator);
