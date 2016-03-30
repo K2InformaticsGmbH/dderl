@@ -3085,10 +3085,6 @@
         return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
     },
 
-    setSlickOpts: function(_opts) {
-        this.options.slickopts = _opts;
-    },
-
     setColumns: function(_cols) {
         var self = this;
         var dlg = self._dlg.dialog('widget');
