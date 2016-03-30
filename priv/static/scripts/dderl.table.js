@@ -574,24 +574,25 @@
         console.log('show histogram ' + JSON.stringify(data));
 
         if (0 == columnIds) {
-            alert_jq('No appropriate column for the histogramm selected!');
-        } else {
-            // Considering hidden columns
-            var columnIdsEff = [];
-            for(var i = 0; i < columnIds.length; i++) {
-                columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
-            }
-
-            $('<div>').appendTo(document.body)
-                .statsTable({
-                    title          : "Histogram",
-                    initialQuery   : self._cmd,
-                    columnIds      : columnIdsEff,
-                    dderlStatement : self._stmt,
-                    parent         : self._dlg
-                })
-                .statsTable('load', 'histogram');
+            alert_jq('Error: No appropriate column for the menu item "Histogram" selected!');
+            return;
         }
+
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                title          : "Histogram",
+                initialQuery   : self._cmd,
+                columnIds      : columnIdsEff,
+                dderlStatement : self._stmt,
+                parent         : self._dlg
+            })
+            .statsTable('load', 'histogram');
     },
 
     _showStatistics: function(_ranges) {
@@ -632,6 +633,11 @@
     },
 
     _showStatisticsFull: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Statistics" selected!');
+            return;
+        }
+
         var self = this;
 
         var cellmin = _ranges[0].fromCell;
@@ -843,6 +849,11 @@
 
     // columns hide/unhide
     _hide: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Hide" selected!');
+            return;
+        }
+
         var self = this;
         var columns = self._grid.getColumns();
         var toHide = {};
@@ -1190,6 +1201,11 @@
 
     // filters
     _filterColumn: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Filter..." selected!');
+            return;
+        }
+
         var self = this;
         var cols = self._grid.getColumns();
         if(self._filters === null) {
@@ -3423,14 +3439,20 @@
         var self = this;
         var seperator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
         var columnId = data.columnId;
-        console.log('show histogram ' + JSON.stringify(data));
+
+        if ('sel' == columnId) {
+            alert_jq('Error: No appropriate column for the menu item "Toggle Grouping" selected!');
+            return;
+        }
+
+        console.log('toggle grouping ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
             self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
                 self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;
             self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
                 function (row, cell, value, columnDef, dataContext) {
                     var newValue;
-                    if ((value == null) || (value === undefined)) {
+                    if (value == null) {
                         newValue = "";
                     } else {
                         newValueParts = value.split(seperator);
