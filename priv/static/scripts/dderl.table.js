@@ -1452,32 +1452,46 @@
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
         
-
-        // test the range and throw unsupported exceptions
-        if(!self._singleCellSelected(ranges)) {
-            // If it is only one row, we take the first one.
-            if(ranges.length == 1
-               && ranges[0].fromRow  === ranges[0].toRow
-               && ranges[0].fromCell <= 1
-               && ranges[0].toCell === self._grid.getColumns().length - 1) {
-                ranges[0].fromCell = 1;
+        var cells = [];
+        for(var i = 0; i < ranges.length; ++i) {
+            // For complete rows use the first column only
+            if(ranges[i].fromCell <= 1
+               && ranges[i].toCell === self._grid.getColumns().length - 1) {
+                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    var data = self._gridDataView.getItem(j);
+                    var column = self._grid.getColumns()[1];
+                    cells.push({
+                        row: data.id,
+                        col: self._origcolumns[column.field]
+                    });
+                }
             } else {
-                self._grid.focus();
-                return;
+                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    for(var k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
+                        var data = self._gridDataView.getItem(j);
+                        var column = self._grid.getColumns()[k];
+                        cells.push({
+                            row: data.id,
+                            col: self._origcolumns[column.field]
+                        });
+                    }
+                }
             }
         }
-
-        var cell    = ranges[0];
-        var column  = self._grid.getColumns()[cell.fromCell];
-        var data    = self._gridDataView.getItem(cell.fromRow);
-        // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
-        self._ajax('browse_data',
+        console.log("the cells", cells);
+        if(cells.length > 10) {
+            alert_jq("A maximum of 10 tables can be open simultaneously");
+        } else {
+            for(var i = 0; i < cells.length; ++i) {
+                self._ajax('browse_data',
                        { browse_data: {connection : dderlState.connection,
                                            conn_id : dderlState.connectionSelected.connection,
                                            statement : self._stmt,
-                                           row : data.id, //cell.fromRow,
-                                           col : this._origcolumns[column.field]}},
+                                           row : cells[i].row,
+                                           col : cells[i].col}},
                        'browse_data', 'browseData');
+            }
+        }
     },
 
     _runTableCmd: function(tableCmd, callback, tables) {
