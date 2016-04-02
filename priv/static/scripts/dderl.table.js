@@ -1215,6 +1215,10 @@
             var fromCell = Math.max(_ranges[i].fromCell, 1);
             for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
                 if(!self._filters.hasOwnProperty(cols[c].field)) {
+                    var filterColumnName = cols[c].name
+                    if (filterColumnName.length > 30) {
+                        filterColumnName = filterColumnName.substring(1, 30) + "...";
+                    }
                     self._filters[cols[c].field] =
                         {
                             inp : $('<textarea>')
@@ -1224,7 +1228,7 @@
                                 .css('padding', 0),
                             typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
                             vals: new Object(),
-                            name: cols[c].name
+                            name: filterColumnName
                         };
                 }
             }
