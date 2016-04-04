@@ -41,7 +41,7 @@ function loginCb(resp) {
         if(resp.hasOwnProperty('pwdmd5')) {
             accountName = resp.pwdmd5.accountName;
         }
-        display({title  : "Wrong password",
+        display({title  : "Login",
                   fields :[{type       : "text",
                             placeholder: "User",
                             val        : accountName},
