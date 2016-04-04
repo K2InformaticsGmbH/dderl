@@ -37,8 +37,21 @@ function loginCb(resp) {
     }
 
     if (resp.hasOwnProperty('error')) {
-        alert_jq('Login falied : ' + resp.error);
-        loginAjax(null);
+        var accountName = "";
+        if(resp.hasOwnProperty('pwdmd5')) {
+            accountName = resp.pwdmd5.accountName;
+        }
+        display({title  : "Login",
+                  fields :[{type       : "text",
+                            placeholder: "User",
+                            val        : accountName},
+                           {type       : "password",
+                            placeholder: "Password",
+                            val        : ""},
+                           {type       : "label",
+                            val        : resp.error,
+                            color      : "#DD1122"}] //Swisscom red color
+        });
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
@@ -100,13 +113,16 @@ function display(layout) {
     for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
         var tr = $('<tr>').appendTo(tab);
         var td = $('<td valign=bottom>').appendTo(tr);
-        if(layout.fields[fldIdx].type == "label") {            
-            $('<span>')
-                .css('word-wrap', 'break-word')
-                .css('display', 'block')
+        if(layout.fields[fldIdx].type == "label") {
+            var fieldLabel = $('<span>');
+            if(layout.fields[fldIdx].color) {
+                fieldLabel.css('color', layout.fields[fldIdx].color);
+            }
+            fieldLabel.css('word-wrap', 'break-word')
                 .css('width', '300px')
                 .text(layout.fields[fldIdx].val)
-                .appendTo(td.attr('colspan',2));
+                .appendTo(td.attr('colspan',2))
+                .appendTo(td.attr('style', 'padding-top: 8px'));
         } else if(layout.fields[fldIdx].type == "text") {
             td.append(layout.fields[fldIdx].placeholder);
             td = $('<td valign=bottom>').appendTo(tr);
