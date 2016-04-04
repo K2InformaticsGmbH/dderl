@@ -18,7 +18,7 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
--export([access/10]).
+-export([access/11]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -229,29 +229,34 @@ get_ssl_options({ok, SslOpts}) ->
     SslOpts.
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_integer(User); is_atom(User) ->
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr, SQL) when is_integer(User); is_atom(User) ->
     access(LogLevel, SrcIp, if is_integer(User) -> integer_to_list(User);
                                is_atom(User) -> atom_to_list(User);
                                true -> io_lib:format("~p", [User])
-                            end, Cmd, CmdArgs, ConnUser,
+                            end, SessId, Cmd, CmdArgs, ConnUser,
            ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_binary(CmdArgs) ->
-    access(LogLevel, SrcIp, User, Cmd, binary_to_list(CmdArgs), ConnUser,
+access(LogLevel, SrcIp, User, SessIdBin, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr, SQL) when is_binary(SessIdBin) ->
+    SessId = base64:encode_to_string(integer_to_list(erlang:phash2(SessIdBin))),
+    access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+           ConnDBType, ConnStr, SQL);
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr, SQL) when is_binary(CmdArgs) ->
+    access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
            ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
        ConnStr, SQL) when is_tuple(SrcIp) ->
-    access(LogLevel, inet:ntoa(SrcIp), User, Cmd, CmdArgs, ConnUser,
+    access(LogLevel, inet:ntoa(SrcIp), User, SessId, Cmd, CmdArgs, ConnUser,
            ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
     ConnStr, SQL) ->
-    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser,
+    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser,
         ConnTarget, ConnDBType, ConnStr, SQL).
 
-log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
+log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _, _)
   when MinLogLevel < LogLevel -> ok;
-log(_, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
     ConnStr, SQL) ->
     Proxy = case ?PROXY of
                 SrcIp -> "yes";
@@ -265,8 +270,8 @@ log(_, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
     LL = if is_integer(LogLevel) -> integer_to_list(LogLevel);
                   true -> LogLevel end,
     ?Access(#{proxy => Proxy, version => Version, loglevel => LL,
-              src => SrcIp, dderlUser => User, dderlCmd => Cmd,
-              dderlCmdArgs => CmdArgs, connUser => ConnUser,
+              src => SrcIp, dderlUser => User, dderlSessId => SessId,
+              dderlCmd => Cmd, dderlCmdArgs => CmdArgs, connUser => ConnUser,
               connTarget => ConnTarget, connDbType => ConnDBType,
               connStr => ConnStr, sql => SQL}).
 %%-----------------------------------------------------------------------------
