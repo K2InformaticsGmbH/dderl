@@ -3,6 +3,14 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.4.1 (Release Date 06.04.2016)
+======================================
+* imem 1.4.14
+* Added rename view and delete view actions to sql 'Edit' menu.
+* Sort by count on histogram
+* Added support for multiple browse data (max 10)
+* Login failures cosmetic changes
+
 Version 1.4.0 (Release Date 21.03.2016)
 ======================================
 * Replaced alert with jquery equivalent functions
