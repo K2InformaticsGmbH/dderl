@@ -207,8 +207,9 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
     #state{id = << First:32/binary, Last:32/binary >> =  Id,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqData, "", "", "", "", ""),
-    case catch process_login(SessionId,jsx:decode(ReqData,[return_maps]),State) of
+    ReqDataMap = jsx:decode(ReqData,[return_maps]),
+    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", "", ""),
+    case catch process_login(SessionId,ReqDataMap,State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),
             reply(From, #{login=>
@@ -269,11 +270,11 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = Stat
 
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", ReqData, "", "", "", "", ""),
-    [{<<"change_pswd">>, BodyJson}] = jsx:decode(ReqData),
+    #{<<"change_pswd">> := BodyJson} = jsx:decode(ReqData, [return_maps]),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyJson, "", "", "", "", ""),
     User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
-    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
+    OldPassword = list_to_binary(maps:get(<<"password">>, BodyJson, [])),
+    NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyJson, [])),
     case ErlImemSess:run_cmd(
            change_credentials,
            [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]

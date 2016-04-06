@@ -241,6 +241,18 @@ access(LogLevel, SrcIp, User, SessIdBin, Cmd, CmdArgs, ConnUser, ConnTarget,
     SessId = base64:encode_to_string(integer_to_list(erlang:phash2(SessIdBin))),
     access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
            ConnDBType, ConnStr, SQL);
+
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr, SQL) when is_map(CmdArgs) and ((Cmd == "login") or (Cmd == "login_change_pswd")) ->
+    io:format("********************** login : ~p~n", [CmdArgs]),
+    NewCmdArgs = case CmdArgs of
+        #{<<"Password">> := _} -> jsx:encode(CmdArgs#{<<"Password">> => <<"****">>});
+        _ -> jsx:encode(CmdArgs)
+    end,
+    io:format("********************** NewCmdArgs : ~p~n", [NewCmdArgs]),
+    access(LogLevel, SrcIp, User, SessId, Cmd, NewCmdArgs, ConnUser, ConnTarget, 
+           ConnDBType, ConnStr, SQL);
+
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
        ConnDBType, ConnStr, SQL) when is_binary(CmdArgs) ->
     access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
