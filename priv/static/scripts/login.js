@@ -52,6 +52,7 @@ function loginCb(resp) {
                             val        : resp.error,
                             color      : "#DD1122"}] //Swisscom red color
         });
+        ajaxCall(null, 'login',  {},'login', null);
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
