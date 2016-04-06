@@ -207,7 +207,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
     #state{id = << First:32/binary, Last:32/binary >> =  Id,
            registered_name = RegisteredName, sess = ErlImemSess} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    ReqDataMap = jsx:decode(ReqData,[return_maps]),
+    ReqDataMap = jsx:decode(ReqData, [return_maps]),
     catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", "", ""),
     case catch process_login(SessionId,ReqDataMap,State) of
         {{E,M},St} when is_atom(E) ->
@@ -272,7 +272,7 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     #{<<"change_pswd">> := BodyJson} = jsx:decode(ReqData, [return_maps]),
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyJson, "", "", "", "", ""),
-    User     = proplists:get_value(<<"user">>, BodyJson, <<>>),
+    User        = maps:get(<<"user">>, BodyJson, <<>>),
     OldPassword = list_to_binary(maps:get(<<"password">>, BodyJson, [])),
     NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyJson, [])),
     case ErlImemSess:run_cmd(
@@ -504,7 +504,8 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"edit_term_or_view">>;
       C =:= <<"get_sql">>;
       C =:= <<"cache_data">> ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), ReqData, "", "", "", "", ""),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), 
+        maps:get(C, jsx:decode(ReqData, [return_maps]), #{}), "", "", "", "", ""),
     BodyJson = jsx:decode(ReqData),
     Self = self(),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, Self) end),
@@ -519,7 +520,17 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     BodyJson = jsx:decode(ReqData),
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), ReqData, "", "", "", "", ""),
+    {Host, ConnStr} = 
+            case proplists:get_value(<<"host">>, BodyJson, none) of
+                none -> case proplists:get_value(<<"tns">>, BodyJson, none) of
+                    none -> {"", ""};
+                    Tns -> {hd(re:split(lists:nth(2, re:split(Tns, <<"HOST=">>)), "\\)")), Tns}
+                end;
+                H -> {H, proplists:get_value(<<"tns">>, BodyJson, "")}
+    end,
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), jsx:decode(ReqData, [return_maps]), 
+        proplists:get_value(<<"user">>, BodyJson, ""), Host, 
+        proplists:get_value(<<"adapter">>, BodyJson, ""), ConnStr, ""),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
@@ -538,7 +549,8 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
 
 process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_id = UserId, 
                                                               adapt_priv = AdaptPriv, id = Id} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), ReqData, "", "", "", "", ""),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), 
+                jsx:decode(ReqData, [return_maps]), "", "", "", "", ""),
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
     Self = self(),

@@ -243,13 +243,18 @@ access(LogLevel, SrcIp, User, SessIdBin, Cmd, CmdArgs, ConnUser, ConnTarget,
            ConnDBType, ConnStr, SQL);
 
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr, SQL) when is_map(CmdArgs) and ((Cmd == "login") or (Cmd == "login_change_pswd")) ->
-    io:format("********************** login : ~p~n", [CmdArgs]),
-    NewCmdArgs = case CmdArgs of
-        #{<<"Password">> := _} -> jsx:encode(CmdArgs#{<<"Password">> => <<"****">>});
-        _ -> jsx:encode(CmdArgs)
+       ConnDBType, ConnStr, _SQL) when is_map(CmdArgs) ->
+    {NewCmdArgs, SQL} = case CmdArgs of
+        #{<<"Password">> := _} -> {jsx:encode(CmdArgs#{<<"Password">> => <<"****">>}), ""};
+        #{<<"password">> := _, <<"new_password">> := _} -> 
+            {jsx:encode(CmdArgs#{<<"password">> => <<"****">>, <<"new_password">> => <<"****">>}), ""};
+        #{<<"password">> := _} -> {jsx:encode(CmdArgs#{<<"password">> => <<"****">>}), ""};
+        #{<<"qstr">> := QStr} -> 
+            FQstr = re:replace(QStr, <<"(?i)IDENTIFIED[\\s]*BY[\\s]*[a-z]*">>, <<"IDENTIFIED BY ****">>, 
+                                [{return, binary}]),
+            {jsx:encode(CmdArgs), FQstr};
+        _ -> {jsx:encode(CmdArgs), ""}
     end,
-    io:format("********************** NewCmdArgs : ~p~n", [NewCmdArgs]),
     access(LogLevel, SrcIp, User, SessId, Cmd, NewCmdArgs, ConnUser, ConnTarget, 
            ConnDBType, ConnStr, SQL);
 
