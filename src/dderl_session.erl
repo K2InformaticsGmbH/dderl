@@ -270,11 +270,11 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = Stat
 
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
-    #{<<"change_pswd">> := BodyJson} = jsx:decode(ReqData, [return_maps]),
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyJson, "", "", "", "", ""),
-    User        = maps:get(<<"user">>, BodyJson, <<>>),
-    OldPassword = list_to_binary(maps:get(<<"password">>, BodyJson, [])),
-    NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyJson, [])),
+    #{<<"change_pswd">> := BodyMap} = jsx:decode(ReqData, [return_maps]),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyMap, "", "", "", "", ""),
+    User        = maps:get(<<"user">>, BodyMap, <<>>),
+    OldPassword = list_to_binary(maps:get(<<"password">>, BodyMap, [])),
+    NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyMap, [])),
     case ErlImemSess:run_cmd(
            change_credentials,
            [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
@@ -504,9 +504,10 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"edit_term_or_view">>;
       C =:= <<"get_sql">>;
       C =:= <<"cache_data">> ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), 
-        maps:get(C, jsx:decode(ReqData, [return_maps]), #{}), "", "", "", "", ""),
     BodyJson = jsx:decode(ReqData),
+    ?Info("parse int : ~p", [ReqData]),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), 
+        maps:from_list(proplists:get_value(C, BodyJson, [])), "", "", "", "", ""),
     Self = self(),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, Self) end),
     State;
@@ -528,7 +529,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                 end;
                 H -> {H, proplists:get_value(<<"tns">>, BodyJson, "")}
     end,
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), jsx:decode(ReqData, [return_maps]), 
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), maps:from_list(BodyJson), 
         proplists:get_value(<<"user">>, BodyJson, ""), Host, 
         proplists:get_value(<<"adapter">>, BodyJson, ""), ConnStr, ""),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
@@ -549,10 +550,10 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
 
 process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_id = UserId, 
                                                               adapt_priv = AdaptPriv, id = Id} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), 
-                jsx:decode(ReqData, [return_maps]), "", "", "", "", ""),
-    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     BodyJson = jsx:decode(ReqData),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(hd(Cmd)), 
+                maps:from_list(BodyJson), "", "", "", "", ""),
+    CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     Self = self(),
     spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self) end),
     State.
