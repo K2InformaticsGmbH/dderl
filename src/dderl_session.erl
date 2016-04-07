@@ -505,7 +505,6 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"get_sql">>;
       C =:= <<"cache_data">> ->
     BodyJson = jsx:decode(ReqData),
-    ?Info("parse int : ~p", [ReqData]),
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), 
         maps:from_list(proplists:get_value(C, BodyJson, [])), "", "", "", "", ""),
     Self = self(),
