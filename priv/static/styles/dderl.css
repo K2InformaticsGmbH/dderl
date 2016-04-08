@@ -90,6 +90,19 @@ button.menubutton
     top: 5px;
     border: none;
 }
+.button {
+    background-color: #77777F;
+    border: none;
+    color: white;
+    padding: 4px 23px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 5px;
+}
 
 .loading-indicator {
   display: inline-block;
@@ -567,4 +580,12 @@ div#main_footer {
 
 #btn-logout {
     cursor: pointer;
+}
+.center {
+    text-align: center;
+}
+.error-msg {
+    word-wrap: break-word;
+    width: 200px;
+    display: inline-block;
 }
