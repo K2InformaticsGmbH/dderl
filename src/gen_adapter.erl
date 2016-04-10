@@ -171,7 +171,7 @@ process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
                 ok -> jsx:encode([{<<"view_op">>,    [{<<"op">>, <<"rename">>}, {<<"result">>,<<"ok">>}, {<<"newname">>, Name}]}]);
                 {error, Error} ->
                     jsx:encode([{<<"view_op">>, [{<<"error">>
-                                                , iolist_to_binary(["View rename failed : ", io_lib:format("~p", [Error])])}
+                                                , iolist_to_binary(["ddView rename failed : ", io_lib:format("~p", [Error])])}
                                                 ]
                                 }])
             end;
@@ -180,7 +180,7 @@ process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
                 ok -> jsx:encode([{<<"view_op">>, [{<<"op">>, <<"delete">>}, {<<"result">>,<<"ok">>}]}]);
                 {error, Error} ->
                     jsx:encode([{<<"view_op">>, [{<<"error">>
-                                                , iolist_to_binary(["View delete failed : ", io_lib:format("~p", [Error])])}
+                                                , iolist_to_binary(["ddView delete failed : ", io_lib:format("~p", [Error])])}
                                                 ]
                                 }])
             end
@@ -197,7 +197,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) 
     ViewState = #viewstate{table_layout=TableLay, column_layout=ColumLay},
     if
         %% System tables can't be overriden.
-        Name =:= <<"All Views">> orelse Name =:= <<"Remote Tables">> ->
+        Name =:= <<"All ddViews">> orelse Name =:= <<"Remote Tables">> ->
             %% TODO: This should indicate that a new view has been saved and should replace it in the gui.
             add_cmds_views(Sess, UserId, Adapter, true, [{Name, Query, undefined, ViewState}]),
             Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
