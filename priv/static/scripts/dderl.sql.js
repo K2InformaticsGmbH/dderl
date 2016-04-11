@@ -89,10 +89,10 @@ function insertAtCursor(myField, myValue) {
 
     // Dialog context menus
     _sqlTtlCnxtMnu  : {
-                       'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs',
-                       'Rename View'    : '_renameView',
-                       'Delete View'    : '_deleteView'
+                       'Save ddView'    : '_saveView',
+                       'Save ddView As' : '_saveViewAs',
+                       'Rename ddView'  : '_renameView',
+                       'Delete ddView'  : '_deleteView'
     },
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
@@ -391,12 +391,12 @@ function insertAtCursor(myField, myValue) {
      * Renaming a view
      */
     _renameView: function() {
-        if("All Views" === this.options.title) {
-            alert_jq("Error: The view 'All Views'' may not be renamed");
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)){
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be renamed");
         } else {
             var self = this;
             var viewId = self.options.viewId;
-            prompt_jq({label: "View new name", content: ''},
+            prompt_jq({label: "ddView new name", content: ''},
                 function(viewName) {
                     if (viewName) {
                         if(viewId) {
@@ -416,8 +416,8 @@ function insertAtCursor(myField, myValue) {
      * Delete a view
      */
     _deleteView: function() {
-        if("All Views" === this.options.title) {
-            alert_jq("Error: The view 'All Views' may not be deleted");
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be deleted");
         } else {
             var self = this;
             var viewId = self.options.viewId;
@@ -450,7 +450,7 @@ function insertAtCursor(myField, myValue) {
 
     _saveViewAs: function() {
         self = this;
-        prompt_jq({label: "View name", content: ''},
+        prompt_jq({label: "ddView name", content: ''},
             function(viewName) {
                 if (viewName) {
                     self._saveViewWithName(viewName, false);
