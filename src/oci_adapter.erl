@@ -35,7 +35,7 @@ init() ->
         { <<"Remote Tables">>
         , <<"select concat(OWNER,concat('.', TABLE_NAME)) as QUALIFIED_TABLE_NAME from ALL_TABLES where OWNER=user order by TABLE_NAME">>
         , [] },
-        { <<"Remote ddViews">>
+        { <<"Remote Views">>
         , <<"select concat(OWNER,concat('.', VIEW_NAME)) as QUALIFIED_TABLE_NAME from ALL_VIEWS where OWNER=user order by VIEW_NAME">>
         , [] }
     ]).
