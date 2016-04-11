@@ -217,6 +217,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
                                     is_list(M) -> list_to_binary(M);
                                     true -> list_to_binary(io_lib:format("~p", [M]))
                                end}}, self()),
+            self() ! invalid_credentials,
             State;
         {Reply, State1} ->
             {Reply1, State2}
