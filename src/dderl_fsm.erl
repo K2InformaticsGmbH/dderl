@@ -1110,16 +1110,20 @@ bin_to_number(NumberBin) ->
 
 -spec stats_add_row([{integer(), number(), number(), []}], [binary()]) -> [tuple()].
 stats_add_row([], _) -> [];
-stats_add_row([{Count, Sum, Squares, HashList} = Result | RestResult], [Element | RestRow]) ->
+stats_add_row([{Count, Sum, Squares, HashList} | RestResult], [Element | RestRow]) ->
     case bin_to_number(Element) of
-        {error, _} -> [Result | stats_add_row(RestResult, RestRow)];
+        {error, _} -> [{Count, Sum, Squares, [Element | HashList]} | stats_add_row(RestResult, RestRow)];
         Number -> [{Count+1, Sum+Number, Squares + Number*Number, [Element | HashList]} | stats_add_row(RestResult, RestRow)]
     end.
 
 -spec format_stat_rows([binary()], [{integer(), number(), number(), []}], pos_integer()) -> list().
 format_stat_rows([], _, _) -> [];
-format_stat_rows([ColName | RestColNames], [{0, _, _, _} | RestResult], Idx) ->
-    [[Idx, nop, ColName, 0, 0, 0, 0, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{0, _, _, HashList} | RestResult], Idx) ->
+    case HashList of
+        [] -> Hash = 0;
+        _ ->     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList)))
+    end,
+    [[Idx, nop, ColName, 0, 0, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
 format_stat_rows([ColName | RestColNames], [{1, Sum, _, HashList} | RestResult], Idx) ->
     Average = Sum,
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
@@ -1206,7 +1210,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
     end,
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
-    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
+    {Rows, HashList} = ets:foldl(fun(Row, {SelectRows, SelectHashList}) ->
             RealRow = case Row of
                 {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
                 Row -> Row
@@ -1224,24 +1228,24 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                         _ -> []
                     end
             end,
-            if CandidateRow =:= []  -> SelectRows;
+            if CandidateRow =:= []  -> {SelectRows, SelectHashList};
                 true ->
-                    lists:foldl(fun(Idx, SelRows) ->
+                    lists:foldl(fun(Idx, {SelRows, SelHashList}) ->
                         Candidate = lists:nth(Idx, CandidateRow),
                         CandidateList = element(Idx, SelRows),
                         case bin_to_number(Candidate) of
-                            {error, _} -> SelRows;
-                            _ -> erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate])
+                            {error, _} -> {SelRows, SelHashList ++ [Candidate]};
+                            _ -> {erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate]), SelHashList ++ [Candidate]}
                         end
                     end,
-                    SelectRows,
+                    {SelectRows, SelectHashList},
                     lists:seq(1, size(SelectRows)))
             end
         end
-        , list_to_tuple(lists:duplicate(length(ColNames), []))
-        , TableUsed)),
+        , {list_to_tuple(lists:duplicate(length(ColNames), [])), []}
+        , TableUsed),
     try
-        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- Rows],
+        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- tuple_to_list(Rows)],
         Counts  = [length(C) || C <- RowColumns],
         Totals  = [lists:sum(C) || C <- RowColumns],
         Avgs    = calculate_avgs(Totals, Counts),
@@ -1253,10 +1257,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                 end
             end, [], lists:zip(RowColumns, Avgs))),
         StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
-        case Counts of
-            [0] -> Hash = 0;
-            _ -> Hash = erlang:phash2(list_to_binary(Rows))
-        end,
+        Hash = erlang:phash2(list_to_binary(HashList)),
         StatsRows = [lists:append(lists:nth(1, [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))]), [Hash])],
         ?Debug("Stat Rows ~p", [StatsRows]),
         StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
