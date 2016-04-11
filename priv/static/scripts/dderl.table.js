@@ -123,7 +123,9 @@
                        'Sort Clear'       : '_sortClear',
                        'Histogram'        : '_showHistogram',
                        'Statistics'       : '_showStatisticsFull',
-                       'Toggle Grouping'  : '_toggleGrouping'},
+                       'Toggle Grouping'  : '_toggleGrouping',
+                       'Shrink'           : '_shrinkColumn',
+                       'Fit to Data'      : '_fitColumnToData'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filterCell',
                        'Filter...'        : '_filterCellDialog',
@@ -1739,6 +1741,41 @@
         for(var fun in this._handlers) {
             this.element.on(fun, null, this, this._handlers[fun]);
         }
+    },
+
+    _shrinkColumn: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+            }
+        }
+        self._grid.setColumns(columns);
+    },
+
+    _fitColumnToData: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+                var maxLength = 0;
+                for(var k = 0; k < self._gdata.length; ++k) {
+                    var row = self._gdata[k];
+                    var field = columns[j].field;
+                    if(row[field].length > maxLength) {
+                        maxLength = row[field].length;
+                        var fieldWidth = self._txtlen.text(row[field]).width();
+                        fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                        if(columns[j].width < fieldWidth) {
+                            columns[j].width = Math.min(fieldWidth, self._MAX_ROW_WIDTH);
+                        }
+                    }
+                }
+            }
+        }
+        self._grid.setColumns(columns);
     },
 
     _createDlgFooter: function() {
