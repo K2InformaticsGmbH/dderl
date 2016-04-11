@@ -218,6 +218,8 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
                                     is_list(M) -> list_to_binary(M);
                                     true -> list_to_binary(io_lib:format("~p", [M]))
                                end}}, self()),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                        Id, "login unsuccessful", "", "", "", "", "", ""),
             self() ! invalid_credentials,
             State;
         {Reply, State1} ->
@@ -234,7 +236,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = Sta
                                                   [{#ddAccount{name=State1#state.user,
                                                                id='$1',_='_'},
                                                     [], ['$1']}]),
-                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "loggedin", 
+                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", 
                                     "", "", "", "", "", ""),
                               {#{accountName=>State1#state.user},
                                State1#state{user_id = UserId}}
