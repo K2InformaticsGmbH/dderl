@@ -89,22 +89,28 @@ process_request(Session, Adapter, Req, Typ) ->
     process_request_low(Session, Adapter, Req1, Body, Typ).
 
 process_request_low(Session, Adapter, Req, Body, Typ) ->
+    AdaptMod = if
+        is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
+        true -> undefined
+    end,
+    {{Ip, Port}, Req} = cowboy_req:peer(Req),
     case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
         {ok, DderlSess} ->
-            AdaptMod = if
-                is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
-                true -> undefined
-            end,
-            {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
-            DderlSess:process_request(AdaptMod, Typ, Body, self(), {PeerIp, PeerPort}),
+            DderlSess:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
-            {{Ip, Port}, Req} = cowboy_req:peer(Req),
-            ?Info("session ~p doesn't exist (~p), from ~s:~p",
-                  [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
-            Node = atom_to_binary(node(), utf8),
-            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-            {loop, Req, Session, 5000, hibernate}
+            case Typ of
+                [<<"login">>] -> 
+                    {ok, DderlSess2} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
+                    DderlSess2:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
+                    {loop, Req, DderlSess2, 3600000, hibernate};
+                _ ->
+                    ?Info("session ~p doesn't exist (~p), from ~s:~p",
+                          [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+                    Node = atom_to_binary(node(), utf8),
+                    self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
+                    {loop, Req, Session, 5000, hibernate}
+            end
     end.
 
 conn_info(Req) ->
