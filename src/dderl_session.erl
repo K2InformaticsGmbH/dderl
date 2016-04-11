@@ -103,8 +103,14 @@ process_request(Adapter, Type, Body, ReplyPid, RemoteEp, {?MODULE, Ref, Bytes}) 
 init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName,
-                conn_info = ConnInfo}}.
+    case erlimem:open({rpc, node()}, imem_meta:schema()) of
+        {error, Error} ->
+            ?Error("erlimem open error : ~p", [Error]),
+            {stop, Error};
+        {ok, ErlImemSess} ->
+            {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName,
+                        conn_info = ConnInfo, sess=ErlImemSess}}
+    end.
 
 handle_call({verify, InBytes}, _From, State) ->
     {reply, InBytes =:= State#state.id, State};
@@ -165,14 +171,8 @@ process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{ses
     {process_login_reply(
        ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
       ), State#state{user=User}};
-process_login(SessionId,#{}, #state{conn_info=ConnInfo}=State) ->
-    case erlimem:open({rpc, node()}, imem_meta:schema()) of
-        {error, Error} ->
-            {{error, Error}, State};
-        {ok, ErlImemSess} ->
-            {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), 
-                State#state{sess=ErlImemSess}}
-    end.
+process_login(SessionId,#{}, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
+    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State}.
 
 process_login_reply(ok)                         -> ok;
 process_login_reply({ok, []})                   -> ok;

@@ -396,19 +396,19 @@ function insertAtCursor(myField, myValue) {
         } else {
             var self = this;
             var viewId = self.options.viewId;
-            if(viewId) {
-                prompt_jq({label: "ddView new name", content: ''},
-                    function(viewName) {
-                        if (viewName) {
+            prompt_jq({label: "ddView new name", content: ''},
+                function(viewName) {
+                    if (viewName) {
+                        if(viewId) {
                             console.log("saving " + viewId + " with name " + viewName);
                             var renameView = {view_op : {operation : "rename", view_id : viewId, newname : viewName}};
                             self.addWheel();
                             ajaxCall(self, 'view_op', renameView, 'view_op', 'opViewResult');
+                        } else {
+                            self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
                         }
-                    });
-            } else {
-                alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be renamed here!");
-            }
+                    }
+                });
         }
     },
 
