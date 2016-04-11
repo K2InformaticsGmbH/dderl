@@ -1134,20 +1134,32 @@
             width : 336,
             modal : false,
             title : 'Sorts',
+            dialogClass: 'btnSortClass',
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
                 $(this).dialog('close');
                 $(this).remove();
             },
-            buttons: {
+            buttons: [
+                {
+                    text: 'Sort',
+                    click: function() {
+                        var sortspec = saveChange();
+                        self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                        $(this).dialog('close');
+                        $(this).remove();
+                    }
+                }
+            ]
+        /*    {
                 'Sort' : function() {
                     var sortspec = saveChange();
                     self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                     $(this).dialog('close');
                     $(this).remove();
                 }
-            }
-        });
+            }*/
+        })
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
         self._sortDlg.dialog("widget").appendTo("#main-body");

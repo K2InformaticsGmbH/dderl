@@ -90,6 +90,13 @@ button.menubutton
     top: 5px;
     border: none;
 }
+.btnSortClass.ui-dialog .ui-dialog-buttonpane .ui-dialog-buttonset button {
+    background: none;
+    background-color: #77777F;
+    border: none;
+    color: white;
+    border-radius: 5px;
+}
 .button {
     background-color: #77777F;
     border: none;
