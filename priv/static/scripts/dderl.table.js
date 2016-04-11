@@ -420,18 +420,20 @@
     _renameView: function() {
         if("All Views" === this.options.title) {
             alert_jq("Error: The view 'All Views'' may not be renamed");
-        } else if(this._viewId) {
+        } else {
             var self = this;
             prompt_jq({label: "View new name", content: ''},
                 function(viewName) {
                     if (viewName) {
-                        console.log("saving "+self._viewId+" with name "+viewName);
-                        var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
-                        self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                        if(self._viewId) {
+                            console.log("saving "+self._viewId+" with name "+viewName);
+                            var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
+                            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                        } else {
+                            self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
+                        }
                     }
                 });
-        } else {
-            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be renamed here!");
         }
     },
 
