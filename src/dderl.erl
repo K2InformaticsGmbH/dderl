@@ -18,7 +18,7 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
--export([access/11]).
+-export([access/10]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -230,51 +230,34 @@ get_ssl_options({ok, SslOpts}) ->
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr, SQL) when is_integer(User); is_atom(User) ->
+       ConnDBType, ConnStr) when is_integer(User); is_atom(User) ->
     access(LogLevel, SrcIp, if is_integer(User) -> integer_to_list(User);
                                is_atom(User) -> atom_to_list(User);
                                true -> io_lib:format("~p", [User])
                             end, SessId, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
+           ConnTarget, ConnDBType, ConnStr);
 access(LogLevel, SrcIp, User, SessIdBin, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr, SQL) when is_binary(SessIdBin) ->
+       ConnDBType, ConnStr) when is_binary(SessIdBin) ->
     SessId = base64:encode_to_string(integer_to_list(erlang:phash2(SessIdBin))),
     access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-           ConnDBType, ConnStr, SQL);
-
+           ConnDBType, ConnStr);
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr, _SQL) when is_map(CmdArgs) ->
-    {NewCmdArgs, SQL} = case CmdArgs of
-        #{<<"Password">> := _} -> {jsx:encode(CmdArgs#{<<"Password">> => <<"****">>}), ""};
-        #{<<"password">> := _, <<"new_password">> := _} -> 
-            {jsx:encode(CmdArgs#{<<"password">> => <<"****">>, <<"new_password">> => <<"****">>}), ""};
-        #{<<"password">> := _} -> {jsx:encode(CmdArgs#{<<"password">> => <<"****">>}), ""};
-        #{<<"qstr">> := QStr} -> 
-            FQstr = re:replace(QStr, <<"(?i)IDENTIFIED[\\s]*BY[\\s]*[a-z]*">>, <<"IDENTIFIED BY ****">>, 
-                                [{return, binary}]),
-            {jsx:encode(CmdArgs), FQstr};
-        _ -> {jsx:encode(CmdArgs), ""}
-    end,
-    access(LogLevel, SrcIp, User, SessId, Cmd, NewCmdArgs, ConnUser, ConnTarget, 
-           ConnDBType, ConnStr, SQL);
-
-access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr, SQL) when is_binary(CmdArgs) ->
+       ConnDBType, ConnStr) when is_binary(CmdArgs) ->
     access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
+           ConnTarget, ConnDBType, ConnStr);
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_tuple(SrcIp) ->
+       ConnStr) when is_tuple(SrcIp) ->
     access(LogLevel, inet:ntoa(SrcIp), User, SessId, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
+           ConnTarget, ConnDBType, ConnStr);
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr, SQL) ->
+    ConnStr) ->
     log(?ACTLOGLEVEL, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser,
-        ConnTarget, ConnDBType, ConnStr, SQL).
+        ConnTarget, ConnDBType, ConnStr).
 
-log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _, _)
+log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
   when MinLogLevel < LogLevel -> ok;
 log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr, SQL) ->
+    ConnStr) ->
     Proxy = case ?PROXY of
                 SrcIp -> "yes";
                 _ -> "no"
@@ -290,5 +273,5 @@ log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDB
               src => SrcIp, dderlUser => User, dderlSessId => SessId,
               dderlCmd => Cmd, dderlCmdArgs => CmdArgs, connUser => ConnUser,
               connTarget => ConnTarget, connDbType => ConnDBType,
-              connStr => ConnStr, sql => SQL}).
+              connStr => ConnStr}).
 %%-----------------------------------------------------------------------------
