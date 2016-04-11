@@ -230,18 +230,6 @@ get_ssl_options({ok, SslOpts}) ->
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr) when is_integer(User); is_atom(User) ->
-    access(LogLevel, SrcIp, if is_integer(User) -> integer_to_list(User);
-                               is_atom(User) -> atom_to_list(User);
-                               true -> io_lib:format("~p", [User])
-                            end, SessId, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr);
-access(LogLevel, SrcIp, User, SessIdBin, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr) when is_binary(SessIdBin) ->
-    SessId = base64:encode_to_string(integer_to_list(erlang:phash2(SessIdBin))),
-    access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-           ConnDBType, ConnStr);
-access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
        ConnDBType, ConnStr) when is_binary(CmdArgs) ->
     access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
            ConnTarget, ConnDBType, ConnStr);

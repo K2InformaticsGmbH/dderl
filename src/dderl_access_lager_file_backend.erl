@@ -123,13 +123,19 @@ handle_event({log, Message},
                 CmdArgs when is_map(CmdArgs) -> {jsx:encode(CmdArgs), ""};
                 CmdArgs -> {CmdArgs, ""}
             end,
+            FUser = case maps:get(dderlUser, Msg) of
+                User when is_integer(User) -> integer_to_list(User);
+                User when is_atom(User) -> atom_to_list(User);
+                User -> io_lib:format("~p", [User])
+            end,
+            SessId = base64:encode_to_string(integer_to_list(erlang:phash2(maps:get(dderlSessId, Msg)))),
             Log = [
                    D," ",T,";",
                    atom_to_list(node()),";",
                    maps:get(src, Msg),";",
                    maps:get(proxy, Msg),";",
-                   maps:get(dderlUser, Msg),";",
-                   maps:get(dderlSessId, Msg), ";",
+                   FUser,";",
+                   SessId, ";",
                    maps:get(version, Msg),";",
                    maps:get(loglevel, Msg),";",
                    maps:get(dderlCmd, Msg),";",
