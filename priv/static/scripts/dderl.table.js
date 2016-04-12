@@ -424,7 +424,7 @@
             alert_jq("Error: The ddView '" + this.options.title + "' may not be renamed");
         } else {
             var self = this;
-            prompt_jq({label: "ddView new name", content: ''},
+            prompt_jq({label: "ddView new name", value: self.options.title, content: ''},
                 function(viewName) {
                     if (viewName) {
                         if(self._viewId) {
@@ -434,6 +434,7 @@
                         } else {
                             self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
                         }
+                        self.options.title = viewName;
                     }
                 });
         }

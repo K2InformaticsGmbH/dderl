@@ -396,7 +396,7 @@ function insertAtCursor(myField, myValue) {
         } else {
             var self = this;
             var viewId = self.options.viewId;
-            prompt_jq({label: "ddView new name", content: ''},
+            prompt_jq({label: "ddView new name", content: '', value: self.options.title},
                 function(viewName) {
                     if (viewName) {
                         if(viewId) {
@@ -407,6 +407,7 @@ function insertAtCursor(myField, myValue) {
                         } else {
                             self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
                         }
+                        self.options.title = viewName;
                     }
                 });
         }

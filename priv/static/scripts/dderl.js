@@ -752,16 +752,27 @@ function confirm_jq(dom, callback)
 function prompt_jq(dom, callback)
 {
     var content = dom.content;
+    var value = '';
+    if (dom.value) {
+        value = dom.value;
+    } 
     if ($.isArray(content))
         content = content.join('<br>');
-        content = '<form><fieldset>' +
+        content = '<form id="prompt_form"><fieldset>' +
                   '<label for="prompt_jq_input">' + dom.label + ':</label>' +
-                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" autofocus/>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value='+ value +' autofocus/>' +
                   (content.length > 0
                    ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
                      content + '</div>'
                    : '') +
                    '</fieldset></form>';
+    var execute_callback = function(dlg) {
+        var inputValue = $("#prompt_jq_input").val();
+        if (inputValue) {
+            dlg.dialog("close");
+            callback(inputValue);
+        }
+    }
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -782,17 +793,20 @@ function prompt_jq(dom, callback)
             },
             buttons: {
                 'Ok': function() {
-                    var inputValue = $("#prompt_jq_input").val();
-                    if (inputValue) {
-                        $(this).dialog("close");
-                        callback(inputValue);
-                    }
+                    execute_callback($(this));
                 },
                 'Cancel': function() {
                     $(this).dialog("close");
                 }
             }
         });
+    $('#prompt_jq_input').keypress(function(event) {
+        if(event.which == 13) {
+            event.preventDefault();
+            event.stopPropagation();
+            execute_callback(dlgDiv);
+        }
+    });
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
 }
