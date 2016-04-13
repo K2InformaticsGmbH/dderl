@@ -33,6 +33,26 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .cell-title { font-weight: bold; }
 .cell-effort-driven { text-align: center; }
 
+/* Allow Font Awesome Icons in lieu of jQuery UI and only apply when using a FA icon */
+.ui-icon[class*=" fa-"] {
+    /* Remove the jQuery UI Icon */
+    background: none repeat scroll 0 0 transparent;
+    /* Remove the jQuery UI Text Indent */
+    text-indent: 0;
+    /* Bump it up - jQuery UI is -8px */
+    margin-top: -0.5em;
+}
+
+.ui-button-icon-only .ui-icon[class*=" fa-"] {
+    /* Bump it - jQuery UI is -8px */
+    margin-left: -7px;
+}
+
+/* Allow use of icon-large to be properly aligned */
+.ui-icon.icon-large {
+    margin-top: -0.75em;
+}
+
 .ui-widget { font-family: 'Droid Sans Mono', sans-serif; }
 
 .ui-widget input,
@@ -230,14 +250,18 @@ button.menubutton
     overflow:auto;
 }
 
-.ui-icon,
-.ui-widget-content .ui-icon {
+/*.ui-icon, */
+.ui-widget-content .ui-icon.ellipsis {
 	background-image: url(../media/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
 }
-.ui-widget-header .ui-icon {
+.ui-widget-header .ui-icon.ellipsis {
 	background-image: url(../media/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
+
 }
-.ui-state-default .ui-icon {
+
+/*.ui-state-default .ui-icon {
 	background-image: url(../media/ui-icons_888888_256x240.png);
 }
 .ui-state-hover .ui-icon,
@@ -253,7 +277,7 @@ button.menubutton
 .ui-state-error .ui-icon,
 .ui-state-error-text .ui-icon {
 	background-image: url(../media/ui-icons_cd0a0a_256x240.png);
-}
+}*/
 
 /* positioning */
 .ui-icon-fetch-tail { background-position: -160px -160px; }
@@ -591,8 +615,35 @@ div#main_footer {
 .center {
     text-align: center;
 }
+.right {
+    text-align: right;
+}
 .error-msg {
     word-wrap: break-word;
     width: 200px;
     display: inline-block;
 }
+/*new icons for sort dialog*/
+
+.fa-trash.fa-customSize,
+.fa-sort-amount-asc.fa-customSize,
+.fa-sort-amount-desc.fa-customSize,
+.fa-arrows-v.fa-customSize {
+    font-size: 1.6em;
+    margin-top: 3px;
+}
+.fa-trash.fa-customSize {
+    color: #DD1122;
+}
+.previousPage {
+    -moz-transform: scale(-1, 1);
+    -webkit-transform: scale(-1, 1);
+    -o-transform: scale(-1, 1);
+    -ms-transform: scale(-1, 1);
+    transform: scale(-1, 1);
+}
+
+.slick-header-column.ui-state-default {
+    border-right: 2px solid whitesmoke;
+}
+
