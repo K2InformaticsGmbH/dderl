@@ -3,8 +3,8 @@
 
 -include("dderl.hrl").
 -include("gres.hrl").
-%% Included for stmtCol record
--include_lib("imem/include/imem_sql.hrl").
+-include_lib("imem/include/imem_sql.hrl").  %% Included for stmtCol record
+-include_lib("imem/include/imem_meta.hrl"). %% Included for config access
 
 -export([start_link/4
         ,data_info/2
@@ -28,8 +28,6 @@
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
         ,browser_pid               :: pid()}).
-
--define(RESPONSE_TIMEOUT, 100000). %% TODO: Timeout should be defined by options
 
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->

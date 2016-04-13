@@ -24,16 +24,17 @@
         ,delete_view/2
         ,add_connect/2
         ,get_connects/2
-        ,del_conn/2
+        ,del_conn/3
         ,get_command/2
         ,get_view/4
         ,get_view/2
         ,is_local_query/1
-        ,is_admin/1
+        ,can_connect_locally/1
         ,save_dashboard/5
         ,get_dashboards/2
         ,add_adapter_to_cmd/3
         ,user_name/1
+        ,get_restartable_apps/0
         ]).
 
 -record(state, { schema :: term()
@@ -45,6 +46,7 @@
 -define(CREATE_CONNS, {dderl, conn, create}).
 -define(USE_SYS_CONNS, {dderl, conn, {owner, system}, use}).
 -define(USE_CONN(__ConnId), {dderl, conn, {conn, __ConnId}, use}).
+-define(USE_LOCAL_CONN, {dderl, conn, local, use}).
 
 %% Validate this permission.
 -define(USE_ADAPTER, {dderl, adapter, {id, __AdaptId}, use}).
@@ -67,6 +69,25 @@ add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName
 -spec add_connect({atom(), pid()} | undefined, #ddConn{}) -> integer() | {error, binary()}.
 add_connect(undefined, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Conn});
 add_connect(Sess, #ddConn{} = Conn) -> gen_server:call(?MODULE, {add_connect, Sess, Conn}).
+
+-spec del_conn({atom(), pid()}, ddEntityId(), integer()) -> ok | no_permission.
+del_conn(Sess, UserId, ConId) ->
+    HasAll = (Sess:run_cmd(have_permission, [[?MANAGE_CONNS]]) == true),
+    if HasAll ->
+        ok = Sess:run_cmd(delete, [ddConn, ConId]),
+        ?Info("user ~p deleted connection ~p", [UserId, ConId]),
+        ok;
+    true ->
+        case Sess:run_cmd(select, [ddConn, [{#ddConn{id=ConId,owner=UserId,_='_'},[],['$_']}]]) of
+            {[_|_], true} ->
+                ok = Sess:run_cmd(delete, [ddConn, ConId]),
+                ?Info("user ~p deleted connection ~p", [UserId, ConId]),
+                ok;
+            _ ->
+                ?Error("user ~p doesn't have permission to delete connection ~p", [UserId, ConId]),
+                no_permission
+        end
+    end.
 
 -spec get_connects({atom(), pid()}, ddEntityId()) -> [#ddConn{}] | {error, binary()}.
 get_connects(Sess, UserId) -> gen_server:call(?MODULE, {get_connects, Sess, UserId}).
@@ -221,25 +242,6 @@ get_adapters(Sess) ->
     ?Debug("get_adapters"),
     check_cmd_select(Sess, [ddAdapter, [{'$1', [], ['$_']}]]).
 
--spec del_conn({atom(), pid()}, ddEntityId()) -> ok | no_permission.
-del_conn(Sess, ConId) ->
-    HasAll = (Sess:run_cmd(have_permission, [[manage_system, manage_connections]]) == true),
-    if HasAll ->
-        ok = Sess:run_cmd(delete, [ddConn, ConId]),
-        ?Info("del_conn connection ~p deleted", [ConId]),
-        ok;
-    true ->
-        case Sess:run_cmd(have_permission, [{ConId, use}]) of
-        true ->
-            ok = Sess:run_cmd(delete, [ddConn, ConId]),
-            ?Info("del_conn connection ~p deleted", [ConId]),
-            ok;
-        _ ->
-            ?Error("del_conn no permission to delete connection ~p", [ConId]),
-            no_permission
-        end
-    end.
-
 -spec get_command({atom(), pid()}, ddEntityId() | binary()) -> #ddCmd{} | {error, binary()}.
 get_command(Sess, IdOrName) ->
     ?Debug("get_command for id ~p", [IdOrName]),
@@ -259,12 +261,12 @@ get_command(Sess, IdOrName) ->
 -spec get_view({atom(), pid()}, ddEntityId()) -> {error, binary()} | #ddView{} | undefined .
 get_view(undefined, ViewId) -> gen_server:call(?MODULE, {get_view, ViewId});
 get_view(Sess, ViewId) ->
-    ?Debug("get view by id ~p", [ViewId]),
+    ?Debug("get ddView by id ~p", [ViewId]),
     case check_cmd_select(Sess, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
         {error, _} = Error -> Error;
         [View] -> View;
         Result ->
-            ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
+            ?Error("ddView with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
             undefined
     end.
 
@@ -400,7 +402,7 @@ handle_call({get_connects, UserSess, UserId}, _From, #state{sess = DalSess} = St
         {error, _} = Error ->
             {reply, Error, State};
         AllCons ->
-            case UserSess:run_cmd(have_permission, [[manage_system, ?MANAGE_CONNS]]) of
+            case UserSess:run_cmd(have_permission, [[?MANAGE_CONNS]]) of
                 true -> Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)} || C <- AllCons];
                 _ ->
                     Cons = [C#ddConn{owner = get_name(DalSess, C#ddConn.owner)}
@@ -519,9 +521,9 @@ is_local_query(Qry) ->
             false
     end.
 
--spec is_admin({atom(), pid()}) -> boolean().
-is_admin(Sess) ->
-    Sess:run_cmd(have_permission, [[manage_system]]) == true.
+-spec can_connect_locally({atom(), pid()}) -> boolean().
+can_connect_locally(Sess) ->
+    Sess:run_cmd(have_permission, [[?USE_LOCAL_CONN]]) == true.
 
 -spec conn_permission({atom(), pid()}, ddEntityId(), #ddConn{}) -> boolean().
 conn_permission(_Sess, UserId, #ddConn{owner=UserId}) -> true; %% If it is the owner always allow usage.
@@ -598,14 +600,13 @@ is_same_conn(Conn1, Conn2) ->
 check_save_conn(UserSess, DalSess, Op, Conn0) ->
     Conn = case Conn0 of
 		   Conn0 when is_record(Conn0, ddConn) ->
-			   Conn0#ddConn{access = maps:remove(password, Conn0#ddConn.access)};
+			   Conn0#ddConn{access = maps:remove(password, pl2m(Conn0#ddConn.access))};
 		   {C1, C2} when is_record(C1, ddConn), is_record(C2, ddConn) ->
-			   {C1#ddConn{access = maps:remove(password, C1#ddConn.access)},
- 			    C2#ddConn{access = maps:remove(password, C2#ddConn.access)}}
+			   {C1, C2#ddConn{access = maps:remove(password, pl2m(C2#ddConn.access))}}
 	   end,
     case UserSess:run_cmd(Op, [ddConn, Conn]) of
         {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("~p connection failed : ~n~p", [Op, Error]),
+            ?Error("failed to ~p connection with ~p : ~n~p", [Op, Conn, Error]),
             Msg = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             {error, Msg};
@@ -619,6 +620,10 @@ check_save_conn(UserSess, DalSess, Op, Conn0) ->
             ?Error("Invalid return on ~p connection ~p: The result:~n~p", [Op, Conn, InvalidReturn]),
             {error, <<"Error saving the connection (Invalid value returned from DB)">>}
     end.
+
+-spec pl2m([tuple()] | map()) -> map().
+pl2m(Map) when is_map(Map) -> Map;
+pl2m([{_,_}|_] = PL) -> maps:from_list(PL).
 
 -spec check_cmd_select({atom(), pid()}, list()) -> {error, binary()} | list().
 check_cmd_select(UserSess, Args) ->
@@ -662,3 +667,8 @@ filter_view_result([V | Views], Sess, Adapter) ->
             ?Error("Command id ~p not found for view ~p, with id ~p", [V#ddView.cmd, V#ddView.name, V#ddView.id]),
             {error, iolist_to_binary(["Command not found for view ", V#ddView.name])}
     end.
+
+-spec get_restartable_apps() -> [atom()].
+get_restartable_apps() ->
+    {ok, CurrApp} = application:get_application(?MODULE),
+    ?RESTARTAPPS(CurrApp).

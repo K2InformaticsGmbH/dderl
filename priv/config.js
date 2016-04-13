@@ -34,6 +34,7 @@ exports.config = {
                     'static/styles/slick.columnpicker.css',
                     'static/styles/dropdown.css',
                     'static/styles/dderl.sql.css',
+                    'static/styles/dderl.connect.css',
                     'static/styles/dderl.css'
                 ],
                 'css/vendor.css': [

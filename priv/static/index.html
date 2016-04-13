@@ -14,14 +14,12 @@
         <ul class="dropdown menubar">
             <li><a>Query Server</a>
                 <ul class="sub_menu">
-                    <li><a id="files-list-button" onclick='show_qry_files(true)'>Tables and Views</a></li>
-                    <li><a id="files-list-button" onclick='import_query()'>Import Query</a></li>
-                    <li><a id="change-pswd-button" onclick='change_password(false)'>Change Password</a></li>
-                    <li><a id="about-dderl-button" onclick='show_about_dlg()'>About</a></li>
-                    <li><a id="disconnect-button" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="logout-dderl-button" onclick='logout()'>Log out</a></li>
-                    <!-- FOR DEVELOPER EMERGENCY USE -->
-                    <!-- li><a id="logout-dderl-button" onclick='restart()'>Restart</a></li -->
+                    <li><a id="btn-tables" onclick='show_qry_files(true)'>Tables and ddViews</a></li>
+                    <li><a id="btn-import-query" onclick='import_query()'>Import Query</a></li>
+                    <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
+                    <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
+                    <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
+                    <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
                 </ul>
             </li>
             <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
@@ -42,17 +40,15 @@
         <div id="dashboard-menu">
         </div>
         <div style="position:absolute;top:0px;right:0px">
+            <span><a id="btn-logout" onclick='logout()'>Logout</a> | </span>
             <span id="node"></span>
             <span id="version"></span>
         </div>
     </div>
-    <div ng-app="dderlAngularApp">
-      <div id="main-body">
-      </div>
-      <div ng-view id="angular-view"></div>
-    </div>
-    <div id="main_footer">
-        <a id="login-button" href="#" onclick='logout()'></a>
+    <div id="main-body">
+        <div style="position:absolute; bottom : 0px; right: 0px; height : 100px; width : 100px">
+            <img src = "static/media/bg.svg"/>
+        </div>
     </div>
     <audio class="tr_audio" id="beep-sound">
       <source src="static/public/sound/success.ogg" type="audio/ogg">

@@ -104,6 +104,8 @@
 -define(LOG_TAG, "_DDRL_").
 -endif.
 
+-define(Access(__Access), lager:debug([{type,dderl_access}], __Access)).
+
 -define(NoDbLog(__L,__M,__F,__A),
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -define(Log(__L,__M,__F,__A,__S),
@@ -160,6 +162,35 @@
 % CSV Export
 -define(CSV_FIELD_SEP, ";").
 
--define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl")).
+-define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl","Suffix for access URL")).
+-define(MAXACCEPTORS, ?GET_CONFIG(maxNumberOfAcceptors, [], 100, "Maximum number of TCP acceptors")).
+-define(MAXCONNS, ?GET_CONFIG(maxNumberOfSockets, [], 5000, "Maximum number of simulteneous connections")).
+-define(LOGTABLE, ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@',"Rolling log table name")).
+-define(SSLOPTS, ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf',"SSL listen socket options")).
+-define(RESTARTAPPS(__CurrApp), ?GET_CONFIG(restartApplications, [], [__CurrApp], "Erlang applicationns to restart inside VM")).
+
+-define(CONNECT_TIMEOUT, ?GET_CONFIG(connectTimeout,[],100000,"Connect timeout for data sender")).
+%% TODO: Change this maybe to a receiver parameter ?.
+-define(BLOCK_SIZE, ?GET_CONFIG(commitBlockSize,[],10,"Commit block size of data sender")).
+%% TODO: Timeout should be defined by options
+-define(RESPONSE_TIMEOUT, ?GET_CONFIG(responseTimeout,[],100000,"Response timeout of data receiver")).
+
+%% OCI Adapter configs
+-define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
+                                            territory   => <<"SWITZERLAND">>,
+                                            charset     => <<"AL32UTF8">>}, "OCI NSL Language connect option")).
+%% CSV Configs
+-define(COL_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiter, [__Adapter], "\t", "Character to seperate each column of a CSV export")).
+-define(ROW_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiterNewLine, [__Adapter], "\n", "Character to seperate each rows of a CSV export")).
+
+%% DDErl Activity Logging
+-define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
+-define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
+
+%% Access Log levels
+-define(LOGIN_CONNECT,  1).
+-define(CMD_NOARGS,     2).
+-define(CMD_WITHARGS,   3).
+-define(CUST_SQL,       4).
 
 -endif.

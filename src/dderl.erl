@@ -18,6 +18,8 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
+-export([access/10]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -52,21 +54,22 @@ start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     SslOptions = get_ssl_options(),
     {ok, _} = cowboy:start_https(
-                https, ?GET_CONFIG(maxNumberOfAcceptors, [], 100),
+                https, ?MAXACCEPTORS,
                 [{ip, Interface}, {port, Port},
-                 {max_connections, ?GET_CONFIG(maxNumberOfSockets, [], 5000)} | SslOptions],
+                 {max_connections, ?MAXCONNS} | SslOptions],
                 [{env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
-    LogTableNameFun =
-        fun() ->
-            ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@')
-        end,
     ok = gen_event:add_handler(
            lager_event, {imem_lager_backend, dderl},
-           [{level,info},{tablefun,LogTableNameFun},{application,dderl},
+           [{level,info},{tablefun, fun() -> ?LOGTABLE end},{application,dderl},
             {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
           ),
+    ok = gen_event:add_handler(
+           lager_event, dderl_access_lager_file_backend,
+           [{file, "log/dderl_access.log"}, {level, debug}, {size, 10485760},
+            {date, "$D0"}, {count, 5}]),
+    ok = lager:set_loglevel(dderl_access_lager_file_backend, debug),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
@@ -75,12 +78,14 @@ start(_Type, _Args) ->
                                               io_lib:format("~p",[NRP]))
                                             ||NRP<-DDerlRoutes], "\n")]),
     SupRef = dderl_sup:start_link(),
+    ?Info("restartable apps ~p", [dderl_dal:get_restartable_apps()]),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
     SupRef.
 
 stop(_State) ->
     ok = gen_event:delete_handler(lager_event, {imem_lager_backend, dderl}, []),
+    ok = gen_event:delete_handler(lager_event, dderl_access_lager_file_backend, []),
     ok = cowboy:stop_listener(https),
     ?Info("SHUTDOWN DDERL"),
     ?Info("---------------------------------------------------").
@@ -194,7 +199,7 @@ check_file(F) ->
 get_ssl_options() ->
     get_ssl_options(application:get_env(dderl, ssl_opts)).
 get_ssl_options({ok, []}) ->
-    case ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf') of
+    case ?SSLOPTS of
         '$no_ssl_conf' ->
             {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
             [{'Certificate',Cert,not_encrypted} | Certs]
@@ -224,4 +229,38 @@ get_ssl_options({ok, []}) ->
 get_ssl_options({ok, SslOpts}) ->
     SslOpts.
 
+% dderl:access(1, "", "", "", "", "", "", "", "", "").
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr) when is_binary(CmdArgs) ->
+    access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
+           ConnTarget, ConnDBType, ConnStr);
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+       ConnStr) when is_tuple(SrcIp) ->
+    access(LogLevel, inet:ntoa(SrcIp), User, SessId, Cmd, CmdArgs, ConnUser,
+           ConnTarget, ConnDBType, ConnStr);
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+    ConnStr) ->
+    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser,
+        ConnTarget, ConnDBType, ConnStr).
+
+log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
+  when MinLogLevel < LogLevel -> ok;
+log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+    ConnStr) ->
+    Proxy = case ?PROXY of
+                SrcIp -> "yes";
+                _ -> "no"
+            end,
+    Version = case proplists:get_value(
+                     vsn, element(2, application:get_all_key(?MODULE))) of
+                  undefined -> "";
+                  Vsn -> Vsn
+              end,
+    LL = if is_integer(LogLevel) -> integer_to_list(LogLevel);
+                  true -> LogLevel end,
+    ?Access(#{proxy => Proxy, version => Version, loglevel => LL,
+              src => SrcIp, dderlUser => User, dderlSessId => SessId,
+              dderlCmd => Cmd, dderlCmdArgs => CmdArgs, connUser => ConnUser,
+              connTarget => ConnTarget, connDbType => ConnDBType,
+              connStr => ConnStr}).
 %%-----------------------------------------------------------------------------

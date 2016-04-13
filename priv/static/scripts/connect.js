@@ -62,23 +62,34 @@ function connect_dlg()
             },
             'Delete': function() {
                 var conn = connection_list.find("option:selected");
-                var connId = conn.data('connect').id;
+                var connData = conn.data('connect');
                 var dlg = $(this);
-                ajaxCall(null,'del_con', {del_con: {conid: connId}}, 'del_con', function(data) {
-                        if(data.hasOwnProperty('error')) {
-                            alert_jq(JSON.stringify(data.error));
-                        } else {
-                            conn.remove();
-                            if(connection_list.find("option:selected").length == 0) {
-                                dlg.dialog("close");
-                                loginAjax(null);
-                            } else {
-                                connection_list.parent().find('input').val(
-                                    connection_list.find("option:selected").data('connect').name);
-                                connection_list.change();
-                            }
-                        }
-                    });
+                confirm_jq(
+                        {title: "Confirm delete connection",
+                         content: connData.name+' ('+connData.adapter+')'},
+                         function() {
+                             ajaxCall(null,'del_con', {del_con: {conid: connData.id}}, 'del_con', function(data) {
+                                 if(data.hasOwnProperty('error')) {
+                                     alert_jq(JSON.stringify(data.error));
+                                 } else {
+                                     conn.remove();
+                                     if(connection_list.find("option:selected").length == 0) {
+                                         dlg.dialog("close");
+                                         loginAjax(null);
+                                     } else {
+                                         connection_list.parent().find('input').val(
+                                             connection_list.find("option:selected").data('connect').name);
+                                         connection_list.change();
+                                     }
+                                 }
+                             });
+                         });
+            },
+            'Clear' : function() {
+                connect_options.find('input').val('');
+                connect_options.find('textarea').val('');
+                $("input:radio[name=method]:checked").val("local");
+                console.log($("input:radio[name=method]:checked").val());
             }
         }
     })
@@ -296,13 +307,13 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
                 show_qry_files(false);
             };
 
-            document.title = 'DDErl ('+conn.name+')';
+            document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+conn.name+')';
             if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
-                document.title = 'DDErl ('+resp.extra.node+')';
+                document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+resp.extra.node+')';
             }
 
             if(conn.method == 'local' && conn.secure == true)
-                $('#disconnect-button').addClass('disabled');
+                $('#btn-disconnect').addClass('disabled');
                 
             if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('changePass')) {
                 change_connect_password(resp.extra.changePass, connectSuccessCb);
@@ -544,7 +555,7 @@ function new_connection_tab() {
 }
 
 function disconnect_tab() {
-    if($('#disconnect-button').hasClass('disabled'))
+    if($('#btn-disconnect').hasClass('disabled'))
         return;
 
     if (!dderlState.connection)
@@ -592,30 +603,8 @@ function disconnect_tab() {
 
 function change_connect_password(loggedInUser, connectSuccessCb)
 {
-    $('<div id="dialog-change-password" title="Change account password">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td align=right valign=center>User&nbsp;</td>' +
-      '          <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
-      '      <tr><td align=right valign=center>Old Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>New Password&nbsp;</td>' +
-      '          <td valign=bottom><input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '      <tr><td align=right valign=center>Confirm Pass" id="conf_password_login" class="text ui-widget-content ui-corner-all"/></td></tr>' +
-      '  </table>' +
-      '</div>').appendTo(document.body);
-    $('#dialog-change-password').dialog({
-        autoOpen: false,
-        height: 200,
-        width: 300,
-        resizable: false,
-        modal: false,
-        appendTo: "#main-body",
-        close: function() {
-            $("#dialog-change-password").dialog('destroy');
-            $("#dialog-change-password").remove();
-        },
-        buttons: {
-            "Change Password": function() {
+    password_change_dlg("Change account password", loggedInUser,
+            function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {
                             connection: dderlState.connection,
@@ -638,14 +627,7 @@ function change_connect_password(loggedInUser, connectSuccessCb)
                     });
                 }
                 else alert_jq("Confirm password missmatch!");
-            },
-            Cancel: function() {
-                $(this).dialog("close");
-            }
-        }
-    })
-    .dialog("open")
-    .dialog("widget").draggable("option","containment","#main-body");
+            });
 }
 
 function validateSmsToken(user, data, connectSuccessCb)

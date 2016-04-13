@@ -134,7 +134,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping' && _data.error === "Session is not valid") {
+                if(_url == 'app/ping' && _data.error) {
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     dderlState.session = null;
@@ -420,7 +420,7 @@ function resetPingTimer() {
         function() {
             ajaxCall(null, 'ping', null, 'ping', function(response) {
                 console.log("ping " + response);
-                if(response != "pong") {
+                if(!response) {
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
                 }
@@ -436,7 +436,7 @@ function login_first()
 
 function show_qry_files(useSystem)
 {
-    var loggedInUser = $('#change-pswd-button').data("logged_in_user");
+    var loggedInUser = $('#btn-change-password').data("logged_in_user");
     if(loggedInUser == undefined || loggedInUser.length == 0) {
         login_first();
         return;
@@ -447,7 +447,7 @@ function show_qry_files(useSystem)
         autoOpen     : false,
         dderlConn    : dderlState.connection,
         dderlAdapter : dderlState.adapter,
-        title        : "All Views"
+        title        : "All ddViews"
     })
     .table('loadViews', useSystem);
 }
@@ -712,9 +712,18 @@ function alert_jq(string)
 function confirm_jq(dom, callback)
 {
     var content = dom.content;
+
     if ($.isArray(content)) {
         content = content.join('<br>');
     }
+    content = '<h1 style="color:red">CAUTION : IRREVERSIBLE ACTION</h1>'+
+              '<p style="background-color:black;color:yellow;font-weight:bold;text-align:center;">'+
+              'If confirmed can NOT be undone</p>'+
+              (content.length > 0
+               ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
+                 content+'</div>'
+               : '');
+    
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -741,6 +750,68 @@ function confirm_jq(dom, callback)
                 }
             }
         });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
+}
+
+function prompt_jq(dom, callback)
+{
+    var content = dom.content;
+    var value = '';
+    if (dom.value) {
+        value = dom.value;
+    } 
+    if ($.isArray(content))
+        content = content.join('<br>');
+        content = '<form id="prompt_form"><fieldset>' +
+                  '<label for="prompt_jq_input">' + dom.label + ':</label>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value='+ value +' autofocus/>' +
+                  (content.length > 0
+                   ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
+                     content + '</div>'
+                   : '') +
+                   '</fieldset></form>';
+    var execute_callback = function(dlg) {
+        var inputValue = $("#prompt_jq_input").val();
+        if (inputValue) {
+            dlg.dialog("close");
+            callback(inputValue);
+        }
+    }
+    var dlgDiv =
+        $('<div>')
+        .appendTo(document.body)
+        .append(content)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: "DDerl parameter input",
+            open: function() {
+                $(this).dialog("widget").appendTo("#main-body");
+            },
+            close: function() {
+                //We have to remove the added child p
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    execute_callback($(this));
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+    $('#prompt_jq_input').keypress(function(event) {
+        if(event.which == 13) {
+            event.preventDefault();
+            event.stopPropagation();
+            execute_callback(dlgDiv);
+        }
+    });
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
 }
@@ -806,7 +877,7 @@ function change_password(shouldConnect) {
         loggedInUser = dderlState.connected_user;
         change_connect_password(loggedInUser);
     } else {
-        loggedInUser = $('#change-pswd-button').data("logged_in_user");
+        loggedInUser = $('#btn-change-password').data("logged_in_user");
         if(loggedInUser == undefined || loggedInUser.length == 0) {
             login_first();
             return;
@@ -1017,4 +1088,79 @@ function md5Arr(data) {
         dataArr.push(parseInt(dataMd5.substring(i,i+2), 16));
     }
     return dataArr;
+}
+
+function password_change_dlg(title, loggedInUser, change_pass_fn)
+{
+    $('<div id="dialog-change-password" title="'+title+'">' +
+      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
+      '      <tr><td align=right valign=center>User&nbsp;</td>'+
+      '         <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
+      '      <tr><td align=right valign=center>Old Password&nbsp;</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td align=right valign=center>New Password&nbsp;</td>'+
+      '         <td valign=bottom>' +
+      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '      <tr><td></td>'+
+      '          <td><span id="passstrength"></span></td></tr>' +
+      '      <tr><td align=right valign=center>Confirm Password&nbsp;</td>' +
+      '         <td valign=bottom>' +
+      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
+      '         </td></tr>' +
+      '  </table>' +
+      '</div>').appendTo(document.body);
+
+    $('#password_change_login').keyup(function(e) {
+        var strongRegex = new RegExp("^(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*\\W).*$", "g");
+        var mediumRegex = new RegExp("^(?=.{7,})(((?=.*[A-Z])(?=.*[a-z]))|((?=.*[A-Z])(?=.*[0-9]))|((?=.*[a-z])(?=.*[0-9]))).*$", "g");
+        var enoughRegex = new RegExp("(?=.{6,}).*", "g");
+        if (false == enoughRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_more')
+                .html('More Characters');
+        } else if (strongRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_ok')
+                .html('Strong');
+        } else if (mediumRegex.test($(this).val())) {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_alert')
+                .html('Medium');
+        } else {
+            $('#passstrength')
+                .removeClass()
+                .addClass('password_strength_error')
+                .html('Weak');
+        }
+        return true;
+    });
+    $('#dialog-change-password').dialog({
+        autoOpen: false,
+        height: 200,
+        width: 300,
+        resizable: false,
+        modal: false,
+        open: function() {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        close: function() {
+            $("#dialog-change-password").dialog('destroy');
+            $("#dialog-change-password").remove();
+        },
+        buttons: {
+            "Change Password": change_pass_fn,
+            Cancel: function() {
+                $(this).dialog("close");
+            }
+        }
+    })
+    .dialog("open")
+    .dialog("widget")
+    .draggable("option","containment","#main-body");
 }

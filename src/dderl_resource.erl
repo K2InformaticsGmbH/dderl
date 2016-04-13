@@ -55,36 +55,11 @@ stream_file(Req, Buffer) ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
 
-%find_deps_app_seq(App) -> find_deps_app_seq(App, []).
-%find_deps_app_seq(App,Chain) ->
-%    case lists:foldl(
-%           fun({A,_,_}, Acc) ->
-%                   {ok, Apps} = application:get_key(A,applications),
-%                   case lists:member(App, Apps) of
-%                       true -> [A|Acc];
-%                       false -> Acc
-%                   end
-%           end, [], application:which_applications()) of
-%        [] -> Chain;
-%        [A|_] -> % Follow signgle chain for now
-%            find_deps_app_seq(A,[A|Chain])
-%    end.
-%
-%process_request(_, _, Req, [<<"restart">>]) ->
-%    spawn(fun() ->
-%                  {ok, App} = application:get_application(?MODULE),
-%                  StopApps = find_deps_app_seq(App) ++ [App],
-%                  ?Info("Stopping... ~p", [StopApps]),
-%                  _ = [application:stop(A) || A <- StopApps],
-%                  StartApps = lists:reverse(StopApps),
-%                  ?Info("Starting... ~p", [StartApps]),
-%                  _ = [application:start(A) || A <- StartApps]
-%          end),
-%    self() ! {reply, jsx:encode(#{restart => <<"ok">>})},
-%    {loop, Req, <<>>, 5000, hibernate};
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
+    {{SrcIp, _}, Req} = cowboy_req:peer(Req),
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "upload", io_lib:format("~p", [Files]), "", "", "", "", ""),
     self() ! {reply, jsx:encode(
                        #{upload =>
                          [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
@@ -100,32 +75,42 @@ process_request(_, _, Req, [<<"download_query">>] = Typ) ->
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
+    BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
     process_request_low(Session, Adapter, Req1,
                         jsx:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
                                       {<<"fileToDownload">>, FileToDownload},
-                                      {<<"queryToDownload">>, QueryToDownload}]
+                                      {<<"queryToDownload">>, QueryToDownload},
+                                      {<<"binds">>,BindVals}]
                                     }]), Typ);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(Session, Adapter, Req1, Body, Typ).
 
 process_request_low(Session, Adapter, Req, Body, Typ) ->
+    AdaptMod = if
+        is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
+        true -> undefined
+    end,
+    {{Ip, Port}, Req} = cowboy_req:peer(Req),
     case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
         {ok, DderlSess} ->
-            AdaptMod = if
-                is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
-                true -> undefined
-            end,
-            DderlSess:process_request(AdaptMod, Typ, Body, self()),
+            DderlSess:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
-            {{Ip, Port}, Req} = cowboy_req:peer(Req),
-            ?Info("session ~p doesn't exist (~p), from ~s:~p",
-                  [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
-            self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid">>}])},
-            {loop, Req, Session, 5000, hibernate}
+            case Typ of
+                [<<"login">>] -> 
+                    {ok, DderlSess2} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
+                    DderlSess2:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
+                    {loop, Req, DderlSess2, 3600000, hibernate};
+                _ ->
+                    ?Info("session ~p doesn't exist (~p), from ~s:~p",
+                          [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+                    Node = atom_to_binary(node(), utf8),
+                    self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
+                    {loop, Req, Session, 5000, hibernate}
+            end
     end.
 
 conn_info(Req) ->
@@ -149,6 +134,10 @@ conn_info(Req) ->
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
 
+info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
+    ?Debug("spawn fun~n to ~p", [DDerlSessPid]),
+    spawn(SpawnFun),
+    {loop, Req, DDerlSessPid, hibernate};
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),
     {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),

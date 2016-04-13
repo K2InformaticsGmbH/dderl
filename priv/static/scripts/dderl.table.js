@@ -103,10 +103,10 @@
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
-                       'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs',
-                       'Rename View'    : '_renameView',
-                       'Delete View'    : '_deleteView',
+                       'Save ddView'    : '_saveView',
+                       'Save ddView As' : '_saveViewAs',
+                       'Rename ddView'  : '_renameView',
+                       'Delete ddView'  : '_deleteView',
                        'Export Csv'     : '_exportCsv',
                        'Send Data'      : '_activateSender',
                        'Receive Data'   : '_activateReceiver',
@@ -123,7 +123,9 @@
                        'Sort Clear'       : '_sortClear',
                        'Histogram'        : '_showHistogram',
                        'Statistics'       : '_showStatisticsFull',
-                       'Toggle Grouping'  : '_toggleGrouping'},
+                       'Toggle Grouping'  : '_toggleGrouping',
+                       'Shrink'           : '_shrinkColumn',
+                       'Fit to Data'      : '_fitColumnToData'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filterCell',
                        'Filter...'        : '_filterCellDialog',
@@ -338,8 +340,15 @@
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram" ||
-                       _action === "Toggle Grouping") {
+                    if(_action === "Histogram") {
+                        _ranges = this._grid.getSelectionModel().getSelectedRanges();
+                        var _columnIds = [];
+                        for (var i = 0; i < _ranges.length; i++) {
+                            _columnIds[i] = _ranges[i].fromCell;
+                        }
+                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
+                                columnIds: _columnIds};
+                    } else if(_action === "Toggle Grouping") {
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnId: _columnId};
                     } else {
@@ -410,12 +419,23 @@
      * Renaming a view
      */
     _renameView: function() {
-        if(this._viewId) {
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be renamed");
+        } else {
             var self = this;
-            var viewName = prompt("View new name",this.options.title);
-            console.log("saving "+this._viewId+" with name "+viewName);
-            var renameView = {view_op : {operation : "rename", view_id : this._viewId, newname : viewName}};
-            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+            prompt_jq({label: "ddView new name", value: self.options.title, content: ''},
+                function(viewName) {
+                    if (viewName) {
+                        if(self._viewId) {
+                            console.log("saving "+self._viewId+" with name "+viewName);
+                            var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
+                            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                        } else {
+                            self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
+                        }
+                        self.options.title = viewName;
+                    }
+                });
         }
     },
 
@@ -423,11 +443,19 @@
      * Delete a view
      */
     _deleteView: function() {
-        if(this._viewId && confirm("Are you sure to delete '"+this.options.title+"'")) {
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be deleted");
+        } else if(this._viewId) {
             var self = this;
-            console.log("deleting a view "+this._viewId+" with name "+this.options.title);
-            var delView = {view_op : {operation : "delete", view_id : this._viewId, newname : ""}};
-            self._ajax('view_op', delView, 'view_op', 'opViewResult');
+            var viewName = self.options.title;
+            confirm_jq({title: "Confirm delete view " + viewName, content: ''},
+                function() {
+                    console.log("deleting a view " + self._viewId + " with name " + viewName);
+                    var delView = {view_op : {operation : "delete", view_id : self._viewId, newname : ""}};
+                    self._ajax('view_op', delView, 'view_op', 'opViewResult');
+                });
+        } else {
+            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be deleted here!");
         }
     },
 
@@ -446,10 +474,13 @@
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+        self = this;
+        prompt_jq({label: "ddView name", content: ''},
+            function(viewName) {
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _exportCsv: function() {        
@@ -462,6 +493,9 @@
         var adapter = this._adapter;
         var connection = dderlState.connection;
         var dderl_sess = (dderlState.session != null ? '' + dderlState.session : '');
+        var binds = JSON.stringify(this._optBinds != null && this._optBinds.hasOwnProperty('pars')
+                                            ? this._optBinds.pars : null);
+
 
         $('<iframe>')
             .on('load',function() {
@@ -471,7 +505,8 @@
                     .append($('<input type="hidden" name="connection">').val(connection))
                     .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                     .append($('<input type="hidden" name="fileToDownload">').val(filename))
-                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str));
+                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                    .append($('<input type="hidden" name="binds">').val(binds));
                 $(this).contents().find('body').append(form);
                 form.submit();
                 setTimeout(function() {iframe.remove();}, 500);
@@ -539,26 +574,25 @@
 
     _showHistogram: function(data) {
         var self = this;
-        var columnId = data.columnId;
+        var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
-        var title = " histogram";
-        for(var colId in self._origcolumns) {
-            if(self._origcolumns[colId] === columnId) {
-                var columns = self._grid.getColumns();
-                for(var i = 0; i < columns.length; ++i) {
-                    if(columns[i].field === colId) {
-                        title = columns[i].name + title;
-                        console.log(columns[i].name);
-                    }
-                }
-            }
+        if (0 == columnIds) {
+            alert_jq('Error: No appropriate column for the menu item "Histogram" selected!');
+            return;
         }
+
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
         $('<div>').appendTo(document.body)
             .statsTable({
-                title          : title,
+                title          : "Histogram",
                 initialQuery   : self._cmd,
-                columnIds      : [self._origcolumns[columnId]],
+                columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
@@ -603,6 +637,11 @@
     },
 
     _showStatisticsFull: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Statistics" selected!');
+            return;
+        }
+
         var self = this;
 
         var cellmin = _ranges[0].fromCell;
@@ -814,6 +853,11 @@
 
     // columns hide/unhide
     _hide: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Hide" selected!');
+            return;
+        }
+
         var self = this;
         var columns = self._grid.getColumns();
         var toHide = {};
@@ -1161,6 +1205,11 @@
 
     // filters
     _filterColumn: function(_ranges) {
+        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+            alert_jq('Error: No appropriate column for the menu item "Filter..." selected!');
+            return;
+        }
+
         var self = this;
         var cols = self._grid.getColumns();
         if(self._filters === null) {
@@ -1170,6 +1219,10 @@
             var fromCell = Math.max(_ranges[i].fromCell, 1);
             for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
                 if(!self._filters.hasOwnProperty(cols[c].field)) {
+                    var filterColumnName = cols[c].name
+                    if (filterColumnName.length > 30) {
+                        filterColumnName = filterColumnName.substring(1, 27) + "...";
+                    }
                     self._filters[cols[c].field] =
                         {
                             inp : $('<textarea>')
@@ -1179,7 +1232,7 @@
                                 .css('padding', 0),
                             typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
                             vals: new Object(),
-                            name: cols[c].name
+                            name: filterColumnName
                         };
                 }
             }
@@ -1237,6 +1290,10 @@
             var fromCell = Math.max(_ranges[i].fromCell, 1);
             for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
                 if(!self._filters.hasOwnProperty(cols[c].field)) {
+                    var filterColumnName = cols[c].name
+                    if (filterColumnName.length > 30) {
+                        filterColumnName = filterColumnName.substring(1, 27) + "...";
+                    }
                     self._filters[cols[c].field] =
                         {
                             inp : $('<textarea>')
@@ -1246,7 +1303,7 @@
                                 .css('padding', 0),
                             typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
                             vals: new Object(),
-                            name: cols[c].name
+                            name: filterColumnName
                         };
                 }
                 for(var r=_ranges[i].fromRow; r <= _ranges[i].toRow; ++r) {
@@ -1286,7 +1343,7 @@
 
         self._fltrDlg =
             $('<div>')
-            .css('width', 336)
+            .css('width', 370)
             .appendTo(document.body);
 
         var fltrTbl =
@@ -1407,32 +1464,46 @@
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
         
-
-        // test the range and throw unsupported exceptions
-        if(!self._singleCellSelected(ranges)) {
-            // If it is only one row, we take the first one.
-            if(ranges.length == 1
-               && ranges[0].fromRow  === ranges[0].toRow
-               && ranges[0].fromCell <= 1
-               && ranges[0].toCell === self._grid.getColumns().length - 1) {
-                ranges[0].fromCell = 1;
+        var cells = [];
+        for(var i = 0; i < ranges.length; ++i) {
+            // For complete rows use the first column only
+            if(ranges[i].fromCell <= 1
+               && ranges[i].toCell === self._grid.getColumns().length - 1) {
+                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    var data = self._gridDataView.getItem(j);
+                    var column = self._grid.getColumns()[1];
+                    cells.push({
+                        row: data.id,
+                        col: self._origcolumns[column.field]
+                    });
+                }
             } else {
-                self._grid.focus();
-                return;
+                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    for(var k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
+                        var data = self._gridDataView.getItem(j);
+                        var column = self._grid.getColumns()[k];
+                        cells.push({
+                            row: data.id,
+                            col: self._origcolumns[column.field]
+                        });
+                    }
+                }
             }
         }
-
-        var cell    = ranges[0];
-        var column  = self._grid.getColumns()[cell.fromCell];
-        var data    = self._gridDataView.getItem(cell.fromRow);
-        // console.log('browse_data @ ' + column.name + ' val ' + JSON.stringify(data));
-        self._ajax('browse_data',
+        console.log("the cells", cells);
+        if(cells.length > 10) {
+            alert_jq("A maximum of 10 tables can be open simultaneously");
+        } else {
+            for(var i = 0; i < cells.length; ++i) {
+                self._ajax('browse_data',
                        { browse_data: {connection : dderlState.connection,
                                            conn_id : dderlState.connectionSelected.connection,
                                            statement : self._stmt,
-                                           row : data.id, //cell.fromRow,
-                                           col : this._origcolumns[column.field]}},
+                                           row : cells[i].row,
+                                           col : cells[i].col}},
                        'browse_data', 'browseData');
+            }
+        }
     },
 
     _runTableCmd: function(tableCmd, callback, tables) {
@@ -1670,6 +1741,41 @@
         for(var fun in this._handlers) {
             this.element.on(fun, null, this, this._handlers[fun]);
         }
+    },
+
+    _shrinkColumn: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+            }
+        }
+        self._grid.setColumns(columns);
+    },
+
+    _fitColumnToData: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+                var maxLength = 0;
+                for(var k = 0; k < self._gdata.length; ++k) {
+                    var row = self._gdata[k];
+                    var field = columns[j].field;
+                    if(row[field].length > maxLength) {
+                        maxLength = row[field].length;
+                        var fieldWidth = self._txtlen.text(row[field]).width();
+                        fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                        if(columns[j].width < fieldWidth) {
+                            columns[j].width = Math.min(fieldWidth, self._MAX_ROW_WIDTH);
+                        }
+                    }
+                }
+            }
+        }
+        self._grid.setColumns(columns);
     },
 
     _createDlgFooter: function() {
@@ -2102,10 +2208,10 @@
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
-            this._openFailedSql(_table.name, _table.content, null);
+            this._openFailedSql(_table.name, _table.content, null, null);
             return;
         } else if(_table.hasOwnProperty('binds')) {
-            this._openFailedSql(_table.name, _table.content, _table.binds);
+            this._openFailedSql(_table.name, _table.content, _table.binds, null);
             return;
         }
 
@@ -2228,13 +2334,13 @@
     _openTermOrViewEditor: function(cmdOrString) {
         var self =  this;
         if(cmdOrString.isView === true) {
-            self._openFailedSql(cmdOrString.title, cmdOrString.cmd, null);
+            self._openFailedSql(cmdOrString.title, cmdOrString.cmd, null, cmdOrString.view_id);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
     },
 
-    _openFailedSql: function(title, cmd, optBinds) {
+    _openFailedSql: function(title, cmd, optBinds, viewId) {
         $('<div>')
             .appendTo(document.body)
             .sql({autoOpen  : false,
@@ -2242,7 +2348,8 @@
                   cmdOwner  : null,
                   history   : [],
                   cmdFlat   : cmd,
-                  optBinds  : optBinds
+                  optBinds  : optBinds,
+                  viewId    : viewId
                  })
             .sql('open');
     },
@@ -2996,12 +3103,13 @@
     _setTitleHtml: function(newTitle) {
         var self = this;
         self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
-        self._dlg.dialog("widget").find(".table-title").click(function(e) {
+        self._dlg.dialog("widget").find(".table-title").on("contextmenu click", function(e) {
             self._dlgTtlCnxtMnu.dom
                 .css("top", e.clientY - 10)
                 .css("left", e.clientX)
                 .data('cnxt', self)
                 .show();
+            return false;
         });
     },
 
@@ -3099,10 +3207,6 @@
     _getGridHeight: function() {
         var rows = this._gridDataView.getItems().length + 2;
         return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
-    },
-
-    setSlickOpts: function(_opts) {
-        this.options.slickopts = _opts;
     },
 
     setColumns: function(_cols) {
@@ -3451,7 +3555,13 @@
         var self = this;
         var seperator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
         var columnId = data.columnId;
-        console.log('show histogram ' + JSON.stringify(data));
+
+        if ('sel' == columnId) {
+            alert_jq('Error: No appropriate column for the menu item "Toggle Grouping" selected!');
+            return;
+        }
+
+        console.log('toggle grouping ' + JSON.stringify(data));
         if (self._gridDataView.getGrouping().length == 0) {
             self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
                 self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;

@@ -30,9 +30,6 @@
                ,receiver_pid     :: pid()
                ,receiver_monitor :: reference()}).
 
--define(CONNECT_TIMEOUT, 100000).
--define(BLOCK_SIZE, ?GET_CONFIG(commitBlockSize,[],30)).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API Sender-Receiver Communication (Sender API)
 %%

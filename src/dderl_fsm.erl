@@ -1108,25 +1108,31 @@ bin_to_number(NumberBin) ->
             end
     end.
 
--spec stats_add_row([{integer(), number(), number()}], [binary()]) -> [tuple()].
+-spec stats_add_row([{integer(), number(), number(), []}], [binary()]) -> [tuple()].
 stats_add_row([], _) -> [];
-stats_add_row([{Count, Sum, Squares} = Result | RestResult], [Element | RestRow]) ->
+stats_add_row([{Count, Sum, Squares, HashList} | RestResult], [Element | RestRow]) ->
     case bin_to_number(Element) of
-        {error, _} -> [Result | stats_add_row(RestResult, RestRow)];
-        Number -> [{Count+1, Sum+Number, Squares + Number*Number} | stats_add_row(RestResult, RestRow)]
+        {error, _} -> [{Count, Sum, Squares, [Element | HashList]} | stats_add_row(RestResult, RestRow)];
+        Number -> [{Count+1, Sum+Number, Squares + Number*Number, [Element | HashList]} | stats_add_row(RestResult, RestRow)]
     end.
 
--spec format_stat_rows([binary()], [{integer(), number(), number()}], pos_integer()) -> list().
+-spec format_stat_rows([binary()], [{integer(), number(), number(), []}], pos_integer()) -> list().
 format_stat_rows([], _, _) -> [];
-format_stat_rows([ColName | RestColNames], [{0, _, _} | RestResult], Idx) ->
-    [[Idx, nop, ColName, 0, 0, 0, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{1, Sum, _} | RestResult], Idx) ->
+format_stat_rows([ColName | RestColNames], [{0, _, _, HashList} | RestResult], Idx) ->
+    case HashList of
+        [] -> Hash = 0;
+        _ ->     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList)))
+    end,
+    [[Idx, nop, ColName, 0, 0, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{1, Sum, _, HashList} | RestResult], Idx) ->
     Average = Sum,
-    [[Idx, nop, ColName, 1, Sum, Average, 0]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares} | RestResult], Idx) ->
+    Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
+    [[Idx, nop, ColName, 1, Sum, Average, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares, HashList} | RestResult], Idx) ->
     Average = Sum/Count,
     StdDev = math:sqrt(abs(Squares - Sum*Sum/Count)/(Count-1)),
-    [[Idx, nop, ColName, Count, Sum, Average, StdDev]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
+    Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
+    [[Idx, nop, ColName, Count, Sum, Average, StdDev, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
 
 calculate_avgs([], []) -> [];
 calculate_avgs([_Total | RestTotal], [0 | RestCount]) -> [0 | calculate_avgs(RestTotal, RestCount)];
@@ -1165,6 +1171,7 @@ handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=St
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
     {reply, Row, SN, State, infinity};
+% Full column(s)
 handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
@@ -1174,7 +1181,7 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
     ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
 
     StatsFun =
-        fun(Row, Results) -> %% Result = [{0,0,0} ... (for each col)]
+        fun(Row, Results) -> %% Result = [{0,0,0,[]} ... (for each col)]
                 case Row of
                     {_, Id} ->
                         RealRow = lists:nth(1, ets:lookup(TableId, Id));
@@ -1190,11 +1197,12 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
                 end,
                 stats_add_row(Results, FilteredRow)
         end,
-    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0}), TableUsed),
+    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0,[]}), TableUsed),
     MaxCount = element(1, lists:max(StatsResult)),
     StatsRows = format_stat_rows(ColNames, StatsResult, 1),
-    StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
+    StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
     {reply, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
+% Selected rows(s) of one column
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
@@ -1202,7 +1210,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
     end,
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
-    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
+    {Rows, HashList} = ets:foldl(fun(Row, {SelectRows, SelectHashList}) ->
             RealRow = case Row of
                 {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
                 Row -> Row
@@ -1220,24 +1228,24 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                         _ -> []
                     end
             end,
-            if CandidateRow =:= []  -> SelectRows;
+            if CandidateRow =:= []  -> {SelectRows, SelectHashList};
                 true ->
-                    lists:foldl(fun(Idx, SelRows) ->
+                    lists:foldl(fun(Idx, {SelRows, SelHashList}) ->
                         Candidate = lists:nth(Idx, CandidateRow),
                         CandidateList = element(Idx, SelRows),
                         case bin_to_number(Candidate) of
-                            {error, _} -> SelRows;
-                            _ -> erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate])
+                            {error, _} -> {SelRows, SelHashList ++ [Candidate]};
+                            _ -> {erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate]), SelHashList ++ [Candidate]}
                         end
                     end,
-                    SelectRows,
+                    {SelectRows, SelectHashList},
                     lists:seq(1, size(SelectRows)))
             end
         end
-        , list_to_tuple(lists:duplicate(length(ColNames), []))
-        , TableUsed)),
+        , {list_to_tuple(lists:duplicate(length(ColNames), [])), []}
+        , TableUsed),
     try
-        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- Rows],
+        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- tuple_to_list(Rows)],
         Counts  = [length(C) || C <- RowColumns],
         Totals  = [lists:sum(C) || C <- RowColumns],
         Avgs    = calculate_avgs(Totals, Counts),
@@ -1249,9 +1257,10 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                 end
             end, [], lists:zip(RowColumns, Avgs))),
         StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
-        StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
+        Hash = erlang:phash2(list_to_binary(HashList)),
+        StatsRows = [lists:append(lists:nth(1, [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))]), [Hash])],
         ?Debug("Stat Rows ~p", [StatsRows]),
-        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>],
+        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
         {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
     catch
         _:Error ->
@@ -1272,9 +1281,9 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
         case RealRow of
             {_,_,RK} ->
                 ExpandedRow = RowFun(RK),
-                Value = lists:nth(ColumnId, ExpandedRow);
+                Value = [lists:nth(Column, ExpandedRow) || Column <- ColumnId];
             _ ->
-                Value = element(3 + ColumnId, RealRow)
+                Value = [element(3 + Column, RealRow) || Column <- ColumnId]
         end,
         case proplists:get_value(Value, CountList) of
             undefined -> {Total+1, [{Value, 1} | CountList]};
@@ -1282,12 +1291,23 @@ handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = 
         end
     end, {0, []}, TableUsed),
     ?Debug("Histo Rows ~p", [Result]),
-    HistoRows = [[nop, Value, integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
-    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRows)] || Idx <- lists:seq(1, length(HistoRows))],
-    ColInfo = lists:nth(ColumnId, StmtCols),
-    HistoColumns =
-        [#stmtCol{alias = ColInfo#stmtCol.alias, type = binstr, readonly = true}
-        ,#stmtCol{alias = <<"count">>, type = float, readonly = true}
+    HistoRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    HistoRowsCount = length(lists:nth(1, HistoRows)) - 1,
+    HistoRowsLen = HistoRowsCount - 2,
+    SortFun = fun(X,Y) ->
+        XCount = binary_to_integer(lists:nth(HistoRowsCount, X)),
+        YCount = binary_to_integer(lists:nth(HistoRowsCount, Y)),
+        if
+             XCount > YCount -> true;
+             XCount < YCount -> false;
+             true -> sort_histo_rows(lists:sublist(X, 2, HistoRowsLen), lists:sublist(Y, 2, HistoRowsLen))
+        end
+    end,
+    HistoRowsSort = lists:sort(SortFun,HistoRows),
+    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRowsSort)] || Idx <- lists:seq(1, length(HistoRowsSort))],
+    ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
+    HistoColumns = ColInfo ++
+        [#stmtCol{alias = <<"count">>, type = float, readonly = true}
         ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
     {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
@@ -1324,6 +1344,11 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
     {reply, ok, SN, State, infinity};
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
+
+sort_histo_rows([], []) -> true;
+sort_histo_rows([XH | _], [YH | _]) when XH < YH -> true;
+sort_histo_rows([XH | _], [YH | _]) when XH > YH -> false;
+sort_histo_rows([_ | XT], [_ | YT]) -> sort_histo_rows(XT, YT).
 
 %% --------------------------------------------------------------------
 %% Func: handle_info/3

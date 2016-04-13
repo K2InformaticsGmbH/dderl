@@ -2,6 +2,87 @@ Application dderl
 =================
 
 Release history with new or improved features and bugfixes
+
+Version 1.4.1 (Release Date 06.04.2016)
+======================================
+* imem 1.4.14
+* Added rename view and delete view actions to sql 'Edit' menu.
+* Sort by count on histogram
+* Added support for multiple browse data (max 10)
+* Login failures cosmetic changes
+
+Version 1.4.0 (Release Date 21.03.2016)
+======================================
+* Replaced alert with jquery equivalent functions
+* Replaced prompt with custom javascript control
+* Added app name in page title
+* Added error message trying to delete rename invalid views
+
+Version 1.3.19 (Release Date 14.03.2016)
+======================================
+* Added background svg image
+* imem 1.4.12
+
+Version 1.3.18 (Release Date 05.03.2016)
+======================================
+* Bug fix on [issue 156](https://github.com/K2InformaticsGmbH/dderl/issues/156)
+* imem 1.4.11
+
+Version 1.3.17 (Release Date 01.03.2016)
+======================================
+* Export CSV bug fix [#173](https://github.com/K2InformaticsGmbH/dderl/issues/173)
+* imem 1.4.10
+
+Version 1.3.16 (Release Date 26.02.2016)
+======================================
+* imem 1.4.9
+
+Version 1.3.15 (Release Date 18.02.2016)
+======================================
+* imem 1.4.8
+
+Version 1.3.14 (Release Date 12.02.2016)
+======================================
+* Histogram with multiple columns result separated
+* Added clear button to avoid confusion with delete connections
+* Fixed privileges for delete connections
+* Added confirmation to delete connections
+* Configurable export csv delimiter
+* imem 1.4.7
+
+Version 1.3.13 (Release Date 05.02.2016)
+======================================
+* Added support for histogram using multiple columns
+* imem 1.4.6
+
+Version 1.3.12 (Release Date 29.01.2016)
+======================================
+* imem 1.4.5
+
+Version 1.3.11 (Release Date 26.01.2016)
+======================================
+* imem 1.4.4
+
+Version 1.3.10 (Release Date 19.01.2016)
+======================================
+* imem 1.4.3
+* erlimem 1.2.5
+* Added complexity check for passwords
+
+Version 1.3.9 (Release Date 14.12.2015)
+======================================
+* imem 1.4.2
+* export to CSV from bind Oracle-SQL
+
+Version 1.3.8 (Release Date 10.12.2015)
+======================================
+* imem 1.4.1
+
+Version 1.3.7 (Release Date 07.12.2015)
+======================================
+* imem 1.4.0
+* Cosmetics and minor bug fixes
+
 Version 1.0.9 (Release Date 05.02.2015)
 ======================================
 * Added support for multiple sql queries

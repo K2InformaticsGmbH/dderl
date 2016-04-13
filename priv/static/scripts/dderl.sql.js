@@ -78,18 +78,21 @@ function insertAtCursor(myField, myValue) {
     _optBinds       : null,
 
     // private event handlers
-    _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed    (_parsed, false); },
-                        parsedSkipFocus : function(e, _parsed) { e.data._renderParsed    (_parsed, true); },
-                        reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd (_parsed); },
-                        saveViewResult  : function(e, _result) { e.data._saveViewResult  (_result); },
-                        resultMultStmt  : function(e, _result) { e.data._resultMultStmt  (_result); },
-                        resultStmt      : function(e, _result) { e.data._resultStmt      (_result); }
+    _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
+                        parsedSkipFocus : function(e, _parsed) { e.data._renderParsed      (_parsed, true); },
+                        reloadParsedCmd : function(e, _parsed) { e.data._reloadParsedCmd   (_parsed); },
+                        opViewResult    : function(e, _result) { e.data._operateViewResult (_result); },
+                        saveViewResult  : function(e, _result) { e.data._saveViewResult    (_result); },
+                        resultMultStmt  : function(e, _result) { e.data._resultMultStmt    (_result); },
+                        resultStmt      : function(e, _result) { e.data._resultStmt        (_result); }
                       },
 
     // Dialog context menus
     _sqlTtlCnxtMnu  : {
-                       'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs'
+                       'Save ddView'    : '_saveView',
+                       'Save ddView As' : '_saveViewAs',
+                       'Rename ddView'  : '_renameView',
+                       'Delete ddView'  : '_deleteView'
     },
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
@@ -125,7 +128,8 @@ function insertAtCursor(myField, myValue) {
         cmdFlat         : "",
         cmdOwner        : null,
         optBinds        : null,
-        history         : []
+        history         : [],
+        viewId          : null
     },
  
     _refreshHistoryBoxSize: function() {
@@ -385,6 +389,56 @@ function insertAtCursor(myField, myValue) {
     },
 
     /*
+     * Renaming a view
+     */
+    _renameView: function() {
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)){
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be renamed");
+        } else {
+            var self = this;
+            var viewId = self.options.viewId;
+            prompt_jq({label: "ddView new name", content: '', value: self.options.title},
+                function(viewName) {
+                    if (viewName) {
+                        if(viewId) {
+                            console.log("saving " + viewId + " with name " + viewName);
+                            var renameView = {view_op : {operation : "rename", view_id : viewId, newname : viewName}};
+                            self.addWheel();
+                            ajaxCall(self, 'view_op', renameView, 'view_op', 'opViewResult');
+                        } else {
+                            self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
+                        }
+                        self.options.title = viewName;
+                    }
+                });
+        }
+    },
+
+    /*
+     * Delete a view
+     */
+    _deleteView: function() {
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be deleted");
+        } else {
+            var self = this;
+            var viewId = self.options.viewId;
+            if(viewId) {
+                var viewName = self.options.title;
+                confirm_jq({title: "Confirm delete view " + viewName, content: ''},
+                    function() {
+                        console.log("deleting a view " + viewId + " with name " + viewName);
+                        var delView = {view_op : {operation : "delete", view_id : viewId, newname : ""}};
+                        self.addWheel();
+                        ajaxCall(self, 'view_op', delView, 'view_op', 'opViewResult');
+                    });
+            } else {
+                alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be deleted here!");
+            }
+        }
+    },
+
+    /*
      * Saving a table
      */
     _saveView: function() {
@@ -397,10 +451,13 @@ function insertAtCursor(myField, myValue) {
     },
 
     _saveViewAs: function() {
-        var viewName = prompt("View name",this.options.title);
-        if (null !== viewName) {
-            this._saveViewWithName(viewName, false);
-        }
+        self = this;
+        prompt_jq({label: "ddView name", content: ''},
+            function(viewName) {
+                if (viewName) {
+                    self._saveViewWithName(viewName, false);
+                }
+            });
     },
 
     _getSaveStructure: function(viewName) {
@@ -472,6 +529,26 @@ function insertAtCursor(myField, myValue) {
             });
         } else if(_saveView.hasOwnProperty('error')) {
             alert_jq('failed to save view!\n'+_saveView.error);
+        }
+    },
+
+    _operateViewResult: function(opView) {
+        if(opView.hasOwnProperty('error')) {
+            alert_jq('Failed to modify view!\n'+ opView.error);
+        } else if(opView  === "ok") {
+             console.log('[AJAX] view saved!');
+        } else if(opView.hasOwnProperty('op')) {
+            if(opView.op === "rename") {
+                this._setTitleHtml($('<span>').text(opView.newname).addClass('table-title'));
+                console.log('[AJAX] view renamed!');
+            } else if(opView.op === "delete") {
+                this._dlg.dialog('close');
+                console.log('[AJAX] view deleted!');
+            } else {
+                alert_jq('Invalid response from server, trying to modify the view');
+            }
+        } else {
+            alert_jq('Invalid response from server, trying to modify the view');
         }
     },
 

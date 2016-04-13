@@ -93,9 +93,7 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
 
     Method    = proplists:get_value(<<"method">>, BodyJson, <<"service">>),
     User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
-    Defaults  = ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
-                                            territory   => <<"SWITZERLAND">>,
-                                            charset     => <<"AL32UTF8">>}),
+    Defaults  = ?NLSLANG,
     Language  = get_value_empty_default(<<"languange">>, BodyJson, Defaults),
     Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
@@ -275,7 +273,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                 _ ->
                     case lists:member(Connection, Connections) of
                         true ->
-                            ?Debug("View ~p", [V]),
+                            ?Debug("ddView ~p", [V]),
                             case {gen_adapter:opt_bind_json_obj(C#ddCmd.command, oci),
                                   make_binds(proplists:get_value(<<"binds">>, BodyJson, null))} of
                                 {[], _} ->
@@ -333,14 +331,14 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     [{<<"views">>,BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
     %% TODO: This should be replaced by dashboard.
-    case dderl_dal:get_view(Sess, <<"All Views">>, oci, UserId) of
+    case dderl_dal:get_view(Sess, <<"All ddViews">>, oci, UserId) of
         {error, _} = Error->
             F = Error;
         undefined ->
-            ?Debug("Using system view All Views"),
-            F = dderl_dal:get_view(Sess, <<"All Views">>, oci, system);
+            ?Debug("Using system view All ddViews"),
+            F = dderl_dal:get_view(Sess, <<"All ddViews">>, oci, system);
         UserView ->
-            ?Debug("Using a personalized view All Views"),
+            ?Debug("Using a personalized view All ddViews"),
             F = UserView
     end,
     case F of
@@ -349,10 +347,10 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
         _ ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
-            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+            ?Debug("ddViews ~p~n~p", [C#ddCmd.command, Resp]),
             RespJson = jsx:encode([{<<"views">>,
                 [{<<"content">>, C#ddCmd.command}
-                ,{<<"name">>, <<"All Views">>}
+                ,{<<"name">>, <<"All ddViews">>}
                 ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
                 ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
                 ,{<<"view_id">>, F#ddView.id}]
@@ -366,16 +364,16 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
 process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid) ->
     [{<<"system_views">>,BodyJson}] = ReqBody,
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
-    case dderl_dal:get_view(Sess, <<"All Views">>, oci, system) of
+    case dderl_dal:get_view(Sess, <<"All ddViews">>, oci, system) of
         {error, Reason} ->
             RespJson = jsx:encode([{<<"error">>, Reason}]);
         F ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
             Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
-            ?Debug("Views ~p~n~p", [C#ddCmd.command, Resp]),
+            ?Debug("ddViews ~p~n~p", [C#ddCmd.command, Resp]),
             RespJson = jsx:encode([{<<"system_views">>,
                 [{<<"content">>, C#ddCmd.command}
-                ,{<<"name">>, <<"All Views">>}
+                ,{<<"name">>, <<"All ddViews">>}
                 ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
                 ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
                 ,{<<"view_id">>, F#ddView.id}]
@@ -395,7 +393,7 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, Reason}]}])},
             Priv;
         undefined ->
-            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, <<"View not found">>}]}])},
+            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, <<"ddView not found">>}]}])},
             Priv;
         F ->
             C = dderl_dal:get_command(Sess, F#ddView.cmd),
@@ -548,9 +546,13 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    case dderloci:exec(Connection, Query, ?GET_ROWNUM_LIMIT) of
+    BindVals = case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
+                                   {error, _Error} -> undefined;
+                                   BindVals0 -> BindVals0
+                                end, 
+    case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
-            Columns = gen_adapter:build_column_csv(Clms),
+            Columns = gen_adapter:build_column_csv(oci,Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(From, StmtRef, RowFun)
@@ -593,12 +595,14 @@ produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     dderloci:close(StmtRef);
 produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(From, StmtRef, RowFun);
 produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row], ?CSV_FIELD_SEP), "\n"])
+    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
+                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
                              || Row <- [RowFun(R) || R <- Rows]]),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).

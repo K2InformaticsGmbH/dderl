@@ -8,6 +8,7 @@
         _editText       : null,
         _footerDiv      : null,
         _footerWidth    : 0,
+        _wordWarp       : false,
         _txtlen         : null,
         _fnt            : null,
         _currentExpLvl  : -1,
@@ -25,7 +26,8 @@
             'textBox': {tip: 'Expansion level',   typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
             '>'      : {tip: 'Increase expansion',typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
             'accept' : {tip: 'Set changes',       typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
-            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' }},
+            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' },
+            'warp'   : {tip: 'Word warp',         typ : 'btn', icn : 'arrowreturn-1-e', clk : '_toggleWordWarp', dom: '_tbWordWarp' }},
 
 
         // These options will be used as defaults
@@ -158,10 +160,11 @@
                     var fName = self._toolbarButtons[_btn].clk;
                     //var f = $.proxy(self[fName], self);
                     var f = self[fName];
-                    if($.isFunction(f))
+                    if($.isFunction(f)) {
                         f(self);
-                    else
+                    } else {
                         throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
+                    }
                 };
 
                 var inph = self.options.toolBarHeight;
@@ -212,9 +215,6 @@
                 }
             }
 
-            if(self.options.readOnly) {
-                self._editText.attr('wrap', 'on');
-            }
             self._footerDiv
                 .buttonset()
                 .css('height', (self.options.toolBarHeight)+'px');
@@ -324,6 +324,16 @@
             console.log('['+self.options.title+'] cb _abortChanges');
             self._dlg.dialog("close");
         },
+
+        _toggleWordWarp: function(self) {
+            self._wordWarp = !self._wordWarp;
+            if(self._wordWarp) {
+                self._editText.attr('wrap', 'on');
+            } else {
+                self._editText.attr('wrap', 'off');
+            }
+        },
+        
         ////////////////////////////
 
         /*

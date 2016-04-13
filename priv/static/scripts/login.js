@@ -1,16 +1,16 @@
 function update_user_information(user) {
-    $('#change-pswd-button').data("logged_in_user", user);
+    $('#btn-change-password').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
 }
 
 function check_already_connected() {
     if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
-       !window.opener.$('#change-pswd-button').data("logged_in_user")) {
+       !window.opener.$('#btn-change-password').data("logged_in_user")) {
         loginAjax(null);
     } else {
         dderlState.session = window.opener.dderlState.session;
         dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
-        var user = window.opener.$('#change-pswd-button').data("logged_in_user");
+        var user = window.opener.$('#btn-change-password').data("logged_in_user");
         update_user_information(user);
         connect_dlg();
     }
@@ -21,8 +21,9 @@ function loginAjax(data) {
             'login', loginCb);
 }
 
+var app = "";
 function loginCb(resp) {
-    $('#disconnect-button').removeClass('disabled');
+    $('#btn-disconnect').removeClass('disabled');
 
     if (resp.hasOwnProperty('vsn')) {
         $('#version').text(' | '+resp.vsn);
@@ -30,10 +31,28 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('node')) {
         $('#node').text(resp.node);
     }
+    if (resp.hasOwnProperty('app')) {
+        app = resp.app;
+        document.title = 'DDErl - '+app;
+    }
 
     if (resp.hasOwnProperty('error')) {
-        alert_jq('Login falied : ' + resp.error);
-        loginAjax(null);
+        var accountName = "";
+        if(resp.hasOwnProperty('pwdmd5')) {
+            accountName = resp.pwdmd5.accountName;
+        }
+        display({title  : "Login",
+                  fields :[{type       : "text",
+                            placeholder: "User",
+                            val        : accountName},
+                           {type       : "password",
+                            placeholder: "Password",
+                            val        : ""},
+                           {type       : "label",
+                            val        : resp.error,
+                            color      : "#DD1122"}] //Swisscom red color
+        });
+        ajaxCall(null, 'login',  {},'login', null);
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
@@ -95,13 +114,16 @@ function display(layout) {
     for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
         var tr = $('<tr>').appendTo(tab);
         var td = $('<td valign=bottom>').appendTo(tr);
-        if(layout.fields[fldIdx].type == "label") {            
-            $('<span>')
-                .css('word-wrap', 'break-word')
-                .css('display', 'block')
+        if(layout.fields[fldIdx].type == "label") {
+            var fieldLabel = $('<span>');
+            if(layout.fields[fldIdx].color) {
+                fieldLabel.css('color', layout.fields[fldIdx].color);
+            }
+            fieldLabel.css('word-wrap', 'break-word')
                 .css('width', '300px')
                 .text(layout.fields[fldIdx].val)
-                .appendTo(td.attr('colspan',2));
+                .appendTo(td.attr('colspan',2))
+                .appendTo(td.attr('style', 'padding-top: 8px'));
         } else if(layout.fields[fldIdx].type == "text") {
             td.append(layout.fields[fldIdx].placeholder);
             td = $('<td valign=bottom>').appendTo(tr);
@@ -194,55 +216,44 @@ function logout() {
     process_logout();
 }
 
-/* function restart() {
-
+function restart() {
     if (!dderlState.session) {
         return;
     }
-
     var headers = new Object();
-
     if (dderlState.adapter != null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
     headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
-
-    $.ajax({
-        type: 'POST',
-        url: 'app/restart',
-        data: JSON.stringify({}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
-
-        success: function(_data, textStatus, request) {
-            console.log('Request restart Result ' + textStatus);
-            clearTimeout(dderlState.pingTimer);
-        },
-
-        error: function (request, textStatus, errorThrown) {
-            console.log('Request restart Error, status: ' + textStatus);
-        }
-    });
-
-    function checkRestartComplete(url) {
-        $.ajax({
-            type: 'GET',
-            url: url,
-            success: function(_data, textStatus, request) {
-                console.log('Restart complete, status: ' + textStatus);
-                process_logout();
-            },
-            error: function (request, textStatus, errorThrown) {
-                console.log('Restarting... status: ' + textStatus);
-                setTimeout(checkRestartComplete, 0, url);
-            }
-        });
-    }
-    setTimeout(checkRestartComplete, 0, window.location.href);
-} */
-
+    confirm_jq({title: "Confirm restart", content:''},
+            function() {
+                $.ajax({
+                    type: 'POST',
+                    url: 'app/restart',
+                    data: JSON.stringify({}),
+                    dataType: "JSON",
+                    contentType: "application/json; charset=utf-8",
+                    headers: headers,
+                    context: null,
+                    success: function(response, textStatus, request) {
+                        if (response.hasOwnProperty('restart')) {
+                           if (response.restart == 'ok') { location.reload(true); }
+                           else if (response.restart.hasOwnProperty('error')) {
+                               alert_jq(response.restart.error);
+                           }
+                           else {
+                               console.error("malformed response " + JSON.stringify(response));
+                           }
+                        } else {
+                            console.error("malformed response " + JSON.stringify(response));
+                        }
+                    },
+                    error: function (request, textStatus, errorThrown) {
+                        console.log('Request restart Error, status: ' + textStatus);
+                    }
+                });
+            });
+}
 
 function process_logout() {
     dderlState.connection = null;
@@ -256,7 +267,7 @@ function process_logout() {
     resetPingTimer();
 
     $('#login-button').html('');
-    $('#change-pswd-button').data("logged_in_user", "");
+    $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
     if(window.opener) {
         window.opener.process_logout();
@@ -273,39 +284,9 @@ function process_logout() {
 
 function change_login_password(loggedInUser, shouldConnect)
 {
-    $('<div id="dialog-change-password" title="Change DDerl account password">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td>User</td>'+
-      '         <td valign=bottom>'+
-      '             <b>'+loggedInUser+'</b>'+
-      '         </td></tr>' +
-      '      <tr><td>Old Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '      <tr><td>New Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="password_change_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '      <tr><td>Confirm New Password</td>'+
-      '         <td valign=bottom>' +
-      '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
-      '         </td></tr>' +
-      '  </table>' +
-      '</div>').appendTo(document.body);
-    $('#dialog-change-password').dialog({
-        autoOpen: false,
-        height: 200,
-        width: 300,
-        resizable: false,
-        modal: false,
-        appendTo: "#main-body",
-        close: function() {
-            $("#dialog-change-password").dialog('destroy');
-            $("#dialog-change-password").remove();
-        },
-        buttons: {
-            "Change Password": function() {
+
+    password_change_dlg("Change DDerl account password", loggedInUser,
+            function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
                     var newPassJson = {
                         change_pswd: {
@@ -327,12 +308,5 @@ function change_login_password(loggedInUser, shouldConnect)
                     });
                 }
                 else alert_jq("Confirm password missmatch!");
-            },
-            Cancel: function() {
-                $(this).dialog("close");
-            }
-        }
-    })
-    .dialog("open")
-    .dialog("widget").draggable("option","containment","#main-body");
+            });
 }

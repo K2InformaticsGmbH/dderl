@@ -13,7 +13,7 @@
         , build_resp_fun/3
         , process_query/4
         , build_column_json/1
-        , build_column_csv/1
+        , build_column_csv/2
         , extract_modified_rows/1
         , decrypt_to_term/1
         , encrypt_to_binary/1 
@@ -21,6 +21,8 @@
         , opt_bind_json_obj/2
         , add_conn_info/2
         ]).
+
+-export([get_csv_col_sep_char/1, get_csv_row_sep_char/1]).
 
 init() -> ok.
 
@@ -45,7 +47,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
                     ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
                     [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
                 true ->
-                    [need_replace]
+                    [need_replace | add_cmds_views(Sess, UserId, A, Replace, Rest)]
             end
     end.
 
@@ -169,7 +171,7 @@ process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
                 ok -> jsx:encode([{<<"view_op">>,    [{<<"op">>, <<"rename">>}, {<<"result">>,<<"ok">>}, {<<"newname">>, Name}]}]);
                 {error, Error} ->
                     jsx:encode([{<<"view_op">>, [{<<"error">>
-                                                , iolist_to_binary(["View rename failed : ", io_lib:format("~p", [Error])])}
+                                                , iolist_to_binary(["ddView rename failed : ", io_lib:format("~p", [Error])])}
                                                 ]
                                 }])
             end;
@@ -178,7 +180,7 @@ process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
                 ok -> jsx:encode([{<<"view_op">>, [{<<"op">>, <<"delete">>}, {<<"result">>,<<"ok">>}]}]);
                 {error, Error} ->
                     jsx:encode([{<<"view_op">>, [{<<"error">>
-                                                , iolist_to_binary(["View delete failed : ", io_lib:format("~p", [Error])])}
+                                                , iolist_to_binary(["ddView delete failed : ", io_lib:format("~p", [Error])])}
                                                 ]
                                 }])
             end
@@ -195,7 +197,7 @@ process_cmd({[<<"update_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) 
     ViewState = #viewstate{table_layout=TableLay, column_layout=ColumLay},
     if
         %% System tables can't be overriden.
-        Name =:= <<"All Views">> orelse Name =:= <<"Remote Tables">> ->
+        Name =:= <<"All ddViews">> orelse Name =:= <<"Remote Tables">> ->
             %% TODO: This should indicate that a new view has been saved and should replace it in the gui.
             add_cmds_views(Sess, UserId, Adapter, true, [{Name, Query, undefined, ViewState}]),
             Res = jsx:encode([{<<"update_view">>, <<"ok">>}]);
@@ -238,7 +240,7 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
 process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"histogram">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    [ColumnId|_] = proplists:get_value(<<"column_ids">>, BodyJson, []),
+    [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
     {Total, ColRecs, HistoRows, SN} = Statement:get_histogram(ColumnId),
     HistoJson = gui_resp(#gres{ operation    = <<"rpl">>
                               , cnt          = Total
@@ -335,10 +337,11 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     case {IsView, element(3, R)} of
-        {true, {_, #ddView{}, #ddCmd{}=OldC}} ->
+        {true, {_, #ddView{}=OldV, #ddCmd{}=OldC}} ->
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                         [{<<"isView">>, true}
+                                         ,{<<"view_id">>, OldV#ddView.id}
                                          ,{<<"title">>, StringToFormat}
                                          ,{<<"cmd">>, C#ddCmd.command}]
                                        }])};
@@ -625,9 +628,9 @@ build_column_json([C|Cols], JCols, Counter) ->
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
 
--spec build_column_csv([#stmtCol{}]) -> binary().
-build_column_csv(Cols) ->
-    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?CSV_FIELD_SEP), "\n"]).
+-spec build_column_csv(atom(),[#stmtCol{}]) -> binary().
+build_column_csv(Adapter,Cols) ->
+    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?COL_SEP_CHAR(Adapter)), ?ROW_SEP_CHAR(Adapter)]).
 
 -spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
 extract_modified_rows([]) -> [];
@@ -761,3 +764,9 @@ escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
 
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].
+
+-spec get_csv_col_sep_char(atom()) -> string().
+get_csv_col_sep_char(Adapter) -> ?COL_SEP_CHAR(Adapter).
+
+-spec get_csv_row_sep_char(atom()) -> string().
+get_csv_row_sep_char(Adapter) -> ?ROW_SEP_CHAR(Adapter).
