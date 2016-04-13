@@ -261,12 +261,12 @@ get_command(Sess, IdOrName) ->
 -spec get_view({atom(), pid()}, ddEntityId()) -> {error, binary()} | #ddView{} | undefined .
 get_view(undefined, ViewId) -> gen_server:call(?MODULE, {get_view, ViewId});
 get_view(Sess, ViewId) ->
-    ?Debug("get view by id ~p", [ViewId]),
+    ?Debug("get ddView by id ~p", [ViewId]),
     case check_cmd_select(Sess, [ddView, [{#ddView{id = ViewId, _ = '_'}, [], ['$_']}]]) of
         {error, _} = Error -> Error;
         [View] -> View;
         Result ->
-            ?Error("View with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
+            ?Error("ddView with the id ~p was not found, select result: ~n~p", [ViewId, Result]),
             undefined
     end.
 

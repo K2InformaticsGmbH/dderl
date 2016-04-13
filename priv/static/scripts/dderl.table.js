@@ -103,10 +103,10 @@
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
-                       'Save View'      : '_saveView',
-                       'Save View As'   : '_saveViewAs',
-                       'Rename View'    : '_renameView',
-                       'Delete View'    : '_deleteView',
+                       'Save ddView'    : '_saveView',
+                       'Save ddView As' : '_saveViewAs',
+                       'Rename ddView'  : '_renameView',
+                       'Delete ddView'  : '_deleteView',
                        'Export Csv'     : '_exportCsv',
                        'Send Data'      : '_activateSender',
                        'Receive Data'   : '_activateReceiver',
@@ -123,7 +123,9 @@
                        'Sort Clear'       : '_sortClear',
                        'Histogram'        : '_showHistogram',
                        'Statistics'       : '_showStatisticsFull',
-                       'Toggle Grouping'  : '_toggleGrouping'},
+                       'Toggle Grouping'  : '_toggleGrouping',
+                       'Shrink'           : '_shrinkColumn',
+                       'Fit to Data'      : '_fitColumnToData'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filterCell',
                        'Filter...'        : '_filterCellDialog',
@@ -418,20 +420,23 @@
      * Renaming a view
      */
     _renameView: function() {
-        if("All Views" === this.options.title) {
-            alert_jq("Error: The view 'All Views'' may not be renamed");
-        } else if(this._viewId) {
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be renamed");
+        } else {
             var self = this;
-            prompt_jq({label: "View new name", content: ''},
+            prompt_jq({label: "ddView new name", value: self.options.title, content: ''},
                 function(viewName) {
                     if (viewName) {
-                        console.log("saving "+self._viewId+" with name "+viewName);
-                        var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
-                        self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                        if(self._viewId) {
+                            console.log("saving "+self._viewId+" with name "+viewName);
+                            var renameView = {view_op : {operation : "rename", view_id : self._viewId, newname : viewName}};
+                            self._ajax('view_op', renameView, 'view_op', 'opViewResult');
+                        } else {
+                            self._setTitleHtml($('<span>').text(viewName).addClass('table-title'));
+                        }
+                        self.options.title = viewName;
                     }
                 });
-        } else {
-            alert_jq("Error: \"" + this.options.title + "\" is not a view and therefore may not be renamed here!");
         }
     },
 
@@ -439,8 +444,8 @@
      * Delete a view
      */
     _deleteView: function() {
-        if("All Views" === this.options.title) {
-            alert_jq("Error: The view 'All Views' may not be deleted");
+        if(("All ddViews" === this.options.title) || ("Remote Tables" === this.options.title)) {
+            alert_jq("Error: The ddView '" + this.options.title + "' may not be deleted");
         } else if(this._viewId) {
             var self = this;
             var viewName = self.options.title;
@@ -471,7 +476,7 @@
 
     _saveViewAs: function() {
         self = this;
-        prompt_jq({label: "View name", content: ''},
+        prompt_jq({label: "ddView name", content: ''},
             function(viewName) {
                 if (viewName) {
                     self._saveViewWithName(viewName, false);
@@ -1749,6 +1754,41 @@
         for(var fun in this._handlers) {
             this.element.on(fun, null, this, this._handlers[fun]);
         }
+    },
+
+    _shrinkColumn: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+            }
+        }
+        self._grid.setColumns(columns);
+    },
+
+    _fitColumnToData: function(selectedRange) {
+        var self = this;
+        var columns = self._grid.getColumns();
+        for(var i = 0; i < selectedRange.length; ++i) {
+            for(var j = selectedRange[i].fromCell; j <= selectedRange[i].toCell; ++j) {
+                columns[j].width = 35;
+                var maxLength = 0;
+                for(var k = 0; k < self._gdata.length; ++k) {
+                    var row = self._gdata[k];
+                    var field = columns[j].field;
+                    if(row[field].length > maxLength) {
+                        maxLength = row[field].length;
+                        var fieldWidth = self._txtlen.text(row[field]).width();
+                        fieldWidth = fieldWidth + 0.4 * fieldWidth;
+                        if(columns[j].width < fieldWidth) {
+                            columns[j].width = Math.min(fieldWidth, self._MAX_ROW_WIDTH);
+                        }
+                    }
+                }
+            }
+        }
+        self._grid.setColumns(columns);
     },
 
     _createDlgFooter: function() {

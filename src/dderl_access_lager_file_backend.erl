@@ -109,21 +109,42 @@ handle_event({log, Message},
         true ->
             Msg = lager_msg:message(Message),
             {D, T} = lager_msg:datetime(Message),
+            CmdArgs = maps:get(dderlCmdArgs, Msg, ""),
+            {NewCmdArgs, SQL} = case CmdArgs of
+                "" -> {"", ""};
+                #{<<"Password">> := _} -> {jsx:encode(CmdArgs#{<<"Password">> => <<"****">>}), ""};
+                #{<<"password">> := _, <<"new_password">> := _} -> 
+                    {jsx:encode(CmdArgs#{<<"password">> => <<"****">>, <<"new_password">> => <<"****">>}), ""};
+                #{<<"password">> := _} -> {jsx:encode(CmdArgs#{<<"password">> => <<"****">>}), ""};
+                #{<<"qstr">> := QStr} -> 
+                    FQstr = re:replace(QStr, <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>, "\\1****\\5",
+                                    [{return,binary}]),
+                    {jsx:encode(maps:remove(<<"qstr">>, CmdArgs)), FQstr};
+                CmdArgs when is_map(CmdArgs) -> {jsx:encode(CmdArgs), ""};
+                CmdArgs -> {CmdArgs, ""}
+            end,
+            FUser = case maps:get(dderlUser, Msg) of
+                User when is_integer(User) -> integer_to_list(User);
+                User when is_atom(User) -> atom_to_list(User);
+                User -> io_lib:format("~p", [User])
+            end,
+            SessId = base64:encode_to_string(integer_to_list(erlang:phash2(maps:get(dderlSessId, Msg)))),
             Log = [
                    D," ",T,";",
                    atom_to_list(node()),";",
                    maps:get(src, Msg),";",
                    maps:get(proxy, Msg),";",
-                   maps:get(dderlUser, Msg),";",
+                   FUser,";",
+                   SessId, ";",
                    maps:get(version, Msg),";",
                    maps:get(loglevel, Msg),";",
                    maps:get(dderlCmd, Msg),";",
-                   maps:get(dderlCmdArgs, Msg),";",
+                   NewCmdArgs,";",
                    maps:get(connUser, Msg),";",
                    maps:get(connTarget, Msg),";",
                    maps:get(connDbType, Msg),";",
                    maps:get(connStr, Msg),";",
-                   maps:get(sql, Msg),"\r\n"],
+                   SQL,"\r\n"],
             {ok, write(State, lager_msg:timestamp(Message), lager_msg:severity_as_int(Message), Log)};
         false ->
             {ok, State}

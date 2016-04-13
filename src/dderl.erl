@@ -229,30 +229,23 @@ get_ssl_options({ok, SslOpts}) ->
     SslOpts.
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_integer(User); is_atom(User) ->
-    access(LogLevel, SrcIp, if is_integer(User) -> integer_to_list(User);
-                               is_atom(User) -> atom_to_list(User);
-                               true -> io_lib:format("~p", [User])
-                            end, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_binary(CmdArgs) ->
-    access(LogLevel, SrcIp, User, Cmd, binary_to_list(CmdArgs), ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr, SQL) when is_tuple(SrcIp) ->
-    access(LogLevel, inet:ntoa(SrcIp), User, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr, SQL);
-access(LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr, SQL) ->
-    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser,
-        ConnTarget, ConnDBType, ConnStr, SQL).
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
+       ConnDBType, ConnStr) when is_binary(CmdArgs) ->
+    access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
+           ConnTarget, ConnDBType, ConnStr);
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+       ConnStr) when is_tuple(SrcIp) ->
+    access(LogLevel, inet:ntoa(SrcIp), User, SessId, Cmd, CmdArgs, ConnUser,
+           ConnTarget, ConnDBType, ConnStr);
+access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+    ConnStr) ->
+    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser,
+        ConnTarget, ConnDBType, ConnStr).
 
 log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
   when MinLogLevel < LogLevel -> ok;
-log(_, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr, SQL) ->
+log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
+    ConnStr) ->
     Proxy = case ?PROXY of
                 SrcIp -> "yes";
                 _ -> "no"
@@ -265,8 +258,8 @@ log(_, LogLevel, SrcIp, User, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
     LL = if is_integer(LogLevel) -> integer_to_list(LogLevel);
                   true -> LogLevel end,
     ?Access(#{proxy => Proxy, version => Version, loglevel => LL,
-              src => SrcIp, dderlUser => User, dderlCmd => Cmd,
-              dderlCmdArgs => CmdArgs, connUser => ConnUser,
+              src => SrcIp, dderlUser => User, dderlSessId => SessId,
+              dderlCmd => Cmd, dderlCmdArgs => CmdArgs, connUser => ConnUser,
               connTarget => ConnTarget, connDbType => ConnDBType,
-              connStr => ConnStr, sql => SQL}).
+              connStr => ConnStr}).
 %%-----------------------------------------------------------------------------
