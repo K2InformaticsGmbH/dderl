@@ -22,12 +22,12 @@
 
         _toolbarButtons : {
             'format' : {tip: 'Auto indent',       typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_autoFormat', dom: '_tbAutoFormat'},
-            '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'rev-play', clk : '_decreaseExp', dom: '_tbExpDown'},
+            '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'play previousPage', clk : '_decreaseExp', dom: '_tbExpDown'},
             'textBox': {tip: 'Expansion level',   typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
             '>'      : {tip: 'Increase expansion',typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
             'accept' : {tip: 'Set changes',       typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
-            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' },
-            'warp'   : {tip: 'Word warp',         typ : 'btn', icn : 'arrowreturn-1-e', clk : '_toggleWordWarp', dom: '_tbWordWarp' }},
+            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'times',    clk : '_abortChanges',dom: '_tbCancel' },
+            'warp'   : {tip: 'Word warp',         typ : 'btn', icn : 'outdent', clk : '_toggleWordWarp', dom: '_tbWordWarp' }},
 
 
         // These options will be used as defaults
@@ -174,7 +174,7 @@
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
@@ -187,7 +187,7 @@
                     .button()
                     .addClass('tb_empty')
                     .css('height', (inph-2)+'px')
-                    .css('text-align', 'right')
+                    .css('text-align', 'center')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
                     .keypress(function(evt) {
