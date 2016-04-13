@@ -46,6 +46,9 @@ function fromUnicodeLiteral(str)
                 "BinStringText": BinStringTextFormatter,
                 "IdFormatter": IdFormatter,
                 "Percent": PercentFormatter,
+                "DragArrows": DragArrowsFormatter,
+                "Trashcan": TrashIconFormatter,
+                "Sort": SortIconFormatter
             },
             "Editors": {
                 "ControlChars": ControlCharsEditor
@@ -55,6 +58,24 @@ function fromUnicodeLiteral(str)
 
     function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
         return "<img src='./static/media/cross.png'>";
+    }
+
+    function SortIconFormatter(row, cell, value, columnDef, dataContext) {
+
+        if (value == 'ASC') {
+            return  "<span>ASC <i class='fa fa-sort-amount-asc  fa-customSize' aria-hidden='true'></i></span>";
+
+        } else if (value == 'DESC') {
+            return  "<span>DESC <i class='fa fa-sort-amount-desc  fa-customSize' aria-hidden='true'></i></span>";
+        }
+    }
+
+    function DragArrowsFormatter(row, cell, value, columnDef, dataContext) {
+        return "<i class='fa fa-arrows-v  fa-customSize' aria-hidden='true'></i>";
+    }
+
+    function TrashIconFormatter(row, cell, value, columnDef, dataContext) {
+        return "<i class='fa fa-trash  fa-customSize' aria-hidden='true'></i>";
     }
 
     function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
