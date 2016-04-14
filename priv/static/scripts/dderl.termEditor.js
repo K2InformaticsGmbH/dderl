@@ -253,7 +253,7 @@
         },
 
         updateExp: function(expansionLevel, force) {
-            var stringToFormat = unescapeNewLines(this._editText.val());
+            var stringToFormat = unescape(this._editText.val());
             var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
             ajaxCall(this, 'format_erlang_term', {
                 format_erlang_term: {
@@ -300,7 +300,7 @@
         },
         _saveChanges: function(self) {
             console.log('cb _saveChanges: the new term: ' + self._editText.val());
-            var stringToFormat = unescapeNewLines(self._editText.val());
+            var stringToFormat = unescape(self._editText.val());
             var expansionWithAuto = (self._currentExpLvl < 0)? "auto": self._currentExpLvl;
             if(self._isJson) {
                 ajaxCall(self, 'format_json_to_save', {

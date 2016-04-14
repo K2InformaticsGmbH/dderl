@@ -335,7 +335,7 @@ process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, {SrcIp,_},
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "format_json_to_save", ReqData, "", "", "", ""),
     [{<<"format_json_to_save">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"json_string">>, BodyJson, <<>>),
-    case jsx:is_json(StringToFormat) of
+    case jsx:is_json(StringToFormat, [{strict, [escapes]}]) of
         true ->
             Formatted = jsx:encode(jsx:decode(StringToFormat)),
             ?Debug("The formatted text: ~p", [Formatted]),
