@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head profile="http://www.w3.org/2005/10/profile">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>DDErl</title>
+    <link rel="icon" type="image/png" href="dderl_icon.png">
+    <link rel="stylesheet" href="static/public/css/vendor.css" type="text/css"/>
+    <link rel="stylesheet" href="static/public/css/app.css" type="text/css"/>
+</head>
+<body>
+    <div id="login-bg"></div>
+    <div id="main-menu-bar" class = "menubar">
+        <ul class="dropdown menubar">
+            <li><a>Query Server</a>
+                <ul class="sub_menu">
+                    <li><a id="btn-tables" onclick='show_qry_files(true)'>Tables and ddViews</a></li>
+                    <li><a id="btn-import-query" onclick='import_query()'>Import Query</a></li>
+                    <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
+                    <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
+                    <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
+                    <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
+                </ul>
+            </li>
+            <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
+            <li><a id="newsql-button" onclick='StartSqlEditor()'>New Query</a></li>
+            <li><a>Window</a>
+                <ul id="window-finder" class="sub_menu">
+                </ul>
+            </li>
+            <li><a id="tbl-opts" style="display:none">Options</a>
+                <ul class="sub_menu">
+                     <li><a id="table-edit-query" onclick='edit_table()'>Edit Query</a></li>
+                     <li><a id="table-save" onclick='save_table()'>Save</a></li>
+                     <li><a id="table-save-as" onclick='save_as_table()'>Save As</a></li>
+                     <li><a id="table-export">Export Rows</a></li>
+                </ul>
+            </li>
+        </ul>
+        <div id="dashboard-menu">
+        </div>
+        <div style="position:absolute;top:0px;right:0px">
+            <span><a id="btn-logout" onclick='logout()'>Logout</a> | </span>
+            <span id="node"></span>
+            <span id="version"></span>
+        </div>
+    </div>
+    <div id="main-body">
+        <div style="position:absolute; bottom : 0px; right: 0px; height : 100px; width : 100px">
+            <img src = "static/media/bg.svg"/>
+        </div>
+    </div>
+    <audio class="tr_audio" id="beep-sound">
+      <source src="static/public/sound/success.ogg" type="audio/ogg">
+      <source src="static/public/sound/success.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="static/public/js/vendor.js"></script>
+    <script src="bullet.js"></script>
+    <script src="static/public/js/app.js"></script>
+
+    <script language='javascript'>
+        $(document).ready(function() {
+            $('#main-body').css('top', $('#main-menu-bar').height());
+            if(Object.hasOwnProperty('freeze')) {
+                patch_jquery_ui(); // Add support for html titles to dialogs.
+                check_already_connected();
+            } else {
+                $('#main-menu-bar').hide();
+                alert_jq("We are really sorry, but we don't support your current browser version.");
+            }
+
+            $(window).on('beforeunload', function() {
+                if(dderlState.connection) {
+                    return "You will lose all unsaved data, are you sure you want to continue?";
+                }
+            });
+            //beep(); // beep test
+        });
+    </script>
+</body>
+</html>

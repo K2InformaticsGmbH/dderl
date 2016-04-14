@@ -51,12 +51,10 @@ function connect_dlg()
         resizable: false,
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        appendTo: "#main-body",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
-        },
-        open: function(evt, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
         },
         buttons: {
             'Login / Save': function() {
@@ -95,7 +93,8 @@ function connect_dlg()
             }
         }
     })
-    .dialog('open');
+    .dialog('open')
+    .dialog("widget").draggable("option","containment","#main-body");
     
     adapter_list.change(function() {
         if(adapter_list.children().length < 1) {
@@ -667,9 +666,7 @@ function validateSmsToken(user, data, connectSuccessCb)
         position: { my: "left top", at: "left+80 top+300", of: "#main-body" },
         closeOnEscape: false,
         dialogClass: 'no-close',
-        open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
-        },
+        appendTo: '#main-body',
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();

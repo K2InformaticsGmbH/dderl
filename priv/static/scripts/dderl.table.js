@@ -155,9 +155,8 @@
         closeOnEscape     : false,
         clear             : null,
         toolBarHeight     : 20,
-        open              : function(e,ui) {
-                              $(this).dialog("widget").appendTo("#main-body");
-                            },
+        position          : {at: "left top", my: "left top", of: "#main-body"},
+        appendTo          : "#main-body",
         focus             : function(e,ui) {},
         close             : function() {
                               $(this).table('close_stmt');
@@ -1139,6 +1138,7 @@
             width : 336,
             modal : false,
             title : 'Sorts',
+            appendTo: "#main-body",
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
                 $(this).dialog('close');
@@ -1155,7 +1155,6 @@
         });
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
-        self._sortDlg.dialog("widget").appendTo("#main-body");
         //Set the height of the sort dialog depending on the number of rows...
         var sortGridHeight = (data.length + 2) * self.options.slickopts.rowHeight;
         self._sortDlg.height(sortGridHeight);
@@ -1316,11 +1315,11 @@
             for(var c in self._filters) {
                 var strs = [];
                 for(s in self._filters[c].vals) strs.push(s);
-                if($.browser.msie) {
-                    self._filters[c].inp.val(strs.join('\r\n'));
-                } else {
+                //if($.browser.msie) {
+                //    self._filters[c].inp.val(strs.join('\r\n'));
+                //} else {
                     self._filters[c].inp.val(strs.join('\n'));
-                }
+                //}
             }
             var filterspec = self._filterSpec2Json('and');
             self._ajax('filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
@@ -1359,11 +1358,11 @@
         for(var c in self._filters) {
             var strs = [];
             for(s in self._filters[c].vals) strs.push(s);
-            if($.browser.msie) {
-                self._filters[c].inp.val(strs.join('\r\n'));
-            } else {
+            //if($.browser.msie) {
+            //    self._filters[c].inp.val(strs.join('\r\n'));
+            //} else {
                 self._filters[c].inp.val(strs.join('\n'));
-            }
+            //}
             $('<tr>')
                 .append('<td>'+ self._filters[c].name +'</td>')
                 .append($('<td>').append(self._filters[c].typeSelect))
@@ -1390,11 +1389,11 @@
                         self._filters[c].inp.width(dW);
                         self._filters[c].inp.height(dH);
                     }
-                }
+                },
+                appendTo: "#main-body"
             });
 
         self._fltrDlg.dialog("widget").draggable("option","containment", "#main-body");
-        self._fltrDlg.dialog("widget").appendTo("#main-body");
         //Lets put it where we have space...
         smartDialogPosition($("#main-body"), this._dlg, self._fltrDlg, ['center']);
 
@@ -1632,6 +1631,7 @@
                 width :   100 + 12 * maxFieldLen,
                 modal :   false,
                 title :   'Restore As',
+                appendTo: "#main-body",
                 position : {my: "left top", at: "left bottom", of: this._dlg},
                 close : function() {
                         $(this).dialog('close');
@@ -1644,7 +1644,6 @@
             });
 
         self._restoreAsDlg.dialog("widget").draggable("option","containment", "#main-body");
-        self._restoreAsDlg.dialog("widget").appendTo("#main-body");
         smartDialogPosition($("#main-body"), this._dlg, self._restoreAsDlg, ['center']);
 
         var applyRestoreAsFn = function() {
@@ -1811,7 +1810,7 @@
             };
 
             var inph = self.options.toolBarHeight;
-            if($.browser.msie) inph -= 2;
+            //if($.browser.msie) inph -= 2;
 
             if(elm.typ === 'btn')
                 self[elm.dom] =
@@ -1985,6 +1984,7 @@
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -1993,6 +1993,11 @@
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');
@@ -2039,6 +2044,7 @@
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -2047,6 +2053,11 @@
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');
@@ -2105,7 +2116,11 @@
             // Set the options.
             self.options.width = self._tbllay.width;
             self.options.height = self._tbllay.height;
-            self.options.position = [self._tbllay.x, self._tbllay.y];
+            self.options.position = {
+                my: "left top",
+                at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
+                of: "#main-body"
+            };
 
             // Override default dialog options.
             self._dlg.dialog("option", "position", self.options.position);
@@ -2188,6 +2203,8 @@
         var tl = null;
         var cl = null;
         var viewId = null;
+        var left = 0;
+        var top = 0;
 
         if(_table.hasOwnProperty('error')) {
             alert_jq(_table.error);
@@ -2198,16 +2215,23 @@
             return;
         }
 
-        var pos = [];
         if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
             var dlg = this._dlg.dialog('widget');
-            var titleBarHeight = $(dlg.find('.ui-dialog-titlebar')[0]).height();
-            pos = [dlg.position().left + titleBarHeight + 10, dlg.position().top + titleBarHeight + 10]
+            var titleBarHeight = dlg.find('.ui-dialog-titlebar').height();
+            left = (dlg.position().left + titleBarHeight + 10);
+            top = (dlg.position().top + titleBarHeight + 10);
         } else {
-            pos = [_table.table_layout.x, _table.table_layout.y];
+            left = _table.table_layout.x;
+            top = _table.table_layout.y;
             tl = _table.table_layout;
         }
-
+        
+        var pos = {
+            my: "left top",
+            at: "left+" + left + " top+" + top,
+            of: "#main-body"
+        };
+            
         if(_table.hasOwnProperty('view_id')) {
             viewId = _table.view_id;
         }
@@ -2334,18 +2358,28 @@
         var self = this;
         var title = "Image editor (read only)";
 
+        var dlgHeight = $("#main-body").height()-50;
+        var dlgWidth = $("#main-body").width()-50;
         $('<div><img src="'+dataImg+'"></div>')
-            .appendTo(document.body)
             .dialog(
                 { // dialog options default override
                     width           : 'auto',
-                    minHeight       : 50,
-                    minWidth        : 100,
+                    minHeight       : 250,
+                    minWidth        : 250,
+                    height          : dlgHeight,
+                    width           : dlgWidth,
                     resizable       : true,
                     modal           : false,
                     title           : title,
                     clear           : null,
+                    appendTo        : "#main-body",
+                    position        : {my: "top left", at: "top left", of: "#main-body"},
                     focus           : function(e,ui) {},
+                    open: function() {
+                        $(this)
+                            .dialog("widget")
+                            .draggable("option","containment","#main-body");
+                    },
                     close           : function() {
                         $(this).dialog('destroy');
                         $(this).remove();
@@ -2381,6 +2415,7 @@
                         termOwner : self,
                         readOnly  : false,
                         container : $("#main-body"),
+                        appendTo  : "#main-body",
                         term      : content,
                         isJson    : isJson
                     }
@@ -2394,7 +2429,18 @@
         if(self._tbllay !== null) {
             self.options['width'] = self._tbllay.width;
             self.options['height'] = self._tbllay.height;
-            self.options['position'] = [self._tbllay.x, self._tbllay.y];
+            self.options['position'] = {
+                my: "left top",
+                at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
+                of: "#main-body"
+            };
+        } else if(!self.options.position || !self.options.position.my) {
+            self.options['position'] = {
+                at : "left top",
+                my : "left top",
+                of : "#main-body",
+                collision : 'none'
+            };
         }
 
         // dlg width can't be less than footer width
@@ -2421,9 +2467,7 @@
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
-        if(self.options.position.length === undefined) {
-            self._dlg.dialog( "option", "position", {at : 'left top', my : 'left top', collision : 'none'} );
-        }
+        
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
@@ -2820,7 +2864,8 @@
         }
 
         self._dlg.dialog("moveToTop");
-        if($.browser.msie) {
+        //TODO: Why is this duplicated ?... find a replacement.
+        /*if($.browser.msie) {
             //Ie steals the focus to the scrollbar even after preventDefaults.
             //Added the timer to get the focus back.
             setTimeout(function() {
@@ -2832,13 +2877,14 @@
                 console.log("Focus set");
             }, 50);
         } else {
-            self._grid.focus();
-            var cellEditor = self._grid.getCellEditor();
-            if(cellEditor && !cellEditor.isFocused()) {
-                cellEditor.focus();
-            }
-            console.log("Focus set");
+        */
+        self._grid.focus();
+        var cellEditor = self._grid.getCellEditor();
+        if(cellEditor && !cellEditor.isFocused()) {
+            cellEditor.focus();
         }
+        console.log("Focus set");
+        //}
     },
 
     _handleDragInit: function(e, args) {
@@ -3434,10 +3480,18 @@
                             var orig_top = dlg.offset().top;
                             var new_left = dlg.offset().left - gWidth + rWindowWidth;
                             if(new_left > 0) {
-                                self._dlg.dialog("option", "position", [new_left, orig_top]);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left+" + new_left + " top+" + orig_top,
+                                    of: "#main-body"
+                                });
                                 dlg.width(gWidth);
                             } else {
-                                self._dlg.dialog("option", "position", [0, orig_top]);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left top+" + orig_top,
+                                    of: "#main-body"
+                                });
                                 dlg.width($(window).width() - 40);
                             }
                         }

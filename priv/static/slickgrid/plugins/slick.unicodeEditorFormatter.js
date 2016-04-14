@@ -54,7 +54,7 @@ function fromUnicodeLiteral(str)
     });
 
     function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
-        return "<img src='./static/media/cross.png'>";
+        return "<img src='static/public/img/cross.png'>";
     }
 
     function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
