@@ -66,9 +66,9 @@ function connect_dlg()
                     login_save($(this), connection_list, adapter_list, owners_list);
                 },
                 icons: {
-                    primary: "ui-icon-heart"
+                    primary: "fa fa-sign-in"
                 },
-                showText: false
+                showText: true
             },
             {   text:'Delete',
                 click:function() {
@@ -95,7 +95,11 @@ function connect_dlg()
                                 }
                             });
                         });
-                }
+                },
+                icons: {
+                    primary: "fa fa-trash buttonsDialogConnect"
+                },
+                showText: false
             },
             {   text:'Clear',
                 click: function() {
@@ -103,7 +107,11 @@ function connect_dlg()
                     connect_options.find('textarea').val('');
                     $("input:radio[name=method]:checked").val("local");
                     console.log($("input:radio[name=method]:checked").val());
-                }
+                },
+                icons: {
+                    primary: "fa fa-refresh buttonsDialogConnect"
+                },
+                showText: false
             }
         ]
     })
