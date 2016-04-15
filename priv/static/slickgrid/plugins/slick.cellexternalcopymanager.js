@@ -560,7 +560,7 @@
                 clipTextArr.push(textFromBoundRange(ranges, boundRange, columns, usedCols));
                 clipText = clipTextArr.join('');
             }
-            var $focus = $(_grid.getActiveCellNode());
+            var focusElement = document.activeElement;
 
             var ta = _createTextBox(clipText);
             ta.focus();
@@ -568,10 +568,8 @@
             setTimeout(function(){
                 document.body.removeChild(ta);
                 // restore focus
-                if ($focus && $focus.length > 0) {
-                    $focus.attr('tabIndex', '-1');
-                    $focus.focus();
-                    $focus.removeAttr('tabIndex');
+                if (focusElement) {
+                    focusElement.focus();
                 }
             }, 100);
         }
