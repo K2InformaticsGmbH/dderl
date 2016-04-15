@@ -37,8 +37,8 @@ cookie="-setcookie $ck"
 
 # PATHS
 paths="-pa"
-paths=$paths" $PWD/ebin"
-paths=$paths" $PWD/deps/*/ebin"
+paths=$paths" ebin"
+paths=$paths" deps/*/ebin"
 
 # Proto dist module
 dist_opts="-proto_dist"
