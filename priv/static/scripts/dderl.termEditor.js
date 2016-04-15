@@ -125,6 +125,7 @@
             self._dlg = self.element.dialog(self.options);
             // setting up the event handlers last to aid debugging
             self._setupEventHandlers();
+            self.updateExp(self, self._currentExpLvl, true);
         },
 
         _setupEventHandlers: function() {
@@ -259,13 +260,7 @@
             if(self._isJson){
                 var stringToFormat = unescape(this._editText.val());
                 var indent = (expansionLevel < 0) ? 4 : expansionLevel;
-                try {
-                    var obj = JSON.parse(stringToFormat);
-                    self._updateTextArea(JSON.stringify(obj, null, indent));
-                } catch (e) {
-                    console.log("Error : " + e);
-                    self._updateTextArea({error: "Invalid JSON"});
-                }
+                self._updateTextArea(self.formatJSON(stringToFormat, indent));
             } else {
                 var stringToFormat = unescapeNewLines(this._editText.val());
                 var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
@@ -279,6 +274,16 @@
             }
         },
 
+        formatJSON: function(string, indent) {
+            try {
+                var obj = JSON.parse(string);
+                return JSON.stringify(obj, null, indent);
+            } catch (e) {
+                console.log("Error : " + e);
+                return {error: "Invalid JSON"};
+            }
+            
+        },
         /*
          * Toolbar callbak functions
          */
