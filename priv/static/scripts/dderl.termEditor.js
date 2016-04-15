@@ -187,17 +187,19 @@
                     .css('text-align', 'right')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
-                    .keypress(function(evt) {
+                    .keydown(function(evt) {
                         evt.data = self;
                         var explvlnum = parseInt(self._tbTxtBox.val() + String.fromCharCode(evt.which));
-                        if(!isNaN(explvlnum)) {
-                            self._currentExpLvl = explvlnum;
-                            toolElmFn.call(this, evt);
-                        } else {
-                            if(self._currentExpLvl != -1) {
+                        if(explvlnum != self._currentExpLvl) {
+                            if(!isNaN(explvlnum)) {
+                                self._currentExpLvl = explvlnum;
                                 toolElmFn.call(this, evt);
+                            } else {
+                                if(self._currentExpLvl != -1) {
+                                    toolElmFn.call(this, evt);
+                                }
+                                self._currentExpLvl = -1;
                             }
-                            self._currentExpLvl = -1;
                         }
                         return true;
                     })
