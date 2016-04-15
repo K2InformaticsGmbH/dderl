@@ -50,6 +50,6 @@
   }
 
   function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
-    return value ? "<img src='./static/media/tick.png'>" : "";
+    return value ? "<img src='static/public/img/tick.png'>" : "";
   }
 })(jQuery);

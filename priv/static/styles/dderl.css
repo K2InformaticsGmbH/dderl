@@ -1,14 +1,9 @@
-@import url('font.droid_sans.css');
-@import url('jquery-ui.css');
-@import url('jquery.contextMenu.css');
-@import url('slick.grid.css');
-@import url('slick.columnpicker.css');
-@import url('jquery.jscrollpane.css');
-
-@import url('dropdown.css');
-
-@import url('dderl.sql.css');
-@import url('dderl.connect.css');
+@font-face {
+  font-family: 'Droid Sans Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Droid Sans Mono'), local('DroidSansMono'), url('../font/gfont.woff') format('woff');
+}
 
 div#login-bg {
     position: absolute;
@@ -83,7 +78,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 
 .cell-reorder {
     cursor: move;
-    background: url("../media/drag-handle.png") no-repeat center center;
+    background: url("../img/drag-handle.png") no-repeat center center;
 }
 
 .ui-dialog .ui-dialog-titlebar {
@@ -149,7 +144,7 @@ button.menubutton
 
 .loading-indicator label {
   padding-left: 20px;
-  background: url('../static/media/ajax-loader-small.gif') no-repeat center left;
+  background: url('../img/ajax-loader-small.gif') no-repeat center left;
 }
 
 .sql_edit_flds {
@@ -209,7 +204,7 @@ button.menubutton
 }
 
 .slick-header-column.selected {
-    background: url("../media/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
+    background: url("../img/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
     color: black;
 }
 
@@ -252,32 +247,14 @@ button.menubutton
 
 /*.ui-icon, */
 .ui-widget-content .ui-icon.ellipsis {
-	background-image: url(../media/ui-icons_222222_256x240.png);
+	background-image: url(../img/ui-icons_222222_256x240.png);
     background-position: -176px -160px;
 }
 .ui-widget-header .ui-icon.ellipsis {
-	background-image: url(../media/ui-icons_222222_256x240.png);
+	background-image: url(../img/ui-icons_222222_256x240.png);
     background-position: -176px -160px;
 
 }
-
-/*.ui-state-default .ui-icon {
-	background-image: url(../media/ui-icons_888888_256x240.png);
-}
-.ui-state-hover .ui-icon,
-.ui-state-focus .ui-icon {
-	background-image: url(../media/ui-icons_454545_256x240.png);
-}
-.ui-state-active .ui-icon {
-	background-image: url(../media/ui-icons_454545_256x240.png);
-}
-.ui-state-highlight .ui-icon {
-	background-image: url(../media/ui-icons_2e83ff_256x240.png);
-}
-.ui-state-error .ui-icon,
-.ui-state-error-text .ui-icon {
-	background-image: url(../media/ui-icons_cd0a0a_256x240.png);
-}*/
 
 /* positioning */
 .ui-icon-fetch-tail { background-position: -160px -160px; }
@@ -400,7 +377,7 @@ input.editor-text {
 }
 
 .ui-widget-header {
-    background: #cccccc/*{bgColorHeader}*/ url(../media/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
+    background: #cccccc/*{bgColorHeader}*/ url(../img/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
     color: #222222/*{fcHeader}*/;
     font-weight: bold;
 }
@@ -453,7 +430,7 @@ div#main_footer {
 
 .table-title-wait {
   padding-left: 20px;
-  background: url('../media/ajax-loader-small.gif') no-repeat center left;
+  background: url('../img/ajax-loader-small.gif') no-repeat center left;
 }
 
 .sql_text_flat {
@@ -502,12 +479,6 @@ div#main_footer {
 
 .custom-combobox-input {
     width: 165px;
-    margin: 0;
-    padding: 0.3em;
-}
-
-.custom-combobox-input-ie {
-    width: 150px;
     margin: 0;
     padding: 0.3em;
 }

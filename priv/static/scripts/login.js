@@ -99,8 +99,8 @@ function display(layout) {
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
         dialogClass: 'no-close',
+        appendTo: "#login-bg",
         open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#login-bg");
             $(this).dialog("widget").css('z-index', 99999);
         },
         close: function() {
@@ -292,6 +292,7 @@ function process_logout() {
 
 function change_login_password(loggedInUser, shouldConnect)
 {
+
     password_change_dlg("Change DDerl account password", loggedInUser,
             function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {

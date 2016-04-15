@@ -380,8 +380,10 @@ if (typeof Slick === "undefined") {
 
     function getMaxSupportedCssHeight() {
       var supportedHeight = 1000000;
-      // FF reports the height back but still renders blank after ~6M px
-      var testUpTo = ($.browser.mozilla) ? 6000000 : 1000000000;
+        // FF reports the height back but still renders blank after ~6M px
+      //TODO: Test this...
+      // var testUpTo = ($.browser.mozilla) ? 6000000 : 1000000000;
+      var testUpTo = 6000000;
       var div = $("<div style='display:none' />").appendTo(document.body);
 
       while (true) {
@@ -2235,9 +2237,9 @@ if (typeof Slick === "undefined") {
 
       // if there previously was text selected on a page (such as selected text in the edit cell just removed),
       // IE can't set focus to anything else correctly
-      if ($.browser.msie) {
-        clearTextSelection();
-      }
+      //if ($.browser.msie) {
+      clearTextSelection();
+      //}
 
       getEditorLock().deactivate(editController);
     }
