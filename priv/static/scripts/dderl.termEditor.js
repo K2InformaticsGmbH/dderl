@@ -188,15 +188,16 @@
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
                     .keypress(function(evt) {
-                        if(evt.which == 13) {
-                            var explvlnum = parseInt($(this).val());
-                            if(explvlnum != NaN) {
-                                self._currentExpLvl = explvlnum;
-                            } else {
-                                self._currentExpLvl = -1;
-                            }
-                            evt.data = self;
+                        evt.data = self;
+                        var explvlnum = parseInt(self._tbTxtBox.val() + String.fromCharCode(evt.which));
+                        if(!isNaN(explvlnum)) {
+                            self._currentExpLvl = explvlnum;
                             toolElmFn.call(this, evt);
+                        } else {
+                            if(self._currentExpLvl != -1) {
+                                toolElmFn.call(this, evt);
+                            }
+                            self._currentExpLvl = -1;
                         }
                         return true;
                     })
@@ -298,7 +299,6 @@
             if(self._currentExpLvl < -1) {
                 self._currentExpLvl = -1;
             }
-            self._updateTxtBox();
             self.updateExp(self, self._currentExpLvl, false);
         },
         _increaseExp: function(self) {
