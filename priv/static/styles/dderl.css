@@ -679,3 +679,8 @@ div#main_footer {
 .ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close{
     background-color: transparent;
 }
+
+#buttonList .ui-button.ui-state-active .ui-button-text {
+    color: white;
+    background-color: #77777F;
+}
