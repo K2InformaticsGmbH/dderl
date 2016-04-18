@@ -379,6 +379,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
     div
     .appendTo(connect_options)
     .buttonset()
+    .attr('id','buttonList')
     .change(function() {
         var connect = connection_list.find("option:selected").data('connect');
         connect.method = $("input:radio[name=method]:checked").val();
