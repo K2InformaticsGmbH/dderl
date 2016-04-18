@@ -672,6 +672,10 @@ div#main_footer {
     border-right: 2px solid whitesmoke;
 }
 
-span.ui-button-icon-primary.ui-icon.ui-icon-closethick {
-  
+.ui-icon.ui-button-icon-primary.ui-icon-closethick {
+    margin-top: -6px;
+}
+
+.ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close{
+    background-color: transparent;
 }
