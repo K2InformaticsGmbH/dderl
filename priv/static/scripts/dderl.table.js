@@ -475,7 +475,7 @@
 
     _saveViewAs: function() {
         self = this;
-        prompt_jq({label: "ddView name", content: ''},
+        prompt_jq({label: "ddView name", content: '', value: self.options.title},
             function(viewName) {
                 if (viewName) {
                     self._saveViewWithName(viewName, false);
