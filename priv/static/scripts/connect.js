@@ -52,46 +52,69 @@ function connect_dlg()
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
         appendTo: "#main-body",
+        dialogClass: "no-close",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
         },
-        buttons: {
-            'Login / Save': function() {
-                login_save($(this), connection_list, adapter_list, owners_list);
+        open: function(evt, ui) {
+            $(this).dialog("widget").appendTo("#main-body");
+        },
+        buttons: [
+            {
+                text:'Login / Save',
+                click: function() {
+                    login_save($(this), connection_list, adapter_list, owners_list);
+                },
+                icons: {
+                    primary: "fa fa-sign-in"
+                },
+                showText: true
             },
-            'Delete': function() {
-                var conn = connection_list.find("option:selected");
-                var connData = conn.data('connect');
-                var dlg = $(this);
-                confirm_jq(
+            {   text:'Delete',
+                click:function() {
+                    var conn = connection_list.find("option:selected");
+                    var connData = conn.data('connect');
+                    var dlg = $(this);
+                    confirm_jq(
                         {title: "Confirm delete connection",
-                         content: connData.name+' ('+connData.adapter+')'},
-                         function() {
-                             ajaxCall(null,'del_con', {del_con: {conid: connData.id}}, 'del_con', function(data) {
-                                 if(data.hasOwnProperty('error')) {
-                                     alert_jq(JSON.stringify(data.error));
-                                 } else {
-                                     conn.remove();
-                                     if(connection_list.find("option:selected").length == 0) {
-                                         dlg.dialog("close");
-                                         loginAjax(null);
-                                     } else {
-                                         connection_list.parent().find('input').val(
-                                             connection_list.find("option:selected").data('connect').name);
-                                         connection_list.change();
-                                     }
-                                 }
-                             });
-                         });
+                            content: connData.name+' ('+connData.adapter+')'},
+                        function() {
+                            ajaxCall(null,'del_con', {del_con: {conid: connData.id}}, 'del_con', function(data) {
+                                if(data.hasOwnProperty('error')) {
+                                    alert_jq(JSON.stringify(data.error));
+                                } else {
+                                    conn.remove();
+                                    if(connection_list.find("option:selected").length == 0) {
+                                        dlg.dialog("close");
+                                        loginAjax(null);
+                                    } else {
+                                        connection_list.parent().find('input').val(
+                                            connection_list.find("option:selected").data('connect').name);
+                                        connection_list.change();
+                                    }
+                                }
+                            });
+                        });
+                },
+                icons: {
+                    primary: "fa fa-trash buttonsDialogConnect"
+                },
+                showText: false
             },
-            'Clear' : function() {
-                connect_options.find('input').val('');
-                connect_options.find('textarea').val('');
-                $("input:radio[name=method]:checked").val("local");
-                console.log($("input:radio[name=method]:checked").val());
+            {   text:'Clear',
+                click: function() {
+                    connect_options.find('input').val('');
+                    connect_options.find('textarea').val('');
+                    $("input:radio[name=method]:checked").val("local");
+                    console.log($("input:radio[name=method]:checked").val());
+                },
+                icons: {
+                    primary: "fa fa-refresh buttonsDialogConnect"
+                },
+                showText: false
             }
-        }
+        ]
     })
     .dialog('open')
     .dialog("widget").draggable("option","containment","#main-body");

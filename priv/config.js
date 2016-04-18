@@ -38,7 +38,8 @@ exports.config = {
                     'static/styles/dderl.css'
                 ],
                 'css/vendor.css': [
-                    'bower_components/jquery-ui/themes/smoothness/jquery-ui.css'
+                    'bower_components/jquery-ui/themes/smoothness/jquery-ui.css',
+                    'bower_components/font-awesome/css/font-awesome.css'
                 ]
             }
         }

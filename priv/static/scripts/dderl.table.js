@@ -88,18 +88,18 @@
                         cacheResult     : function(e, _result) { e.data._cacheResult            (_result); }
                       },
 
-    _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
-                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'seek-first',       clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
-                       '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'seek-prev',        clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
-                       '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'rev-play',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
+    _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',       clk : '_toolBarReload',   dom: '_tbReload' },
+                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'step-backward', clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
+                       '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',  clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
+                       '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
                        'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
                        '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
-                       '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'seek-next',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'seek-end',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'fetch-tail',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
-                       '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
+                       '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'forward',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
+                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'step-forward',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
+                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'step-forward ellipsis',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
+                       '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only ellipsis',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
                        'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
-                       'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'close',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
+                       'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'times',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
@@ -1015,7 +1015,8 @@
                         behavior: "selectAndMove",
                         selectable: true,
                         resizable: false,
-                        cssClass: "cell-reorder dnd"
+                        formatter: Slick.Formatters.DragArrows,
+                        cssClass: "center"
                       },
                       {
                         id: "name",
@@ -1031,7 +1032,9 @@
                         field: "sort",
                         width: 100,
                         selectable: true,
-                        cannotTriggerInsert: true
+                        cannotTriggerInsert: true,
+                        formatter: Slick.Formatters.Sort,
+                        cssClass: "center"
                       },
                       {
                         id: "select",
@@ -1039,7 +1042,8 @@
                         field: "select",
                         width: 40,
                         selectable: true,
-                        formatter: Slick.Formatters.Checkmark
+                        formatter: Slick.Formatters.Trashcan,
+                        cssClass: "center"
                       }
                     ]
                 , {
@@ -1138,21 +1142,33 @@
             width : 336,
             modal : false,
             title : 'Sorts',
+            dialogClass: 'btnSortClass',
             appendTo: "#main-body",
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
                 $(this).dialog('close');
                 $(this).remove();
             },
-            buttons: {
+            buttons: [
+                {
+                    text: 'Sort',
+                    click: function() {
+                        var sortspec = saveChange();
+                        self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
+                        $(this).dialog('close');
+                        $(this).remove();
+                    }
+                }
+            ]
+        /*    {
                 'Sort' : function() {
                     var sortspec = saveChange();
                     self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
                     $(this).dialog('close');
                     $(this).remove();
                 }
-            }
-        });
+            }*/
+        })
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
         //Set the height of the sort dialog depending on the number of rows...
@@ -1817,7 +1833,7 @@
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);

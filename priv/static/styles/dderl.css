@@ -28,6 +28,26 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .cell-title { font-weight: bold; }
 .cell-effort-driven { text-align: center; }
 
+/* Allow Font Awesome Icons in lieu of jQuery UI and only apply when using a FA icon */
+.ui-icon[class*=" fa-"] {
+    /* Remove the jQuery UI Icon */
+    background: none repeat scroll 0 0 transparent;
+    /* Remove the jQuery UI Text Indent */
+    text-indent: 0;
+    /* Bump it up - jQuery UI is -8px */
+    margin-top: -0.5em;
+}
+
+.ui-button-icon-only .ui-icon[class*=" fa-"] {
+    /* Bump it - jQuery UI is -8px */
+    margin-left: -7px;
+}
+
+/* Allow use of icon-large to be properly aligned */
+.ui-icon.icon-large {
+    margin-top: -0.75em;
+}
+
 .ui-widget { font-family: 'Droid Sans Mono', sans-serif; }
 
 .ui-widget input,
@@ -84,6 +104,27 @@ button.menubutton
     position: absolute;
     top: 5px;
     border: none;
+}
+button.ui-button.ui-widget.ui-state-default.ui-corner-all,
+.btnSortClass.ui-dialog .ui-dialog-buttonpane .ui-dialog-buttonset button {
+    background: none;
+    background-color: #77777F;
+    border: none;
+    color: white;
+    border-radius: 5px;
+}
+.button {
+    background-color: #77777F;
+    border: none;
+    color: white;
+    padding: 4px 23px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 5px;
 }
 
 .loading-indicator {
@@ -207,27 +248,63 @@ button.menubutton
 
 .ui-icon,
 .ui-widget-content .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-widget-header .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-state-default .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
 }
 .ui-state-hover .ui-icon,
 .ui-state-focus .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-active .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-highlight .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_2e83ff_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_2e83ff_256x240.png);
 }
 .ui-state-error .ui-icon,
 .ui-state-error-text .ui-icon {
-	background-image: url(../jquery-ui-images/ui-icons_cd0a0a_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_cd0a0a_256x240.png);
+}
+
+.ui-icon.fa,
+.ui-widget-content .ui-icon.fa {
+    background-image: none;
+}
+.ui-widget-header .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-default .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-hover .ui-icon.fa,
+.ui-state-focus .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-active .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-highlight .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-error .ui-icon.fa,
+.ui-state-error-text .ui-icon.fa {
+    background-image: none;
+}
+
+
+/*.ui-icon, */
+.ui-widget-content .ui-icon.ellipsis {
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
+}
+.ui-widget-header .ui-icon.ellipsis {
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
 }
 
 /* positioning */
@@ -556,4 +633,49 @@ div#main_footer {
 
 #btn-logout {
     cursor: pointer;
+}
+.center {
+    text-align: center;
+}
+.right {
+    text-align: right;
+}
+.error-msg {
+    word-wrap: break-word;
+    width: 200px;
+    display: inline-block;
+}
+/*new icons for sort dialog*/
+
+.fa-trash.fa-customSize,
+.fa-sort-amount-asc.fa-customSize,
+.fa-sort-amount-desc.fa-customSize,
+.fa-arrows-v.fa-customSize {
+    font-size: 1.6em;
+    margin-top: 3px;
+}
+.fa-trash.fa-customSize {
+    color: #DD1122;
+}
+.buttonsDialogConnect {
+    font-size: 1.7em;
+}
+.previousPage {
+    -moz-transform: scale(-1, 1);
+    -webkit-transform: scale(-1, 1);
+    -o-transform: scale(-1, 1);
+    -ms-transform: scale(-1, 1);
+    transform: scale(-1, 1);
+}
+
+.slick-header-column.ui-state-default {
+    border-right: 2px solid whitesmoke;
+}
+
+.ui-icon.ui-button-icon-primary.ui-icon-closethick {
+    margin-top: -6px;
+}
+
+.ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close{
+    background-color: transparent;
 }
