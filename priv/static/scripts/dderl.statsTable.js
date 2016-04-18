@@ -22,7 +22,7 @@
                      statsLoadResult    : function(e, _result) { e.data.open(_result); }
                     },
 
-        _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
+        _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'refresh', clk : '_toolBarReload',   dom: '_tbReload' },
                            'textBox'  : {tip: '',       typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // slick context menus
@@ -222,7 +222,7 @@
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
