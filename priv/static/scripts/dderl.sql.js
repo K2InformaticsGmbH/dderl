@@ -95,12 +95,12 @@ function insertAtCursor(myField, myValue) {
                        'Delete ddView'  : '_deleteView'
     },
 
-    _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
-                       'Execute fetch first block'  : { typ : 'btn', icn : 'play',          clk : '_toolBarTblReload'       },
-                       'Execute fetch to end'       : { typ : 'btn', icn : 'seek-end',      clk : '_toolBarTblFetch2End'    },
-                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'fetch-tail',    clk : '_toolBarTblFetchNTail'   },
-                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only',    clk : '_toolBarTblTailOnly'     },
-                       ''                           : { typ : 'sel',                        clk : '_toolBarChangeSql'       }},
+    _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',               clk : '_toolBarValidate'        },
+                       'Execute fetch first block'  : { typ : 'btn', icn : 'play',                  clk : '_toolBarTblReload'       },
+                       'Execute fetch to end'       : { typ : 'btn', icn : 'forward',               clk : '_toolBarTblFetch2End'    },
+                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetchNTail'   },
+                       'Execute tail mode only'     : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblTailOnly'     },
+                       ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},
 
     // These options will be used as defaults
     options: {
@@ -652,7 +652,7 @@ function insertAtCursor(myField, myValue) {
             if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa  fa-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
                     .click(self, toolElmFn)
                     .appendTo(toolDiv);
