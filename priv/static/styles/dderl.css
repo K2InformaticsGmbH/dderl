@@ -2,7 +2,7 @@
   font-family: 'Droid Sans Mono';
   font-style: normal;
   font-weight: 400;
-  src: local('Droid Sans Mono'), local('DroidSansMono'), url('../font/gfont.woff') format('woff');
+  src: local('Droid Sans Mono'), local('DroidSansMono'), url('../fonts/gfont.woff') format('woff');
 }
 
 div#login-bg {
