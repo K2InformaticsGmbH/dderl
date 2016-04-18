@@ -496,22 +496,25 @@
         var binds = JSON.stringify(this._optBinds != null && this._optBinds.hasOwnProperty('pars')
                                             ? this._optBinds.pars : null);
 
-
-        $('<iframe>')
-            .on('load',function() {
-                var iframe = $(this);
-                var form = $('<form method="post" action="app/download_query">')
-                    .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
-                    .append($('<input type="hidden" name="connection">').val(connection))
-                    .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
-                    .append($('<input type="hidden" name="fileToDownload">').val(filename))
-                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
-                    .append($('<input type="hidden" name="binds">').val(binds));
-                $(this).contents().find('body').append(form);
-                form.submit();
-                setTimeout(function() {iframe.remove();}, 500);
-            })
-            .appendTo(document.body);
+        prompt_jq(
+            {label: "Download CSV", value:filename, content: ''},
+            function(fileNewName) {
+                $('<iframe>')
+                .on('load',function() {
+                    var iframe = $(this);
+                    var form = $('<form method="post" action="app/download_query">')
+                        .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
+                        .append($('<input type="hidden" name="connection">').val(connection))
+                        .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
+                        .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
+                        .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                        .append($('<input type="hidden" name="binds">').val(binds));
+                    $(this).contents().find('body').append(form);
+                    form.submit();
+                    setTimeout(function() {iframe.remove();}, 500);
+                })
+                .appendTo(document.body);
+            });
     },
 
     _getTableLayout: function(_viewName) {
