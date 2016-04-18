@@ -205,7 +205,7 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 }
 
 .slick-header-column.selected {
-    background: url("../img/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
+    background: url("../jquery-ui-images/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
     color: black;
 }
 
@@ -248,27 +248,27 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 
 .ui-icon,
 .ui-widget-content .ui-icon {
-    background-image: url(../img/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-widget-header .ui-icon {
-    background-image: url(../img/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-state-default .ui-icon {
-    background-image: url(../img/ui-icons_888888_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
 }
 .ui-state-hover .ui-icon,
 .ui-state-focus .ui-icon {
-    background-image: url(../img/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-active .ui-icon {
-    background-image: url(../img/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-highlight .ui-icon {
-    background-image: url(../img/ui-icons_2e83ff_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_2e83ff_256x240.png);
 }
 .ui-state-error .ui-icon,
 .ui-state-error-text .ui-icon {
-    background-image: url(../img/ui-icons_cd0a0a_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_cd0a0a_256x240.png);
 }
 
 .ui-icon.fa,
@@ -299,13 +299,12 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 
 /*.ui-icon, */
 .ui-widget-content .ui-icon.ellipsis {
-	background-image: url(../img/ui-icons_222222_256x240.png);
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
     background-position: -176px -160px;
 }
 .ui-widget-header .ui-icon.ellipsis {
-	background-image: url(../img/ui-icons_222222_256x240.png);
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
     background-position: -176px -160px;
-
 }
 
 /* positioning */
@@ -429,7 +428,7 @@ input.editor-text {
 }
 
 .ui-widget-header {
-    background: #cccccc/*{bgColorHeader}*/ url(../img/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
+    background: #cccccc/*{bgColorHeader}*/ url(../jquery-ui-images/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
     color: #222222/*{fcHeader}*/;
     font-weight: bold;
 }
