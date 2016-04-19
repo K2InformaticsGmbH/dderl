@@ -1,14 +1,9 @@
-@import url('font.droid_sans.css');
-@import url('jquery-ui.css');
-@import url('jquery.contextMenu.css');
-@import url('slick.grid.css');
-@import url('slick.columnpicker.css');
-@import url('jquery.jscrollpane.css');
-
-@import url('dropdown.css');
-
-@import url('dderl.sql.css');
-@import url('dderl.connect.css');
+@font-face {
+  font-family: 'Droid Sans Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Droid Sans Mono'), local('DroidSansMono'), url('../fonts/gfont.woff') format('woff');
+}
 
 div#login-bg {
     position: absolute;
@@ -32,6 +27,26 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 .validateTips { border: 1px solid transparent; padding: 0.3em; }
 .cell-title { font-weight: bold; }
 .cell-effort-driven { text-align: center; }
+
+/* Allow Font Awesome Icons in lieu of jQuery UI and only apply when using a FA icon */
+.ui-icon[class*=" fa-"] {
+    /* Remove the jQuery UI Icon */
+    background: none repeat scroll 0 0 transparent;
+    /* Remove the jQuery UI Text Indent */
+    text-indent: 0;
+    /* Bump it up - jQuery UI is -8px */
+    margin-top: -0.5em;
+}
+
+.ui-button-icon-only .ui-icon[class*=" fa-"] {
+    /* Bump it - jQuery UI is -8px */
+    margin-left: -7px;
+}
+
+/* Allow use of icon-large to be properly aligned */
+.ui-icon.icon-large {
+    margin-top: -0.75em;
+}
 
 .ui-widget { font-family: 'Droid Sans Mono', sans-serif; }
 
@@ -63,7 +78,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 
 .cell-reorder {
     cursor: move;
-    background: url("../media/drag-handle.png") no-repeat center center;
+    background: url("../img/drag-handle.png") no-repeat center center;
 }
 
 .ui-dialog .ui-dialog-titlebar {
@@ -90,6 +105,27 @@ button.menubutton
     top: 5px;
     border: none;
 }
+button.ui-button.ui-widget.ui-state-default.ui-corner-all,
+.btnSortClass.ui-dialog .ui-dialog-buttonpane .ui-dialog-buttonset button {
+    background: none;
+    background-color: #77777F;
+    border: none;
+    color: white;
+    border-radius: 5px;
+}
+.button {
+    background-color: #77777F;
+    border: none;
+    color: white;
+    padding: 4px 23px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 5px;
+}
 
 .loading-indicator {
   display: inline-block;
@@ -109,7 +145,7 @@ button.menubutton
 
 .loading-indicator label {
   padding-left: 20px;
-  background: url('../static/media/ajax-loader-small.gif') no-repeat center left;
+  background: url('../img/ajax-loader-small.gif') no-repeat center left;
 }
 
 .sql_edit_flds {
@@ -169,7 +205,7 @@ button.menubutton
 }
 
 .slick-header-column.selected {
-    background: url("../media/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
+    background: url("../jquery-ui-images/ui-bg_glass_75_d0d0d0_1x400.png") repeat-x scroll 50% 50% rgb(178, 178, 178);
     color: black;
 }
 
@@ -212,27 +248,63 @@ button.menubutton
 
 .ui-icon,
 .ui-widget-content .ui-icon {
-	background-image: url(../media/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-widget-header .ui-icon {
-	background-image: url(../media/ui-icons_222222_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-state-default .ui-icon {
-	background-image: url(../media/ui-icons_888888_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
 }
 .ui-state-hover .ui-icon,
 .ui-state-focus .ui-icon {
-	background-image: url(../media/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-active .ui-icon {
-	background-image: url(../media/ui-icons_454545_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_454545_256x240.png);
 }
 .ui-state-highlight .ui-icon {
-	background-image: url(../media/ui-icons_2e83ff_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_2e83ff_256x240.png);
 }
 .ui-state-error .ui-icon,
 .ui-state-error-text .ui-icon {
-	background-image: url(../media/ui-icons_cd0a0a_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_cd0a0a_256x240.png);
+}
+
+.ui-icon.fa,
+.ui-widget-content .ui-icon.fa {
+    background-image: none;
+}
+.ui-widget-header .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-default .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-hover .ui-icon.fa,
+.ui-state-focus .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-active .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-highlight .ui-icon.fa {
+    background-image: none;
+}
+.ui-state-error .ui-icon.fa,
+.ui-state-error-text .ui-icon.fa {
+    background-image: none;
+}
+
+
+/*.ui-icon, */
+.ui-widget-content .ui-icon.ellipsis {
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
+}
+.ui-widget-header .ui-icon.ellipsis {
+	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+    background-position: -176px -160px;
 }
 
 /* positioning */
@@ -356,7 +428,7 @@ input.editor-text {
 }
 
 .ui-widget-header {
-    background: #cccccc/*{bgColorHeader}*/ url(../media/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
+    background: #cccccc/*{bgColorHeader}*/ url(../jquery-ui-images/ui-bg_highlight_lostfocus-soft_75_cccccc_1x100.png)/*{bgImgUrlHeader}*/ 50%/*{bgHeaderXPos}*/ 50%/*{bgHeaderYPos}*/ repeat-x/*{bgHeaderRepeat}*/;
     color: #222222/*{fcHeader}*/;
     font-weight: bold;
 }
@@ -409,7 +481,7 @@ div#main_footer {
 
 .table-title-wait {
   padding-left: 20px;
-  background: url('../media/ajax-loader-small.gif') no-repeat center left;
+  background: url('../img/ajax-loader-small.gif') no-repeat center left;
 }
 
 .sql_text_flat {
@@ -458,12 +530,6 @@ div#main_footer {
 
 .custom-combobox-input {
     width: 165px;
-    margin: 0;
-    padding: 0.3em;
-}
-
-.custom-combobox-input-ie {
-    width: 150px;
     margin: 0;
     padding: 0.3em;
 }
@@ -567,4 +633,54 @@ div#main_footer {
 
 #btn-logout {
     cursor: pointer;
+}
+.center {
+    text-align: center;
+}
+.right {
+    text-align: right;
+}
+.error-msg {
+    word-wrap: break-word;
+    width: 200px;
+    display: inline-block;
+}
+/*new icons for sort dialog*/
+
+.fa-trash.fa-customSize,
+.fa-sort-amount-asc.fa-customSize,
+.fa-sort-amount-desc.fa-customSize,
+.fa-arrows-v.fa-customSize {
+    font-size: 1.6em;
+    margin-top: 3px;
+}
+.fa-trash.fa-customSize {
+    color: #DD1122;
+}
+.buttonsDialogConnect {
+    font-size: 1.7em;
+}
+.previousPage {
+    -moz-transform: scale(-1, 1);
+    -webkit-transform: scale(-1, 1);
+    -o-transform: scale(-1, 1);
+    -ms-transform: scale(-1, 1);
+    transform: scale(-1, 1);
+}
+
+.slick-header-column.ui-state-default {
+    border-right: 2px solid whitesmoke;
+}
+
+.ui-icon.ui-button-icon-primary.ui-icon-closethick {
+    margin-top: -6px;
+}
+
+.ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close{
+    background-color: transparent;
+}
+
+#buttonList .ui-button.ui-state-active .ui-button-text {
+    color: white;
+    background-color: #77777F;
 }

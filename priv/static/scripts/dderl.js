@@ -282,6 +282,7 @@ function checkTablesNotSaved() {
             width: 450,
             height:220,
             modal: true,
+            appendTo: "#main-body",
             buttons: {
                 "Create views": function() {
                     $( this ).dialog( "close" );
@@ -297,6 +298,11 @@ function checkTablesNotSaved() {
                 Cancel: function() {
                     $( this ).dialog( "close" );
                 }
+            },
+            open: function() {
+                $(this)
+                    .dialog("widget")
+                    .draggable("option","containment","#main-body");
             },
             close : function() {
                 $(this).dialog('destroy');
@@ -610,8 +616,8 @@ function show_about_dlg()
         applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
 
         var aboutDlg =
-            $('<div id="about-dderl-dlg" title ="About"></div>')
-            .appendTo(document.body);
+            $('<div id="about-dderl-dlg"></div>')
+            .appendTo("#main-body");
 
         if(dderlState.connection) {
             aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
@@ -665,12 +671,12 @@ function show_about_dlg()
         aboutDlg.append(divMore);
 
         aboutDlg.dialog({
-            modal:false,
+            modal: false,
             width: 230,
-            resizable:false,
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            resizable: false,
+            title: "About",
+            appendTo: "#main-body",
+            position: {my: "center top", at: "center top+75", of: "#main-body"},
             close: function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -691,9 +697,7 @@ function alert_jq(string)
             width: 300,
             height: 300,
             title: "DDerl message",
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');
@@ -708,8 +712,10 @@ function alert_jq(string)
 function confirm_jq(dom, callback)
 {
     var content = dom.content;
-    if ($.isArray(content))
-        content = content.join('<br>');    
+
+    if ($.isArray(content)) {
+        content = content.join('<br>');
+    }
     content = '<h1 style="color:red">CAUTION : IRREVERSIBLE ACTION</h1>'+
               '<p style="background-color:black;color:yellow;font-weight:bold;text-align:center;">'+
               'If confirmed can NOT be undone</p>'+
@@ -717,6 +723,7 @@ function confirm_jq(dom, callback)
                ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
                  content+'</div>'
                : '');
+    
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -726,9 +733,7 @@ function confirm_jq(dom, callback)
             width: 300,
             height: 300,
             title: dom.title,
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');
@@ -760,7 +765,7 @@ function prompt_jq(dom, callback)
         content = content.join('<br>');
         content = '<form id="prompt_form"><fieldset>' +
                   '<label for="prompt_jq_input">' + dom.label + ':</label>' +
-                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value='+ value +' autofocus/>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value="'+ value +'" autofocus/>' +
                   (content.length > 0
                    ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
                      content + '</div>'
@@ -945,69 +950,14 @@ function findFreeSpace(self) {
 }
 
 function patch_jquery_ui() {
-    // Added this to fix the bug: http://bugs.jqueryui.com/ticket/5559
-    // it is currently fixed in jquery-ui 1.10, however we can't upgrade
-    // until this bug is also fixed http://bugs.jqueryui.com/ticket/9166
-    // it will be probably be fixed on versio 1.11.
-    $.ui.plugin.add("resizable", "alsoResize", {
-        start: function () {
-            var that = $(this).data("ui-resizable"),
-            o = that.options,
-            _store = function (exp) {
-                $(exp).each(function() {
-                    var el = $(this);
-                    el.data("ui-resizable-alsoresize", {
-                        width: parseInt(el.width(), 10), height: parseInt(el.height(), 10),
-                        left: parseInt(el.css('left'), 10), top: parseInt(el.css('top'), 10)
-                    });
-                });
-            };
-
-            if (typeof(o.alsoResize) === 'object' && !o.alsoResize.parentNode) {
-                if (o.alsoResize.length) { o.alsoResize = o.alsoResize[0]; _store(o.alsoResize); }
-                else { $.each(o.alsoResize, function (exp) { _store(exp); }); }
-            }else{
-                _store(o.alsoResize);
-            }
-        },
-
-        resize: function (event, ui) {
-            var that = $(this).data("ui-resizable"),
-            o = that.options,
-            os = that.originalSize,
-            op = that.originalPosition,
-            delta = {
-                height: (that.size.height - os.height) || 0, width: (that.size.width - os.width) || 0,
-                top: (that.position.top - op.top) || 0, left: (that.position.left - op.left) || 0
-            },
-
-            _alsoResize = function (exp, c) {
-                $(exp).each(function() {
-                    var el = $(this), start = $(this).data("ui-resizable-alsoresize"), style = {},
-                    css = c && c.length ? c : el.parents(ui.originalElement[0]).length ? ['width', 'height'] : ['width', 'height', 'top', 'left'];
-
-                    $.each(css, function (i, prop) {
-                        var sum = (start[prop]||0) + (delta[prop]||0);
-                        if (sum && sum >= 0) {
-                            style[prop] = sum || null;
-                        }
-                    });
-
-                    el.css(style);
-                });
-            };
-
-            if (typeof(o.alsoResize) === 'object' && !o.alsoResize.nodeType) {
-                $.each(o.alsoResize, function (exp, c) { _alsoResize(exp, c); });
-            }else{
-                _alsoResize(o.alsoResize);
-            }
-        },
-
-        stop: function () {
-            $(this).removeData("resizable-alsoresize");
+    // Since version 1.10 of jquery do not support html on title's dialog
+    // http://stackoverflow.com/questions/14488774/using-html-in-a-dialogs-title-in-jquery-ui-1-10
+    // https://github.com/jquery/jquery-ui/commit/7e9060c109b928769a664dbcc2c17bd21231b6f3
+    $.widget("ui.dialog", $.extend({}, $.ui.dialog.prototype, {
+        _title: function (title) {
+            title.html(this.options.title || "&#160;");
         }
-    });
+    }));
 }
 
 function updateWindowTitle(link, title) {

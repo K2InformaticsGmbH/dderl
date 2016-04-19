@@ -22,7 +22,7 @@
                      statsLoadResult    : function(e, _result) { e.data.open(_result); }
                     },
 
-        _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_toolBarReload',   dom: '_tbReload' },
+        _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'refresh', clk : '_toolBarReload',   dom: '_tbReload' },
                            'textBox'  : {tip: '',       typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // slick context menus
@@ -40,6 +40,7 @@
             resizable       : true,
             modal           : false,
             title           : "",
+            appendTo        : "#main-body",
             canMinimize     : true,
             canMaximize     : true,
             closeOnEscape   : false,
@@ -214,14 +215,14 @@
                 };
 
                 var inph = self.options.toolBarHeight;
-                if($.browser.msie) inph -= 2;
+                //if($.browser.msie) inph -= 2;
 
                 if(elm.typ === 'btn')
                     self[elm.dom] =
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
@@ -400,7 +401,6 @@
             }
             self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
-            self._dlg.dialog("widget").appendTo("#main-body");
             if(self._parent) {
                 smartDialogPosition($("#main-body"), self._parent, self._dlg, ['center']);
             } else {
@@ -817,6 +817,8 @@
             }
 
             self._dlg.dialog("moveToTop");
+            // TODO: test a workaround for this...
+            /*
             if($.browser.msie) {
                 //Ie steals the focus to the scrollbar even after preventDefaults.
                 //Added the timer to get the focus back.
@@ -829,13 +831,14 @@
                     console.log("Focus set");
                 }, 50);
             } else {
-                self._grid.focus();
-                var cellEditor = self._grid.getCellEditor();
-                if(cellEditor && !cellEditor.isFocused()) {
-                    cellEditor.focus();
-                }
-                console.log("Focus set");
+            */
+            self._grid.focus();
+            var cellEditor = self._grid.getCellEditor();
+            if(cellEditor && !cellEditor.isFocused()) {
+                cellEditor.focus();
             }
+            console.log("Focus set");
+            //}
         },
 
         _handleDragInit: function(e, args) {

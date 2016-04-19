@@ -8,6 +8,7 @@
         _editText       : null,
         _footerDiv      : null,
         _footerWidth    : 0,
+        _wordWarp       : false,
         _txtlen         : null,
         _fnt            : null,
         _currentExpLvl  : -1,
@@ -21,11 +22,12 @@
 
         _toolbarButtons : {
             'format' : {tip: 'Auto indent',       typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_autoFormat', dom: '_tbAutoFormat'},
-            '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'rev-play', clk : '_decreaseExp', dom: '_tbExpDown'},
+            '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'play previousPage', clk : '_decreaseExp', dom: '_tbExpDown'},
             'textBox': {tip: 'Expansion level',   typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
             '>'      : {tip: 'Increase expansion',typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
             'accept' : {tip: 'Set changes',       typ : 'btn', icn : 'check',    clk : '_saveChanges', dom: '_tbAccept' },
-            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'close',    clk : '_abortChanges',dom: '_tbCancel' }},
+            'cancel' : {tip: 'Discard changes',   typ : 'btn', icn : 'times',    clk : '_abortChanges',dom: '_tbCancel' },
+            'warp'   : {tip: 'Word warp',         typ : 'btn', icn : 'outdent', clk : '_toggleWordWarp', dom: '_tbWordWarp' }},
 
 
         // These options will be used as defaults
@@ -42,6 +44,7 @@
             closeOnEscape   : false,
             clear           : null,
             toolBarHeight   : 20,
+            appendTo        : "#main-body",
             focus           : function(e,ui) {},
             close           : function() {
                 $(this).dialog('destroy');
@@ -158,21 +161,22 @@
                     var fName = self._toolbarButtons[_btn].clk;
                     //var f = $.proxy(self[fName], self);
                     var f = self[fName];
-                    if($.isFunction(f))
+                    if($.isFunction(f)) {
                         f(self);
-                    else
+                    } else {
                         throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
+                    }
                 };
 
                 var inph = self.options.toolBarHeight;
-                if($.browser.msie) inph -= 2;
+                //if($.browser.msie) inph -= 2;
 
                 if(elm.typ === 'btn')
                     self[elm.dom] =
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
@@ -185,7 +189,7 @@
                     .button()
                     .addClass('tb_empty')
                     .css('height', (inph-2)+'px')
-                    .css('text-align', 'right')
+                    .css('text-align', 'center')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
                     .keydown(function(evt) {
@@ -215,9 +219,6 @@
                 }
             }
 
-            if(self.options.readOnly) {
-                self._editText.attr('wrap', 'on');
-            }
             self._footerDiv
                 .buttonset()
                 .css('height', (self.options.toolBarHeight)+'px');
@@ -243,9 +244,8 @@
         open: function() {
             var self = this;
             var termOwnerDlg = self._termOwner._dlg.dialog("widget");
-            self._dlg.dialog("option", "position", {at : 'left+20 top', my : 'left top', of: termOwnerDlg, collision : 'flipfit'});
+            self._dlg.dialog("option", "position", {at : 'left+20 top+25', my : 'left top', of: termOwnerDlg, collision : 'flipfit'});
             self._dlg.dialog("open").dialog("widget").draggable("option","containment", self._container);
-            self._dlg.dialog("widget").appendTo(self._container);
             self._termOwner._divDisable.click(function() {
                 //Add this to prevent hiding this dialog behind the disabled parent window.
                 self._dlg.dialog("moveToTop");
@@ -319,7 +319,7 @@
         },
         _saveChanges: function(self) {
             console.log('cb _saveChanges: the new term: ' + self._editText.val());
-            var stringToFormat = unescapeNewLines(self._editText.val());
+            var stringToFormat = unescape(self._editText.val());
             var expansionWithAuto = (self._currentExpLvl < 0)? "auto": self._currentExpLvl;
             if(self._isJson) {
                 ajaxCall(self, 'format_json_to_save', {
@@ -343,6 +343,16 @@
             console.log('['+self.options.title+'] cb _abortChanges');
             self._dlg.dialog("close");
         },
+
+        _toggleWordWarp: function(self) {
+            self._wordWarp = !self._wordWarp;
+            if(self._wordWarp) {
+                self._editText.attr('wrap', 'on');
+            } else {
+                self._editText.attr('wrap', 'off');
+            }
+        },
+        
         ////////////////////////////
 
         /*

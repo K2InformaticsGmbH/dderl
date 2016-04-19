@@ -1,4 +1,23 @@
-@import url('dderl.sqlparams.css');
+table.params {
+    text-align: left;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Droid Sans Mono', sans-serif;
+    font-weight: normal;
+    background: transparent;
+}
+
+table.params tr:nth-child(odd) {
+    background-color: rgba(220,220,220,0.5);
+}
+
+table.params td.fit-content {
+    width:1%;
+}
+
+table.params input.param {
+    width:100%
+}
 
 #tabs {
     position: absolute;

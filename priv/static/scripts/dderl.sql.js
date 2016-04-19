@@ -95,12 +95,12 @@ function insertAtCursor(myField, myValue) {
                        'Delete ddView'  : '_deleteView'
     },
 
-    _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',       clk : '_toolBarValidate'        },
-                       'Execute fetch first block'  : { typ : 'btn', icn : 'play',          clk : '_toolBarTblReload'       },
-                       'Execute fetch to end'       : { typ : 'btn', icn : 'seek-end',      clk : '_toolBarTblFetch2End'    },
-                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'fetch-tail',    clk : '_toolBarTblFetchNTail'   },
-                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only',    clk : '_toolBarTblTailOnly'     },
-                       ''                           : { typ : 'sel',                        clk : '_toolBarChangeSql'       }},
+    _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',               clk : '_toolBarValidate'        },
+                       'Execute fetch first block'  : { typ : 'btn', icn : 'play',                  clk : '_toolBarTblReload'       },
+                       'Execute fetch to end'       : { typ : 'btn', icn : 'forward',               clk : '_toolBarTblFetch2End'    },
+                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetchNTail'   },
+                       'Execute tail mode only'     : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblTailOnly'     },
+                       ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},
 
     // These options will be used as defaults
     options: {
@@ -117,6 +117,7 @@ function insertAtCursor(myField, myValue) {
         closeOnEscape   : false,
         clear           : null,
         toolBarHeight   : 27,
+        appendTo        : "#main-body",
         open            : function(e,ui) {
                           },
         focus           : function(e,ui) {},
@@ -506,6 +507,7 @@ function insertAtCursor(myField, myValue) {
                 resizable: false,
                 height:180,
                 modal: true,
+                appendTo: "#main-body",
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
@@ -514,6 +516,11 @@ function insertAtCursor(myField, myValue) {
                     Cancel: function() {
                         $( this ).dialog( "close" );
                     }
+                },
+                open: function() {
+                    $(this)
+                        .dialog("widget")
+                        .draggable("option","containment","#main-body");
                 },
                 close : function() {
                     $(this).dialog('destroy');
@@ -645,7 +652,7 @@ function insertAtCursor(myField, myValue) {
             if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
-                    .button({icons: {primary: 'ui-icon-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa  fa-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
                     .click(self, toolElmFn)
                     .appendTo(toolDiv);
@@ -1071,7 +1078,6 @@ function insertAtCursor(myField, myValue) {
     open: function() {
         this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'flipfit'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
-        this._dlg.dialog("widget").appendTo("#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
             smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['center']);
         } else {

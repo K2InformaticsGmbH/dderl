@@ -1,0 +1,26 @@
+{
+  "name": "dderl",
+  "version": "1.3.1",
+  "description": "Web based data direct explorer",
+  "moduleType": [
+    "globals"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "~2.1.4",
+    "jquery-ui": "~1.11.4",
+    "jquery.threedubmedia": "git@github.com:threedubmedia/jquery.threedubmedia.git#de7ad443f09b56cda9a505592cedb9bd69b99d82",
+    "font-awesome": "~4.6.1"
+  },
+  "overrides": {
+    "jquery.threedubmedia": {
+      "main": "event.drag/jquery.event.drag.js"
+    }
+  }
+}

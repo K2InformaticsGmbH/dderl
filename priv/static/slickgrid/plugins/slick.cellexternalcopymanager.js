@@ -61,7 +61,7 @@
       // if a custom getter is not defined, we call serializeValue of the editor to serialize
       if (columnDef.editor){
         var editorArgs = {
-          'container':$(document),  // a dummy container
+          'container':$('body'),  // a dummy container
           'column':columnDef,
           'position':{'top':0, 'left':0}  // a dummy position required by some editors
         };
@@ -82,7 +82,7 @@
       // if a custom setter is not defined, we call applyValue of the editor to unserialize
       if (columnDef.editor){
         var editorArgs = {
-          'container':$(document),  // a dummy container
+          'container': $('body'),  // a dummy container
           'column':columnDef,
           'position':{'top':0, 'left':0}  // a dummy position required by some editors
         };
@@ -560,7 +560,7 @@
                 clipTextArr.push(textFromBoundRange(ranges, boundRange, columns, usedCols));
                 clipText = clipTextArr.join('');
             }
-            var $focus = $(_grid.getActiveCellNode());
+            var focusElement = document.activeElement;
 
             var ta = _createTextBox(clipText);
             ta.focus();
@@ -568,10 +568,8 @@
             setTimeout(function(){
                 document.body.removeChild(ta);
                 // restore focus
-                if ($focus && $focus.length > 0) {
-                    $focus.attr('tabIndex', '-1');
-                    $focus.focus();
-                    $focus.removeAttr('tabIndex');
+                if (focusElement) {
+                    focusElement.focus();
                 }
             }, 100);
         }

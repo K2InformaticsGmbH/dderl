@@ -85,7 +85,7 @@ function loginCb(resp) {
 
 function display(layout) {
     var dlg = $('<div title="'+layout.title+'" style="display:none">')
-        .appendTo($('#login-bg').css('display', 'block'));
+        .appendTo($('#login-bg').css('display', 'block').addClass('center'));
     var tab = $('<table border=0 width=100% cellspacing=0>')
         .appendTo(dlg);
 
@@ -99,8 +99,8 @@ function display(layout) {
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
         dialogClass: 'no-close',
+        appendTo: "#login-bg",
         open: function(event, ui) {
-            $(this).dialog("widget").appendTo("#login-bg");
             $(this).dialog("widget").css('z-index', 99999);
         },
         close: function() {
@@ -119,15 +119,16 @@ function display(layout) {
             if(layout.fields[fldIdx].color) {
                 fieldLabel.css('color', layout.fields[fldIdx].color);
             }
-            fieldLabel.css('word-wrap', 'break-word')
-                .css('width', '300px')
+            td.attr('colspan',2)
+                .attr('style', 'padding-top: 8px');
+
+            fieldLabel.addClass('error-msg')
                 .text(layout.fields[fldIdx].val)
-                .appendTo(td.attr('colspan',2))
-                .appendTo(td.attr('style', 'padding-top: 8px'));
+                .appendTo(td);
         } else if(layout.fields[fldIdx].type == "text") {
-            td.append(layout.fields[fldIdx].placeholder);
-            td = $('<td valign=bottom>').appendTo(tr);
-            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>')
+          //  td.append(layout.fields[fldIdx].placeholder);
+          //  td = $('<td valign=bottom>').appendTo(tr);
+            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>').attr('placeholder', layout.fields[fldIdx].placeholder)
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
                                 if(e.which == 13) {
@@ -135,16 +136,16 @@ function display(layout) {
                                     dlg.dialog("close");
                                 }
                             })
-                            .appendTo(td);
+                .appendTo(td);
             layout.fields[fldIdx].elm = txt;
             if(!focused && layout.fields[fldIdx].val.length == 0) {
                 focused = true;
                 setTimeout(function() { txt.focus(); }, 100);
             }
        } else if(layout.fields[fldIdx].type == "password") {
-            td.append(layout.fields[fldIdx].placeholder);
-            td = $('<td valign=bottom>').appendTo(tr);
-            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>')
+          //  td.append(layout.fields[fldIdx].placeholder);
+           // td = $('<td valign=bottom>').appendTo(tr);
+            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>').attr('placeholder', layout.fields[fldIdx].placeholder).css("margin-top","3px")
                             .val(layout.fields[fldIdx].val)
                             .keypress(function(e) {
                                 if(e.which == 13) {
@@ -160,7 +161,14 @@ function display(layout) {
             }
         }
     }
-
+    var tr = $('<tr>').appendTo(tab);
+    var td = $('<td class="center">').appendTo(tr);
+    var button = $('<input type="button" class="button" value="Login">');
+    button.appendTo(td);
+    button.click(function() {
+        inputEnter(layout);
+        dlg.dialog("close");
+    });
     dlg.dialog("open")
        .dialog("widget")
        .draggable("option","containment","#main-body");
@@ -284,6 +292,7 @@ function process_logout() {
 
 function change_login_password(loggedInUser, shouldConnect)
 {
+
     password_change_dlg("Change DDerl account password", loggedInUser,
             function() {
                 if($('#conf_password_login').val() == $('#password_change_login').val()) {
