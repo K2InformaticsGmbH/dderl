@@ -116,8 +116,8 @@ function connect_dlg()
             }
         ]
     })
-    .dialog('open')
-    .dialog("widget").draggable("option","containment","#main-body");
+    .dialog('open');
+    dlg.dialog("widget").draggable("option","containment","#main-body");
     
     adapter_list.change(function() {
         if(adapter_list.children().length < 1) {
@@ -138,8 +138,6 @@ function connect_dlg()
         connection_list.change();        
     })
     .change(function() {
-        //dlg.dialog('open');
-
         if(connection_list.children().length < 1) {
 
             var adapter = adapter_list.val();
@@ -168,7 +166,7 @@ function connect_dlg()
                 .val(connection_list.find('option:selected').text());
         }
         load_connect_option(connection_list, connect_options);
-        connect_options.find('input:password')
+        connect_options.find('input:text,input:password,textarea')
             .keypress(function(e) {
                 if(e.which == 13) {
                     login_save(dlg, connection_list, adapter_list, owners_list);
@@ -190,55 +188,7 @@ function connect_dlg()
             connection_list.trigger("owner_change");
         }
     });
-
-    /*/ AJAX Simulation
-    setTimeout(function() {
-        var connect_info = {
-            adapters : [{id:"imem", fullName:"IMEM DB"},
-                        {id:"oci", fullName:"Oracle/OCI"}],
-            connections : [{id     : 1,
-                         name   : "imem local", adapter : "imem", owner:"system",
-                         method : "local", schema:"sbsgui"},
-                        {id     : 2,
-                         name:"imem rpc", adapter:"imem", owner:"admin",
-                         method:"rpc", schema:"sbsgui", node:"a@host", user:"abc"},
-                        {id     : 3,
-                         name:"imem tcp", adapter:"imem", owner:"admin",
-                         method:"tcp", schema:"sbsgui", host:"1.1.1.1", port:1234,
-                         user:"def", secure: false},
-                        {id     : 4,
-                         name:"oracle tns", adapter:"oci", owner:"admin",
-                         method: "tns",
-                         tns:"TNS string...", user:"scott"},
-                        {id     : 5,
-                         name:"oracle service", adapter:"oci", owner:"system",
-                         method: "service", service:"xe",
-                         host:"localhost", port:1521, user:"scott"},
-                        {id     : 6,
-                         name:"oracle sid", adapter:"oci", owner:"system",
-                         method: "sid", sid:"xe",
-                         host:"localhost", port:1521, user:"scott"}]
-        };
-        adapters = connect_info.adapters;
-        connects = connect_info.connections;
-        owners = [];
-        var ownersUnique = {};
-        for(var idx = 0; idx < connects.length; ++idx)
-            if(!ownersUnique.hasOwnProperty(connects[idx].owner)) {
-                ownersUnique[connects[idx].owner] = true;
-                owners.push(connects[idx].owner);
-            }
-
-        adapter_list.empty();
-        owners_list.empty();
-        connection_list.empty();
-        
-        adapter_list.change();
-        owners_list.change();
-        connection_list.change();
-
-    }, 1000);
-/*/
+    
     ajaxCall(null, 'connect_info', {}, 'connect_info', function(connect_info) {
         adapters = connect_info.adapters;
         connects = connect_info.connections;
@@ -258,7 +208,6 @@ function connect_dlg()
         owners_list.change();
         connection_list.change();
     });
-//*/
 }
 
 function login_save(dlg, connection_list, adapter_list, owners_list)
