@@ -630,20 +630,20 @@
                         // Dialog width adjustment
                         if (self._footerWidth > gWidth) {
                             // table is smaller than the footer
-                            dlg.width(self._footerWidth);
+                            self._dlg.dialog("option", "width", self._footerWidth);
                         } else if (gWidth < rWindowWidth) {
                             // table is smaller than the remaining window
-                            dlg.width(gWidth);
+                            self._dlg.dialog("option", "width", gWidth);
                         } else {
                             // table is bigger then the remaining window
                             var orig_top = dlg.offset().top;
                             var new_left = dlg.offset().left - gWidth + rWindowWidth;
                             if(new_left > 0) {
                                 self._dlg.dialog("option", "position", [new_left, orig_top]);
-                                dlg.width(gWidth);
+                                self._dlg.dialog("option", "width", gWidth);
                             } else {
                                 self._dlg.dialog("option", "position", [0, orig_top]);
-                                dlg.width($(window).width() - 20);
+                                self._dlg.dialog("option", "width", $(window).width() - 20);
                             }
                         }
 

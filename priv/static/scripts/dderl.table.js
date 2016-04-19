@@ -3272,7 +3272,9 @@
         self._grid.setColumns(columns);
 
         if(self._tbllay === null && !self._dlgResized) {
-            dlg.width(Math.min(Math.max(self._footerWidth, self._getGridWidth() + 13), $(window).width()-dlg.offset().left-20));
+            var necessaryWidth = Math.max(self._footerWidth, self._getGridWidth() + 13);
+            var availableSpace = $(window).width() - dlg.offset().left - 20;
+            self._dlg.dialog("option", "width", Math.min(necessaryWidth, availableSpace));
         }
         self._dlg.dialog('open');
     },
@@ -3490,10 +3492,10 @@
                         // Dialog width adjustment
                         if (self._footerWidth > gWidth) {
                             // table is smaller than the footer
-                            dlg.width(self._footerWidth);
+                            self._dlg.dialog("option", "width", self._footerWidth);
                         } else if (gWidth < rWindowWidth) {
                             // table is smaller than the remaining window
-                            dlg.width(gWidth);
+                            self._dlg.dialog("option", "width", gWidth);
                         } else {
                             // table is bigger then the remaining window
                             var orig_top = dlg.offset().top;
@@ -3504,30 +3506,32 @@
                                     at: "left+" + new_left + " top+" + orig_top,
                                     of: "#main-body"
                                 });
-                                dlg.width(gWidth);
+                                self._dlg.dialog("option", "width", gWidth);
                             } else {
                                 self._dlg.dialog("option", "position", {
                                     my: "left top",
                                     at: "left top+" + orig_top,
                                     of: "#main-body"
                                 });
-                                dlg.width($(window).width() - 40);
+                                self._dlg.dialog("option", "width", $(window).width() - 40);
                             }
                         }
 
-                        var oldDlgHeight = dlg.height();
+                        var oldDlgHeight = self._dlg.dialog("option", "height");
                         var gHeight = self._getGridHeight();
                         var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for the window
-                        if (dlg.height() > gHeight || gHeight < rWindowHeight) {
-                            // if dialog is already bigger than height required by the table or
-                            // if table height is less then remaining window height
-                            self._dlg.height(gHeight);
+                        // Height used for header and footer (total - content).
+                        var extraHeight = oldDlgHeight - self._dlg.height();
+                        if (self._dlg.height() > gHeight || gHeight < rWindowHeight) {
+                            // if content of dialog is already bigger than height required by the table
+                            // or if table height is less then remaining window height
+                            self._dlg.dialog("option", "height", gHeight + extraHeight);
                         } else {
                             // if table height is still bigger than the remaining window height
-                            self._dlg.height(rWindowHeight);
+                            self._dlg.dialog("option", "height", rWindowHeight + extraHeight);
                         }
 
-                        if (oldDlgHeight != dlg.height()) {
+                        if (oldDlgHeight != self._dlg.dialog("option", "height")) {
                             self._grid.resizeCanvas();
                         }
                     }
