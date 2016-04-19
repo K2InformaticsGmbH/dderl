@@ -88,18 +88,18 @@
                         cacheResult     : function(e, _result) { e.data._cacheResult            (_result); }
                       },
 
-    _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',       clk : '_toolBarReload',   dom: '_tbReload' },
-                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'step-backward', clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
-                       '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',  clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
-                       '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',         clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
-                       'textBox'  : {tip: '',                      typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
-                       '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',             clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
-                       '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'forward',        clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'step-forward',         clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'step-forward ellipsis',       clk : '_toolBarSkTail',   dom: '_tbSkTail' },
-                       '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only ellipsis',       clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
-                       'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',            clk : '_toolBarCommit',   dom: '_tbCommit' },
-                       'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'times',            clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
+    _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',               clk : '_toolBarReload',   dom: '_tbReload' },
+                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'step-backward',         clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
+                       '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',              clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
+                       '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',     clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
+                       'textBox'  : {tip: '',                      typ : 'txt',                                clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
+                       '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',                  clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
+                       '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'forward',               clk : '_toolBarJmNext',   dom: '_tbJmNext' },
+                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'step-forward',          clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
+                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarSkTail',   dom: '_tbSkTail' },
+                       '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
+                       'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',                 clk : '_toolBarCommit',   dom: '_tbCommit' },
+                       'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'times',                 clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
@@ -496,22 +496,25 @@
         var binds = JSON.stringify(this._optBinds != null && this._optBinds.hasOwnProperty('pars')
                                             ? this._optBinds.pars : null);
 
-
-        $('<iframe>')
-            .on('load',function() {
-                var iframe = $(this);
-                var form = $('<form method="post" action="app/download_query">')
-                    .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
-                    .append($('<input type="hidden" name="connection">').val(connection))
-                    .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
-                    .append($('<input type="hidden" name="fileToDownload">').val(filename))
-                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
-                    .append($('<input type="hidden" name="binds">').val(binds));
-                $(this).contents().find('body').append(form);
-                form.submit();
-                setTimeout(function() {iframe.remove();}, 500);
-            })
-            .appendTo(document.body);
+        prompt_jq(
+            {label: "Download CSV", value:filename, content: ''},
+            function(fileNewName) {
+                $('<iframe>')
+                .on('load',function() {
+                    var iframe = $(this);
+                    var form = $('<form method="post" action="app/download_query">')
+                        .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
+                        .append($('<input type="hidden" name="connection">').val(connection))
+                        .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
+                        .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
+                        .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                        .append($('<input type="hidden" name="binds">').val(binds));
+                    $(this).contents().find('body').append(form);
+                    form.submit();
+                    setTimeout(function() {iframe.remove();}, 500);
+                })
+                .appendTo(document.body);
+            });
     },
 
     _getTableLayout: function(_viewName) {

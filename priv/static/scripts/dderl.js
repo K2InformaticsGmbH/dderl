@@ -765,7 +765,7 @@ function prompt_jq(dom, callback)
         content = content.join('<br>');
         content = '<form id="prompt_form"><fieldset>' +
                   '<label for="prompt_jq_input">' + dom.label + ':</label>' +
-                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value='+ value +' autofocus/>' +
+                  '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value="'+ value +'" autofocus/>' +
                   (content.length > 0
                    ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
                      content + '</div>'
