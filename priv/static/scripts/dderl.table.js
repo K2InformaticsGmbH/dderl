@@ -1694,16 +1694,7 @@
             } else {
                 var data = self._gridDataView.getItem(cell.fromRow);
                 self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-                self._ajax('edit_term_or_view', {
-                    edit_term_or_view: {
-                        connection : dderlState.connection,
-                        statement : self._stmt,
-                        row : data.id,
-                        erlang_term: stringToFormat,
-                        expansion_level: "auto",
-                        force: false
-                    }
-                }, 'edit_term_or_view', 'editTermOrView');
+                self._openTermOrViewEditor({string: stringToFormat, isJson: true});
             }
         }
     },
@@ -2406,24 +2397,23 @@
                 });
     },
 
-    _openErlangTermEditor: function(formattedString) {
+    _openErlangTermEditor: function(data) {
         var self = this;
         var title = "Erlang term editor";
-        var content = formattedString;
+        var content = data;
         var isJson = false;
 
         // received response clear wait wheel
         self.removeWheel();
 
-        if(formattedString.hasOwnProperty('error')) {
+        if(data.hasOwnProperty('error')) {
             title = "Text editor";
-            content = formattedString.originalText;
-        } else if(formattedString.isJson === true) {
+            content = data.originalText;
+        } else if(data.isJson === true) {
             isJson = true;
             title = "Json editor";
-            content = formattedString.formattedJson;
+            content = data.string;
         }
-
         self.disableDialog();
         var thisIsMyEditor = $('<div>')
                 .appendTo(document.body)

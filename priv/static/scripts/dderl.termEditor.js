@@ -128,6 +128,7 @@
             self._dlg = self.element.dialog(self.options);
             // setting up the event handlers last to aid debugging
             self._setupEventHandlers();
+            self.updateExp(self, self._currentExpLvl, true);
         },
 
         _setupEventHandlers: function() {
@@ -191,16 +192,19 @@
                     .css('text-align', 'center')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
-                    .keypress(function(evt) {
-                        if(evt.which == 13) {
-                            var explvlnum = parseInt($(this).val());
-                            if(explvlnum != NaN) {
+                    .keydown(function(evt) {
+                        evt.data = self;
+                        var explvlnum = parseInt(self._tbTxtBox.val() + String.fromCharCode(evt.which));
+                        if(explvlnum != self._currentExpLvl) {
+                            if(!isNaN(explvlnum)) {
                                 self._currentExpLvl = explvlnum;
+                                toolElmFn.call(this, evt);
                             } else {
+                                if(self._currentExpLvl != -1) {
+                                    toolElmFn.call(this, evt);
+                                }
                                 self._currentExpLvl = -1;
                             }
-                            evt.data = self;
-                            toolElmFn.call(this, evt);
                         }
                         return true;
                     })
@@ -252,25 +256,41 @@
             this._termOwner.enableDialog();
         },
 
-        updateExp: function(expansionLevel, force) {
-            var stringToFormat = unescape(this._editText.val());
-            var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
-            ajaxCall(this, 'format_erlang_term', {
-                format_erlang_term: {
-                    erlang_term: stringToFormat, 
-                    expansion_level: expansionWithAuto,
-                    force: force
-                }
-            }, 'format_erlang_term', 'updateTextArea');
+        updateExp: function(self, expansionLevel, force) {
+            if(self._isJson){
+                var stringToFormat = unescape(this._editText.val());
+                var indent = (expansionLevel < 0) ? 4 : expansionLevel;
+                self._updateTextArea(self.formatJSON(stringToFormat, indent));
+            } else {
+                var stringToFormat = unescapeNewLines(this._editText.val());
+                var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
+                ajaxCall(this, 'format_erlang_term', {
+                    format_erlang_term: {
+                        erlang_term: stringToFormat, 
+                        expansion_level: expansionWithAuto,
+                        force: force
+                    }
+                }, 'format_erlang_term', 'updateTextArea');
+            }
         },
 
+        formatJSON: function(string, indent) {
+            try {
+                var obj = JSON.parse(string);
+                return JSON.stringify(obj, null, indent);
+            } catch (e) {
+                console.log("Error : " + e);
+                return {error: "Invalid JSON"};
+            }
+            
+        },
         /*
          * Toolbar callbak functions
          */
         // NOTE: self is 'this' and 'this' is dom ;)
         _autoFormat: function(self) {
             console.log('cb _autoFormat current ' + self._currentExpLvl);
-            self.updateExp(self._currentExpLvl, true);
+            self.updateExp(self, self._currentExpLvl, true);
         },
         _decreaseExp: function(self) {
             console.log('cb _decreaseExp current: ' + self._currentExpLvl);
@@ -279,15 +299,14 @@
                 self._currentExpLvl = -1;
             }
             self._updateTxtBox();
-            self.updateExp(self._currentExpLvl, false);
+            self.updateExp(self, self._currentExpLvl, false);
         },
         _setExpLevel: function(self) {
             console.log('cb _setExpLevel ' + self._currentExpLvl);
             if(self._currentExpLvl < -1) {
                 self._currentExpLvl = -1;
             }
-            self._updateTxtBox();
-            self.updateExp(self._currentExpLvl, false);
+            self.updateExp(self, self._currentExpLvl, false);
         },
         _increaseExp: function(self) {
             console.log('cb _increaseExp current: ' + self._currentExpLvl);
@@ -296,7 +315,7 @@
                 self._currentExpLvl = -1;
             }
             self._updateTxtBox();
-            self.updateExp(self._currentExpLvl, false);
+            self.updateExp(self, self._currentExpLvl, false);
         },
         _saveChanges: function(self) {
             console.log('cb _saveChanges: the new term: ' + self._editText.val());
