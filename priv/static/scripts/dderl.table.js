@@ -1694,7 +1694,16 @@
             } else {
                 var data = self._gridDataView.getItem(cell.fromRow);
                 self._erlangCellPos = {row: cell.fromRow, cell: cell.fromCell};
-                self._openTermOrViewEditor({string: stringToFormat, isJson: true});
+                self._ajax('edit_term_or_view', {
+                    edit_term_or_view: {
+                       connection : dderlState.connection,
+                       statement : self._stmt,
+                       row : data.id,
+                       erlang_term: stringToFormat,
+                       expansion_level: "auto",
+                       force: false
+                   }
+               }, 'edit_term_or_view', 'editTermOrView');
             }
         }
     },
@@ -2412,7 +2421,7 @@
         } else if(data.isJson === true) {
             isJson = true;
             title = "Json editor";
-            content = data.string;
+            content = data.stringToFormat;
         }
         self.disableDialog();
         var thisIsMyEditor = $('<div>')
