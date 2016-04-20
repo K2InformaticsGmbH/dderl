@@ -21,7 +21,7 @@
         },
 
         _toolbarButtons : {
-            'format' : {tip: 'Auto indent',       typ : 'btn', icn : 'arrowrefresh-1-e', clk : '_autoFormat', dom: '_tbAutoFormat'},
+            'format' : {tip: 'Auto indent',       typ : 'btn', icn : 'refresh', clk : '_autoFormat', dom: '_tbAutoFormat'},
             '<'      : {tip: 'Reduce expansion',  typ : 'btn', icn : 'play previousPage', clk : '_decreaseExp', dom: '_tbExpDown'},
             'textBox': {tip: 'Expansion level',   typ : 'txt',                   clk : '_setExpLevel', dom: '_tbTxtBox' },
             '>'      : {tip: 'Increase expansion',typ : 'btn', icn : 'play',     clk : '_increaseExp', dom: '_tbExpUp' },
