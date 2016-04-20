@@ -460,10 +460,9 @@ get_pretty_tuple_multiple([ParseTree | Rest], Result) ->
 
 -spec format_json_or_term(boolean(), binary(), pid(), term()) -> term().
 format_json_or_term(true, StringToFormat, From, _) ->
-    Formatted = jsx:prettify(StringToFormat),
     From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                 [{<<"isJson">>, true},
-                                 {<<"formattedJson">>, Formatted}]
+                                 {<<"stringToFormat">>, StringToFormat}]
                                }])};
 format_json_or_term(_, StringToFormat, From, BodyJson) ->
     case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
