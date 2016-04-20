@@ -3,6 +3,12 @@ function update_user_information(user) {
     $('#login-button').html('Log out ' + user);
 }
 
+function refresh_header_information() {
+    document.title = 'DDErl - ' + dderlState.app;
+    $('#version').text(' | ' + dderlState.vsn);
+    $('#node').text(dderlState.node);
+}
+
 function check_already_connected() {
     if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
        !window.opener.$('#btn-change-password').data("logged_in_user")) {
@@ -10,6 +16,10 @@ function check_already_connected() {
     } else {
         dderlState.session = window.opener.dderlState.session;
         dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
+        dderlState.app = window.opener.dderlState.app;
+        dderlState.vsn = window.opener.dderlState.vsn;
+        dderlState.node = window.opener.dderlState.node;
+        refresh_header_information();
         var user = window.opener.$('#btn-change-password').data("logged_in_user");
         update_user_information(user);
         connect_dlg();
@@ -21,20 +31,19 @@ function loginAjax(data) {
             'login', loginCb);
 }
 
-var app = "";
 function loginCb(resp) {
     $('#btn-disconnect').removeClass('disabled');
 
     if (resp.hasOwnProperty('vsn')) {
-        $('#version').text(' | '+resp.vsn);
+        dderlState.vsn = resp.vsn;
     }
     if (resp.hasOwnProperty('node')) {
-        $('#node').text(resp.node);
+        dderlState.node = resp.node;
     }
     if (resp.hasOwnProperty('app')) {
-        app = resp.app;
-        document.title = 'DDErl - '+app;
+        dderlState.app = resp.app;
     }
+    refresh_header_information();
 
     if (resp.hasOwnProperty('error')) {
         var accountName = "";

@@ -46,7 +46,10 @@ var dderlState = {
     saveDashboardCounter: 0,
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
-    operationLogs: ""
+    operationLogs: "",
+    app: "",
+    vsn: "",
+    node: ""
 }
 
 // generic dderlserver call interface

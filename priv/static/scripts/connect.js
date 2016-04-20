@@ -279,13 +279,20 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
                 show_qry_files(false);
             };
 
-            document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+conn.name+')';
-            if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
-                document.title = 'DDErl'+(app.length>0?' - '+app:'')+' ('+resp.extra.node+')';
+            var newTitle = 'DDErl';
+            if(dderlState.app) {
+                newTitle += ' - ' + dderlState.app;
             }
+            if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
+                newTitle += ' ('+resp.extra.node+')';
+            } else {
+                newTitle += ' (' + conn.name + ')';
+            }
+            document.title = newTitle;
 
-            if(conn.method == 'local' && conn.secure == true)
+            if(conn.method == 'local' && conn.secure == true) {
                 $('#btn-disconnect').addClass('disabled');
+            }
                 
             if (resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('changePass')) {
                 change_connect_password(resp.extra.changePass, connectSuccessCb);
