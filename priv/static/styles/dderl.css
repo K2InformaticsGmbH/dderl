@@ -684,3 +684,10 @@ div#main_footer {
     color: white;
     background-color: #77777F;
 }
+.ui-dialog-titlebar-restore.ui-corner-all.ui-state-default,
+.ui-dialog-titlebar-minimize.ui-corner-all.ui-state-default,
+.ui-dialog-titlebar-maximize.ui-corner-all.ui-state-default{
+    background-image: none;
+    background-color: transparent;
+    border: 0px;
+}

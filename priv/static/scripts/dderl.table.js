@@ -2482,6 +2482,17 @@
             })
             .bind("dialogbeforeclose", function(event, ui) {
                 self._grid.resetHeaderScroll();
+            })
+            .dialogExtend({
+                "minimizable" : true,
+                "icons" : {
+                    "minimize": "ui-icon-minus"
+                },
+                "minimizeLocation" : "left",
+                "load" : function(evt, dlg) {
+                },
+                "minimize" : function(evt, dlg){
+                }
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
