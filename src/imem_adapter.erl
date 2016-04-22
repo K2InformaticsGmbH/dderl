@@ -87,7 +87,7 @@ connect_map(#ddConn{adapter = imem} = C) ->
 
 add_conn_extra(#ddConn{access = Access}, Conn)
   when is_map(Access), is_map(Conn) ->
-       	maps:merge(Conn, maps:remove(owner,maps:remove(<<"owner">>,Access)));
+        maps:merge(Conn, maps:remove(owner,maps:remove(<<"owner">>,Access)));
 add_conn_extra(#ddConn{access = Access}, Conn) when is_list(Access), is_map(Conn) ->
     case proplists:get_value(type, Access, proplists:get_value(<<"method">>, Access, tcp)) of
         Local when Local == local; Local == <<"local">> ->
@@ -641,14 +641,14 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
     Priv.
 
 sql_name(Name) ->
-    %% accept {Schema,Name} and convert to Schema.Name  
+    %% accept {Schema,Name} and convert to Schema.Name
     case re:split(Name,"[,]") of
-        [<<${,S/binary>>,N] ->  
+        [<<${,S/binary>>,N] ->
             NN0=re:replace(N,"}$","",[{return,binary}]),
             NN1=re:replace(NN0,"^'","",[{return,binary}]),
             NN2=re:replace(NN1,"'$","",[{return,binary}]),
             % convert "{Schema,Name}"" to "Schema.Name"
-            <<S/binary,$.,NN2/binary>>; 
+            <<S/binary,$.,NN2/binary>>;
         _ ->
             Name
     end.
@@ -685,7 +685,7 @@ produce_csv_rows_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_
     ?Debug("Rows last ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, last},
     Connection:run_cmd(close, [StmtRef]).
-    
+
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = []} = Priv) -> Priv;
 disconnect(#priv{connections = [Connection | Rest]} = Priv) ->
@@ -820,10 +820,15 @@ send_result_table_cmd(From, BinCmd, Results) ->
         [invalid_connection | _Rest] ->
             From ! {reply, error_invalid_conn()};
         _ ->
-            ListNames = [binary_to_list(X) || X <- TableErrors],
-            BinTblError = list_to_binary(string:join(ListNames, ",")),
+            TableErrorsBin = lists:foldl(
+                fun({Table, Error}, Acc) ->
+                        ErrorBin = imem_datatype:term_to_io(Error),
+                        <<Acc/binary, Table/binary, <<" - ">>/binary, ErrorBin/binary, <<", ">>/binary>>;
+                   (Table, Acc) ->  <<Acc/binary, Table/binary, <<", ">>/binary>>
+                end, <<>>, TableErrors),
+            FTableErrorsBin = re:replace(TableErrorsBin, <<", $">>, <<>>, [{return, binary}]),
             [CmdSplit|_] = binary:split(BinCmd, <<"_">>),
-            Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  BinTblError]),
+            Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  FTableErrorsBin]),
             ?Error("Error: ~p",  [Err]),
             From ! {reply, jsx:encode([{BinCmd, [{<<"error">>, Err}]}])}
     end,
@@ -837,6 +842,9 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
                     ok;
+                {error, {{_Ex, {_M, E}}, Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], Stacktrace),
+                    {error, {TableName, E}};
                 {error, {{_Ex, _M}, Stacktrace} = Error} ->
                     ?Error("query error ~p", [Error], Stacktrace),
                     {error, TableName};
