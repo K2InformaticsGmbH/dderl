@@ -477,11 +477,12 @@ format_json_or_term(_, StringToFormat, From, BodyJson) ->
             From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                         [
                                          {<<"error">>, <<"Invalid erlang term">>},
-                                         {<<"originalText">>, StringToFormat}
+                                         {<<"string">>, StringToFormat}
                                         ]}])};
         Formatted ->
             ?Debug("The formatted text: ~p", [Formatted]),
-            From ! {reply, jsx:encode([{<<"edit_term_or_view">>, Formatted}])}
+            From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                        [{<<"string">>, Formatted}, {<<"isFormatted">>, true}]}])}
     end.
 
 -spec col2json([#stmtCol{}]) -> [binary()].
