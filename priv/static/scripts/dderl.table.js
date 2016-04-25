@@ -1838,6 +1838,7 @@
                     .data('tag', btn)
                     .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
+                    .addClass('colorIcon')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
             else if(elm.typ === 'txt')
