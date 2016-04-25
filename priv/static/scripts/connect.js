@@ -4,7 +4,7 @@ var connects = null;
 
 function connect_dlg()
 {
-    var dlg = $('<div>')
+    var dlg = $('<div id="dialog-db-login">')
     .attr('title', "Connect to Database");
 
     var connect_common = $('<table>')

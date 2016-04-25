@@ -261,6 +261,9 @@
                 var stringToFormat = unescape(this._editText.val());
                 var indent = (expansionLevel < 0) ? 4 : expansionLevel;
                 self._updateTextArea(self.formatJSON(stringToFormat, indent));
+            } else if (self.options.term.isFormatted) {
+                self._updateTextArea(self.options.term.string);
+                self.options.term.isFormatted = false;
             } else {
                 var stringToFormat = unescapeNewLines(this._editText.val());
                 var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;

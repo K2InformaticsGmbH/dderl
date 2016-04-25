@@ -2418,7 +2418,8 @@
 
         if(data.hasOwnProperty('error')) {
             title = "Text editor";
-            content = data.originalText;
+            data.isFormatted = true;
+            content = data;
         } else if(data.isJson === true) {
             isJson = true;
             title = "Json editor";
