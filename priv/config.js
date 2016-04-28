@@ -43,5 +43,9 @@ exports.config = {
                 ]
             }
         }
+    },
+    
+    npm: {
+        enabled: false
     }
 };
