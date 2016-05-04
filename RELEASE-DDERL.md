@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.5.1 (Release Date 04.05.2016)
+======================================
+* [Bugfixes](https://github.com/K2InformaticsGmbH/dderl/issues/237)
+* Enabled possibility to gzip compression with cowboy
+* dderloci 0.2.0
+* JS library version added 
+
 Version 1.5.0 (Release Date 26.04.2016)
 ======================================
 * imem 1.4.15
