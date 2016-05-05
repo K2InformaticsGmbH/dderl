@@ -57,7 +57,8 @@ start(_Type, _Args) ->
                 https, ?MAXACCEPTORS,
                 [{ip, Interface}, {port, Port},
                  {max_connections, ?MAXCONNS} | SslOptions],
-                [{env, [{dispatch, Dispatch}]},
+                [{compress, true},
+                 {env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
     % adding lager imem handler (after IMEM start)
     ok = gen_event:add_handler(

@@ -799,7 +799,6 @@ function confirm_jq(dom, callback)
     
     var dlgDiv =
         $('<div>')
-        .appendTo(document.body)
         .append(content)
         .dialog({
             modal:false,
@@ -853,16 +852,13 @@ function prompt_jq(dom, callback)
     }
     var dlgDiv =
         $('<div>')
-        .appendTo(document.body)
         .append(content)
         .dialog({
             modal:false,
             width: 300,
             height: 300,
             title: "DDerl parameter input",
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');
