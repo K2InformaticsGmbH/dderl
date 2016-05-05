@@ -250,10 +250,58 @@ function findDashboard(name) {
     return null;
 }
 
+
 function addDashboard(dashboard) {
     var addedOption, dashboardList;
+    var index = dderlState.dashboards.push(dashboard) - 1;
 
-    dderlState.dashboards.push(dashboard);
+    //list with dashboards
+    var dashboardList = $('#dashboard_names');
+    var list = $('<li>');
+    var div = $('<div>');
+    var inputText = $('<input type="text">').addClass('inputText');
+    inputText.val(dashboard.getName());
+    var buttonNames = $('<input type="button">').addClass('inputText');
+    buttonNames.val(dashboard.getName());
+    var buttonTrash = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
+    var buttonEdit = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
+    var buttonCancel = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
+    var buttonCheck = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
+
+    $(buttonTrash)
+        .button({
+            icons: { primary: "fa fa-trash-o" },
+            text : false
+        })
+    $(buttonEdit)
+        .button({
+           icons: {primary: "fa fa-pencil"},
+            text: false
+        })
+    $(buttonCheck)
+        .button ({
+            icons: {primary: "fa fa-check"},
+            text: false
+    })
+    $(buttonCancel)
+        .button ({
+        icons: {primary: "fa fa-times"},
+        text: false
+    })
+    buttonTrash.click(function() {
+        list.remove();
+        dderlState.dashboards.splice(index,1);
+    });
+    buttonEdit.click(function() {
+        buttonNames.replaceWith(inputText);
+        buttonTrash.replaceWith(buttonCheck);
+        buttonEdit.replaceWith(buttonCancel);
+    });
+    //inputText.appendTo(list);
+   // list.append(inputText);
+    list.append(buttonNames);
+    list.append(buttonTrash, buttonEdit);
+    dashboardList.append(list).buttonset();
 
     addedOption = document.createElement("option");
     addedOption.value = dashboard.getId();
@@ -347,12 +395,34 @@ function saveDashboard() {
 }
 
 function createDashboardMenu(container) {
+
+    var dashboardList = $("#dashboard_names");
+    var list = $('<li>');
+    var buttonSave = $('<button>').addClass('heightButtons right ui-corner-flat');
+    var inputToSave = $('<input type="text">').addClass('inputSave');
+    inputToSave.attr('id','dashboard-list-input');
+    inputToSave.val("default");
+
+    $(buttonSave).button({
+        icons: { primary: "fa fa-floppy-o" },
+        text : false
+    })
+    buttonSave.click(function () {
+        checkTablesNotSaved();
+    });
+    list.append(inputToSave);
+    list.append(buttonSave);
+    dashboardList.append(list);
+
+
+
     var mainMenuBar, saveButton, dashboardList, dashboardListObj, defaultOption;
 
     // Check to only create the elements once.
     if(document.getElementById("dashboard-list")) {
         return;
     }
+
 
     // Button creation
     saveButton = document.createElement("input");

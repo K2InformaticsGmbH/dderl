@@ -691,3 +691,69 @@ div#main_footer {
     background-color: transparent;
     border: 0px;
 }
+
+.colorIcon .fa-step-backward,
+.colorIcon .fa-backward,
+.colorIcon. fa-play,
+.colorIcon .fa-forward,
+.colorIcon .fa-step-forward,
+.colorIcon .fa-refresh,
+.colorIcon .fa-step-forward.ellipsis,
+.colorIcon .fa-fetch-only{
+    color:  #888888;
+}
+
+.colorIcon .fa-step-backward:hover,
+.colorIcon .fa-backward:hover,
+.colorIcon .fa-play:hover,
+.colorIcon .fa-forward:hover,
+.colorIcon .fa-step-forward:hover,
+.colorIcon .fa-refresh:hover{
+    color: #212121;
+}
+
+.dropdown.widthList{
+    width: 185px;
+}
+
+ul.dashboard.dropdown li:hover{
+    background: transparent;
+}
+
+.heightButtons{
+    height: 20px;
+}
+.ui-corner-flat {
+    border-top-left-radius: 0px !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+.inputText {
+    background: #e6e6e6;
+    padding-top: 0px;
+    width: 126px;
+}
+.right {
+    float: right;
+}
+
+button.heightButtons.right.ui-button.ui-widget.ui-state-default.ui-button-icon-only.ui-corner-flat.ui-corner-left {
+    margin-right: 0px;
+}
+.inputSave {
+    width: 150px;
+    padding-right: 0px;
+}
+
+.removeBorder {
+    border-top-width: 0px;
+    border-bottom-width: 0px;
+}
+input.inputText.ui-button.ui-widget.ui-state-default {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    width: 100px;
+}
