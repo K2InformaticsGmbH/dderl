@@ -269,7 +269,7 @@ get_table_name({?MODULE, Pid}) ->
 
 -spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_histogram(ColumnId, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}, infinity).
+    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}, 60000).
 
 -spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
 get_statistics(ColumnIds, {?MODULE, Pid}) ->
