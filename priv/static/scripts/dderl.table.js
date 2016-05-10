@@ -3,6 +3,8 @@
 
     _dlg            : null,
     _tableDiv       : null,
+    _graphDivs      : null,
+    _graphSpec      : null,
     _footerDiv      : null,
     _footerWidth    : 0,
     _grid           : null,
@@ -40,7 +42,9 @@
     _startBtn       : null,
     _cmdStrs        : null,
     _divSqlEditor   : null,
-
+    _planeToShow    : 0,
+    _planeSpecs     : null,
+    
     // for edit erlang terms
     _erlangCellPos  : null,
     _divDisable     : null,
@@ -195,6 +199,7 @@
 
         self._origcolumns = {};
         self._gdata = [];
+        self._graphDivs = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -538,15 +543,22 @@
         var h = this._dlg.dialog('widget').height();
         var x = this._dlg.dialog('widget').position().left;
         var y = this._dlg.dialog('widget').position().top;
-        return {save_view : {table_layout  : {width : w,
-                                             height : h,
-                                                  y : y,
-                                                  x : x},
-                             conn_id       : dderlState.connectionSelected.connection,
-                             column_layout : colnamesizes,
-                             name          : _viewName,
-                             content       : this._cmd}
-               };
+        return {
+            save_view: {
+                table_layout: {
+                    width: w,
+                    height: h,
+                    y: y,
+                    x: x,
+                    plane_to_show: this._planeToShow,
+                    plane_specs: this._planeSpecs
+                },
+                conn_id: dderlState.connectionSelected.connection,
+                column_layout: colnamesizes,
+                name: _viewName,
+                content: this._cmd
+            }
+        };
     },
 
     _updateView: function(viewId, viewName) {
@@ -2196,23 +2208,56 @@
             this._tbllay = _table.table_layout;
             if(_table.table_layout.length  === 0) this._tbllay = null;
         }
-        if(_table.hasOwnProperty('columns')) {
-            this.setColumns(_table.columns);
-            if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
-                this._setSortSpecFromJson(this, _table.sort_spec);
-            }
-            this._gridDataView.beginUpdate();
-            this._gridDataView.setItems([]);
-            this._gridDataView.endUpdate();
-            this._gdata = this._gridDataView.getItems();
-            this._gridColumnsReorder();
-            this.buttonPress(this._startBtn);
-        } else {
+        
+        if(!_table.hasOwnProperty('columns')) {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');
             return;
         }
-        console.log('>>>>> table '+_table.name+' '+_table.connection);
+        
+        if(_table.hasOwnProperty('plane_specs')) {
+            this._planeSpecs = _table.plane_specs;
+        }
+
+        if($.isArray(this._planeSpecs) &&
+           _table.plane_to_show > 0 &&
+           _table.plane_to_show <= this._planeSpecs.length) {
+            this._planeToShow = _table.plane_to_show;
+        } else {
+            this._planeToShow = 0;
+        }
+
+        this.setColumns(_table.columns);
+        if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
+            this._setSortSpecFromJson(this, _table.sort_spec);
+        }
+        this._gridDataView.beginUpdate();
+        this._gridDataView.setItems([]);
+        this._gridDataView.endUpdate();
+        this._gdata = this._gridDataView.getItems();
+
+        if(this._planeToShow == 0) {
+            this._gridColumnsReorder();
+        } else {
+            // This should be a function show plane n so we can call it from a button.
+            var planeIdx = this._planeToShow - 1;
+            this._tableDiv.hide();
+            // We need to execute the script.
+            if(!this._graphDivs[planeIdx]) {
+                var d = document.createElement("div");
+                d.classList.add("d3-container");
+                d.style.bottom = this.options.toolBarHeight+'px';
+                this._dlg.append(d);
+                var planeFunc = new Function('container', 'width', 'height', this._planeSpecs[planeIdx].script);
+                this._graphDivs[this._planeToShow-1] = d3.select(d);
+                this._graphSpec = planeFunc(this._graphDivs[this._planeToShow-1], d.clientWidth, d.clientHeight);
+                console.log(this._graphSpec);
+            };
+        }
+
+        this.buttonPress(this._startBtn);
+        
+        console.log('>>>>> table ' + _table.name + ' ' + _table.connection);
     },
     _renderNewTable: function(_table) {
         var tl = null;

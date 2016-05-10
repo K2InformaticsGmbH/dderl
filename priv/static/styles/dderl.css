@@ -485,25 +485,22 @@ div#main_footer {
   background: url('../img/ajax-loader-small.gif') no-repeat center left;
 }
 
-.sql_text_flat {
-    background: rgb(240,240,255);
+.sql_text_editor {
     width: 100%;
-    height: 100%;
-    overflow-y: scroll;
+    height:100%;
     resize: none;
     border: none;
     font-size: 1.14em;
 }
 
+.sql_text_flat {
+    background: rgb(240,240,255);
+    overflow-y: scroll;
+}
+
 .sql_text_pretty {
     background: rgb(255,240,240);
-    width: 100%;
-    height:100%;
     overflow: auto;
-    /*white-space:nowrap;*/
-    resize:none;
-    border:none;
-    font-size:1.14em;
 }
 
 .sql_text_box {
@@ -713,4 +710,13 @@ div#main_footer {
 .colorIcon:hover .fa-check,
 .colorIcon:hover .fa-times {
     color: #212121;
+}
+
+/* d3 graphs */
+d3-cointainer {
+    position: absolute,
+    top: 0,
+    left: 0,
+    right: 0,
+    border: '1px solid lightblue'
 }

@@ -64,6 +64,7 @@ function insertAtCursor(myField, myValue) {
     _prettyTb       : null,
     _boxDiv         : null,
     _paramsDiv      : null,
+    _graphEdit       : null,  
 
     _modCmd         : "",
     _cmdFlat        : "",
@@ -214,6 +215,7 @@ function insertAtCursor(myField, myValue) {
 
         self._flatTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+            .addClass('sql_text_editor')        
             .addClass('sql_text_flat')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdFlat);
@@ -223,6 +225,7 @@ function insertAtCursor(myField, myValue) {
         self._prettyTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .attr('wrap', 'off')
+            .addClass('sql_text_editor')        
             .addClass('sql_text_pretty')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdPretty);
@@ -236,6 +239,27 @@ function insertAtCursor(myField, myValue) {
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
+
+        var graphScriptHelp = "// This code is executed once and it should initialize the graph, the";
+        graphScriptHelp += "\n// available parameters are (container, width, height)";
+        graphScriptHelp += "\n\n// container: d3 selection of the contaner div for the graph";
+        graphScriptHelp += "\n// width: width of the container";
+        graphScriptHelp += "\n// height: height of the container";
+        graphScriptHelp += "\n\n// The function must then return an object with the following callbacks:";
+        graphScriptHelp += "\n\nreturn {";
+        graphScriptHelp += "\n    on_data: function(data) {},";
+        graphScriptHelp += "\n    on_resize: function(w, h) {},";
+        graphScriptHelp += "\n    on_reset: function() {}";
+        graphScriptHelp += "\n};";
+
+        
+        // TODO: This should be ace probably instead of just text area / snippets is good idea...
+        self._graphEdit =
+            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+            .val(graphScriptHelp)
+            .addClass('sql_text_editor');
+
+        // TODO: This should be dynamic as we need to create new script tabs on the fly.
         self._editDiv =
             $('<div>')
             .append(
@@ -244,6 +268,7 @@ function insertAtCursor(myField, myValue) {
               +'  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>'
               +'  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>'
               +'  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>'
+              +'  <li><a href="#tabgraph">D3 Graph</a></li>'
               +'</ul>')
             )
             .append(
@@ -269,6 +294,11 @@ function insertAtCursor(myField, myValue) {
               .css("overflow-y", "auto")
               .attr('id','tabparams')
               .append(self._paramsDiv)
+            )
+            .append(
+                $('<div>')
+                .attr('id','tabgraph')
+                .append(self._graphEdit)    
             )
             .css('position', 'absolute')
             .css('overflow', 'hidden')
@@ -827,7 +857,16 @@ function insertAtCursor(myField, myValue) {
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>')
             }
-            resultQry["qparams"] = self._optBinds;
+            resultQry.qparams = self._optBinds;
+
+            // TODO: This is restricted to one d3 script for now.
+            resultQry.plane_specs = [{
+                script: self._graphEdit.val()
+            }];
+            resultQry.plane_to_show = 0;            
+            if(this._editDiv.tabs("option", "active") > 3) {
+                resultQry.plane_to_show = 1;
+            }
             this._cmdOwner
                 .appendTo(document.body)
                 .table(initOptions)
