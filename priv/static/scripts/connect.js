@@ -50,15 +50,12 @@ function connect_dlg()
         width: 'auto',
         resizable: false,
         modal: true,
-        position: { my: "left top", at: "left+50 top+20", of: "#main-body" },
+        position: { my: "left top", at: "left+50 top+20", of: "#main-body", collision : 'none' },
         appendTo: "#main-body",
         dialogClass: "no-close",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
-        },
-        open: function(evt, ui) {
-            $(this).dialog("widget").appendTo("#main-body");
         },
         buttons: [
             {
@@ -643,7 +640,7 @@ function validateSmsToken(user, data, connectSuccessCb)
         width: 'auto',
         resizable: false,
         modal: false,
-        position: { my: "left top", at: "left+80 top+300", of: "#main-body" },
+        position: { my: "left top", at: "left+80 top+300", of: "#main-body", collision : 'none' },
         closeOnEscape: false,
         dialogClass: 'no-close',
         appendTo: '#main-body',
