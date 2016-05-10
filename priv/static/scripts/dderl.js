@@ -631,7 +631,7 @@ function show_about_dlg()
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
-                p += '<p class="about-vsn">' + version + ' GUI 1.0.9</p>';
+                p += '<p class="about-vsn">' + version + ' GUI 1.5.1</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
