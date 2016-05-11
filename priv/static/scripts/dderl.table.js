@@ -265,8 +265,6 @@
             .css('border-color', 'lightblue')
             .appendTo(self.element);
 
-        
-
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
 
@@ -276,7 +274,6 @@
 
         self._createSlickGrid();
         self._createContextMenus();
-
         // setting up the event handlers last to aid debuggin
         self._setupEventHandlers();
     },
@@ -2202,29 +2199,31 @@
         }
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
-            if(_table.column_layout.length === 0) this._clmlay = null;
         }
-        if(_table.hasOwnProperty('table_layout')  && _table.table_layout.length  > 0) {
-            this._tbllay = _table.table_layout;
-            if(_table.table_layout.length  === 0) this._tbllay = null;
+
+        this._planeToShow = 0;
+        if(_table.hasOwnProperty('table_layout')) {
+            if(table.table_layout.hasOwnProperty('x')) {
+                this._tbllay = _table.table_layout;
+            }
+
+
+            if(_table.table_layout.hasOwnProperty('plane_specs')) {
+                this._planeSpecs = _table.plane_specs;
+            }
+
+            if($.isArray(this._planeSpecs) &&
+               _table.table_layout.hasOwnProperty('plane_to_show') &&
+               _table.table_layout.plane_to_show > 0 &&
+               _table.table_layout.plane_to_show <= this._planeSpecs.length) {
+                this._planeToShow = _table.table_layout.plane_to_show;
+            }
         }
         
         if(!_table.hasOwnProperty('columns')) {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');
             return;
-        }
-        
-        if(_table.hasOwnProperty('plane_specs')) {
-            this._planeSpecs = _table.plane_specs;
-        }
-
-        if($.isArray(this._planeSpecs) &&
-           _table.plane_to_show > 0 &&
-           _table.plane_to_show <= this._planeSpecs.length) {
-            this._planeToShow = _table.plane_to_show;
-        } else {
-            this._planeToShow = 0;
         }
 
         this.setColumns(_table.columns);
@@ -2240,6 +2239,7 @@
             this._gridColumnsReorder();
         } else {
             // This should be a function show plane n so we can call it from a button.
+            // this._showPlane();
             var planeIdx = this._planeToShow - 1;
             this._tableDiv.hide();
             // We need to execute the script.
@@ -2259,6 +2259,7 @@
         
         console.log('>>>>> table ' + _table.name + ' ' + _table.connection);
     },
+
     _renderNewTable: function(_table) {
         var tl = null;
         var cl = null;
@@ -2329,7 +2330,6 @@
         }
 
         $('<div>')
-        .appendTo(document.body)
         .table(baseOptions)
         .table('setColumns', _table.columns)
         .table('callReorder')

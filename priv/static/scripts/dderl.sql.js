@@ -847,7 +847,6 @@ function insertAtCursor(myField, myValue) {
         } else if(isMultiple) {
             initOptions.title = resultQry.qstr;
             $('<div>')
-                .appendTo(document.body)
                 .table(initOptions)
                 .table('renderTable', resultQry);
             self._execMultStmts();
@@ -859,16 +858,19 @@ function insertAtCursor(myField, myValue) {
             }
             resultQry.qparams = self._optBinds;
 
+            if(!resultQry.hasOwnProperty('table_layout')) {
+                resultQry.table_layout = {};
+            }
+
             // TODO: This is restricted to one d3 script for now.
-            resultQry.plane_specs = [{
+            resultQry.table_layout.plane_specs = [{
                 script: self._graphEdit.val()
             }];
-            resultQry.plane_to_show = 0;            
+            resultQry.table_layout.plane_to_show = 0;
             if(this._editDiv.tabs("option", "active") > 3) {
-                resultQry.plane_to_show = 1;
+                resultQry.table_layout.plane_to_show = 1;
             }
             this._cmdOwner
-                .appendTo(document.body)
                 .table(initOptions)
                 .table('renderTable', resultQry);
         }
