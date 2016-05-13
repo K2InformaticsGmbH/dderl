@@ -713,10 +713,11 @@ div#main_footer {
 }
 
 /* d3 graphs */
-d3-cointainer {
-    position: absolute,
-    top: 0,
-    left: 0,
-    right: 0,
-    border: '1px solid lightblue'
+.d3-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border: 1px solid lightblue;
+    overflow: hidden
 }

@@ -64,12 +64,13 @@ function insertAtCursor(myField, myValue) {
     _prettyTb       : null,
     _boxDiv         : null,
     _paramsDiv      : null,
-    _graphEdit       : null,  
+    _graphEdit      : null,
 
     _modCmd         : "",
     _cmdFlat        : "",
     _cmdPretty      : "",
-    _boxJson        : {},  
+    _boxJson        : {},
+    _script         : "",  
     _history        : null,
     _historySelect  : null,
     _cmdChanged     : false,
@@ -127,6 +128,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).remove();
                           },
         cmdFlat         : "",
+        script          : "",
         cmdOwner        : null,
         optBinds        : null,
         history         : [],
@@ -157,6 +159,7 @@ function insertAtCursor(myField, myValue) {
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
+        if(self.options.script      !== self._script)       self._script    = self.options.script;
         if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
@@ -238,27 +241,35 @@ function insertAtCursor(myField, myValue) {
             .css('font-family', self._fnt);
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
-
-
-        var graphScriptHelp = "// This code is executed once and it should initialize the graph, the";
-        graphScriptHelp += "\n// available parameters are (container, width, height)";
-        graphScriptHelp += "\n\n// container: d3 selection of the contaner div for the graph";
-        graphScriptHelp += "\n// width: width of the container";
-        graphScriptHelp += "\n// height: height of the container";
-        graphScriptHelp += "\n\n// The function must then return an object with the following callbacks:";
-        graphScriptHelp += "\n\nreturn {";
-        graphScriptHelp += "\n    on_data: function(data) {},";
-        graphScriptHelp += "\n    on_resize: function(w, h) {},";
-        graphScriptHelp += "\n    on_reset: function() {}";
-        graphScriptHelp += "\n};";
-
         
         // TODO: This should be ace probably instead of just text area / snippets is good idea...
         self._graphEdit =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .val(graphScriptHelp)
-            .addClass('sql_text_editor');
+            .addClass('sql_text_editor')
+            .on('keydown', this, function(e) {
+                if((e.keyCode || e.which) == 9) {
+                    e.preventDefault();
+                    insertAtCursor(this, "  ");
+                }
+            });
 
+        if(!self._script) {
+            var graphScriptHelp = "// This code is executed once and it should initialize the graph, the";
+            graphScriptHelp += "\n// available parameters are (container, width, height)";
+            graphScriptHelp += "\n\n// container: d3 selection of the contaner div for the graph";
+            graphScriptHelp += "\n// width: width of the container";
+            graphScriptHelp += "\n// height: height of the container";
+            graphScriptHelp += "\n\n// The function must then return an object with the following callbacks:";
+            graphScriptHelp += "\n\nreturn {";
+            graphScriptHelp += "\n    on_data: function(data) {},";
+            graphScriptHelp += "\n    on_resize: function(w, h) {},";
+            graphScriptHelp += "\n    on_reset: function() {}";
+            graphScriptHelp += "\n};";
+            self._graphEdit.val(graphScriptHelp);
+        } else {
+            self._graphEdit.val(self._script);
+        }
+        
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
         self._editDiv =
             $('<div>')
@@ -812,7 +823,7 @@ function insertAtCursor(myField, myValue) {
         } else {
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
                 self._modCmd = self._cmdFlat;
-                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn);
+                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn, self._getPlaneData());
             } else {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
@@ -861,21 +872,29 @@ function insertAtCursor(myField, myValue) {
             if(!resultQry.hasOwnProperty('table_layout')) {
                 resultQry.table_layout = {};
             }
-
-            // TODO: This is restricted to one d3 script for now.
-            resultQry.table_layout.plane_specs = [{
-                script: self._graphEdit.val()
-            }];
-            resultQry.table_layout.plane_to_show = 0;
-            if(this._editDiv.tabs("option", "active") > 3) {
-                resultQry.table_layout.plane_to_show = 1;
-            }
+            $.extend(resultQry.table_layout, this._getPlaneData());
+            
             this._cmdOwner
                 .table(initOptions)
                 .table('renderTable', resultQry);
         }
     },
 
+    // TODO: This is restricted to one d3 script for now.
+    _getPlaneData: function() {
+        var self = this;
+        planeToShow = 0;
+        if(self._editDiv.tabs("option", "active") > 3) {
+            planeToShow = 1;
+        }
+        return {
+            plane_specs: [{
+                script: self._graphEdit.val()
+            }],
+            plane_to_show: planeToShow
+        };        
+    },
+      
     _resultStmt: function(resultQry) {
         this._processResultStmt(resultQry, false);
     },
