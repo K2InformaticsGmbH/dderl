@@ -713,7 +713,12 @@ ul.dashboard.dropdown li:hover{
 .inputText {
     background: #e6e6e6;
     padding-top: 0px;
-    width: 126px;
+    width: 91px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-right: 2px;
+    padding-left: 2px;
+    border-bottom-width: 0px;
 }
 .right {
     float: right;
@@ -723,7 +728,7 @@ button.heightButtons.right.ui-button.ui-widget.ui-state-default.ui-button-icon-o
     margin-right: 0px;
 }
 .inputSave {
-    width: 150px;
+    width: 120px;
     padding-right: 0px;
 }
 
@@ -737,6 +742,7 @@ input.inputText.ui-button.ui-widget.ui-state-default {
     padding-top: 2px;
     padding-bottom: 2px;
     width: 100px;
+    border: 0px;
 }
 
 .colorIcon .fa-step-backward,
@@ -759,4 +765,8 @@ input.inputText.ui-button.ui-widget.ui-state-default {
 .colorIcon:hover .fa-check,
 .colorIcon:hover .fa-times {
     color: #212121;
+}
+
+ul.dropdown.floatNone ul li {
+    float: none;
 }

@@ -258,6 +258,7 @@ function addDashboard(dashboard) {
     //list with dashboards
     var dashboardList = $('#dashboard_names');
     var list = $('<li>');
+    var listEdit = $('<li>');
     var div = $('<div>');
     var inputText = $('<input type="text">').addClass('inputText');
     inputText.val(dashboard.getName());
@@ -279,12 +280,12 @@ function addDashboard(dashboard) {
             text: false
         })
     $(buttonCheck)
-        .button ({
+        .button({
             icons: {primary: "fa fa-check"},
             text: false
     })
     $(buttonCancel)
-        .button ({
+        .button({
         icons: {primary: "fa fa-times"},
         text: false
     })
@@ -292,16 +293,26 @@ function addDashboard(dashboard) {
         list.remove();
         dderlState.dashboards.splice(index,1);
     });
-    buttonEdit.click(function() {
-        buttonNames.replaceWith(inputText);
-        buttonTrash.replaceWith(buttonCheck);
-        buttonEdit.replaceWith(buttonCancel);
+    buttonEdit.click(function(){
+        list.hide();
+        listEdit.show();
+    });
+    buttonCancel.click(function() {
+        list.show();
+        listEdit.hide();
     });
     //inputText.appendTo(list);
    // list.append(inputText);
     list.append(buttonNames);
     list.append(buttonTrash, buttonEdit);
-    dashboardList.append(list).buttonset();
+    list.buttonset();
+    dashboardList.append(list);
+
+    listEdit.append(inputText);
+    listEdit.append(buttonCancel, buttonCheck);
+    listEdit.buttonset();
+    dashboardList.append(listEdit);
+    listEdit.hide();
 
     addedOption = document.createElement("option");
     addedOption.value = dashboard.getId();
@@ -398,7 +409,7 @@ function createDashboardMenu(container) {
 
     var dashboardList = $("#dashboard_names");
     var list = $('<li>');
-    var buttonSave = $('<button>').addClass('heightButtons right ui-corner-flat');
+    var buttonSave = $('<button>').addClass('heightButtons ui-corner-flat');
     var inputToSave = $('<input type="text">').addClass('inputSave');
     inputToSave.attr('id','dashboard-list-input');
     inputToSave.val("default");
