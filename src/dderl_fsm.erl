@@ -1428,14 +1428,16 @@ gui_response_log(Gres) ->
     ?NoDbLog(debug, [], "gui_response ~p", [Gres#gres.sql]).
 
 -spec gui_response(#gres{}, #state{}) -> #state{}.
-gui_response(#gres{state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql}=State0) ->
-    Gres1 = gres(SN,RawCnt,integer_to_list(RawCnt),Sql,DirtyCnt,false,Gres0),
+gui_response(#gres{rows=Rows,state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql}=State0) ->
+    Gres = Gres0#gres{rows=lists:filter(fun(X) ->length(X) > 2 end, Rows)},
+    Gres1 = gres(SN,RawCnt,integer_to_list(RawCnt),Sql,DirtyCnt,false,Gres),
     ReplyTo(Gres1),
     gui_response_log(Gres1),
     State0#state{sql= <<"">>};
-gui_response(#gres{state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql,guiCol=GuiCol}=State0) ->
+gui_response(#gres{rows=Rows,state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql,guiCol=GuiCol}=State0) ->
+    Gres = Gres0#gres{rows=lists:filter(fun(X) ->length(X) > 2 end, Rows)},
     ToolTip = integer_to_list(RawCnt) ++ [$/] ++ integer_to_list(IndCnt),
-    Gres1 = gres(SN,IndCnt,ToolTip,Sql,DirtyCnt,GuiCol,Gres0),
+    Gres1 = gres(SN,IndCnt,ToolTip,Sql,DirtyCnt,GuiCol,Gres),
     ReplyTo(Gres1),
     gui_response_log(Gres1),
     State0#state{sql= <<"">>}.
@@ -2003,7 +2005,9 @@ serve_stack(_SN , #state{stack = _Stack} = State) ->
 -spec rows_after(integer(), integer(), #state{}) -> list().
 rows_after(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Key}],['$_']}],Limit) of
-        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- Rs];  
+        {Rs, _Cont} ->
+            lists:filter(fun(X) ->
+                length(X) > 2 end, [gui_row_expand(R, TableId, RowFun) || R <- Rs]);
         '$end_of_table' ->  []
     end.
 
@@ -2015,7 +2019,8 @@ rows_for_keys(Keys,TableId) ->
 -spec rows_for_ids(list(), atom() | ets:tid(), fun()) -> list().
 rows_for_ids([],_,_) -> [];
 rows_for_ids(Ids,TableId,RowFun) ->
-    [gui_row_expand(hd(ets:lookup(TableId, Id)), TableId, RowFun) || Id <- Ids].
+    lists:filter(fun(X) ->
+        length(X) > 2 end, [gui_row_expand(hd(ets:lookup(TableId, Id)), TableId, RowFun) || Id <- Ids]).
 
 -spec keys_before(integer() | tuple() | [], integer(), #state{}) -> list().
 keys_before(_, 0, _) -> [];
@@ -2039,7 +2044,9 @@ keys_after(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
 rows_before(_, 0, _) -> [];
 rows_before(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select_reverse(TableId,[{'$1',[{'<',{element,1,'$1'},Key}],['$_']}],Limit) of
-        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- lists:reverse(Rs)];  
+        {Rs, _Cont} ->
+            lists:filter(fun(X) ->
+                length(X) > 2 end, [gui_row_expand(R, TableId, RowFun) || R <- lists:reverse(Rs)]);
         '$end_of_table' ->  []
     end;
 rows_before(Key, Limit, #state{tableId=TableId}=State) ->
