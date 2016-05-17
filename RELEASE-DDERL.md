@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.5.2 (Release Date 17.05.2016)
+======================================
+* Added minimum and maximum to statistics
+* Added try... finally to ensure selection flag reset
+
 Version 1.5.1 (Release Date 10.05.2016)
 ======================================
 * [Bugfixes](https://github.com/K2InformaticsGmbH/dderl/issues/237)
