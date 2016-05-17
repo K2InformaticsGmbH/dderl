@@ -49,8 +49,11 @@
             return function () {
                 if (!_inHandler) {
                     _inHandler = true;
-                    handler.apply(this, arguments);
-                    _inHandler = false;
+                    try {
+                        handler.apply(this, arguments);
+                    } finally {
+                        _inHandler = false;
+                    }
                 }
             };
         }
