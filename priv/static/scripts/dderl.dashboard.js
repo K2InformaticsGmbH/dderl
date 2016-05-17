@@ -78,6 +78,9 @@
                     if(viewResult.hasOwnProperty('error')) {
                         alert_jq(viewResult.error);
                     } else {
+                        // We need to override the position and size of table layout.
+                        $.extend(viewResult.table_layout, views[pos].getLayout());
+                        
                         $('<div>')
                             .appendTo(document.body)
                             .table({
@@ -85,7 +88,7 @@
                                 dderlConn   : dderlState.connection,
                                 dderlAdapter: dderlState.adapter,
                                 title       : viewResult.name,
-                                dderlTbllay : views[pos].getLayout(),
+                                dderlTbllay : viewResult.table_layout,
                             })
                             .table('openView', viewResult);
                     }
