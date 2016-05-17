@@ -399,7 +399,7 @@
                 alert_jq(stats.error);
                 return;
             }
-            self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'flipfit'});
+            self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'none'});
             self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
             if(self._parent) {
                 smartDialogPosition($("#main-body"), self._parent, self._dlg, ['center']);

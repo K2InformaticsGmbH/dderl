@@ -3,12 +3,18 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.5.1 (Release Date 04.05.2016)
+Version 1.5.2 (Release Date 17.05.2016)
+======================================
+* Added minimum and maximum to statistics
+* Added try... finally to ensure selection flag reset
+
+Version 1.5.1 (Release Date 10.05.2016)
 ======================================
 * [Bugfixes](https://github.com/K2InformaticsGmbH/dderl/issues/237)
 * Enabled possibility to gzip compression with cowboy
 * dderloci 0.2.0
-* JS library version added 
+* JS library version added
+* Timeout for sync events on dder_fsm updated to one minute
 
 Version 1.5.0 (Release Date 26.04.2016)
 ======================================
