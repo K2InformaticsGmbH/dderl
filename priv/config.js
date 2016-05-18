@@ -15,7 +15,7 @@ exports.config = {
     },
 
     conventions: {
-        ignored: 'static/public',
+        ignored: 'static/public/**',
         assets: /^static(\\|\/)assets(\\|\/)/
 
     },
