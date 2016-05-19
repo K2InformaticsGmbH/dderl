@@ -710,15 +710,24 @@ ul.dashboard.dropdown li:hover{
     border-bottom-left-radius: 0px !important;
     border-bottom-right-radius: 0px !important;
 }
-.inputText {
+
+.inputText, .inputTextDefault, .inputTextToEdit {
     background: #e6e6e6;
     padding-top: 0px;
-    width: 91px;
+    width: 146px;
     padding-top: 2px;
     padding-bottom: 2px;
     padding-right: 2px;
     padding-left: 2px;
     border-bottom-width: 0px;
+}
+.inputTextDefault {
+    background: #ffffff;
+}
+.inputTextToEdit {
+    width: 120px;
+    font-family: Verdana,Arial,sans-serif;
+    font-size: 1.1em;
 }
 .right {
     float: right;
@@ -741,8 +750,9 @@ input.inputText.ui-button.ui-widget.ui-state-default {
     padding-right: 2px;
     padding-top: 2px;
     padding-bottom: 2px;
-    width: 100px;
+    width: 130px;
     border: 0px;
+    text-align: left;
 }
 
 .colorIcon .fa-step-backward,

@@ -259,9 +259,9 @@ function addDashboard(dashboard) {
     var dashboardList = $('#dashboard_names');
     var list = $('<li>');
     var listEdit = $('<li>');
-    var div = $('<div>');
-    var inputText = $('<input type="text">').addClass('inputText');
-    inputText.val(dashboard.getName());
+    var inputTextToEdit = $('<input type="text">').addClass('inputTextToEdit');
+    inputTextToEdit.val(dashboard.getName());
+    inputTextToEdit.attr('id','dashboard-list-input');
     var buttonNames = $('<input type="button">').addClass('inputText');
     buttonNames.val(dashboard.getName());
     var buttonTrash = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
@@ -269,9 +269,10 @@ function addDashboard(dashboard) {
     var buttonCancel = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
     var buttonCheck = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
 
+
     $(buttonTrash)
         .button({
-            icons: { primary: "fa fa-trash-o" },
+            icons: { primary: "fa fa-trash-o"},
             text : false
         })
     $(buttonEdit)
@@ -283,32 +284,36 @@ function addDashboard(dashboard) {
         .button({
             icons: {primary: "fa fa-check"},
             text: false
-    })
+        })
     $(buttonCancel)
         .button({
         icons: {primary: "fa fa-times"},
         text: false
-    })
+        })
     buttonTrash.click(function() {
         list.remove();
         dderlState.dashboards.splice(index,1);
     });
-    buttonEdit.click(function(){
+    buttonEdit.click(function() {
         list.hide();
         listEdit.show();
+
     });
     buttonCancel.click(function() {
         list.show();
         listEdit.hide();
     });
-    //inputText.appendTo(list);
-   // list.append(inputText);
+    buttonCheck.click(function () {
+        checkTablesNotSaved();
+        listEdit.hide();
+        list.show();
+    });
     list.append(buttonNames);
     list.append(buttonTrash, buttonEdit);
     list.buttonset();
     dashboardList.append(list);
 
-    listEdit.append(inputText);
+    listEdit.append(inputTextToEdit);
     listEdit.append(buttonCancel, buttonCheck);
     listEdit.buttonset();
     dashboardList.append(listEdit);
@@ -409,8 +414,8 @@ function createDashboardMenu(container) {
 
     var dashboardList = $("#dashboard_names");
     var list = $('<li>');
-    var buttonSave = $('<button>').addClass('heightButtons ui-corner-flat');
-    var inputToSave = $('<input type="text">').addClass('inputSave');
+    var buttonSave = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
+    var inputToSave = $('<input type="text">').addClass('inputTextDefault');
     inputToSave.attr('id','dashboard-list-input');
     inputToSave.val("default");
 
@@ -423,6 +428,7 @@ function createDashboardMenu(container) {
     });
     list.append(inputToSave);
     list.append(buttonSave);
+    list.buttonset();
     dashboardList.append(list);
 
 
