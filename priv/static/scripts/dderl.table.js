@@ -2490,11 +2490,33 @@
 
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
+
+        var last = +new Date;
+        var deferTimer;
         self._dlg = self.element
             .dialog(self.options)
-            .bind("dialogresize", function(event, ui) {
+            .bind("dialogresize", function(event, ui, c) {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
+                if(self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
+                    var planeIdx = self._planeToShow - 1;
+                    var divElement = self._graphDivs[planeIdx].node();
+                    // We need to execute the script.
+                    if(divElement) {
+                        var now = +new Date;
+                        // Only call the function once every 200 miliseconds.
+                        if(now > last + 200) {
+                            last = now;
+                            self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                        } else {
+                            clearTimeout(deferTimer);
+                            deferTimer = setTimeout(function() {
+                                last = now;
+                                self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                            }, 200);
+                        }
+                    }
+                }
             })
             .bind("dialogfocus", function(event, ui) {
                 // If the table is disabled do not set the focus.
