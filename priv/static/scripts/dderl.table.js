@@ -3,6 +3,8 @@
 
     _dlg            : null,
     _tableDiv       : null,
+    _graphDivs      : null,
+    _graphSpec      : null,
     _footerDiv      : null,
     _footerWidth    : 0,
     _grid           : null,
@@ -40,7 +42,9 @@
     _startBtn       : null,
     _cmdStrs        : null,
     _divSqlEditor   : null,
-
+    _planeToShow    : 0,
+    _planeSpecs     : null,
+    
     // for edit erlang terms
     _erlangCellPos  : null,
     _divDisable     : null,
@@ -158,8 +162,10 @@
         position          : {at: "left top", my: "left top", of: "#main-body", collision : 'none'},
         appendTo          : "#main-body",
         focus             : function(e,ui) {},
+        open              : function() { $(this).table('showPlane'); },
         close             : function() {
                               $(this).table('close_stmt');
+                              $(this).table('closeGraphs');
                               $(this).dialog('destroy');
                               $(this).remove();
                             },
@@ -195,6 +201,7 @@
 
         self._origcolumns = {};
         self._gdata = [];
+        self._graphDivs = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -260,8 +267,6 @@
             .css('border-color', 'lightblue')
             .appendTo(self.element);
 
-        
-
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
 
@@ -272,6 +277,7 @@
         self._createSlickGrid();
         self._createContextMenus();
 
+        self._initPlanes(self._tbllay);
         // setting up the event handlers last to aid debuggin
         self._setupEventHandlers();
     },
@@ -377,6 +383,11 @@
         if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
             self._divSqlEditor.dialog("moveToTop");
         } else {
+            var script = "";
+             if(self._planeSpecs && self._planeSpecs.length) {
+                 script = self._planeSpecs[0].script;
+             }
+                 
             self._divSqlEditor = $('<div>')
                 .appendTo(document.body)
                 .sql({autoOpen  : false,
@@ -385,6 +396,7 @@
                       history   : this._cmdStrs,
                       cmdFlat   : this._cmd,
                       optBinds  : this._optBinds,
+                      script    : script // TODO: This should be multiple specs...
                      })
                 .sql('open');
         }
@@ -538,15 +550,22 @@
         var h = this._dlg.dialog('widget').height();
         var x = this._dlg.dialog('widget').position().left;
         var y = this._dlg.dialog('widget').position().top;
-        return {save_view : {table_layout  : {width : w,
-                                             height : h,
-                                                  y : y,
-                                                  x : x},
-                             conn_id       : dderlState.connectionSelected.connection,
-                             column_layout : colnamesizes,
-                             name          : _viewName,
-                             content       : this._cmd}
-               };
+        return {
+            save_view: {
+                table_layout: {
+                    width: w,
+                    height: h,
+                    y: y,
+                    x: x,
+                    plane_to_show: this._planeToShow,
+                    plane_specs: this._planeSpecs
+                },
+                conn_id: dderlState.connectionSelected.connection,
+                column_layout: colnamesizes,
+                name: _viewName,
+                content: this._cmd
+            }
+        };
     },
 
     _updateView: function(viewId, viewName) {
@@ -838,7 +857,7 @@
     },
 
     // Reload table: called from the sql editor to refresh this table.
-    cmdReload: function(cmd, optBinds, button) {
+    cmdReload: function(cmd, optBinds, button, planeData) {
         console.log('command reloading ['+cmd+']');
         // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
         this.close_stmt();
@@ -847,6 +866,8 @@
         this._optBinds = optBinds;
         this.options.dderlStartBtn = this._startBtn = button;
         this._filters = null;
+        this._closeGraphs();
+        this._initPlanes(planeData);
         this._ajax('query', {query: {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection,
@@ -2190,30 +2211,38 @@
         }
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
-            if(_table.column_layout.length === 0) this._clmlay = null;
         }
-        if(_table.hasOwnProperty('table_layout')  && _table.table_layout.length  > 0) {
-            this._tbllay = _table.table_layout;
-            if(_table.table_layout.length  === 0) this._tbllay = null;
-        }
-        if(_table.hasOwnProperty('columns')) {
-            this.setColumns(_table.columns);
-            if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
-                this._setSortSpecFromJson(this, _table.sort_spec);
+
+        if(_table.hasOwnProperty('table_layout')) {
+            if(_table.table_layout.hasOwnProperty('x')) {
+                this._tbllay = _table.table_layout;
             }
-            this._gridDataView.beginUpdate();
-            this._gridDataView.setItems([]);
-            this._gridDataView.endUpdate();
-            this._gdata = this._gridDataView.getItems();
-            this._gridColumnsReorder();
-            this.buttonPress(this._startBtn);
-        } else {
+
+            this._initPlanes(_table.table_layout);
+        }
+        
+        if(!_table.hasOwnProperty('columns')) {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');
             return;
         }
-        console.log('>>>>> table '+_table.name+' '+_table.connection);
+
+        this.setColumns(_table.columns);
+        if(_table.hasOwnProperty('sort_spec') && !$.isEmptyObject(_table.sort_spec)) {
+            this._setSortSpecFromJson(this, _table.sort_spec);
+        }
+        this._gridDataView.beginUpdate();
+        this._gridDataView.setItems([]);
+        this._gridDataView.endUpdate();
+        this._gdata = this._gridDataView.getItems();
+        this._gridColumnsReorder();
+        
+        this.showPlane();
+        this.buttonPress(this._startBtn);
+        
+        console.log('>>>>> table ' + _table.name + ' ' + _table.connection);
     },
+
     _renderNewTable: function(_table) {
         var tl = null;
         var cl = null;
@@ -2284,7 +2313,6 @@
         }
 
         $('<div>')
-        .appendTo(document.body)
         .table(baseOptions)
         .table('setColumns', _table.columns)
         .table('callReorder')
@@ -2462,11 +2490,33 @@
 
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
+
+        var last = +new Date;
+        var deferTimer;
         self._dlg = self.element
             .dialog(self.options)
-            .bind("dialogresize", function(event, ui) {
+            .bind("dialogresize", function(event, ui, c) {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
+                if(self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
+                    var planeIdx = self._planeToShow - 1;
+                    var divElement = self._graphDivs[planeIdx].node();
+                    // We need to execute the script.
+                    if(divElement) {
+                        var now = +new Date;
+                        // Only call the function once every 200 miliseconds.
+                        if(now > last + 200) {
+                            last = now;
+                            self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                        } else {
+                            clearTimeout(deferTimer);
+                            deferTimer = setTimeout(function() {
+                                last = now;
+                                self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                            }, 200);
+                        }
+                    }
+                }
             })
             .bind("dialogfocus", function(event, ui) {
                 // If the table is disabled do not set the focus.
@@ -2509,6 +2559,43 @@
         self._windowFinderTextLink = addWindowFinder(self, self.options.title);
     },
 
+    _initPlanes: function(planeData) {
+        if(planeData && planeData.hasOwnProperty('plane_specs')) {
+            this._planeSpecs = planeData.plane_specs;
+        }
+
+        if($.isArray(this._planeSpecs) &&
+           planeData.hasOwnProperty('plane_to_show') &&
+           planeData.plane_to_show > 0 &&
+           planeData.plane_to_show <= this._planeSpecs.length) {
+            this._planeToShow = planeData.plane_to_show;
+        } else {
+            this._planeToShow = 0;
+        }
+    },
+
+      
+    showPlane: function() {
+        if(!this._planeToShow) {
+            this._tableDiv.show();
+            return;
+        }
+        
+        var planeIdx = this._planeToShow - 1;
+        this._tableDiv.hide();
+        // We need to execute the script.
+        if(!this._graphDivs[planeIdx]) {
+            var d = document.createElement("div");
+            d.classList.add("d3-container");
+            d.style.bottom = this.options.toolBarHeight+'px';
+            this._dlg.append(d);
+            var planeFunc = new Function('container', 'width', 'height', this._planeSpecs[planeIdx].script);
+            this._graphDivs[this._planeToShow-1] = d3.select(d);
+            this._graphSpec = planeFunc(this._graphDivs[this._planeToShow-1], d.clientWidth, d.clientHeight);
+            console.log(this._graphSpec);
+        }
+    },
+      
     // context menus invocation for slickgrid
     _gridContextMenu: function(e, args) {
         e.preventDefault();
@@ -3033,6 +3120,22 @@
         }
     },
 
+    closeGraphs: function () {
+        this._closeGraphs();
+    },
+
+    _closeGraphs: function() {
+        console.log("closing the graphs");
+        this._graphSpec = null;
+        for(var i = 0; i < this._graphDivs.length; ++i) {
+            if(this._graphDivs[i]) {
+                this._graphDivs[i].remove();
+                delete this._graphDivs[i];
+            }
+        }
+        this._graphDivs.length = 0;
+    },
+      
     // loading the views table
     loadViews: function(useSystem) {
         if(useSystem){
@@ -3321,11 +3424,9 @@
     {
         //console.time('appendRows');
         //console.profile();
-
         var self = this;
         var redraw = false;
-        var c = self._grid.getColumns();
-        var firstChunk = (self._grid.getDataLength() === 0);
+
 
         // received response clear wait wheel
         self.removeWheel();
@@ -3340,6 +3441,7 @@
         }
         self._tbTxtBox.addClass('tb_'+_rows.state);
         if(_rows.message.length > 0) alert_jq(_rows.message);
+
         if(_rows.op !== "nop") {
             if(!$.isEmptyObject(_rows.disable) || !$.isEmptyObject(_rows.promote)) {
                 for(var btn in self._toolbarButtons) {
@@ -3374,6 +3476,20 @@
             }
         }
 
+
+        // If we are in a graph we use the data callback.
+        if(self._graphSpec && $.isFunction(self._graphSpec.on_data)) {
+            if(_rows.op != "nop") {
+                self._graphSpec.on_data(_rows.rows);
+            }
+
+            // TODO: do we need to have data in slickgrid updated too ?
+            return;
+        }
+
+        var c = self._grid.getColumns();
+        var firstChunk = (self._grid.getDataLength() === 0);
+        
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && !self._clmlay) {
             var fieldWidth = 0;
             for(var i=0;i<c.length; ++i) {
@@ -3581,6 +3697,7 @@
                                      self._pendingEditorCell.cell);
             delete self._pendingEditorCell;
         }
+        
         //console.timeEnd('appendRows');
         //console.profileEnd();
     },

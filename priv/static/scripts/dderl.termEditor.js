@@ -87,6 +87,7 @@
             // editor container
             self._editText =
                 $('<textarea>')
+                .addClass('sql_text_editor')
                 .addClass('sql_text_flat')
                 .attr('wrap', 'off')
                 .val(self._term)
