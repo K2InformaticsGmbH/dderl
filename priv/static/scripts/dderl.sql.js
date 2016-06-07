@@ -484,6 +484,11 @@ function insertAtCursor(myField, myValue) {
      */
     _saveView: function() {
         var viewId = this._getOwnerViewId();
+
+        if(!viewId) {
+            viewId = this.options.viewId;
+        }
+        
         if(viewId) {
             this._updateView(viewId, this._title);
         } else {
@@ -507,7 +512,8 @@ function insertAtCursor(myField, myValue) {
             save_view : {
                 conn_id       : dderlState.connectionSelected.connection,
                 name          : viewName,
-                content       : self._modCmd
+                content       : self._modCmd,
+                table_layout  : this._getLayout()
             }
         };
     },
@@ -877,6 +883,15 @@ function insertAtCursor(myField, myValue) {
             this._cmdOwner
                 .table(initOptions)
                 .table('renderTable', resultQry);
+        }
+    },
+
+    _getLayout: function() {
+        var self = this;
+        if(null != this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
+            return $.extend(this._cmdOwner.table('getTableLayout'), this._getPlaneData());
+        } else {
+            return this._getPlaneData();
         }
     },
 

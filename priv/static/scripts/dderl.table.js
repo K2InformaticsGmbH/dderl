@@ -384,10 +384,10 @@
             self._divSqlEditor.dialog("moveToTop");
         } else {
             var script = "";
-             if(self._planeSpecs && self._planeSpecs.length) {
-                 script = self._planeSpecs[0].script;
-             }
-                 
+            if(self._planeSpecs && self._planeSpecs.length) {
+                script = self._planeSpecs[0].script;
+            }
+
             self._divSqlEditor = $('<div>')
                 .appendTo(document.body)
                 .sql({autoOpen  : false,
@@ -566,6 +566,11 @@
                 content: this._cmd
             }
         };
+    },
+
+    // Wrapper function used to get the layout from the sql editor. 
+    getTableLayout: function() {
+        return this._getTableLayout().save_view.table_layout;
     },
 
     _updateView: function(viewId, viewName) {
@@ -2244,7 +2249,7 @@
     },
 
     _renderNewTable: function(_table) {
-        var tl = null;
+        var tl = _table.table_layout;
         var cl = null;
         var viewId = null;
         var left = 0;
@@ -2267,7 +2272,6 @@
         } else {
             left = _table.table_layout.x;
             top = _table.table_layout.y;
-            tl = _table.table_layout;
         }
         
         var pos = {
@@ -2378,13 +2382,28 @@
     _openTermOrViewEditor: function(cmdOrString) {
         var self =  this;
         if(cmdOrString.isView === true) {
-            self._openFailedSql(cmdOrString.title, cmdOrString.cmd, null, cmdOrString.view_id);
+            self._openFailedSql(
+                cmdOrString.title,
+                cmdOrString.cmd,
+                null,
+                cmdOrString.view_id,
+                cmdOrString.table_layout);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
     },
 
-    _openFailedSql: function(title, cmd, optBinds, viewId) {
+    _openFailedSql: function(title, cmd, optBinds, viewId, tbllay) {
+        var script = "";
+
+        if(tbllay && tbllay.hasOwnProperty('plane_specs')) {
+            if($.isArray(tbllay.plane_specs) &&
+               tbllay.hasOwnProperty('plane_to_show') &&
+               tbllay.plane_to_show > 0 &&
+               tbllay.plane_to_show <= tbllay.plane_specs.length) {
+                script = tbllay.plane_specs[tbllay.plane_to_show-1].script;
+            }
+        }
         $('<div>')
             .appendTo(document.body)
             .sql({autoOpen  : false,
@@ -2393,7 +2412,8 @@
                   history   : [],
                   cmdFlat   : cmd,
                   optBinds  : optBinds,
-                  viewId    : viewId
+                  viewId    : viewId,
+                  script    : script // TODO: This should be multiple specs...
                  })
             .sql('open');
     },
