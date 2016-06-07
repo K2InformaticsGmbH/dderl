@@ -991,8 +991,18 @@ function insertAtCursor(myField, myValue) {
                 var dialogPos = self._dlg.dialog("widget").position();
                 var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
                 var distanceToBottom = $(window).height() - (dialogPos.top + newDialogHeight) - 30;
+
                 if(distanceToBottom < 0) {
-                    self._dlg.dialog("option", "position", [dialogPos.left, dialogPos.top + distanceToBottom]);
+                    var newTop = dialogPos.top + distanceToBottom - 20;
+                    var newPos = {
+                        my: "left top",
+                        at: "left+" + dialogPos.left + " top+" + newTop,
+                        of: "#main-body",
+                        collision : 'none'
+                    };
+
+                    // Override default dialog options.
+                    self._dlg.dialog("option", "position", newPos);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
             }
