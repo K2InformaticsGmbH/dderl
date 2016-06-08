@@ -271,7 +271,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _ -> float end, readonly = true}
                       || C <- Cols],
             ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
@@ -304,7 +304,7 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
             ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _  -> float end, readonly = true}
                       || C <- Cols],
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
                                       , cnt          = Total

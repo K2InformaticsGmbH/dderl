@@ -1092,9 +1092,9 @@ handle_event(Event, SN, State) ->
     ?Info("handle_event -- unexpected event ~p in state ~p~n", [Event,SN]),
     {next_state, SN, State}.
 
-zip5([],_,_,_,_) -> [];
-zip5([L1f|L1],[L2f|L2],[L3f|L3],[L4f|L4],[L5f|L5]) ->
-    [{L1f,L2f,L3f,L4f,L5f} | zip5(L1,L2,L3,L4,L5)].
+zip10([],_,_,_,_,_,_,_,_,_) -> [];
+zip10([L1f|L1],[L2f|L2],[L3f|L3],[L4f|L4],[L5f|L5],[L6f|L6],[L7f|L7],[L8f|L8],[L9f|L9],[L10f|L10]) ->
+  [{L1f,L2f,L3f,L4f,L5f,L6f,L7f,L8f,L9f,L10f} | zip10(L1,L2,L3,L4,L5,L6,L7,L8,L9,L10)].
 
 -spec bin_to_number(binary()) -> integer() | float() | {error, binary()}.
 bin_to_number(NumberBin) ->
@@ -1108,11 +1108,11 @@ bin_to_number(NumberBin) ->
             end
     end.
 
--spec stats_add_row([{integer(), number(), number(), number(), number(), []}], [binary()]) -> [tuple()].
+-spec stats_add_row([{integer(), integer(), number(), number(), number(), number(), [], []}], [binary()]) -> [tuple()].
 stats_add_row([], _) -> [];
-stats_add_row([{Count, Min, Max, Sum, Squares, HashList} | RestResult], [Element | RestRow]) ->
+stats_add_row([{CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList} | RestResult], [Element | RestRow]) ->
     case bin_to_number(Element) of
-        {error, _} -> [{Count, Min, Max, Sum, Squares, [Element | HashList]} | stats_add_row(RestResult, RestRow)];
+        {error, _} -> [{CountTotal+1, Count, Min, Max, Sum, Squares, [Element | HashList], MedianList} | stats_add_row(RestResult, RestRow)];
         Number ->
             MinNew = case Min of
                          undefined -> Number;
@@ -1128,32 +1128,80 @@ stats_add_row([{Count, Min, Max, Sum, Squares, HashList} | RestResult], [Element
                                   _ -> Max
                               end
                      end,
-            [{Count+1, MinNew, MaxNew, Sum+Number, Squares + Number*Number, [Element | HashList]} | stats_add_row(RestResult, RestRow)]
+            [{CountTotal+1, Count+1, MinNew, MaxNew, Sum+Number, Squares + Number*Number, [Element | HashList], [binary_to_number(Element) | MedianList]} | stats_add_row(RestResult, RestRow)]
     end.
 
--spec format_stat_rows([binary()], [{integer(), number(), number(), number(), number(), []}], pos_integer()) -> list().
+-spec format_stat_rows([binary()], [{integer(), integer(), number(), number(), number(), number(), [], []}], pos_integer()) -> list().
 format_stat_rows([], _, _) -> [];
-format_stat_rows([ColName | RestColNames], [{0, _, _, _, _, HashList} | RestResult], Idx) ->
+format_stat_rows([ColName | RestColNames], [{CountTotal, 0, _, _, _, _, HashList, _} | RestResult], Idx) ->
     case HashList of
         [] -> Hash = 0;
         _ ->     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList)))
     end,
-    [[Idx, nop, ColName, 0, undefined, undefined, 0, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{1, Min, Max, Sum, _, HashList} | RestResult], Idx) ->
+    [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / 0", [CountTotal])), undefined, undefined, undefined, undefined, undefined, undefined, undefined, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{CountTotal, 1, Min, Max, Sum, _Squares, HashList, _MedianList} | RestResult], Idx) ->
     Average = Sum,
     Min = Sum,
     Max = Sum,
+    Median = Sum,
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
-    [[Idx, nop, ColName, 1, Min, Max, Sum, Average, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{Count, Min, Max, Sum, Squares, HashList} | RestResult], Idx) ->
-    Average = Sum/Count,
-    StdDev = math:sqrt(abs(Squares - Sum*Sum/Count)/(Count-1)),
+    [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / 1", [CountTotal])), Min, Max, Sum, Average, Median, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList} | RestResult], Idx) ->
+    Average = case Count of
+                  0 -> undefined;
+                  _ -> Sum / Count
+              end,
+    Variance = case Count of
+                   0 -> undefined;
+                   _ -> abs(Squares - Sum * Sum / Count) / (Count - 1)
+               end,
+    StdDev = case Count of
+                 0 -> undefined;
+                 _ -> math:sqrt(Variance)
+             end,
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
-    [[Idx, nop, ColName, Count, Min, Max, Sum, Average, StdDev, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
+    Median = case Count of
+                 0 -> undefined;
+                 _ -> calculate_median(MedianList)
+             end,
+    SumExt = case Count of
+                 0 -> undefined;
+                 _ -> Sum
+             end,
+    [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / ~p", [CountTotal, Count])), Min, Max, SumExt, Average, Median, StdDev, Variance, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
 
-calculate_avgs([], []) -> [];
-calculate_avgs([_Total | RestTotal], [0 | RestCount]) -> [0 | calculate_avgs(RestTotal, RestCount)];
-calculate_avgs([Total | RestTotal], [Count | RestCount]) -> [Total/Count | calculate_avgs(RestTotal, RestCount)].
+binary_to_number(X) ->
+    L = binary_to_list(X),
+    case string:to_float(L) of
+        {error,no_float} -> list_to_integer(L);
+        {F,_Rest} -> F
+    end.
+
+calculate_ceil(X) ->
+    T = trunc(X),
+    case X > T of
+        true -> T + 1;
+        _ -> T
+    end.
+
+calculate_floor(X) ->
+    T = trunc(X),
+    case X < T of
+        true -> T - 1;
+        _ -> T
+    end.
+
+calculate_median(MedianList) ->
+    MedianListSorted = lists:sort(MedianList),
+    N = length(MedianListSorted),
+    RN = (1 + (0.5 * (N - 1))),
+    CRN = calculate_ceil(RN),
+    FRN = calculate_floor(RN),
+    case (CRN =:= FRN) andalso (FRN == RN) of
+        true -> lists:nth(trunc(RN), MedianListSorted);
+        _ ->
+            (CRN - RN) * lists:nth(FRN, MedianListSorted) + (RN - FRN) * lists:nth(CRN, MedianListSorted)
+    end.
 
 %% --------------------------------------------------------------------
 %% Func: handle_sync_event/4 handling sync "send_all_state_event""
@@ -1198,7 +1246,7 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
     ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
 
     StatsFun =
-        fun(Row, Results) -> %% Result = [{0,undefined,undefined,0,0,[]} ... (for each col)]
+        fun(Row, Results) -> %% Result = [{0,0,undefined,undefined,0,0,[],[]} ... (for each col)]
                 case Row of
                     {_, Id} ->
                         RealRow = lists:nth(1, ets:lookup(TableId, Id));
@@ -1214,10 +1262,10 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
                 end,
                 stats_add_row(Results, FilteredRow)
         end,
-    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,undefined,undefined,0,0,[]}), TableUsed),
+    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0, undefined,undefined,0,0,[],[]}), TableUsed),
     MaxCount = element(1, lists:max(StatsResult)),
     StatsRows = format_stat_rows(ColNames, StatsResult, 1),
-    StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
+    StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"median">>, <<"std_dev">>, <<"variance">>, <<"hash">>],
     {reply, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
 % Selected rows(s) of one column
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
@@ -1227,7 +1275,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
     end,
     ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
-    {Rows, HashList} = ets:foldl(fun(Row, {SelectRows, SelectHashList}) ->
+    Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
             RealRow = case Row of
                 {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
                 Row -> Row
@@ -1245,39 +1293,36 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                         _ -> []
                     end
             end,
-            if CandidateRow =:= []  -> {SelectRows, SelectHashList};
+            if CandidateRow =:= []  -> SelectRows;
                 true ->
-                    lists:foldl(fun(Idx, {SelRows, SelHashList}) ->
+                    lists:foldl(fun(Idx, SelRows) ->
                         Candidate = lists:nth(Idx, CandidateRow),
                         CandidateList = element(Idx, SelRows),
-                        case bin_to_number(Candidate) of
-                            {error, _} -> {SelRows, SelHashList ++ [Candidate]};
-                            _ -> {erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate]), SelHashList ++ [Candidate]}
-                        end
+                        erlang:setelement(Idx, SelRows, CandidateList ++ [Candidate])
                     end,
-                    {SelectRows, SelectHashList},
+                    SelectRows,
                     lists:seq(1, size(SelectRows)))
             end
         end
-        , {list_to_tuple(lists:duplicate(length(ColNames), [])), []}
-        , TableUsed),
+        , list_to_tuple(lists:duplicate(length(ColNames), []))
+        , TableUsed)),
     try
-        RowColumns = [[bin_to_number(I) || I <- Row] || Row <- tuple_to_list(Rows)],
-        Counts  = [length(C) || C <- RowColumns],
-        Totals  = [lists:sum(C) || C <- RowColumns],
-        Avgs    = calculate_avgs(Totals, Counts),
-        StdDevs = lists:reverse(lists:foldl(fun({Col, Avg}, SD) ->
-                Sums = lists:foldl(fun(V, Acc) -> D = V - Avg, Acc + (D * D) end, 0, Col),
-                if
-                    length(Col) < 2 -> [0 | SD];
-                    true -> [math:sqrt(Sums / (length(Col) - 1)) | SD]
-                end
-            end, [], lists:zip(RowColumns, Avgs))),
-        StatsRowsZipped = zip5(ColNames, Counts, Totals, Avgs, StdDevs),
-        Hash = erlang:phash2(list_to_binary(HashList)),
-        StatsRows = [lists:append(lists:nth(1, [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))]), [Hash])],
+        StatsFunRow =
+            fun(Row, [{Counts, Mins, Maxs, Sums, Avgs, Medians, StdDevs, Variances, Hashs}, Idx]) ->
+                StatsFun =
+                    fun(Value, Results) -> %% Result = [{0,0,undefined,undefined,0,0,[],[]} ... (for each col)]
+                        stats_add_row(Results, [Value])
+                    end,
+                StatsResult = lists:foldl(StatsFun, [{0,0, undefined,undefined,0,0,[],[]}], Row),
+                [[_, nop, _, Count, Min, Max, Sum, Avg, Median, StdDev, Variance, Hash]] = format_stat_rows([lists:nth(Idx, ColNames)], StatsResult, 1),
+                [{[Count | Counts], [Min | Mins], [Max | Maxs], [Sum | Sums], [Avg | Avgs], [Median | Medians], [StdDev | StdDevs], [Variance | Variances], [Hash | Hashs]}, Idx + 1]
+            end,
+          
+        [{Counts, Mins, Maxs, Sums, Avgs, Medians, StdDevs, Variances, Hashs}, _Idx] = lists:foldl(StatsFunRow, [{[], [], [], [], [], [], [], [], []}, 1], Rows),
+        StatsRowsZipped = zip10(ColNames, lists:reverse(Counts), lists:reverse(Mins), lists:reverse(Maxs), lists:reverse(Sums), lists:reverse(Avgs), lists:reverse(Medians), lists:reverse(StdDevs), lists:reverse(Variances), lists:reverse(Hashs)),
+        StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
         ?Debug("Stat Rows ~p", [StatsRows]),
-        StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
+        StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"median">>, <<"std_dev">>, <<"variance">>,<<"hash">>],
         {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
     catch
         _:Error ->
