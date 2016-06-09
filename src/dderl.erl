@@ -202,23 +202,13 @@ get_ssl_options() ->
 get_ssl_options({ok, []}) ->
     case ?SSLOPTS of
         '$no_ssl_conf' ->
-            {ok, PemCrt} = file:read_file(check_file("certs/server.crt")),
-            [{'Certificate',Cert,not_encrypted} | Certs]
-            = AllCerts = public_key:pem_decode(PemCrt),
-            CACerts = [C || {'Certificate',C,not_encrypted} <- Certs],
-            {ok, PemKey} = file:read_file(check_file("certs/server.key")),
-            [{KeyType,Key,not_encrypted}|_] = AllKeys = public_key:pem_decode(PemKey),
             DDErlSslDefault =
-            [{cert, Cert},
-             {key, {KeyType,Key}},
-             {versions, ['tlsv1.2','tlsv1.1',tlsv1]}
-             | if length(CACerts) > 0 ->
-                      [{cacerts,CACerts}];
-                  true -> []
-               end],
+            [{versions, ['tlsv1.2','tlsv1.1',tlsv1]} |
+             imem_server:get_cert_key({file, check_file("certs/server.crt")}) ++
+             imem_server:get_cert_key({file, check_file("certs/server.key")})],
             ?Info("Installing SSL certificates ~p~nKeys ~p",
-                  [[public_key:pem_entry_decode(C)||C<-AllCerts],
-                   [public_key:pem_entry_decode(K)||K<-AllKeys]]),
+                  [imem_server:decode_cert_key({file, check_file("certs/server.crt")}),
+                   imem_server:decode_cert_key({file, check_file("certs/server.key")})]),
             ?PUT_CONFIG(dderlSslOpts, [], DDErlSslDefault,
                         list_to_binary(
                           io_lib:format("Installed at ~p on ~s",
