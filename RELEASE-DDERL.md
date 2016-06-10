@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.0 (Release Date 10.06.2016)
+======================================
+* imem 1.5.2
+* Support of D3 graphics (Pilot release)
+
 Version 1.5.3 (Release Date 29.05.2016)
 ======================================
 * imem 1.5.1
