@@ -202,20 +202,34 @@ get_ssl_options() ->
 get_ssl_options({ok, []}) ->
     case ?SSLOPTS of
         '$no_ssl_conf' ->
-            DDErlSslDefault =
-            [{versions, ['tlsv1.2','tlsv1.1',tlsv1]} |
-             imem_server:get_cert_key({file, check_file("certs/server.crt")}) ++
-             imem_server:get_cert_key({file, check_file("certs/server.key")})],
-            ?Info("Installing SSL certificates ~p~nKeys ~p",
-                  [imem_server:decode_cert_key({file, check_file("certs/server.crt")}),
-                   imem_server:decode_cert_key({file, check_file("certs/server.key")})]),
-            ?PUT_CONFIG(dderlSslOpts, [], DDErlSslDefault,
+            {ok, CertBin} = file:read_file(check_file("certs/server.crt")),
+            {ok, KeyBin} = file:read_file(check_file("certs/server.key")),
+            Cert = imem_server:get_cert_key(CertBin),
+            Key = imem_server:get_cert_key(KeyBin),
+            DDErlSslDefault = [{versions, ['tlsv1.2','tlsv1.1',tlsv1]}
+                               | Cert ++ Key],
+            ?Info("Installing SSL ~p", [DDErlSslDefault]),
+            ?PUT_CONFIG(dderlSslOpts, [], #{cert => CertBin, key => KeyBin},
                         list_to_binary(
-                          io_lib:format("Installed at ~p on ~s",
-                                        [node(), imem_datatype:timestamp_to_io(os:timestamp())]
-                                       ))),
+                          io_lib:format(
+                            "Installed at ~p on ~s",
+                            [node(), imem_datatype:timestamp_to_io(
+                                       os:timestamp())]))),
             DDErlSslDefault;
-        DDErlSslOpts -> DDErlSslOpts
+        #{cert := CertBin, key := KeyBin} ->
+            CertFile = filename:join([get_priv_dir(), "certs/server.crt"]),
+            case file:read_file(CertFile) of
+                {ok, CertBin} -> nop;
+                _ -> ok = file:write_file(CertFile, CertBin)
+            end,
+            KeyFile = filename:join([get_priv_dir(), "certs/server.key"]),
+            case file:read_file(KeyFile) of
+                {ok, KeyBin} -> nop;
+                _ -> ok = file:write_file(KeyFile, KeyBin)
+            end,
+            Cert = imem_server:get_cert_key(CertBin),
+            Key = imem_server:get_cert_key(KeyBin),
+            [{versions, ['tlsv1.2','tlsv1.1',tlsv1]} | Cert ++ Key]
     end;
 get_ssl_options({ok, SslOpts}) ->
     SslOpts.
