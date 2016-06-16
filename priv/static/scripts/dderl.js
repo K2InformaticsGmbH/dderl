@@ -618,9 +618,7 @@ function show_about_dlg()
         applications['jQueryUI'] = {version : $.ui.version, dependency : true};
         applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
 
-        var aboutDlg =
-            $('<div id="about-dderl-dlg"></div>')
-            .appendTo("#main-body");
+        var aboutDlg = $('<div id="about-dderl-dlg"></div>')
 
         if(dderlState.connection) {
             aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
@@ -633,7 +631,7 @@ function show_about_dlg()
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
-                p += '<p class="about-vsn">' + version + ' GUI 1.0.9</p>';
+                p += '<p class="about-vsn">' + version + ' GUI 1.5.2</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>'
                 aboutDlg.prepend(p);
@@ -679,7 +677,7 @@ function show_about_dlg()
             resizable: false,
             title: "About",
             appendTo: "#main-body",
-            position: {my: "center top", at: "center top+75", of: "#main-body"},
+            position: {my: "center top", at: "center top+75", of: "#main-body", collision : 'none'},
             close: function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -729,7 +727,6 @@ function confirm_jq(dom, callback)
     
     var dlgDiv =
         $('<div>')
-        .appendTo(document.body)
         .append(content)
         .dialog({
             modal:false,
@@ -783,16 +780,13 @@ function prompt_jq(dom, callback)
     }
     var dlgDiv =
         $('<div>')
-        .appendTo(document.body)
         .append(content)
         .dialog({
             modal:false,
             width: 300,
             height: 300,
             title: "DDerl parameter input",
-            open: function() {
-                $(this).dialog("widget").appendTo("#main-body");
-            },
+            appendTo: "#main-body",
             close: function() {
                 //We have to remove the added child p
                 dlgDiv.dialog('destroy');
@@ -1149,9 +1143,7 @@ function password_change_dlg(title, loggedInUser, change_pass_fn)
         width: 300,
         resizable: false,
         modal: false,
-        open: function() {
-            $(this).dialog("widget").appendTo("#main-body");
-        },
+        appendTo: "#main-body",
         close: function() {
             $("#dialog-change-password").dialog('destroy');
             $("#dialog-change-password").remove();

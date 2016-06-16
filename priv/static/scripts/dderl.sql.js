@@ -298,7 +298,7 @@ function insertAtCursor(myField, myValue) {
         self._editDiv.find('li').removeClass('ui-corner-top');
 
         var titleHeight = tabTitles.height();
-        $('#tabflat, #tabpretty, #tabbox, #tabparams').css('top', titleHeight+'px');
+        $('#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph').css('top', titleHeight+'px');
 
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
@@ -503,7 +503,7 @@ function insertAtCursor(myField, myValue) {
             console.log('[AJAX] view saved, id = ' + _saveView.view_id + ' and name ' + _saveView.name);
             self._setTitle(_saveView.name);
         } else if(_saveView.hasOwnProperty('need_replace')) {
-            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').appendTo(document.body).dialog({
+            $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>A view with that name already exists. Are you sure you want to replace it?</p></div>').dialog({
                 resizable: false,
                 height:180,
                 modal: true,
@@ -1076,7 +1076,7 @@ function insertAtCursor(myField, myValue) {
  
     // translations to default dialog behavior
     open: function() {
-        this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'flipfit'});
+        this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'none'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
             smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['center']);

@@ -3,6 +3,37 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.5.3 (Release Date 29.05.2016)
+======================================
+* imem 1.5.1
+* code cleanup
+
+Version 1.5.2 (Release Date 17.05.2016)
+======================================
+* Added minimum and maximum to statistics
+* Added try... finally to ensure selection flag reset
+
+Version 1.5.1 (Release Date 10.05.2016)
+======================================
+* [Bugfixes](https://github.com/K2InformaticsGmbH/dderl/issues/237)
+* Enabled possibility to gzip compression with cowboy
+* dderloci 0.2.0
+* JS library version added
+* Timeout for sync events on dder_fsm updated to one minute
+
+Version 1.5.0 (Release Date 26.04.2016)
+======================================
+* imem 1.4.15
+* Using brunch as task runner
+* Added bower for dependency management
+* Included font awesome icons
+* Fixed edit extra escape of new lines
+* Added window management (minimize) to tables
+* Implemented access logs
+* Fixed session timeout on login page
+* Implemented column menus "Shrink" and "Fit to data"
+* Added hash information to statistics report
+
 Version 1.4.1 (Release Date 06.04.2016)
 ======================================
 * imem 1.4.14

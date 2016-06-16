@@ -269,7 +269,7 @@ get_table_name({?MODULE, Pid}) ->
 
 -spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_histogram(ColumnId, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}).
+    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}, 60000).
 
 -spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
 get_statistics(ColumnIds, {?MODULE, Pid}) ->
@@ -1108,31 +1108,48 @@ bin_to_number(NumberBin) ->
             end
     end.
 
--spec stats_add_row([{integer(), number(), number(), []}], [binary()]) -> [tuple()].
+-spec stats_add_row([{integer(), number(), number(), number(), number(), []}], [binary()]) -> [tuple()].
 stats_add_row([], _) -> [];
-stats_add_row([{Count, Sum, Squares, HashList} | RestResult], [Element | RestRow]) ->
+stats_add_row([{Count, Min, Max, Sum, Squares, HashList} | RestResult], [Element | RestRow]) ->
     case bin_to_number(Element) of
-        {error, _} -> [{Count, Sum, Squares, [Element | HashList]} | stats_add_row(RestResult, RestRow)];
-        Number -> [{Count+1, Sum+Number, Squares + Number*Number, [Element | HashList]} | stats_add_row(RestResult, RestRow)]
+        {error, _} -> [{Count, Min, Max, Sum, Squares, [Element | HashList]} | stats_add_row(RestResult, RestRow)];
+        Number ->
+            MinNew = case Min of
+                         undefined -> Number;
+                         _ -> case Number < Min of
+                                  true -> Number;
+                                  _ -> Min
+                              end
+                     end,
+            MaxNew = case Max of
+                         undefined -> Number;
+                         _ -> case Number > Max of
+                                  true -> Number;
+                                  _ -> Max
+                              end
+                     end,
+            [{Count+1, MinNew, MaxNew, Sum+Number, Squares + Number*Number, [Element | HashList]} | stats_add_row(RestResult, RestRow)]
     end.
 
--spec format_stat_rows([binary()], [{integer(), number(), number(), []}], pos_integer()) -> list().
+-spec format_stat_rows([binary()], [{integer(), number(), number(), number(), number(), []}], pos_integer()) -> list().
 format_stat_rows([], _, _) -> [];
-format_stat_rows([ColName | RestColNames], [{0, _, _, HashList} | RestResult], Idx) ->
+format_stat_rows([ColName | RestColNames], [{0, _, _, _, _, HashList} | RestResult], Idx) ->
     case HashList of
         [] -> Hash = 0;
         _ ->     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList)))
     end,
-    [[Idx, nop, ColName, 0, 0, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{1, Sum, _, HashList} | RestResult], Idx) ->
+    [[Idx, nop, ColName, 0, undefined, undefined, 0, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{1, Min, Max, Sum, _, HashList} | RestResult], Idx) ->
     Average = Sum,
+    Min = Sum,
+    Max = Sum,
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
-    [[Idx, nop, ColName, 1, Sum, Average, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
-format_stat_rows([ColName | RestColNames], [{Count, Sum, Squares, HashList} | RestResult], Idx) ->
+    [[Idx, nop, ColName, 1, Min, Max, Sum, Average, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+format_stat_rows([ColName | RestColNames], [{Count, Min, Max, Sum, Squares, HashList} | RestResult], Idx) ->
     Average = Sum/Count,
     StdDev = math:sqrt(abs(Squares - Sum*Sum/Count)/(Count-1)),
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
-    [[Idx, nop, ColName, Count, Sum, Average, StdDev, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
+    [[Idx, nop, ColName, Count, Min, Max, Sum, Average, StdDev, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1).
 
 calculate_avgs([], []) -> [];
 calculate_avgs([_Total | RestTotal], [0 | RestCount]) -> [0 | calculate_avgs(RestTotal, RestCount)];
@@ -1181,7 +1198,7 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
     ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
 
     StatsFun =
-        fun(Row, Results) -> %% Result = [{0,0,0,[]} ... (for each col)]
+        fun(Row, Results) -> %% Result = [{0,undefined,undefined,0,0,[]} ... (for each col)]
                 case Row of
                     {_, Id} ->
                         RealRow = lists:nth(1, ets:lookup(TableId, Id));
@@ -1197,10 +1214,10 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
                 end,
                 stats_add_row(Results, FilteredRow)
         end,
-    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,0,0,[]}), TableUsed),
+    StatsResult = ets:foldl(StatsFun, lists:duplicate(length(ColNames), {0,undefined,undefined,0,0,[]}), TableUsed),
     MaxCount = element(1, lists:max(StatsResult)),
     StatsRows = format_stat_rows(ColNames, StatsResult, 1),
-    StatColumns = [<<"column">>, <<"count">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
+    StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"std_dev">>,<<"hash">>],
     {reply, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
 % Selected rows(s) of one column
 handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->

@@ -155,7 +155,7 @@
         closeOnEscape     : false,
         clear             : null,
         toolBarHeight     : 20,
-        position          : {at: "left top", my: "left top", of: "#main-body"},
+        position          : {at: "left top", my: "left top", of: "#main-body", collision : 'none'},
         appendTo          : "#main-body",
         focus             : function(e,ui) {},
         close             : function() {
@@ -259,6 +259,8 @@
             .css('border-width', '1px')
             .css('border-color', 'lightblue')
             .appendTo(self.element);
+
+        
 
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
@@ -1163,14 +1165,6 @@
                     }
                 }
             ]
-        /*    {
-                'Sort' : function() {
-                    var sortspec = saveChange();
-                    self._ajax('sort', {sort: {spec: sortspec, statement: self._stmt}}, 'sort', 'sortResult');
-                    $(this).dialog('close');
-                    $(this).remove();
-                }
-            }*/
         })
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
@@ -1838,6 +1832,7 @@
                     .data('tag', btn)
                     .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', inph+'px')
+                    .addClass('colorIcon')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
             else if(elm.typ === 'txt')
@@ -2138,7 +2133,8 @@
             self.options.position = {
                 my: "left top",
                 at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
-                of: "#main-body"
+                of: "#main-body",
+                collision : 'none'
             };
 
             // Override default dialog options.
@@ -2248,7 +2244,8 @@
         var pos = {
             my: "left top",
             at: "left+" + left + " top+" + top,
-            of: "#main-body"
+            of: "#main-body",
+            collision : 'none'
         };
             
         if(_table.hasOwnProperty('view_id')) {
@@ -2392,7 +2389,7 @@
                     title           : title,
                     clear           : null,
                     appendTo        : "#main-body",
-                    position        : {my: "top left", at: "top left", of: "#main-body"},
+                    position        : {my: "top left", at: "top left", of: "#main-body", collision: 'none'},
                     focus           : function(e,ui) {},
                     open: function() {
                         $(this)
@@ -2417,7 +2414,8 @@
 
         if(data.hasOwnProperty('error')) {
             title = "Text editor";
-            content = data.originalText;
+            data.isFormatted = true;
+            content = data;
         } else if(data.isJson === true) {
             isJson = true;
             title = "Json editor";
@@ -2450,7 +2448,8 @@
             self.options['position'] = {
                 my: "left top",
                 at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
-                of: "#main-body"
+                of: "#main-body",
+                collision : 'none'
             };
         } else if(!self.options.position || !self.options.position.my) {
             self.options['position'] = {
@@ -3514,14 +3513,16 @@
                                 self._dlg.dialog("option", "position", {
                                     my: "left top",
                                     at: "left+" + new_left + " top+" + orig_top,
-                                    of: "#main-body"
+                                    of: "#main-body",
+                                    collision : 'none'
                                 });
                                 self._dlg.dialog("option", "width", gWidth);
                             } else {
                                 self._dlg.dialog("option", "position", {
                                     my: "left top",
                                     at: "left top+" + orig_top,
-                                    of: "#main-body"
+                                    of: "#main-body",
+                                    collision : 'none'
                                 });
                                 self._dlg.dialog("option", "width", $(window).width() - 40);
                             }

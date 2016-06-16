@@ -40,7 +40,7 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
 
 .ui-button-icon-only .ui-icon[class*=" fa-"] {
     /* Bump it - jQuery UI is -8px */
-    margin-left: -7px;
+    margin-left: -9px;
 }
 
 /* Allow use of icon-large to be properly aligned */
@@ -254,7 +254,7 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
     background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-state-default .ui-icon {
-    background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 .ui-state-hover .ui-icon,
 .ui-state-focus .ui-icon {
@@ -298,13 +298,14 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 
 
 /*.ui-icon, */
+.ui-widget-header .ui-icon.ellipsis,
 .ui-widget-content .ui-icon.ellipsis {
-	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
+	background-image: url(../jquery-ui-images/ui-icons_888888_256x240.png);
     background-position: -176px -160px;
 }
-.ui-widget-header .ui-icon.ellipsis {
-	background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
-    background-position: -176px -160px;
+
+.ui-widget-content .ui-state-hover .ui-icon.ellipsis {
+    background-image: url(../jquery-ui-images/ui-icons_222222_256x240.png);
 }
 
 /* positioning */
@@ -676,7 +677,7 @@ div#main_footer {
     margin-top: -6px;
 }
 
-.ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close{
+.ui-button.ui-widget.ui-state-default.ui-corner-all.ui-button-icon-only.ui-dialog-titlebar-close {
     background-color: transparent;
 }
 
@@ -686,8 +687,30 @@ div#main_footer {
 }
 .ui-dialog-titlebar-restore.ui-corner-all.ui-state-default,
 .ui-dialog-titlebar-minimize.ui-corner-all.ui-state-default,
-.ui-dialog-titlebar-maximize.ui-corner-all.ui-state-default{
+.ui-dialog-titlebar-maximize.ui-corner-all.ui-state-default {
     background-image: none;
     background-color: transparent;
     border: 0px;
+}
+
+.colorIcon .fa-step-backward,
+.colorIcon .fa-backward,
+.colorIcon .fa-play,
+.colorIcon .fa-forward,
+.colorIcon .fa-step-forward,
+.colorIcon .fa-refresh,
+.colorIcon .fa-check,
+.colorIcon .fa-times {
+    color:  #888888;
+}
+
+.colorIcon:hover .fa-step-backward,
+.colorIcon:hover .fa-backward,
+.colorIcon:hover .fa-play,
+.colorIcon:hover .fa-forward,
+.colorIcon:hover .fa-step-forward,
+.colorIcon:hover .fa-refresh,
+.colorIcon:hover .fa-check,
+.colorIcon:hover .fa-times {
+    color: #212121;
 }
