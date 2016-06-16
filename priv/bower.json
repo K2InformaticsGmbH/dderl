@@ -13,11 +13,12 @@
     "tests"
   ],
   "dependencies": {
-    "jquery": "~2.1.4",
-    "jquery-ui": "~1.11.4",
-    "jquery.threedubmedia": "git@github.com:threedubmedia/jquery.threedubmedia.git#de7ad443f09b56cda9a505592cedb9bd69b99d82",
+    "d3": "~3.5.17",
     "font-awesome": "~4.6.1",
-    "jquery-dialogextend": "~2.0.4"
+    "jquery": "~2.1.4",
+    "jquery-dialogextend": "~2.0.4",
+    "jquery-ui": "~1.11.4",
+    "jquery.threedubmedia": "git@github.com:threedubmedia/jquery.threedubmedia.git#de7ad443f09b56cda9a505592cedb9bd69b99d82"
   },
   "overrides": {
     "jquery.threedubmedia": {
