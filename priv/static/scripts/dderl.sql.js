@@ -713,14 +713,13 @@ function insertAtCursor(myField, myValue) {
                     .appendTo(toolDiv);
 
                 for(var i = 0; i < self._history.length; ++i) {
-                    var optionToAdd = $('<option>')
-                        .text(self._history[i])
-                        .click(function (evt) {
-                            evt.preventDefault();
-                            self.showCmd($(this).text(), false);
-                        });
-                    sel.append(optionToAdd);
+                    sel.append($('<option>').text(self._history[i]));
                 }
+                sel.change(function(evt) {
+                    console.log("the sel val", sel.val());
+                    evt.preventDefault();
+                    self.showCmd(sel.val(), false);
+                });
                 self._historySelect = sel;
             }
         }
@@ -936,12 +935,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         if(self._history.indexOf(sql) == -1) {
             self._history.unshift(sql);
-            self._historySelect.prepend(
-                $('<option>').text(sql)
-                    .click(function (evt) {
-                        evt.preventDefault();
-                        self.showCmd($(this).text(), false);
-                    }));
+            self._historySelect.prepend($('<option>').text(sql));
         }
     },
 
@@ -1205,13 +1199,7 @@ function insertAtCursor(myField, myValue) {
 
     addToHistorySelect: function(sql) {
         var self = this;
-        self._historySelect.prepend(
-            $('<option>').text(sql)
-                .click(function (evt) {
-                    evt.preventDefault();
-                    self.showCmd($(this).text(), false);
-                })
-        );
+        self._historySelect.prepend($('<option>').text(sql));
         self.selHistorySelect(0, sql);
     },
 
