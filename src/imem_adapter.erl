@@ -828,7 +828,7 @@ send_result_table_cmd(From, BinCmd, Results) ->
                 end, <<>>, TableErrors),
             FTableErrorsBin = re:replace(TableErrorsBin, ", $", "", [{return, binary}]),
             [CmdSplit|_] = binary:split(BinCmd, <<"_">>),
-            Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  FTableErrorsBin]),
+            Err = <<"Unable to ", CmdSplit/binary, " the following tables: ", FTableErrorsBin/binary>>,
             ?Error("Error: ~p",  [Err]),
             From ! {reply, jsx:encode([{BinCmd, [{<<"error">>, Err}]}])}
     end,
