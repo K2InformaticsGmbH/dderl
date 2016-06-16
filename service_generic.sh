@@ -9,7 +9,7 @@ function usage {
     echo "       $1 start app_name"
     echo "       $1 stop app_name"
     echo "       $1 list app_name"
-    echo "       $1 attach app_name"
+    echo "       $1 attach node_name node_host cookie"
     echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
     echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
     echo "       $1 check node_name node_host cookie"
@@ -126,23 +126,9 @@ case $1 in
         fi
         ;;
     "attach" )
-	    check_arg_count 1
-        node=$(erlsrv.exe list $app_name | grep -re "Name:" | awk '{print $2}')
-        node=$(echo $node | awk '{print $1}')
-        host=(${node//\@/ })
-        host=${host[1]}
-        args=$(erlsrv.exe list $app_name | grep -re "Args:")
-        args=(${args// / })
-        idx=0
-        cookie_service=''
-        for i in "${args[@]}"; do
-            if [ "${args[$idx]}" == "-setcookie" ]; then
-                cookie_service=${args[$[idx+1]]}
-                break
-            fi
-            idx=$[idx+1]
-        done
-        echo 
+	    check_arg_count 3
+        node=$2@$3
+        cookie_service=$4
         echo "Connecting local node start //MAX werl.exe -remsh $node -name remsh_$node -setcookie $cookie_service"
         start //MAX werl.exe -remsh $node -name remsh_$node -setcookie $cookie_service
         ;;
