@@ -162,7 +162,12 @@
         position          : {at: "left top", my: "left top", of: "#main-body", collision : 'none'},
         appendTo          : "#main-body",
         focus             : function(e,ui) {},
-        open              : function() { $(this).table('showPlane'); },
+        open              : function() {
+            console.log("the parent of this", this.parentNode);
+            var titleNode = $(this).parent().children(".ui-dialog-titlebar");
+            console.log("the title node", titleNode);
+            $(this).table('showPlane');
+        },
         close             : function() {
                               $(this).table('close_stmt');
                               $(this).table('closeGraphs');
@@ -1817,6 +1822,10 @@
         self._grid.setColumns(columns);
     },
 
+    getSelf: function() {
+        return this;
+    },
+
     _createDlgFooter: function() {
         var self = this;
 
@@ -1851,7 +1860,7 @@
             var inph = self.options.toolBarHeight;
             //if($.browser.msie) inph -= 2;
 
-            if(elm.typ === 'btn')
+            if(elm.typ === 'btn') {
                 self[elm.dom] =
                     $('<button>')
                     .text(btnTxt)
@@ -1861,7 +1870,7 @@
                     .addClass('colorIcon')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
-            else if(elm.typ === 'txt')
+            } else if(elm.typ === 'txt') {
                 self[elm.dom] =
                 $('<input>')
                     .attr('type', 'text')
@@ -1885,6 +1894,7 @@
                         return true;
                     })
                     .appendTo(self._footerDiv);
+            }
         }
         self._footerDiv
             .buttonset()
@@ -1969,6 +1979,12 @@
     _toolBarDiscrd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarDiscrd');
         self.buttonPress("rollback");
+    },
+    _toolBarClearG: function(self) {
+        console.log("clear graph");
+        if(self._graphSpec && $.isFunction(self._graphSpec.on_reset)) {
+            self._graphSpec.on_reset();
+        }
     },
     ////////////////////////////
     
@@ -2594,8 +2610,16 @@
         }
     },
 
-      
-    showPlane: function() {
+    // plane to show 1 based, 0 represents the grid
+    showPlane: function(newPlaneToShow) {
+        if(newPlaneToShow != null) {
+            if(this._graphDivs[this._planeToShow - 1]) {
+                $(this._graphDivs[this._planeToShow - 1].node()).hide();
+            }
+            this._planeToShow = newPlaneToShow;
+        }
+
+        this._refreshButtons();
         if(!this._planeToShow) {
             this._tableDiv.show();
             return;
@@ -2613,6 +2637,39 @@
             this._graphDivs[this._planeToShow-1] = d3.select(d);
             this._graphSpec = planeFunc(this._graphDivs[this._planeToShow-1], d.clientWidth, d.clientHeight);
             console.log(this._graphSpec);
+        } else {
+            $(this._graphDivs[planeIdx].node()).show();
+        }
+    },
+
+    _refreshButtons: function() {
+        var self = this;
+        if(!self._planeToShow) {
+            self._tbCommit.show();
+            self._tbDiscrd.show();
+            if(self._tbClearG) {
+                self._tbClearG.hide();
+            }
+        } else {
+            // Create the dom element once,
+            // then show or hide as required
+            if(!self._tbClearG) {
+                self._tbClearG =
+                    $('<button>')
+                    .text('Clear graph')
+                    .data('tag', 'clear')
+                    .button({icons: {primary: 'fa fa-undo'}, text: false})
+                    .css('height', self.options.toolBarHeight + 'px')
+                    .addClass('colorIcon')
+                    .click(self, self._toolBarClearG)
+                    .appendTo(self._footerDiv);
+
+                self._footerDiv.buttonset('refresh');
+            }
+
+            self._tbCommit.hide();
+            self._tbDiscrd.hide();
+            self._tbClearG.show();
         }
     },
       

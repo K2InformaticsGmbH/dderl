@@ -1,27 +1,19 @@
-var OpsBufEnum = { APPEND  : 1
-                 , PREPEND : 2
-                 , REPLACE : 3
+var OpsBufEnum = { APPEND  : 1,
+                   PREPEND : 2,
+                   REPLACE : 3
                  };
 
-var OpsFetchEnum = { NEXT     :1
-                   , PREVIOUS :2
-                   , JUMPNEXT :3
-                   , JUMPPREV :4
-                   , TOEND    :5
-                   , TOBEGIN  :6
-                   , RELOAD   :7
-                   };
+var OpsFetchEnum = { NEXT     :1,
+                     PREVIOUS :2,
+                     JUMPNEXT :3,
+                     JUMPPREV :4,
+                     TOEND    :5,
+                     TOBEGIN  :6,
+                     RELOAD   :7};
 
 if(Object.hasOwnProperty('freeze')) {
     Object.freeze(OpsBufEnum);
     Object.freeze(OpsFetchEnum);
-}
-
-String.prototype.visualLength = function()
-{
-    var ruler = $('#txtlen');
-    ruler.html(''+this);
-    return ruler.width();
 }
 
 function getUniqueTime() {
@@ -42,7 +34,7 @@ var dderlState = {
     dashboards: null,
     currentDashboard: null,
     currentViews: null,
-    currentWindows: new Array(),
+    currentWindows: [],
     saveDashboardCounter: 0,
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
@@ -50,7 +42,7 @@ var dderlState = {
     app: "",
     vsn: "",
     node: ""
-}
+};
 
 // generic dderlserver call interface
 // TODO: currently the widget and non-widget
@@ -62,7 +54,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     var self = _ref;
 
     // if data is JSON object format to string
-    if(_data == null) {
+    if(!_data) {
         _data = JSON.stringify({});
     } else {
         try {
@@ -78,7 +70,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
     console.log('[AJAX] TX '+_url);
 
-    var headers = new Object();
+    var headers = {};
     if (dderlState.adapter != null) headers['DDERL-Adapter'] = dderlState.adapter;
     headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
     if (null != self) {
@@ -99,8 +91,8 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         {
             console.log('Request '+_url+' Result '+textStatus);
 
-            if(this && this.hasOwnProperty('_spinCounter') && this._dlg
-               && this._dlg.hasClass('ui-dialog-content')) {
+            if(this && this.hasOwnProperty('_spinCounter') &&
+               this._dlg && this._dlg.hasClass('ui-dialog-content')) {
                 this.removeWheel();
             }
 
