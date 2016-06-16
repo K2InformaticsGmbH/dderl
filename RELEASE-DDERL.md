@@ -3,7 +3,7 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 1.6.1 (Release Date 10.06.2016)
+Version 1.6.1 (Release Date 16.06.2016)
 ======================================
 * imem 1.5.3
 * Reason for errors on snap or restore.
