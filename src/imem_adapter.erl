@@ -823,10 +823,10 @@ send_result_table_cmd(From, BinCmd, Results) ->
             TableErrorsBin = lists:foldl(
                 fun({Table, Error}, Acc) ->
                         ErrorBin = imem_datatype:term_to_io(Error),
-                        <<Acc/binary, Table/binary, <<" - ">>/binary, ErrorBin/binary, <<", ">>/binary>>;
-                   (Table, Acc) ->  <<Acc/binary, Table/binary, <<", ">>/binary>>
+                        <<Acc/binary, Table/binary, " - ", ErrorBin/binary, ", ">>;
+                   (Table, Acc) ->  <<Acc/binary, Table/binary, ", ">>
                 end, <<>>, TableErrors),
-            FTableErrorsBin = re:replace(TableErrorsBin, <<", $">>, <<>>, [{return, binary}]),
+            FTableErrorsBin = re:replace(TableErrorsBin, ", $", "", [{return, binary}]),
             [CmdSplit|_] = binary:split(BinCmd, <<"_">>),
             Err = iolist_to_binary([<<"Unable to ">>, CmdSplit, <<" the following tables: ">>,  FTableErrorsBin]),
             ?Error("Error: ~p",  [Err]),
