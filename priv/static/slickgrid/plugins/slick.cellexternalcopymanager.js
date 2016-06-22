@@ -371,7 +371,7 @@
         },
 
         processRows : function(destW, activeRow, activeCell, limit, y, cb) {
-            //We need to process max 50 rows to not block the gui.
+            //We need to process max 100 rows to not block the gui.
             var self = this;
             var batchLimit = y + Math.min(limit - y, 100);
             var parsedNewValue = unescapeNewLines(clippedRange[0][0]);
@@ -379,10 +379,10 @@
             var dv = null;
             var dvi = null;
             if (_grid.getData() instanceof Slick.Data.DataView) {
-                    dv = _grid.getData();
-                    dvi = dv.getItems();
+                dv = _grid.getData();
+                dvi = dv.getItems();
             } else {
-                alert("Error: Trying to paste out of the range of columns");
+                console.error("Missing grid DataView, paste not supported");
                 return;
             }
 
