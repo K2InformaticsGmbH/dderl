@@ -718,6 +718,38 @@ div#main_footer {
     color: #212121;
 }
 
+/* Increasing handlers for resize dialogs */
+.ui-resizable-n {
+	height: 10px;
+}
+.ui-resizable-ne {
+	width: 10px;
+	height: 10px;
+}
+.ui-resizable-e {
+	width: 10px;
+}
+.ui-dialog .ui-resizable-se {
+	width: 20px;
+	height: 20px;
+    background-position: -64px -224px;
+}
+.ui-resizable-s {
+	height: 10px;
+}
+.ui-resizable-sw {
+	width: 10px;
+	height: 10px;
+}
+.ui-resizable-w {
+	width: 15px;
+}
+.ui-resizable-nw {
+	width: 15px;
+	height: 15px;
+}
+
+
 /* d3 graphs */
 .d3-container {
     position: absolute;
