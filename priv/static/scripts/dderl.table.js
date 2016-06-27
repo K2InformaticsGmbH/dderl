@@ -2558,9 +2558,12 @@
                     "minimize": "ui-icon-minus"
                 },
                 "minimizeLocation" : "left",
-                "load" : function(evt, dlg) {
+                "load" : function(evt) {
                 },
-                "minimize" : function(evt, dlg){
+                "minimize" : function(evt) {
+                },
+                "restore" : function(evt) {
+                    self._dlg.dialog("moveToTop");
                 }
             });
 
