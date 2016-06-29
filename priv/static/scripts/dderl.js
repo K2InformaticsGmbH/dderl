@@ -1111,30 +1111,27 @@ function password_change_dlg(title, loggedInUser, change_pass_fn)
       '</div>').appendTo(document.body);
 
     $('#password_change_login').keyup(function(e) {
-        var strongRegex = new RegExp("^(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*\\W).*$", "g");
-        var mediumRegex = new RegExp("^(?=.{7,})(((?=.*[A-Z])(?=.*[a-z]))|((?=.*[A-Z])(?=.*[0-9]))|((?=.*[a-z])(?=.*[0-9]))).*$", "g");
-        var enoughRegex = new RegExp("(?=.{6,}).*", "g");
-        if (false == enoughRegex.test($(this).val())) {
-            $('#passstrength')
-                .removeClass()
-                .addClass('password_strength_more')
-                .html('More Characters');
-        } else if (strongRegex.test($(this).val())) {
-            $('#passstrength')
-                .removeClass()
-                .addClass('password_strength_ok')
-                .html('Strong');
-        } else if (mediumRegex.test($(this).val())) {
-            $('#passstrength')
-                .removeClass()
-                .addClass('password_strength_alert')
-                .html('Medium');
-        } else {
-            $('#passstrength')
-                .removeClass()
-                .addClass('password_strength_error')
-                .html('Weak');
-        }
+        $('#passstrength').removeClass().html('');
+        clearTimeout($('#password_change_login').data("checkto"));
+        $('#password_change_login').data("checkto",
+            setTimeout(function() {
+                ajaxCall(null, 'password_strength',
+                    {password:$('#password_change_login').val()}, 'password_strength',
+                    function(result) {
+                        if (result == "short")
+                            $('#passstrength').removeClass().addClass('password_strength_more')
+                            .html('More Characters');
+                        else if (result == "strong")
+                          $('#passstrength').removeClass().addClass('password_strength_ok')
+                          .html('Strong');
+                        else if (result == "medium")
+                          $('#passstrength').removeClass().addClass('password_strength_alert')
+                          .html('Medium');
+                        else
+                          $('#passstrength').removeClass().addClass('password_strength_error')
+                          .html('Weak');
+                    });
+            }, 500));
         return true;
     });
     $('#dialog-change-password').dialog({
