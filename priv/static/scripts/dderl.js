@@ -1118,18 +1118,27 @@ function password_change_dlg(title, loggedInUser, change_pass_fn)
                 ajaxCall(null, 'password_strength',
                     {password:$('#password_change_login').val()}, 'password_strength',
                     function(result) {
-                        if (result == "short")
+                        if (result == "short") {
                             $('#passstrength').removeClass().addClass('password_strength_more')
-                            .html('More Characters');
-                        else if (result == "strong")
-                          $('#passstrength').removeClass().addClass('password_strength_ok')
-                          .html('Strong');
-                        else if (result == "medium")
-                          $('#passstrength').removeClass().addClass('password_strength_alert')
-                          .html('Medium');
-                        else
-                          $('#passstrength').removeClass().addClass('password_strength_error')
-                          .html('Weak');
+                                .html('More Characters');
+                            $("#dialog-change-password").parent()
+                                .find("button:contains('Change Password')").button("disable");
+                        } else if (result == "strong") {
+                            $('#passstrength').removeClass().addClass('password_strength_ok')
+                              .html('Strong');
+                            $("#dialog-change-password").parent()
+                                .find("button:contains('Change Password')").button("enable");
+                        } else if (result == "medium") {
+                            $('#passstrength').removeClass().addClass('password_strength_alert')
+                                .html('Medium');
+                            $("#dialog-change-password").parent()
+                                .find("button:contains('Change Password')").button("disable");
+                        } else {
+                            $('#passstrength').removeClass().addClass('password_strength_error')
+                                .html('Weak');
+                            $("#dialog-change-password").parent()
+                                .find("button:contains('Change Password')").button("disable");
+                        }
                     });
             }, 500));
         return true;
@@ -1155,4 +1164,7 @@ function password_change_dlg(title, loggedInUser, change_pass_fn)
     .dialog("open")
     .dialog("widget")
     .draggable("option","containment","#main-body");
+
+    $("#dialog-change-password").parent()
+        .find("button:contains('Change Password')").button("disable");
 }
