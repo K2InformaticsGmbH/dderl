@@ -434,12 +434,20 @@ input.editor-text {
     font-weight: bold;
 }
 
+div#main-bg {
+    position:fixed;
+    bottom : 10px;
+    right: 20px;
+    height : 100px;
+    width : 100px
+}
+
 div#main-body {
     position:absolute;
     overflow: auto;
     left: 0px;
     right: 0px;
-    bottom: 14px;
+    bottom: 0px;
     background:#F0F0FF;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
