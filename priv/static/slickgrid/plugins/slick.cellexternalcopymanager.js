@@ -399,8 +399,7 @@
                 var desty = activeRow + y;
                 var dt = dvi[desty];
 
-                var dat = {};
-                dat.id = dt.id;
+                var dat = dv.getItemById(dt.id);
                 for (var x = 0; x < rowW; x++) {
                     this.w++;
                     var destx = activeCell + x;
@@ -417,7 +416,7 @@
                 dv.updateItem(dat.id, dat);
             }
             dv.endUpdate();
-            _grid.scrollRowIntoView(y);
+            _grid.scrollRowIntoView(activeRow + y);
 
             if(y < limit) {
                 setTimeout(function() {
