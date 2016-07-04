@@ -692,7 +692,7 @@ function alert_jq(string)
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
-        .append('<p><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>')
+        .append('<p class="selectable-alert-text"><span class="ui-icon ui-icon-info" style="float: left; margin: 0 7px 50px 0;"></span>'+string+'</p>')
         .dialog({
             modal:false,
             width: 300,
