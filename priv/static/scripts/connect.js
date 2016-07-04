@@ -223,7 +223,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
             conn.secure = $('#secure').is(':checked');
         } else if(conn.method == 'rpc') {
             conn.schema = $('#schema').val();
-            conn.node = $('#node').val();
+            conn.node = $('#rpc-node').val();
             conn.user = $('#user').val();
             conn.password = $('#password').val();
         } else if(conn.method == 'tcp') {
@@ -459,7 +459,7 @@ function add_imem_options(connection_list, connect_options, connect) {
             $('<tr>').append(
                 $('<td>Node</td>'),
                 $('<td>').append(
-                    $('<input type="text" id="node">').val(connect.node)
+                    $('<input type="text" id="rpc-node">').val(connect.node)
                 )
             ),
             $('<tr>').append(

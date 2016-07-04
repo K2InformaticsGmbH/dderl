@@ -137,7 +137,6 @@
 
     function _createDivPaste() {
         div = document.createElement('div');
-//        console.log(div);
         div.contentEditable = true;
         document.body.appendChild(div);
         div.focus();
@@ -152,6 +151,11 @@
                 item = null,
                 reader, text, _i, _len,
                 _ref = ev.originalEvent;
+            //
+            // IMPORTANT: to consume the paste event here to free the event loop
+            //
+            ev.preventDefault();
+
             if (_ref != null && _ref.clipboardData != null) {
                 clipboardData = _ref.clipboardData;
                 if (clipboardData.items) {                    
@@ -172,21 +176,15 @@
                     if (item != null && item.type.match(/^image\//)) {
                         reader = new FileReader();
                         reader.onload = function(event) {
-                            setTimeout(function() {
-                                _decodeTabularData(event.target.result, true)
-                            }, 1);
+                            _processTabularData([[event.target.result]]);
                         };
                         reader.readAsDataURL(item.getAsFile());
                     } else if(item != null && item.type === 'text/plain') {
                         if(_grid.hasOwnProperty("gridowner")
                                 && typeof _grid.gridowner.startPaste === 'function')
                             _grid.gridowner.startPaste();
-//console.log(getTime() + " Reading clipboard");
                         item.getAsString(function(string) {
-                            setTimeout(function() {
-//console.log(getTime() + " Grid loading started");
-                                _decodeTabularData(string, false);
-                            }, 1);
+                            _decodeTabularTextData(string);
                         });
                     }
                 } else {
@@ -194,16 +192,13 @@
                         if(_grid.hasOwnProperty("gridowner")
                                 && typeof _grid.gridowner.startPaste === 'function')
                             _grid.gridowner.startPaste();
-//console.log(getTime() + " Reading clipboard");
                         text = clipboardData.getData('Text');
                         if (text != null && text.length) {
-                            setTimeout(function() {
-                                _decodeTabularData(text, false);
-                            }, 1);
+                            _decodeTabularTextData(text);
                         }
                     } else {
                         readImagesFromEditable(div, function(data) {
-                            _decodeTabularData(data, true);
+                            _processTabularData([[data]]);
                         });
                     }
                 }
@@ -212,15 +207,13 @@
                 if(_grid.hasOwnProperty("gridowner")
                         && typeof _grid.gridowner.startPaste === 'function')
                     _grid.gridowner.startPaste();
-//console.log(getTime() + " Reading clipboard");
                 text = clipboardData.getData('Text');
                 setTimeout(function() {
                     if (text != null && text.length) {
-//console.log(getTime() + " Grid loading started");
-                        _decodeTabularData(text, false);
+                        _decodeTabularTextData(text);
                     } else {
                         readImagesFromEditable(div, function(data) {
-                            _decodeTabularData(data, true);
+                            _processTabularData([[data]]);
                         });
                     }
                 }, 1);
@@ -240,40 +233,34 @@
       return ta;
     }
     
-    function _decodeTabularData(clipText, isImage) {
-        var clipRows = [clipText];
-        var clippedRange = [[clipText]];
-        
-        if(!isImage) {
-            console.log(getTime() + " Rows split "+clipText.length+" bytes");
+    function _decodeTabularTextData(clipText) {
+        setTimeout(function() {
+            var clipRows = [clipText];
+
+            console.log(getTime()+" clipboard paste "+clipText.length+" bytes");
             clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
             var last = clipRows.pop();
             if(last) {
                 clipRows.push(last);
             }
-            console.log(getTime() + " Rows " + clipRows.length);
             var clpdRange = [];
-            setTimeout(function() {
-                processRowsInGroups(clipRows, clpdRange);
-            }, 1);
-        } else {
-            _processTabularData(clippedRange);            
-        }
+            console.log(getTime()+" processing "+clipRows.length+" rows");
+            processRowsInGroups(clipRows, clpdRange);
+        }, 1);
     }
 
     function processRowsInGroups(clpRows, clpdRange) {
         if (clpRows.length > 0) {
+            var newClpRows = clpRows.splice(0, Math.min(1000, clpRows.length));
+            var startClipIdx = clpdRange.length;
+            for (var i = 0; i < newClpRows.length; i++) {
+                clpdRange[startClipIdx + i] = newClpRows[i].split("\t");
+            }
             setTimeout(function() {
-                var newClpRows = clpRows.splice(0, Math.min(200, clpRows.length));
-                var startClipIdx = clpdRange.length;
-                for (var i = 0; i < newClpRows.length; i++) {
-                    clpdRange[startClipIdx + i] = newClpRows[i].split("\t");
-                }
-                console.log(getTime() + " Cell split processed " + clpdRange.length +
-                                        " remaining "+clpRows.length);
                 processRowsInGroups(clpRows, clpdRange);
-            }, 5);
+            }, 1);
         } else {
+            console.log(getTime()+" rendering "+clpdRange.length+" rows");
             _processTabularData(clpdRange);
         }
     }
@@ -285,7 +272,7 @@
       var selectedRange = ranges && ranges.length ? ranges[0] : null;   // pick only one selection
       var activeRow = null;
       var activeCell = null;
-      
+
       if (selectedRange){
         activeRow = Math.max(selectedRange.fromRow, 0);
         activeCell = Math.max(selectedRange.fromCell, 1);
@@ -340,18 +327,17 @@
             d.push({id: -addRows});
         }
 
-          if (_grid.getData() instanceof Slick.Data.DataView) {
-              _grid.getData().setItems(d);
-          } else {
-              _grid.setData(d);
-          }
-          _grid.render();
+        if (_grid.getData() instanceof Slick.Data.DataView) {
+            _grid.getData().setItems(d);
+        } else {
+            _grid.setData(d);
+        }
+        _grid.render();
       }
 
       var clipCommand = {
         isClipboardCommand: true,
         clippedRange: clippedRange,
-        oldValues: [],
         cellExternalCopyManager: _self,
         _options: _options,
         setDataItemValueForColumn: setDataItemValueForColumn,
@@ -384,105 +370,70 @@
         },
 
         processRows : function(destW, activeRow, activeCell, limit, y, cb) {
-            //We need to process max 50 rows to not block the gui.
+            //We need to process max 100 rows to not block the gui.
             var self = this;
-            var batchLimit = y + Math.min(limit - y, 50);
+            var batchLimit = y + Math.min(limit - y, 100);
             var parsedNewValue = unescapeNewLines(clippedRange[0][0]);
-            
+
+            var dv = null;
+            var dvi = null;
+            if (_grid.getData() instanceof Slick.Data.DataView) {
+                dv = _grid.getData();
+                dvi = dv.getItems();
+            } else {
+                console.error("Missing grid DataView, paste not supported");
+                return;
+            }
+
+            console.log(getTime()+" loading "+batchLimit+" of "+limit+
+                    " ("+Math.floor(batchLimit*100/limit)+"% completed)");
+            dv.beginUpdate();
             for(; y < batchLimit; ++y) {
-                this.oldValues[y] = [];
                 this.w=0;
                 this.h++;
                 var rowW = destW;
                 if(!oneCellToMultiple) {
                     rowW = clippedRange[y].length;
                 }
-                
+
+                var desty = activeRow + y;
+                var dt = dvi[desty];
+
+                var dat = dv.getItemById(dt.id);
                 for (var x = 0; x < rowW; x++) {
                     this.w++;
-                    var desty = activeRow + y;
                     var destx = activeCell + x;
 
                     if (desty < this.maxDestY && destx < this.maxDestX ) {
-                        var nd = _grid.getCellNode(desty, destx);
-                        var dt = null;
-                        if (_grid.getData() instanceof Slick.Data.DataView) {
-                            dt = _grid.getData().getItems()[desty];
-                        } else {
-                            dt = _grid.getDataItem(desty);
-                        }
-
                         if (dt != undefined) {
-                            this.oldValues[y][x] = dt[columns[destx]['id']];
-                            if (oneCellToMultiple) {
-                                this.setDataItemValueForColumn(dt, columns[destx], parsedNewValue);
-                            } else {
+                            if (!oneCellToMultiple) {
                                 parsedNewValue = unescapeNewLines(clippedRange[y][x]);
-                                this.setDataItemValueForColumn(dt, columns[destx], parsedNewValue);
                             }
-                            _grid.updateCell(desty, destx);
+                            dat[columns[destx].field] = parsedNewValue;
                         }
                     }
                 }
+                dv.updateItem(dat.id, dat);
             }
+            dv.endUpdate();
+            _grid.scrollRowIntoView(activeRow + y);
 
             if(y < limit) {
                 setTimeout(function() {
                     self.processRows(destW, activeRow, activeCell, limit, y, cb);
-                }, 5);
+                }, 1);
             } else {
+                console.log(getTime()+" loaded "+limit+" rows");
                 cb();
             }
-        },
-
-        undo: function() {
-          for (var y = 0; y < destH; y++){
-            for (var x = 0; x < destW; x++){
-              var desty = activeRow + y;
-              var destx = activeCell + x;
-
-              if (desty < this.maxDestY && destx < this.maxDestX ) {
-                var nd = _grid.getCellNode(desty, destx);
-                var dt = null;
-                if (_grid.getData() instanceof Slick.Data.DataView)
-                    dt = _grid.getData().getItems()[desty];
-                else
-                    dt = _grid.getDataItem(desty);
-                if (oneCellToMultiple)
-                  this.setDataItemValueForColumn(dt, columns[destx], this.oldValues[0][0]);
-                else
-                  this.setDataItemValueForColumn(dt, columns[destx], this.oldValues[y][x]);
-                _grid.updateCell(desty, destx);
-              }
-            }
-          }
-
-          var bRange = new Slick.Range(activeRow, activeCell, activeRow+this.h-1, activeCell+this.w-1);
-
-          this.markCopySelection([bRange]);
-          _grid.getSelectionModel().setSelectedRanges([bRange]);
-          this.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
-          
-          if(addRows > 1){
-            var d = _grid.getData();
-            if (_grid.getData() instanceof Slick.Data.DataView)
-                d = _grid.getData().getItems();
-            for(; addRows > 1; addRows--)
-              d.splice(d.length - 1, 1);
-            if (_grid.getData() instanceof Slick.Data.DataView)
-                _grid.getData().setItems(d);
-            else
-                _grid.setData(d);
-            _grid.render();
-          }
         }
       };
 
-        if(_options.clipboardCommandHandler) {
-            _options.clipboardCommandHandler(clipCommand);
-        } else {
-            clipCommand.execute();
-        }
+      if(_options.clipboardCommandHandler) {
+          _options.clipboardCommandHandler(clipCommand);
+      } else {
+          clipCommand.execute();
+      }
     }
 
     function handleKeyDown(e, args) {

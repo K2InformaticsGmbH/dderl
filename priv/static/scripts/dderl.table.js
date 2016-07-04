@@ -146,7 +146,6 @@
     // These options will be used as defaults
     options: {
         // dialog options default override
-        toolBarHeight     : 22,
         height            : 200,
         width             : 200,
         minHeight         : 50,
@@ -2443,7 +2442,6 @@
         $('<div><img src="'+dataImg+'"></div>')
             .dialog(
                 { // dialog options default override
-                    width           : 'auto',
                     minHeight       : 250,
                     minWidth        : 250,
                     height          : dlgHeight,
@@ -2574,9 +2572,12 @@
                     "minimize": "ui-icon-minus"
                 },
                 "minimizeLocation" : "left",
-                "load" : function(evt, dlg) {
+                "load" : function(evt) {
                 },
-                "minimize" : function(evt, dlg){
+                "minimize" : function(evt) {
+                },
+                "restore" : function(evt) {
+                    self._dlg.dialog("moveToTop");
                 }
             });
 
