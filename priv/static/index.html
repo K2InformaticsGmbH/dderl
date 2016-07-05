@@ -55,27 +55,7 @@
       <source src="static/public/sound/success.mp3" type="audio/mpeg">
     </audio>
 
-    <script src="static/public/js/vendor.js"></script>
-    <script src="static/public/js/app.js"></script>
-
-    <script language='javascript'>
-        $(document).ready(function() {
-            $('#main-body').css('top', $('#main-menu-bar').height());
-            if(Object.hasOwnProperty('freeze')) {
-                patch_jquery_ui(); // Add support for html titles to dialogs.
-                check_already_connected();
-            } else {
-                $('#main-menu-bar').hide();
-                alert_jq("We are really sorry, but we don't support your current browser version.");
-            }
-
-            $(window).on('beforeunload', function() {
-                if(dderlState.connection) {
-                    return "You will lose all unsaved data, are you sure you want to continue?";
-                }
-            });
-            //beep(); // beep test
-        });
-    </script>
+    <!-- script src="static/public/js/vendor.js"></script-->
+    <script src="public/app.js"></script>
 </body>
 </html>
