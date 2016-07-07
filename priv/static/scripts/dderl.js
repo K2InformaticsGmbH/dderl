@@ -1,28 +1,10 @@
-var OpsBufEnum = { APPEND  : 1,
-                   PREPEND : 2,
-                   REPLACE : 3
-                 };
-
-var OpsFetchEnum = { NEXT     :1,
-                     PREVIOUS :2,
-                     JUMPNEXT :3,
-                     JUMPPREV :4,
-                     TOEND    :5,
-                     TOBEGIN  :6,
-                     RELOAD   :7};
-
-if(Object.hasOwnProperty('freeze')) {
-    Object.freeze(OpsBufEnum);
-    Object.freeze(OpsFetchEnum);
-}
-
 function getUniqueTime() {
   var time = new Date().getTime();
   while (time == new Date().getTime());
   return new Date().getTime();
 }
 
-var dderlState = {
+export var dderlState = {
     session: null,
     adapter: null,
     connection: null,
@@ -49,7 +31,7 @@ var dderlState = {
 //       is determined by the presence of the
 //       context variable for widget there is
 //       no this['context']
-function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
+export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     resetPingTimer();
     var self = _ref;
 

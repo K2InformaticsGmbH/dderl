@@ -1,5 +1,20 @@
-import $ from "jquery";
-import "jquery-ui";
+// Globaly expose $ for slickgrid until we fix it with proper modules.
+import $ from "expose?$!jquery";
+
+import "jquery-ui/ui/dialog";
+
+import {check_already_connected} from "./scripts/login";
+import {dderlState} from "./scripts/dderl";
+
+// Add our jquery-ui theme (smoothness) from http://jqueryui.com/download/
+import './styles/jquery-ui-smoothness/jquery-ui.css';
+
+import './styles/slick.grid.css';
+import './styles/slick.columnpicker.css';
+import './styles/dropdown.css';
+import './styles/dderl.sql.css';
+import './styles/dderl.connect.css';
+import './styles/dderl.css';
 
 function patch_jquery_ui() {
     // Since version 1.10 of jquery do not support html on title's dialog
@@ -15,7 +30,7 @@ function patch_jquery_ui() {
 $(document).ready(function () {
     $('#main-body').css('top', $('#main-menu-bar').height());
     if (Object.hasOwnProperty('freeze')) {
-        patch_jquery_ui(); // Add support for html titles to dialogs.
+        patch_jquery_ui(); // Add support for html titles on dialogs.
         check_already_connected();
     } else {
         $('#main-menu-bar').hide();

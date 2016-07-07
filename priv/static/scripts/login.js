@@ -1,3 +1,5 @@
+import {dderlState, ajaxCall} from './dderl';
+
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
@@ -9,7 +11,7 @@ function refresh_header_information() {
     $('#node').text(dderlState.node);
 }
 
-function check_already_connected() {
+export function check_already_connected() {
     if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
        !window.opener.$('#btn-change-password').data("logged_in_user")) {
         loginAjax(null);

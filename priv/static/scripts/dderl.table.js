@@ -67,7 +67,6 @@
                         openView        : function(e, _result) { e.data._openView               (_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable         (_result); },
                         queryResult     : function(e, _result) { e.data._renderTable            (_result); },
-                        tailResult      : function(e, _result) { e.data._checkTailResult        (_result); },
                         updateData      : function(e, _result) { e.data._checkUpdateResult      (_result); },
                         insertData      : function(e, _result) { e.data._insertResult           (_result); },
                         deleteData      : function(e, _result) { e.data._deleteResult           (_result); },
@@ -1990,12 +1989,6 @@
     /*
      * ajaxCall success callbacks
      */
-    _checkTailResult: function(_tail) {
-        console.log('[AJAX] tail resp '+JSON.stringify(_tail));
-        if(_tail === 'ok') {
-            this.fetchRows(OpsFetchEnum.NEXT, parseInt(this._gdata[this._gdata.length-1].id)+1);
-        }
-    },
     _checkUpdateResult: function(_update) {
         this.appendRows(_update);
         /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));        
