@@ -1,4 +1,5 @@
 import {dderlState, ajaxCall} from './dderl';
+import {md5Arr} from './md5';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);

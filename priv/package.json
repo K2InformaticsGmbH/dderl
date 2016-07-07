@@ -33,7 +33,7 @@
     "build": "npm run lint && npm run clean && webpack",
     "clean": "rm -rf public",
     "env": "env",
-    "lint": "jshint static/*.js",
+    "lint": "jshint static/index.js static/scripts/md5.js",
     "validate": "webpack-validator webpack.config.js"
   }
 }
