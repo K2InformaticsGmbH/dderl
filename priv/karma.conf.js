@@ -1,6 +1,8 @@
 // Karma configuration
 // Generated on Thu Jul 07 2016 18:41:23 GMT+0200 (W. Europe Daylight Time)
-var webpack = require("webpack");
+var webpack = require("karma-webpack");
+var webpackConfig = require("./webpack.config.js");
+
 module.exports = function(config) {
   config.set({
 
@@ -31,7 +33,7 @@ module.exports = function(config) {
         'test/*.js': ['webpack'],
     },
 
-    webpack: {},
+    webpack: webpackConfig,
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
