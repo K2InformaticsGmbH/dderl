@@ -382,7 +382,7 @@ function initDashboards() {
 /********** End dashboard functions *********************/
 
 
-function resetPingTimer() {
+export function resetPingTimer() {
     if(dderlState.pingTimer) {
         clearTimeout(dderlState.pingTimer);
     }

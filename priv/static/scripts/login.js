@@ -1,5 +1,6 @@
-import {dderlState, ajaxCall} from './dderl';
+import {dderlState, ajaxCall, resetPingTimer} from './dderl';
 import {md5Arr} from './md5';
+import {connect_dlg} from './connect';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);

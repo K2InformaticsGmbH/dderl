@@ -1,8 +1,10 @@
+import {dderlState, ajaxCall, resetPingTimer} from './dderl';
+
 var adapters = null;
 var owners = null;
 var connects = null;
 
-function connect_dlg()
+export function connect_dlg()
 {
     var dlg = $('<div id="dialog-db-login">')
     .attr('title', "Connect to Database");
