@@ -1,5 +1,7 @@
-//From http://jqueryui.com/autocomplete/#combobox
+import "jquery-ui/ui/autocomplete";
+import "jquery-ui/ui/tooltip"
 
+//From http://jqueryui.com/autocomplete/#combobox
 $.widget( "custom.combobox", {
     _create: function() {
         this.wrapper = $( "<span>" )

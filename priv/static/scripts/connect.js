@@ -1,4 +1,9 @@
 import {dderlState, ajaxCall, resetPingTimer} from './dderl';
+import {md5Arr} from './md5'
+
+// Jquery widget are hooked in the global scope so including it 
+// in one module expose it for the rest
+import './dderl.combobox'
 
 var adapters = null;
 var owners = null;
