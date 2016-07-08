@@ -1,7 +1,17 @@
 // Karma configuration
 // Generated on Thu Jul 07 2016 18:41:23 GMT+0200 (W. Europe Daylight Time)
-var webpack = require("karma-webpack");
-var webpackConfig = require("./webpack.config.js");
+const path = require("path");
+const webpackConfig = require("./webpack.config");
+
+webpackConfig.devtool = 'inline-source-map';
+webpackConfig.module.loaders.push({
+    test: /\.js$/,
+    loader: 'babel-loader',
+    include: path.join(__dirname, 'test'),
+    query: {
+        presets: ['es2015']
+    }
+});
 
 module.exports = function(config) {
   config.set({
@@ -17,8 +27,7 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      // 'static/**/*.js',
-      'test/*.js'
+        'test/*.js'
     ],
 
 
@@ -30,10 +39,17 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'test/*.js': ['webpack'],
+        'test/*.js': ['webpack', 'sourcemap'],
     },
 
+    // configuration for karma-webpack
     webpack: webpackConfig,
+
+    // avoid webpack bundle information for tests
+    webpackMiddleware: {
+        noInfo: true
+    },
+
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
