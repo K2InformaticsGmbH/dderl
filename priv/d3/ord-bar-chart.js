@@ -54,6 +54,8 @@
 		xScale.domain(data.map(function(d) { return xVal(d); }));
 		yScale.domain([0, d3.max(data, function(d) { return yVal(d); })]);
 
+		svg.selectAll('svg > g > *').remove(); // every data block 
+
 	    svg.append("g")
 	    	.attr("class", "x axis")
 	    	.attr("transform", "translate(0," + cHeight + ")")
