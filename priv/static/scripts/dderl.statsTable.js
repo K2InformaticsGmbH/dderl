@@ -478,15 +478,15 @@
                 return "Shows the portable hash of a concatenation of all selected values.\n"
                      + "Portable means regardless of machine architecture and ERTS version.";
             case "max":
-                return "Shows the largest number of the rows with numeric values. If no \n"
-                     + "numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the largest value of the rows. If no values are available,\n"
+                     + "then 'undefined' is displayed as a result.";
             case "median":
                 return "Shows the median of the rows with numeric values. The median is the middle value or \n"
                      + "an interpolated value that would be the middle value once the values are sorted.\n"
                      + "If no numerical values are available, then 'undefined' is displayed as a result.";
             case "min":
-                return "Shows the smallest number of the rows with numeric values. If no \n"
-                     + "numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the smallest value of the rows. If no values are available,\n"
+                     + "then 'undefined' is displayed as a result.";
             case "std_dev":
                 return "Shows the standard deviation of the rows with numeric values.\n"
                      + "The standard deviation is calculated as the square root of the variance.\n"
