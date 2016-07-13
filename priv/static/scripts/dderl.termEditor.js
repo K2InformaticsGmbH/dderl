@@ -1,3 +1,6 @@
+import jQuery from 'jquery';
+import {alert_jq, ajaxCall, unescapeNewLines} from './dderl';
+
 (function( $ ) {
     $.widget("dderl.termEditor", $.ui.dialog, {
         _dlg            : null,
@@ -45,7 +48,7 @@
             clear           : null,
             toolBarHeight   : 20,
             appendTo        : "#main-body",
-            focus           : function(e,ui) {},
+            focus           : function() {},
             close           : function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -96,9 +99,9 @@
                         var start = this.selectionStart;
                         var end = this.selectionEnd;
                         var oldText = self._editText.val();
-                        self._editText.val(oldText.substring(0, start)
-                                           + self._tabDefault
-                                           + oldText.substring(end));
+                        self._editText.val(oldText.substring(0, start) +
+                                            self._tabDefault +
+                                            oldText.substring(end));
                         this.selectionStart = this.selectionEnd = (start + self._tabDefault.length);
                         e.preventDefault();
                         e.stopImmediatePropagation();
@@ -151,23 +154,39 @@
                 .css('bottom', '0')
                 .css('overflow', 'hidden');
 
+            var toolElmFn = function(e) {
+                var self = e.data;
+                var btn = $(this).data('tag');
+                var fName = self._toolbarButtons[btn].clk;
+                var f = self[fName];
+                if($.isFunction(f)) {
+                    f(self);
+                } else {
+                    throw ('[' + self.options.title + '] toolbar ' + btn + ' has unimplimented cb ' + fName);
+                }
+            };
+
+            var toolbarKeyDownHndlr = function(evt) {
+                evt.data = self;
+                var explvlnum = parseInt(self._tbTxtBox.val() + String.fromCharCode(evt.which));
+                if(explvlnum != self._currentExpLvl) {
+                    if(!isNaN(explvlnum)) {
+                        self._currentExpLvl = explvlnum;
+                        toolElmFn.call(this, evt);
+                    } else {
+                        if(self._currentExpLvl != -1) {
+                            toolElmFn.call(this, evt);
+                        }
+                        self._currentExpLvl = -1;
+                    }
+                }
+                return true;
+            };
+
             // footer items
-            for(btn in self._toolbarButtons) {
+            for(let btn in self._toolbarButtons) {
                 var btnTxt = self._toolbarButtons[btn].tip;
                 var elm = self._toolbarButtons[btn];
-
-                var toolElmFn = function(e) {
-                    var self = e.data;
-                    var _btn = $(this).data('tag');
-                    var fName = self._toolbarButtons[_btn].clk;
-                    //var f = $.proxy(self[fName], self);
-                    var f = self[fName];
-                    if($.isFunction(f)) {
-                        f(self);
-                    } else {
-                        throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
-                    }
-                };
 
                 var inph = self.options.toolBarHeight;
                 //if($.browser.msie) inph -= 2;
@@ -193,22 +212,7 @@
                     .css('text-align', 'center')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
-                    .keydown(function(evt) {
-                        evt.data = self;
-                        var explvlnum = parseInt(self._tbTxtBox.val() + String.fromCharCode(evt.which));
-                        if(explvlnum != self._currentExpLvl) {
-                            if(!isNaN(explvlnum)) {
-                                self._currentExpLvl = explvlnum;
-                                toolElmFn.call(this, evt);
-                            } else {
-                                if(self._currentExpLvl != -1) {
-                                    toolElmFn.call(this, evt);
-                                }
-                                self._currentExpLvl = -1;
-                            }
-                        }
-                        return true;
-                    })
+                    .keydown(toolbarKeyDownHndlr)
                     .appendTo(self._footerDiv);
 
                 if(self.options.readOnly) {
@@ -258,15 +262,16 @@
         },
 
         updateExp: function(self, expansionLevel, force) {
+            var stringToFormat;
             if(self._isJson){
-                var stringToFormat = unescape(this._editText.val());
+                stringToFormat = unescape(this._editText.val());
                 var indent = (expansionLevel < 0) ? 4 : expansionLevel;
                 self._updateTextArea(self.formatJSON(stringToFormat, indent));
             } else if (self.options.term.isFormatted) {
                 self._updateTextArea(self.options.term.string);
                 self.options.term.isFormatted = false;
             } else {
-                var stringToFormat = unescapeNewLines(this._editText.val());
+                stringToFormat = unescapeNewLines(this._editText.val());
                 var expansionWithAuto = (expansionLevel < 0)? "auto": expansionLevel;
                 ajaxCall(this, 'format_erlang_term', {
                     format_erlang_term: {

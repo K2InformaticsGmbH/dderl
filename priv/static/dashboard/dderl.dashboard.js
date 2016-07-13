@@ -1,3 +1,6 @@
+import jQuery from 'jquery';
+import {dderlState, ajaxCall, alert_jq} from '../scripts/dderl';
+
 (function ($) {
     $.extend(true, window, {
         DDerl: {
@@ -66,6 +69,28 @@
         }
 
         function openViews() {
+            var checkOpenResult = function (pos) {
+                return function (viewResult) {
+                    if (viewResult.hasOwnProperty('error')) {
+                        alert_jq(viewResult.error);
+                    } else {
+                        // We need to override the position and size of table layout.
+                        $.extend(viewResult.table_layout, views[pos].getLayout());
+
+                        $('<div>')
+                            .appendTo(document.body)
+                            .table({
+                                autoOpen: false,
+                                dderlConn: dderlState.connection,
+                                dderlAdapter: dderlState.adapter,
+                                title: viewResult.name,
+                                dderlTbllay: viewResult.table_layout,
+                            })
+                            .table('openView', viewResult);
+                    }
+                };
+            };
+
             for(var i = 0; i < views.length; ++i) {
 
                 var openViewData = {open_view: {
@@ -74,25 +99,7 @@
                     conn_id: dderlState.connectionSelected.connection
                 }};
 
-                ajaxCall(null, 'open_view', openViewData, 'open_view', (function(pos) { return function(viewResult) {
-                    if(viewResult.hasOwnProperty('error')) {
-                        alert_jq(viewResult.error);
-                    } else {
-                        // We need to override the position and size of table layout.
-                        $.extend(viewResult.table_layout, views[pos].getLayout());
-                        
-                        $('<div>')
-                            .appendTo(document.body)
-                            .table({
-                                autoOpen    : false,
-                                dderlConn   : dderlState.connection,
-                                dderlAdapter: dderlState.adapter,
-                                title       : viewResult.name,
-                                dderlTbllay : viewResult.table_layout,
-                            })
-                            .table('openView', viewResult);
-                    }
-                }})(i));
+                ajaxCall(null, 'open_view', openViewData, 'open_view',  checkOpenResult(i));
             }
         }
 

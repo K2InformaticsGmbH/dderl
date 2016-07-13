@@ -27,6 +27,11 @@ module.exports = {
                 loader: 'file?name=[path][name].[hash:6].[ext]'
             },
             {
+                // For font awesome the version is required.
+                test: /\.(svg|woff|woff2|ttf|eot)(\?v=[0-9]\.[0-9]\.[0-9])$/,
+                loader: 'file?name=font-awesome/fonts/[name].[hash:6].ext'
+            },
+            {
                 test: /\.css$/,
                 loader: 'style!css'
             },
@@ -45,13 +50,15 @@ module.exports = {
                 include: PATHS.static,
                 query: {
                     presets: ["es2015"],
+                    compact: false
                 }
             }
         ]
     },
     plugins: [
         new webpack.ProvidePlugin({
-            $: 'jquery'
+            $: 'jquery',
+            jQuery: "jquery"
         })
 
     ],

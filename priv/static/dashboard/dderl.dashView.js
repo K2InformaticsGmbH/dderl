@@ -1,3 +1,5 @@
+import jQuery from 'jquery';
+
 (function ($) {
     $.extend(true, window, {
         DDerl: {

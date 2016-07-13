@@ -16,33 +16,25 @@
         <ul class="dropdown menubar">
             <li><a>Query Server</a>
                 <ul class="sub_menu">
-                    <li><a id="btn-tables" onclick='show_qry_files(true)'>Tables and ddViews</a></li>
-                    <li><a id="btn-import-query" onclick='import_query()'>Import Query</a></li>
-                    <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
-                    <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
-                    <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
+                    <li><a id="btn-tables">Tables and ddViews</a></li>
+                    <li><a id="btn-import-query">Import Query</a></li>
+                    <li><a id="btn-change-password">Change Password</a></li>
+                    <li><a id="btn-about">About</a></li>
+                    <li><a id="btn-disconnect">Disconnect</a></li>
+                    <li><a id="btn-restart">Restart Application</a></li>
                 </ul>
             </li>
-            <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
-            <li><a id="newsql-button" onclick='StartSqlEditor()'>New Query</a></li>
+            <li><a id="connect-button">New Connection</a></li>
+            <li><a id="newsql-button">New Query</a></li>
             <li><a>Window</a>
                 <ul id="window-finder" class="sub_menu">
-                </ul>
-            </li>
-            <li><a id="tbl-opts" style="display:none">Options</a>
-                <ul class="sub_menu">
-                     <li><a id="table-edit-query" onclick='edit_table()'>Edit Query</a></li>
-                     <li><a id="table-save" onclick='save_table()'>Save</a></li>
-                     <li><a id="table-save-as" onclick='save_as_table()'>Save As</a></li>
-                     <li><a id="table-export">Export Rows</a></li>
                 </ul>
             </li>
         </ul>
         <div id="dashboard-menu">
         </div>
         <div style="position:absolute;top:0px;right:0px">
-            <span><a id="btn-logout" onclick='logout()'>Logout</a> | </span>
+            <span><a id="btn-logout">Logout</a> | </span>
             <span id="node"></span>
             <span id="version"></span>
         </div>

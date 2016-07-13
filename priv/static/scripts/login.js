@@ -1,4 +1,6 @@
-import {dderlState, ajaxCall, resetPingTimer} from './dderl';
+import $ from 'jquery';
+import {dderlState, ajaxCall, resetPingTimer, password_change_dlg,
+        alert_jq, confirm_jq} from './dderl';
 import {md5Arr} from './md5';
 import {connect_dlg} from './connect';
 
@@ -14,25 +16,24 @@ function refresh_header_information() {
 }
 
 export function check_already_connected() {
-    if(!window.opener || !window.opener.dderlState || !window.opener.dderlState.session ||
-       !window.opener.$('#btn-change-password').data("logged_in_user")) {
-        loginAjax(null);
+    if(!window.opener || !window.opener.connState || !window.opener.connState.session ||
+       !window.opener.exposedjQuery('#btn-change-password').data("logged_in_user")) {
+        loginAjax();
     } else {
-        dderlState.session = window.opener.dderlState.session;
-        dderlState.connectionSelected = window.opener.dderlState.connectionSelected;
-        dderlState.app = window.opener.dderlState.app;
-        dderlState.vsn = window.opener.dderlState.vsn;
-        dderlState.node = window.opener.dderlState.node;
+        dderlState.session = window.opener.connState.session;
+        dderlState.connectionSelected = window.opener.connState.connectionSelected;
+        dderlState.app = window.opener.connState.app;
+        dderlState.vsn = window.opener.connState.vsn;
+        dderlState.node = window.opener.connState.node;
         refresh_header_information();
-        var user = window.opener.$('#btn-change-password').data("logged_in_user");
+        var user = window.opener.exposedjQuery('#btn-change-password').data("logged_in_user");
         update_user_information(user);
         connect_dlg();
     }
 }
 
-function loginAjax(data) {
-    ajaxCall(null, 'login', (data == null ? {} : data),
-            'login', loginCb);
+function loginAjax(data = {}) {
+    ajaxCall(null, 'login', data, 'login', loginCb);
 }
 
 function loginCb(resp) {
@@ -113,7 +114,7 @@ function display(layout) {
         closeOnEscape: false,
         dialogClass: 'no-close',
         appendTo: "#login-bg",
-        open: function(event, ui) {
+        open: function() {
             $(this).dialog("widget").css('z-index', 99999);
         },
         close: function() {
@@ -124,9 +125,19 @@ function display(layout) {
     });
 
     var focused = false;
-    for(var fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
-        var tr = $('<tr>').appendTo(tab);
-        var td = $('<td valign=bottom>').appendTo(tr);
+    function setFocus(element, delay) {
+        focused = true;
+        setTimeout(function() { element.focus(); }, delay);
+    }
+    function loginEnterKeyPressHandler(e) {
+        if(e.which === 13) {
+            inputEnter(layout);
+            dlg.dialog("close");
+        }
+    }
+    for(let fldIdx = 0; fldIdx < layout.fields.length; fldIdx++) {
+        let tr = $('<tr>').appendTo(tab);
+        let td = $('<td valign=bottom>').appendTo(tr);
         if(layout.fields[fldIdx].type == "label") {
             var fieldLabel = $('<span>');
             if(layout.fields[fldIdx].color) {
@@ -139,43 +150,29 @@ function display(layout) {
                 .text(layout.fields[fldIdx].val)
                 .appendTo(td);
         } else if(layout.fields[fldIdx].type == "text") {
-          //  td.append(layout.fields[fldIdx].placeholder);
-          //  td = $('<td valign=bottom>').appendTo(tr);
-            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>').attr('placeholder', layout.fields[fldIdx].placeholder)
-                            .val(layout.fields[fldIdx].val)
-                            .keypress(function(e) {
-                                if(e.which == 13) {
-                                    inputEnter(layout);
-                                    dlg.dialog("close");
-                                }
-                            })
+            var txt = $('<input type="text" class="text ui-widget-content ui-corner-all"/>')
+                .attr('placeholder', layout.fields[fldIdx].placeholder)
+                .val(layout.fields[fldIdx].val)
+                .keypress(loginEnterKeyPressHandler)
                 .appendTo(td);
             layout.fields[fldIdx].elm = txt;
-            if(!focused && layout.fields[fldIdx].val.length == 0) {
-                focused = true;
-                setTimeout(function() { txt.focus(); }, 100);
+            if(!focused && layout.fields[fldIdx].val.length === 0) {
+                setFocus(txt, 100);
             }
        } else if(layout.fields[fldIdx].type == "password") {
-          //  td.append(layout.fields[fldIdx].placeholder);
-           // td = $('<td valign=bottom>').appendTo(tr);
-            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>').attr('placeholder', layout.fields[fldIdx].placeholder).css("margin-top","3px")
-                            .val(layout.fields[fldIdx].val)
-                            .keypress(function(e) {
-                                if(e.which == 13) {
-                                    inputEnter(layout);
-                                    dlg.dialog("close");
-                                }
-                            })
-                            .appendTo(td);
+            var pass = $('<input type="password" class="text ui-widget-content ui-corner-all"/>')
+                .attr('placeholder', layout.fields[fldIdx].placeholder).css("margin-top", "3px")
+                .val(layout.fields[fldIdx].val)
+                .keypress(loginEnterKeyPressHandler)
+                .appendTo(td);
             layout.fields[fldIdx].elm = pass;
             if(!focused) {
-                focused = true;
-                setTimeout(function() { pass.focus(); }, 100);
+                setFocus(pass, 100);
             }
         }
     }
-    var tr = $('<tr>').appendTo(tab);
-    var td = $('<td class="center">').appendTo(tr);
+    let tr = $('<tr>').appendTo(tab);
+    let td = $('<td class="center">').appendTo(tr);
     var button = $('<input type="button" class="button" value="Login">');
     button.appendTo(td);
     button.click(function() {
@@ -204,18 +201,18 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-function logout() {
+export function logout() {
 
     if (!dderlState.session) {
         return;
     }
 
-    var headers = new Object();
+    var headers = {};
 
-    if (dderlState.adapter != null) {
+    if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',
@@ -226,26 +223,27 @@ function logout() {
         headers: headers,
         context: null,
 
-        success: function(_data, textStatus, request) {
+        success: function(_data, textStatus) {
             console.log('Request logout Result ' + textStatus);
         },
 
-        error: function (request, textStatus, errorThrown) {
+        error: function (request, textStatus) {
             console.log('Request logout Error, status: ' + textStatus);
         }
     });
     process_logout();
 }
 
-function restart() {
+//TODO: Does this function belong here ?
+export function restart() {
     if (!dderlState.session) {
         return;
     }
-    var headers = new Object();
-    if (dderlState.adapter != null) {
+    var headers = {};
+    if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
     confirm_jq({title: "Confirm restart", content:''},
             function() {
                 $.ajax({
@@ -256,7 +254,7 @@ function restart() {
                     contentType: "application/json; charset=utf-8",
                     headers: headers,
                     context: null,
-                    success: function(response, textStatus, request) {
+                    success: function(response) {
                         if (response.hasOwnProperty('restart')) {
                            if (response.restart == 'ok') { location.reload(true); }
                            else if (response.restart.hasOwnProperty('error')) {
@@ -269,13 +267,34 @@ function restart() {
                             console.error("malformed response " + JSON.stringify(response));
                         }
                     },
-                    error: function (request, textStatus, errorThrown) {
+                    error: function (request, textStatus) {
                         console.log('Request restart Error, status: ' + textStatus);
                     }
                 });
             });
 }
 
+var children = [];
+export function new_connection_tab() {
+    if(dderlState.session) {
+        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+            connect_dlg();
+        } else {
+            if(!window.connState) {
+                // TODO: Until we find a better way to share the login session.
+                window.connState = dderlState;
+                window.exposedjQuery = $;
+            }
+            console.log($('#btn-change-password').data("logged_in_user"));
+            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
+            console.log(newURL);
+            children.push(window.open(newURL, "_blank"));
+        }
+    }
+}
+
+//TODO: until we fix the session sharing
+window.process_logout = process_logout;
 function process_logout() {
     dderlState.connection = null;
     dderlState.adapter = null;
@@ -300,34 +319,30 @@ function process_logout() {
             }
         }
     }
-    loginAjax(null);
+    loginAjax();
 }
 
-function change_login_password(loggedInUser, shouldConnect)
-{
-
-    password_change_dlg("Change DDerl account password", loggedInUser,
-            function() {
-                if($('#conf_password_login').val() == $('#password_change_login').val()) {
-                    var newPassJson = {
-                        change_pswd: {
-                            user  : loggedInUser,
-                            password  : md5Arr($('#old_password_login').val()),
-                            new_password  : md5Arr($('#password_change_login').val())
-                        }};
-                    ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
-                        if(data == "ok") {
-                            $("#dialog-change-password").dialog("close");
-                            resetPingTimer();
-                            if(shouldConnect) {
-                                connect_dlg();
-                            }
-                        }
-                        else {
-                            alert_jq('Change password falied : ' + data);
-                        }
-                    });
+export function change_login_password(loggedInUser, shouldConnect) {
+    password_change_dlg("Change DDerl account password", loggedInUser, function() {
+        if($('#conf_password_login').val() == $('#password_change_login').val()) {
+            var newPassJson = { change_pswd: {
+                user  : loggedInUser,
+                password  : md5Arr($('#old_password_login').val()),
+                new_password  : md5Arr($('#password_change_login').val())
+            }};
+            ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
+                if(data == "ok") {
+                    $("#dialog-change-password").dialog("close");
+                    resetPingTimer();
+                    if(shouldConnect) {
+                        connect_dlg();
+                    }
                 }
-                else alert_jq("Confirm password missmatch!");
+                else {
+                    alert_jq('Change password falied : ' + data);
+                }
             });
+        }
+        else alert_jq("Confirm password missmatch!");
+    });
 }

@@ -1,8 +1,12 @@
-function getUniqueTime() {
-  var time = new Date().getTime();
-  while (time == new Date().getTime());
-  return new Date().getTime();
-}
+import $ from 'jquery';
+import './dderl.table';
+import {change_login_password} from './login';
+import {change_connect_password} from './connect';
+import {StartSqlEditorWithTitle} from './dderl.sql';
+
+import '../dashboard/dderl.dashView';
+import '../dashboard/dderl.dashboard';
+import * as DashboardMenu from '../dashboard/DashboardMenu';
 
 export var dderlState = {
     session: null,
@@ -14,7 +18,6 @@ export var dderlState = {
     pingTimer: null,
     currentErrorAlert: null,
     dashboards: null,
-    currentDashboard: null,
     currentViews: null,
     currentWindows: [],
     saveDashboardCounter: 0,
@@ -53,9 +56,9 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     console.log('[AJAX] TX '+_url);
 
     var headers = {};
-    if (dderlState.adapter != null) headers['DDERL-Adapter'] = dderlState.adapter;
-    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
-    if (null != self) {
+    if (dderlState.adapter !== null) headers['DDERL-Adapter'] = dderlState.adapter;
+    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
+    if (self) {
         if(self.hasOwnProperty('_session')) headers['DDERL-Session'] = self._session;
         if(self.hasOwnProperty('_adapter')) headers['DDERL-Adapter'] = self._adapter;
     }
@@ -69,8 +72,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
         headers: headers,
         context: self,
 
-        success: function(_data, textStatus, request)
-        {
+        success: function(_data, textStatus, request) {
             console.log('Request '+_url+' Result '+textStatus);
 
             if(this && this.hasOwnProperty('_spinCounter') &&
@@ -92,7 +94,8 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 throw('null data received for the request '+_url);
             else if(_data.hasOwnProperty(_resphead)) {
                 console.log('[AJAX] RX '+_resphead);
-                if(this.hasOwnProperty('context') && null == this.context) {
+                if(this.hasOwnProperty('context') &&
+                    (this.context === null || this.context === undefined)) {
                     if(null === _successevt) {
                         console.log('no success callback for '+_url);
                     } else if($.isFunction(_successevt)) {
@@ -145,10 +148,13 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     });
 }
 
-/*** TODO: Move this to dashboard container class dderl.dashboard ***/
-function loadDashboard(dashboard) {
-    $(".ui-dialog-content").dialog('close');
-    dashboard.openViews();
+/*** TODO: Move this functions to apropiate dashboard modules ***/
+function loadDashboard(id) {
+    var dashboard = findDashboardById(id);
+    if (dashboard) {
+        $(".ui-dialog-content").dialog('close');
+        dashboard.openViews();
+    }
 }
 
 function requestDashboards() {
@@ -173,37 +179,15 @@ function requestDashboards() {
 }
 
 //TODO: Check if this can be merged with the windows handler...
-function addToCurrentViews(tableView) {
+export function addToCurrentViews(tableView) {
     // Bind to the close event to remove it from the list.
-    tableView._dlg.bind("dialogclose", function(event, ui) {
+    tableView._dlg.bind("dialogclose", function() {
         var viewPos = dderlState.currentViews.indexOf(tableView);
         if(viewPos != -1) {
             dderlState.currentViews.splice(viewPos, 1);
         }
     });
     dderlState.currentViews.push(tableView);
-}
-
-function getCurrentViews() {
-    var resultViews, id, x, y, w, h;
-    resultViews = new Array();
-    for(var i = 0; i < dderlState.currentViews.length; ++i) {
-        id = dderlState.currentViews[i]._viewId;
-        x = dderlState.currentViews[i]._dlg.dialog('widget').position().left;
-        y = dderlState.currentViews[i]._dlg.dialog('widget').position().top;
-        w = dderlState.currentViews[i]._dlg.dialog('widget').width();
-        h = dderlState.currentViews[i]._dlg.dialog('widget').height();
-        resultViews.push(new DDerl.DashView(id, x, y, w, h));
-    }
-    return resultViews;
-}
-
-function addDashView(id, x, y, width, height) {
-    dderlState.currentDashboard.addView(new DDerl.DashView(id, x, y, width, height));
-}
-
-function removeDashView(viewId) {
-    dderlState.currentDashboard.removeView(viewId);
 }
 
 function findDashboardById(dashboardId) {
@@ -215,169 +199,24 @@ function findDashboardById(dashboardId) {
     return null;
 }
 
-function findDashboard(name) {
-    for(var i = 0; i < dderlState.dashboards.length; ++i) {
-        if(dderlState.dashboards[i].getName() === name) {
-            return dderlState.dashboards[i];
-        }
-    }
-    return null;
-}
-
-function addDashboard(dashboard) {
-    var addedOption, dashboardList;
-
+export function addDashboard(dashboard) {
     dderlState.dashboards.push(dashboard);
-
-    addedOption = document.createElement("option");
-    addedOption.value = dashboard.getId();
-    addedOption.textContent = dashboard.getName();
-
-    dashboardList = document.getElementById("dashboard-list");
-    dashboardList.appendChild(addedOption);
+    DashboardMenu.add(dashboard.getId(), dashboard.getName());
 }
 
-function checkTablesNotSaved() {
-    var tablesNotSaved, notSavedTitles, message;
-    tablesNotSaved = new Array();
-    notSavedTitles = "";
-    message = "";
-    if(dderlState.currentWindows.length === dderlState.currentViews.length) {
-        saveDashboard();
-    } else {
-        notSavedTitles += "<ul>"
-        for(var i = 0; i < dderlState.currentWindows.length; ++i) {
-            if(!dderlState.currentWindows[i]._viewId) {
-                tablesNotSaved.push(dderlState.currentWindows[i]);
-                notSavedTitles += "<li>" + dderlState.currentWindows[i].options.title + "</li>";
-            }
-        }
-        notSavedTitles += "</ul>"
-        message = "The following tables are not saved as views: <br>" + notSavedTitles;
-        $('<div><p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>'+ message +'</p></div>').appendTo(document.body).dialog({
-            resizable: false,
-            width: 450,
-            height:220,
-            modal: true,
-            appendTo: "#main-body",
-            buttons: {
-                "Create views": function() {
-                    $( this ).dialog( "close" );
-                    dderlState.saveDashboardCounter += tablesNotSaved.length;
-                    for(var i = 0; i < tablesNotSaved.length; ++i) {
-                        tablesNotSaved[i].saveView();
-                    }
-                },
-                "Ignore tables": function() {
-                    $( this ).dialog( "close" );
-                    saveDashboard();
-                },
-                Cancel: function() {
-                    $( this ).dialog( "close" );
-                }
-            },
-            open: function() {
-                $(this)
-                    .dialog("widget")
-                    .draggable("option","containment","#main-body");
-            },
-            close : function() {
-                $(this).dialog('destroy');
-                $(this).remove();
-            }
-        });
-    }
-}
-
-function saveDashboardWithCounter() {
+export function saveDashboardWithCounter() {
     if(dderlState.saveDashboardCounter === 1) {
-        saveDashboard();
+        DashboardMenu.saveDashboard();
     } else if(dderlState.saveDashboardCounter > 0) {
         dderlState.saveDashboardCounter -= 1;
     }
 }
 
-function saveDashboard() {
-    var name, dashboard, dashViews;
-
-    name = document.getElementById("dashboard-list-input").value;
-    if(name === "default") {
-        alert_jq("Please select a name for the dashboard");
-        return;
-    }
-
-    dashboard = findDashboard(name);
-    dashViews = getCurrentViews();
-
-    if(dashboard === null) {
-        dashboard = new DDerl.Dashboard(-1, name, dashViews);
-        dashboard.save(function() {
-            addDashboard(dashboard);
-        });
-    } else {
-        dashboard.updateViews(dashViews);
-        dashboard.save();
-    }
-}
-
-function createDashboardMenu(container) {
-    var mainMenuBar, saveButton, dashboardList, dashboardListObj, defaultOption;
-
-    // Check to only create the elements once.
-    if(document.getElementById("dashboard-list")) {
-        return;
-    }
-
-    // Button creation
-    saveButton = document.createElement("input");
-    saveButton.type = "button";
-    saveButton.id = "dashboard-save";
-    saveButton.value = "Save this dash";
-    saveButton.onclick = function() {
-        checkTablesNotSaved();
-    }
-
-    // Default option creation
-    defaultOption = document.createElement("option");
-    defaultOption.value = "default";
-    defaultOption.textContent = "default";
-
-    // Dashboard list creation
-    dashboardList = document.createElement("select");
-    dashboardList.id = "dashboard-list";
-    dashboardList.appendChild(defaultOption);
-
-    // Add elements to the dom
-    container.appendChild(dashboardList);
-    container.appendChild(saveButton);
-
-    // Convert the select to combobox
-    dashboardListObj = $('#dashboard-list').combobox();
-
-    // Add the handler for selection
-    dashboardListObj.change(function() {
-        var dashId, dashboard;
-        dashId = dashboardListObj.val();
-        if($('#dashboard-list-input').is(":focus")) {
-            $('#dashboard-list-input').blur();
-        }
-        if(dashId === "default") {
-            return;
-        } else if(!isNaN(parseInt(dashId)) && isFinite(dashId)) {
-            dashboard = findDashboardById(parseInt(dashId));
-            if(dashboard) {
-                loadDashboard(dashboard);
-            }
-        }
-    });
-}
-
-function initDashboards() {
-    dderlState.dashboards = new Array();
-    dderlState.currentDashboard = new DDerl.Dashboard(-1, "default", []);
-    dderlState.currentViews = new Array();
-    createDashboardMenu(document.getElementById("dashboard-menu"));
-    var userDashboards = requestDashboards();
+export function initDashboards() {
+    dderlState.dashboards = [];
+    dderlState.currentViews = [];
+    DashboardMenu.create(document.getElementById("dashboard-menu"), loadDashboard);
+    requestDashboards();
 }
 /********** End dashboard functions *********************/
 
@@ -411,10 +250,9 @@ function login_first()
     alert_jq("Please log in first!");
 }
 
-function show_qry_files(useSystem)
-{
+export function show_qry_files(useSystem) {
     var loggedInUser = $('#btn-change-password').data("logged_in_user");
-    if(loggedInUser == undefined || loggedInUser.length == 0) {
+    if(!loggedInUser || loggedInUser.length === 0) {
         login_first();
         return;
     }
@@ -429,8 +267,8 @@ function show_qry_files(useSystem)
     .table('loadViews', useSystem);
 }
 
-function import_query() {
-    if ($("#fileToUpload").length == 0) {
+export function import_query() {
+    if ($("#fileToUpload").length === 0) {
         $('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;" multiple>')
             .appendTo(document.body)
             .change(function() {
@@ -458,7 +296,7 @@ function uploadFiles(files)
         closeOnEscape: false,
         resizable: false,
         close: function() { $(this).dialog('destroy').remove(); },
-        open: function(event, ui) {
+        open: function() {
             $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
         }
     })
@@ -496,11 +334,11 @@ function uploadFiles(files)
                 StartSqlEditorWithTitle(fileObjs[idx].fileName, fileObjs[idx].data);
             }
         }, false);
-    xhr.addEventListener("error", function(e) {progressLbl.text("upload error!");}, false);
-    xhr.addEventListener("abort", function(e) {progressLbl.text("upload cancled!");}, false);
+    xhr.addEventListener("error", function() {progressLbl.text("upload error!");}, false);
+    xhr.addEventListener("abort", function() {progressLbl.text("upload cancled!");}, false);
 
     xhr.open("POST", "app/upload");
-    xhr.setRequestHeader('dderl-session', (dderlState.session != null ? '' + dderlState.session : ''));
+    xhr.setRequestHeader('dderl-session', (dderlState.session !== null ? '' + dderlState.session : ''));
     xhr.send(fd);
 }
 
@@ -516,8 +354,7 @@ function show_more_apps() {
 
 
 /* Escape new lines and tabs */
-function escapeNewLines(str)
-{
+export function escapeNewLines(str) {
     var result = "";
     if(typeof str == 'string' || str instanceof String) {
         for(var i = 0; i < str.length; ++i) {
@@ -535,7 +372,7 @@ function escapeNewLines(str)
     return result;
 }
 
-function unescapeNewLines(str) {
+export function unescapeNewLines(str) {
     str = str.replace(/\\t/gi, "\t");
     str = str.replace(/\\n/gi, "\n");
     return unescape(str);
@@ -543,11 +380,11 @@ function unescapeNewLines(str) {
 
 function get_local_apps(table) {
     ajaxCall(null, 'about', null, 'about', function(applications) {
-        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
-        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
-        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
+        applications.jQuery = {version : $.fn.jquery, dependency : true};
+        applications.jQueryUI = {version : $.ui.version, dependency : true};
+        applications.SlickGrid = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
         var apps = '';
-        for(app in applications) {
+        for(let app in applications) {
             var version = applications[app].version;
             if(app === "dderl") {
             } else if(applications[app].dependency) {
@@ -571,7 +408,7 @@ function get_local_apps(table) {
 function get_remote_apps(table) {
     ajaxCall(null, 'remote_apps', {remote_apps : {connection: dderlState.connection}}, 'remote_apps', function(applications) {
         var extra_apps = '';
-        for(app in applications) {
+        for(let app in applications) {
             var version = applications[app].version;
             if(app !== "dderl") {
                 extra_apps += '<tr class="extra-app">';
@@ -585,14 +422,13 @@ function get_remote_apps(table) {
     });
 }
 
-function show_about_dlg()
-{
+export function show_about_dlg() {
     ajaxCall(null, 'about', null, 'about', function(applications) {
-        applications['jQuery'] = {version : $.fn.jquery, dependency : true};
-        applications['jQueryUI'] = {version : $.ui.version, dependency : true};
-        applications['SlickGrid'] = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
+        applications.jQuery = {version : $.fn.jquery, dependency : true};
+        applications.jQueryUI = {version : $.ui.version, dependency : true};
+        applications.SlickGrid = {version : (new Slick.Grid($('<div>'), [], [], [])).slickGridVersion, dependency : true};
 
-        var aboutDlg = $('<div id="about-dderl-dlg"></div>')
+        var aboutDlg = $('<div id="about-dderl-dlg"></div>');
 
         if(dderlState.connection) {
             aboutDlg.append('<div class="remote-apps"><a id="remote-apps-link" title="Show all remote apps" href="#">show remote</a></div>');
@@ -600,14 +436,14 @@ function show_about_dlg()
 
         var table = '<table class="about-deps-table" cellspacing="5" border="0">';
         var extra_apps = '';
-        for(app in applications) {
+        for(let app in applications) {
             var version = applications[app].version;
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
                 p += '<p class="about-vsn">' + version + ' GUI 1.5.2</p>';
                 p += '<p class="about-desc">' + description + '</p>';
-                p += '<hr>'
+                p += '<hr>';
                 aboutDlg.prepend(p);
             } else if(applications[app].dependency) {
                 table += '<tr>';
@@ -642,8 +478,10 @@ function show_about_dlg()
             }
         );
 
-        var divMore = '<div class="about-more"><a id="more-apps-link" title="Show all running apps" href="#" onclick="show_more_apps()">+</a></div>';
-        aboutDlg.append(divMore);
+        let moreAppsLink = $('<a id="more-apps-link" title="Show all running apps" href="#">+</a>');
+        moreAppsLink.click(() => show_more_apps());
+        var divMore = $('<div class="about-more"></div>');
+        aboutDlg.append(divMore.append(moreAppsLink));
 
         aboutDlg.dialog({
             modal: false,
@@ -661,8 +499,8 @@ function show_about_dlg()
     });
 }
 
-function alert_jq(string)
-{
+/***** TODO: This should be moved to a dderl_dialogs or dderl_alert module **/
+export function alert_jq(string) {
     var dlgDiv =
         $('<div>')
         .appendTo(document.body)
@@ -684,7 +522,7 @@ function alert_jq(string)
     return dlgDiv;
 }
 
-function confirm_jq(dom, callback)
+export function confirm_jq(dom, callback)
 {
     var content = dom.content;
 
@@ -694,8 +532,8 @@ function confirm_jq(dom, callback)
     content = '<h1 style="color:red">CAUTION : IRREVERSIBLE ACTION</h1>'+
               '<p style="background-color:black;color:yellow;font-weight:bold;text-align:center;">'+
               'If confirmed can NOT be undone</p>'+
-              (content.length > 0
-               ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
+              (content.length > 0 ?
+                '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">'+
                  content+'</div>'
                : '');
     
@@ -728,7 +566,7 @@ function confirm_jq(dom, callback)
     return dlgDiv;
 }
 
-function prompt_jq(dom, callback)
+export function prompt_jq(dom, callback)
 {
     var content = dom.content;
     var value = '';
@@ -740,18 +578,20 @@ function prompt_jq(dom, callback)
         content = '<form id="prompt_form"><fieldset>' +
                   '<label for="prompt_jq_input">' + dom.label + ':</label>' +
                   '<input type="text" id="prompt_jq_input" name="prompt_jq_input" class="text ui-widget-content ui-corner-all" value="'+ value +'" autofocus/>' +
-                  (content.length > 0
-                   ? '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
+                  (content.length > 0 ?
+                    '<div style="position:absolute;top:65px;bottom:5px;overflow-y:scroll;left:5px;right:5px;">' +
                      content + '</div>'
                    : '') +
                    '</fieldset></form>';
+
     var execute_callback = function(dlg) {
         var inputValue = $("#prompt_jq_input").val();
         if (inputValue) {
             dlg.dialog("close");
             callback(inputValue);
         }
-    }
+    };
+
     var dlgDiv =
         $('<div>')
         .append(content)
@@ -776,6 +616,7 @@ function prompt_jq(dom, callback)
                 }
             }
         });
+
     $('#prompt_jq_input').keypress(function(event) {
         if(event.which == 13) {
             event.preventDefault();
@@ -786,9 +627,10 @@ function prompt_jq(dom, callback)
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
 }
+/********  End alert dialogs functions */
 
-function beep()
-{
+
+export function beep() {
     var beepStorage = sessionStorage.getItem("beep-sound");
     var beep = $("#beep-sound")[0];
 
@@ -838,18 +680,18 @@ $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
 if (window.console && window.console.log && window.console.error) {
     console.log('console log is defined');
 } else {
-    window['console'] = {log: function(){ }, error: function(){ }};
+    window.console = {log: function(){ }, error: function(){ }};
     console.log('dummy console is created');
 }
 
-function change_password(shouldConnect) {
+export function change_password(shouldConnect) {
     var loggedInUser;
     if(dderlState.connected_user && dderlState.connection) {
         loggedInUser = dderlState.connected_user;
         change_connect_password(loggedInUser);
     } else {
         loggedInUser = $('#btn-change-password').data("logged_in_user");
-        if(loggedInUser == undefined || loggedInUser.length == 0) {
+        if(!loggedInUser || loggedInUser.length === 0) {
             login_first();
             return;
         }
@@ -857,8 +699,7 @@ function change_password(shouldConnect) {
     }
 }
 
-function smartDialogPosition(container, owner, self, checks)
-{
+export function smartDialogPosition(container, owner, self, checks) {
     if(!checks || checks.length === 0) {
         checks = ['right'];
     }
@@ -897,10 +738,12 @@ function smartDialogPosition(container, owner, self, checks)
     }
 }
 
+// TODO: Fix the automatic positioning of windows
+/*
 function findFreeSpace(self) {
     var currentDlgs = $(".ui-dialog-content");
     var dialogPositions = [];
-    for(var i = 0; i < currentDlgs.length; ++i) {
+    for(let i = 0; i < currentDlgs.length; ++i) {
         if($(currentDlgs[i]).dialog('isOpen')) {
             var dlg = $(currentDlgs[i]).dialog("widget");
             var box = {top   : dlg.position().top,
@@ -910,48 +753,19 @@ function findFreeSpace(self) {
             dialogPositions.push(box);
         }
     }
-    dialogPositions.sort(function(b1, b2) {return b1.left - b2.left});
+    dialogPositions.sort(function(b1, b2) { return b1.left - b2.left; });
     //TODO: Naive implementation, we improve it if it works...
-    for(var i = 0; i < $("#main-body").width(); i += 10) {
-        for(var j = 0; j < $("#main-body").height(); j += 10) {
+    for(let i = 0; i < $("#main-body").width(); i += 10) {
+        for(let j = 0; j < $("#main-body").height(); j += 10) {
         }
     }
     console.log(self.dialog("widget").width() + ", " + self.dialog("widget").height());
     //console.log(dialogPositions);
 }
+*/
 
-function patch_jquery_ui() {
-    // Since version 1.10 of jquery do not support html on title's dialog
-    // http://stackoverflow.com/questions/14488774/using-html-in-a-dialogs-title-in-jquery-ui-1-10
-    // https://github.com/jquery/jquery-ui/commit/7e9060c109b928769a664dbcc2c17bd21231b6f3
-    $.widget("ui.dialog", $.extend({}, $.ui.dialog.prototype, {
-        _title: function (title) {
-            title.html(this.options.title || "&#160;");
-        }
-    }));
-}
-
-function updateWindowTitle(link, title) {
-    var windowsList = document.getElementById("window-finder");
-    link.textContent = title;
-
-    // Set the size of the dropdown if the size is bigger than the current one
-    // 9 px for each character, with a minimun of 100px
-    var titleSize = title.length * 9;
-    if(titleSize < 100) {
-        titleSize = 100;
-    }
-    if(windowsList.style.width) {
-        var currentRowSize = parseInt(windowsList.style.width, 10);
-        if(currentRowSize < titleSize) {
-            windowsList.style.width = titleSize + "px";
-        }
-    } else {
-        windowsList.style.width = titleSize + "px";
-    }
-}
-
-function addWindowFinder(table, title) {
+// TODO: move this function to a separate tablelist module
+export function addWindowFinder(table, title) {
     // Create the elements.
     var windowsList = document.getElementById("window-finder");
     var link = document.createElement("a");
@@ -989,21 +803,20 @@ function addWindowFinder(table, title) {
     windowsList.appendChild(li);
 
     // Bind to the close event to remove it from the list.
-    table._dlg.bind("dialogclose", function(event, ui) {
-        var textChild = "";
+    table._dlg.bind("dialogclose", function() {
         windowsList.removeChild(li);
         // Set the size to the biggest element
-        var biggestChild = 100;
-        for(var i = 0; i < windowsList.children.length; ++i) {
-            sizeChild = windowsList.children[i].textContent.length * 9;
+        let biggestChild = 100;
+        for(let i = 0; i < windowsList.children.length; ++i) {
+            let sizeChild = windowsList.children[i].textContent.length * 9;
             if(sizeChild > biggestChild) {
                 biggestChild = sizeChild;
             }
         }
-         windowsList.style.width = biggestChild + "px";
+        windowsList.style.width = biggestChild + "px";
     });
 
-    table._dlg.bind("dialogclose", function(event, ui) {
+    table._dlg.bind("dialogclose", function() {
         var tablePos = dderlState.currentWindows.indexOf(table);
         if(tablePos != -1) {
             dderlState.currentWindows.splice(tablePos, 1);
@@ -1014,45 +827,27 @@ function addWindowFinder(table, title) {
     return link;
 }
 
-function groupByColumn(dataView,col,seperator)
-{
-    var getters = [];
-    var funcs = [];
-    var ldata = dataView.getItems();
-    var level = 0;
-    for (var r = 0; r < ldata.length; ++r) {
-        var curlength = ldata[r][col].split(seperator).length - 1;
-        if (level < curlength) level = curlength;
-    }
-    for (var r = 0; r < ldata.length; ++r) {
-        var curlength = ldata[r][col].split(seperator).length - 1;
-        var parts = ldata[r][col].split(seperator);
-        for (var li = 0; li < level - curlength; ++li)
-            parts.splice(-1, 0, "");
-        ldata[r][col+'_grp'] = parts.join('/');
-    }
+export function updateWindowTitle(link, title) {
+    var windowsList = document.getElementById("window-finder");
+    link.textContent = title;
 
-    for (var i = 0; i < level; i++) {          
-        funcs[funcs.length] = (function(idx) {   
-            return function(row) {
-                return row[col+'_grp'].split('/')[idx];
-            }
-        })(i);
-    }    
-    for(var i = 0; i < level; ++i) {
-        getters[getters.length] = {
-            getter: funcs[i],
-            formatter: function (g) {
-                return "" + g.value + "<span class='slick-group-count'>(" + g.count + ")</span>";
-            },
-            collapsed: true
-        };
+    // Set the size of the dropdown if the size is bigger than the current one
+    // 9 px for each character, with a minimun of 100px
+    var titleSize = title.length * 9;
+    if(titleSize < 100) {
+        titleSize = 100;
     }
-    dataView.setGrouping(getters);
+    if(windowsList.style.width) {
+        var currentRowSize = parseInt(windowsList.style.width, 10);
+        if(currentRowSize < titleSize) {
+            windowsList.style.width = titleSize + "px";
+        }
+    } else {
+        windowsList.style.width = titleSize + "px";
+    }
 }
 
-function password_change_dlg(title, loggedInUser, change_pass_fn)
-{
+export function password_change_dlg(title, loggedInUser, change_pass_fn) {
     $('<div id="dialog-change-password" title="'+title+'">' +
       '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
       '      <tr><td align=right valign=center>User&nbsp;</td>'+
@@ -1074,7 +869,7 @@ function password_change_dlg(title, loggedInUser, change_pass_fn)
       '  </table>' +
       '</div>').appendTo(document.body);
 
-    $('#password_change_login').keyup(function(e) {
+    $('#password_change_login').keyup(function() {
         $('#passstrength').removeClass().html('');
         clearTimeout($('#password_change_login').data("checkto"));
         $('#password_change_login').data("checkto",

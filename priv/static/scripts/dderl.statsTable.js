@@ -1,3 +1,7 @@
+import jQuery from 'jquery';
+import {addWindowFinder, ajaxCall, alert_jq, beep, dderlState,
+        smartDialogPosition} from './dderl';
+
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
 
@@ -72,11 +76,10 @@
             var self = this;
 
             if(self.options.title !== self._title) {self._title = self.options.title;}
-            if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement};
+            if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement;}
             if(self.options.initialQuery != self._cmd) {self._cmd = self.options.initialQuery;}
             if(self.options.columnIds != self._colIds) {self._colIds = self.options.columnIds;}
             if(self.options.rowIds != self._rowIds) {self._rowIds = self.options.rowIds;}
-
             if(self.options.parent != self._parent) {self._parent = self.options.parent;}
 
             self._plotDiv = $('<div>').appendTo(self.element);
@@ -100,7 +103,7 @@
                 self._txtlen =
                     $('#txtlen')
                     .css('font-family', self._fnt)
-                    .css('font-size', self._fntSz)
+                    .css('font-size', self._fntSz);
             }
 
             // toolbar container
@@ -110,14 +113,14 @@
             // create the dialog
             self.options.minWidth = self._footerWidth;
             self._dlg = self.element.dialog(self.options)
-                .bind("dialogresize", function(event, ui) {
+                .bind("dialogresize", function() {
                     self._grid.resizeCanvas();
                     self._dlgResized = true;
                 })
-                .bind("dialogfocus", function(event, ui) {
+                .bind("dialogfocus", function() {
                     self._grid.focus();
                 })
-                .bind("dialogbeforeclose", function(event, ui) {
+                .bind("dialogbeforeclose", function() {
                     self._grid.resetHeaderScroll();
                 });
 
@@ -154,14 +157,14 @@
             var gSelecteds  = gSelMdl.getSelectedRanges();
 
             var fullCols = [];
-            for(var i = 0; i < gSelecteds.length; ++i) {
+            for(let i = 0; i < gSelecteds.length; ++i) {
                 if(gSelecteds[i].fullCol) {
                     fullCols.push(gSelecteds[i]);
                 }
             }
 
             var found = false;
-            for(var i = 0; i < fullCols.length; ++i) {
+            for(let i = 0; i < fullCols.length; ++i) {
                 if(fullCols[i].contains(0, col)) {
                     found = true;
                     break;
@@ -198,23 +201,34 @@
                 .css('bottom', '0')
                 .css('overflow', 'hidden');
 
+            var toolElmFn = function(e) {
+                var self = e.data;
+                var btn = $(this).data('tag');
+                var fName = self._toolbarButtons[btn].clk;
+                var f = self[fName];
+                if($.isFunction(f)) {
+                    f(self);
+                } else {
+                    throw ('[' + self.options.title + '] toolbar ' + btn + ' has unimplimented cb ' + fName);
+                }
+            };
+
+            var identKeyPressHandler = function(evt) {
+                if(evt.which == 13) {
+                    var rownum = parseInt($(this).val());
+                    if(!isNaN(rownum)) {
+                        self._toolBarTxtBoxVal = rownum;
+                        evt.data = self;
+                        toolElmFn.call(this, evt);
+                    }
+                }
+                return true;
+            };
+
             // footer items
-            for(btn in self._toolbarButtons) {
+            for(let btn in self._toolbarButtons) {
                 var btnTxt = self._toolbarButtons[btn].tip;
                 var elm = self._toolbarButtons[btn];
-
-                var toolElmFn = function(e) {
-                    var self = e.data;
-                    var _btn = $(this).data('tag');
-                    var fName = self._toolbarButtons[_btn].clk;
-                    var f = self[fName];
-                    if($.isFunction(f)) {
-                        f(self);
-                    } else {
-                        throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
-                    }
-                };
-
                 var inph = self.options.toolBarHeight;
                 //if($.browser.msie) inph -= 2;
 
@@ -239,17 +253,7 @@
                     .css('text-align', 'right')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
-                    .keypress(function(evt) {
-                        if(evt.which == 13) {
-                            var rownum = parseInt($(this).val());
-                            if(rownum != NaN) {
-                                self["_toolBarTxtBoxVal"] = rownum;
-                                evt.data = self;
-                                toolElmFn.call(this, evt);
-                            }
-                        }
-                        return true;
-                    })
+                    .keypress(identKeyPressHandler)
                     .appendTo(self._footerDiv);
             }
             self._footerDiv
@@ -280,34 +284,38 @@
         // TODO: Create a context menu once per table instead of the global
         //       to allow dynamic menu options depending on the column content.
         _cnxtMenu: function(_menu) {
+            function leaveMenuHandler(e) {
+                var self = $('#' + _menu).data('cnxt');
+                e.preventDefault();
+                $(this).hide();
+                self._grid.focus();
+            }
+
+            function clickMenuHandler() {
+                var self = $('#' + _menu).data('cnxt');
+                if(self) {
+                    var columnId = null;
+                    console.log('self title _cnxtMenu ' + self.options.title);
+                    if(_menu === '_statsSlkHdrCnxtMnu') {
+                        columnId = $('#' + _menu).data('column-id');
+                    }
+                    self[_menu].dom.hide();
+                    self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
+                }
+            }
+
             if($('#'+_menu).length === 0) {
                 var mnu = $('<ul>')
                     .attr('id', _menu)
                     .addClass("context_menu")
                     .hide()
-                    .mouseleave(function(e) {
-                        var self = $('#'+_menu).data('cnxt');
-                        e.preventDefault();
-                        $(this).hide();
-                        self._grid.focus();
-                    })
+                    .mouseleave(leaveMenuHandler)
                     .appendTo(document.body);
                 for(var m in this[_menu]) {
                     if($.type(this[_menu][m]) === "string") {
                         $('<li>')
                             .attr("action", m)
-                            .click(function(e) {
-                                var self = $('#'+_menu).data('cnxt');
-                                if(undefined != self) {
-                                    var columnId = null;
-                                    console.log('self title _cnxtMenu ' + self.options.title);
-                                    if(_menu === '_statsSlkHdrCnxtMnu') {
-                                        columnId = $('#'+_menu).data('column-id');
-                                    }
-                                    self[_menu].dom.hide();
-                                    self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
-                                }
-                            })
+                            .click(clickMenuHandler)
                             .text(m)
                             .appendTo(mnu);
                     }
@@ -317,7 +325,7 @@
         },
 
         // delegate actions of context menu
-        _cnxtMenuAction: function(_menu, _action, _columnId) {
+        _cnxtMenuAction: function(_menu, _action) {
             var funName = this[_menu][_action];
             var fun = $.proxy(this[funName], this);
             if($.isFunction(fun)) {
@@ -334,37 +342,37 @@
             var self = this;
             var columns = self._grid.getColumns();
             var toHide = {};
-            for (var i=0; i<_ranges.length; ++i) {
+            for(let i = 0; i < _ranges.length; ++i) {
                 //Validate that id column is not on the selection.
-                if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0)  {
+                if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0) {
                     for(var j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
                         toHide[j] = true;
                     }
                 }
             }
             var toHideArray = [];
-            for(var j in toHide) {
+            for(let j in toHide) {
                 toHideArray[toHideArray.length] = parseInt(j);
             }
             toHideArray.sort(function(a,b) {return (a < b ? 1 : (a === b ? 0 : -1));});
 
             if(!self.hasOwnProperty('_hiddenColumns')) {
-                self['_hiddenColumns'] = new Array();
+                self._hiddenColumns = [];
             }
 
-            for(var j=0; j < toHideArray.length; ++j) {
+            for(let j = 0; j < toHideArray.length; ++j) {
                 self._hiddenColumns.push(
                     {
                         idxCol: toHideArray[j],
                         colContent: columns[toHideArray[j]]
                     }
                 );
-                columns.splice(toHideArray[j],1);
+                columns.splice(toHideArray[j], 1);
             }
             self._grid.setColumns(columns);
         },
 
-        _unhide: function(_ranges) {
+        _unhide: function() {
             var self = this;
             if(self.hasOwnProperty('_hiddenColumns')) {
                 var columns = self._grid.getColumns();
@@ -468,36 +476,36 @@
         {
             switch (columnName) {
             case "avg":
-                return "Shows the arithmetic mean of the rows with numeric values. If no \n" 
-                     + "numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the arithmetic mean of the rows with numeric values. If no \n" +
+                       "numerical values are available, then 'undefined' is displayed as a result.";
             case "column":
                 return "Shows the header of the selected column.";
             case "count":
                 return "Shows the number of selected rows and how many of them are relevant for the statistical ratios.";
             case "hash":
-                return "Shows the portable hash of a concatenation of all selected values.\n"
-                     + "Portable means regardless of machine architecture and ERTS version.";
+                return "Shows the portable hash of a concatenation of all selected values.\n" +
+                       "Portable means regardless of machine architecture and ERTS version.";
             case "max":
-                return "Shows the largest number of the rows with numeric values. If no \n"
-                     + "numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the largest number of the rows with numeric values. If no \n" +
+                       "numerical values are available, then 'undefined' is displayed as a result.";
             case "median":
-                return "Shows the median of the rows with numeric values. The median is the middle value or \n"
-                     + "an interpolated value that would be the middle value once the values are sorted.\n"
-                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the median of the rows with numeric values. The median is the middle value or \n" +
+                       "an interpolated value that would be the middle value once the values are sorted.\n" +
+                       "If no numerical values are available, then 'undefined' is displayed as a result.";
             case "min":
-                return "Shows the smallest number of the rows with numeric values. If no \n"
-                     + "numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the smallest number of the rows with numeric values. If no \n" +
+                       "numerical values are available, then 'undefined' is displayed as a result.";
             case "std_dev":
-                return "Shows the standard deviation of the rows with numeric values.\n"
-                     + "The standard deviation is calculated as the square root of the variance.\n"
-                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the standard deviation of the rows with numeric values.\n" +
+                       "The standard deviation is calculated as the square root of the variance.\n" +
+                       "If no numerical values are available, then 'undefined' is displayed as a result.";
             case "sum":
-                return "Shows the sum of the rows with numeric values. If no numerical \n"
-                     + "values are available, then 'undefined' is displayed as a result.";
+                return "Shows the sum of the rows with numeric values. If no numerical \n" +
+                       "values are available, then 'undefined' is displayed as a result.";
             case "variance":
-                return "Shows the variance of the rows with numeric values. If only one row \n"
-                     + "with a numeric value has been selected, then the variance is zero.\n"
-                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+                return "Shows the variance of the rows with numeric values. If only one row \n" +
+                       "with a numeric value has been selected, then the variance is zero.\n" +
+                       "If no numerical values are available, then 'undefined' is displayed as a result.";
             default:
                 return "";
             }
@@ -505,7 +513,6 @@
 
         setColumns: function(columns, hasPercent) {
             var self = this;
-            var dlg = self._dlg.dialog('widget');
 
             // Column Data
             var fldWidth = 0;
@@ -513,15 +520,15 @@
             columns[0].formatter = Slick.Formatters.IdFormatter;
             columns[0].headerCssClass = "numeric";
             columns[0].name = "0";
-            columns[0]['cannotTriggerInsert'] = true;
-            columns[0]['resizable']     = false;
-            columns[0]['sortable']      = false;
-            columns[0]['selectable']    = false;
+            columns[0].cannotTriggerInsert = true;
+            columns[0].resizable = false;
+            columns[0].sortable = false;
+            columns[0].selectable = false;
             for (var i = 1; i < columns.length; ++i) {
-                columns[i]['toolTip']       = self._getToolTip(columns[i].name);
-                columns[i]['resizable']     = true;
-                columns[i]['sortable']      = true;
-                columns[i]['selectable']    = true;
+                columns[i].toolTip = self._getToolTip(columns[i].name);
+                columns[i].resizable = true;
+                columns[i].sortable = true;
+                columns[i].selectable = true;
                 if(columns[i].type == "numeric") {
                     columns[i].cssClass = "numeric";
                     columns[i].headerCssClass = "numeric";
@@ -546,8 +553,7 @@
 
         // public function for loading rows
         // used by ajaxCall but can also be used directly
-        appendRows: function(_rows)
-        {
+        appendRows: function(_rows) {
             //console.time('appendRows');
             //console.profile('appendRows');
 
@@ -562,7 +568,7 @@
 
             if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec)) {
                 var fieldWidth = 0;
-                for(var i=0;i<c.length; ++i) {
+                for(let i=0;i<c.length; ++i) {
                     fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
                     fieldWidth = fieldWidth + 0.4 * fieldWidth;
                     if(c[i].width < fieldWidth) {
@@ -592,7 +598,7 @@
                 break;
             case "app": // append
                 for(var i=0; i < _rows.rows.length; ++i) {
-                    self._gdata.push(_rows.rows[i])
+                    self._gdata.push(_rows.rows[i]);
                 }
                 var nRowsMoved = self._gdata.length - _rows.keep;
                 if(nRowsMoved > 0) {
@@ -610,7 +616,7 @@
             case "prp": // prepend
                 do {
                     self._gdata.splice(0, 0, _rows.rows.pop());
-                } while (_rows.rows.length > 0)
+                } while (_rows.rows.length > 0);
                 var nRowsUp = self._gdata.length - _rows.keep;
                 self._gdata.splice(_rows.keep, nRowsUp);
                 computedFocus = gvp.top - Math.min(_rows.rows.length, gvpH - 4) + nRowsUp;
@@ -628,8 +634,9 @@
                 break;
             case "ins": // add rows to the end, keep all
                 console.log('ins');
-                for(var i=0; i < _rows.rows.length; ++i)
+                for(let i=0; i < _rows.rows.length; ++i) {
                     self._gdata.push(_rows.rows[i]);
+                }
                 redraw = true;
                 break;
             case "nop": // no operation
@@ -767,21 +774,21 @@
                     break;
                 case "app": // append
                     self._fillSeries(rows);
-                    for(var i = 0; i < self._series.length; ++i) {
+                    for(let i = 0; i < self._series.length; ++i) {
                         self._series[i].splice(0, self._series[i].length - data.keep);
                     }
                     break;
                 case "prp": // prepend
                     while(rows.length > 0) {
                         var row = rows.pop();
-                        for(var j = 1; j < self._columns.length; ++j) {
+                        for(let j = 1; j < self._columns.length; ++j) {
                             // The first column is the date.
                             var time = self._parseDate(row[self._columns[0]]);
                             var value = row[self._columns[j]];
                             self._series[j-1].splice(0, 0, [time, value]);
                         }
                     }
-                    for(var i = 0; i < self._series.length; ++i) {
+                    for(let i = 0; i < self._series.length; ++i) {
                         self._series[i].splice(data.keep, self._series[i].length - data.keep);
                     }
                     break;
@@ -813,10 +820,13 @@
                 self._tbTxtBox.attr('title',data.toolTip);
                 self._tbTxtBox.val(data.cnt+' ');
                 var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
-                for (var i = 0; i < tbClass.length; ++i)
+                for(let i = 0; i < tbClass.length; ++i) {
                     self._tbTxtBox.removeClass(tbClass[i]);
-                self._tbTxtBox.addClass('tb_'+data.state);
-                if(data.message.length > 0) alert_jq(data.message);
+                }
+                self._tbTxtBox.addClass('tb_' + data.state);
+                if(data.message.length > 0) {
+                    alert_jq(data.message);
+                }
 
                 $.plot(self._divPlaceHolder, self._series, {
                     xaxis: {
@@ -837,19 +847,22 @@
 
         // loading rows
         buttonPress: function(button) {
-            ajaxCall(this, 'button', {button: {connection: dderlState.connection,
-                                                    statement : this._stmt,
-                                                    btn       : button
-                                                   }}, 'button', 'updateData');
+            ajaxCall(this, 'button', {
+                button: {
+                    connection: dderlState.connection,
+                    statement: this._stmt,
+                    btn: button
+                }
+            }, 'button', 'updateData');
         },
 
-        _handleClick: function(e, args) {
+        _handleClick: function() {
             var self = this;
             self._dlg.dialog("moveToTop");
         },
 
         // Recover the focus if the vieport gets a mouse event.
-        _handleMouseDown: function(e, args) {
+        _handleMouseDown: function() {
             console.log("handle mouse down");
             var self = this;
             // If the tale is disabled do not set the focus.
@@ -882,7 +895,7 @@
             //}
         },
 
-        _handleDragInit: function(e, args) {
+        _handleDragInit: function(e) {
             e.stopImmediatePropagation();
             var self = this;
             self._dlg.dialog("moveToTop");
@@ -890,7 +903,7 @@
             console.log("Focus set");
         },
 
-        _handleKeyDown: function(e, args) {
+        _handleKeyDown: function(e) {
             var keyCode = $.ui.keyCode;
 
             // TODO: Review this, maybe it can be simplified.
