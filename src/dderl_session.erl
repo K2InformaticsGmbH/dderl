@@ -491,6 +491,20 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
             reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
             State#state{active_sender = undefined}
     end;
+process_call({[<<"password_strength">>], ReqData}, _Adapter, From, {SrcIp,_},
+             #state{user_id = UserId, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "activate_receiver", ReqData, "", "", "", ""),
+    #{<<"password">> := Password} = imem_json:decode(ReqData, [return_maps]),
+    reply(
+      From,
+      [{<<"password_strength">>,
+        case (imem_seco:password_strength_fun())(Password) of
+            strong -> <<"strong">>;
+            short -> <<"short">>;
+            weak -> <<"weak">>;
+            medium -> <<"medium">>
+        end}], self()),
+    State;
 
 % commands handled generically
 process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_id = UserId, id = Id} = State) when
@@ -518,7 +532,6 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
              #state{sess=Sess, user_id=UserId, adapt_priv = AdaptPriv,
                     conn_info = ConnInfo, id = Id} = State)
   when Cmd =:= [<<"connect">>];
-       Cmd =:= [<<"connect_change_pswd">>];
        Cmd =:= [<<"disconnect">>] ->
     #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
     SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),

@@ -821,7 +821,10 @@ send_result_table_cmd(From, BinCmd, Results) ->
             From ! {reply, error_invalid_conn()};
         _ ->
             TableErrorsBin = lists:foldl(
-                fun({Table, Error}, Acc) ->
+                fun({{Table, _}, Error}, Acc) ->
+                        ErrorBin = imem_datatype:term_to_io(Error),
+                        <<Acc/binary, Table/binary, " - ", ErrorBin/binary, ", ">>;
+                   ({Table, Error}, Acc) ->
                         ErrorBin = imem_datatype:term_to_io(Error),
                         <<Acc/binary, Table/binary, " - ", ErrorBin/binary, ", ">>;
                    (Table, Acc) ->  <<Acc/binary, Table/binary, ", ">>
