@@ -3,6 +3,22 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.1 (Release Date 16.06.2016)
+======================================
+* imem 1.5.3
+* Reason for errors on snap or restore.
+* Fixed sql history not working for chrome.
+
+Version 1.6.0 (Release Date 10.06.2016)
+======================================
+* imem 1.5.2
+* Support of D3 graphics (Pilot release)
+
+Version 1.5.3 (Release Date 29.05.2016)
+======================================
+* imem 1.5.1
+* code cleanup
+
 Version 1.5.2 (Release Date 17.05.2016)
 ======================================
 * Added minimum and maximum to statistics

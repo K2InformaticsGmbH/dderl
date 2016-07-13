@@ -64,11 +64,13 @@ function insertAtCursor(myField, myValue) {
     _prettyTb       : null,
     _boxDiv         : null,
     _paramsDiv      : null,
+    _graphEdit      : null,
 
     _modCmd         : "",
     _cmdFlat        : "",
     _cmdPretty      : "",
-    _boxJson        : {},  
+    _boxJson        : {},
+    _script         : "",  
     _history        : null,
     _historySelect  : null,
     _cmdChanged     : false,
@@ -126,6 +128,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).remove();
                           },
         cmdFlat         : "",
+        script          : "",
         cmdOwner        : null,
         optBinds        : null,
         history         : [],
@@ -156,6 +159,7 @@ function insertAtCursor(myField, myValue) {
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
         if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
+        if(self.options.script      !== self._script)       self._script    = self.options.script;
         if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
         if(self.options.title       !== self._title) {
@@ -214,6 +218,7 @@ function insertAtCursor(myField, myValue) {
 
         self._flatTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+            .addClass('sql_text_editor')        
             .addClass('sql_text_flat')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdFlat);
@@ -223,6 +228,7 @@ function insertAtCursor(myField, myValue) {
         self._prettyTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .attr('wrap', 'off')
+            .addClass('sql_text_editor')        
             .addClass('sql_text_pretty')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdPretty);
@@ -235,7 +241,36 @@ function insertAtCursor(myField, myValue) {
             .css('font-family', self._fnt);
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
+        
+        // TODO: This should be ace probably instead of just text area / snippets is good idea...
+        self._graphEdit =
+            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+            .addClass('sql_text_editor')
+            .on('keydown', this, function(e) {
+                if((e.keyCode || e.which) == 9) {
+                    e.preventDefault();
+                    insertAtCursor(this, "  ");
+                }
+            });
 
+        if(!self._script) {
+            var graphScriptHelp = "// This code is executed once and it should initialize the graph, the";
+            graphScriptHelp += "\n// available parameters are (container, width, height)";
+            graphScriptHelp += "\n\n// container: d3 selection of the contaner div for the graph";
+            graphScriptHelp += "\n// width: width of the container";
+            graphScriptHelp += "\n// height: height of the container";
+            graphScriptHelp += "\n\n// The function must then return an object with the following callbacks:";
+            graphScriptHelp += "\n\nreturn {";
+            graphScriptHelp += "\n    on_data: function(data) {},";
+            graphScriptHelp += "\n    on_resize: function(w, h) {},";
+            graphScriptHelp += "\n    on_reset: function() {}";
+            graphScriptHelp += "\n};";
+            self._graphEdit.val(graphScriptHelp);
+        } else {
+            self._graphEdit.val(self._script);
+        }
+        
+        // TODO: This should be dynamic as we need to create new script tabs on the fly.
         self._editDiv =
             $('<div>')
             .append(
@@ -244,6 +279,7 @@ function insertAtCursor(myField, myValue) {
               +'  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>'
               +'  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>'
               +'  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>'
+              +'  <li><a href="#tabgraph">D3 Graph</a></li>'
               +'</ul>')
             )
             .append(
@@ -269,6 +305,11 @@ function insertAtCursor(myField, myValue) {
               .css("overflow-y", "auto")
               .attr('id','tabparams')
               .append(self._paramsDiv)
+            )
+            .append(
+                $('<div>')
+                .attr('id','tabgraph')
+                .append(self._graphEdit)    
             )
             .css('position', 'absolute')
             .css('overflow', 'hidden')
@@ -443,6 +484,11 @@ function insertAtCursor(myField, myValue) {
      */
     _saveView: function() {
         var viewId = this._getOwnerViewId();
+
+        if(!viewId) {
+            viewId = this.options.viewId;
+        }
+        
         if(viewId) {
             this._updateView(viewId, this._title);
         } else {
@@ -466,7 +512,8 @@ function insertAtCursor(myField, myValue) {
             save_view : {
                 conn_id       : dderlState.connectionSelected.connection,
                 name          : viewName,
-                content       : self._modCmd
+                content       : self._modCmd,
+                table_layout  : this._getLayout()
             }
         };
     },
@@ -666,14 +713,13 @@ function insertAtCursor(myField, myValue) {
                     .appendTo(toolDiv);
 
                 for(var i = 0; i < self._history.length; ++i) {
-                    var optionToAdd = $('<option>')
-                        .text(self._history[i])
-                        .click(function (evt) {
-                            evt.preventDefault();
-                            self.showCmd($(this).text(), false);
-                        });
-                    sel.append(optionToAdd);
+                    sel.append($('<option>').text(self._history[i]));
                 }
+                sel.change(function(evt) {
+                    console.log("the sel val", sel.val());
+                    evt.preventDefault();
+                    self.showCmd(sel.val(), false);
+                });
                 self._historySelect = sel;
             }
         }
@@ -782,7 +828,7 @@ function insertAtCursor(myField, myValue) {
         } else {
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
                 self._modCmd = self._cmdFlat;
-                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn);
+                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn, self._getPlaneData());
             } else {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
@@ -817,7 +863,6 @@ function insertAtCursor(myField, myValue) {
         } else if(isMultiple) {
             initOptions.title = resultQry.qstr;
             $('<div>')
-                .appendTo(document.body)
                 .table(initOptions)
                 .table('renderTable', resultQry);
             self._execMultStmts();
@@ -827,14 +872,43 @@ function insertAtCursor(myField, myValue) {
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>')
             }
-            resultQry["qparams"] = self._optBinds;
+            resultQry.qparams = self._optBinds;
+
+            if(!resultQry.hasOwnProperty('table_layout')) {
+                resultQry.table_layout = {};
+            }
+            $.extend(resultQry.table_layout, this._getPlaneData());
+            
             this._cmdOwner
-                .appendTo(document.body)
                 .table(initOptions)
                 .table('renderTable', resultQry);
         }
     },
 
+    _getLayout: function() {
+        var self = this;
+        if(null != this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
+            return $.extend(this._cmdOwner.table('getTableLayout'), this._getPlaneData());
+        } else {
+            return this._getPlaneData();
+        }
+    },
+
+    // TODO: This is restricted to one d3 script for now.
+    _getPlaneData: function() {
+        var self = this;
+        planeToShow = 0;
+        if(self._editDiv.tabs("option", "active") > 3) {
+            planeToShow = 1;
+        }
+        return {
+            plane_specs: [{
+                script: self._graphEdit.val()
+            }],
+            plane_to_show: planeToShow
+        };        
+    },
+      
     _resultStmt: function(resultQry) {
         this._processResultStmt(resultQry, false);
     },
@@ -861,12 +935,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         if(self._history.indexOf(sql) == -1) {
             self._history.unshift(sql);
-            self._historySelect.prepend(
-                $('<option>').text(sql)
-                    .click(function (evt) {
-                        evt.preventDefault();
-                        self.showCmd($(this).text(), false);
-                    }));
+            self._historySelect.prepend($('<option>').text(sql));
         }
     },
 
@@ -931,8 +1000,18 @@ function insertAtCursor(myField, myValue) {
                 var dialogPos = self._dlg.dialog("widget").position();
                 var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
                 var distanceToBottom = $(window).height() - (dialogPos.top + newDialogHeight) - 30;
+
                 if(distanceToBottom < 0) {
-                    self._dlg.dialog("option", "position", [dialogPos.left, dialogPos.top + distanceToBottom]);
+                    var newTop = dialogPos.top + distanceToBottom - 20;
+                    var newPos = {
+                        my: "left top",
+                        at: "left+" + dialogPos.left + " top+" + newTop,
+                        of: "#main-body",
+                        collision : 'none'
+                    };
+
+                    // Override default dialog options.
+                    self._dlg.dialog("option", "position", newPos);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
             }
@@ -1120,13 +1199,7 @@ function insertAtCursor(myField, myValue) {
 
     addToHistorySelect: function(sql) {
         var self = this;
-        self._historySelect.prepend(
-            $('<option>').text(sql)
-                .click(function (evt) {
-                    evt.preventDefault();
-                    self.showCmd($(this).text(), false);
-                })
-        );
+        self._historySelect.prepend($('<option>').text(sql));
         self.selHistorySelect(0, sql);
     },
 

@@ -271,7 +271,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _ -> float end, readonly = true}
                       || C <- Cols],
             ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
@@ -304,7 +304,7 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
             ?Error("Stats error ~p", [Error], St),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = if C =:= <<"column">> -> binstr; true -> float end, readonly = true}
+            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _  -> float end, readonly = true}
                       || C <- Cols],
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
                                       , cnt          = Total
@@ -333,7 +333,7 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Row = proplists:get_value(<<"row">>, BodyJson, 0),
     R = Statement:row_with_key(Row),
-    ?Debug("Row with key ~p",[R]),
+    ?Debug("Row with key ~p~n~n",[R]),
     Tables = [element(1,T) || T <- tuple_to_list(element(3, R)), size(T) > 0],
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     case {IsView, element(3, R)} of
@@ -341,9 +341,11 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
             C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
             From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
                                         [{<<"isView">>, true}
-                                         ,{<<"view_id">>, OldV#ddView.id}
-                                         ,{<<"title">>, StringToFormat}
-                                         ,{<<"cmd">>, C#ddCmd.command}]
+                                        ,{<<"view_id">>, OldV#ddView.id}
+                                        ,{<<"title">>, StringToFormat}
+                                        ,{<<"cmd">>, C#ddCmd.command}
+                                        ,{<<"table_layout">>, (OldV#ddView.state)#viewstate.table_layout}
+                                        ,{<<"column_layout">>, (OldV#ddView.state)#viewstate.column_layout}]
                                        }])};
         _ ->
             ?Debug("The string to format: ~p", [StringToFormat]),

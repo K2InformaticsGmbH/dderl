@@ -40,6 +40,7 @@
             resizable       : true,
             modal           : false,
             title           : "",
+            toolTip         : "",
             appendTo        : "#main-body",
             canMinimize     : true,
             canMaximize     : true,
@@ -463,6 +464,45 @@
             return (rows * this.options.slickopts.rowHeight) + this.options.toolBarHeight;
         },
 
+        _getToolTip: function(columnName)
+        {
+            switch (columnName) {
+            case "avg":
+                return "Shows the arithmetic mean of the rows with numeric values. If no \n" 
+                     + "numerical values are available, then 'undefined' is displayed as a result.";
+            case "column":
+                return "Shows the header of the selected column.";
+            case "count":
+                return "Shows the number of selected rows and how many of them are relevant for the statistical ratios.";
+            case "hash":
+                return "Shows the portable hash of a concatenation of all selected values.\n"
+                     + "Portable means regardless of machine architecture and ERTS version.";
+            case "max":
+                return "Shows the largest number of the rows with numeric values. If no \n"
+                     + "numerical values are available, then 'undefined' is displayed as a result.";
+            case "median":
+                return "Shows the median of the rows with numeric values. The median is the middle value or \n"
+                     + "an interpolated value that would be the middle value once the values are sorted.\n"
+                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+            case "min":
+                return "Shows the smallest number of the rows with numeric values. If no \n"
+                     + "numerical values are available, then 'undefined' is displayed as a result.";
+            case "std_dev":
+                return "Shows the standard deviation of the rows with numeric values.\n"
+                     + "The standard deviation is calculated as the square root of the variance.\n"
+                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+            case "sum":
+                return "Shows the sum of the rows with numeric values. If no numerical \n"
+                     + "values are available, then 'undefined' is displayed as a result.";
+            case "variance":
+                return "Shows the variance of the rows with numeric values. If only one row \n"
+                     + "with a numeric value has been selected, then the variance is zero.\n"
+                     + "If no numerical values are available, then 'undefined' is displayed as a result.";
+            default:
+                return "";
+            }
+        },
+
         setColumns: function(columns, hasPercent) {
             var self = this;
             var dlg = self._dlg.dialog('widget');
@@ -478,6 +518,7 @@
             columns[0]['sortable']      = false;
             columns[0]['selectable']    = false;
             for (var i = 1; i < columns.length; ++i) {
+                columns[i]['toolTip']       = self._getToolTip(columns[i].name);
                 columns[i]['resizable']     = true;
                 columns[i]['sortable']      = true;
                 columns[i]['selectable']    = true;
