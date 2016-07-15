@@ -714,6 +714,68 @@ div#main_footer {
     border: 0px;
 }
 
+.dropdown.widthList{
+    width: 185px;
+}
+
+ul.dashboard.dropdown li:hover{
+    background: transparent;
+}
+
+.heightButtons{
+    height: 20px;
+}
+.ui-corner-flat {
+    border-top-left-radius: 0px !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+
+.inputText, .inputTextDefault, .inputTextToEdit {
+    background: #e6e6e6;
+    padding-top: 0px;
+    width: 146px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-right: 2px;
+    padding-left: 2px;
+    border-bottom-width: 0px;
+}
+.inputTextDefault {
+    background: #ffffff;
+}
+.inputTextToEdit {
+    width: 120px;
+    font-family: Verdana,Arial,sans-serif;
+    font-size: 1.1em;
+}
+.right {
+    float: right;
+}
+
+button.heightButtons.right.ui-button.ui-widget.ui-state-default.ui-button-icon-only.ui-corner-flat.ui-corner-left {
+    margin-right: 0px;
+}
+.inputSave {
+    width: 120px;
+    padding-right: 0px;
+}
+
+.removeBorder {
+    border-top-width: 0px;
+    border-bottom-width: 0px;
+}
+input.inputText.ui-button.ui-widget.ui-state-default {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    width: 130px;
+    border: 0px;
+    text-align: left;
+}
+
 .colorIcon .fa-step-backward,
 .colorIcon .fa-backward,
 .colorIcon .fa-play,
@@ -734,6 +796,9 @@ div#main_footer {
 .colorIcon:hover .fa-check,
 .colorIcon:hover .fa-times {
     color: #212121;
+}
+ul.dropdown.floatNone ul li {
+    float: none;
 }
 
 /* Increasing handlers for resize dialogs */
@@ -766,7 +831,6 @@ div#main_footer {
 	width: 15px;
 	height: 15px;
 }
-
 
 /* d3 graphs */
 .d3-container {
