@@ -216,13 +216,30 @@ process_cmd({[<<"save_dashboard">>], ReqBody}, _Adapter, Sess, UserId, From, _Pr
     Id = proplists:get_value(<<"id">>, BodyJson, -1),
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Views = proplists:get_value(<<"views">>, BodyJson, []),
-    case dderl_dal:save_dashboard(Sess, UserId, Id, Name, Views) of
+    Res = case dderl_dal:save_dashboard(Sess, UserId, Id, Name, Views) of
         {error, Reason} ->
-            Res = jsx:encode([{<<"save_dashboard">>, [{<<"error">>, Reason}]}]);
+            jsx:encode([{<<"save_dashboard">>, [{<<"error">>, Reason}]}]);
         NewId ->
-            Res = jsx:encode([{<<"save_dashboard">>, NewId}])
+            jsx:encode([{<<"save_dashboard">>, NewId}])
     end,
     From ! {reply, Res};
+process_cmd({[<<"rename_dashboard">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
+    Id = proplists:get_value(<<"id">>, ReqBody),
+    Name = proplists:get_value(<<"name">>, ReqBody),
+    case dderl_dal:rename_dashboard(Sess, Id, Name) of
+        {error, Reason} ->
+            From ! {reply, jsx:encode([{<<"rename_dashboard">>, [{<<"error">>, Reason}]}])};
+        Name ->
+            From ! {reply, jsx:encode([{<<"rename_dashboard">>, Name}])}
+    end;
+process_cmd({[<<"delete_dashboard">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
+    Id = proplists:get_value(<<"id">>, ReqBody),
+    case dderl_dal:delete_dashboard(Sess, Id) of
+        {error, Reason} ->
+            From ! {reply, jsx:encode([{<<"delete_dashboard">>, [{<<"error">>, Reason}]}])};
+        Id ->
+            From ! {reply, jsx:encode([{<<"delete_dashboard">>, Id}])}
+    end;
 process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv) ->
     case dderl_dal:get_dashboards(Sess, UserId) of
         {error, Reason} ->

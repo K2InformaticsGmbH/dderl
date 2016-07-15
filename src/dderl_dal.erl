@@ -31,6 +31,8 @@
         ,is_local_query/1
         ,can_connect_locally/1
         ,save_dashboard/5
+        ,rename_dashboard/3
+        ,delete_dashboard/2
         ,get_dashboards/2
         ,add_adapter_to_cmd/3
         ,user_name/1
@@ -298,6 +300,26 @@ save_dashboard(Sess, Owner, DashId, Name, Views) ->
     Sess:run_cmd(write, [ddDash, NewDash]),
     ?Debug("dashboard saved ~p", [NewDash]),
     DashId.
+
+-spec rename_dashboard({atom(), pid()}, integer(), binary()) -> binary() | {error, binary()}.
+rename_dashboard(Sess, Id, Name) ->
+    case check_cmd_select(Sess, [ddDash, [{#ddDash{id=Id, _='_'}, [], ['$_']}]]) of
+        {error, _} = Error -> Error;
+        [] -> {error, <<"Dashboard not found">>};
+        [OldDash = #ddDash{}] ->
+            Sess:run_cmd(write, [ddDash, OldDash#ddDash{name=Name}]),
+            Name
+    end.
+
+-spec delete_dashboard({atom(), pid()}, integer()) -> integer() | {error, binary()}.
+delete_dashboard(Sess, Id) ->
+    case check_cmd_select(Sess, [ddDash, [{#ddDash{id=Id, _='_'}, [], ['$_']}]]) of
+        {error, _} = Error -> Error;
+        [] -> {error, <<"Dashboard not found">>};
+        [#ddDash{id = Id}] ->
+            ok = Sess:run_cmd(delete, [ddDash, Id]),
+            Id
+    end.
 
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> {error, binary()} | [#ddDash{}].
 get_dashboards(Sess, Owner) ->

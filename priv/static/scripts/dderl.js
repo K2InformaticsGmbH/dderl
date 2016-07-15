@@ -174,6 +174,7 @@ function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 /*** TODO: Move this to dashboard container class dderl.dashboard ***/
 function loadDashboard(dashboard) {
     $(".ui-dialog-content").dialog('close');
+    $("#dashboard-list-input").val(dashboard.getName());
     dashboard.openViews();
 }
 
@@ -252,16 +253,14 @@ function findDashboard(name) {
 
 
 function addDashboard(dashboard) {
-    var addedOption, dashboardList;
     var index = dderlState.dashboards.push(dashboard) - 1;
 
     //list with dashboards
-    var dashboardList = $('#dashboard_names');
+    var dashboardList = $('#dashboard-menu');
     var list = $('<li>');
     var listEdit = $('<li>');
     var inputTextToEdit = $('<input type="text">').addClass('inputTextToEdit');
     inputTextToEdit.val(dashboard.getName());
-    inputTextToEdit.attr('id','dashboard-list-input');
     var buttonNames = $('<input type="button">').addClass('inputText');
     buttonNames.val(dashboard.getName());
     var buttonTrash = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
@@ -270,44 +269,42 @@ function addDashboard(dashboard) {
     var buttonCheck = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
 
 
-    $(buttonTrash)
-        .button({
-            icons: { primary: "fa fa-trash-o"},
-            text : false
-        })
-    $(buttonEdit)
-        .button({
-           icons: {primary: "fa fa-pencil"},
-            text: false
-        })
-    $(buttonCheck)
-        .button({
-            icons: {primary: "fa fa-check"},
-            text: false
-        })
-    $(buttonCancel)
-        .button({
-        icons: {primary: "fa fa-times"},
+    buttonTrash.button({
+        icons: { primary: "fa fa-trash-o" },
         text: false
-        })
-    buttonTrash.click(function() {
-        list.remove();
-        dderlState.dashboards.splice(index,1);
     });
+    buttonEdit.button({
+        icons: { primary: "fa fa-pencil" },
+        text: false
+    });
+    buttonCheck.button({
+        icons: { primary: "fa fa-check" },
+        text: false
+    });
+    buttonCancel.button({
+        icons: { primary: "fa fa-times" },
+        text: false
+    });
+
+    buttonTrash.click(removeDashboard);
     buttonEdit.click(function() {
         list.hide();
         listEdit.show();
-
     });
     buttonCancel.click(function() {
+        inputTextToEdit.val(buttonNames.val());
         list.show();
         listEdit.hide();
     });
     buttonCheck.click(function () {
-        checkTablesNotSaved();
+        renameDashboard();
         listEdit.hide();
         list.show();
     });
+    buttonNames.click(function() {
+        loadDashboard(dashboard)
+    });
+
     list.append(buttonNames);
     list.append(buttonTrash, buttonEdit);
     list.buttonset();
@@ -319,12 +316,34 @@ function addDashboard(dashboard) {
     dashboardList.append(listEdit);
     listEdit.hide();
 
-    addedOption = document.createElement("option");
-    addedOption.value = dashboard.getId();
-    addedOption.textContent = dashboard.getName();
+    function renameDashboard() {
+        var newName = inputTextToEdit.val();
+        var oldName = buttonNames.val();
+        if(newName === oldName) {
+            return;
+        }
+        var data = {id: dashboard.getId(), name: newName};
+        ajaxCall(null, 'rename_dashboard', data, 'rename_dashboard', function(result) {
+            if(result.hasOwnProperty('error')) {
+                alert_jq('<strong>rename dashboard failed!</strong><br><br>' + result.error);
+            } else {
+                inputTextToEdit.val(result);
+                buttonNames.val(result);
+            }
+        });
+    }
 
-    dashboardList = document.getElementById("dashboard-list");
-    dashboardList.appendChild(addedOption);
+    function removeDashboard() {
+        var data = {id: dashboard.getId()};
+        ajaxCall(null, 'delete_dashboard', data, 'delete_dashboard', function(result) {
+             if(result.hasOwnProperty('error')) {
+                alert_jq('<strong>remove dashboard failed!</strong><br><br>' + result.error);
+            } else {
+                list.remove();
+                dderlState.dashboards.splice(index,1);
+            }
+        });
+    }
 }
 
 function checkTablesNotSaved() {
@@ -412,7 +431,6 @@ function saveDashboard() {
 
 function createDashboardMenu(container) {
 
-    var dashboardList = $("#dashboard_names");
     var list = $('<li>');
     var buttonSave = $('<button>').addClass('heightButtons removeBorder ui-corner-flat');
     var inputToSave = $('<input type="text">').addClass('inputTextDefault');
@@ -423,66 +441,15 @@ function createDashboardMenu(container) {
         icons: { primary: "fa fa-floppy-o" },
         text : false
     })
+
+    // Button creation
     buttonSave.click(function () {
         checkTablesNotSaved();
     });
     list.append(inputToSave);
     list.append(buttonSave);
     list.buttonset();
-    dashboardList.append(list);
-
-
-
-    var mainMenuBar, saveButton, dashboardList, dashboardListObj, defaultOption;
-
-    // Check to only create the elements once.
-    if(document.getElementById("dashboard-list")) {
-        return;
-    }
-
-
-    // Button creation
-    saveButton = document.createElement("input");
-    saveButton.type = "button";
-    saveButton.id = "dashboard-save";
-    saveButton.value = "Save this dash";
-    saveButton.onclick = function() {
-        checkTablesNotSaved();
-    }
-
-    // Default option creation
-    defaultOption = document.createElement("option");
-    defaultOption.value = "default";
-    defaultOption.textContent = "default";
-
-    // Dashboard list creation
-    dashboardList = document.createElement("select");
-    dashboardList.id = "dashboard-list";
-    dashboardList.appendChild(defaultOption);
-
-    // Add elements to the dom
-    container.appendChild(dashboardList);
-    container.appendChild(saveButton);
-
-    // Convert the select to combobox
-    dashboardListObj = $('#dashboard-list').combobox();
-
-    // Add the handler for selection
-    dashboardListObj.change(function() {
-        var dashId, dashboard;
-        dashId = dashboardListObj.val();
-        if($('#dashboard-list-input').is(":focus")) {
-            $('#dashboard-list-input').blur();
-        }
-        if(dashId === "default") {
-            return;
-        } else if(!isNaN(parseInt(dashId)) && isFinite(dashId)) {
-            dashboard = findDashboardById(parseInt(dashId));
-            if(dashboard) {
-                loadDashboard(dashboard);
-            }
-        }
-    });
+    container.appendChild(list[0]);
 }
 
 function initDashboards() {
