@@ -11,9 +11,11 @@
 
 	var margin = {top: 20, right: 20, bottom: 30, left: 40}; 	// physical margins in px
 	var cWidth, cHeight;							// main physical content size in px
+	var xMin = 0, xMax = 100;
+	var yMin = 0, yMax = 0.3;
 	var xScale, yScale;
-	var xAxis, xText="x-Values";
-	var yAxis, yText="Frequency";    
+	var xAxis, xText="Time";
+	var yAxis, yText="Memory";    
 	var svg;
 
 	function idVal(d) {
@@ -21,7 +23,7 @@
 	}
 
 	function xVal(d) {
-	  	return d.x_1;
+	  	return d3.time.format("%d%m%y").parse(d.time_1);
 	}
 
 	function yVal(d) {
@@ -34,9 +36,9 @@
 	    height = h;
 	    cWidth = width - margin.left - margin.right;
 	    cHeight = height - margin.top - margin.bottom;
-	    xScale = d3.scale.ordinal().rangeRoundBands([0, cWidth], 0.1);
-	    yScale = d3.scale.linear().range([cHeight, 0]);
-	    xAxis = d3.svg.axis().scale(xScale).orient("bottom");
+	    xScale = d3.time.scale.range([0,cWidth]);
+	    yScale = d3.scale.linear().domain([yMin,yMax]).range([cHeight,0]);;
+	    xAxis = d3.svg.axis().scale(xScale).orient("bottom").ticks(10);
 	    yAxis = d3.svg.axis().scale(yScale).orient("left").ticks(10, "%");
 	    svg = container.append('svg')
 	    	.attr('width', width)
@@ -52,10 +54,7 @@
 	  on_data: function(data) {
 	  	console.log("new data arrived", data);
 		
-		xScale.domain(data.map(function(d) { return xVal(d); }));
-		yScale.domain([0, d3.max(data, function(d) { return yVal(d); })]);
-
-		svg.selectAll('svg > g > *').remove(); // every data block 
+		// svg.selectAll('svg > g > *').remove(); // every data block 
 
 	    svg.append("g")
 	    	.attr("class", "x axis")
@@ -63,7 +62,7 @@
 			.style({ 'stroke': 'Black', 'fill': 'none', 'stroke-width': '1px'})
 	     	.call(xAxis)
 	    	.append("text")
-	    	.attr("x", cWidth)
+	    	.attr("x", xScale(xMax))
 	    	.attr("dx", "-0.71em")
 	    	.attr("dy", "-0.71em")
 	    	.style("text-anchor", "end")
@@ -81,16 +80,14 @@
 	    	.style("text-anchor", "end")
 	    	.text(yText);
 
-		svg.selectAll(".bar")
+		svg.selectAll("scatter-dots")
 		   	.data(data, function(d) { return idVal(d); })
 		   	.enter()
-		   	.append("rect")
-		   	.attr("class", "bar")
-	    	.attr("x", function(d) { return xScale(xVal(d)); })
-	      	.attr("width", xScale.rangeBand())
-	      	.attr("y", function(d) { return yScale(yVal(d)); })
-	      	.attr("height", function(d) { return cHeight - yScale(yVal(d)); } )
-	      	.style("fill","steelblue");
+		   	.append("svg:circle")
+			.attr("cx", function(d) { return xScale(xVal(d)); })
+          	.attr("cy", function(d) { return yScale(yVal(d)); })
+          	.attr("r", 3)
+          	.style("fill","steelblue");
 	    },
 
 	    on_resize: function(w, h) {
