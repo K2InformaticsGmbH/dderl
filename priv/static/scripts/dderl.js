@@ -149,14 +149,6 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 }
 
 /*** TODO: Move this functions to apropiate dashboard modules ***/
-function loadDashboard(id) {
-    var dashboard = findDashboardById(id);
-    if (dashboard) {
-        $(".ui-dialog-content").dialog('close');
-        dashboard.openViews();
-    }
-}
-
 function requestDashboards() {
     ajaxCall(null, 'dashboards', null, 'dashboards', function(dashboards) {
         var dashboard, view, viewLayout;
@@ -190,18 +182,9 @@ export function addToCurrentViews(tableView) {
     dderlState.currentViews.push(tableView);
 }
 
-function findDashboardById(dashboardId) {
-    for(var i = 0; i < dderlState.dashboards.length; ++i) {
-        if(dderlState.dashboards[i].getId() === dashboardId) {
-            return dderlState.dashboards[i];
-        }
-    }
-    return null;
-}
-
 export function addDashboard(dashboard) {
-    dderlState.dashboards.push(dashboard);
-    DashboardMenu.add(dashboard.getId(), dashboard.getName());
+    var index = dderlState.dashboards.push(dashboard) - 1;
+    DashboardMenu.add(index, dashboard);
 }
 
 export function saveDashboardWithCounter() {
@@ -215,7 +198,7 @@ export function saveDashboardWithCounter() {
 export function initDashboards() {
     dderlState.dashboards = [];
     dderlState.currentViews = [];
-    DashboardMenu.create(document.getElementById("dashboard-menu"), loadDashboard);
+    DashboardMenu.create(document.getElementById("dashboard-menu"));
     requestDashboards();
 }
 /********** End dashboard functions *********************/

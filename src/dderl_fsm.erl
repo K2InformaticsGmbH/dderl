@@ -1112,37 +1112,36 @@ bin_to_number(NumberBin) ->
 stats_add_row([], _) -> [];
 stats_add_row([{CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList} | RestResult], [Element | RestRow]) ->
     case bin_to_number(Element) of
-        {error, _} -> [{CountTotal+1, Count, Min, Max, Sum, Squares, [Element | HashList], MedianList} | stats_add_row(RestResult, RestRow)];
+        {error, _} ->
+            [{CountTotal + 1, Count, case Min of
+                                         undefined -> Element;
+                                         _ -> min(Min, Element)
+                                     end, case Max of
+                                              undefined -> Element;
+                                              _ -> max(Max, Element)
+                                          end, Sum, Squares, [Element | HashList], MedianList} | stats_add_row(RestResult, RestRow)];
         Number ->
             MinNew = case Min of
                          undefined -> Number;
-                         _ -> case Number < Min of
-                                  true -> Number;
-                                  _ -> Min
-                              end
+                         _ -> min(Min, Number)
                      end,
             MaxNew = case Max of
                          undefined -> Number;
-                         _ -> case Number > Max of
-                                  true -> Number;
-                                  _ -> Max
-                              end
+                         _ -> max(Max, Number)
                      end,
             [{CountTotal+1, Count+1, MinNew, MaxNew, Sum+Number, Squares + Number*Number, [Element | HashList], [binary_to_number(Element) | MedianList]} | stats_add_row(RestResult, RestRow)]
     end.
 
--spec format_stat_rows([binary()], [{integer(), integer(), number(), number(), number(), number(), [], []}], pos_integer()) -> list().
+-spec format_stat_rows([binary()], [{integer(), integer(), binary(), binary(), number(), number(), [], []}], pos_integer()) -> list().
 format_stat_rows([], _, _) -> [];
-format_stat_rows([ColName | RestColNames], [{CountTotal, 0, _, _, _, _, HashList, _} | RestResult], Idx) ->
+format_stat_rows([ColName | RestColNames], [{CountTotal, 0, Min, Max, _, _, HashList, _} | RestResult], Idx) ->
     case HashList of
         [] -> Hash = 0;
         _ ->     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList)))
     end,
-    [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / 0", [CountTotal])), undefined, undefined, undefined, undefined, undefined, undefined, undefined, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);
+    [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / 0", [CountTotal])), Min, Max, undefined, undefined, undefined, undefined, undefined, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx + 1);
 format_stat_rows([ColName | RestColNames], [{CountTotal, 1, Min, Max, Sum, _Squares, HashList, _MedianList} | RestResult], Idx) ->
     Average = Sum,
-    Min = Sum,
-    Max = Sum,
     Median = Sum,
     Hash = erlang:phash2(list_to_binary(lists:reverse(HashList))),
     [[Idx, nop, ColName, list_to_binary(io_lib:format("~p / 1", [CountTotal])), Min, Max, Sum, Average, Median, 0, 0, Hash]] ++ format_stat_rows(RestColNames, RestResult, Idx+1);

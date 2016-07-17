@@ -120,6 +120,22 @@ import {dderlState, ajaxCall, alert_jq} from '../scripts/dderl';
             });
         }
 
+        function rename(newName, cbSuccess) {
+            if(name === newName) {
+                return name;
+            }
+
+            var data = { id: id, name: newName };
+            ajaxCall(null, 'rename_dashboard', data, 'rename_dashboard', function(result) {
+                if(result.hasOwnProperty('error')) {
+                    alert_jq('<strong>rename dashboard failed!</strong><br><br>' + result.error);
+                } else {
+                    name = result;                    
+                    cbSuccess(result);
+                }
+            });
+        }
+
         $.extend(this, {
             "getId": getId,
             "getName": getName,
@@ -128,6 +144,7 @@ import {dderlState, ajaxCall, alert_jq} from '../scripts/dderl';
             "removeView": removeView,
             "updateViews": updateViews,
             "save": save,
+            "rename": rename,
             "getAsObject": getAsObject,
             "openViews": openViews
         });
