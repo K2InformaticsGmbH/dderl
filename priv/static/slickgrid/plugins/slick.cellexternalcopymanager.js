@@ -1,3 +1,6 @@
+import jQuery from "jquery";
+import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl';
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -34,7 +37,7 @@
     var keyCodes = {
         'C':67,
         'V':86
-    }
+    };
 
     function init(grid) {
       _grid = grid;
@@ -127,7 +130,8 @@
                 return cb('');
             }
         };
-        return loader.src = src;
+        loader.src = src;
+        return loader.src;
     }
 
     function getTime() {
@@ -136,7 +140,7 @@
     }
 
     function _createDivPaste() {
-        div = document.createElement('div');
+        var div = document.createElement('div');
         div.contentEditable = true;
         document.body.appendChild(div);
         div.focus();
@@ -203,7 +207,8 @@
                     }
                 }
             }
-            if (clipboardData = window.clipboardData) {
+            clipboardData = window.clipboardData;
+            if (clipboardData) {
                 if(_grid.hasOwnProperty("gridowner")
                         && typeof _grid.gridowner.startPaste === 'function')
                     _grid.gridowner.startPaste();
@@ -298,7 +303,7 @@
           return;
       }
 
-      var readOnlyCols = new Array();
+      var readOnlyCols = [];
       for(var i = activeCell; i < activeCell + destW; ++i) {
           if(!columns[i].hasOwnProperty('editor')) {
               readOnlyCols.push(columns[i].name);
@@ -475,7 +480,7 @@
 
             // Find the bounding range
             var boundRange = new Slick.Range(ranges[0].fromRow, ranges[0].fromCell, ranges[0].toRow, ranges[0].toCell);
-            for (var rg = 1; rg < ranges.length; ++rg) {
+            for (let rg = 1; rg < ranges.length; ++rg) {
                 var range = ranges[rg];
                 boundRange.fromRow = Math.min(range.fromRow, boundRange.fromRow);
                 boundRange.fromCell = Math.min(range.fromCell, boundRange.fromCell);
@@ -486,8 +491,8 @@
 
             // Find the used columns
             var usedCols = [];
-            for (var colpos = boundRange.fromCell; colpos <= boundRange.toCell; colpos++) {
-                for (var rg = 0; rg < ranges.length; ++rg) {
+            for (let colpos = boundRange.fromCell; colpos <= boundRange.toCell; colpos++) {
+                for (let rg = 0; rg < ranges.length; ++rg) {
                     if (colpos >= ranges[rg].fromCell && colpos <= ranges[rg].toCell) {
                         usedCols.push(colpos);
                         break;
@@ -497,7 +502,7 @@
 
             if (copyMode === "header") {
                 var headerColumns = [];
-                for (var k = 0; k < usedCols.length; ++k) {
+                for (let k = 0; k < usedCols.length; ++k) {
                     headerColumns.push(columns[usedCols[k]].name);
                 }
                 clipTextArr.push(headerColumns.join("\t"));
@@ -506,7 +511,7 @@
 
             var clipText = "";
             if (copyMode === "json") {
-                clipText = jsonFromBoundRange(ranges, boundRange, columns, usedCols)
+                clipText = jsonFromBoundRange(ranges, boundRange, columns, usedCols);
             } else {
                 clipTextArr.push(textFromBoundRange(ranges, boundRange, columns, usedCols));
                 clipText = clipTextArr.join('');
@@ -569,7 +574,7 @@
             if(numericIdList[currentId] === "") {
                 numericIdList[currentId] = "null";
             }
-            result = result.replace("\"" + currentId + "\"", numericIdList[currentId])
+            result = result.replace("\"" + currentId + "\"", numericIdList[currentId]);
         }
         return result;
     }

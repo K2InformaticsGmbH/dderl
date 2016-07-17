@@ -4,36 +4,30 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>DDErl</title>
-    <link rel="icon" type="image/png" href="static/public/img/dderl_icon.png">
-    <link rel="stylesheet" href="static/public/css/vendor.css" type="text/css"/>
-    <link rel="stylesheet" href="static/public/css/app.css" type="text/css"/>
+    <link rel="icon" type="image/png" href="assets/img/dderl_icon.png">
+    <!-- TODO: leaving this commented as we might need to package .css separately -->
+    <!-- link rel="stylesheet" href="static/public/css/vendor.css" type="text/css"/-->
+    <!-- link rel="stylesheet" href="static/public/css/app.css" type="text/css"/ -->
 </head>
 <body>
+    <!-- TODO: Implement proper modal so we don't need to hack z-index --> 
     <div id="login-bg"></div>
     <div id="main-menu-bar" class = "menubar">
         <ul class="dropdown menubar">
             <li><a>Query Server</a>
                 <ul class="sub_menu">
-                    <li><a id="btn-tables" onclick='show_qry_files(true)'>Tables and ddViews</a></li>
-                    <li><a id="btn-import-query" onclick='import_query()'>Import Query</a></li>
-                    <li><a id="btn-change-password" onclick='change_password(false)'>Change Password</a></li>
-                    <li><a id="btn-about" onclick='show_about_dlg()'>About</a></li>
-                    <li><a id="btn-disconnect" onclick='disconnect_tab()'>Disconnect</a></li>
-                    <li><a id="btn-restart" onclick='restart()'>Restart Application</a></li>
+                    <li><a id="btn-tables">Tables and ddViews</a></li>
+                    <li><a id="btn-import-query">Import Query</a></li>
+                    <li><a id="btn-change-password">Change Password</a></li>
+                    <li><a id="btn-about">About</a></li>
+                    <li><a id="btn-disconnect">Disconnect</a></li>
+                    <li><a id="btn-restart">Restart Application</a></li>
                 </ul>
             </li>
-            <li><a id="connect-button" onclick='new_connection_tab()'>New Connection</a></li>
-            <li><a id="newsql-button" onclick='StartSqlEditor()'>New Query</a></li>
+            <li><a id="connect-button">New Connection</a></li>
+            <li><a id="newsql-button">New Query</a></li>
             <li><a>Window</a>
                 <ul id="window-finder" class="sub_menu">
-                </ul>
-            </li>
-            <li><a id="tbl-opts" style="display:none">Options</a>
-                <ul class="sub_menu">
-                     <li><a id="table-edit-query" onclick='edit_table()'>Edit Query</a></li>
-                     <li><a id="table-save" onclick='save_table()'>Save</a></li>
-                     <li><a id="table-save-as" onclick='save_as_table()'>Save As</a></li>
-                     <li><a id="table-export">Export Rows</a></li>
                 </ul>
             </li>
             <li><a>Dashboards</a>
@@ -43,42 +37,23 @@
             </li>
         </ul>
         <div style="position:absolute;top:0px;right:0px">
-            <span><a id="btn-logout" onclick='logout()'>Logout</a> | </span>
+            <span><a id="btn-logout">Logout</a> | </span>
             <span id="node"></span>
             <span id="version"></span>
         </div>
     </div>
     <div id="main-body">
         <div id="main-bg">
-            <img src = "static/public/img/bg.svg"/>
+            <img src="assets/img/bg.svg"/>
         </div>
     </div>
     <audio class="tr_audio" id="beep-sound">
-      <source src="static/public/sound/success.ogg" type="audio/ogg">
-      <source src="static/public/sound/success.mp3" type="audio/mpeg">
+      <source src="assets/sound/success.ogg" type="audio/ogg">
+      <source src="assets/sound/success.mp3" type="audio/mpeg">
     </audio>
 
-    <script src="static/public/js/vendor.js"></script>
-    <script src="static/public/js/app.js"></script>
-
-    <script language='javascript'>
-        $(document).ready(function() {
-            $('#main-body').css('top', $('#main-menu-bar').height());
-            if(Object.hasOwnProperty('freeze')) {
-                patch_jquery_ui(); // Add support for html titles to dialogs.
-                check_already_connected();
-            } else {
-                $('#main-menu-bar').hide();
-                alert_jq("We are really sorry, but we don't support your current browser version.");
-            }
-
-            $(window).on('beforeunload', function() {
-                if(dderlState.connection) {
-                    return "You will lose all unsaved data, are you sure you want to continue?";
-                }
-            });
-            //beep(); // beep test
-        });
-    </script>
+    <!-- TODO: separate vendor chunk to optimize upgrades -->
+    <!-- script src="static/public/js/vendor.js"></script-->
+    <script src="public/app.js"></script>
 </body>
 </html>

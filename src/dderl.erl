@@ -102,7 +102,7 @@ handle(Req, State) ->
     {ok, Req1} = case binary:last(Url) of
                      $/ ->
                          Filename = filename:join([get_priv_dir(),
-                                                   "static",
+                                                   "public",
                                                    "index.html"]),
                          {ok, Html} = file:read_file(Filename),
                          cowboy_req:reply(

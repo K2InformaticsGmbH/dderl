@@ -1,8 +1,17 @@
+import $ from 'jquery';
+import {dderlState, ajaxCall, resetPingTimer, initDashboards, show_qry_files,
+        password_change_dlg, alert_jq, confirm_jq, loginAjax} from './dderl';
+import {md5Arr} from './md5';
+
+// Jquery widgets are added to the global scope so including it 
+// in one module will expose it for the rest.
+import './dderl.combobox';
+
 var adapters = null;
 var owners = null;
 var connects = null;
 
-function connect_dlg()
+export function connect_dlg()
 {
     var dlg = $('<div id="dialog-db-login">')
     .attr('title', "Connect to Database");
@@ -82,9 +91,9 @@ function connect_dlg()
                                     alert_jq(JSON.stringify(data.error));
                                 } else {
                                     conn.remove();
-                                    if(connection_list.find("option:selected").length == 0) {
+                                    if(connection_list.find("option:selected").length === 0) {
                                         dlg.dialog("close");
-                                        loginAjax(null);
+                                        loginAjax();
                                     } else {
                                         connection_list.parent().find('input').val(
                                             connection_list.find("option:selected").data('connect').name);
@@ -130,7 +139,7 @@ function connect_dlg()
     });
 
     connection_list
-    .on('owner_change adapter_change', function(event) {
+    .on('owner_change adapter_change', function() {
         connection_list.empty();
         connection_list.change();        
     })
@@ -262,6 +271,12 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
 
     dderlState.adapter = conn.adapter;
     ajaxCall(null, 'connect', conn, 'connect', function(resp) {
+        function connectSuccessCb() {
+            dlg.dialog("close");
+            initDashboards();
+            show_qry_files(false);
+        }
+
         if(resp.hasOwnProperty('owner') && resp.hasOwnProperty('conn_id')) {
             dderlState.connectionSelected =
                 {adapter: conn.adapter,
@@ -270,11 +285,6 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
             // Setting up the global connection.
             dderlState.connection = resp.conn;
             dderlState.connected_user = conn.owner;
-            function connectSuccessCb() {
-                dlg.dialog("close");
-                initDashboards();
-                show_qry_files(false);
-            };
 
             var newTitle = 'DDErl';
             if(dderlState.app) {
@@ -287,7 +297,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list)
             }
             document.title = newTitle;
 
-            if(conn.method == 'local' && conn.secure == true) {
+            if(conn.method === 'local' && conn.secure === true) {
                 $('#btn-disconnect').addClass('disabled');
             }
                 
@@ -515,35 +525,19 @@ function add_imem_options(connection_list, connect_options, connect) {
     }
 }
 
-var children;
-function new_connection_tab() {
-    if(dderlState.session) {
-        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
-            connect_dlg();
-        } else {
-            if(!children) {
-                children = new Array();
-            }
-            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
-            console.log(newURL);
-            children.push(window.open(newURL, "_blank"));
-        }
-    }
-}
-
-function disconnect_tab() {
+export function disconnect_tab() {
     if($('#btn-disconnect').hasClass('disabled'))
         return;
 
     if (!dderlState.connection)
         return;
 
-    var headers = new Object();
+    var headers = {};
 
-    if (dderlState.adapter != null) {
+    if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session != null ? '' + dderlState.session : '');
+    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
@@ -556,7 +550,7 @@ function disconnect_tab() {
         headers: headers,
         context: null,
 
-        success: function(_data, textStatus, request) {
+        success: function(_data, textStatus) {
             console.log('Request disconnect result ' + textStatus);
             dderlState.connection = null;
             dderlState.adapter = null;
@@ -565,7 +559,7 @@ function disconnect_tab() {
             connect_dlg();
         },
 
-        error: function (request, textStatus, errorThrown) {
+        error: function (request, textStatus) {
             console.log('Request disconnect result ' + textStatus);
             dderlState.connection = null;
             dderlState.adapter = null;
@@ -578,33 +572,31 @@ function disconnect_tab() {
     });
 }
 
-function change_connect_password(loggedInUser, connectSuccessCb)
-{
-    password_change_dlg("Change account password", loggedInUser,
-            function() {
-                if($('#conf_password_login').val() == $('#password_change_login').val()) {
-                    var newPassJson = {
-                            connection: dderlState.connection,
-                            service : dderlState.service,
-                            user  : loggedInUser,
-                            password  : md5Arr($('#old_password_login').val()),
-                            new_password  : md5Arr($('#password_change_login').val())
-                        };
-                    ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function(resp) {
-                        if(resp == "ok") {
-                            $("#dialog-change-password").dialog("close");
-                            resetPingTimer();
-                            if($.isFunction(connectSuccessCb))
-                                connectSuccessCb();
-                        } else if (resp.hasOwnProperty('error')) {
-                            alert_jq('Change password falied : ' + resp.error);
-                        } else {
-                            alert_jq('Change password falied : ' + JSON.stringify(resp));
-                        }
-                    });
+export function change_connect_password(loggedInUser, connectSuccessCb) {
+    password_change_dlg("Change account password", loggedInUser, function () {
+        if ($('#conf_password_login').val() == $('#password_change_login').val()) {
+            var newPassJson = {
+                connection: dderlState.connection,
+                service: dderlState.service,
+                user: loggedInUser,
+                password: md5Arr($('#old_password_login').val()),
+                new_password: md5Arr($('#password_change_login').val())
+            };
+            ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function (resp) {
+                if (resp == "ok") {
+                    $("#dialog-change-password").dialog("close");
+                    resetPingTimer();
+                    if ($.isFunction(connectSuccessCb))
+                        connectSuccessCb();
+                } else if (resp.hasOwnProperty('error')) {
+                    alert_jq('Change password falied : ' + resp.error);
+                } else {
+                    alert_jq('Change password falied : ' + JSON.stringify(resp));
                 }
-                else alert_jq("Confirm password missmatch!");
             });
+        }
+        else alert_jq("Confirm password missmatch!");
+    });
 }
 
 function validateSmsToken(user, data, connectSuccessCb)

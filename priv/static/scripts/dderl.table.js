@@ -1,3 +1,11 @@
+import jQuery from 'jquery';
+import * as d3 from 'd3';
+import 'jquery-dialogextend/build/jquery.dialogextend';
+import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter,
+    alert_jq, prompt_jq, confirm_jq, smartDialogPosition, addToCurrentViews,
+    ajaxCall, beep} from './dderl';
+import './dderl.termEditor.js';
+
 (function( $ ) {
   $.widget( "dderl.table", $.ui.dialog, {
 
@@ -67,7 +75,6 @@
                         openView        : function(e, _result) { e.data._openView               (_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable         (_result); },
                         queryResult     : function(e, _result) { e.data._renderTable            (_result); },
-                        tailResult      : function(e, _result) { e.data._checkTailResult        (_result); },
                         updateData      : function(e, _result) { e.data._checkUpdateResult      (_result); },
                         insertData      : function(e, _result) { e.data._insertResult           (_result); },
                         deleteData      : function(e, _result) { e.data._deleteResult           (_result); },
@@ -160,8 +167,13 @@
         toolBarHeight     : 20,
         position          : {at: "left top", my: "left top", of: "#main-body", collision : 'none'},
         appendTo          : "#main-body",
-        focus             : function(e,ui) {},
-        open              : function() { $(this).table('showPlane'); },
+        focus             : function() {},
+        open              : function() {
+            console.log("the parent of this", this.parentNode);
+            var titleNode = $(this).parent().children(".ui-dialog-titlebar");
+            console.log("the title node", titleNode);
+            $(this).table('showPlane');
+        },
         close             : function() {
                               $(this).table('close_stmt');
                               $(this).table('closeGraphs');
@@ -251,7 +263,7 @@
             self._txtlen =
                 $('#txtlen')
                 .css('font-family', self._fnt)
-                .css('font-size', self._fntSz)
+                .css('font-size', self._fntSz);
         }
 
         // slickgrid container
@@ -301,6 +313,20 @@
     // TODO: Create a context menu once per table instead of the global
     //       to allow dynamic menu options depending on the column content.
     _cnxtMenu: function(_menu) {
+
+        function executeMenuAction() {
+            var self = $('#' + _menu).data('cnxt');
+            if (self) {
+                var columnId = null;
+                console.log('self title _cnxtMenu ' + self.options.title);
+                if (_menu === '_slkHdrCnxtMnu') {
+                    columnId = $('#' + _menu).data('column-id');
+                }
+                self[_menu].dom.hide();
+                self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
+            }
+        }
+
         if($('#'+_menu).length === 0) {
             var mnu = $('<ul>')
                 .attr('id', _menu)
@@ -315,22 +341,12 @@
                     }
                 })
                 .appendTo(document.body);
+
             for(var m in this[_menu]) {
                 if($.type(this[_menu][m]) === "string") {
                     $('<li>')
                         .attr("action", m)
-                        .click(function(e) {
-                            var self = $('#'+_menu).data('cnxt');
-                            if(undefined != self) {
-                                var columnId = null;
-                                console.log('self title _cnxtMenu ' + self.options.title);
-                                if(_menu === '_slkHdrCnxtMnu') {
-                                    columnId = $('#'+_menu).data('column-id');
-                                }
-                                self[_menu].dom.hide();
-                                self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
-                            }
-                        })
+                        .click(executeMenuAction)
                         .text(m)
                         .appendTo(mnu);
                 }
@@ -348,7 +364,7 @@
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
                     if(_action === "Histogram") {
-                        _ranges = this._grid.getSelectionModel().getSelectedRanges();
+                        let _ranges = this._grid.getSelectionModel().getSelectedRanges();
                         var _columnIds = [];
                         for (var i = 0; i < _ranges.length; i++) {
                             _columnIds[i] = _ranges[i].fromCell;
@@ -487,13 +503,13 @@
     },
 
     _saveViewAs: function() {
-        self = this;
-        prompt_jq({label: "ddView name", content: '', value: self.options.title},
-            function(viewName) {
-                if (viewName) {
-                    self._saveViewWithName(viewName, false);
-                }
-            });
+        var self = this;
+        var args = {label: "ddView name", content: '', value: self.options.title};
+        prompt_jq(args, function (viewName) {
+            if (viewName) {
+                self._saveViewWithName(viewName, false);
+            }
+        });
     },
 
     _exportCsv: function() {        
@@ -505,9 +521,9 @@
 
         var adapter = this._adapter;
         var connection = dderlState.connection;
-        var dderl_sess = (dderlState.session != null ? '' + dderlState.session : '');
-        var binds = JSON.stringify(this._optBinds != null && this._optBinds.hasOwnProperty('pars')
-                                            ? this._optBinds.pars : null);
+        var dderl_sess = dderlState.session ? '' + dderlState.session : '';
+        var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
+            this._optBinds.pars : null);
 
         prompt_jq(
             {label: "Download CSV", value:filename, content: ''},
@@ -533,7 +549,7 @@
     _getTableLayout: function(_viewName) {
         // Column names and width.
         // Index starting at 1 to skip the id column.
-        var colnamesizes = new Array();
+        var colnamesizes = [];
         var cols = this._grid.getColumns();
         for(var idx = 1; idx < cols.length; ++idx) {
             var newColName = cols[idx].name + "_" + idx;
@@ -593,7 +609,7 @@
     _saveNewView: function(viewName, replace) {
         var self = this;
 
-        saveView = self._getTableLayout(viewName);
+        var saveView = self._getTableLayout(viewName);
         saveView.save_view.replace = replace;
 
         console.log('saving view '+JSON.stringify(saveView));
@@ -605,7 +621,7 @@
         var columnIds = data.columnIds;
         console.log('show histogram ' + JSON.stringify(data));
 
-        if (0 == columnIds) {
+        if (0 === columnIds) {
             alert_jq('Error: No appropriate column for the menu item "Histogram" selected!');
             return;
         }
@@ -665,7 +681,8 @@
     },
 
     _showStatisticsFull: function(_ranges) {
-        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+        if ((1 === _ranges.length) && (_ranges[0].fromCell === 0) &&
+            (_ranges[0].toCell === 0) && (_ranges[0].fullCol === true)) {
             alert_jq('Error: No appropriate column for the menu item "Statistics" selected!');
             return;
         }
@@ -875,15 +892,16 @@
         this._ajax('query', {query: {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection,
-            qstr : this._cmd, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
-                                            ? this._optBinds.pars : null)
+            qstr : this._cmd,
+            binds: (this._optBinds && this._optBinds.hasOwnProperty('pars')? this._optBinds.pars : null)
         }}, 'query', 'queryResult');
         this._dlg.dialog("moveToTop");
     },
 
     // columns hide/unhide
     _hide: function(_ranges) {
-        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+        if ((1 === _ranges.length) && (_ranges[0].fromCell === 0) &&
+            (_ranges[0].toCell === 0) && (_ranges[0].fullCol === true)) {
             alert_jq('Error: No appropriate column for the menu item "Hide" selected!');
             return;
         }
@@ -891,25 +909,26 @@
         var self = this;
         var columns = self._grid.getColumns();
         var toHide = {};
+        var j;
         for (var i=0; i<_ranges.length; ++i) {
             //Validate that id column is not on the selection.
             if(_ranges[i].fromCell !== 0 && _ranges[i].toCell !== 0)  {
-                for(var j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
+                for(j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
                     toHide[j] = true;
                 }
             }
         }
         var toHideArray = [];
-        for(var j in toHide) {
+        for(j in toHide) {
             toHideArray[toHideArray.length] = parseInt(j);
         }
         toHideArray.sort(function(a,b) {return (a < b ? 1 : (a === b ? 0 : -1));});
 
         if(!self.hasOwnProperty('_hiddenColumns')) {
-            self['_hiddenColumns'] = new Array();
+            self._hiddenColumns = [];
         }
 
-        for(var j=0; j < toHideArray.length; ++j) {
+        for(j=0; j < toHideArray.length; ++j) {
             self._hiddenColumns.push(
                 {
                     idxCol: toHideArray[j],
@@ -922,7 +941,7 @@
         self._gridColumnsReorder();
     },
 
-    _unhide: function(_ranges) {
+    _unhide: function() {
         var self = this;
         if(self.hasOwnProperty('_hiddenColumns')) {
             var columns = self._grid.getColumns();
@@ -940,7 +959,7 @@
     _sort: function(_ranges) {
         var self = this;
         if(self._sorts === null) {
-            self._sorts = new Object();
+            self._sorts = {};
         }
         var cols = self._grid.getColumns();
         for (var i = 0; i < _ranges.length; ++i) {
@@ -955,8 +974,7 @@
     },
     _sortAsc: function(_ranges) {
         var self = this;
-        if(self._sorts === null)
-            self._sorts = new Object();
+        if(self._sorts === null) { self._sorts = {}; }
         var cols = this._grid.getColumns();
         for (var i=0; i<_ranges.length; ++i) {
             var fromCell = Math.max(_ranges[i].fromCell, 1);
@@ -972,8 +990,9 @@
     },
     _sortDesc: function(_ranges) {
         var self = this;
-        if(self._sorts === null)
-            self._sorts = new Object();
+        if(self._sorts === null) {
+            self._sorts = {};
+        }
         var cols = this._grid.getColumns();
         for (var i = 0; i < _ranges.length; ++i) {
             var fromCell = Math.max(_ranges[i].fromCell, 1);
@@ -1013,7 +1032,7 @@
             self._sortDlg.dialog("close");
         }
 
-        var data = new Array();
+        var data = [];
         for (var s in self._sorts) {
             data.push({id: s, name: self._sorts[s].name, sort: (self._sorts[s].asc ? 'ASC' : 'DESC')});
         }
@@ -1035,58 +1054,54 @@
             .appendTo(self._sortDlg);
 
         // building slickgrid
-        var sgrid = new Slick.Grid(sortDiv
-                , data
-                , [ // columns
-                      {
-                        id: "#",
-                        name: "",
-                        width: 40,
-                        behavior: "selectAndMove",
-                        selectable: true,
-                        resizable: false,
-                        formatter: Slick.Formatters.DragArrows,
-                        cssClass: "center"
-                      },
-                      {
-                        id: "name",
-                        name: "Column",
-                        field: "name",
-                        width: 150,
-                        selectable: true,
-                        editor: Slick.Editors.Text
-                      },
-                      {
-                        id: "sort",
-                        name: "Sort",
-                        field: "sort",
-                        width: 100,
-                        selectable: true,
-                        cannotTriggerInsert: true,
-                        formatter: Slick.Formatters.Sort,
-                        cssClass: "center"
-                      },
-                      {
-                        id: "select",
-                        name: "",
-                        field: "select",
-                        width: 40,
-                        selectable: true,
-                        formatter: Slick.Formatters.Trashcan,
-                        cssClass: "center"
-                      }
-                    ]
-                , {
-                    editable: true,
-                    enableAddRow: false,
-                    enableCellNavigation: true,
-                    autoEdit: false
-                  }
-                );
+        var sgrid = new Slick.Grid(sortDiv, data, [ // columns
+            {
+                id: "#",
+                name: "",
+                width: 40,
+                behavior: "selectAndMove",
+                selectable: true,
+                resizable: false,
+                formatter: Slick.Formatters.DragArrows,
+                cssClass: "center"
+            },
+            {
+                id: "name",
+                name: "Column",
+                field: "name",
+                width: 150,
+                selectable: true,
+                editor: Slick.Editors.Text
+            },
+            {
+                id: "sort",
+                name: "Sort",
+                field: "sort",
+                width: 100,
+                selectable: true,
+                cannotTriggerInsert: true,
+                formatter: Slick.Formatters.Sort,
+                cssClass: "center"
+            },
+            {
+                id: "select",
+                name: "",
+                field: "select",
+                width: 40,
+                selectable: true,
+                formatter: Slick.Formatters.Trashcan,
+                cssClass: "center"
+            }
+        ], {
+            editable: true,
+            enableAddRow: false,
+            enableCellNavigation: true,
+            autoEdit: false
+        });
 
         sgrid.setSelectionModel(new Slick.RowSelectionModel());
         sgrid.onClick.subscribe(function(e, args) {
-            var col = sgrid.getColumns()[args.cell].id
+            var col = sgrid.getColumns()[args.cell].id;
             switch (col) {
                 case "select": // delete the row
                     sgrid.getData().splice(args.row, 1);
@@ -1106,67 +1121,67 @@
         });
         
         var moveRowsPlugin = new Slick.RowMoveManager({
-          cancelEditOnDrag: true
+            cancelEditOnDrag: true
         });
 
         moveRowsPlugin.onBeforeMoveRows.subscribe(function (e, data) {
-          for (var i = 0; i < data.rows.length; i++) {
-            // no point in moving before or after itself
-            if (data.rows[i] == data.insertBefore || data.rows[i] == data.insertBefore - 1) {
-              e.stopPropagation();
-              return false;
+            for (var i = 0; i < data.rows.length; i++) {
+                // no point in moving before or after itself
+                if (data.rows[i] == data.insertBefore || data.rows[i] == data.insertBefore - 1) {
+                    e.stopPropagation();
+                    return false;
+                }
             }
-          }
-          return true;
+            return true;
         });
 
         moveRowsPlugin.onMoveRows.subscribe(function (e, args) {
-          var extractedRows = [], left, right;
-          var rows = args.rows;
-          var insertBefore = args.insertBefore;
-          left = data.slice(0, insertBefore);
-          right = data.slice(insertBefore, data.length);
+            var extractedRows = [], left, right;
+            var rows = args.rows;
+            var insertBefore = args.insertBefore;
+            left = data.slice(0, insertBefore);
+            right = data.slice(insertBefore, data.length);
 
-          rows.sort(function(a,b) { return a-b; });
+            rows.sort(function (a, b) { return a - b; });
 
-          for (var i = 0; i < rows.length; i++) {
-            extractedRows.push(data[rows[i]]);
-          }
-
-          rows.reverse();
-
-          for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            if (row < insertBefore) {
-              left.splice(row, 1);
-            } else {
-              right.splice(row - insertBefore, 1);
+            for (let i = 0; i < rows.length; i++) {
+                extractedRows.push(data[rows[i]]);
             }
-          }
 
-          data = left.concat(extractedRows.concat(right));
+            rows.reverse();
 
-          var selectedRows = [];
-          for (var i = 0; i < rows.length; i++)
-            selectedRows.push(left.length + i);
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i] < insertBefore) {
+                    left.splice(rows[i], 1);
+                } else {
+                    right.splice(rows[i] - insertBefore, 1);
+                }
+            }
 
-          sgrid.resetActiveCell();
-          sgrid.setData(data);
-          sgrid.setSelectedRows(selectedRows);
-          sgrid.render();
+            data = left.concat(extractedRows.concat(right));
+
+            var selectedRows = [];
+            for (var i = 0; i < rows.length; i++) {
+                selectedRows.push(left.length + i);
+            }
+
+            sgrid.resetActiveCell();
+            sgrid.setData(data);
+            sgrid.setSelectedRows(selectedRows);
+            sgrid.render();
         });
 
         sgrid.registerPlugin(moveRowsPlugin);
 
         var saveChange = function() {
             var sd = sgrid.getData();
-            self._sorts = new Object();
+            self._sorts = {};
             for (var i = 0; i < sd.length; ++i) {
                 self._sorts[sd[i].id] = {name : sd[i].name,
                                          asc : (sd[i].sort === 'ASC' ? true : false) };
             }
             return self._sortSpec2Json();
-        }
+        };
         
         self._sortDlg.dialog({
             width : 336,
@@ -1190,7 +1205,7 @@
                     }
                 }
             ]
-        })
+        });
 
         self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
         //Set the height of the sort dialog depending on the number of rows...
@@ -1199,7 +1214,7 @@
         //Lets put it where we have space...
         smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['center']);
         setTimeout(function() {
-            var theSortButton = self._sortDlg.dialog("widget").find('button:contains("Sort")')
+            var theSortButton = self._sortDlg.dialog("widget").find('button:contains("Sort")');
             theSortButton.focus();
             console.log(theSortButton);
         }, 50);
@@ -1212,9 +1227,9 @@
     
     _sortSpec2Json: function() {
         var self = this;
-        var sortspec = new Array();
+        var sortspec = [];
         for (var s in self._sorts) {
-            var t = new Object();
+            let t = {};
             if(self._origcolumns.hasOwnProperty(s)) {
                 t[self._origcolumns[s]] = self._sorts[s].asc;
             } else {
@@ -1224,14 +1239,14 @@
         }
         return sortspec;
     },
-    
+
     _setSortSpecFromJson: function(self, origJson) {
         if(self._sorts === null) {
-            self._sorts = new Object();
+            self._sorts = {};
         }
 
         var cols = self._grid.getColumns();
-        for (colpos in origJson) {
+        for (let colpos in origJson) {
             var col_id = origJson[colpos].id;
             if(col_id === -1) {
                 self._sorts[colpos] = {name : colpos, asc : origJson[colpos].asc};
@@ -1243,7 +1258,8 @@
 
     // filters
     _filterColumn: function(_ranges) {
-        if ((1 == _ranges.length) && (_ranges[0].fromCell == 0) && (_ranges[0].toCell == 0) && (_ranges[0].fullCol == true)) {
+        if ((1 === _ranges.length) && (_ranges[0].fromCell === 0) &&
+            (_ranges[0].toCell === 0) && (_ranges[0].fullCol === true)) {
             alert_jq('Error: No appropriate column for the menu item "Filter..." selected!');
             return;
         }
@@ -1251,13 +1267,13 @@
         var self = this;
         var cols = self._grid.getColumns();
         if(self._filters === null) {
-            self._filters = new Object();
+            self._filters = {};
         }
         for (var i=0; i<_ranges.length; ++i) {
             var fromCell = Math.max(_ranges[i].fromCell, 1);
             for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
                 if(!self._filters.hasOwnProperty(cols[c].field)) {
-                    var filterColumnName = cols[c].name
+                    var filterColumnName = cols[c].name;
                     if (filterColumnName.length > 30) {
                         filterColumnName = filterColumnName.substring(1, 27) + "...";
                     }
@@ -1269,7 +1285,7 @@
                                 .css('overflow','auto')
                                 .css('padding', 0),
                             typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
-                            vals: new Object(),
+                            vals: {},
                             name: filterColumnName
                         };
                 }
@@ -1321,14 +1337,14 @@
     _filter: function(_ranges, showDialog) {
         var self = this;
         if(self._filters === null) {
-            self._filters = new Object();
+            self._filters = {};
         }
         var cols = this._grid.getColumns();
         for (var i = 0; i < _ranges.length; ++i) {
             var fromCell = Math.max(_ranges[i].fromCell, 1);
-            for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+            for(let c = fromCell; c <= _ranges[i].toCell; ++c) {
                 if(!self._filters.hasOwnProperty(cols[c].field)) {
-                    var filterColumnName = cols[c].name
+                    var filterColumnName = cols[c].name;
                     if (filterColumnName.length > 30) {
                         filterColumnName = filterColumnName.substring(1, 27) + "...";
                     }
@@ -1340,7 +1356,7 @@
                                 .css('overflow','auto')
                                 .css('padding', 0),
                             typeSelect : self._createFilterOptions($('<select>').css('width', '90px')),
-                            vals: new Object(),
+                            vals: {},
                             name: filterColumnName
                         };
                 }
@@ -1350,14 +1366,12 @@
             }
         }
         if(Object.keys(self._filters).length === 1 && !showDialog) {
-            for(var c in self._filters) {
+            for(let c in self._filters) {
                 var strs = [];
-                for(s in self._filters[c].vals) strs.push(s);
-                //if($.browser.msie) {
-                //    self._filters[c].inp.val(strs.join('\r\n'));
-                //} else {
-                    self._filters[c].inp.val(strs.join('\n'));
-                //}
+                for(let s in self._filters[c].vals) {
+                    strs.push(s);
+                }
+                self._filters[c].inp.val(strs.join('\n'));
             }
             var filterspec = self._filterSpec2Json('and');
             self._ajax('filter', {filter: {spec: filterspec, statement: self._stmt}}, 'filter', 'filterResult');
@@ -1374,10 +1388,7 @@
         }
 
         // number of current filters
-        var fCount = 0;
-        for (var c in self._filters) {
-            fCount++;
-        }
+        var fCount = Object.keys(self._filters).length;
 
         self._fltrDlg =
             $('<div>')
@@ -1393,14 +1404,12 @@
             .attr('cellspacing', 0)
             .appendTo(self._fltrDlg);
 
-        for(var c in self._filters) {
+        for(let c in self._filters) {
             var strs = [];
-            for(s in self._filters[c].vals) strs.push(s);
-            //if($.browser.msie) {
-            //    self._filters[c].inp.val(strs.join('\r\n'));
-            //} else {
-                self._filters[c].inp.val(strs.join('\n'));
-            //}
+            for(let s in self._filters[c].vals) {
+                strs.push(s);
+            }
+            self._filters[c].inp.val(strs.join('\n'));
             $('<tr>')
                 .append('<td>'+ self._filters[c].name +'</td>')
                 .append($('<td>').append(self._filters[c].typeSelect))
@@ -1416,14 +1425,14 @@
                 modal: false,
                 title:'Filter',
                 position: { my: "left top", at: "left bottom", of: this._dlg },
-                close : function() {
-                        $(this).dialog('close');
-                        $(this).remove();
-                    },
-                resize: function(e, ui) {
+                close: function () {
+                    $(this).dialog('close');
+                    $(this).remove();
+                },
+                resize: function() {
                     var dH = $(this).height() / fCount - 30;
                     var dW = $(this).width() - 30;
-                    for(var c in self._filters) {
+                    for(let c in self._filters) {
                         self._filters[c].inp.width(dW);
                         self._filters[c].inp.height(dH);
                     }
@@ -1457,11 +1466,11 @@
 
         var dH = self._fltrDlg.height() / fCount - 21;
         var dW = self._fltrDlg.width() - 30;
-        for(var c in self._filters) {
+        for(let c in self._filters) {
             self._filters[c].inp.width(dW);
             self._filters[c].inp.height(dH);
         }
-        for(var c in self._filters) {
+        for(let c in self._filters) {
             self._filters[c].inp.focus();
             break;
         }
@@ -1469,18 +1478,18 @@
 
     _filterSpec2Json: function(type) {
         var self = this;
-        var filterspec = new Object();
-        filterspec[type] = new Array();
+        var filterspec = {};
+        filterspec[type] = [];
         for(var c in self._filters) {
             var _vStrings = self._filters[c].inp.val().split('\n');
             if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
-            var vStrings = new Array();
-            self._filters[c].vals = new Object();
+            var vStrings = [];
+            self._filters[c].vals = {};
             for (var i=0; i < _vStrings.length; ++i) {
                 vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
                 self._filters[c].vals[_vStrings[i]] = true;
             }
-            var fltr = new Object();
+            var fltr = {};
             fltr[self._origcolumns[c]] = vStrings;
             if(vStrings.length > 0) {
                 var filterType = self._filters[c].typeSelect.val();
@@ -1503,23 +1512,23 @@
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
         
         var cells = [];
-        for(var i = 0; i < ranges.length; ++i) {
+        for(let i = 0; i < ranges.length; ++i) {
             // For complete rows use the first column only
-            if(ranges[i].fromCell <= 1
-               && ranges[i].toCell === self._grid.getColumns().length - 1) {
-                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
-                    var data = self._gridDataView.getItem(j);
-                    var column = self._grid.getColumns()[1];
+            if(ranges[i].fromCell <= 1 &&
+                ranges[i].toCell === self._grid.getColumns().length - 1) {
+                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    let data = self._gridDataView.getItem(j);
+                    let column = self._grid.getColumns()[1];
                     cells.push({
                         row: data.id,
                         col: self._origcolumns[column.field]
                     });
                 }
             } else {
-                for (var j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
-                    for(var k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
-                        var data = self._gridDataView.getItem(j);
-                        var column = self._grid.getColumns()[k];
+                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    for(let k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
+                        let data = self._gridDataView.getItem(j);
+                        let column = self._grid.getColumns()[k];
                         cells.push({
                             row: data.id,
                             col: self._origcolumns[column.field]
@@ -1532,7 +1541,7 @@
         if(cells.length > 10) {
             alert_jq("A maximum of 10 tables can be open simultaneously");
         } else {
-            for(var i = 0; i < cells.length; ++i) {
+            for(let i = 0; i < cells.length; ++i) {
                 self._ajax('browse_data',
                        { browse_data: {connection : dderlState.connection,
                                            conn_id : dderlState.connectionSelected.connection,
@@ -1642,7 +1651,7 @@
             .attr('cellspacing', 0)
             .appendTo(self._restoreAsDlg);
 
-        var restoreAsData = new Array();
+        var restoreAsData = [];
         var fCount = 0;
         var maxFieldLen = 0; 
         for(fCount = 0; fCount < tables.length; ++fCount) {
@@ -1675,10 +1684,7 @@
                         $(this).dialog('close');
                         $(this).remove();
                     },
-                resize: function(e, ui) {
-                    var dH = $(this).height() / fCount - 30;
-                    var dW = $(this).width() - 30;
-                }
+                resize: function() {}
             });
 
         self._restoreAsDlg.dialog("widget").draggable("option","containment", "#main-body");
@@ -1759,18 +1765,18 @@
         self._grid.onSelectedRowsChanged.subscribe($.proxy(self._handleSelectionChanged, self));
 
         // wire up model events to drive the grid
-        self._gridDataView.onRowCountChanged.subscribe(function (e, args) {
-          self._grid.updateRowCount();
-          self._grid.render();
+        self._gridDataView.onRowCountChanged.subscribe(function () {
+            self._grid.updateRowCount();
+            self._grid.render();
         });
         self._gridDataView.onRowsChanged.subscribe(function (e, args) {
-          self._grid.invalidateRows(args.rows);
-          self._grid.render();
+            self._grid.invalidateRows(args.rows);
+            self._grid.render();
         });
         self._gdata = self._gridDataView.getItems();
 
         // to be accessed from external class context
-        self._grid["gridowner"] = self;
+        self._grid.gridowner = self;
     },
 
     _setupEventHandlers: function() {
@@ -1816,6 +1822,10 @@
         self._grid.setColumns(columns);
     },
 
+    getSelf: function() {
+        return this;
+    },
+
     _createDlgFooter: function() {
         var self = this;
 
@@ -1828,29 +1838,39 @@
             .css('bottom', '0')
             .css('overflow', 'hidden');
 
+        var toolElmFn = function (e) {
+            var self = e.data;
+            var _btn = $(this).data('tag');
+            var fName = self._toolbarButtons[_btn].clk;
+            //var f = $.proxy(self[fName], self);
+            var f = self[fName];
+            if ($.isFunction(f)) {
+                f(self);
+                self._grid.focus();
+            } else {
+                throw ('[' + self.options.title + '] toolbar ' + _btn + ' has unimplimented cb ' + fName);
+            }
+        };
+
+        var footerTxtKeypressHandler = function (evt) {
+            if (evt.which == 13) {
+                var rownum = parseInt($(this).val());
+                if (!isNaN(rownum)) {
+                    self._toolBarTxtBoxVal = rownum;
+                    evt.data = self;
+                    toolElmFn.call(this, evt);
+                }
+            }
+            return true;
+        };
+
         // footer items
-        for(btn in self._toolbarButtons) {
+        for(var btn in self._toolbarButtons) {
             var btnTxt = self._toolbarButtons[btn].tip;
             var elm = self._toolbarButtons[btn];
-
-            var toolElmFn = function(e) {
-                var self = e.data;
-                var _btn = $(this).data('tag');
-                var fName = self._toolbarButtons[_btn].clk;
-                //var f = $.proxy(self[fName], self);
-                var f = self[fName];
-                if($.isFunction(f)) {
-                    f(self);
-                    self._grid.focus();
-                } else {
-                    throw('['+self.options.title+'] toolbar '+_btn+' has unimplimented cb '+fName);
-                }
-            };
-
             var inph = self.options.toolBarHeight;
-            //if($.browser.msie) inph -= 2;
 
-            if(elm.typ === 'btn')
+            if(elm.typ === 'btn') {
                 self[elm.dom] =
                     $('<button>')
                     .text(btnTxt)
@@ -1860,7 +1880,7 @@
                     .addClass('colorIcon')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
-            else if(elm.typ === 'txt')
+            } else if(elm.typ === 'txt') {
                 self[elm.dom] =
                 $('<input>')
                     .attr('type', 'text')
@@ -1872,18 +1892,9 @@
                     .css('text-align', 'right')
                     .css('padding', '0')
                     .css('margin', '0px -1px 0px 0px')
-                    .keypress(function(evt) {
-                        if(evt.which == 13) {
-                            var rownum = parseInt($(this).val());
-                            if(rownum != NaN) {
-                                self["_toolBarTxtBoxVal"] = rownum;
-                                evt.data = self;
-                                toolElmFn.call(this, evt);
-                            }
-                        }
-                        return true;
-                    })
+                    .keypress(footerTxtKeypressHandler)
                     .appendTo(self._footerDiv);
+            }
         }
         self._footerDiv
             .buttonset()
@@ -1969,17 +1980,18 @@
         console.log('['+self.options.title+'] cb _toolBarDiscrd');
         self.buttonPress("rollback");
     },
+    _toolBarClearG: function(evt) {
+        var self = evt.data;
+        console.log("clear graph");
+        if(self._graphSpec && $.isFunction(self._graphSpec.on_reset)) {
+            self._graphSpec.on_reset();
+        }
+    },
     ////////////////////////////
     
     /*
      * ajaxCall success callbacks
      */
-    _checkTailResult: function(_tail) {
-        console.log('[AJAX] tail resp '+JSON.stringify(_tail));
-        if(_tail === 'ok') {
-            this.fetchRows(OpsFetchEnum.NEXT, parseInt(this._gdata[this._gdata.length-1].id)+1);
-        }
-    },
     _checkUpdateResult: function(_update) {
         this.appendRows(_update);
         /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));        
@@ -2302,8 +2314,8 @@
             dderlClmlay     : cl,
             dderlTbllay     : tl,
             dderlViewId     : viewId,
-            dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0)
-                                 ? _table.sort_spec : null)
+            dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0
+                                ) ?_table.sort_spec : null)
         };
         
         if(_table.hasOwnProperty('table_layout')) {
@@ -2418,7 +2430,6 @@
     },
 
     _openImageEditor: function(dataImg) { // Data image encoded as base64 string
-        var self = this;
         var title = "Image editor (read only)";
 
         var dlgHeight = $("#main-body").height()-50;
@@ -2436,7 +2447,7 @@
                     clear           : null,
                     appendTo        : "#main-body",
                     position        : {my: "top left", at: "top left", of: "#main-body", collision: 'none'},
-                    focus           : function(e,ui) {},
+                    focus           : function() {},
                     open: function() {
                         $(this)
                             .dialog("widget")
@@ -2468,20 +2479,19 @@
             content = data.stringToFormat;
         }
         self.disableDialog();
-        var thisIsMyEditor = $('<div>')
-                .appendTo(document.body)
-                .termEditor(
-                    {
-                        autoOpen  : false,
-                        title     : title,
-                        termOwner : self,
-                        readOnly  : false,
-                        container : $("#main-body"),
-                        appendTo  : "#main-body",
-                        term      : content,
-                        isJson    : isJson
-                    }
-                ).termEditor('open');
+        $('<div>')
+            .appendTo(document.body)
+            .termEditor(
+            {
+                autoOpen: false,
+                title: title,
+                termOwner: self,
+                readOnly: false,
+                container: $("#main-body"),
+                appendTo: "#main-body",
+                term: content,
+                isJson: isJson
+            }).termEditor('open');
     },
     ////////////////////////////
 
@@ -2489,16 +2499,16 @@
         var self = this;
 
         if(self._tbllay !== null) {
-            self.options['width'] = self._tbllay.width;
-            self.options['height'] = self._tbllay.height;
-            self.options['position'] = {
+            self.options.width = self._tbllay.width;
+            self.options.height = self._tbllay.height;
+            self.options.position = {
                 my: "left top",
                 at: "left+" + self._tbllay.x + " top+" + self._tbllay.y,
                 of: "#main-body",
                 collision : 'none'
             };
         } else if(!self.options.position || !self.options.position.my) {
-            self.options['position'] = {
+            self.options.position = {
                 at : "left top",
                 my : "left top",
                 of : "#main-body",
@@ -2509,11 +2519,11 @@
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
 
-        var last = +new Date;
+        var last = Date.now();
         var deferTimer;
         self._dlg = self.element
             .dialog(self.options)
-            .bind("dialogresize", function(event, ui, c) {
+            .bind("dialogresize", function() {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
                 if(self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
@@ -2521,7 +2531,7 @@
                     var divElement = self._graphDivs[planeIdx].node();
                     // We need to execute the script.
                     if(divElement) {
-                        var now = +new Date;
+                        let now = Date.now();
                         // Only call the function once every 200 miliseconds.
                         if(now > last + 200) {
                             last = now;
@@ -2536,7 +2546,7 @@
                     }
                 }
             })
-            .bind("dialogfocus", function(event, ui) {
+            .bind("dialogfocus", function() {
                 // If the table is disabled do not set the focus.
                 if(self._divDisable) {
                     return;
@@ -2547,7 +2557,7 @@
                     cellEditor.focus();
                 }
             })
-            .bind("dialogbeforeclose", function(event, ui) {
+            .bind("dialogbeforeclose", function() {
                 self._grid.resetHeaderScroll();
             })
             .dialogExtend({
@@ -2556,11 +2566,11 @@
                     "minimize": "ui-icon-minus"
                 },
                 "minimizeLocation" : "left",
-                "load" : function(evt) {
+                "load" : function() {
                 },
-                "minimize" : function(evt) {
+                "minimize" : function() {
                 },
-                "restore" : function(evt) {
+                "restore" : function() {
                     self._dlg.dialog("moveToTop");
                 }
             });
@@ -2595,8 +2605,16 @@
         }
     },
 
-      
-    showPlane: function() {
+    // plane to show 1 based, 0 represents the grid
+    showPlane: function(newPlaneToShow) {
+        if(newPlaneToShow !== undefined) {
+            if(this._graphDivs[this._planeToShow - 1]) {
+                $(this._graphDivs[this._planeToShow - 1].node()).hide();
+            }
+            this._planeToShow = newPlaneToShow;
+        }
+
+        this._refreshButtons();
         if(!this._planeToShow) {
             this._tableDiv.show();
             return;
@@ -2610,10 +2628,44 @@
             d.classList.add("d3-container");
             d.style.bottom = this.options.toolBarHeight+'px';
             this._dlg.append(d);
+            /* jshint evil:true */
             var planeFunc = new Function('container', 'width', 'height', this._planeSpecs[planeIdx].script);
             this._graphDivs[this._planeToShow-1] = d3.select(d);
             this._graphSpec = planeFunc(this._graphDivs[this._planeToShow-1], d.clientWidth, d.clientHeight);
             console.log(this._graphSpec);
+        } else {
+            $(this._graphDivs[planeIdx].node()).show();
+        }
+    },
+
+    _refreshButtons: function() {
+        var self = this;
+        if(!self._planeToShow) {
+            self._tbCommit.show();
+            self._tbDiscrd.show();
+            if(self._tbClearG) {
+                self._tbClearG.hide();
+            }
+        } else {
+            // Create the dom element once,
+            // then show or hide as required
+            if(!self._tbClearG) {
+                self._tbClearG =
+                    $('<button>')
+                    .text('Clear graph')
+                    .data('tag', 'clear')
+                    .button({icons: {primary: 'fa fa-undo'}, text: false})
+                    .css('height', self.options.toolBarHeight + 'px')
+                    .addClass('colorIcon')
+                    .click(self, self._toolBarClearG)
+                    .appendTo(self._footerDiv);
+
+                self._footerDiv.buttonset('refresh');
+            }
+
+            self._tbCommit.hide();
+            self._tbDiscrd.hide();
+            self._tbClearG.show();
         }
     },
       
@@ -2624,14 +2676,12 @@
         var g           = args.grid;
         g.getData().syncGridSelection(g, true);
         var cell        = g.getCellFromEvent(e);
-        var gdata       = g.getData().getItems();
 
         //Check if we are in a new row.
         if(!g.getData().getItem(cell.row)) {
             return;
         }
         
-        var row         = cell.row;
         var column      = g.getColumns()[cell.cell];
 
         //Check if we are in the id column
@@ -2686,14 +2736,14 @@
         var gSelecteds  = gSelMdl.getSelectedRanges();
 
         var fullCols = [];
-        for(var i = 0; i < gSelecteds.length; ++i) {
+        for(let i = 0; i < gSelecteds.length; ++i) {
             if(gSelecteds[i].fullCol) {
                 fullCols.push(gSelecteds[i]);
             }
         }
 
         var found = false;
-        for(var i = 0; i < fullCols.length; ++i) {
+        for(let i = 0; i < fullCols.length; ++i) {
             if(fullCols[i].contains(0, col)) {
                 found = true;
                 break;
@@ -2721,6 +2771,7 @@
             .data('column-id', args.column.id)
             .show();
     },
+
     _gridCellChange: function(e, args) {
         if(e) {
             e.stopPropagation();
@@ -2759,19 +2810,19 @@
     _gridPasteCells: function(e, args) {
         e.stopPropagation();
         var range = args.ranges[0];
-        var modifiedRows = new Array();
+        var modifiedRows = [];
         var gridData = this._gdata;
         var cols = this._grid.getColumns();
         var toCellSafe = Math.min(range.toCell, cols.length - 1);
         var fromCellSafe = Math.max(range.fromCell, 1);
-        var rowsToRemove = new Array();
-        for(var i = range.fromRow; i <= range.toRow; ++i) {
-            var modifiedCells = new Array();
+        var rowsToRemove = [];
+        for(let i = range.fromRow; i <= range.toRow; ++i) {
+            var modifiedCells = [];
             var gridData_i = gridData[i];
-            if (gridData_i != undefined) {
-                for(var j = fromCellSafe; j <= toCellSafe; ++j) {
+            if (gridData_i !== undefined && gridData_i !== null) {
+                for(let j = fromCellSafe; j <= toCellSafe; ++j) {
                     var cellValue = gridData_i[cols[j].field];
-                    if(cellValue != null) {
+                    if(cellValue !== undefined && cellValue !== null) {
                         modifiedCells.push({cellid: this._origcolumns[cols[j].field], value : cellValue});
                     }
                 }
@@ -2790,8 +2841,10 @@
         this._ajax('paste_data', pasteJson, 'paste_data', 'updateData');
 
         // Update all rows from the selected range
-        for(var i = range.fromRow; i <= range.toRow; ++i) {
-            if (gridData[i] != undefined) gridData[i].op = 'upd';
+        for(let i = range.fromRow; i <= range.toRow; ++i) {
+            if (gridData[i] !== undefined && gridData[i] !== null) {
+                gridData[i].op = 'upd';
+            }
         }
 
         // Remove rows that will be later added by the server
@@ -2805,7 +2858,7 @@
 
     _gridBeforeEdit: function(e, args) {
         var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
-        if(!(currentSelectedRanges.length == 0 ||
+        if(!(currentSelectedRanges.length === 0 ||
              this._singleCellSelected(currentSelectedRanges))) {
             return false;
         }
@@ -2838,7 +2891,7 @@
         }
     },
 
-    _handleKeyDown: function(e, args) {
+    _handleKeyDown: function(e) {
         var keyCode = $.ui.keyCode;
         var col;
         var activeCell;
@@ -2880,8 +2933,8 @@
             rids = [];
             modifiedRows = [];
             rowsToRemove = [];
-            for(var i = 0; i < selRanges.length; ++i) {
-                for(ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
+            for(let i = 0; i < selRanges.length; ++i) {
+                for(let ri = selRanges[i].fromRow; ri <= selRanges[i].toRow; ++ri) {
                     if(selRanges[i].fromCell === 0) {
                         rids.push(this._gdata[ri].id);
                         if(this._gdata[ri].op !== 'ins') {
@@ -2912,7 +2965,7 @@
             rowsToRemove.sort(function(a, b) {
                 return b - a;
             });
-            for(var i = 0; i < rowsToRemove.length; ++i) {
+            for(let i = 0; i < rowsToRemove.length; ++i) {
                 this._gdata.splice(rowsToRemove[i], 1);
             }
 
@@ -2967,7 +3020,7 @@
             var activeCellNode = this._grid.getActiveCellNode();
             var isInEditMode = $(activeCellNode).hasClass("editable");
 
-            activeCell = this._grid.getActiveCell()
+            activeCell = this._grid.getActiveCell();
             if (activeCell && !isInEditMode) {
                 col = activeCell.cell;
 
@@ -2976,7 +3029,7 @@
                     // If we have an active cell but no range means that we are in a new cell, 
                     // so we open the editor.
                     var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
-                    if(currentSelectedRanges.length == 0 ||
+                    if(currentSelectedRanges.length === 0 ||
                        this._singleCellSelected(currentSelectedRanges)) {
                         this._grid.editActiveCell();
                     }
@@ -2985,13 +3038,13 @@
         }
     },
 
-    _handleClick: function(e, args) {
+    _handleClick: function() {
         var self = this;
         self._dlg.dialog("moveToTop");
     },
 
     // Recover the focus if the vieport gets a mouse event.
-    _handleMouseDown: function(e, args) {
+    _handleMouseDown: function() {
         console.log("handle mouse down");
         var self = this;
         // If the tale is disabled do not set the focus.
@@ -3023,7 +3076,7 @@
         //}
     },
 
-    _handleDragInit: function(e, args) {
+    _handleDragInit: function(e) {
         e.stopImmediatePropagation();
         var self = this;
         self._dlg.dialog("moveToTop");
@@ -3048,7 +3101,7 @@
         }
     },
 
-    _handleMouseLeave: function(e, args) {
+    _handleMouseLeave: function() {
         var self = this;
         self._removeImgPreview();
     },
@@ -3096,7 +3149,7 @@
     _getColumnPositions: function() {
         var self = this;
         var columns = self._grid.getColumns();
-        var columnPos = new Array();
+        var columnPos = [];
         //id is the first column, it is not part of the sql
         for(var i = 1; i < columns.length; ++i) {
             columnPos.push(self._origcolumns[columns[i].field]);
@@ -3114,23 +3167,26 @@
         var self = this;
         self._grid.removeCellCssStyles('delete');
         self._grid.removeCellCssStyles('update');
-        var delStyle = new Object();
-        var updStyle = new Object();
+        var delStyle = {};
+        var updStyle = {};
         var cols = self._grid.getColumns();
-        for (var j = 0 ; j < self._gdata.length; ++j)
+        for (let j = 0; j < self._gdata.length; ++j) {
             switch (self._gdata[j].op) {
                 case 'del':
-                    delStyle[j] = new Object();
-                    for (var _i=0; _i<cols.length; ++_i)
-                        delStyle[j][cols[_i].id] = 'slick-cell-del';
+                    delStyle[j] = {};
+                    for (let i = 0; i < cols.length; ++i) {
+                        delStyle[j][cols[i].id] = 'slick-cell-del';
+                    }
                     break;
                 case 'upd':
                 case 'ins':
-                    updStyle[j] = new Object();
-                    for (var _i=0; _i<cols.length; ++_i)
-                        updStyle[j][cols[_i].id] = 'slick-cell-upd';
+                    updStyle[j] = {};
+                    for (let i = 0; i < cols.length; ++i) {
+                        updStyle[j][cols[i].id] = 'slick-cell-upd';
+                    }
                     break;
             }
+        }
         if(!$.isEmptyObject(delStyle)) self._grid.setCellCssStyles('delete', delStyle);
         if(!$.isEmptyObject(updStyle)) self._grid.setCellCssStyles('update', updStyle);
     },
@@ -3172,11 +3228,15 @@
     },
 
     // loading rows
-    buttonPress: function(button) {
-        this._ajax('button', {button: { connection: dderlState.connection,
-            statement: this._stmt, binds: (this._optBinds != null && this._optBinds.hasOwnProperty('pars')
-                                            ? this._optBinds.pars : null), btn: button}},
-            'button', 'loadRows');
+    buttonPress: function (button) {
+        this._ajax('button', {
+            button: {
+                connection: dderlState.connection,
+                statement: this._stmt,
+                binds: (this._optBinds && this._optBinds.hasOwnProperty('pars')) ? this._optBinds.pars : null,
+                btn: button
+            }
+        }, 'button', 'loadRows');
     },
 
     disableDialog: function() {
@@ -3371,7 +3431,7 @@
         self._origcolumns = {};
         columns[0].formatter = Slick.Formatters.IdFormatter;
         columns[0].headerCssClass = "numeric";
-        for (var i = 1; i < columns.length; ++i) {
+        for (let i = 1; i < columns.length; ++i) {
             if(columns[i].type == "numeric") {
                 columns[i].cssClass = "numeric";
                 columns[i].headerCssClass = "numeric";
@@ -3393,8 +3453,8 @@
 
         // load the column layout if its was saved
         if(self._clmlay !== null) {
-            for(var i = 1; i < columns.length; ++i) {
-                for(var j = 0; j < self._clmlay.length; ++j) {
+            for(let i = 1; i < columns.length; ++i) {
+                for(let j = 0; j < self._clmlay.length; ++j) {
                     if(columns[i].field === self._clmlay[j].name) {
                         columns[i].width = self._clmlay[j].width;
                         break;
@@ -3417,9 +3477,8 @@
     {
         this._spinCounter--;
         var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
-        if(this._spinCounter <= 0
-                && this._dlg.hasClass('ui-dialog-content')
-                && $dlgTitleObj.hasClass('table-title-wait')) {
+        if(this._spinCounter <= 0 && this._dlg.hasClass('ui-dialog-content') &&
+            $dlgTitleObj.hasClass('table-title-wait')) {
             this._setTitleHtml($dlgTitleObj.removeClass('table-title-wait'));
             this._spinCounter = 0;
         }
@@ -3432,9 +3491,8 @@
             this._spinCounter = 0;
         this._spinCounter++;
         var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
-        if(this._spinCounter > 0
-                && this._dlg.hasClass('ui-dialog-content')
-                && !($dlgTitleObj.hasClass('table-title-wait'))) {
+        if(this._spinCounter > 0 && this._dlg.hasClass('ui-dialog-content') &&
+            !($dlgTitleObj.hasClass('table-title-wait'))) {
             this._setTitleHtml($dlgTitleObj.addClass('table-title-wait'));
         }
     },
@@ -3453,11 +3511,11 @@
         self.removeWheel();
 
         // system actions (beep and others)
-        if(_rows.beep) beep();
+        if(_rows.beep) { beep(); }
         self._tbTxtBox.attr('title',_rows.toolTip);
         self._tbTxtBox.val(_rows.cnt+' ');
         var tbClass = (/tb_[^ ]+/g).exec(self._tbTxtBox.attr('class'));
-        for (var i = 0; i < tbClass.length; ++i) {
+        for (let i = 0; i < tbClass.length; ++i) {
             self._tbTxtBox.removeClass(tbClass[i]);
         }
         self._tbTxtBox.addClass('tb_'+_rows.state);
@@ -3465,7 +3523,7 @@
 
         if(_rows.op !== "nop") {
             if(!$.isEmptyObject(_rows.disable) || !$.isEmptyObject(_rows.promote)) {
-                for(var btn in self._toolbarButtons) {
+                for(let btn in self._toolbarButtons) {
                     var tbBtnObj = self._toolbarButtons[btn];
                     var btnElm = self[tbBtnObj.dom];
                     if ((!$.isEmptyObject(_rows.disable) && _rows.disable.hasOwnProperty(btn)) ||
@@ -3488,7 +3546,7 @@
                     }
                 }
             } else {
-                for(var btn in self._toolbarButtons) {
+                for(let btn in self._toolbarButtons) {
                     self[self._toolbarButtons[btn].dom]
                     .button('enable')
                     .removeClass('ui-state-error')
@@ -3513,13 +3571,14 @@
         
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && !self._clmlay) {
             var fieldWidth = 0;
-            for(var i=0;i<c.length; ++i) {
+            for (let i = 0; i < c.length; ++i) {
                 fieldWidth = self._txtlen.text(_rows.max_width_vec[c[i].field]).width();
                 fieldWidth = fieldWidth + 0.4 * fieldWidth;
                 if(c[i].width < fieldWidth) {
                     c[i].width = fieldWidth;
-                    if (c[i].width > self._MAX_ROW_WIDTH)
+                    if (c[i].width > self._MAX_ROW_WIDTH) {
                         c[i].width = self._MAX_ROW_WIDTH;
+                    }
                 }
             }
             self._grid.setColumns(c);
@@ -3547,13 +3606,13 @@
                 needScroll = true;
                 break;
             case "app": // append
-                for(var i=0; i < _rows.rows.length; ++i) {
+                for (let i = 0; i < _rows.rows.length; ++i) {
                     self._gridDataView.addItem(_rows.rows[i]);
                 }
                 var nRowsMoved = self._gdata.length - _rows.keep;
                 if(nRowsMoved > 0) {
                     self._moveSelection(nRowsMoved);
-                    for(var j = 0; j < nRowsMoved; ++j) {
+                    for(let j = 0; j < nRowsMoved; ++j) {
                         self._gridDataView.deleteItem(self._gdata[0].id);
                     }
                     computedFocus = gvp.bottom - 4 - nRowsMoved;
@@ -3569,13 +3628,13 @@
                 var nRowsDelete = self._gdata.length +  _rows.rows.length - _rows.keep;
                 if(nRowsDelete > 0) {
                     var lastIndex = self._gdata.length - 1;
-                    for(var j = lastIndex; j > lastIndex - nRowsDelete; --j) {
+                    for(let j = lastIndex; j > lastIndex - nRowsDelete; --j) {
                         self._gridDataView.deleteItem(self._gdata[j].id);
                     }
                 }
                 do {
                     self._gridDataView.insertItem(0, _rows.rows.pop());
-                } while (_rows.rows.length > 0)
+                } while (_rows.rows.length > 0);
 
                 computedFocus = gvp.top - Math.min(_rows.rows.length, gvpH - 4) + nRowsDelete;
                 if(computedFocus < 0) {
@@ -3593,7 +3652,7 @@
                 break;
             case "ins": // add rows to the end, keep all
                 console.log('ins');
-                for(var i=0; i < _rows.rows.length; ++i) {
+                for (let i = 0; i < _rows.rows.length; ++i) {
                     self._gridDataView.addItem(_rows.rows[i]);
                 }
                 redraw = true;
@@ -3723,10 +3782,12 @@
         //console.profileEnd();
     },
 
-    _toggleGrouping: function(data) {
+    _toggleGrouping: function (data) {
         var self = this;
-        var seperator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
+        var separator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
         var columnId = data.columnId;
+        var columns = self._grid.getColumns();
+        var columnIndex = self._grid.getColumnIndex(columnId);
 
         if ('sel' == columnId) {
             alert_jq('Error: No appropriate column for the menu item "Toggle Grouping" selected!');
@@ -3734,28 +3795,61 @@
         }
 
         console.log('toggle grouping ' + JSON.stringify(data));
-        if (self._gridDataView.getGrouping().length == 0) {
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)]['oldformatter'] =
-                self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter;
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
-                function (row, cell, value, columnDef, dataContext) {
-                    var newValue;
-                    if (value == null) {
-                        newValue = "";
-                    } else {
-                        newValueParts = value.split(seperator);
-                        newValue = newValueParts[newValueParts.length - 1];
-                    }
-                    return newValue;
-                };
-            groupByColumn(self._gridDataView,columnId,seperator);
+        if (self._gridDataView.getGrouping().length === 0) {
+            columns[columnIndex].oldformatter = columns[columnIndex].formatter;
+            columns[columnIndex].formatter = function (row, cell, value) {
+                if (value !== null && value !== undefined) {
+                    return value.split(separator).pop();
+                }
+                return "";                
+            };
+            groupByColumn(self._gridDataView, columnId, separator);
         }
         else {
-            self._grid.getColumns()[self._grid.getColumnIndex(columnId)].formatter =
-               self._grid.getColumns()[self._grid.getColumnIndex(columnId)].oldformatter;
+            columns[columnIndex].formatter = columns[columnIndex].oldformatter;
             self._gridDataView.setGrouping([]);
         }
     }
-
   });
 }( jQuery ) );
+
+function groupByColumn(dataView, col, seperator) {
+    var getters = [];
+    var ldata = dataView.getItems();
+    var level = 0;
+
+    for (let r = 0; r < ldata.length; ++r) {
+        let curlength = ldata[r][col].split(seperator).length - 1;
+        if (level < curlength) {
+            level = curlength;
+        }
+    }
+
+    for (let r = 0; r < ldata.length; ++r) {
+        let curlength = ldata[r][col].split(seperator).length - 1;
+        let parts = ldata[r][col].split(seperator);
+        for (let li = 0; li < level - curlength; ++li) {
+            parts.splice(-1, 0, "");
+        }
+        ldata[r][col+'_grp'] = parts.join('/');
+    }
+
+    function createGetterFun(idx) {
+        return function (row) {
+            return row[col + '_grp'].split('/')[idx];
+        };
+    }
+
+    function formatter(g) {
+        return "" + g.value + "<span class='slick-group-count'>(" + g.count + ")</span>";
+    }
+
+    for(var i = 0; i < level; ++i) {
+        getters.push({
+            getter: createGetterFun(i),
+            formatter: formatter,
+            collapsed: true
+        });
+    }
+    dataView.setGrouping(getters);
+}

@@ -1,22 +1,30 @@
-function StartSqlEditor() {
-$('<div>')
-    .appendTo(document.body)
-    .sql({autoOpen  : false,
-    title     : null,
-    cmdOwner  : null
-    })
-    .sql('open');
+import $ from 'jquery';
+import 'jquery-ui/ui/tabs';
+import {ajaxCall, alert_jq, confirm_jq, prompt_jq, dderlState,
+        smartDialogPosition} from './dderl';
+import {sql_params_dlg} from './dderl.sqlparams';
+
+export function StartSqlEditor() {
+    $('<div>')
+        .appendTo(document.body)
+        .sql({
+            autoOpen: false,
+            title: null,
+            cmdOwner: null
+        })
+        .sql('open');
 }
 
-function StartSqlEditorWithTitle(title, cmd) {
-$('<div>')
-    .appendTo(document.body)
-    .sql({autoOpen  : false,
-    title     : title,
-    cmdOwner  : null,
-    cmdFlat   : cmd,
-    })
-    .sql('open');
+export function StartSqlEditorWithTitle(title, cmd) {
+    $('<div>')
+        .appendTo(document.body)
+        .sql({
+            autoOpen: false,
+            title: title,
+            cmdOwner: null,
+            cmdFlat: cmd,
+        })
+        .sql('open');
 }
 
 function insertAtCursor(myField, myValue) {
@@ -24,10 +32,10 @@ function insertAtCursor(myField, myValue) {
   if (document.selection) {
     var temp;
     myField.focus();
-    sel = document.selection.createRange();
+    var sel = document.selection.createRange();
     temp = sel.text.length;
     sel.text = myValue;
-    if (myValue.length == 0) {
+    if (myValue.length === 0) {
       sel.moveStart('character', myValue.length);
       sel.moveEnd('character', myValue.length);
     } else {
@@ -47,7 +55,7 @@ function insertAtCursor(myField, myValue) {
   }
 }
 
-(function( $ ) {    
+(function() {    
   var DEFAULT_COUNTER = 0;
   $.widget( "dderl.sql", $.ui.dialog, {
 
@@ -120,9 +128,8 @@ function insertAtCursor(myField, myValue) {
         clear           : null,
         toolBarHeight   : 27,
         appendTo        : "#main-body",
-        open            : function(e,ui) {
-                          },
-        focus           : function(e,ui) {},
+        open            : function() {},
+        focus           : function() {},
         close           : function() {
                             $(this).dialog('destroy');
                             $(this).remove();
@@ -274,13 +281,13 @@ function insertAtCursor(myField, myValue) {
         self._editDiv =
             $('<div>')
             .append(
-              $('<ul>'
-              +'  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>'
-              +'  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>'
-              +'  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>'
-              +'  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>'
-              +'  <li><a href="#tabgraph">D3 Graph</a></li>'
-              +'</ul>')
+              $('<ul>' +
+              '  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>' +
+              '  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>' +
+              '  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>' +
+              '  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>' +
+              '  <li><a href="#tabgraph">D3 Graph</a></li>' +
+              '</ul>')
             )
             .append(
               $('<div>')
@@ -319,7 +326,6 @@ function insertAtCursor(myField, myValue) {
             .css('bottom', self.options.toolBarHeight+'px')
             .tabs()
             .on("tabsactivate", function(event, ui) {
-                var shouldReparse = false;
                 self._setTabFocus();
                 if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                     self.addWheel();
@@ -363,10 +369,11 @@ function insertAtCursor(myField, myValue) {
         var self = this;
 
         // default dialog open behavior
-    	if (self.options.autoOpen)
+    	if (self.options.autoOpen) {
             self._dlg.dialog("open");
+        }
 
-        if (undefined != self._cmdFlat && self._cmdFlat.length > 0) {
+        if (self._cmdFlat) {
             self._modCmd = self._cmdFlat;
             self.addWheel();
             ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
@@ -374,9 +381,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _createContextMenus: function() {
-        var self = this;
-
-        self._cnxtMenu('_sqlTtlCnxtMnu');  // header context menu
+        this._cnxtMenu('_sqlTtlCnxtMnu');  // header context menu
     },
 
     // create the context menu and add them to document.body
@@ -384,32 +389,34 @@ function insertAtCursor(myField, myValue) {
     // TODO: Create a context menu once per table instead of the global
     //       to allow dynamic menu options depending on the column content.
     _cnxtMenu: function(_menu) {
+        function leaveMenuHandler(e) {
+            e.preventDefault();
+            if($(this).is(':visible')) {
+                $(this).hide();
+            }
+        }
+
+        function clickMenuHandler() {
+            var self = $('#' + _menu).data('cnxt');
+            if(self) {
+                console.log('self title _cnxtMenu ' + self.options.title);
+                self[_menu].dom.hide();
+                self._cnxtMenuAction(_menu, $(this).attr("action"));
+            }
+        }
+
         if($('#'+_menu).length === 0) {
             var mnu = $('<ul>')
                 .attr('id', _menu)
                 .addClass("context_menu")
                 .hide()
-                .mouseleave(function(e) {
-                    var self = $('#'+_menu).data('cnxt');
-                    e.preventDefault();
-                    if($(this).is(':visible')) {
-                        $(this).hide();
-//                        self._grid.focus();   <- where should we return the focus ?
-                    }
-                })
+                .mouseleave(leaveMenuHandler)
                 .appendTo(document.body);
             for(var m in this[_menu]) {
                 if($.type(this[_menu][m]) === "string") {
                     $('<li>')
                         .attr("action", m)
-                        .click(function(e) {
-                            var self = $('#'+_menu).data('cnxt');
-                            if(undefined != self) {
-                                console.log('self title _cnxtMenu ' + self.options.title);
-                                self[_menu].dom.hide();
-                                self._cnxtMenuAction(_menu, $(this).attr("action"));
-                            }
-                        })
+                        .click(clickMenuHandler)
                         .text(m)
                         .appendTo(mnu);
                 }
@@ -497,7 +504,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _saveViewAs: function() {
-        self = this;
+        var self = this;
         prompt_jq({label: "ddView name", content: ''},
             function(viewName) {
                 if (viewName) {
@@ -536,7 +543,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _getOwnerViewId: function() {
-        if(null != this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
+        if(this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
             return this._cmdOwner.table('getViewId');
         }
         return null;
@@ -649,13 +656,11 @@ function insertAtCursor(myField, myValue) {
           });
       },
 
-      removeWheel : function()
-      {
+      removeWheel : function() {
           this._spinCounter--;
           var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
-          if(this._spinCounter <= 0
-             && this._dlg.hasClass('ui-dialog-content')
-             && $dlgTitleObj.hasClass('table-title-wait')) {
+          if(this._spinCounter <= 0 && this._dlg.hasClass('ui-dialog-content') &&
+            $dlgTitleObj.hasClass('table-title-wait')) {
               this._setTitleHtml($dlgTitleObj.removeClass('table-title-wait'));
               this._spinCounter = 0;
           }
@@ -667,9 +672,8 @@ function insertAtCursor(myField, myValue) {
               this._spinCounter = 0;
           this._spinCounter++;
           var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
-          if(this._spinCounter > 0
-             && this._dlg.hasClass('ui-dialog-content')
-             && !($dlgTitleObj.hasClass('table-title-wait'))) {
+          if(this._spinCounter > 0 && this._dlg.hasClass('ui-dialog-content') &&
+            !($dlgTitleObj.hasClass('table-title-wait'))) {
               this._setTitleHtml($dlgTitleObj.addClass('table-title-wait'));
           }
       },
@@ -677,25 +681,20 @@ function insertAtCursor(myField, myValue) {
     _addBtngrpToDiv: function(toolDiv) {
         var self = this;
 
-        for(btnTxt in self._toolsBtns) {
+        var toolElmFn = function(e) {
+            var self = e.data;
+            var _btnTxt = $(this).text();
+            var fName = self._toolsBtns[_btnTxt].clk;
+            var f = $.proxy(self[fName], self);
+            if($.isFunction(f)) {
+                f();
+            } else {
+                throw ('[' + self.options.title + '] toolbar ' + _btnTxt + ' has unimplimented cb ' + fName);
+            }
+        };
+
+        for(let btnTxt in self._toolsBtns) {
             var elm = self._toolsBtns[btnTxt];
-
-            var toolElmFn = function(e) {
-                var self = e.data;
-                var _btnTxt = $(this).text();
-                var fName = self._toolsBtns[_btnTxt].clk;
-                var f = $.proxy(self[fName], self);
-                if($.isFunction(f)) {
-                    f();
-                } else {
-                    throw('['+self.options.title+'] toolbar '+_btnTxt+' has unimplimented cb '+fName);
-                }
-            };
-
-            var inph = self.options.toolBarHeight;
-// TODO jQ 1.9 deprecated $.browser find work around
-//            if($.browser.msie) inph -= 2;
-
             if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
@@ -703,27 +702,29 @@ function insertAtCursor(myField, myValue) {
                     .css('height', this.options.toolBarHeight+'px')
                     .click(self, toolElmFn)
                     .appendTo(toolDiv);
-            } else if (self._toolsBtns[btnTxt].typ === 'sel') {
-                var sel = $('<select>')
-                    .width(100)
-                    .css('margin', '0px 0px 0px 0px')
-                    .addClass('ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right')
-                    .css('height', this.options.toolBarHeight+'px')
-                    .css('text-align', 'left')
-                    .appendTo(toolDiv);
-
-                for(var i = 0; i < self._history.length; ++i) {
-                    sel.append($('<option>').text(self._history[i]));
-                }
-                sel.change(function(evt) {
-                    console.log("the sel val", sel.val());
-                    evt.preventDefault();
-                    self.showCmd(sel.val(), false);
-                });
-                self._historySelect = sel;
             }
         }
-        
+
+        // This is not dynamic as we only support one select for
+        // the history anyways - else if (self._toolsBtns[btnTxt].typ === 'sel') {
+        var sel = $('<select>')
+            .width(100)
+            .css('margin', '0px 0px 0px 0px')
+            .addClass('ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right')
+            .css('height', this.options.toolBarHeight + 'px')
+            .css('text-align', 'left')
+            .appendTo(toolDiv);
+
+        for(let i = 0; i < self._history.length; ++i) {
+            sel.append($('<option>').text(self._history[i]));
+        }
+        sel.change(function(evt) {
+            evt.preventDefault();
+            self.showCmd(sel.val(), false);
+        });
+
+        self._historySelect = sel;
+
         toolDiv
             .buttonset()
             .css('height', (self.options.toolBarHeight)+'px');
@@ -731,7 +732,7 @@ function insertAtCursor(myField, myValue) {
         // footer total width
         var childs = toolDiv.children();
         var totWidth = 0;
-        for(var i = 0; i < childs.length; ++i) {
+        for(let i = 0; i < childs.length; ++i) {
             totWidth += $(childs[i]).width();
         }
         return totWidth;
@@ -759,23 +760,23 @@ function insertAtCursor(myField, myValue) {
     },
 
     _mergeBinds: function(src, dst) {
-        if (dst == null || !dst.hasOwnProperty('types')
-                || !dst.hasOwnProperty('pars')) {
+        if(!dst || !dst.hasOwnProperty('types') || !dst.hasOwnProperty('pars')) {
             dst = src;
         } else {
             dst.types = src.types;
-            
-            // remove stale parameters
-            for (p in dst.pars)
-                if (!src.pars.hasOwnProperty(p))
-                    delete dst.pars[p];
 
+            // remove stale parameters
+            for(let p in dst.pars) {
+                if(!src.pars.hasOwnProperty(p)) {
+                    delete dst.pars[p];
+                }
+            }
             // import new parameters and retain values of old parameters
-            for (p in src.pars)
-                if (dst.pars.hasOwnProperty(p)) {
+            for(let p in src.pars)
+                if(dst.pars.hasOwnProperty(p)) {
                     dst.pars[p].typ = src.pars[p].typ;
                 } else {
-                    dst.pars[p] = {typ : src.pars[p].typ, val : src.pars[p].val};
+                    dst.pars[p] = { typ: src.pars[p].typ, val: src.pars[p].val };
                 }
         }
         return dst;
@@ -803,7 +804,7 @@ function insertAtCursor(myField, myValue) {
         self.addWheel();
         ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
                 function (parse_stmt) {
-                    if (self._optBinds != null) {
+                    if (self._optBinds !== null) {
                         self._reloadParsedCmd(parse_stmt);
                     } else {
                         if (parse_stmt.hasOwnProperty("binds")) {
@@ -833,7 +834,7 @@ function insertAtCursor(myField, myValue) {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
                     connection: dderlState.connection, qstr: self._modCmd, conn_id: dderlState.connectionSelected.connection,
-                    binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
+                    binds: (self._optBinds !== null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
                 }}, 'query', 'resultStmt');
                 self._modCmd = self._cmdFlat;
             }
@@ -870,7 +871,7 @@ function insertAtCursor(myField, myValue) {
             initOptions.dderlSqlEditor = this._dlg;
             initOptions.title = this._title;
             if(null === this._cmdOwner) {
-                this._cmdOwner = $('<div>')
+                this._cmdOwner = $('<div>');
             }
             resultQry.qparams = self._optBinds;
 
@@ -886,8 +887,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _getLayout: function() {
-        var self = this;
-        if(null != this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
+        if(this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
             return $.extend(this._cmdOwner.table('getTableLayout'), this._getPlaneData());
         } else {
             return this._getPlaneData();
@@ -897,7 +897,7 @@ function insertAtCursor(myField, myValue) {
     // TODO: This is restricted to one d3 script for now.
     _getPlaneData: function() {
         var self = this;
-        planeToShow = 0;
+        var planeToShow = 0;
         if(self._editDiv.tabs("option", "active") > 3) {
             planeToShow = 1;
         }
@@ -926,7 +926,7 @@ function insertAtCursor(myField, myValue) {
             self.addWheel();
             ajaxCall(self, 'query', {query: {
                 connection: dderlState.connection, qstr : qstr, conn_id: dderlState.connectionSelected.connection,
-                binds: (self._optBinds != null && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
+                binds: (self._optBinds && self._optBinds.hasOwnProperty('pars') ? self._optBinds.pars : null)
             }}, 'query', 'resultMultStmt');
         }
     },
@@ -942,6 +942,7 @@ function insertAtCursor(myField, myValue) {
     _setTabFocus: function() {
         var self = this;
         var selected = self._editDiv.tabs("option", "active");
+        var textBox;
 
         switch(selected) {
             case 0:
@@ -1118,7 +1119,7 @@ function insertAtCursor(myField, myValue) {
     },
     
     _boxing: function(box, maxwidth, parent, oldBox) {
-        var children = new Array();
+        var children = [];
         var alltext = box.name;
         var allChildCollapsed = true;
         var res;
@@ -1145,7 +1146,7 @@ function insertAtCursor(myField, myValue) {
         self.options.minWidth = self._footerWidth;
         self._dlg = self.element
             .dialog(self.options)
-            .bind("dialogresizestop", function(event, ui) {
+            .bind("dialogresizestop", function() {
                 self._refreshHistoryBoxSize();
             });
 
@@ -1164,7 +1165,7 @@ function insertAtCursor(myField, myValue) {
         }
         this._refreshHistoryBoxSize();
         this._setTabFocus();
-        if (this._optBinds != null) {
+        if (this._optBinds !== null) {
             sql_params_dlg(this._paramsDiv, this._optBinds);
             this._editDiv.tabs("option", "active", 3);
             this._setTabFocus();
@@ -1211,7 +1212,7 @@ function insertAtCursor(myField, myValue) {
     },
 
   });
-}( jQuery ) );
+}());
 
 // $(document).ready(function() {    
 //     var BOX =

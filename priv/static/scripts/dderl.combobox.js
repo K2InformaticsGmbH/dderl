@@ -1,5 +1,8 @@
-//From http://jqueryui.com/autocomplete/#combobox
+import $ from 'jquery';
+import "jquery-ui/ui/autocomplete";
+import "jquery-ui/ui/tooltip";
 
+//From http://jqueryui.com/autocomplete/#combobox
 $.widget( "custom.combobox", {
     _create: function() {
         this.wrapper = $( "<span>" )
@@ -38,7 +41,7 @@ $.widget( "custom.combobox", {
             },
 
             // ui here is always empty.
-            autocompletechange: function( event, ui ) {
+            autocompletechange: function() {
 
                 // Search for a match (case-sensitive)
                 var self = this;
