@@ -39,7 +39,7 @@
     "build": "npm run lint && npm run clean && webpack --progress",
     "clean": "rm -rf public",
     "env": "env",
-    "lint": "jshint --verbose static/index.js static/scripts/*.js static/dashboard/*.js",
+    "lint": "jshint --verbose static/index.js static/scripts static/dashboard",
     "test": "karma start karma.conf.js",
     "validate": "webpack-validator webpack.config.js",
     "watch": "npm run clean && webpack --progress --watch"
