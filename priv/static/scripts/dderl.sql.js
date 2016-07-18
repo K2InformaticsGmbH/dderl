@@ -261,17 +261,43 @@ function insertAtCursor(myField, myValue) {
             });
 
         if(!self._script) {
-            var graphScriptHelp = "// This code is executed once and it should initialize the graph, the";
-            graphScriptHelp += "\n// available parameters are (container, width, height)";
-            graphScriptHelp += "\n\n// container: d3 selection of the contaner div for the graph";
-            graphScriptHelp += "\n// width: width of the container";
-            graphScriptHelp += "\n// height: height of the container";
-            graphScriptHelp += "\n\n// The function must then return an object with the following callbacks:";
-            graphScriptHelp += "\n\nreturn {";
-            graphScriptHelp += "\n    on_data: function(data) {},";
-            graphScriptHelp += "\n    on_resize: function(w, h) {},";
-            graphScriptHelp += "\n    on_reset: function() {}";
-            graphScriptHelp += "\n};";
+            var graphScriptHelp = `function initGraph(container, width, height) {
+    // This code is executed once and it should initialize the graph, the
+    // available parameters are (container, width, height)
+
+    // container: d3 selection of the contaner div for the graph
+    // width: width of the container
+    // height: height of the container
+
+    // The function must then return an object with the following callbacks:
+
+    var svg = container
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .style('background-color', 'antiquewhite');
+
+    return {
+        on_data: function(data) {
+            console.log("the new data arrived", data);
+            var points = svg
+                .selectAll('circle')
+                .data(data, function(d) { return d.id; })
+                .enter()
+                .append('circle');
+
+            points
+                .attr('r', function(d) { return 3; })
+                .attr('cx', function(d) { return d.id * 5; })
+                .attr('cy', 60);
+        },
+        on_resize: function(w, h) {
+            svg.attr('width', w)
+                .attr('height', h);
+        },
+        on_reset: function() {}
+    };
+}`;
             self._graphEdit.val(graphScriptHelp);
         } else {
             self._graphEdit.val(self._script);

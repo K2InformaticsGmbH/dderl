@@ -1984,7 +1984,11 @@ import './dderl.termEditor.js';
         var self = evt.data;
         console.log("clear graph");
         if(self._graphSpec && $.isFunction(self._graphSpec.on_reset)) {
-            self._graphSpec.on_reset();
+            try {
+                self._graphSpec.on_reset();
+            } catch(e) {
+                alert_js_error(e);
+            }
         }
     },
     ////////////////////////////
@@ -2535,12 +2539,20 @@ import './dderl.termEditor.js';
                         // Only call the function once every 200 miliseconds.
                         if(now > last + 200) {
                             last = now;
-                            self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                            try {
+                                self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                            } catch(e) {
+                                alert_js_error(e);
+                            }
                         } else {
                             clearTimeout(deferTimer);
                             deferTimer = setTimeout(function() {
                                 last = now;
-                                self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                                try {
+                                    self._graphSpec.on_resize(divElement.clientWidth, divElement.clientHeight);
+                                } catch(e) {
+                                    alert_js_error(e);
+                                }
                             }, 200);
                         }
                     }
@@ -2624,15 +2636,21 @@ import './dderl.termEditor.js';
         this._tableDiv.hide();
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
-            var d = document.createElement("div");
-            d.classList.add("d3-container");
-            d.style.bottom = this.options.toolBarHeight+'px';
-            this._dlg.append(d);
-            /* jshint evil:true */
-            var planeFunc = new Function('container', 'width', 'height', this._planeSpecs[planeIdx].script);
-            this._graphDivs[this._planeToShow-1] = d3.select(d);
-            this._graphSpec = planeFunc(this._graphDivs[this._planeToShow-1], d.clientWidth, d.clientHeight);
-            console.log(this._graphSpec);
+            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script);
+            if(planeFunc) {
+                let d = document.createElement("div");
+                d.classList.add("d3-container");
+                d.style.bottom = this.options.toolBarHeight + 'px';
+                this._dlg.append(d);
+                let container = d3.select(d);
+                try {
+                    this._graphSpec = planeFunc(container, d.clientWidth, d.clientHeight);
+                    this._graphDivs[this._planeToShow - 1] = container;
+                } catch(e) {
+                    container.remove();
+                    alert_js_error(e);
+                }
+            }
         } else {
             $(this._graphDivs[planeIdx].node()).show();
         }
@@ -3559,7 +3577,11 @@ import './dderl.termEditor.js';
         // If we are in a graph we use the data callback.
         if(self._graphSpec && $.isFunction(self._graphSpec.on_data)) {
             if(_rows.op != "nop") {
-                self._graphSpec.on_data(_rows.rows);
+                try {
+                    self._graphSpec.on_data(_rows.rows);
+                } catch(e) {
+                    alert_js_error(e);
+                }
             }
 
             // TODO: do we need to have data in slickgrid updated too ?
@@ -3852,4 +3874,26 @@ function groupByColumn(dataView, col, seperator) {
         });
     }
     dataView.setGrouping(getters);
+}
+
+function evalD3Script(script) {
+    /* jshint evil:true */
+    // Here we can inject libraries we would like to make available to d3 scripts.
+    var f = new Function('script', 'd3', "return eval('(' + script + ')')");
+    var result = null;
+    try {
+        result = f(script, d3);
+    } catch(e) {
+        alert_js_error(e);
+    }
+    return result;
+}
+
+// TODO: Move this with the other alerts
+function alert_js_error(e) {
+    var message = e.message;
+    if(e.stack) {
+        message += "\n" + e.stack;
+    }
+    alert_jq(message);
 }
