@@ -16,24 +16,34 @@ function init(container, width, height) {
 
     var margin = { top: 20, right: 20, bottom: 30, left: 40 }; 	// physical margins in px
     var cWidth, cHeight;							// main physical content size in px
-    var xMin = 0, xMax = 2;
-    var yMin = 0, yMax = 2;
+    var xMin = 1e100, xMax = -1e100;
+    var yMin = 1e100, yMax = -1e100;
     var xScale, yScale;
     var xAxis, xText = "x-Value";
     var yAxis, yText = "y-Value";
+    var radius = 3;
     var svg = container.append('svg');
+    var xAxisGroup;
+    var yAxisGroup;
+    var circles;
 
-    function idVal(d) {
+    var idVal = function(d) {
         return d.id;
     }
 
-    function xVal(d) {
+    var xVal = function(d) {
         return parseFloat(d.x_1);
     }
 
-    function yVal(d) {
+    var yVal = function(d) {
         return parseFloat(d.y1_2);
     }
+
+    var circleAttrs = {
+          cx: function(d) { return xScale(xVal(d)) },
+          cy: function(d) { return yScale(yVal(d)) },
+          r: function(d) { return radius }
+    };
 
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -44,12 +54,7 @@ function init(container, width, height) {
         height = h;
         cWidth = width - margin.left - margin.right;
         cHeight = height - margin.top - margin.bottom;
-        xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
-        yScale = d3.scaleLinear().domain([yMin, yMax]).range([cHeight, 0]);
-        xAxis = d3.axisBottom(xScale).ticks(10);
-        yAxis = d3.axisLeft(yScale).ticks(10);      // , "%"
-        svg.attr('width', width)
-            .attr('height', height);
+        svg.attr('width', width).attr('height', height);
     }
 
     resize(width, height);
@@ -57,18 +62,28 @@ function init(container, width, height) {
     return {
 
         on_data: function(data) {
-            console.log("new data arrived", data);
 
-            g.selectAll("scatter-dots")
-                .data(data, function(d) { return idVal(d); })
+            xMin = Math.min(xMin, d3.min(data, xVal));
+            xMax = Math.max(xMax, d3.max(data, xVal));
+            yMin = Math.min(yMin, d3.min(data, yVal));
+            yMax = Math.max(yMax, d3.max(data, yVal));
+
+            xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
+            yScale = d3.scaleLinear().domain([yMin, yMax]).range([cHeight, 0]);
+            xAxis = d3.axisBottom(xScale).ticks(10);
+            yAxis = d3.axisLeft(yScale).ticks(10);      // , "%"
+
+            circles = g.selectAll("circle")
+                .data(data, idVal)
                 .enter()
                 .append("svg:circle")
+                // .attr(circleAttrs);
                 .attr("cx", function(d) { return xScale(xVal(d)); })
                 .attr("cy", function(d) { return yScale(yVal(d)); })
                 .attr("r", 3)
                 .style("fill", "steelblue");
 
-            g.append("g")
+            xAxisGroup = g.append("g")
                 .attr("class", "x axis")
                 .attr("transform", "translate(0," + cHeight + ")")
                 .style('stroke', 'Black')
@@ -82,7 +97,7 @@ function init(container, width, height) {
                 .style("text-anchor", "end")
                 .text(xText);
 
-            g.append("g")
+            yAxisGroup = g.append("g")
                 .attr("class", "y axis")
                 .style('stroke', 'Black')
                 .style('fill', 'none')
@@ -95,6 +110,9 @@ function init(container, width, height) {
                 .attr("dy", ".71em")
                 .style("text-anchor", "end")
                 .text(yText);
+
+            // xAxisGroup.transition().call(xAxis);  // Update X-Axis
+            // yAxisGroup.transition().call(yAxis);  // Update Y-Axis                
 
         },
 

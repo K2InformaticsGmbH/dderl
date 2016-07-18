@@ -7,13 +7,15 @@ function init(container, width, height) {
     // height: height of the container
 
     // create table gsampChartTxtFloat (x binstr , y1 float , y2 float , c1 binstr , c2 binstr )
-    // paste the data from ord-bar-chart.csv
+    // copy csv data (without header line) from ord-bar-chart.csv
+    // paste the data into the table
 
-    var margin = { top: 20, right: 20, bottom: 30, left: 40 }; 	// physical margins in px
-    var cWidth, cHeight;							// main physical content size in px
+    var margin = { top: 20, right: 20, bottom: 30, left: 40 };  // physical margins in px
+    var cWidth, cHeight;                            // main physical content size in px
     var xScale, yScale;
-    var xAxis, xText = "x-Values";
-    var yAxis, yText = "Frequency";
+    var xAxis, xText = "character";
+    var yAxis, yText = "frequency";
+    var yMax;
     var svg = container.append('svg');
 
     function idVal(d) {
@@ -54,9 +56,21 @@ function init(container, width, height) {
             console.log("new data arrived", data);
 
             xScale.domain(data.map(function(d) { return xVal(d); }));
-            yScale.domain([0, d3.max(data, function(d) { return yVal(d); })]);
+            yMax = d3.max(data, function(d) { return yVal(d); });
+            yScale.domain([0, yMax]);
 
             g.selectAll('svg > g > *').remove(); // every data block 
+
+            g.selectAll(".bar")
+                .data(data, function(d) { return idVal(d); })
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", function(d) { return xScale(xVal(d)); })
+                .attr("width", xScale.bandwidth())
+                .attr("y", function(d) { return yScale(yVal(d)); })
+                .attr("height", function(d) { return cHeight - yScale(yVal(d)); })
+                .style("fill", "steelblue");
 
             g.append("g")
                 .attr("class", "x axis")
@@ -85,17 +99,6 @@ function init(container, width, height) {
                 .attr("dy", ".71em")
                 .style("text-anchor", "end")
                 .text(yText);
-
-            g.selectAll(".bar")
-                .data(data, function(d) { return idVal(d); })
-                .enter()
-                .append("rect")
-                .attr("class", "bar")
-                .attr("x", function(d) { return xScale(xVal(d)); })
-                .attr("width", xScale.bandwidth())
-                .attr("y", function(d) { return yScale(yVal(d)); })
-                .attr("height", function(d) { return cHeight - yScale(yVal(d)); })
-                .style("fill", "steelblue");
         },
 
         on_resize: function(w, h) {
