@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
-import * as d3 from 'd3';
+import * as d3 from 'd3/build/d3.node';
+import 'd3-selection-multi';
 import 'jquery-dialogextend/build/jquery.dialogextend';
 import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter,
     alert_jq, prompt_jq, confirm_jq, smartDialogPosition, addToCurrentViews,

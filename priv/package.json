@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "d3": "^4.1.0",
+    "d3-selection-multi": "^0.4.1",
     "font-awesome": "^4.6.3",
     "jquery": "^2.2.4",
     "jquery-dialogextend": "git+https://github.com/ROMB/jquery-dialogextend.git#ae24ecb32d24334ce241c66dd3e593e4484db7e6",
