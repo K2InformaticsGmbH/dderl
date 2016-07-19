@@ -128,6 +128,7 @@ function init(container, width, height) {
 
         on_reset: function() { 
             g.selectAll('svg > g > *').remove();
+            firstData = true;
         }
     };
 }
