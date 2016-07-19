@@ -25,7 +25,7 @@ function init(container, width, height) {
     var svg = container.append('svg');
     var xAxisGroup;
     var yAxisGroup;
-    var circles;
+    var firstData = true;
 
     var idVal = function(d) {
         return d.id;
@@ -38,12 +38,6 @@ function init(container, width, height) {
     var yVal = function(d) {
         return parseFloat(d.y1_2);
     }
-
-    var circleAttrs = {
-          cx: function(d) { return xScale(xVal(d)) },
-          cy: function(d) { return yScale(yVal(d)) },
-          r: function(d) { return radius }
-    };
 
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -63,6 +57,8 @@ function init(container, width, height) {
 
         on_data: function(data) {
 
+            if (data.length === 0) {return;}
+
             xMin = Math.min(xMin, d3.min(data, xVal));
             xMax = Math.max(xMax, d3.max(data, xVal));
             yMin = Math.min(yMin, d3.min(data, yVal));
@@ -73,46 +69,56 @@ function init(container, width, height) {
             xAxis = d3.axisBottom(xScale).ticks(10);
             yAxis = d3.axisLeft(yScale).ticks(10);      // , "%"
 
-            circles = g.selectAll("circle")
-                .data(data, idVal)
+            if (firstData) {
+
+                firstData = false;
+
+                xAxisGroup = g.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + cHeight + ")")
+                    .style('stroke', 'Black')
+                    .style('fill', 'none')
+                    .style('stroke-width', '1px')
+                    .call(xAxis);
+                xAxisGroup.append("text")
+                    .attr("x", xScale(xMax))
+                    .attr("dx", "-0.71em")
+                    .attr("dy", "-0.71em")
+                    .style("text-anchor", "end")
+                    .text(xText);
+
+                yAxisGroup = g.append("g")
+                    .attr("class", "y axis")
+                    .style('stroke', 'Black')
+                    .style('fill', 'none')
+                    .style('stroke-width', '1px')
+                    .call(yAxis);
+
+                yAxisGroup.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dx", "-0.71em")
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text(yText);
+
+            } else {
+                xAxisGroup.transition().call(xAxis);  // Update X-Axis
+                yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+            }
+
+            var circles = g.selectAll("circle");
+            circles.data(data, idVal)
                 .enter()
                 .append("svg:circle")
-                // .attr(circleAttrs);
                 .attr("cx", function(d) { return xScale(xVal(d)); })
                 .attr("cy", function(d) { return yScale(yVal(d)); })
-                .attr("r", 3)
+                .attr("r", radius)
                 .style("fill", "steelblue");
 
-            xAxisGroup = g.append("g")
-                .attr("class", "x axis")
-                .attr("transform", "translate(0," + cHeight + ")")
-                .style('stroke', 'Black')
-                .style('fill', 'none')
-                .style('stroke-width', '1px')
-                .call(xAxis)
-                .append("text")
-                .attr("x", xScale(xMax))
-                .attr("dx", "-0.71em")
-                .attr("dy", "-0.71em")
-                .style("text-anchor", "end")
-                .text(xText);
-
-            yAxisGroup = g.append("g")
-                .attr("class", "y axis")
-                .style('stroke', 'Black')
-                .style('fill', 'none')
-                .style('stroke-width', '1px')
-                .call(yAxis)
-                .append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("y", 6)
-                .attr("dx", "-0.71em")
-                .attr("dy", ".71em")
-                .style("text-anchor", "end")
-                .text(yText);
-
-            // xAxisGroup.transition().call(xAxis);  // Update X-Axis
-            // yAxisGroup.transition().call(yAxis);  // Update Y-Axis                
+            circles.transition()  // Gives the fly out from the center effect
+                .attr("cx", function(d) { return xScale(xVal(d)); })
+                .attr("cy", function(d) { return yScale(yVal(d)); });
 
         },
 
