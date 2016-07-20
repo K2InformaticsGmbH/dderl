@@ -39,6 +39,22 @@ function init(container, width, height) {
         return parseFloat(d.y1_2);
     }
 
+    var circleAttrs = function(d) { 
+        var obj = {
+            cx: xScale(xVal(d)),
+            cy: yScale(yVal(d)),
+            r: radius
+        };
+        return obj;
+    };
+
+    var circleStyles = function(d) { 
+        var obj = {
+            fill: "steelblue"
+        };
+        return obj;
+    };
+
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
@@ -49,6 +65,36 @@ function init(container, width, height) {
         cWidth = width - margin.left - margin.right;
         cHeight = height - margin.top - margin.bottom;
         svg.attr('width', width).attr('height', height);
+        if (firstData === false) {
+            rescale();
+            xAxisGroup
+                .attr("transform", "translate(0," + cHeight + ")")
+                .transition().call(xAxis);  // Update X-Axis
+            xAxisGroup.selectAll("text")
+                .attr("x", cWidth);
+            yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+            var circles = g.selectAll("circle");
+            circles.transition()  
+                .attr("cx", function(d) { return xScale(xVal(d)); })
+                .attr("cy", function(d) { return yScale(yVal(d)); });
+        }
+    }
+
+    function rescale() {
+        if (xMin === xMax) {
+            xScale = d3.scaleLinear().domain([xMin-1, xMax+1]).range([0, cWidth]);
+        } else {
+            xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
+        }
+
+        if (yMin === yMax) {
+            yScale = d3.scaleLinear().domain([yMin-1, yMax+1]).range([cHeight, 0]);
+        } else {
+            yScale = d3.scaleLinear().domain([yMin, yMax]).range([cHeight, 0]);
+        }
+
+        xAxis = d3.axisBottom(xScale).ticks(10);
+        yAxis = d3.axisLeft(yScale).ticks(10);      // , "%"        
     }
 
     resize(width, height);
@@ -64,10 +110,7 @@ function init(container, width, height) {
             yMin = Math.min(yMin, d3.min(data, yVal));
             yMax = Math.max(yMax, d3.max(data, yVal));
 
-            xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
-            yScale = d3.scaleLinear().domain([yMin, yMax]).range([cHeight, 0]);
-            xAxis = d3.axisBottom(xScale).ticks(10);
-            yAxis = d3.axisLeft(yScale).ticks(10);      // , "%"
+            rescale();
 
             if (firstData) {
 
@@ -76,22 +119,18 @@ function init(container, width, height) {
                 xAxisGroup = g.append("g")
                     .attr("class", "x axis")
                     .attr("transform", "translate(0," + cHeight + ")")
-                    .style('stroke', 'Black')
-                    .style('fill', 'none')
-                    .style('stroke-width', '1px')
                     .call(xAxis);
+
                 xAxisGroup.append("text")
-                    .attr("x", xScale(xMax))
+                    .attr("x", cWidth)
                     .attr("dx", "-0.71em")
                     .attr("dy", "-0.71em")
                     .style("text-anchor", "end")
+                    .style('stroke', 'Black')
                     .text(xText);
 
                 yAxisGroup = g.append("g")
                     .attr("class", "y axis")
-                    .style('stroke', 'Black')
-                    .style('fill', 'none')
-                    .style('stroke-width', '1px')
                     .call(yAxis);
 
                 yAxisGroup.append("text")
@@ -100,6 +139,7 @@ function init(container, width, height) {
                     .attr("dx", "-0.71em")
                     .attr("dy", ".71em")
                     .style("text-anchor", "end")
+                    .style('stroke', 'Black')
                     .text(yText);
 
             } else {
@@ -108,17 +148,21 @@ function init(container, width, height) {
             }
 
             var circles = g.selectAll("circle");
+
+            circles.transition()  
+                .attr("cx", function(d) { return xScale(xVal(d)); })
+                .attr("cy", function(d) { return yScale(yVal(d)); });
+
             circles.data(data, idVal)
                 .enter()
                 .append("svg:circle")
+                // .styles(circleStyles)
+                .style("fill", "steelblue")
+                // .attrs(circleAttrs)
                 .attr("cx", function(d) { return xScale(xVal(d)); })
                 .attr("cy", function(d) { return yScale(yVal(d)); })
                 .attr("r", radius)
-                .style("fill", "steelblue");
-
-            circles.transition()  // Gives the fly out from the center effect
-                .attr("cx", function(d) { return xScale(xVal(d)); })
-                .attr("cy", function(d) { return yScale(yVal(d)); });
+                ;
 
         },
 
