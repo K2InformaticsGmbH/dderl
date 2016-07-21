@@ -288,11 +288,11 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                                     ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
                                 {JsonBindInfo, Binds} when Binds == undefined; element(1, Binds) == error ->
                                     RespJson = jsx:encode(
-                                                 [{<<"browse_data">>,
-                                                   [{<<"content">>, C#ddCmd.command},
-                                                    {<<"name">>, Name},
-                                                    {<<"view_id">>, V#ddView.id}
-                                                    | JsonBindInfo]}]
+                                                 [{<<"browse_data">>, [{<<"content">>, C#ddCmd.command},
+                                                                       {<<"name">>, Name},
+                                                                       {<<"table_layout">>, (V#ddView.state)#viewstate.table_layout},
+                                                                       {<<"column_layout">>, (V#ddView.state)#viewstate.column_layout},
+                                                                       {<<"view_id">>, V#ddView.id} | JsonBindInfo]}]
                                                 );
                                 {_, Binds} ->
                                     Resp = process_query({C#ddCmd.command, Binds}, Connection, SessPid),
