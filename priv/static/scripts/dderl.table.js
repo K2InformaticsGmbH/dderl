@@ -2276,7 +2276,6 @@ import './dderl.termEditor.js';
             this._openFailedSql(_table.name, _table.content, null, null);
             return;
         } else if(_table.hasOwnProperty('binds')) {
-            console.log("the tl cha", tl);
             this._openFailedSql(_table.name, _table.content, _table.binds, _table.view_id, tl);
             return;
         }

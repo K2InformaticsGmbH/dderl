@@ -1190,12 +1190,12 @@ function insertAtCursor(myField, myValue) {
             // TODO: Here we maximize unused space
         }
         this._refreshHistoryBoxSize();
-        this._setTabFocus();
         if (this._optBinds !== null) {
             sql_params_dlg(this._paramsDiv, this._optBinds);
             this._editDiv.tabs("option", "active", 3);
-            this._setTabFocus();
+            this._cmdChanged = true;
         }
+        this._setTabFocus();
     },
 
     setFlatCmd: function(cmd) {
