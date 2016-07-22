@@ -71,6 +71,9 @@ import './dderl.termEditor.js';
     // pointer to the link element with our entry in the windows list
     _windowFinderTextLink: null,
 
+    // flag to continue looping on scan to end
+    _scanToEnd : true,
+
     // private event handlers
     _handlers       : { loadViews       : function(e, _result) { e.data._renderViews            (_result); },
                         openView        : function(e, _result) { e.data._openView               (_result); },
@@ -101,14 +104,15 @@ import './dderl.termEditor.js';
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',               clk : '_toolBarReload',   dom: '_tbReload' },
-                       '|<'       : {tip: 'Move to first',         typ : 'btn', icn : 'step-backward',         clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
+                       '|<'       : {tip: 'Jump to first',         typ : 'btn', icn : 'step-backward',         clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',              clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
                        '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',     clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
                        'textBox'  : {tip: '',                      typ : 'txt',                                clk : '_toolBarTxtBox',   dom: '_tbTxtBox' },
                        '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',                  clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
                        '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'forward',               clk : '_toolBarJmNext',   dom: '_tbJmNext' },
-                       '>|'       : {tip: 'Move to end',           typ : 'btn', icn : 'step-forward',          clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
-                       '>|...'    : {tip: 'Move to end then Tail', typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarSkTail',   dom: '_tbSkTail' },
+                       '->|'      : {tip: 'Scan to end',           typ : 'btn', icn : 'arrow-right',           clk : '_toolBarScnEnd',   dom: '_tbScnEnd' },
+                       '>|'       : {tip: 'Jump to end',           typ : 'btn', icn : 'step-forward',          clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
+                       '>|...'    : {tip: 'Jump to end then Tail', typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarSkTail',   dom: '_tbSkTail' },
                        '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
                        'commit'   : {tip: 'Commit changes',        typ : 'btn', icn : 'check',                 clk : '_toolBarCommit',   dom: '_tbCommit' },
                        'rollback' : {tip: 'Discard changes',       typ : 'btn', icn : 'times',                 clk : '_toolBarDiscrd',   dom: '_tbDiscrd' }},
@@ -1961,6 +1965,11 @@ import './dderl.termEditor.js';
         self.buttonPress(">>");
         console.log('['+self.options.title+'] cb _toolBarJmNext');
     },
+    _toolBarScnEnd: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarScnEnd');
+        self._scanToEnd = true;
+        self.buttonPress(">");
+    },
     _toolBarSekEnd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSekEnd');
         self.buttonPress(">|");
@@ -2359,7 +2368,8 @@ import './dderl.termEditor.js';
                 self._reorderCalled = false;
                 self._cmd = _rows.sql;
                 self._addToEditorHistory(_rows.sql);
-            } else if(rowsCount > 0 && !self._reorderCalled && _rows.loop.length === 0) {
+            } else if(rowsCount > 0 && !self._reorderCalled &&
+                      _rows.loop.length === 0 && !self._scanToEnd) {
                 self._reorderCalled = true;
                 self._gridColumnsReorder();
             }
@@ -2370,6 +2380,12 @@ import './dderl.termEditor.js';
                     self._loop = _rows.loop;
                 } else {
                     self.buttonPress(_rows.loop);
+                }
+            } else if(self._scanToEnd) {
+                if(rowsCount === 0) {
+                    self._scanToEnd = false;
+                } else {
+                    self.buttonPress('>');
                 }
             }
         } else if(_rows.hasOwnProperty('error')) {

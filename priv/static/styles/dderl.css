@@ -776,6 +776,7 @@ input.inputText.ui-button.ui-widget.ui-state-default {
     text-align: left;
 }
 
+.colorIcon .fa-arrow-right,
 .colorIcon .fa-step-backward,
 .colorIcon .fa-backward,
 .colorIcon .fa-play,
@@ -787,6 +788,7 @@ input.inputText.ui-button.ui-widget.ui-state-default {
     color:  #888888;
 }
 
+.colorIcon:hover .fa-arrow-right,
 .colorIcon:hover .fa-step-backward,
 .colorIcon:hover .fa-backward,
 .colorIcon:hover .fa-play,
