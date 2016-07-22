@@ -1,5 +1,5 @@
 import jQuery from "jquery";
-import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl';
+import {dderlState} from '../../scripts/dderl';
 
 (function ($) {
   // register namespace
@@ -662,3 +662,32 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
     });
   }
 })(jQuery);
+
+/* Escape new lines and tabs */
+function escapeNewLines(str) {
+    var result = "";
+    if(typeof str == 'string' || str instanceof String) {
+        for(var i = 0; i < str.length; ++i) {
+            if(str.charCodeAt(i) === 9) {
+                result += "\\t";
+            } else if(str.charCodeAt(i) === 10) {
+                result += "\\n";
+            } else if(str.charCodeAt(i) !== 13) {
+                result += str[i];
+            }
+        }
+    } else {
+        result = str;
+    }
+    return result;
+}
+
+function unescapeNewLines(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        str = str.replace(/\\t/gi, "\t");
+        str = str.replace(/\\n/gi, "\n");
+    }
+    return unescape(str);
+}

@@ -335,32 +335,6 @@ function show_more_apps() {
     }
 }
 
-
-/* Escape new lines and tabs */
-export function escapeNewLines(str) {
-    var result = "";
-    if(typeof str == 'string' || str instanceof String) {
-        for(var i = 0; i < str.length; ++i) {
-            if(str.charCodeAt(i) === 9) {
-                result += "\\t";
-            } else if(str.charCodeAt(i) === 10) {
-                result += "\\n";
-            } else if(str.charCodeAt(i) !== 13) {
-                result += str[i];
-            }
-        }
-    } else {
-        result = str;
-    }
-    return result;
-}
-
-export function unescapeNewLines(str) {
-    str = str.replace(/\\t/gi, "\t");
-    str = str.replace(/\\n/gi, "\n");
-    return unescape(str);
-}
-
 function get_local_apps(table) {
     ajaxCall(null, 'about', null, 'about', function(applications) {
         applications.jQuery = {version : $.fn.jquery, dependency : true};
