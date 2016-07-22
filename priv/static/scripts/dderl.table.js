@@ -3295,6 +3295,7 @@ import './dderl.termEditor.js';
 
     moveAllToTop: function() {
         var self = this;
+        self._dlg.dialogExtend("restore");
         self._dlg.dialog("moveToTop");
         if(self._divSqlEditor && self._divSqlEditor.hasClass('ui-dialog-content')) {
             self._divSqlEditor.dialog("moveToTop");
