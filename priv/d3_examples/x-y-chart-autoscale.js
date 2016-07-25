@@ -20,8 +20,13 @@ function init(container, width, height) {
     var xAxisGroup;
     var yAxisGroup;
 
-    var xMin = 1e100, xMax = -1e100;
-    var yMin = 1e100, yMax = -1e100;
+    var xMin = 1e100, xMax = -1e100;    // autoscale defaults
+    var yMin = 1e100, yMax = -1e100;    // autoscale defaults
+
+    // xMin = ..., xMax = ....;         // set fixed initial values here
+    // yMin = ..., yMax = ....;         // set fixed initial values here
+    var xAutoscale = true;
+    var yAutoscale = true;
     var xAllowance = 0.05;
     var yAllowance = 0.05;
     var xAxis, xText = "x-Value";
@@ -61,21 +66,25 @@ function init(container, width, height) {
     };
 
     function xGrow(xMinNew,xMaxNew) {
-        if (xMinNew < xMin) {
-            xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
-        }
-        if (xMaxNew > xMax) {
-            xMax = xMaxNew + xAllowance * (xMaxNew-xMinNew);
+        if (xAutoscale) {
+            if (xMinNew < xMin) {
+                xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
+            }
+            if (xMaxNew > xMax) {
+                xMax = xMaxNew + xAllowance * (xMaxNew-xMinNew);
+            }
         }
         return;
     }
 
     function yGrow(yMinNew,yMaxNew) {
-        if (yMinNew < yMin) {
-            yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
-        }
-        if (yMaxNew > yMax) {
-            yMax = yMaxNew + yAllowance * (yMaxNew-yMinNew);
+        if (yAutoscale) {
+            if (yMinNew < yMin) {
+                yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
+            }
+            if (yMaxNew > yMax) {
+                yMax = yMaxNew + yAllowance * (yMaxNew-yMinNew);
+            }
         }
         return;
     }
