@@ -10,7 +10,7 @@ function init(container, width, height) {
         select    0.01 * item as x
                 , 0.01 * item + 0.1 * sin(0.1 * item) as y1
                 , 1.0 + 0.01 * item * cos(0.1 * item) as y2 
-        from integer where item >= 0 and item <= 280
+        from integer where item >= 0 and item <= 270
     */
 
     // The function must then return an object with the following callbacks:
@@ -26,7 +26,7 @@ function init(container, width, height) {
 
     // xMin = ..., xMax = ....;         // set fixed initial values here
     var xTickCount = 10;
-    var xTickFormatSpecifier = "";      
+    var xTickFormatSpecifier = null;      
     /*
     "%"         // percentage, "12%"
     ".0%"       // rounded percentage, "12%"
@@ -47,7 +47,8 @@ function init(container, width, height) {
     var yAllowance = 0.05;
     var xAxis, xText = "x-Value";
     var yAxis, yText = "y-Value";
-    var radius = 3;
+    var radius = 3;     // circle radius
+    var a = 3;          // half of square edge size
 
     var firstData = true;
     var svg = container.append('svg');
@@ -62,21 +63,41 @@ function init(container, width, height) {
         return parseFloat(d.x_1);
     }
 
-    var yVal = function(d) {
+    var y1Val = function(d) {
         return parseFloat(d.y1_2);
+    }
+
+    var y2Val = function(d) {
+        return parseFloat(d.y2_3);
     }
 
     var circleAttrs = function(d) { 
         return {
             cx: xScale(xVal(d)),
-            cy: yScale(yVal(d)),
+            cy: yScale(y1Val(d)),
             r: radius
+        };
+    };
+
+    var squareAttrs = function(d) { 
+        return {
+            x: xScale(xVal(d))-a,
+            y: yScale(y2Val(d))-a,
+            width: a+a,
+            height: a+a
         };
     };
 
     var circleStyles = function(d) { 
         var obj = {
             fill: "steelblue"
+        };
+        return obj;
+    };
+
+    var squareStyles = function(d) { 
+        var obj = {
+            fill: "red"
         };
         return obj;
     };
@@ -137,6 +158,8 @@ function init(container, width, height) {
             yAxisGroup.transition().call(yAxis);  // Update Y-Axis
 
             g.selectAll("circle").transition().attrs(circleAttrs);
+
+            g.selectAll("rect").transition().attrs(squareAttrs);
         }
     }
 
@@ -165,8 +188,12 @@ function init(container, width, height) {
 
             if (data.length === 0) {return;}
 
-            xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
-            yGrow(Math.min(yMin, d3.min(data, yVal)), Math.max(yMax, d3.max(data, yVal)));
+            xGrow(Math.min(xMin, d3.min(data, xVal))
+                , Math.max(xMax, d3.max(data, xVal))
+                );
+            yGrow(Math.min(yMin, d3.min(data, y1Val), d3.min(data, y2Val))
+                , Math.max(yMax, d3.max(data, y1Val), d3.max(data, y2Val))
+                );
 
             rescale();
 
@@ -216,6 +243,17 @@ function init(container, width, height) {
                 .append("svg:circle")
                 .attrs(circleAttrs)
                 .styles(circleStyles)
+                ;
+
+            var squares = g.selectAll("rect");
+
+            squares.transition().attrs(squareAttrs);
+
+            squares.data(data, idVal)
+                .enter()
+                .append("svg:rect")
+                .attrs(squareAttrs)
+                .styles(squareStyles)
                 ;
 
         },

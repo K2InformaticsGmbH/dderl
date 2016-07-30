@@ -7,45 +7,49 @@ function init(container, width, height) {
     // height: height of the container
 
     /*
-        select    0.01 * item as x
-                , 0.01 * item + 0.1 * sin(0.1 * item) as y1
-                , 1.0 + 0.01 * item * cos(0.1 * item) as y2 
-        from integer where item >= 0 and item <= 280
+       select time as x, memory as y1 from ddMonitor_86400@ where time > systimestamp - 5 / 24 / 60
     */
 
     // The function must then return an object with the following callbacks:
 
-    var margin = { top: 20, right: 20, bottom: 30, left: 50 }; 	// physical margins in px
-    var cWidth, cHeight;							// main physical content size in px
+    var margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
+    var cWidth, cHeight;                            // main physical content size in px
     var xScale, yScale;
     var xAxisGroup;
     var yAxisGroup;
 
-    var xMin = 1e100, xMax = -1e100;    // autoscale defaults
+    var tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
+    var xMin = tParse("01.01.2300 00:00:00.000");    // autoscale defaults
+    var xMax = tParse("01.01.1900 00:00:00.000");    // autoscale defaults
     var yMin = 1e100, yMax = -1e100;    // autoscale defaults
 
-    // xMin = ..., xMax = ....;         // set fixed initial values here
-    var xTickCount = 10;
-    var xTickFormatSpecifier = "";      
-    /*
-    "%"         // percentage, "12%"
-    ".0%"       // rounded percentage, "12%"
-    "($.2f"     // localized fixed-point currency, "(£3.50)"
-    "+20"       // space-filled and signed, "                 +42"
-    ".^20"      // dot-filled and centered, ".........42........."
-    ".2s"       // SI-prefix with two significant digits, "42M"
-    "#x"        // prefixed lowercase hexadecimal, "0xbeef"
-    ",.2r"      // grouped thousands with two significant digits, "4,200"
+    // xMin = tParse("30.07.2016 16:00:00.000");    // autoscale override
+    // xMax = tParse("30.07.2016 17:30:00.000");    // autoscale override
 
+    var xTickCount = 8;
+    var xTickFormatSpecifier = "%I:%M %p";
+     
+    /*
+    %Y - for year boundaries, such as 2011.
+    %B - for month boundaries, such as February.
+    %b %d - for week boundaries, such as Feb 06.
+    %a %d - for day boundaries, such as Mon 07.
+    %I %p - for hour boundaries, such as 01 AM.
+    %I:%M - for minute boundaries, such as 01:23.
+    :%S - for second boundaries, such as :45.
+    .%L - milliseconds for all other times, such as .012.
     */
+
     // yMin = ..., yMax = ....;         // set fixed initial values here
+
     var yTickCount = 10;
-    var yTickFormatSpecifier = "%";      
+    var yTickFormatSpecifier = "s";
+
     var xAutoscale = true;
     var yAutoscale = true;
     var xAllowance = 0.05;
     var yAllowance = 0.05;
-    var xAxis, xText = "x-Value";
+    var xAxis, xText = "time";
     var yAxis, yText = "y-Value";
     var radius = 3;
 
@@ -59,7 +63,11 @@ function init(container, width, height) {
     }
 
     var xVal = function(d) {
-        return parseFloat(d.x_1);
+        var tStr = d.x_1;   // DD.MM.YYYY hh:mi:ss.uuuuuu
+        console.log("x rounded", tStr.substr(0,23));
+        var res = tParse(tStr.substr(0,23));
+        console.log("x result", res);
+        return res;
     }
 
     var yVal = function(d) {
@@ -135,16 +143,22 @@ function init(container, width, height) {
             //     .attr("x", cWidth);
 
             yAxisGroup.transition().call(yAxis);  // Update Y-Axis
-
-            g.selectAll("circle").transition().attrs(circleAttrs);
+            var circles = g.selectAll("circle");
+            circles.transition()  
+                .attr("cx", function(d) { return xScale(xVal(d)); })
+                .attr("cy", function(d) { return yScale(yVal(d)); });
         }
     }
 
     function rescale() {
         if (xMin >= xMax) {
-            xScale = d3.scaleLinear().domain([xMin-1, xMax+1]).range([0, cWidth]);
+            xScale = d3.scaleTime()
+                .domain([xMin-1, xMax+1])
+                .range([0, cWidth]);
         } else {
-            xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
+            xScale = d3.scaleTime()
+                .domain([xMin, xMax])
+                .range([0, cWidth]);
         }
 
         if (yMin >= yMax) {
@@ -154,7 +168,7 @@ function init(container, width, height) {
         }
 
         xAxis = d3.axisBottom(xScale).ticks(xTickCount, xTickFormatSpecifier);
-        yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);          
+        yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);      // , "%"        
     }
 
     resize(width, height);
@@ -209,7 +223,9 @@ function init(container, width, height) {
 
             var circles = g.selectAll("circle");
 
-            circles.transition().attrs(circleAttrs);
+            circles.transition()  
+                .attr("cx", function(d) { return xScale(xVal(d)); })
+                .attr("cy", function(d) { return yScale(yVal(d)); });
 
             circles.data(data, idVal)
                 .enter()
