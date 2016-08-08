@@ -37,7 +37,7 @@ function init(container, width, height) {
 ["stag", "platform11", "192.168.0.2"]	{"color":"#ffcc99","linkedTo":["center1"]}	1EUXCI
 
     *****/
-    var margin = { top: 20, right: 20, bottom: 30, left: 40 }; 	// physical margins in px
+    var margin = { top: 10, right: 10, bottom: 10, left: 10 }; 	// physical margins in px
     var getKey = function (row) {
         return JSON.parse(row.ckey_1);
     };
@@ -58,13 +58,36 @@ function init(container, width, height) {
         stag: { position: { x: -40, y: -10 } }
     };
 
+    // virtual coordinates drawing arc radius
+    var vArcRadius = 1000;
+    // node radius in virtual coordinates
+    var nradius = 30;
+    // To see the complete circle when drawing negative coordinates
+    // and width and height for the virtual coordinates
+    var vBox = {
+        x: -1 * (vArcRadius + nradius),
+        y: -1 * nradius,
+        w: vArcRadius*2 + nradius*2,
+        h: vArcRadius + nradius
+    };
+
     var svg = container
         .append('svg')
-        .attr('width', width)
-        .attr('height', height);
+        .attr('viewBox', vBox.x + ' ' + vBox.y + ' ' + vBox.w + ' ' + vBox.h)
+        .attr('preserveAspectRatio', 'xMidYMax meet')
+        .style('margin-top', margin.top + 'px')
+        .style('margin-right', margin.right + 'px')
+        .style('margin-bottom', margin.bottom + 'px')
+        .style('margin-left', margin.left + 'px');
+    
+    function resize(w, h) {
+        var cheight = h - (margin.top + margin.bottom);
+        var cwidth = w - (margin.left + margin.right);
+        svg.attr('width', cwidth)
+            .attr('height', cheight);
+    }
 
-    var cheight = height - (margin.top + margin.bottom);
-    var cwidth = width - (margin.left + margin.right);
+    resize(width, height);
 
     return {
         on_data: function (data) {
@@ -79,18 +102,14 @@ function init(container, width, height) {
                 .append('circle');
 
             points
-                .attr('r', function (d) { return 3; })
-                .attr('cx', function (d) { return cwidth * Math.cos(d.id * angle); })
-                .attr('cy', function (d) {
-                    var dh = cheight * (1 - Math.sin(d.id * angle));
-                    return margin.top + dh;
+                .attr('r', function (d) { return nradius; })
+                .attr('cx', function (d, i) {
+                    return vArcRadius * Math.cos((i+1) * angle) * -1; })
+                .attr('cy', function (d, i) {
+                    return vArcRadius * (1 - Math.sin((i+1) * angle));
                 });
         },
-        on_resize: function (w, h) {
-            svg.attr('width', w)
-                .attr('height', h);
-        },
+        on_resize: resize,
         on_reset: function () { }
     };
-
 }
