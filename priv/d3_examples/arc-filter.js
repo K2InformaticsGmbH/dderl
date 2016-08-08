@@ -37,7 +37,8 @@ function init(container, width, height) {
 ["stag", "platform11", "192.168.0.2"]	{"color":"#ffcc99","linkedTo":["center1"]}	1EUXCI
 
     *****/
-    var margin = { top: 10, right: 10, bottom: 10, left: 10 }; 	// physical margins in px
+
+    /** Helper functions for data extraction */
     var getKey = function (row) {
         return JSON.parse(row.ckey_1);
     };
@@ -46,6 +47,32 @@ function init(container, width, height) {
         return JSON.parse(row.cvalue_2);
     };
 
+    var extractLinksNodes = function(rows, graph) {
+        rows.forEach(function(row) {
+            var key = getKey(row);
+            if(key.length === 3) {
+                graph.links.push({
+                    source: key[0],
+                    target: key[0] + "_" + key[1]
+                });
+            } else if(key.length === 2) {
+                var id = key[0] + "_" + key[1];
+                if(!graph.setNodes.has(key[0])) {
+                    graph.setNodes.add(key[0]);
+                    graph.nodes.push({id: key[0], enabled: true});
+                }
+                if(!graph.setNodes.has(id)) {
+                    var value = getValue(row);
+                    graph.setNodes.add(id);
+                    graph.nodes.push({id: id, enabled: value.enabled});
+                }
+            }
+        });
+    };
+    /** End data extraction functions */
+    
+    var margin = { top: 10, right: 10, bottom: 10, left: 10 }; 	// physical margins in px
+    
     var colorStatus = {
         idle: "black",
         error: "red",
@@ -91,17 +118,23 @@ function init(container, width, height) {
 
     return {
         on_data: function (data) {
-            console.log("the new data arrived", data);
+            if(data.length === 0) {
+                return;
+            }
 
-            var angle = Math.PI/(data.length + 1);
-
-            var points = svg
+            var newPoints = svg
                 .selectAll('circle')
-                .data(data, function (d) { return d.id; })
+                .data(data, function (d) {
+                    return d.id;
+                })
                 .enter()
                 .append('circle');
+            
+            var allPoints = svg.selectAll('circle');
+            var angle = Math.PI/(allPoints.size() + 1);
 
-            points
+            allPoints
+                .transition()
                 .attr('r', function (d) { return nradius; })
                 .attr('cx', function (d, i) {
                     return vArcRadius * Math.cos((i+1) * angle) * -1; })
@@ -110,6 +143,8 @@ function init(container, width, height) {
                 });
         },
         on_resize: resize,
-        on_reset: function () { }
+        on_reset: function () {
+            svg.selectAll('svg > *').remove();
+        }
     };
 }
