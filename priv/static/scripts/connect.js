@@ -150,23 +150,29 @@ export function connect_dlg()
             var owner = owners_list.val();
             var connectsArray = [];
 
-            for(var id = 0; id < connects.length; ++id)
-                if(connects[id].adapter == adapter && connects[id].owner == owner)
-                    connectsArray.push(
-                        {dom    : {value: id, text: connects[id].name},
-                         data   : connects[id]});
+            for(var id = 0; id < connects.length; ++id) {
+                if(connects[id].adapter == adapter && connects[id].owner == owner) {
+                    connectsArray.push({
+                        dom: {
+                            value: id,
+                            text: connects[id].name
+                        },
+                        data: connects[id]
+                    });
+                }
+            }
             
             connectsArray.sort(function(a, b) {
-                return a.text == b.text ? 0: a.text < b.text ? -1 : 1;
+                return a.dom.text === b.dom.text ? 0: a.dom.text < b.dom.text ? -1 : 1;
             });
             
-            for(var j = 0; j < connectsArray.length; ++j)
+            for(var j = 0; j < connectsArray.length; ++j) {
                 connection_list.append(
                     $('<option>', connectsArray[j].dom)
-                    .data('connect', connectsArray[j].data)
-                    );
+                        .data('connect', connectsArray[j].data)
+                );
+            }
 
-            connection_list.sort();
             connection_list.combobox();
             connection_list.parent().find('input')
                 .val(connection_list.find('option:selected').text());
