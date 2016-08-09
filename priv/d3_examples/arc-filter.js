@@ -77,9 +77,9 @@ function init(container, width, height) {
     var margin = { top: 10, right: 10, bottom: 10, left: 10 }; 	// physical margins in px
 
     var colorStatus = {
-        idle: "black",
-        error: "red",
-        ok: "green"
+        idle: 'black',
+        error: 'red',
+        ok: 'green'
     };
 
     // virtual coordinates drawing arc radius
@@ -104,9 +104,24 @@ function init(container, width, height) {
 
     var centerNodes = [
         // Position relative to the bottom center after margin.
-        { id: "prod", position: centerRelative(0, -2 * nradius), status: "ok" },
-        { id: "stag", position: centerRelative(-3 * nradius, -15), status: "ok" }
+        { id: 'prod', position: centerRelative(0, -2 * nradius), status: 'ok' },
+        { id: 'stag', position: centerRelative(-3 * nradius, -15), status: 'ok' }
     ];
+
+    var div = container.append('div')
+        .styles({
+            position: "fixed",
+            "text-align": "center",			
+            width: "60px",			
+            height: "28px",
+            padding: "2px",				
+            font: "12px sans-serif",
+            background: "lightsteelblue",
+            border: "0px",		
+            "border-radius": "8px",			
+            "pointer-events": "none",
+            opacity: 0
+        });
 
     var svg = container
         .append('svg')
@@ -150,8 +165,8 @@ function init(container, width, height) {
             }
 
             var graph = extractLinksNodes(data);
-            console.log("the links", graph.links);
-            console.log("the nodes", graph.nodes);
+            console.log('the links', graph.links);
+            console.log('the nodes', graph.nodes);
 
             svg.selectAll('circle')
                 .data(graph.nodes, function(d) {
@@ -162,6 +177,20 @@ function init(container, width, height) {
                 .attr('r', nradius)
                 .attr('id', function(d) {
                     return d.id;
+                })
+                .on('mouseover', function(d) {
+                    console.log("position: " + d3.event.pageX + ", " + d3.event.pageY);
+                    div.transition()
+                        .duration(200)
+                        .style('opacity', 0.9);
+                    div.html(d.id)
+                        .style('left', (d3.event.pageX) + "px")
+                        .style('top', (d3.event.pageY) + "px");
+                })
+                .on('mouseout', function() {
+                    div.transition()
+                        .duration(500)
+                        .style('opacity', 0);
                 });
 
             var allPoints = svg.selectAll('circle')
@@ -183,39 +212,38 @@ function init(container, width, height) {
                     return d.enabled ? 'black' : 'lightgrey';
                 });
 
+            // Adding connecting links
             setTimeout(function() {
-                var lines = svg
-                    .selectAll('line')
+                svg.selectAll('line')
                     .data(graph.links, function(d) {
                         return d.id;
                     })
                     .enter()
                     .append('line')
-                    .attr("x1", function(d) {
+                    .attr('x1', function(d) {
                         var s = document.getElementById(d.source);
                         return s ? s.cx.baseVal.value : 0;
                     })
-                    .attr("y1", function(d) {
+                    .attr('y1', function(d) {
                         var s = document.getElementById(d.source);
                         return s ? s.cy.baseVal.value : 0;
                     })
-                    .attr("x2", function(d) {
+                    .attr('x2', function(d) {
                         var s = document.getElementById(d.target);
                         return s ? s.cx.baseVal.value : 0;
                     })
-                    .attr("y2", function(d) {
+                    .attr('y2', function(d) {
                         var s = document.getElementById(d.target);
                         return s ? s.cy.baseVal.value : 0;
                     })
-                    .attr("stroke", function(d) {
+                    .attr('stroke', function(d) {
                         return colorStatus[d.status];
                     })
-                    .attr("stroke-width", 4)
-                    .attr("id", function(d) {
+                    .attr('stroke-width', 4)
+                    .attr('id', function(d) {
                         return d.id;
                     });
             }, 500);
-
         },
         on_resize: resize,
         on_reset: function() {
