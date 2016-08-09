@@ -761,7 +761,6 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, Tabl
         true -> <<"Unsupported target database version">>
     end;
 check_funs(Error) ->
-    ?Error("Error on checking the fun versions ~p", [Error]),
     Error.
 
 -spec generate_fsmctx_oci(#stmtResult{}, binary(), list(), tuple(), term()) -> #fsmctx{}.
