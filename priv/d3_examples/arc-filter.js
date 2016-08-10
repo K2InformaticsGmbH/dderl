@@ -239,7 +239,7 @@ function init(container, width, height) {
                     return d.id;
                 })
                 .enter()
-                .append('line')
+                .insert('line', 'circle')
                 .attr('stroke-width', 4)
                 .attr('id', function(d) {
                     return d.id;
