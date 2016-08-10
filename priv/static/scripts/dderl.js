@@ -2,7 +2,7 @@ import $ from 'jquery';
 import './dderl.table';
 import {change_login_password} from './login';
 import {change_connect_password} from './connect';
-import {StartSqlEditorWithTitle} from './dderl.sql';
+import {StartSqlEditor} from './dderl.sql';
 
 import '../dashboard/dderl.dashView';
 import '../dashboard/dderl.dashboard';
@@ -262,8 +262,7 @@ export function import_query() {
     $("#fileToUpload").click();
 }
 
-function uploadFiles(files)
-{
+function uploadFiles(files) {
     var xhr = new XMLHttpRequest();
     var fd = new FormData();
     for(var i = 0; i < files.length; ++i) {
@@ -314,7 +313,7 @@ function uploadFiles(files)
             var fileObjs = JSON.parse(e.target.responseText).upload;
             dlg.dialog("close");
             for(var idx = 0; idx < fileObjs.length; ++idx) {
-                StartSqlEditorWithTitle(fileObjs[idx].fileName, fileObjs[idx].data);
+                StartSqlEditor(fileObjs[idx].fileName, fileObjs[idx].data);
             }
         }, false);
     xhr.addEventListener("error", function() {progressLbl.text("upload error!");}, false);

@@ -1,8 +1,6 @@
-// Globaly expose $ for slickgrid until we fix it with proper modules.
-//import $ from "expose?$!jquery";
-
 import $ from "jquery";
 import 'jquery-ui/ui/dialog';
+import 'jquery-ui/ui/progressbar';
 
 // This is needed to make slickgrid available as it adds itself to $
 // and requires jquery.event.drag and sortable to be loaded.
