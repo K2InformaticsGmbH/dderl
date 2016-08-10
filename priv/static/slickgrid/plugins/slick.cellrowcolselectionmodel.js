@@ -165,7 +165,7 @@
                     var gvpMid = Math.floor((gvp.top + gvp.bottom)/2);
 
                     var col = _grid.getColumnIndex(data.column.id);
-                    var maxRow = _grid.getDataLength() - 1;
+                    var maxRow = Math.max(_grid.getDataLength() - 1, 0);
                     var newActiveRowPos = Math.max(Math.min(gvpMid, maxRow), 0);
                     _grid.getEditorLock().commitCurrentEdit();
                     var activeCell = _grid.getActiveCell();

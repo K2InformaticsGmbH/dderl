@@ -834,6 +834,12 @@ ul.dropdown.floatNone ul li {
 	height: 15px;
 }
 
+/* dialog extend minimize container */
+#dialog-extend-fixed-container {
+    background-color: lightblue;
+    border: 1px solid black;
+}
+
 /* d3 graphs */
 .d3-container {
     position: absolute;
