@@ -50,24 +50,33 @@ function init(container, width, height) {
     var extractLinksNodes = function(rows) {
         var links = [];
         var nodes = [];
+        var nlset = new Set();
         rows.forEach(function(row) {
             var key = getKey(row);
             var value = getValue(row);
 
+            // TODO: This will ignore information, we need
+            // to implement small nodes for each different ip links
             if(key.length === 3) {
                 var id = key[0] + '_' + key[1];
-                links.push({
-                    id: id,
-                    source: key[0],
-                    target: key[1],
-                    legend: key[2],
-                    status: value.status
-                });
+                if(!nlset.has(id)) {
+                    nlset.add(id);
+                    links.push({
+                        id: id,
+                        source: key[0],
+                        target: key[1],
+                        legend: key[2],
+                        status: value.status
+                    });
+                }
             } else if(key.length === 2) {
-                nodes.push({
-                    id: key[1],
-                    enabled: value.enabled
-                });
+                if(!nlset.has(key[1])) {
+                    nlset.add(key[1]);
+                    nodes.push({
+                        id: key[1],
+                        enabled: value.enabled
+                    });
+                }
             }
         });
         return { links: links, nodes: nodes };
@@ -108,21 +117,6 @@ function init(container, width, height) {
         { id: 'stag', position: centerRelative(-3 * nradius, -15), status: 'ok' }
     ];
 
-    var div = container.append('div')
-        .styles({
-            position: "fixed",
-            "text-align": "center",			
-            width: "60px",			
-            height: "28px",
-            padding: "2px",				
-            font: "12px sans-serif",
-            background: "lightsteelblue",
-            border: "0px",		
-            "border-radius": "8px",			
-            "pointer-events": "none",
-            opacity: 0
-        });
-
     var svg = container
         .append('svg')
         .attr('viewBox', vBox.x + ' ' + vBox.y + ' ' + vBox.w + ' ' + vBox.h)
@@ -140,6 +134,42 @@ function init(container, width, height) {
     }
 
     resize(width, height);
+
+    var tootipDiv = d3.select("body").append('div')
+        .styles({
+            position: "absolute",
+            "text-align": "center",
+            width: "60px",			
+            height: "30px",
+            padding: "2px",				
+            font: "12px sans-serif",
+            background: "lightsteelblue",
+            border: "0px",		
+            "border-radius": "8px",			
+            "pointer-events": "none",
+            opacity: 0,
+            "z-index": 99996
+        });
+
+    function showTooltip(d) {
+        tootipDiv
+            .html(d.id)
+            .transition()
+            .duration(200)
+            .style('opacity', 0.95);
+    }
+
+    function moveTooltip() {
+        tootipDiv
+            .style('left', (d3.event.pageX-30) + "px")
+            .style('top', (d3.event.pageY-40) + "px");
+    }
+
+    function hideTooltip() {
+        tootipDiv.transition()
+            .duration(500)
+            .style('opacity', 0);
+    }
 
     var firstData = true;
     return {
@@ -161,7 +191,10 @@ function init(container, width, height) {
                     .attr('id', function(d) { return d.id; })
                     .style('fill', function(d) {
                         return colorStatus[d.status];
-                    });
+                    })
+                    .on('mouseover', showTooltip)
+                    .on('mousemove', moveTooltip)
+                    .on('mouseout', hideTooltip);
             }
 
             var graph = extractLinksNodes(data);
@@ -178,20 +211,9 @@ function init(container, width, height) {
                 .attr('id', function(d) {
                     return d.id;
                 })
-                .on('mouseover', function(d) {
-                    console.log("position: " + d3.event.pageX + ", " + d3.event.pageY);
-                    div.transition()
-                        .duration(200)
-                        .style('opacity', 0.9);
-                    div.html(d.id)
-                        .style('left', (d3.event.pageX) + "px")
-                        .style('top', (d3.event.pageY) + "px");
-                })
-                .on('mouseout', function() {
-                    div.transition()
-                        .duration(500)
-                        .style('opacity', 0);
-                });
+                .on('mouseover', showTooltip)
+                .on('mousemove', moveTooltip)
+                .on('mouseout', hideTooltip);
 
             var allPoints = svg.selectAll('circle')
                 .filter(function(d) {
@@ -212,14 +234,26 @@ function init(container, width, height) {
                     return d.enabled ? 'black' : 'lightgrey';
                 });
 
+            svg.selectAll('line')
+                .data(graph.links, function(d) {
+                    return d.id;
+                })
+                .enter()
+                .append('line')
+                .attr('stroke-width', 4)
+                .attr('id', function(d) {
+                    return d.id;
+                })
+                .on('mouseover', showTooltip)
+                .on('mousemove', moveTooltip)
+                .on('mouseout', hideTooltip);
+
+            var allLinks = svg.selectAll('line');
+
             // Adding connecting links
             setTimeout(function() {
-                svg.selectAll('line')
-                    .data(graph.links, function(d) {
-                        return d.id;
-                    })
-                    .enter()
-                    .append('line')
+                allLinks
+                    .transition()
                     .attr('x1', function(d) {
                         var s = document.getElementById(d.source);
                         return s ? s.cx.baseVal.value : 0;
@@ -238,10 +272,6 @@ function init(container, width, height) {
                     })
                     .attr('stroke', function(d) {
                         return colorStatus[d.status];
-                    })
-                    .attr('stroke-width', 4)
-                    .attr('id', function(d) {
-                        return d.id;
                     });
             }, 500);
         },
