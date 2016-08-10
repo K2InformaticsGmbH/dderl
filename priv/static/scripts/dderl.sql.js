@@ -4,7 +4,7 @@ import {ajaxCall, alert_jq, confirm_jq, prompt_jq, dderlState,
         smartDialogPosition} from './dderl';
 import {sql_params_dlg} from './dderl.sqlparams';
 
-export function StartSqlEditor(title = null, cmd) {
+export function StartSqlEditor(title = null, cmd = undefined) {
     $('<div>')
         .appendTo(document.body)
         .sql({
