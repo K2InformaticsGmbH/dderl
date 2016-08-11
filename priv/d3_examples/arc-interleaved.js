@@ -105,27 +105,20 @@ function init(container, width, height) {
     // virtual coordinates drawing arc radius
     var vArcRadius = 1000;
     // node radius in virtual coordinates
-    var nradius = 50;
+    var nradius = 100;
     // To see the complete circle when drawing negative coordinates
     // and width and height for the virtual coordinates
     var vBox = {
         x: -1 * (vArcRadius + nradius),
-        y: -1 * nradius,
+        y: -1 * (vArcRadius + nradius),
         w: vArcRadius * 2 + nradius * 2,
-        h: vArcRadius + nradius
-    };
-
-    var centerRelative = function(rx, ry) {
-        return {
-            x: nradius + rx,
-            y: vArcRadius - nradius + ry
-        };
+        h: vArcRadius + 3 * nradius
     };
 
     var centerNodes = [
         // Position relative to the bottom center after margin.
-        { id: 'prod', position: centerRelative(0, -2 * nradius), status: 'idle' },
-        { id: 'stag', position: centerRelative(-3 * nradius, -15), status: 'idle' }
+        { id: 'prod', position: {x: 0, y: 0}, status: 'idle' },
+        { id: 'stag', position: {x: -4 * nradius, y: nradius}, status: 'idle' }
     ];
 
     var svg = container
@@ -236,10 +229,13 @@ function init(container, width, height) {
             allPoints
                 .transition()
                 .attr('cx', function(d, i) {
-                    return vArcRadius * Math.cos((i + 1) * angle) * -1;
+                    // Interleave smaller radius to allow more nodes.
+                    var r = vArcRadius - 3 * nradius * (i % 2);
+                    return -r * Math.cos((i + 1) * angle);
                 })
                 .attr('cy', function(d, i) {
-                    return vArcRadius * (1 - Math.sin((i + 1) * angle));
+                    var r = vArcRadius - 3 * nradius * (i % 2);
+                    return -r * Math.sin((i + 1) * angle);
                 })
                 .style('fill', function(d) {
                     return d.enabled ? 'black' : 'lightgrey';
@@ -251,7 +247,7 @@ function init(container, width, height) {
                 })
                 .enter()
                 .insert('line', 'circle')
-                .attr('stroke-width', 4)
+                .attr('stroke-width', 10)
                 .attr('id', function(d) {
                     return d.id;
                 })
