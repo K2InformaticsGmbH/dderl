@@ -12,29 +12,29 @@ function init(container, width, height) {
     /*****
 
 ["prod", "platform1"]	{"enabled": true}	IS9VH
-["prod", "platform1", "10.0.0.1"]	{"status":"ok"}	1M1WKR
+["prod", "platform1", "10.0.0.1"]	{"status":"idle"}	1M1WKR
 ["prod", "platform2"]	{"enabled": true}	1PTC7Y
 ["prod", "platform3"]	{"enabled": false}	8XMU8
-["prod", "platform3", "10.0.0.1"]	{"status":"ok"}	1U1MLL
-["prod", "platform3", "10.0.0.2"]	{"status":"ok"}	J17TF
-["prod", "platform3", "10.0.0.3"]	{"status":"ok"}	V7JL3
+["prod", "platform3", "10.0.0.1"]	{"status":"idle"}	1U1MLL
+["prod", "platform3", "10.0.0.2"]	{"status":"idle"}	J17TF
+["prod", "platform3", "10.0.0.3"]	{"status":"idle"}	V7JL3
 ["prod", "platform4"]	{"enabled": true}	REACA
 ["prod", "platform5"]	{"enabled": false}	72Q5E
 ["prod", "platform6"]	{"enabled": true}	GQU6N
 ["prod", "platform6", "10.0.0.1"]	{"status":"idle"}	22FNZY
-["prod", "platform6", "10.0.0.2"]	{"status":"ok"}	1EUXCI
+["prod", "platform6", "10.0.0.2"]	{"status":"idle"}	1EUXCI
 ["prod", "platform7"]	{"enabled": true}	IS9VH
 ["prod", "platform7", "10.0.0.3"]	{"status":"error"}	1M1WKR
 ["prod", "platform8"]	{"enabled": true}	1PTC7Y
 ["prod", "platform8", "10.0.0.2"]	{"status":"idle"}	8XMU8
 ["stag", "platform9"]	{"enabled": true}	1U1MLL
-["stag", "platform9", "192.168.0.2"]	{"status":"ok"}	J17TF
+["stag", "platform9", "192.168.0.2"]	{"status":"idle"}	J17TF
 ["stag", "platform6"]	{"enabled": true}	V7JL3
-["stag", "platform6", "192.168.0.1"]	{"status":"ok"}	REACA
+["stag", "platform6", "192.168.0.1"]	{"status":"idle"}	REACA
 ["stag", "platform10"]	{"enabled": true}	72Q5E
 ["stag", "platform11"]	{"enabled": true}	GQU6N
 ["stag", "platform11", "192.168.0.1"]	{"status":"idle"}	22FNZY
-["stag", "platform11", "192.168.0.2"]	{"status":"ok"}	1EUXCI
+["stag", "platform11", "192.168.0.2"]	{"status":"idle"}	1EUXCI
 
     *****/
 
@@ -86,9 +86,14 @@ function init(container, width, height) {
     var margin = { top: 10, right: 10, bottom: 10, left: 10 }; 	// physical margins in px
 
     var colorStatus = {
-        idle: 'black',
+        idle: 'green',
         error: 'red',
-        ok: 'green'
+        synced: 'green',
+        cleaning: 'lightsteelblue',
+        cleaned: 'blue',
+        refreshing: 'lightyellow',
+        refreshed: 'purple',
+        stopped: 'red'
     };
 
     // virtual coordinates drawing arc radius
@@ -113,8 +118,8 @@ function init(container, width, height) {
 
     var centerNodes = [
         // Position relative to the bottom center after margin.
-        { id: 'prod', position: centerRelative(0, -2 * nradius), status: 'ok' },
-        { id: 'stag', position: centerRelative(-3 * nradius, -15), status: 'ok' }
+        { id: 'prod', position: centerRelative(0, -2 * nradius), status: 'idle' },
+        { id: 'stag', position: centerRelative(-3 * nradius, -15), status: 'idle' }
     ];
 
     var svg = container
