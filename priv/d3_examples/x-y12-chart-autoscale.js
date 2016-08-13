@@ -52,8 +52,40 @@ function init(container, width, height) {
 
     var firstData = true;
     var svg = container.append('svg');
+
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var brush = d3.brush().on("end", brushended), idleTimeout, idleDelay = 350;
+
+    var br = svg.append("g").attr("class", "brush");
+
+    function idled() {
+        idleTimeout = null;
+    }
+
+    function brushended() {
+        var s = d3.event.selection;
+        if (!s) {
+            if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
+            // seems not to be called. Is doubleclick cought in html ?????
+            xAutoscale = true;
+            yAutoscale = true;
+            xMin = d3.min(data, xVal);
+            xMax = d3.max(data, xVal);
+            yMin = d3.min(data, y1Val), d3.min(data, y2Val);
+            yMax = d3.max(data, y1Val), d3.max(data, y2Val);
+        } else {
+            xMin = xScale.invert(s[0][0]-margin.left);
+            xMax = xScale.invert(s[1][0]-margin.left);
+            xAutoscale = ((s[1][0]-s[0][0]) >= cWidth) ;
+            yMin = yScale.invert(s[1][1]-margin.top);
+            yMax = yScale.invert(s[0][1]-margin.top);
+            yAutoscale = ((s[1][1]-s[0][1]) >= cHeight);
+            svg.select(".brush").call(brush.move, null);
+        }
+        resize(width, height);
+    }
 
     var idVal = function(d) {
         return d.id;
@@ -149,18 +181,14 @@ function init(container, width, height) {
                 .style('stroke', 'Black')
                 .text(xText);
 
-            // xAxisGroup
-            //     .attr("transform", "translate(0," + cHeight + ")")
-            //     .transition().call(xAxis);  // Update X-Axis
-            // xAxisGroup.selectAll("text")
-            //     .attr("x", cWidth);
-
             yAxisGroup.transition().call(yAxis);  // Update Y-Axis
 
             g.selectAll("circle").transition().attrs(circleAttrs);
 
             g.selectAll("rect").transition().attrs(squareAttrs);
         }
+        svg.selectAll(".domain").style("display", "none");
+        br.call(brush);        
     }
 
     function rescale() {
@@ -181,6 +209,7 @@ function init(container, width, height) {
     }
 
     resize(width, height);
+    br.call(brush);
 
     return {
 
@@ -265,6 +294,8 @@ function init(container, width, height) {
         on_reset: function() { 
             g.selectAll('svg > g > *').remove();
             firstData = true;
+            xAutoscale = true;
+            yAutoscale = true;
         }
     };
 }
