@@ -11,73 +11,102 @@ function init(container, width, height) {
         , sin(0.2 * item) / (0.2 * item + 1) as sinDamped
         , cos(0.3 * item) / (0.01 * item + 1) as cosDamped 
     from integer 
-    where item >= 0 and item <= 270    
+    where item >= 0 and item <= 270   
+
+    select time, memory from ddMonitor_86400@ 
     */
 
-    var margin = { top: 20, right: 20, bottom: 30, left: 50 }; 	// physical margins in px
     var cWidth, cHeight;							// main physical content size in px
     var xScale, yScale;
-    var xAxisGroup, xMinFull, xMaxFull;
-    var yAxisGroup, yMinFull, yMaxFull;
-
-    var xMin = 1e100, xMax = -1e100;    // autoscale defaults
-    var yMin = 1e100, yMax = -1e100;    // autoscale defaults
-
-    // xMin = ..., xMax = ....;         // set fixed initial values here, if wanted
-    var xTickCount = 10;
-    var xTickFormatSpecifier = null;      
-    /*
-    "%"         // percentage, "12%"
-    ".0%"       // rounded percentage, "12%"
-    "($.2f"     // localized fixed-point currency, "(£3.50)"
-    "+20"       // space-filled and signed, "                 +42"
-    ".^20"      // dot-filled and centered, ".........42........."
-    ".2s"       // SI-prefix with two significant digits, "42M"
-    "#x"        // prefixed lowercase hexadecimal, "0xbeef"
-    ",.2r"      // grouped thousands with two significant digits, "4,200"
-    */
-    // yMin = ..., yMax = ....;         // set fixed initial values here
-    var yTickCount = 10;
-    var yTickFormatSpecifier = "%";      
-    var xAutoscale = true;
-    var yAutoscale = true;
-    var xAllowance = 0.05;
-    var yAllowance = 0.05;
-    var xAxis, xVar, xText;
-    var yCount = 2;             // set to 1 for only 1 y-Value
-    var yAxis, y1Var, y2Var, y3Var, y4Var, yText;
-    var radius = 3;             // circle radius
-    var a = 3;                  // half of square edge size
-
-    var firstData = true;
+    var xMin, xMax;
+    var yMin, yMax; 
+    var xTickCount, xTickFormatSpecifier;      
+    var yTickCount, yTickFormatSpecifier;      
+    var xAxisGroup, xMinFull, xMaxFull, xAxis, xVar, xText;
+    var yAxisGroup, yMinFull, yMaxFull, yAxis, y1Var, y2Var, y3Var, y4Var, yText;
+    var xScaleTemplate, xAutoscale, xAllowance;
+    var yScaleTemplate, yAutoscale, yAllowance;
+    var radius;
+    var a;
+    var timeDomain;
+    var yCount;
+    var margin;
+    var firstData
     var svg = container.append('svg');
     var br = svg.append("g").attr("class", "brush");
-    var g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-    var g1 = g.append("g");
-    var g2 = g.append("g");
-    var g3 = g.append("g");
-    var g4 = g.append("g");
-
+    var g = svg.append("g");    // main svg item group (axes, point groups)
+    var g1, g2, g3, g4;         // point groups
     var brush = d3.brush().on("end", brushended);
     var idleTimeout;
     var idleDelay = 350;
+    var tParse;
 
-    brush.extent([[0,0],[2000,2000]]);
+    function setup() {
+        timeDomain = false;
+        yCount = 4;             // 1..4, set to 1 for only 1 y-Value
+        margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
+        yMin = 1e100;
+        yMax = -1e100;
+        if (timeDomain) {
+            tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
+            xScaleTemplate = d3.scaleTime();
+            xMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
+            xMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            xTickCount = 8;
+            xTickFormatSpecifier = "%I:%M %p";
+            /*
+            %Y - for year boundaries, such as 2011.
+            %B - for month boundaries, such as February.
+            %b %d - for week boundaries, such as Feb 06.
+            %a %d - for day boundaries, such as Mon 07.
+            %I %p - for hour boundaries, such as 01 AM.
+            %I:%M - for minute boundaries, such as 01:23.
+            :%S - for second boundaries, such as :45.
+            .%L - milliseconds for all other times, such as .012.
+            */
+        } else {
+            xScaleTemplate = d3.scaleLinear();
+            xMin = 1e100, xMax = -1e100;                // autoscale defaults
+            xTickCount = 10;
+            xTickFormatSpecifier = null;      
+        };
+        // xMin = ..., xMax = ....;         // set fixed initial values here, if wanted
+        // yMin = ..., yMax = ....;         // set fixed initial values here
+        yScaleTemplate = d3.scaleLinear();
+        yTickCount = 10;
+        yTickFormatSpecifier = "%";      
+            /*
+            "%"         // percentage, "12%"
+            ".0%"       // rounded percentage, "12%"
+            "($.2f"     // localized fixed-point currency, "(£3.50)"
+            "+20"       // space-filled and signed, "                 +42"
+            ".^20"      // dot-filled and centered, ".........42........."
+            "s"         // SI-prefix
+            ".2s"       // SI-prefix with two significant digits, "42M"
+            "#x"        // prefixed lowercase hexadecimal, "0xbeef"
+            ",.2r"      // grouped thousands with two significant digits, "4,200"
+            */
+        xAutoscale = true;
+        yAutoscale = true;
+        xAllowance = 0.05;
+        yAllowance = 0.05;
+        radius = 3;             // circle radius
+        a = 3;                  // half of square edge size
+    }
 
-    /*
-    g.on("mousedown",function() {
-
-        }
-    );
-    */
-
-    function setfull() {
+    function init() {
+        g.selectAll('svg > g > *').remove();
+        g.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        g1 = g.append("g");
+        g2 = g.append("g");
+        g3 = g.append("g");
+        g4 = g.append("g");        
         xMinFull = xMin;
         xMaxFull = xMax;
         yMinFull = yMin;
         yMaxFull = yMax;
-
+        firstData = true;
+        brush.extent([[0,0],[2000,2000]]);
     }
 
     function idled() {
@@ -88,7 +117,6 @@ function init(container, width, height) {
         var s = d3.event.selection;
         if (!s) {
             if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
-            // seems not to be called. Is doubleclick cought in html ?????
             xAutoscale = true;
             yAutoscale = true;
             xMin = xMinFull;
@@ -112,7 +140,12 @@ function init(container, width, height) {
     }
 
     var xVal = function(d) {
-        return parseFloat(d[xVar]);
+        var tStr = d[xVar];   // DD.MM.YYYY hh:mi:ss.uuuuuu
+        if (timeDomain) { 
+            return tParse(tStr.substr(0,23));
+        } else {
+            return parseFloat(tStr);
+        }
     }
 
     var y1Val = function(d) {
@@ -304,22 +337,23 @@ function init(container, width, height) {
 
     function rescale() {
         if (xMin >= xMax) {
-            xScale = d3.scaleLinear().domain([xMin-1, xMax+1]).range([0, cWidth]);
+            xScale = xScaleTemplate.domain([xMin-1, xMax+1]).range([0, cWidth]);
         } else {
-            xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, cWidth]);
+            xScale = xScaleTemplate.domain([xMin, xMax]).range([0, cWidth]);
         }
 
         if (yMin >= yMax) {
-            yScale = d3.scaleLinear().domain([yMin-1, yMax+1]).range([cHeight, 0]);
+            yScale = yScaleTemplate.domain([yMin-1, yMax+1]).range([cHeight, 0]);
         } else {
-            yScale = d3.scaleLinear().domain([yMin, yMax]).range([cHeight, 0]);
+            yScale = yScaleTemplate.domain([yMin, yMax]).range([cHeight, 0]);
         }
 
         xAxis = d3.axisBottom(xScale).ticks(xTickCount, xTickFormatSpecifier);
         yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);          
     }
 
-    setfull();
+    setup();
+    init();
     resize(width, height);
     br.call(brush);
 
@@ -459,15 +493,9 @@ function init(container, width, height) {
             resize(w, h);
         },
 
-        on_reset: function() { 
-            g.selectAll('svg > g > *').remove();
-            g1 = g.append("g");
-            g2 = g.append("g");
-            g3 = g.append("g");
-            g4 = g.append("g");
-            firstData = true;
-            xAutoscale = true;
-            yAutoscale = true;
+        on_reset: function() {
+            setup();
+            init(); 
         }
     };
 }
