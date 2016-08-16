@@ -1,19 +1,18 @@
 function init(container, width, height) {
     // This code is executed once and it should initialize the graph, the
-    // available parameters are (container, width, height)
-
     // container: d3 selection of the contaner div for the graph
     // width: width of the container
     // height: height of the container
-
-    /*
-        select    0.01 * item as x
-                , 0.01 * item + 0.1 * sin(0.1 * item) as y1
-                , 1.0 + 0.01 * item * cos(0.1 * item) as y2 
-        from integer where item >= 0 and item <= 270
-    */
-
     // The function must then return an object with the following callbacks:
+    /*
+    select 0.01 * item as x
+        , 0.01 * item + 0.1 * sin(0.1 * item) as sinXscaled
+        , 1.0 + 0.01 * item * cos(0.1 * item) as cosXscaled
+        , sin(0.2 * item) / (0.2 * item + 1) as sinDamped
+        , cos(0.3 * item) / (0.01 * item + 1) as cosDamped 
+    from integer 
+    where item >= 0 and item <= 270    
+    */
 
     var margin = { top: 20, right: 20, bottom: 30, left: 50 }; 	// physical margins in px
     var cWidth, cHeight;							// main physical content size in px
@@ -24,7 +23,7 @@ function init(container, width, height) {
     var xMin = 1e100, xMax = -1e100;    // autoscale defaults
     var yMin = 1e100, yMax = -1e100;    // autoscale defaults
 
-    // xMin = ..., xMax = ....;         // set fixed initial values here
+    // xMin = ..., xMax = ....;         // set fixed initial values here, if wanted
     var xTickCount = 10;
     var xTickFormatSpecifier = null;      
     /*
@@ -36,7 +35,6 @@ function init(container, width, height) {
     ".2s"       // SI-prefix with two significant digits, "42M"
     "#x"        // prefixed lowercase hexadecimal, "0xbeef"
     ",.2r"      // grouped thousands with two significant digits, "4,200"
-
     */
     // yMin = ..., yMax = ....;         // set fixed initial values here
     var yTickCount = 10;
@@ -46,14 +44,13 @@ function init(container, width, height) {
     var xAllowance = 0.05;
     var yAllowance = 0.05;
     var xAxis, xVar, xText;
-    var yCount = 2;                     // set to 1 for only 1 y-Value
+    var yCount = 2;             // set to 1 for only 1 y-Value
     var yAxis, y1Var, y2Var, y3Var, y4Var, yText;
-    var radius = 3;     // circle radius
-    var a = 3;          // half of square edge size
+    var radius = 3;             // circle radius
+    var a = 3;                  // half of square edge size
 
     var firstData = true;
     var svg = container.append('svg');
-
     var br = svg.append("g").attr("class", "brush");
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -288,7 +285,6 @@ function init(container, width, height) {
                 .attr('font-size', '1.5em')
                 .attr('fill','#000')
                 .style("text-anchor", "end")
-                // .style('stroke', 'Black')
                 .text(xText);
 
             yAxisGroup.transition().call(yAxis);  // Update Y-Axis
@@ -387,7 +383,6 @@ function init(container, width, height) {
                     .attr('font-size', '1.5em')
                     .attr('fill','#000')
                     .style("text-anchor", "end")
-                    // .style('stroke', 'Black')
                     .text(xText);
 
                 yAxisGroup = g.append("g")
@@ -402,7 +397,6 @@ function init(container, width, height) {
                     .attr('font-size', '1.5em')
                     .attr('fill','#000')                    
                     .style("text-anchor", "end")
-                    // .style('stroke', 'Black')
                     .text(yText);
 
             } else {
@@ -467,10 +461,10 @@ function init(container, width, height) {
 
         on_reset: function() { 
             g.selectAll('svg > g > *').remove();
-            g1.selectAll('svg > g > *').remove();
-            g2.selectAll('svg > g > *').remove();
-            g3.selectAll('svg > g > *').remove();
-            g4.selectAll('svg > g > *').remove();
+            g1 = g.append("g");
+            g2 = g.append("g");
+            g3 = g.append("g");
+            g4 = g.append("g");
             firstData = true;
             xAutoscale = true;
             yAutoscale = true;
