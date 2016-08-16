@@ -18,8 +18,8 @@ function init(container, width, height) {
     var margin = { top: 20, right: 20, bottom: 30, left: 50 }; 	// physical margins in px
     var cWidth, cHeight;							// main physical content size in px
     var xScale, yScale;
-    var xAxisGroup;
-    var yAxisGroup;
+    var xAxisGroup, xMinFull, xMaxFull;
+    var yAxisGroup, yMinFull, yMaxFull;
 
     var xMin = 1e100, xMax = -1e100;    // autoscale defaults
     var yMin = 1e100, yMax = -1e100;    // autoscale defaults
@@ -53,12 +53,30 @@ function init(container, width, height) {
     var firstData = true;
     var svg = container.append('svg');
 
+    var br = svg.append("g").attr("class", "brush");
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    var brush = d3.brush().on("end", brushended), idleTimeout, idleDelay = 350;
+    var brush = d3.brush().on("end", brushended);
+    var idleTimeout;
+    var idleDelay = 350;
 
-    var br = svg.append("g").attr("class", "brush");
+    brush.extent([[0,0],[2000,2000]]);
+
+    /*
+    g.on("mousedown",function() {
+
+        }
+    );
+    */
+
+    function setfull() {
+        xMinFull = xMin;
+        xMaxFull = xMax;
+        yMinFull = yMin;
+        yMaxFull = yMax;
+
+    }
 
     function idled() {
         idleTimeout = null;
@@ -71,10 +89,10 @@ function init(container, width, height) {
             // seems not to be called. Is doubleclick cought in html ?????
             xAutoscale = true;
             yAutoscale = true;
-            xMin = d3.min(data, xVal);
-            xMax = d3.max(data, xVal);
-            yMin = d3.min(data, y1Val), d3.min(data, y2Val);
-            yMax = d3.max(data, y1Val), d3.max(data, y2Val);
+            xMin = xMinFull;
+            xMax = xMaxFull;
+            yMin = yMinFull;
+            yMax = yMaxFull;
         } else {
             xMin = xScale.invert(s[0][0]-margin.left);
             xMax = xScale.invert(s[1][0]-margin.left);
@@ -103,6 +121,17 @@ function init(container, width, height) {
         return parseFloat(d.y2_3);
     }
 
+    var circleTitle = function(d) { 
+        var res = '';
+        for (prop in d) {
+            var sp = prop.split('_');
+            if (prop != 'id' && prop != 'op' && sp[1] != '3') {
+                res += sp[0] + ': ' + d[prop] + '\n';
+            }
+        }
+        return res;
+    };
+
     var circleAttrs = function(d) { 
         return {
             cx: xScale(xVal(d)),
@@ -120,6 +149,17 @@ function init(container, width, height) {
         };
     };
 
+    var squareTitle = function(d) { 
+        var res = '';
+        for (prop in d) {
+            var sp = prop.split('_');
+            if (prop != 'id' && prop != 'op' && sp[1] != '2') {
+                res += sp[0] + ': ' + d[prop] + '\n';
+            }
+        }
+        return res;
+    };
+
     var circleStyles = function(d) { 
         var obj = {
             fill: "steelblue"
@@ -134,7 +174,14 @@ function init(container, width, height) {
         return obj;
     };
 
+
     function xGrow(xMinNew,xMaxNew) {
+        if (xMinNew < xMinFull) {
+            xMinFull = xMinNew;
+        }
+        if (xMaxNew > xMaxFull) {
+            xMaxFull = xMaxNew;
+        }
         if (xAutoscale) {
             if (xMinNew < xMin) {
                 xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
@@ -147,6 +194,12 @@ function init(container, width, height) {
     }
 
     function yGrow(yMinNew,yMaxNew) {
+        if (yMinNew < yMinFull) {
+            yMinFull = yMinNew;
+        }
+        if (yMaxNew > yMaxFull) {
+            yMaxFull = yMaxNew;
+        }
         if (yAutoscale) {
             if (yMinNew < yMin) {
                 yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
@@ -187,8 +240,9 @@ function init(container, width, height) {
 
             g.selectAll("rect").transition().attrs(squareAttrs);
         }
-        svg.selectAll(".domain").style("display", "none");
-        br.call(brush);        
+        // svg.selectAll(".domain").style("display", "none");
+        // br.call(brush);
+        // g.call(brush);        
     }
 
     function rescale() {
@@ -208,6 +262,7 @@ function init(container, width, height) {
         yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);          
     }
 
+    setfull();
     resize(width, height);
     br.call(brush);
 
@@ -272,6 +327,9 @@ function init(container, width, height) {
                 .append("svg:circle")
                 .attrs(circleAttrs)
                 .styles(circleStyles)
+                .append("title")
+                .html(circleTitle)
+                // .call(d3.helper.tooltip())
                 ;
 
             var squares = g.selectAll("rect");
@@ -283,6 +341,9 @@ function init(container, width, height) {
                 .append("svg:rect")
                 .attrs(squareAttrs)
                 .styles(squareStyles)
+                .append("title")
+                .html(squareTitle)
+                // .call(d3.helper.tooltip())                
                 ;
 
         },
