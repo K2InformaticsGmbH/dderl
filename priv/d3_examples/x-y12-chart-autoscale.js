@@ -45,8 +45,9 @@ function init(container, width, height) {
     var yAutoscale = true;
     var xAllowance = 0.05;
     var yAllowance = 0.05;
-    var xAxis, xText = "x-Value";
-    var yAxis, yText = "y-Value";
+    var xAxis, xVar, xText;
+    var yCount = 2;                     // set to 1 for only 1 y-Value
+    var yAxis, y1Var, y2Var, y3Var, y4Var, yText;
     var radius = 3;     // circle radius
     var a = 3;          // half of square edge size
 
@@ -56,6 +57,10 @@ function init(container, width, height) {
     var br = svg.append("g").attr("class", "brush");
     var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var g1 = g.append("g");
+    var g2 = g.append("g");
+    var g3 = g.append("g");
+    var g4 = g.append("g");
 
     var brush = d3.brush().on("end", brushended);
     var idleTimeout;
@@ -110,29 +115,38 @@ function init(container, width, height) {
     }
 
     var xVal = function(d) {
-        return parseFloat(d.x_1);
+        return parseFloat(d[xVar]);
     }
 
     var y1Val = function(d) {
-        return parseFloat(d.y1_2);
+        return parseFloat(d[y1Var]);
     }
 
     var y2Val = function(d) {
-        return parseFloat(d.y2_3);
+        return parseFloat(d[y2Var]);
     }
 
-    var circleTitle = function(d) { 
+    var y3Val = function(d) {
+        return parseFloat(d[y3Var]);
+    }
+
+    var y4Val = function(d) {
+        return parseFloat(d[y4Var]);
+    }
+
+    var pointTitle = function(d) { 
         var res = '';
         for (prop in d) {
             var sp = prop.split('_');
-            if (prop != 'id' && prop != 'op' && sp[1] != '3') {
-                res += sp[0] + ': ' + d[prop] + '\n';
+            if (prop != 'id' && prop != 'op') {
+                sp.pop();
+                res += sp.join('_') + ': ' + d[prop] + '\n';
             }
         }
         return res;
     };
 
-    var circleAttrs = function(d) { 
+    var circleAttrs1 = function(d) { 
         return {
             cx: xScale(xVal(d)),
             cy: yScale(y1Val(d)),
@@ -140,7 +154,15 @@ function init(container, width, height) {
         };
     };
 
-    var squareAttrs = function(d) { 
+    var circleAttrs3 = function(d) { 
+        return {
+            cx: xScale(xVal(d)),
+            cy: yScale(y3Val(d)),
+            r: radius
+        };
+    };
+
+    var squareAttrs2 = function(d) { 
         return {
             x: xScale(xVal(d))-a,
             y: yScale(y2Val(d))-a,
@@ -149,31 +171,64 @@ function init(container, width, height) {
         };
     };
 
-    var squareTitle = function(d) { 
+    var squareAttrs4 = function(d) { 
+        return {
+            x: xScale(xVal(d))-a,
+            y: yScale(y4Val(d))-a,
+            width: a+a,
+            height: a+a
+        };
+    };
+
+    var xAxisVar = function(d) { 
         var res = '';
         for (prop in d) {
             var sp = prop.split('_');
-            if (prop != 'id' && prop != 'op' && sp[1] != '2') {
-                res += sp[0] + ': ' + d[prop] + '\n';
+            if (sp.pop() == '1') {
+                res += sp.join('_');
             }
         }
         return res;
     };
 
-    var circleStyles = function(d) { 
+    var yAxisVar = function(i,d) { 
+        var res = '';
+        for (prop in d) {
+            var sp = prop.split('_');
+            if (sp.pop() == i+1) {
+                res += sp.join('_');
+            }
+        }
+        return res;
+    };
+
+    var circleStyles1 = function(d) { 
         var obj = {
             fill: "steelblue"
         };
         return obj;
     };
 
-    var squareStyles = function(d) { 
+    var squareStyles2 = function(d) { 
         var obj = {
             fill: "red"
         };
         return obj;
     };
 
+    var circleStyles3 = function(d) { 
+        var obj = {
+            fill: "green"
+        };
+        return obj;
+    };
+
+    var squareStyles4 = function(d) { 
+        var obj = {
+            fill: "black"
+        };
+        return obj;
+    };
 
     function xGrow(xMinNew,xMaxNew) {
         if (xMinNew < xMinFull) {
@@ -230,19 +285,25 @@ function init(container, width, height) {
                 .attr("x", cWidth)
                 .attr("dx", "-0.71em")
                 .attr("dy", "-0.71em")
+                .attr('font-size', '1.5em')
+                .attr('fill','#000')
                 .style("text-anchor", "end")
-                .style('stroke', 'Black')
+                // .style('stroke', 'Black')
                 .text(xText);
 
             yAxisGroup.transition().call(yAxis);  // Update Y-Axis
 
-            g.selectAll("circle").transition().attrs(circleAttrs);
-
-            g.selectAll("rect").transition().attrs(squareAttrs);
+            g1.selectAll("circle").transition().attrs(circleAttrs1);
+            if (yCount >= 2) {
+                g2.selectAll("rect").transition().attrs(squareAttrs2);
+            }
+            if (yCount >= 3) {
+                g3.selectAll("circle").transition().attrs(circleAttrs3);
+            }
+            if (yCount >= 4) {
+                g4.selectAll("rect").transition().attrs(squareAttrs4);
+            }
         }
-        // svg.selectAll(".domain").style("display", "none");
-        // br.call(brush);
-        // g.call(brush);        
     }
 
     function rescale() {
@@ -272,12 +333,41 @@ function init(container, width, height) {
 
             if (data.length === 0) {return;}
 
-            xGrow(Math.min(xMin, d3.min(data, xVal))
-                , Math.max(xMax, d3.max(data, xVal))
-                );
-            yGrow(Math.min(yMin, d3.min(data, y1Val), d3.min(data, y2Val))
-                , Math.max(yMax, d3.max(data, y1Val), d3.max(data, y2Val))
-                );
+            if (firstData) {
+                xVar = xAxisVar(data[0]);
+                xText = xVar;
+                xVar = xVar + '_1';
+                y1Var = yAxisVar(1,data[0]) 
+                yText = y1Var;
+                y1Var = y1Var + '_2';
+                if (yCount >= 2) {
+                    y2Var = yAxisVar(2,data[0]);
+                    yText = yText + ' / ' + y2Var;
+                    y2Var = y2Var + '_3';
+                };
+                if (yCount >= 3) {
+                    y3Var = yAxisVar(3,data[0]);
+                    yText = yText + ' / ' + y3Var;
+                    y3Var = y3Var + '_4';
+                };
+                if (yCount >= 4) {
+                    y4Var = yAxisVar(4,data[0]);
+                    yText = yText + ' / ' + y4Var;
+                    y4Var = y4Var + '_5';
+                };
+            }
+
+            xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
+            yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
+            if (yCount >= 2) {
+                yGrow(Math.min(yMin, d3.min(data, y2Val)), Math.max(yMax, d3.max(data, y2Val)));
+            }; 
+            if (yCount >= 3) {
+                yGrow(Math.min(yMin, d3.min(data, y3Val)), Math.max(yMax, d3.max(data, y3Val)));
+            }; 
+            if (yCount >= 4) {
+                yGrow(Math.min(yMin, d3.min(data, y4Val)), Math.max(yMax, d3.max(data, y4Val)));
+            }; 
 
             rescale();
 
@@ -294,8 +384,10 @@ function init(container, width, height) {
                     .attr("x", cWidth)
                     .attr("dx", "-0.71em")
                     .attr("dy", "-0.71em")
+                    .attr('font-size', '1.5em')
+                    .attr('fill','#000')
                     .style("text-anchor", "end")
-                    .style('stroke', 'Black')
+                    // .style('stroke', 'Black')
                     .text(xText);
 
                 yAxisGroup = g.append("g")
@@ -307,8 +399,10 @@ function init(container, width, height) {
                     .attr("y", 6)
                     .attr("dx", "-0.71em")
                     .attr("dy", ".71em")
+                    .attr('font-size', '1.5em')
+                    .attr('fill','#000')                    
                     .style("text-anchor", "end")
-                    .style('stroke', 'Black')
+                    // .style('stroke', 'Black')
                     .text(yText);
 
             } else {
@@ -318,34 +412,53 @@ function init(container, width, height) {
                 yAxisGroup.transition().call(yAxis);  // Update Y-Axis
             }
 
-            var circles = g.selectAll("circle");
-
-            circles.transition().attrs(circleAttrs);
-
-            circles.data(data, idVal)
+            var points1 = g1.selectAll("circle");
+            points1.transition().attrs(circleAttrs1);
+            points1.data(data, idVal)
                 .enter()
                 .append("svg:circle")
-                .attrs(circleAttrs)
-                .styles(circleStyles)
+                .attrs(circleAttrs1)
+                .styles(circleStyles1)
                 .append("title")
-                .html(circleTitle)
-                // .call(d3.helper.tooltip())
+                .html(pointTitle)
                 ;
 
-            var squares = g.selectAll("rect");
-
-            squares.transition().attrs(squareAttrs);
-
-            squares.data(data, idVal)
-                .enter()
-                .append("svg:rect")
-                .attrs(squareAttrs)
-                .styles(squareStyles)
-                .append("title")
-                .html(squareTitle)
-                // .call(d3.helper.tooltip())                
-                ;
-
+            if (yCount >= 2) {
+                var points2 = g2.selectAll("rect");
+                points2.transition().attrs(squareAttrs2);
+                points2.data(data, idVal)
+                    .enter()
+                    .append("svg:rect")
+                    .attrs(squareAttrs2)
+                    .styles(squareStyles2)
+                    .append("title")
+                    .html(pointTitle)
+                    ;
+            };
+            if (yCount >= 3) {
+                var points3 = g3.selectAll("circle");
+                points3.transition().attrs(circleAttrs3);
+                points3.data(data, idVal)
+                    .enter()
+                    .append("svg:circle")
+                    .attrs(circleAttrs3)
+                    .styles(circleStyles3)
+                    .append("title")
+                    .html(pointTitle)
+                    ;
+            };
+            if (yCount >= 4) {
+                var points4 = g4.selectAll("rect");
+                points4.transition().attrs(squareAttrs4);
+                points4.data(data, idVal)
+                    .enter()
+                    .append("svg:rect")
+                    .attrs(squareAttrs4)
+                    .styles(squareStyles4)
+                    .append("title")
+                    .html(pointTitle)
+                    ;
+            };
         },
 
         on_resize: function(w, h) {
@@ -354,6 +467,10 @@ function init(container, width, height) {
 
         on_reset: function() { 
             g.selectAll('svg > g > *').remove();
+            g1.selectAll('svg > g > *').remove();
+            g2.selectAll('svg > g > *').remove();
+            g3.selectAll('svg > g > *').remove();
+            g4.selectAll('svg > g > *').remove();
             firstData = true;
             xAutoscale = true;
             yAutoscale = true;
