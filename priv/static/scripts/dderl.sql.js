@@ -826,6 +826,7 @@ function insertAtCursor(myField, myValue) {
                             self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                             sql_params_dlg(self._paramsDiv, self._optBinds);
                             self._editDiv.tabs("option", "active", 3);
+                            self._cmdChanged = true;
                             self._setTabFocus();
                         } else {
                             self._optBinds = null;

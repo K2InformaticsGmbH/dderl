@@ -335,9 +335,10 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
     ?Debug("query ~p", [Query]),
     case lists:member(Connection, Connections) of
         true ->
+            Params = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
             R = case dderl_dal:is_local_query(Query) of
-                    true -> process_query(Query, Sess, {ConnId, imem}, SessPid);
-                    _ -> process_query(Query, Connection, {ConnId, imem}, SessPid)
+                    true -> process_query(Query, Sess, {ConnId, imem}, Params, SessPid);
+                    _ -> process_query(Query, Connection, {ConnId, imem}, Params, SessPid)
                 end,
             From ! {reply, jsx:encode([{<<"query">>, [{<<"qstr">>, Query} | R]}])};
         false ->
@@ -379,14 +380,33 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                 _ ->
                     case lists:member(Connection, Connections) of
                         true ->
-                            Resp = process_query(C#ddCmd.command, Connection, {ConnId, imem}, SessPid),
-                            RespJson = jsx:encode([{<<"browse_data">>,
-                                [{<<"content">>, C#ddCmd.command}
-                                 ,{<<"name">>, Name}
-                                 ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
-                                 ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
-                                 ,{<<"view_id">>, V#ddView.id}] ++ Resp}]),
-                            ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                            case {gen_adapter:opt_bind_json_obj(C#ddCmd.command, imem),
+                                  make_binds(proplists:get_value(<<"binds">>, BodyJson, null))} of
+                                {[], _} ->
+                                    Resp = process_query(C#ddCmd.command, Connection, {ConnId, imem}, SessPid),
+                                    RespJson = jsx:encode([{<<"browse_data">>,
+                                        [{<<"content">>, C#ddCmd.command}
+                                         ,{<<"name">>, Name}
+                                         ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                                         ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
+                                         ,{<<"view_id">>, V#ddView.id}] ++ Resp}]),
+                                    ?Debug("loading ~p at ~p", [Name, (V#ddView.state)#viewstate.table_layout]);
+                                {JsonBindInfo, []} ->
+                                    RespJson = jsx:encode([{<<"browse_data">>,
+                                        [{<<"content">>, C#ddCmd.command}
+                                        ,{<<"name">>, Name}
+                                        ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                                        ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
+                                        ,{<<"view_id">>, V#ddView.id} | JsonBindInfo]}]);
+                                {_, Binds} ->
+                                    Resp = process_query(C#ddCmd.command, Connection, {ConnId, imem}, Binds, SessPid),
+                                    RespJson = jsx:encode([{<<"browse_data">>,
+                                        [{<<"content">>, C#ddCmd.command}
+                                         ,{<<"name">>, Name}
+                                         ,{<<"table_layout">>, (V#ddView.state)#viewstate.table_layout}
+                                         ,{<<"column_layout">>, (V#ddView.state)#viewstate.column_layout}
+                                         ,{<<"view_id">>, V#ddView.id}] ++ Resp}])
+                            end;
                         false ->
                             RespJson = error_invalid_conn(Connection, Connections)
                     end
@@ -409,7 +429,7 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
     Priv;
 process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     [{<<"views">>,BodyJson}] = ReqBody,
-    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
     %% TODO: This should be replaced by dashboard.
     case dderl_dal:get_view(Sess, <<"All ddViews">>, imem, UserId) of
         {error, _} = Error->
@@ -441,7 +461,7 @@ process_cmd({[<<"views">>], ReqBody}, Sess, UserId, From, Priv, SessPid) ->
     Priv;
 process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid) ->
     [{<<"system_views">>,BodyJson}] = ReqBody,
-    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
     case dderl_dal:get_view(Sess, <<"All ddViews">>, imem, system) of
         {error, Reason} ->
             RespJson = jsx:encode([{<<"error">>, Reason}]);
@@ -720,25 +740,26 @@ filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
+-spec make_binds(null | [{binary(), [{binary(), binary()}]}]) -> [tuple()].
+make_binds(null) -> [];
+make_binds(Binds) ->
+    [{B, binary_to_existing_atom(proplists:get_value(<<"typ">>, TV, <<>>), utf8), 0, [proplists:get_value(<<"val">>, TV, <<>>)]} || {B, TV} <- Binds].
+    
 
 -spec add_param(boolean(), [tuple()], tuple()) -> [tuple()].
 add_param(false, Params, _ParamToAdd) -> Params;
 add_param(true, Params, ParamToAdd) -> [ParamToAdd | Params].
 
--spec process_query(binary(), tuple(), {binary(), atom()}, pid()) -> list().
-%TODO: Make this more flexible to include a variable number of parameters.
-process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
-    SupportedParams = [<<":ddConn.id">>, <<":ddAdapter.id">>],
+-spec process_query(binary(), tuple(), {binary(), atom()}, [tuple()], pid()) -> list().
+process_query(Query, Connection, {ConnId, Adapter}, Params, SessPid) ->
     QueryParams = get_params(Query),
-    InvalidParams = [Param || Param <- QueryParams, lists:member(Param, SupportedParams) =/= true],
-    case InvalidParams of
-        [] ->
-            Params0 = add_param(lists:member(<<":ddConn.id">>, QueryParams), [], {<<":ddConn.id">>,<<"integer">>,<<"0">>,[ConnId]}),
-            Params1 = add_param(lists:member(<<":ddAdapter.id">>, QueryParams), Params0, {<<":ddAdapter.id">>,<<"atom">>,<<"0">>,[atom_to_binary(Adapter, utf8)]}),
-            process_query(Query, Connection, Params1, SessPid);
-        _ ->
-            [{<<"error">>, <<"Only :ddConn.id and :ddAdapter.id are implemented as parameter values">>}]
-    end;
+    Params0 = add_param(lists:member(<<":ddConn.id">>, QueryParams), Params, {<<":ddConn.id">>, integer, 0, [ConnId]}),
+    Params1 = add_param(lists:member(<<":ddAdapter.id">>, QueryParams), Params0, {<<":ddAdapter.id">>, atom, undefined,[atom_to_binary(Adapter, utf8)]}),
+    process_query(Query, Connection, Params1, SessPid).
+
+-spec process_query(binary(), tuple(), {binary(), atom()} | [tuple()], pid()) -> list().
+process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
+    process_query(Query, Connection, {ConnId, Adapter}, [], SessPid);
 process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, Params)) of
         ok ->
