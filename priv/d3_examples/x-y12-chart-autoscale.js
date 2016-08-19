@@ -16,6 +16,7 @@ function init(container, width, height) {
     select time, memory from ddMonitor_86400@ 
     */
 
+    var margin;
     var cWidth, cHeight;							// main physical content size in px
     var xScale, yScale;
     var xMin, xMax;
@@ -24,15 +25,15 @@ function init(container, width, height) {
     var yTickCount, yTickFormatSpecifier;      
     var xAxisGroup, xMinFull, xMaxFull, xAxis, xVar, xText;
     var yAxisGroup, yMinFull, yMaxFull, yAxis, y1Var, y2Var, y3Var, y4Var, yText;
-    var xScaleTemplate, xAutoscale, xAllowance;
-    var yScaleTemplate, yAutoscale, yAllowance;
+    var xDom, xScaleTemplate, xAutoscale, xAllowance;
+    var yDom, yScaleTemplate, yAutoscale, yAllowance;
     var radius;
     var a;
-    var timeDomain;
+    var dom = {lin:'linear',log:'log',time:'time'};
     var yCount;
-    var margin;
     var firstData
     var svg = container.append('svg');
+    var clipPath = svg.append("defs").append("clipPath").attr("id", "clip").append("rect");
     var br = svg.append("g").attr("class", "brush");
     var g = svg.append("g");    // main svg item group (axes, point groups)
     var g1, g2, g3, g4;         // point groups
@@ -42,12 +43,24 @@ function init(container, width, height) {
     var tParse;
 
     function setup() {
-        timeDomain = false;
-        yCount = 4;             // 1..4, set to 1 for only 1 y-Value
+        xDom = dom.lin;         // dom.lin | dom.log | dom.time 
+        yDom = dom.lin;         // dom.lin | dom.log | dom.time 
+        yCount = 1;             // 1..4, set to 1 for only 1 y-Value
         margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
-        yMin = 1e100;
-        yMax = -1e100;
-        if (timeDomain) {
+        switch (xDom) {
+        case dom.lin:
+            xScaleTemplate = d3.scaleLinear();
+            xMin = 1e100, xMax = -1e100;                // autoscale defaults
+            xTickCount = 10;
+            xTickFormatSpecifier = null;      
+        break;
+        case dom.log:
+            xScaleTemplate = d3.scaleLog();
+            xMin = 1e100, xMax = 0;                    // autoscale defaults
+            xTickCount = 10;
+            xTickFormatSpecifier = null;      
+        break;
+        case dom.time:
             tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
             xScaleTemplate = d3.scaleTime();
             xMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
@@ -64,21 +77,17 @@ function init(container, width, height) {
             :%S - for second boundaries, such as :45.
             .%L - milliseconds for all other times, such as .012.
             */
-        } else {
-            xScaleTemplate = d3.scaleLinear();
-            xMin = 1e100, xMax = -1e100;                // autoscale defaults
-            xTickCount = 10;
-            xTickFormatSpecifier = null;      
+        break;
         };
-        // xMin = ..., xMax = ....;         // set fixed initial values here, if wanted
-        // yMin = ..., yMax = ....;         // set fixed initial values here
-        yScaleTemplate = d3.scaleLinear();
-        yTickCount = 10;
-        yTickFormatSpecifier = "%";      
+        switch (yDom) {
+        case dom.lin:
+            yScaleTemplate = d3.scaleLinear();
+            yTickCount = 10;
+            yTickFormatSpecifier = null; // "%";      
             /*
             "%"         // percentage, "12%"
             ".0%"       // rounded percentage, "12%"
-            "($.2f"     // localized fixed-point currency, "(£3.50)"
+            "($.2f"     // localized fixed-point currency, "(Â£3.50)"
             "+20"       // space-filled and signed, "                 +42"
             ".^20"      // dot-filled and centered, ".........42........."
             "s"         // SI-prefix
@@ -86,6 +95,32 @@ function init(container, width, height) {
             "#x"        // prefixed lowercase hexadecimal, "0xbeef"
             ",.2r"      // grouped thousands with two significant digits, "4,200"
             */
+        break;
+        case dom.log:
+            yScaleTemplate = d3.scaleLog().nice();
+            yMin = 1e100, yMax = 1e-100;                // autoscale defaults
+            yTickCount = 5;
+            yTickFormatSpecifier = ".0s";      
+        break;
+        case dom.time:
+            tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
+            yScaleTemplate = d3.scaleTime();
+            yMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
+            yMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            yTickCount = 8;
+            yTickFormatSpecifier = "%I:%M %p";
+            /*
+            %Y - for year boundaries, such as 2011.
+            %B - for month boundaries, such as February.
+            %b %d - for week boundaries, such as Feb 06.
+            %a %d - for day boundaries, such as Mon 07.
+            %I %p - for hour boundaries, such as 01 AM.
+            %I:%M - for minute boundaries, such as 01:23.
+            :%S - for second boundaries, such as :45.
+            .%L - milliseconds for all other times, such as .012.
+            */
+        break;
+        };
         xAutoscale = true;
         yAutoscale = true;
         xAllowance = 0.05;
@@ -139,29 +174,32 @@ function init(container, width, height) {
         return d.id;
     }
 
-    var xVal = function(d) {
-        var tStr = d[xVar];   // DD.MM.YYYY hh:mi:ss.uuuuuu
-        if (timeDomain) { 
-            return tParse(tStr.substr(0,23));
+    function parse(domain,str) {
+        if (domain == dom.time) { 
+            return tParse(str.substr(0,23));
         } else {
-            return parseFloat(tStr);
+            return parseFloat(str);
         }
     }
 
+    var xVal = function(d) {
+        return parse(xDom, d[xVar]);
+    }
+
     var y1Val = function(d) {
-        return parseFloat(d[y1Var]);
+        return parse(yDom, d[y1Var]);
     }
 
     var y2Val = function(d) {
-        return parseFloat(d[y2Var]);
+        return parse(yDom, d[y2Var]);
     }
 
     var y3Val = function(d) {
-        return parseFloat(d[y3Var]);
+        return parse(yDom, d[y3Var]);
     }
 
     var y4Val = function(d) {
-        return parseFloat(d[y4Var]);
+        return parse(yDom, d[y4Var]);
     }
 
     var pointTitle = function(d) { 
@@ -180,7 +218,8 @@ function init(container, width, height) {
         return {
             cx: xScale(xVal(d)),
             cy: yScale(y1Val(d)),
-            r: radius
+            r: radius,
+            'clip-path': 'url(#clip)'
         };
     };
 
@@ -188,7 +227,8 @@ function init(container, width, height) {
         return {
             cx: xScale(xVal(d)),
             cy: yScale(y3Val(d)),
-            r: radius
+            r: radius,
+            'clip-path': 'url(#clip)'
         };
     };
 
@@ -197,7 +237,8 @@ function init(container, width, height) {
             x: xScale(xVal(d))-a,
             y: yScale(y2Val(d))-a,
             width: a+a,
-            height: a+a
+            height: a+a,
+            'clip-path': 'url(#clip)'
         };
     };
 
@@ -206,7 +247,8 @@ function init(container, width, height) {
             x: xScale(xVal(d))-a,
             y: yScale(y4Val(d))-a,
             width: a+a,
-            height: a+a
+            height: a+a,
+            'clip-path': 'url(#clip)'
         };
     };
 
@@ -333,6 +375,8 @@ function init(container, width, height) {
                 g4.selectAll("rect").transition().attrs(squareAttrs4);
             }
         }
+        clipPath.attr("width", cWidth);
+        clipPath.attr("height", cHeight);
     }
 
     function rescale() {
