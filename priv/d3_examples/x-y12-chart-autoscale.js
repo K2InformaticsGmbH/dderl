@@ -51,20 +51,26 @@ function init(container, width, height) {
         case dom.lin:
             xScaleTemplate = d3.scaleLinear();
             xMin = 1e100, xMax = -1e100;                // autoscale defaults
+            xAutoscale = true;
+            xAllowance = 0.05;
             xTickCount = 10;
             xTickFormatSpecifier = null;      
         break;
         case dom.log:
-            xScaleTemplate = d3.scaleLog();
-            xMin = 1e100, xMax = 0;                    // autoscale defaults
+            xScaleTemplate = d3.scaleLog().nice();
+            xMin = 1e100, xMax = 1e-100;                // autoscale defaults
+            xAutoscale = true;
+            xAllowance = 0.33;
             xTickCount = 10;
-            xTickFormatSpecifier = null;      
+            xTickFormatSpecifier = ".0s";      
         break;
         case dom.time:
             tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
             xScaleTemplate = d3.scaleTime();
             xMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
             xMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            xAutoscale = true;
+            xAllowance = 0.05;
             xTickCount = 8;
             xTickFormatSpecifier = "%I:%M %p";
             /*
@@ -82,9 +88,13 @@ function init(container, width, height) {
         switch (yDom) {
         case dom.lin:
             yScaleTemplate = d3.scaleLinear();
+            yMin = 1e100, yMax = -1e100;                // autoscale defaults
+            yAutoscale = true;
+            yAllowance = 0.05;
             yTickCount = 10;
-            yTickFormatSpecifier = null; // "%";      
+            yTickFormatSpecifier = null;      
             /*
+            null        // automatic
             "%"         // percentage, "12%"
             ".0%"       // rounded percentage, "12%"
             "($.2f"     // localized fixed-point currency, "(Â£3.50)"
@@ -99,7 +109,9 @@ function init(container, width, height) {
         case dom.log:
             yScaleTemplate = d3.scaleLog().nice();
             yMin = 1e100, yMax = 1e-100;                // autoscale defaults
-            yTickCount = 5;
+            yAutoscale = true;
+            yAllowance = 0.33;  // cannot be <= 0
+            yTickCount = 10;
             yTickFormatSpecifier = ".0s";      
         break;
         case dom.time:
@@ -107,6 +119,8 @@ function init(container, width, height) {
             yScaleTemplate = d3.scaleTime();
             yMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
             yMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            yAutoscale = true;
+            yAllowance = 0.05;
             yTickCount = 8;
             yTickFormatSpecifier = "%I:%M %p";
             /*
@@ -121,10 +135,6 @@ function init(container, width, height) {
             */
         break;
         };
-        xAutoscale = true;
-        yAutoscale = true;
-        xAllowance = 0.05;
-        yAllowance = 0.05;
         radius = 3;             // circle radius
         a = 3;                  // half of square edge size
     }
@@ -174,7 +184,7 @@ function init(container, width, height) {
         return d.id;
     }
 
-    function parse(domain,str) {
+    function parse(domain, str) {
         if (domain == dom.time) { 
             return tParse(str.substr(0,23));
         } else {
@@ -303,39 +313,65 @@ function init(container, width, height) {
     };
 
     function xGrow(xMinNew,xMaxNew) {
+        var res = false;
         if (xMinNew < xMinFull) {
             xMinFull = xMinNew;
         }
         if (xMaxNew > xMaxFull) {
             xMaxFull = xMaxNew;
         }
-        if (xAutoscale) {
+        if (xAutoscale && (xDom == dom.log)) {
+            if (xMinNew < xMin) {
+                xMin = xMinNew * xAllowance;
+                res = true;
+            }
+            if (xMaxNew > xMax) {
+                xMax = xMaxNew / xAllowance;
+                res = true;
+            }
+        }
+        if (xAutoscale && (xDom != dom.log)) {
             if (xMinNew < xMin) {
                 xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
+                res = true;
             }
             if (xMaxNew > xMax) {
                 xMax = xMaxNew + xAllowance * (xMaxNew-xMinNew);
+                res = true;
             }
         }
-        return;
+        return res;
     }
 
     function yGrow(yMinNew,yMaxNew) {
+        var res = false;
         if (yMinNew < yMinFull) {
             yMinFull = yMinNew;
         }
         if (yMaxNew > yMaxFull) {
             yMaxFull = yMaxNew;
         }
-        if (yAutoscale) {
+        if (yAutoscale && (yDom == dom.log)) {
+            if (yMinNew < yMin) {
+                yMin = yMinNew * yAllowance; 
+                res = true;
+            }
+            if (yMaxNew > yMax) {
+                yMax = yMaxNew / yAllowance;
+                res = true;
+            }
+        }
+        if (yAutoscale && (yDom != dom.log)) {
             if (yMinNew < yMin) {
                 yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
+                res = true;
             }
             if (yMaxNew > yMax) {
                 yMax = yMaxNew + yAllowance * (yMaxNew-yMinNew);
+                res = true;
             }
         }
-        return;
+        return res;
     }
 
     function resize(w, h) {
@@ -430,17 +466,16 @@ function init(container, width, height) {
                     y4Var = y4Var + '_5';
                 };
             }
-
-            xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
-            yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
+            var xG = xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
+            var yG = yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
             if (yCount >= 2) {
-                yGrow(Math.min(yMin, d3.min(data, y2Val)), Math.max(yMax, d3.max(data, y2Val)));
+                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y2Val)), Math.max(yMax, d3.max(data, y2Val))));
             }; 
             if (yCount >= 3) {
-                yGrow(Math.min(yMin, d3.min(data, y3Val)), Math.max(yMax, d3.max(data, y3Val)));
+                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y3Val)), Math.max(yMax, d3.max(data, y3Val))));
             }; 
             if (yCount >= 4) {
-                yGrow(Math.min(yMin, d3.min(data, y4Val)), Math.max(yMax, d3.max(data, y4Val)));
+                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y4Val)), Math.max(yMax, d3.max(data, y4Val))));
             }; 
 
             rescale();
@@ -478,14 +513,20 @@ function init(container, width, height) {
                     .text(yText);
 
             } else {
-                xAxisGroup
+                if (xG) {
+                    xAxisGroup
                     .attr("transform", "translate(0," + cHeight + ")")
                     .transition().call(xAxis);  // Update X-Axis
-                yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+                }
+                if (yG) {
+                    yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+                }
             }
 
             var points1 = g1.selectAll("circle");
-            points1.transition().attrs(circleAttrs1);
+            if (xG || yG) {
+                points1.transition().attrs(circleAttrs1);
+            }
             points1.data(data, idVal)
                 .enter()
                 .append("svg:circle")
@@ -497,7 +538,9 @@ function init(container, width, height) {
 
             if (yCount >= 2) {
                 var points2 = g2.selectAll("rect");
-                points2.transition().attrs(squareAttrs2);
+                if (xG || yG) {
+                    points2.transition().attrs(squareAttrs2);
+                }
                 points2.data(data, idVal)
                     .enter()
                     .append("svg:rect")
@@ -509,7 +552,9 @@ function init(container, width, height) {
             };
             if (yCount >= 3) {
                 var points3 = g3.selectAll("circle");
-                points3.transition().attrs(circleAttrs3);
+                if (xG || yG) {
+                    points3.transition().attrs(circleAttrs3);
+                }
                 points3.data(data, idVal)
                     .enter()
                     .append("svg:circle")
@@ -521,7 +566,9 @@ function init(container, width, height) {
             };
             if (yCount >= 4) {
                 var points4 = g4.selectAll("rect");
-                points4.transition().attrs(squareAttrs4);
+                if (xG || yG) {
+                    points4.transition().attrs(squareAttrs4);
+                }
                 points4.data(data, idVal)
                     .enter()
                     .append("svg:rect")
