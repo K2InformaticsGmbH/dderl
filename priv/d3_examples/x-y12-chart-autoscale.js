@@ -17,30 +17,27 @@ function init(container, width, height) {
     */
 
     var margin;
-    var cWidth, cHeight;							// main physical content size in px
-    var xScale, yScale;
-    var xMin, xMax;
-    var yMin, yMax; 
-    var xTickCount, xTickFormatSpecifier;      
-    var yTickCount, yTickFormatSpecifier;      
-    var xAxisGroup, xMinFull, xMaxFull, xAxis, xVar, xText;
-    var yAxisGroup, yMinFull, yMaxFull, yAxis, y1Var, y2Var, y3Var, y4Var, yText;
-    var xDom, xScaleTemplate, xAutoscale, xAllowance;
-    var yDom, yScaleTemplate, yAutoscale, yAllowance;
-    var radius;
-    var a;
-    var dom = {lin:'linear',log:'log',time:'time'};
-    var yCount;
-    var firstData
+    var cWidth, cHeight;        // main physical content size in px
+    var xVar, y1Var, y2Var, y3Var, y4Var;   // sql column aliases
+    var dom = {lin:'linear',log:'log',time:'time'}; // domain types     
+    var xDom, xParse, xScaleTemplate, xScale, xAutoscale, xAllowance;
+    var yDom, yParse, yScaleTemplate, yScale, yAutoscale, yAllowance;
+    var xMin, xMax, yMin, yMax;   // current zoom domain extent with Allowance
+    var xMinFull, xMaxFull, yMinFull, yMaxFull; // raw full domain extent
+    var xAxisGroup, xAxis, xText, yAxisGroup, yAxis, yText;
+    var xTickCount, xTickFormatSpecifier, yTickCount, yTickFormatSpecifier;      
+    var radius;     // circle point default radius
+    var a;          // square point default radius
+    var yCount;     // number of y-values data item (x)
+    var noData;     // false before receiving any new data after reset
     var svg = container.append('svg');
     var clipPath = svg.append("defs").append("clipPath").attr("id", "clip").append("rect");
     var br = svg.append("g").attr("class", "brush");
     var g = svg.append("g");    // main svg item group (axes, point groups)
-    var g1, g2, g3, g4;         // point groups
-    var brush = d3.brush().on("end", brushended);
-    var idleTimeout;
-    var idleDelay = 350;
-    var tParse;
+    var g1, g2, g3, g4;         // data point groups
+    var brush = d3.brush().on("end", brushended);   // zoom brush
+    var idleTimeout, idleDelay = 350;
+    var tParse = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
@@ -49,6 +46,7 @@ function init(container, width, height) {
         margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
         switch (xDom) {
         case dom.lin:
+            xParse = parseFloat;
             xScaleTemplate = d3.scaleLinear();
             xMin = 1e100, xMax = -1e100;                // autoscale defaults
             xAutoscale = true;
@@ -57,6 +55,7 @@ function init(container, width, height) {
             xTickFormatSpecifier = null;      
         break;
         case dom.log:
+            xParse = parseFloat;
             xScaleTemplate = d3.scaleLog().nice();
             xMin = 1e100, xMax = 1e-100;                // autoscale defaults
             xAutoscale = true;
@@ -65,10 +64,14 @@ function init(container, width, height) {
             xTickFormatSpecifier = ".0s";      
         break;
         case dom.time:
-            tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
-            xScaleTemplate = d3.scaleTime();
-            xMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
-            xMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            // xParse = function(tStr) { return d3.timeParse(tStr.substr(0,23), "%d.%m.%Y %H:%M:%S.%L");};
+            xParse = function(tStr) {
+                var s =  "" + tStr.substr(0,23);
+                return  tParse(s);
+            };
+            xScaleTemplate = d3.scaleUtc();    // scaleTime
+            xMin = 1e100;   // xParse("01.01.2300 00:00:00.000");   // autoscale defaults
+            xMax = 0;       // xParse("01.01.1900 00:00:00.000");   // autoscale defaults
             xAutoscale = true;
             xAllowance = 0.05;
             xTickCount = 8;
@@ -87,6 +90,7 @@ function init(container, width, height) {
         };
         switch (yDom) {
         case dom.lin:
+            yParse = parseFloat;
             yScaleTemplate = d3.scaleLinear();
             yMin = 1e100, yMax = -1e100;                // autoscale defaults
             yAutoscale = true;
@@ -107,6 +111,7 @@ function init(container, width, height) {
             */
         break;
         case dom.log:
+            yParse = parseFloat;
             yScaleTemplate = d3.scaleLog().nice();
             yMin = 1e100, yMax = 1e-100;                // autoscale defaults
             yAutoscale = true;
@@ -115,10 +120,13 @@ function init(container, width, height) {
             yTickFormatSpecifier = ".0s";      
         break;
         case dom.time:
-            tParse = d3.timeParse("%d.%m.%Y %H:%M:%S.%L");
-            yScaleTemplate = d3.scaleTime();
-            yMin = tParse("01.01.2300 00:00:00.000");   // autoscale defaults
-            yMax = tParse("01.01.1900 00:00:00.000");   // autoscale defaults
+            yParse = function(tStr) {
+                var s =  tStr.substr(0,23);
+                return  tParse(s);
+            };
+            yScaleTemplate = d3.scaleUtc();     // scaleTime
+            yMin = 1e100;   // yParse("01.01.2300 00:00:00.000");   // autoscale defaults
+            yMax = 0;       // yParse("01.01.1900 00:00:00.000");   // autoscale defaults
             yAutoscale = true;
             yAllowance = 0.05;
             yTickCount = 8;
@@ -150,7 +158,7 @@ function init(container, width, height) {
         xMaxFull = xMax;
         yMinFull = yMin;
         yMaxFull = yMax;
-        firstData = true;
+        noData = true;
         brush.extent([[0,0],[2000,2000]]);
     }
 
@@ -184,32 +192,24 @@ function init(container, width, height) {
         return d.id;
     }
 
-    function parse(domain, str) {
-        if (domain == dom.time) { 
-            return tParse(str.substr(0,23));
-        } else {
-            return parseFloat(str);
-        }
-    }
-
     var xVal = function(d) {
-        return parse(xDom, d[xVar]);
+        return xParse(d[xVar]);
     }
 
     var y1Val = function(d) {
-        return parse(yDom, d[y1Var]);
+        return yParse(d[y1Var]);
     }
 
     var y2Val = function(d) {
-        return parse(yDom, d[y2Var]);
+        return yParse(d[y2Var]);
     }
 
     var y3Val = function(d) {
-        return parse(yDom, d[y3Var]);
+        return yParse(d[y3Var]);
     }
 
     var y4Val = function(d) {
-        return parse(yDom, d[y4Var]);
+        return yParse(d[y4Var]);
     }
 
     var pointTitle = function(d) { 
@@ -222,44 +222,6 @@ function init(container, width, height) {
             }
         }
         return res;
-    };
-
-    var circleAttrs1 = function(d) { 
-        return {
-            cx: xScale(xVal(d)),
-            cy: yScale(y1Val(d)),
-            r: radius,
-            'clip-path': 'url(#clip)'
-        };
-    };
-
-    var circleAttrs3 = function(d) { 
-        return {
-            cx: xScale(xVal(d)),
-            cy: yScale(y3Val(d)),
-            r: radius,
-            'clip-path': 'url(#clip)'
-        };
-    };
-
-    var squareAttrs2 = function(d) { 
-        return {
-            x: xScale(xVal(d))-a,
-            y: yScale(y2Val(d))-a,
-            width: a+a,
-            height: a+a,
-            'clip-path': 'url(#clip)'
-        };
-    };
-
-    var squareAttrs4 = function(d) { 
-        return {
-            x: xScale(xVal(d))-a,
-            y: yScale(y4Val(d))-a,
-            width: a+a,
-            height: a+a,
-            'clip-path': 'url(#clip)'
-        };
     };
 
     var xAxisVar = function(d) { 
@@ -282,6 +244,45 @@ function init(container, width, height) {
             }
         }
         return res;
+    };
+
+    var circleAttrs1 = function(d) { 
+        // console.log("xVal(d):" + xVal(d));
+        return {
+            'clip-path': 'url(#clip)',
+            cx: xScale(xVal(d)),
+            cy: yScale(y1Val(d)),
+            r: radius
+        };
+    };
+
+    var squareAttrs2 = function(d) { 
+        return {
+            'clip-path': 'url(#clip)',
+            x: xScale(xVal(d))-a,
+            y: yScale(y2Val(d))-a,
+            width: a+a,
+            height: a+a
+        };
+    };
+
+    var circleAttrs3 = function(d) { 
+        return {
+            'clip-path': 'url(#clip)',            
+            cx: xScale(xVal(d)),
+            cy: yScale(y3Val(d)),
+            r: radius
+        };
+    };
+
+    var squareAttrs4 = function(d) { 
+        return {
+            'clip-path': 'url(#clip)',
+            x: xScale(xVal(d))-a,
+            y: yScale(y4Val(d))-a,
+            width: a+a,
+            height: a+a
+        };
     };
 
     var circleStyles1 = function(d) { 
@@ -320,28 +321,30 @@ function init(container, width, height) {
         if (xMaxNew > xMaxFull) {
             xMaxFull = xMaxNew;
         }
-        if (xAutoscale && (xDom == dom.log)) {
-            if (xMinNew < xMin) {
-                xMin = xMinNew * xAllowance;
-                res = true;
-            }
-            if (xMaxNew > xMax) {
-                xMax = xMaxNew / xAllowance;
-                res = true;
-            }
-        }
-        if (xAutoscale && (xDom != dom.log)) {
-            if (xMinNew < xMin) {
-                xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
-                res = true;
-            }
-            if (xMaxNew > xMax) {
-                xMax = xMaxNew + xAllowance * (xMaxNew-xMinNew);
-                res = true;
+        if (xAutoscale) {
+            if (xDom == dom.log) {
+                if (xMinNew < xMin) {
+                    xMin = xMinNew * xAllowance;
+                    res = true;
+                }
+                if (xMaxNew > xMax) {
+                    xMax = xMaxNew / xAllowance;
+                    res = true;
+                }
+            } else {
+                if (xMinNew < xMin) {
+                    xMin = xMinNew - xAllowance * (xMaxNew-xMinNew);
+                    res = true;
+                }
+                if (xMaxNew > xMax) {
+                    xMax = xMaxNew + xAllowance * (xMaxNew-xMinNew);
+                    res = true;
+                }
             }
         }
         return res;
     }
+
 
     function yGrow(yMinNew,yMaxNew) {
         var res = false;
@@ -351,24 +354,25 @@ function init(container, width, height) {
         if (yMaxNew > yMaxFull) {
             yMaxFull = yMaxNew;
         }
-        if (yAutoscale && (yDom == dom.log)) {
-            if (yMinNew < yMin) {
-                yMin = yMinNew * yAllowance; 
-                res = true;
-            }
-            if (yMaxNew > yMax) {
-                yMax = yMaxNew / yAllowance;
-                res = true;
-            }
-        }
-        if (yAutoscale && (yDom != dom.log)) {
-            if (yMinNew < yMin) {
-                yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
-                res = true;
-            }
-            if (yMaxNew > yMax) {
-                yMax = yMaxNew + yAllowance * (yMaxNew-yMinNew);
-                res = true;
+        if (yAutoscale) {
+            if (yDom == dom.log) {
+                if (yMinNew < yMin) {
+                    yMin = yMinNew * yAllowance; 
+                    res = true;
+                }
+                if (yMaxNew > yMax) {
+                    yMax = yMaxNew / yAllowance;
+                    res = true;
+                }
+            } else {
+                if (yMinNew < yMin) {
+                    yMin = yMinNew - yAllowance * (yMaxNew-yMinNew);
+                    res = true;
+                }
+                if (yMaxNew > yMax) {
+                    yMax = yMaxNew + yAllowance * (yMaxNew-yMinNew);
+                    res = true;
+                }
             }
         }
         return res;
@@ -381,7 +385,7 @@ function init(container, width, height) {
         cWidth = width - margin.left - margin.right;
         cHeight = height - margin.top - margin.bottom;
         svg.attr('width', width).attr('height', height);
-        if (firstData === false) {
+        if (!noData) {
             rescale();
             xAxisGroup.remove();
             xAxisGroup = g.append("g")
@@ -417,17 +421,16 @@ function init(container, width, height) {
 
     function rescale() {
         if (xMin >= xMax) {
-            xScale = xScaleTemplate.domain([xMin-1, xMax+1]).range([0, cWidth]);
+            xScale = xScaleTemplate.domain([xMax-1, xMin+1]).range([0, cWidth]);
         } else {
             xScale = xScaleTemplate.domain([xMin, xMax]).range([0, cWidth]);
         }
 
         if (yMin >= yMax) {
-            yScale = yScaleTemplate.domain([yMin-1, yMax+1]).range([cHeight, 0]);
+            yScale = yScaleTemplate.domain([yMax-1, yMin+1]).range([cHeight, 0]);
         } else {
             yScale = yScaleTemplate.domain([yMin, yMax]).range([cHeight, 0]);
         }
-
         xAxis = d3.axisBottom(xScale).ticks(xTickCount, xTickFormatSpecifier);
         yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);          
     }
@@ -443,7 +446,7 @@ function init(container, width, height) {
 
             if (data.length === 0) {return;}
 
-            if (firstData) {
+            if (noData) {
                 xVar = xAxisVar(data[0]);
                 xText = xVar;
                 xVar = xVar + '_1';
@@ -469,21 +472,19 @@ function init(container, width, height) {
             var xG = xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
             var yG = yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
             if (yCount >= 2) {
-                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y2Val)), Math.max(yMax, d3.max(data, y2Val))));
+                yG = (yGrow(Math.min(yMin, d3.min(data, y2Val)), Math.max(yMax, d3.max(data, y2Val))) || yG);
             }; 
             if (yCount >= 3) {
-                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y3Val)), Math.max(yMax, d3.max(data, y3Val))));
+                yG = (yGrow(Math.min(yMin,d3.min(data, y3Val)), Math.max(d3.max(data, y3Val))) || yG);
             }; 
             if (yCount >= 4) {
-                yG = (yG || yGrow(Math.min(yMin, d3.min(data, y4Val)), Math.max(yMax, d3.max(data, y4Val))));
+                yG = (yGrow(Math.min(yMin,d3.min(data, y4Val)), Math.max(d3.max(data, y4Val))) || yG);
             }; 
 
             rescale();
 
-            if (firstData) {
-
-                firstData = false;
-
+            if (noData) {
+                noData = false;
                 xAxisGroup = g.append("g")
                     .attr("class", "x axis")
                     .attr("transform", "translate(0," + cHeight + ")")
