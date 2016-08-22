@@ -386,46 +386,42 @@ process_cmd({[<<"system_views">>], ReqBody}, Sess, _UserId, From, Priv, SessPid)
 % open view by id
 process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"open_view">>, BodyJson}] = ReqBody,
-    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
     ViewId = proplists:get_value(<<"view_id">>, BodyJson),
-    case dderl_dal:get_view(Sess, ViewId) of
-        {error, Reason} ->
-            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, Reason}]}])},
-            Priv;
-        undefined ->
-            From ! {reply, jsx:encode([{<<"open_view">>, [{<<"error">>, <<"ddView not found">>}]}])},
-            Priv;
-        F ->
-            C = dderl_dal:get_command(Sess, F#ddView.cmd),
-            case C#ddCmd.conns of
-                local ->
-                    Resp = gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid),
-                    RespJson = jsx:encode([{<<"open_view">>,
-                                          [{<<"content">>, C#ddCmd.command}
-                                           ,{<<"name">>, F#ddView.name}
-                                           ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-                                           ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-                                           ,{<<"view_id">>, F#ddView.id}]
-                                            ++ Resp
-                                           }]);
-                _ ->
-                    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-                    case lists:member(Connection, Connections) of
-                        true ->
-                            Resp = process_query(C#ddCmd.command, Connection, SessPid),
-                            RespJson = jsx:encode([{<<"open_view">>,
-                                [{<<"content">>, C#ddCmd.command}
-                                 ,{<<"name">>, F#ddView.name}
-                                 ,{<<"table_layout">>, (F#ddView.state)#viewstate.table_layout}
-                                 ,{<<"column_layout">>, (F#ddView.state)#viewstate.column_layout}
-                                 ,{<<"view_id">>, F#ddView.id}] ++ Resp}]);
-                        false ->
-                            RespJson = error_invalid_conn(Connection, Connections)
-                    end
+    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+    case lists:member(Connection, Connections) of
+        true ->
+            View = dderl_dal:get_view(Sess, ViewId),
+            Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
+            Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
+            From ! {reply, jsx:encode(#{<<"open_view">> => Res})};
+        false ->
+            From ! {reply, error_invalid_conn(Connection, Connections)}
+    end,
+    Priv;
+
+% open view by name from inside a d3 graph
+process_cmd({[<<"open_graph_view">>], ReqBody}, Sess, UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
+    [{<<"open_graph_view">>, BodyJson}] = ReqBody,
+    ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
+    ViewName = proplists:get_value(<<"view_name">>, BodyJson),
+    Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+    case lists:member(Connection, Connections) of
+        true ->
+            %% We need to check first for owner views, and then for the rest...
+            View = case dderl_dal:get_view(Sess, ViewName, oci, UserId) of
+                undefined ->
+                    dderl_dal:get_view(Sess, ViewName, oci, '_');
+                VRes -> VRes
             end,
-            From ! {reply, RespJson},
-            Priv
-    end;
+            Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
+            Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
+            From ! {reply, jsx:encode(#{<<"open_graph_view">> => Res})};
+        false ->
+            From ! {reply, error_invalid_conn(Connection, Connections)}
+    end,
+    Priv;
+
 % events
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
@@ -637,6 +633,26 @@ filter_json_to_term([]) -> [];
 filter_json_to_term([[{C,Vs}]|Filters]) ->
     [{binary_to_integer(C), Vs} | filter_json_to_term(Filters)].
 
+-spec open_view({atom(), pid()}, {atom(), pid()}, pid(), binary(), [tuple()], undefined | {error, binary()}) -> list().
+open_view(_Sess, _Connection, _SessPid, _ConnId, _Binds, undefined) -> [{<<"error">>, <<"view not found">>}];
+open_view(_Sess, _Connection, _SessPid, _ConnId, _Binds, {error, Reason}) -> [{<<"error">>, Reason}];
+open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name, cmd = CmdId, state = ViewState}) ->
+    C = dderl_dal:get_command(Sess, CmdId),
+    Resp =
+    case C#ddCmd.conns of
+        local -> gen_adapter:process_query(C#ddCmd.command, Sess, {ConnId, oci}, SessPid);
+        _ ->
+            case {gen_adapter:opt_bind_json_obj(C#ddCmd.command, oci), Binds} of
+                {[], _} -> process_query(C#ddCmd.command, Connection, SessPid);
+                {JsonBindInfo, B} when B == undefined; element(1, B) == error -> JsonBindInfo;
+                {_, Binds} -> process_query({C#ddCmd.command, Binds}, Connection, SessPid)
+            end
+    end,
+    [{<<"content">>, C#ddCmd.command}
+    ,{<<"name">>, Name}
+    ,{<<"table_layout">>,ViewState#viewstate.table_layout}
+    ,{<<"column_layout">>, ViewState#viewstate.column_layout}
+    ,{<<"view_id">>, Id} | Resp].
 
 -spec process_query(tuple()|binary(), tuple(), pid()) -> list().
 process_query({Query, BindVals}, {oci_port, _, _} = Connection, SessPid) ->

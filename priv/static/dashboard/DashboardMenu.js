@@ -1,5 +1,6 @@
 import $ from 'jquery';
-import {dderlState, alert_jq, addDashboard, ajaxCall} from '../scripts/dderl'; 
+import {alert_jq} from '../dialogs/dialogs';
+import {dderlState, addDashboard, ajaxCall} from '../scripts/dderl'; 
 
 var dashboardList;
 

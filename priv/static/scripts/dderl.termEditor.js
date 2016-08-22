@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
-import {alert_jq, ajaxCall, unescapeNewLines} from './dderl';
+import {alert_jq} from '../dialogs/dialogs';
+import {ajaxCall, unescapeNewLines} from './dderl';
 
 (function( $ ) {
     $.widget("dderl.termEditor", $.ui.dialog, {

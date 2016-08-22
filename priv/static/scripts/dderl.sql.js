@@ -1,7 +1,7 @@
 import $ from 'jquery';
 import 'jquery-ui/ui/tabs';
-import {ajaxCall, alert_jq, confirm_jq, prompt_jq, dderlState,
-        smartDialogPosition} from './dderl';
+import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
+import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
 import {sql_params_dlg} from './dderl.sqlparams';
 
 export function StartSqlEditor(title = null, cmd = undefined) {

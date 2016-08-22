@@ -272,7 +272,7 @@ get_view(Sess, ViewId) ->
             undefined
     end.
 
--spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> #ddView{} | undefined.
+-spec get_view({atom(), pid()} | undefined, binary(), atom(), ddEntityId() | '_') -> #ddView{} | undefined.
 get_view(undefined, Name, Adapter, Owner) -> gen_server:call(?MODULE, {get_view, Name, Adapter, Owner});
 get_view(Sess, Name, Adapter, Owner) -> 
     ?Debug("get_view ~p", [Name]),

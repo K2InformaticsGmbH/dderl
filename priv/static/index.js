@@ -14,7 +14,8 @@ req.keys().forEach(function(key){
 });
 
 import {check_already_connected} from "./scripts/login";
-import {dderlState, alert_jq, show_qry_files, import_query,
+import {alert_jq} from './dialogs/dialogs';
+import {dderlState, show_qry_files, import_query,
         change_password, show_about_dlg} from "./scripts/dderl";
 import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab} from "./scripts/connect";

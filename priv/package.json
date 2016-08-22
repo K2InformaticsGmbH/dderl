@@ -40,9 +40,10 @@
     "build": "npm run lint && npm run clean && webpack --progress",
     "clean": "rm -rf public",
     "env": "env",
-    "lint": "jshint --verbose static/index.js static/scripts static/dashboard",
+    "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph",
     "test": "karma start karma.conf.js",
     "validate": "webpack-validator webpack.config.js",
-    "watch": "npm run clean && webpack --progress --watch"
+    "watch": "npm run clean && webpack --progress --watch",
+    "lint:d3_examples": "jshint --verbose d3_examples"
   }
 }

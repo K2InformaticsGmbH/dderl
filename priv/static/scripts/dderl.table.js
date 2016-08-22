@@ -1,13 +1,14 @@
-import jQuery from 'jquery';
+import $ from 'jquery';
 import * as d3 from 'd3/build/d3.node';
 import 'd3-selection-multi';
 import 'jquery-dialogextend/build/jquery.dialogextend';
+import {alert_jq, prompt_jq, confirm_jq, alert_js_error} from '../dialogs/dialogs';
 import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter,
-    alert_jq, prompt_jq, confirm_jq, smartDialogPosition, addToCurrentViews,
-    ajaxCall, beep} from './dderl';
+    smartDialogPosition, addToCurrentViews, ajaxCall, beep} from './dderl';
+import {evalD3Script} from '../graph/graph';
 import './dderl.termEditor.js';
 
-(function( $ ) {
+(function() {
   $.widget( "dderl.table", $.ui.dialog, {
 
     _dlg            : null,
@@ -2274,78 +2275,12 @@ import './dderl.termEditor.js';
     },
 
     _renderNewTable: function(_table) {
-        var tl = _table.table_layout;
-        var cl = null;
-        var viewId = null;
-        var left = 0;
-        var top = 0;
-
-        if(_table.hasOwnProperty('error')) {
-            alert_jq(_table.error);
-            this._openFailedSql(_table.name, _table.content, null, null);
-            return;
-        } else if(_table.hasOwnProperty('binds')) {
-            this._openFailedSql(_table.name, _table.content, _table.binds, _table.view_id, tl);
-            return;
-        }
-
-        if(!_table.hasOwnProperty('table_layout') || !_table.table_layout.hasOwnProperty('x')) {
-            var dlg = this._dlg.dialog('widget');
-            var titleBarHeight = dlg.find('.ui-dialog-titlebar').height();
-            left = (dlg.position().left + titleBarHeight + 10);
-            top = (dlg.position().top + titleBarHeight + 10);
-        } else {
-            left = _table.table_layout.x;
-            top = _table.table_layout.y;
-        }
-        
-        var pos = {
-            my: "left top",
-            at: "left+" + left + " top+" + top,
-            of: "#main-body",
-            collision : 'none'
-        };
-            
-        if(_table.hasOwnProperty('view_id')) {
-            viewId = _table.view_id;
-        }
-
-        if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
-            cl = _table.column_layout;
-        }
-
-
         this.removeWheel();
-        var baseOptions = {
-            autoOpen        : false,
-            title           : _table.name,
-            position        : pos,
-
-            dderlAdapter    : this._adapter,
-            dderlConn       : this._conn,
-            dderlStatement  : _table.statement,
-            dderlCmd        : _table.content,
-            dderlClmlay     : cl,
-            dderlTbllay     : tl,
-            dderlViewId     : viewId,
-            dderlSortSpec   : ((_table.hasOwnProperty('sort_spec') && _table.sort_spec.length > 0
-                                ) ?_table.sort_spec : null)
-        };
-        
-        if(_table.hasOwnProperty('table_layout')) {
-            if(_table.table_layout.hasOwnProperty('width')) {
-                baseOptions.width = _table.table_layout.width;
-            }
-            if (_table.table_layout.hasOwnProperty('height')) {
-                baseOptions.height = _table.table_layout.height;
-            }
-        }
-
-        $('<div>')
-        .table(baseOptions)
-        .table('setColumns', _table.columns)
-        .table('callReorder')
-        .table('buttonPress', '>');
+        var dlg = this._dlg.dialog('widget');
+        var titleBarHeight = dlg.find('.ui-dialog-titlebar').height();
+        var left = (dlg.position().left + titleBarHeight + 10);
+        var top = (dlg.position().top + titleBarHeight + 10);
+        renderNewTable(_table, {left: left, top: top});
     },
 
     callReorder: function() {
@@ -2426,28 +2361,7 @@ import './dderl.termEditor.js';
     },
 
     _openFailedSql: function(title, cmd, optBinds, viewId, tbllay) {
-        var script = "";
-
-        if(tbllay && tbllay.hasOwnProperty('plane_specs')) {
-            if($.isArray(tbllay.plane_specs) &&
-               tbllay.hasOwnProperty('plane_to_show') &&
-               tbllay.plane_to_show > 0 &&
-               tbllay.plane_to_show <= tbllay.plane_specs.length) {
-                script = tbllay.plane_specs[tbllay.plane_to_show-1].script;
-            }
-        }
-        $('<div>')
-            .appendTo(document.body)
-            .sql({autoOpen  : false,
-                  title     : title,
-                  cmdOwner  : null,
-                  history   : [],
-                  cmdFlat   : cmd,
-                  optBinds  : optBinds,
-                  viewId    : viewId,
-                  script    : script // TODO: This should be multiple specs...
-                 })
-            .sql('open');
+        openFailedSql(title, cmd, optBinds, viewId, tbllay);
     },
 
     _openImageEditor: function(dataImg) { // Data image encoded as base64 string
@@ -3851,7 +3765,7 @@ import './dderl.termEditor.js';
         }
     }
   });
-}( jQuery ) );
+}());
 
 function groupByColumn(dataView, col, seperator) {
     var getters = [];
@@ -3894,24 +3808,97 @@ function groupByColumn(dataView, col, seperator) {
     dataView.setGrouping(getters);
 }
 
-function evalD3Script(script) {
-    /* jshint evil:true */
-    // Here we can inject libraries we would like to make available to d3 scripts.
-    var f = new Function('script', 'd3', "return eval('(' + script + ')')");
-    var result = null;
-    try {
-        result = f(script, d3);
-    } catch(e) {
-        alert_js_error(e);
+function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
+    var script = "";
+
+    if(tbllay && tbllay.hasOwnProperty('plane_specs')) {
+        if($.isArray(tbllay.plane_specs) &&
+            tbllay.hasOwnProperty('plane_to_show') &&
+            tbllay.plane_to_show > 0 &&
+            tbllay.plane_to_show <= tbllay.plane_specs.length) {
+            script = tbllay.plane_specs[tbllay.plane_to_show - 1].script;
+        }
     }
-    return result;
+    $('<div>')
+        .appendTo(document.body)
+        .sql({
+            autoOpen: false,
+            title: title,
+            cmdOwner: null,
+            history: [],
+            cmdFlat: cmd,
+            optBinds: optBinds,
+            viewId: viewId,
+            script: script // TODO: This should be multiple specs...
+        })
+        .sql('open');
 }
 
-// TODO: Move this with the other alerts
-function alert_js_error(e) {
-    var message = e.message;
-    if(e.stack) {
-        message += "\n" + e.stack;
+export function renderNewTable(table, position, force) {
+    var tl = table.table_layout;
+    var cl = null;
+    var viewId = null;
+
+    if(table.hasOwnProperty('error')) {
+        alert_jq(table.error);
+        openFailedSql(table.name, table.content, null, null);
+        return;
+    } else if(table.hasOwnProperty('binds')) {
+        openFailedSql(table.name, table.content, table.binds, table.view_id, tl);
+        return;
     }
-    alert_jq(message);
+
+    if(table.hasOwnProperty('table_layout') && table.table_layout.hasOwnProperty('x') && !force) {
+        position = {
+            left: table.table_layout.x,
+            top: table.table_layout.y
+        };
+    }
+
+    var pos = {
+        my: "left top",
+        at: "left+" + position.left + " top+" + position.top,
+        of: "#main-body",
+        collision: 'none'
+    };
+
+    if(table.hasOwnProperty('view_id')) {
+        viewId = table.view_id;
+    }
+
+    if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
+        cl = table.column_layout;
+    }
+
+
+    var baseOptions = {
+        autoOpen: false,
+        title: table.name,
+        position: pos,
+
+        dderlAdapter: dderlState.adapter,
+        dderlConn: dderlState.connection,
+        dderlStatement: table.statement,
+        dderlCmd: table.content,
+        dderlClmlay: cl,
+        dderlTbllay: tl,
+        dderlViewId: viewId,
+        dderlSortSpec: ((table.hasOwnProperty('sort_spec') && table.sort_spec.length > 0
+        ) ? table.sort_spec : null)
+    };
+
+    if(table.hasOwnProperty('table_layout')) {
+        if(table.table_layout.hasOwnProperty('width')) {
+            baseOptions.width = table.table_layout.width;
+        }
+        if(table.table_layout.hasOwnProperty('height')) {
+            baseOptions.height = table.table_layout.height;
+        }
+    }
+
+    $('<div>')
+        .table(baseOptions)
+        .table('setColumns', table.columns)
+        .table('callReorder')
+        .table('buttonPress', '>');
 }

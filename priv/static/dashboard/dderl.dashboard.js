@@ -1,5 +1,7 @@
 import jQuery from 'jquery';
-import {dderlState, ajaxCall, alert_jq} from '../scripts/dderl';
+import {alert_jq} from '../dialogs/dialogs';
+import {dderlState, ajaxCall} from '../scripts/dderl';
+import {renderNewTable} from '../scripts/dderl.table';
 
 (function ($) {
     $.extend(true, window, {
@@ -71,23 +73,11 @@ import {dderlState, ajaxCall, alert_jq} from '../scripts/dderl';
         function openViews() {
             var checkOpenResult = function (pos) {
                 return function (viewResult) {
-                    if (viewResult.hasOwnProperty('error')) {
-                        alert_jq(viewResult.error);
-                    } else {
+                    if (!viewResult.hasOwnProperty('error')) {
                         // We need to override the position and size of table layout.
                         $.extend(viewResult.table_layout, views[pos].getLayout());
-
-                        $('<div>')
-                            .appendTo(document.body)
-                            .table({
-                                autoOpen: false,
-                                dderlConn: dderlState.connection,
-                                dderlAdapter: dderlState.adapter,
-                                title: viewResult.name,
-                                dderlTbllay: viewResult.table_layout,
-                            })
-                            .table('openView', viewResult);
                     }
+                    renderNewTable(viewResult);
                 };
             };
 

@@ -1,6 +1,6 @@
 import $ from 'jquery';
-import {dderlState, ajaxCall, resetPingTimer, password_change_dlg,
-        alert_jq, confirm_jq} from './dderl';
+import {alert_jq, confirm_jq} from '../dialogs/dialogs';
+import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
 import {connect_dlg} from './connect';
 

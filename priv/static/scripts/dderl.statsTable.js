@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
-import {addWindowFinder, ajaxCall, alert_jq, beep, dderlState,
+import {alert_jq} from '../dialogs/dialogs';
+import {addWindowFinder, ajaxCall, beep, dderlState,
         smartDialogPosition} from './dderl';
 
 (function( $ ) {
