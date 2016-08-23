@@ -12,7 +12,7 @@
                   cowboy,
                   erlimem,
                   imem,
-                  dderloci
+                  erloci
                  ]},
   {mod, { dderl, []}},
   {env, [ {interface, "0.0.0.0"}

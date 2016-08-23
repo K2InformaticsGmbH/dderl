@@ -28,12 +28,12 @@ start() ->
     ok = application:start(cowlib),
     ok = application:start(cowboy),
     erlimem:start(),
-    catch dderloci:start(),
+    catch ok = application:start(erloci),
 	ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
-    catch dderloci:stop(),
+    catch application:stop(erloci),
     erlimem:stop(),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),

@@ -10,7 +10,9 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type, Args), {I, {I, start_link, Args}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, Args), #{id => I, start => {I, start_link, Args},
+                                restart => permanent, shutdown => 5000,
+                                type => Type, modules => [I]}).
 
 %% ===================================================================
 %% API functions
@@ -32,9 +34,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, [?CHILD(dderl_dal, worker, [])
-                                 ,?CHILD(dderl_session_sup, supervisor, [])
-                                 ,?CHILD(dderl_data_sender_sup, supervisor, [])
-                                 ,?CHILD(dderl_data_receiver_sup, supervisor, [])
-                                 ]} }.
-
+    {ok, {#{strategy => one_for_one, intensity => 5, period => 10},
+          [?CHILD(dderloci_sup, supervisor, []),
+           ?CHILD(dderl_dal, worker, []),
+           ?CHILD(dderl_session_sup, supervisor, []),
+           ?CHILD(dderl_data_sender_sup, supervisor, []),
+           ?CHILD(dderl_data_receiver_sup, supervisor, [])]}}.
