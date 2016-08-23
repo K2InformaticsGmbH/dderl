@@ -542,7 +542,11 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
             case proplists:get_value(<<"host">>, BodyJson, none) of
                 none -> case proplists:get_value(<<"tns">>, BodyJson, none) of
                     none -> {"", ""};
-                    Tns -> {hd(re:split(lists:nth(2, re:split(Tns, <<"HOST=">>)), "\\)")), Tns}
+                    Tns -> 
+                        case catch re:replace(hd(re:split(lists:nth(2, re:split(Tns, <<"HOST">>)), "\\)")), <<"=">>, <<>>, [{return, binary}]) of
+                            H when is_binary(H) -> {H, Tns};
+                            _ -> {"", Tns}
+                        end
                 end;
                 H -> {H, proplists:get_value(<<"tns">>, BodyJson, "")}
     end,
