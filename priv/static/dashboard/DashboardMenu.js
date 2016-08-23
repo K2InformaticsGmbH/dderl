@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import {alert_jq} from '../dialogs/dialogs';
+import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, addDashboard, ajaxCall} from '../scripts/dderl'; 
 
 var dashboardList;
@@ -59,7 +59,13 @@ export function add(index, dashboard) {
         text: false
     });
 
-    buttonTrash.click(removeDashboard);
+    var confirmParams = {
+        title: "Confirm delete dashboard " + dashboard.getName(),
+        content: ''
+    };
+    buttonTrash.click(function() {
+        confirm_jq(confirmParams, removeDashboard);
+    });
     buttonEdit.click(function() {
         list.hide();
         listEdit.show();
@@ -69,7 +75,7 @@ export function add(index, dashboard) {
         list.show();
         listEdit.hide();
     });
-    buttonCheck.click(function () {
+    buttonCheck.click(function() {
         dashboard.rename(inputTextToEdit.val(), function(newName) {
             buttonNames.val(newName);
             inputTextToEdit.val(newName);
@@ -93,13 +99,13 @@ export function add(index, dashboard) {
     listEdit.hide();
 
     function removeDashboard() {
-        var data = {id: dashboard.getId()};
+        var data = { id: dashboard.getId() };
         ajaxCall(null, 'delete_dashboard', data, 'delete_dashboard', function(result) {
-             if(result.hasOwnProperty('error')) {
+            if(result.hasOwnProperty('error')) {
                 alert_jq('<strong>remove dashboard failed!</strong><br><br>' + result.error);
             } else {
                 list.remove();
-                dderlState.dashboards.splice(index,1);
+                dderlState.dashboards.splice(index, 1);
             }
         });
     }
