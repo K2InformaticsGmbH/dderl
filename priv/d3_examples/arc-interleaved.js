@@ -11,41 +11,41 @@ function init(container, width, height) {
     // Copy and paste the following data in the table:
     /*****
 
-["prod","platform01"]	{"enabled": true}	ZSPGI
-["prod","platform01","10.0.0.1"]	{"status":"idle"}	1UUXWW
-["prod","platform02"]	{"enabled": true}	11TOKT
-["prod","platform03"]	{"enabled": true}	1SF3PY
-["prod","platform03","10.0.0.1"]	{"status":"idle"}	KG4FV
-["prod","platform03","10.0.0.2"]	{"status":"idle"}	TZ1G7
-["prod","platform03","10.0.0.3"]	{"status":"idle"}	22ES62
-["prod","platform04"]	{"enabled": false}	16DMNI
-["prod","platform05"]	{"enabled": false}	13ZI63
-["prod","platform06"]	{"enabled": true}	T6SIK
-["prod","platform06","10.0.0.1"]	{"status":"idle"}	R9WKE
-["prod","platform06","10.0.0.2"]	{"status":"idle"}	1YPVKM
-["prod","platform07"]	{"enabled": true}	21GJH
-["prod","platform07","10.0.0.3"]	{"status":"error"}	1C0VIR
-["prod","platform08"]	{"enabled": true}	1G8553
-["prod","platform08","10.0.0.2"]	{"status":"idle"}	1K5JDG
-["prod","platform09"]	{"enabled": true}	174V1F
-["prod","platform09","10.0.0.1"]	{"status":"idle"}	K6X90
-["prod","platform10"]	{"enabled": true}	203DBM
-["prod","platform10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
-["stag","platform06"]	{"enabled": true}	23SE1K
-["stag","platform06","192.168.0.1"]	{"status":"idle"}	PBG1Y
-["stag","platform11"]	{"enabled": true}	1UQK0V
-["stag","platform11","192.168.0.1"]	{"status":"idle"}	IOW3P
-["stag","platform11","192.168.0.2"]	{"status":"idle"}	1YAQRX
-["stag","platform12"]	{"enabled": true}	1NOQXI
-["stag","platform13"]	{"enabled": false}	JPIZY
-["stag","platform14"]	{"enabled": true}	2FBUU
-["stag","platform14","192.168.0.1"]	{"status": "idle"}	208ASX
-["stag","platform15"]	{"enabled": false}	1EX091
-["stag","platform16"]	{"enabled": true}	VORM4
-["stag","platform16","192.168.0.1"]	{"status": "cleaned"}	XYI25
-["stag","platform17"]	{"enabled": true}	1LVEOW
-["stag","platform17","192.168.0.1"]	{"status": "idle"}	1DEQ20
-
+["prod","job01"]	{"platform": "platform01", "args": {"group": "03"}, "enabled": true}	ZSPGI
+["prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
+["prod","job02"]	{"platform": "platform02", "args": {"group":"03"}, "enabled": true}	11TOKT
+["prod","job03"]	{"platform": "platform02", "args": {"group":"03"}, "enabled": true}	1SF3PY
+["prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
+["prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
+["prod","job03","10.0.0.3"]	{"status":"idle"}	22ES62
+["prod","job04"]	{"platform": "platform04", "args": {"group":"03"}, "enabled": false}	16DMNI
+["prod","job05"]	{"platform": "platform05", "args": {"group":"02"}, "enabled": false}	13ZI63
+["prod","job06"]	{"platform": "platform06", "args": {"group":"01"}, "enabled": true}	T6SIK
+["prod","job06","10.0.0.1"]	{"status":"idle"}	R9WKE
+["prod","job06","10.0.0.2"]	{"status":"idle"}	1YPVKM
+["prod","job07"]	{"platform": "platform07", "args": {"group":"02"}, "enabled": true}	21GJH
+["prod","job07","10.0.0.3"]	{"status":"error"}	1C0VIR
+["prod","job08"]	{"platform": "platform08", "args": {"group":"03"}, "enabled": true}	1G8553
+["prod","job08","10.0.0.2"]	{"status":"idle"}	1K5JDG
+["prod","job09"]	{"platform": "platform09", "args": {"group":"02"}, "enabled": true}	174V1F
+["prod","job09","10.0.0.1"]	{"status":"idle"}	K6X90
+["prod","job10"]	{"platform": "platform10", "args": {"group":"02"}, "enabled": true}	203DBM
+["prod","job10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
+["stag","job11"]	{"platform": "platform11", "args": {"group":"01"}, "enabled": true}	1UQK0V
+["stag","job11","192.168.0.1"]	{"status":"idle"}	IOW3P
+["stag","job11","192.168.0.2"]	{"status":"idle"}	1YAQRX
+["stag","job12"]	{"platform": "platform12", "args": {"group":"01"}, "enabled": true}	1NOQXI
+["stag","job13"]	{"platform": "platform13", "args": {"group":"01"}, "enabled": false}	JPIZY
+["stag","job14"]	{"platform": "platform14", "args": {"group":"01"}, "enabled": true}	2FBUU
+["stag","job14","192.168.0.1"]	{"status": "idle"}	208ASX
+["stag","job15"]	{"platform": "platform15", "args": {"group":"01"}, "enabled": false}	1EX091
+["stag","job16"]	{"platform": "platform16", "args": {"group":"01"}, "enabled": true}	VORM4
+["stag","job16","192.168.0.1"]	{"status": "cleaned"}	XYI25
+["stag","job17"]	{"platform": "platform17", "args": {"group":"01"}, "enabled": true}	1LVEOW
+["stag","job17","192.168.0.1"]	{"status": "idle"}	1DEQ20
+["stag","job18"]	{"platform": "platform06", "args": {"group":"01"}, "enabled": true}	23SE1K
+["stag","job18","192.168.0.1"]	{"status":"idle"}	PBG1Y
+["subs","user1","123"] 
     *****/
 
     /** Size & positioning parameters */
@@ -72,45 +72,53 @@ function init(container, width, height) {
 
     var extractLinksNodes = function(rows) {
         var links = [];
-        var n0 = [];
-        var n1 = [];
         var nlset = new Set();
+        // Add already included center nodes to the set
+        centerNodes.forEach(function(n) {
+            nlset.add(n.id);
+        });
+        var nodes = [];
         rows.forEach(function(row) {
             var key = getKey(row);
             var value = getValue(row);
 
-            // TODO: This will ignore information, we need
-            // to implement small nodes for each different ip links
             if(key.length === 3) {
-                var id = key[0] + '_' + key[1];
-                if(!nlset.has(id)) {
-                    nlset.add(id);
-                    links.push({
-                        id: id,
-                        source: key[0],
-                        target: key[1],
-                        legend: key[2],
-                        status: value.status
+                // var id = key[0] + '_' + key[1];
+                // if(!nlset.has(id)) {
+                //     nlset.add(id);
+                //     links.push({
+                //         id: id,
+                //         source: key[0],
+                //         target: key[1],
+                //         legend: key[2],
+                //         status: value.status
+                //     });
+                // }
+            } else if(key.length === 2) {
+                var NodeId = value.platform;
+                var group = value.args.group;
+                if(!nlset.has(NodeId)) {
+                    nlset.add(NodeId);
+                    nodes.push({
+                        id: NodeId,
+                        group: group
                     });
                 }
-            } else if(key.length === 2) {
-                if(!nlset.has(key[1])) {
-                    nlset.add(key[1]);
-                    if(key[0] === centerNodes[0].id) {
-                        n0.push({
-                            id: key[1],
-                            enabled: value.enabled
-                        });
-                    } else if(key[0] === centerNodes[1].id) {
-                        n1.push({
-                            id: key[1],
-                            enabled: value.enabled
-                        });
-                    }
+                var linkId = key[0] + '_' + key[1];
+                if(!nlset.has(linkId)) {
+                    nlset.add(linkId);
+                    links.push({
+                        id: linkId,
+                        source: key[0],
+                        target: NodeId,
+                        legend: key[1],
+                        enabled: value.enabled
+                    });
                 }
+
             }
         });
-        return { links: links, nodes: n0.concat(n1) };
+        return { links: links, nodes: nodes };
     };
     /** End data extraction functions */
 
@@ -160,8 +168,7 @@ function init(container, width, height) {
             width: "60px",			
             height: "30px",
             padding: "2px",				
-            font: "12px sans-serif",
-            background: "lightsteelblue",
+            font: "18px sans-serif",
             border: "0px",		
             "border-radius": "8px",			
             "pointer-events": "none",
@@ -171,7 +178,7 @@ function init(container, width, height) {
 
     function showTooltip(d) {
         tootipDiv
-            .html(d.id)
+            .html(JSON.stringify(d))
             .transition()
             .duration(200)
             .style('opacity', 0.95);
@@ -187,6 +194,12 @@ function init(container, width, height) {
         tootipDiv.transition()
             .duration(500)
             .style('opacity', 0);
+    }
+
+    function openView(d) {
+        helper.browse('parameterized_d', {
+            ':boolean_read' : {typ: "boolean", val: d.enabled.toString()}
+        });
     }
 
     var firstData = true;
@@ -219,41 +232,88 @@ function init(container, width, height) {
             console.log('the links', graph.links);
             console.log('the nodes', graph.nodes);
 
-            svg.selectAll('circle')
+            var newNodes = svg.selectAll('.node')
                 .data(graph.nodes, function(d) {
                     return d.id;
                 })
                 .enter()
-                .append('circle')
+                .append('g')
+                .attr("class", "node");
+
+            newNodes.append('circle')
                 .attr('r', nradius)
                 .attr('id', function(d) {
                     return d.id;
                 })
+                .style('stroke', 'black')
+                .attr('stroke-width', 5)
+                .style('fill', 'white')
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
-                .on('mouseout', hideTooltip);
+                .on('mouseout', hideTooltip)
+                .on('click', openView);
+
+            newNodes.append('text')
+                .text(function(d) {
+                    return d.id;
+                })
+                .style('font-size', '24px')
+                .style('text-anchor', 'middle');
 
             var allPoints = svg.selectAll('circle')
                 .filter(function(d) {
                     return !d.position;
                 });
 
-            var angle = Math.PI / (allPoints.size() + 1);
+            var nData = [];
+            svg.selectAll('.node').each(function (d) {
+                console.log("the d ", d);
+                nData.push(d);
+            });
 
+            nData.sort(function(a, b) {
+                if(a.group == b.group) {
+                    return a.id.localeCompare(b.id);
+                }
+                return a.group.localeCompare(b.group);
+            });
+
+            var angle = Math.PI / (nData.length + 1);
+
+            var positions = {};
+            for(var i = 0; i < nData.length; ++i) {
+                var r = vArcRadius - 2 * nradius * (i % 2);
+                var x = -r * Math.cos((i + 1) * angle);
+                var y = -r * Math.sin((i + 1) * angle);
+                positions[nData[i].id] = {x: x, y: y};
+            }
+            console.log("The positions", positions);
+
+            // TODO: Maybe we should translate the g, but this gives more control
             allPoints
                 .transition()
-                .attr('cx', function(d, i) {
+                .attr('cx', function(d) {
                     // Interleave smaller radius to allow more nodes.
-                    var r = vArcRadius - 2 * nradius * (i % 2);
-                    return -r * Math.cos((i + 1) * angle);
+                    /*var r = vArcRadius - 2 * nradius * (i % 2);
+                    return -r * Math.cos((i + 1) * angle);*/
+                    return positions[d.id].x;
                 })
                 .attr('cy', function(d, i) {
+                    /*
                     var r = vArcRadius - 2 * nradius * (i % 2);
                     return -r * Math.sin((i + 1) * angle);
-                })
-                .style('fill', function(d) {
-                    return d.enabled ? 'black' : 'lightgrey';
+                    */
+                    return positions[d.id].y;
                 });
+
+            svg.selectAll('text')
+                .transition()
+                .attr('x', function(d, i) {
+                    return positions[d.id].x;
+                })
+                .attr('y', function(d, i) {
+                    return positions[d.id].y;
+                })
 
             svg.selectAll('line')
                 .data(graph.links, function(d) {
@@ -292,7 +352,7 @@ function init(container, width, height) {
                         return s ? s.cy.baseVal.value : 0;
                     })
                     .attr('stroke', function(d) {
-                        return colorStatus[d.status];
+                        return d.enabled ? 'green' : 'lightgrey';
                     });
             }, 500);
         },
