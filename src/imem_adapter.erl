@@ -564,14 +564,12 @@ process_cmd({[<<"restore_table">>], ReqBody}, _Sess, _UserId, From, #priv{connec
 process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"button">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ButtonOrig = proplists:get_value(<<"btn">>, BodyJson, <<">">>),
-    case ButtonOrig of
-        ButtonInt when is_integer(ButtonInt) ->
-            Button = ButtonInt;
+    Button = case proplists:get_value(<<"btn">>, BodyJson, <<">">>) of
+        ButtonInt when is_integer(ButtonInt) -> ButtonInt;
         ButtonBin when is_binary(ButtonBin) ->
             case string:to_integer(binary_to_list(ButtonBin)) of
-                {Target, []} -> Button = Target;
-                _ -> Button = ButtonBin
+                {Target, []} -> Target;
+                _ -> ButtonBin
             end
     end,
     Statement:gui_req(button, Button, gui_resp_cb_fun(<<"button">>, Statement, From)),
@@ -775,27 +773,12 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
                                        , bind_vals                  = Params
                                        , table_name                 = TableName
                                        , block_length               = ?DEFAULT_ROW_SIZE
-                                       , fetch_recs_async_fun       = fun(Opts, _) -> Connection:run_cmd(fetch_recs_async, [Opts, StmtRef]) end
-                                       , fetch_close_fun            = fun() -> Connection:run_cmd(fetch_close, [StmtRef]) end
-                                       , stmt_close_fun             = fun() ->
-                                                                              try Connection:run_cmd(close, [StmtRef])
-                                                                              catch
-                                                                                  exit:{noproc,_} ->
-                                                                                      ?Debug("Fsm terminated after the connection was closed");
-                                                                                  Class:Error ->
-                                                                                      ?Error("Error trying to terminate the statement ~p:~p",
-                                                                                             [Class, Error], erlang:get_stacktrace())
-                                                                              end
-                                                                      end
-                                       , filter_and_sort_fun        = fun(FilterSpec, SrtSpec, Cols) ->
-                                                                            Connection:run_cmd(filter_and_sort, [StmtRef, FilterSpec, SrtSpec, Cols])
-                                                                        end
-                                       , update_cursor_prepare_fun  = fun(ChangeList) ->
-                                                                            Connection:run_cmd(update_cursor_prepare, [StmtRef, ChangeList])
-                                                                        end
-                                       , update_cursor_execute_fun  = fun(Lock) ->
-                                                                            Connection:run_cmd(update_cursor_execute, [StmtRef, Lock])
-                                                                        end
+                                       , fetch_recs_async_fun       = imem_adapter_funs:fetch_recs_async(Connection, StmtRef)
+                                       , fetch_close_fun            = imem_adapter_funs:fetch_close(Connection, StmtRef)
+                                       , stmt_close_fun             = imem_adapter_funs:stmt_close(Connection, StmtRef)
+                                       , filter_and_sort_fun        = imem_adapter_funs:filter_and_sort(Connection, StmtRef)
+                                       , update_cursor_prepare_fun  = imem_adapter_funs:update_cursor_prepare(Connection, StmtRef)
+                                       , update_cursor_execute_fun  = imem_adapter_funs:update_cursor_execute(Connection, StmtRef)
                                        }, SessPid),
             Connection:add_stmt_fsm(StmtRef, StmtFsm),
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
