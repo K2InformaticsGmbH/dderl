@@ -205,5 +205,6 @@ rel/erlpkg*
 .rebar
 
 # Javascript building tools
-priv/public
+priv/public/
+priv/static/public/
 node_modules

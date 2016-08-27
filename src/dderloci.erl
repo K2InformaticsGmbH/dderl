@@ -327,7 +327,12 @@ result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Co
 result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     Statement:close(),
     ok;
-result_exec_stmt(_RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
+result_exec_stmt({executed,_,Values}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection,
+                 _SelectSections) ->
+    Statement:close(),
+    {ok, Values};
+result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
+    ?Info("RowIdError ~p", [RowIdError]),
     Statement:close(),
     case Connection:prep_sql(Sql) of
         {error, {ErrorId,Msg}} ->

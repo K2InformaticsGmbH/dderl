@@ -55,13 +55,21 @@ opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
     RegEx = ":(" ++ string:join([binary_to_list(T) || T <- Types], "|")
-         ++ ")[^ ,\)\n\r;]+",
-    case re:run(Sql, RegEx, [global,{capture, [0,1], binary}]) of
+         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
+    case re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}]) of
         {match, Parameters} ->
             [{<<"binds">>,
               [{<<"types">>, Types},
-               {<<"pars">>, [{P, [{<<"typ">>,T},{<<"val">>,<<>>}]}
-                             || [P,T] <- Parameters]}]
+               {<<"pars">>,
+                [{P, [{<<"typ">>,T},
+                      {<<"dir">>,case D of
+                                     <<"_IN_">> -> <<"in">>;
+                                     <<"_OUT_">> -> <<"out">>;
+                                     <<"_INOUT_">> -> <<"inout">>;
+                                     _ -> <<"in">>
+                                 end},
+                      {<<"val">>,<<>>}]}
+                 || [P,T,D] <- Parameters]}]
              }];
         % No bind parameters can be extracted
         % possibly query string is not parameterized

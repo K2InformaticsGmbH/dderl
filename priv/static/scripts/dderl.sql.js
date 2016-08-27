@@ -790,8 +790,11 @@ function insertAtCursor(myField, myValue) {
             for(let p in src.pars)
                 if(dst.pars.hasOwnProperty(p)) {
                     dst.pars[p].typ = src.pars[p].typ;
+                    dst.pars[p].dir = src.pars[p].dir;
                 } else {
-                    dst.pars[p] = { typ: src.pars[p].typ, val: src.pars[p].val };
+                    dst.pars[p] = { typ: src.pars[p].typ,
+                                    dir: src.pars[p].dir,
+                                    val: src.pars[p].val };
                 }
         }
         return dst;
@@ -875,6 +878,14 @@ function insertAtCursor(myField, myValue) {
             }
         } else if(resultQry.hasOwnProperty('error')) {
             alert_jq(resultQry.error + "<br><br><b><center>" + self._pendingQueries.length + " statements not executed</center></b>");
+        } else if(resultQry.hasOwnProperty('data')) {
+            var dataHtml = '<table border="1" style="border-collapse: collapse;">'+
+                            '<tr><th>Param</th><th>Value</th></tr>';
+            for(var param in resultQry.data) {
+                dataHtml += '<tr><td>'+param+'</td><td>'+resultQry.data[param]+'</td></tr>';
+            }
+            dataHtml += '</table>';
+            alert_jq(dataHtml);
         } else if(!resultQry.hasOwnProperty('statement')) {
             alert_jq('missing statement handle <br><br><b><center>' + self._pendingQueries.length + " statements not executed</center></b>");
         } else if(isMultiple) {

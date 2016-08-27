@@ -682,6 +682,9 @@ process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt,
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, ?E2B(Connection)}];
+process_query({ok, Values}, _Query, _BindVals, {oci_port, _, _} = Connection, _SessPid) ->
+    [{<<"data">>, Values},
+     {<<"connection">>, ?E2B(Connection)}];
 process_query({error, {Code, Msg}}, _Query, _BindVals, _Connection, _SessPid) when is_binary(Msg) ->
     ?Error("query error ~p", [{Code, Msg}]),
     [{<<"error">>, Msg}];
@@ -830,14 +833,21 @@ get_deps() -> [dderloci, erloci].
 make_binds(null) -> undefined;
 make_binds(Binds) ->
     try
-        {Vars, Values} = lists:foldl(
+        {Vars, Values} = lists:foldr(
             fun({B, TV}, {NewBinds, NewVals}) ->
                 Typ = binary_to_existing_atom(proplists:get_value(<<"typ">>, TV), utf8),
+                Dir = case proplists:get_value(<<"dir">>, TV) of
+                          <<"in">> -> in;
+                          <<"out">> -> out;
+                          <<"inout">> -> inout
+                      end,
                 Val = proplists:get_value(<<"val">>, TV, <<>>),
-                {[{B, Typ} | NewBinds], [dderloci_utils:to_ora(Typ, Val) | NewVals]}
+                {[{B, Dir, Typ} | NewBinds], [dderloci_utils:to_ora(Typ, Val) | NewVals]}
             end,
             {[], []}, Binds),
-        {lists:reverse(Vars), lists:reverse(Values)}
+        R = {Vars, Values},
+        ?Info("Binds ~p R ~p", [Binds, R]),
+        R
     catch
         _:Exception ->
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
