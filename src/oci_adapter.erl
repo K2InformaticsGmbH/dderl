@@ -841,13 +841,18 @@ make_binds(Binds) ->
                           <<"out">> -> out;
                           <<"inout">> -> inout
                       end,
-                Val = proplists:get_value(<<"val">>, TV, <<>>),
+                Val = case proplists:get_value(<<"val">>, TV, <<>>) of
+                          V when byte_size(V) == 0 ->
+                              if Dir == out orelse Dir == inout ->
+                                     list_to_binary(lists:duplicate(4400, 0));
+                                 true -> V
+                              end;
+                          V -> V
+                      end,
                 {[{B, Dir, Typ} | NewBinds], [dderloci_utils:to_ora(Typ, Val) | NewVals]}
             end,
             {[], []}, Binds),
-        R = {Vars, Values},
-        ?Info("Binds ~p R ~p", [Binds, R]),
-        R
+        {Vars, Values}
     catch
         _:Exception ->
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
