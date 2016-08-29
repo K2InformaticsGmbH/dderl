@@ -39,7 +39,6 @@ execute(Pid) ->
 	gen_server:call(Pid, execute, ?ExecTimeout).
 
 %%% gen_server callbacks
-
 init([TableName, ChangeList, Connection, Columns]) ->
     case create_stmts(TableName, Connection, ChangeList, Columns) of
         {ok, Stmt} -> {ok, Stmt};
@@ -88,6 +87,14 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%% Private functions
 
+-spec table_name(binary() | {as, binary(), binary()}) -> binary().
+table_name(TableName) when is_binary(TableName) -> TableName;
+table_name({as, TableName, Alias}) -> iolist_to_binary([TableName, " ", Alias]).
+
+-spec alias_name(binary() | {as, binary(), binary()}) -> binary().
+alias_name(TableName) when is_binary(TableName) -> TableName;
+alias_name({as, _TableName, Alias}) -> Alias.
+
 -spec create_stmts(binary(), tuple(), list(), list()) -> {ok, #stmt{}} | {error, term()}.
 create_stmts(TableName, Connection, ChangeList, Columns) ->
     {DeleteList, UpdateListTotal, InsertListTotal} = split_changes(ChangeList),
@@ -111,7 +118,7 @@ create_stmts([], _TableName, _Connection, Columns, ResultStmts) ->
 create_stmts([{del, []} | Rest], TableName, Connection, Columns, ResultStmt) ->
     create_stmts(Rest, TableName, Connection, Columns, ResultStmt);
 create_stmts([{del, _DelList} | Rest], TableName, Connection, Columns, ResultStmt) ->
-    Sql = iolist_to_binary([<<"delete from ">>, TableName, " where ",  TableName, ".ROWID = :IDENTIFIER"]),
+    Sql = iolist_to_binary([<<"delete from ">>, table_name(TableName), " where ", alias_name(TableName), ".ROWID = :IDENTIFIER"]),
     case Connection:prep_sql(Sql) of
         {error, {_ErrorCode, ErrorMsg}} ->
             %TODO: add ?Error ...(ErrorCode)...
@@ -147,7 +154,7 @@ create_stmts([{upd, UpdList} | Rest], TableName, Connection, Columns, ResultStmt
     UpdVars = create_upd_vars(FilterColumns),
     % TODO: use where part to do optimistic locking.
     % WhereVars = create_where_vars(Columns),
-    Sql = iolist_to_binary([<<"update ">>, TableName, " set ", UpdVars, " where ", TableName, ".ROWID = :IDENTIFIER"]),
+    Sql = iolist_to_binary([<<"update ">>, table_name(TableName), " set ", UpdVars, " where ", alias_name(TableName), ".ROWID = :IDENTIFIER"]),
     case Connection:prep_sql(Sql) of
         {error, {_ErrorCode, ErrorMsg}} ->
             %TODO: add ?Error ...(ErrorCode)...
@@ -176,7 +183,7 @@ create_stmts([{ins, []} | Rest], TableName, Connection, Columns, ResultStmt) ->
 create_stmts([{ins, InsList} | Rest], TableName, Connection, Columns, ResultStmts) ->
     [{NonEmptyCols, _Rows} | RestInsList] = InsList,
     InsColumns = ["(", create_ins_columns(filter_columns(NonEmptyCols, Columns)), ")"],
-    Sql = iolist_to_binary([<<"insert into ">>, TableName, " ", InsColumns, " values ", "(", create_ins_vars(filter_columns(NonEmptyCols, Columns)), ")"]),
+    Sql = iolist_to_binary([<<"insert into ">>, table_name(TableName), " ", InsColumns, " values ", "(", create_ins_vars(filter_columns(NonEmptyCols, Columns)), ")"]),
     case Connection:prep_sql(Sql) of
         {error, {_ErrorCode, ErrorMsg}} ->
             %%TODO: ?Error...
@@ -312,21 +319,18 @@ filter_columns(ModifiedCols, Columns) ->
     ModifiedColsList = tuple_to_list(ModifiedCols),
     [lists:nth(ColIdx, Columns) || ColIdx <- ModifiedColsList].
 
-create_upd_vars([#stmtCol{} = Col]) -> [Col#stmtCol.tag, " = :", Col#stmtCol.tag];
-create_upd_vars([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, " = :", Col#stmtCol.tag, ", ", create_upd_vars(Rest)].
-
-%%create_where_vars([]) -> [];
-%%create_where_vars([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, " = :", Col#stmtCol.tag, " and ", create_where_vars(Rest)].
+create_upd_vars([#stmtCol{} = Col]) -> [Col#stmtCol.tag, " = :", "\"", Col#stmtCol.tag, "\""];
+create_upd_vars([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, " = :", "\"", Col#stmtCol.tag, "\"", ", ", create_upd_vars(Rest)].
 
 create_bind_types([]) -> [];
 create_bind_types([#stmtCol{} = Col | Rest]) ->
-    [{iolist_to_binary([":", Col#stmtCol.tag]), bind_types_map(Col#stmtCol.type)} | create_bind_types(Rest)].
+    [{iolist_to_binary([":", "\"", Col#stmtCol.tag, "\""]), bind_types_map(Col#stmtCol.type)} | create_bind_types(Rest)].
 
 create_ins_columns([#stmtCol{} = Col]) -> [Col#stmtCol.tag];
 create_ins_columns([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, ", ", create_ins_columns(Rest)].
 
-create_ins_vars([#stmtCol{} = Col]) -> [":", Col#stmtCol.tag];
-create_ins_vars([#stmtCol{} = Col | Rest]) -> [":", Col#stmtCol.tag, ", ", create_ins_vars(Rest)].
+create_ins_vars([#stmtCol{} = Col]) -> [":", "\"", Col#stmtCol.tag, "\""];
+create_ins_vars([#stmtCol{} = Col | Rest]) -> [":", "\"", Col#stmtCol.tag, "\"", ", ", create_ins_vars(Rest)].
 
 create_changedkey_vals([], _Cols) -> [];
 create_changedkey_vals([<<>> | Rest], [#stmtCol{} | RestCols]) ->

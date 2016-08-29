@@ -194,27 +194,25 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions %%%
 -spec select_type(list()) -> atom().
 select_type(Args) ->
-    try
-        case proplists:get_value(opt, Args, <<>>) of
-            <<>> -> select;
-            _ -> throw({error,agregation})
-        end,
-        case proplists:get_value('group by', Args) of
-            [] -> select;
-            _ -> throw({error,agregation})
-        end,
-        case proplists:get_value(from, Args) of
-            FromTargets when length(FromTargets) > 0 ->
-                _ = [if not is_binary(FromTarget) ->
-                            throw({error,agregation});
-                        true -> select
-                    end || FromTarget <- FromTargets],
-                select;
-            _ -> throw({error,agregation})
-        end
-    catch
-        throw:{error,agregation} -> agregation
+    Opts = proplists:get_value(opt, Args, <<>>),
+    GroupBy = proplists:get_value('group by', Args),
+    NotAgregation = case proplists:get_value(from, Args) of
+        [] -> false;
+        FromTargets -> not is_agregation(FromTargets)
+    end,
+    if Opts =:= <<>> andalso
+       GroupBy =:= [] andalso
+       NotAgregation -> select;
+       true -> agregation
     end.
+
+-spec is_agregation([binary() | tuple()]) -> boolean().
+is_agregation([]) -> false;
+is_agregation([Table | Rest]) when is_binary(Table) ->
+    is_agregation(Rest);
+is_agregation([{as, Table, Alias} | Rest]) when is_binary(Alias), is_binary(Table) ->
+    is_agregation(Rest);
+is_agregation(_) -> true.
 
 -spec inject_rowid(atom(), list(), binary()) -> {binary(), binary()}.
 inject_rowid(agregation, Args, Sql) ->
