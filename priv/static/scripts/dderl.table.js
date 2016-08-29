@@ -6,7 +6,8 @@ import {alert_jq, prompt_jq, confirm_jq, alert_js_error} from '../dialogs/dialog
 import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter,
     smartDialogPosition, addToCurrentViews, ajaxCall, beep} from './dderl';
 import {evalD3Script} from '../graph/graph';
-import './dderl.termEditor.js';
+import './dderl.termEditor';
+import './dderl.statsTable';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
