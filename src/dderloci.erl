@@ -335,11 +335,12 @@ result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _Ne
       fun({Var, Val}, Acc) ->
               [{Var,
                 case lists:keyfind(Var, 1, Binds) of
-                    {Var,out,'SQLT_VNU'} -> list_to_binary(oci_util:from_num(Val))
+                    {Var,out,'SQLT_VNU'} -> list_to_binary(oci_util:from_num(Val));
+                    _ -> Val
                 end} | Acc]
       end, [], Values),
-    ?Info("Values ~p", [Values]),
-    ?Info("Binds ~p", [Binds]),
+    ?Debug("Values ~p", [Values]),
+    ?Debug("Binds ~p", [Binds]),
     Statement:close(),
     {ok, NewValues};
 result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->

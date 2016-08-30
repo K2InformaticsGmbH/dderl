@@ -7,6 +7,7 @@ function addUpdParamHandlers(el, par, prop) {
         }, 1);
     });
 }
+
 function inpFocusHandler() {
     var $this = $(this);
 
@@ -20,7 +21,25 @@ function inpFocusHandler() {
     }).select();
 }
 
+var outInputs = [];
+export function clear_out_fields() {
+    outInputs.forEach(function(outParam) {
+        outParam.inp.val("");
+    });
+}
+
+export function result_out_params(data) {
+    outInputs.forEach(function(outParam) {
+        for(var param in data) {
+            if(outParam.name == param) {
+                outParam.inp.val(data[param]);
+            }
+        }
+    });
+}
+
 export function sql_params_dlg(container, qpars) {
+    outInputs = [];    
     container.empty();
 
     var tab = $('<table/>')
@@ -42,19 +61,35 @@ export function sql_params_dlg(container, qpars) {
         .css('font-weight', 'inherit')
         .css('font-size', 'inherit');
 
+    var params = [];
     for (let p in qpars.pars) {
         let param = qpars.pars[p];
+        param.name = p;
+        params.push(param);
+    }
+
+    console.log("the params", params);
+    params.sort(function(a, b) {
+        if(a.dir === b.dir) {
+            return a.name.localeCompare(b.name);
+        }
+        return a.dir.localeCompare(b.dir);
+    });
+
+    params.forEach(function(param) {
         let s = sel.clone();
         let i = inp.clone();
 
         addUpdParamHandlers(s, param, "typ");
         addUpdParamHandlers(i, param, "val");
 
+        if(param.dir === "out") { outInputs.push({name: param.name, inp: i}); }
+
         s.find('option[value="'+param.typ+'"]').attr('selected','selected');
         $('<tr/>')
-            .append($('<td>' + p + '</td>').addClass('fit-content'))
+            .append($('<td>' + param.name + '</td>').addClass('fit-content'))
             .append($('<td/>').addClass('fit-content').append(s))
             .append($('<td/>').append(i.on('focus', inpFocusHandler).val(param.val)))
             .appendTo(tab);
-    }
+    });
 }
