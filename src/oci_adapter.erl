@@ -844,17 +844,25 @@ make_binds(Binds) ->
                 Val = case proplists:get_value(<<"val">>, TV, <<>>) of
                           V when byte_size(V) == 0 ->
                               if Dir == out orelse Dir == inout ->
-                                     list_to_binary(lists:duplicate(4400, 0));
+                                     case Typ of
+                                         'SQLT_VNU' -> list_to_binary(lists:duplicate(22,0));
+                                         _ -> list_to_binary(lists:duplicate(4400, 0))
+                                     end;
                                  true -> V
                               end;
                           V -> V
                       end,
-                {[{B, Dir, Typ} | NewBinds], [dderloci_utils:to_ora(Typ, Val) | NewVals]}
+                {[{B, Dir, Typ} | NewBinds],
+                 [if Dir == in ->
+                         dderloci_utils:to_ora(Typ, Val);
+                    true -> Val
+                  end | NewVals]}
             end,
             {[], []}, Binds),
         {Vars, Values}
     catch
         _:Exception ->
+            ?Error("ST ~p", [erlang:get_stacktrace()]),
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
     end.
 

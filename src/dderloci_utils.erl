@@ -5,7 +5,14 @@
 
 -spec to_ora(atom(), any()) -> any().
 to_ora('SQLT_INT', <<>>) -> <<>>;
+to_ora('SQLT_FLT', <<>>) -> <<>>;
 to_ora('SQLT_INT', V) -> binary_to_integer(V);
+to_ora('SQLT_FLT', V) -> case catch binary_to_float(V) of
+                             {'EXIT', _} ->
+                                 _ = binary_to_integer(V),
+                                 binary_to_float(<<V/binary,".0">>);
+                             F -> F
+                         end;
 to_ora(T, V) when T=='SQLT_FLT'; T=='SQLT_INT'; T=='SQLT_UIN'; T=='SQLT_VNU';
                   T=='SQLT_NUM' -> oranumber_encode(V);
 to_ora('SQLT_DAT', V) -> dderltime_to_ora(V);

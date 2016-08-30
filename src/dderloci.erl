@@ -58,7 +58,9 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
             SelectSections = []
     end,
     case catch run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) of
-        {'EXIT', {Error, _ST}} -> {error, Error};
+        {'EXIT', {Error, ST}} ->
+            ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
+            {error, Error};
         {ok, #stmtResult{} = StmtResult, ContainRowId} ->
             LowerSql = string:to_lower(binary_to_list(Sql)),
             case string:str(LowerSql, "rownum") of
@@ -69,7 +71,8 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
             SortSpec = gen_server:call(Pid, build_sort_spec),
             %% Mask the internal stmt ref with our pid.
             {ok, StmtResult#stmtResult{stmtRef = Pid, sortSpec = SortSpec}, TableName};
-        NoSelect -> NoSelect
+        NoSelect ->
+            NoSelect
     end.
 
 -spec change_password(tuple(), binary(), binary(), binary()) -> ok | {error, term()}.
@@ -325,10 +328,20 @@ result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Co
 result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     Statement:close(),
     ok;
-result_exec_stmt({executed,_,Values}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection,
+result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection,
                  _SelectSections) ->
+    NewValues =
+    lists:foldl(
+      fun({Var, Val}, Acc) ->
+              [{Var,
+                case lists:keyfind(Var, 1, Binds) of
+                    {Var,out,'SQLT_VNU'} -> list_to_binary(oci_util:from_num(Val))
+                end} | Acc]
+      end, [], Values),
+    ?Info("Values ~p", [Values]),
+    ?Info("Binds ~p", [Binds]),
     Statement:close(),
-    {ok, Values};
+    {ok, NewValues};
 result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
     ?Info("RowIdError ~p", [RowIdError]),
     Statement:close(),
