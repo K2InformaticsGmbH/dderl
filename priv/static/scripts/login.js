@@ -86,6 +86,10 @@ function loginCb(resp) {
                             placeholder : "SMS Token",
                             val         : ""}]
         });
+    } else if(resp.hasOwnProperty('saml')) {
+        if(resp.saml.hasOwnProperty('urlSuffix')) {
+            window.location.href = window.location.href + resp.saml.urlSuffix;
+        }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
         resetPingTimer();

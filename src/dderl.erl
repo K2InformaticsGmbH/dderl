@@ -27,13 +27,17 @@ start() ->
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
+    application:start(xmerl),
+    ok = application:start(esaml),
     erlimem:start(),
     catch ok = application:start(erloci),
-	ok = application:start(?MODULE).
+    ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
     catch application:stop(erloci),
+    ok = application:stop(esaml),
+    ok = application:stop(xmerl),
     erlimem:stop(),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
@@ -179,6 +183,7 @@ get_routes() ->
     UrlPathPrefix = ?URLSUFFIX,
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
+     {UrlPathPrefix++"/"++?SPURLPREFIX++"/:operation", dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
 get_priv_dir() ->

@@ -187,6 +187,13 @@
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
 -define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
 
+%% SAML configs
+-define(IDPMETAURL,         ?GET_CONFIG(samlIdpMetaUrl, [], "https://sts.testswisscom.com/FederationMetadata/2007-06/FederationMetadata.xml", "IDP Metadata URL for dderl")).
+-define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "auth", "URL Prefix for all SP links")).
+-define(METAURLSUFFIX,      ?GET_CONFIG(samlSpMetaUrlSuffix, [], <<"metadata">>, "URL suffix of SP metadata")).
+-define(AUTHRESPURLSUFFIX,  ?GET_CONFIG(samlSpAuthRespUrlSuffix, [], <<"consume">>, "URL suffix of SP to receive SAML AuthResp")).
+-define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).
+
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).
 -define(CMD_NOARGS,     2).
