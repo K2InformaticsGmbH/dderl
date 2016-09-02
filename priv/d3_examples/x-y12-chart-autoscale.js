@@ -13,7 +13,7 @@ function init(container, width, height) {
     from integer 
     where item >= 0 and item <= 270   
 
-    select time, memory from ddMonitor_86400@ 
+    select time, memory, process_count, port_count from ddMonitor_86400@ 
     */
 
     var margin;
@@ -24,7 +24,7 @@ function init(container, width, height) {
     var yDom, yParse, yScaleTemplate, yScale, yAutoscale, yAllowance;
     var xMin, xMax, yMin, yMax;   // current zoom domain extent with Allowance
     var xMinFull, xMaxFull, yMinFull, yMaxFull; // raw full domain extent
-    var xAxisGroup, xAxis, xText, yAxisGroup, yAxis, yText;
+    var xAxisGroup, xAxis, xText, yAxisGroup, yAxis, yTexts;
     var xTickCount, xTickFormatSpecifier, yTickCount, yTickFormatSpecifier;      
     var radius;     // circle point default radius
     var a;          // square point default radius
@@ -32,17 +32,19 @@ function init(container, width, height) {
     var noData;     // false before receiving any new data after reset
     var svg = container.append('svg');
     var clipPath = svg.append("defs").append("clipPath").attr("id", "clip").append("rect");
-    var br = svg.append("g").attr("class", "brush");
-    var g = svg.append("g");    // main svg item group (axes, point groups)
-    var g1, g2, g3, g4;         // data point groups
-    var brush = d3.brush().on("end", brushended);   // zoom brush
+    var g1, g2, g3, g4;                 // data point groups
+    var xLeg, yLeg, dxLeg, dyLeg, xLegStart, yLegStart, fsLeg;  // legend position and font size
+    var zoom = svg.append("g").attr("class", "brush_zoom");
+    var brush_zoom = d3.brush().on("end", brush_zoom_ended);    // zoom brush
+    var g = svg.append("g");            // main svg item group (axes, point groups)
+    var gLeg = svg.append("g");          // legend group
     var idleTimeout, idleDelay = 350;
     var tParse = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
         yDom = dom.lin;         // dom.lin | dom.log | dom.time 
-        yCount = 1;             // 1..4, set to 1 for only 1 y-Value
+        yCount = 4;             // 1..4, set to 1 for only 1 y-Value
         margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
         switch (xDom) {
         case dom.lin:
@@ -75,14 +77,14 @@ function init(container, width, height) {
             xAutoscale = true;
             xAllowance = 0.05;
             xTickCount = 8;
-            xTickFormatSpecifier = "%I:%M %p";
+            xTickFormatSpecifier = "%H:%M";
             /*
             %Y - for year boundaries, such as 2011.
             %B - for month boundaries, such as February.
             %b %d - for week boundaries, such as Feb 06.
             %a %d - for day boundaries, such as Mon 07.
             %I %p - for hour boundaries, such as 01 AM.
-            %I:%M - for minute boundaries, such as 01:23.
+            %H:%M - for minute boundaries, such as 01:23.
             :%S - for second boundaries, such as :45.
             .%L - milliseconds for all other times, such as .012.
             */
@@ -130,25 +132,31 @@ function init(container, width, height) {
             yAutoscale = true;
             yAllowance = 0.05;
             yTickCount = 8;
-            yTickFormatSpecifier = "%I:%M %p";
+            yTickFormatSpecifier = "%H:%M";
             /*
             %Y - for year boundaries, such as 2011.
             %B - for month boundaries, such as February.
             %b %d - for week boundaries, such as Feb 06.
             %a %d - for day boundaries, such as Mon 07.
             %I %p - for hour boundaries, such as 01 AM.
-            %I:%M - for minute boundaries, such as 01:23.
+            %H:%M - for minute boundaries, such as 01:23.
             :%S - for second boundaries, such as :45.
             .%L - milliseconds for all other times, such as .012.
             */
         break;
         };
-        radius = 3;             // circle radius
-        a = 3;                  // half of square edge size
+        radius = 3;     // circle radius
+        a = 3;          // half of square edge size
+        fsLeg = '1.3em';
+        xLeg =  margin.left + 60;     
+        yLeg =  margin.top + 20;
+        dxLeg = 13;     // Legend horizontal spacer
+        dyLeg = 18;     // Legend vertical spacer
     }
 
     function init() {
         g.selectAll('svg > g > *').remove();
+        gLeg.selectAll('svg > g > *').remove();
         g.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
         g1 = g.append("g");
         g2 = g.append("g");
@@ -159,14 +167,14 @@ function init(container, width, height) {
         yMinFull = yMin;
         yMaxFull = yMax;
         noData = true;
-        brush.extent([[0,0],[2000,2000]]);
+        brush_zoom.extent([[0,0],[2000,2000]]);
     }
 
     function idled() {
         idleTimeout = null;
     }
 
-    function brushended() {
+    function brush_zoom_ended() {
         var s = d3.event.selection;
         if (!s) {
             if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
@@ -183,10 +191,29 @@ function init(container, width, height) {
             yMin = yScale.invert(s[1][1]-margin.top);
             yMax = yScale.invert(s[0][1]-margin.top);
             yAutoscale = ((s[1][1]-s[0][1]) >= cHeight);
-            svg.select(".brush").call(brush.move, null);
+            svg.select(".brush_zoom").call(brush_zoom.move, null);
         }
         resize(width, height);
     }
+
+    var dragEvents = d3.drag();
+    
+    dragEvents.on("start", function() {
+        xLegStart = d3.event.x - xLeg;
+        yLegStart = d3.event.y - yLeg;
+    });
+
+    dragEvents.on("end", function() {
+        if(!d3.event.active) {
+            // simulation.alphaTarget(0)
+        };
+    });
+    
+    dragEvents.on("drag", function() {
+        xLeg = d3.event.x - xLegStart; // -d3.event.offsetX;
+        yLeg = d3.event.y - yLegStart; //  -d3.event.offsetY;
+        gLeg.attr("transform", "translate(" + xLeg + "," + yLeg + ")");
+    });
 
     var idVal = function(d) {
         return d.id;
@@ -311,6 +338,33 @@ function init(container, width, height) {
             fill: "black"
         };
         return obj;
+    };
+
+    function printLegendText(x,y,text) {
+        gLeg.append("text")
+            .text(text)
+            .attr("x",x)
+            .attr("y",y)
+            .attr('font-size', fsLeg)
+            .attr('font-family','sans-serif')
+            .attr('fill','#000');
+    };
+
+    function printLegendCircle(x,y,st) {
+        gLeg.append("svg:circle")
+            .attr("cx",x)
+            .attr("cy",y-radius-2)
+            .attr("r",radius)
+            .styles(st);
+    };
+
+    function printLegendSquare(x,y,st) {
+        gLeg.append("svg:rect")
+            .attr("x",x-a)
+            .attr("y",y-a-a-2)
+            .attr("width",a+a)
+            .attr("height",a+a)
+            .styles(st);
     };
 
     function xGrow(xMinNew,xMaxNew) {
@@ -438,7 +492,8 @@ function init(container, width, height) {
     setup();
     init();
     resize(width, height);
-    br.call(brush);
+    zoom.call(brush_zoom);
+    gLeg.call(dragEvents);
 
     return {
 
@@ -447,27 +502,38 @@ function init(container, width, height) {
             if (data.length === 0) {return;}
 
             if (noData) {
+                var x = margin.left + xLeg + dxLeg;
+                var y = margin.top + yLeg;
                 xVar = xAxisVar(data[0]);
                 xText = xVar;
                 xVar = xVar + '_1';
                 y1Var = yAxisVar(1,data[0]) 
-                yText = y1Var;
+                yTexts = [y1Var];
                 y1Var = y1Var + '_2';
+                printLegendCircle(0,0,circleStyles1(data[0]));
+                printLegendText(dxLeg,0,yTexts[0]);                 
                 if (yCount >= 2) {
                     y2Var = yAxisVar(2,data[0]);
-                    yText = yText + ' / ' + y2Var;
+                    yTexts.push(y2Var);
                     y2Var = y2Var + '_3';
+                    printLegendSquare(0,dyLeg,squareStyles2(data[0]));
+                    printLegendText(dxLeg,dyLeg,yTexts[1]);                 
                 };
                 if (yCount >= 3) {
                     y3Var = yAxisVar(3,data[0]);
-                    yText = yText + ' / ' + y3Var;
+                    yTexts.push(y3Var);
                     y3Var = y3Var + '_4';
+                    printLegendCircle(0,dyLeg+dyLeg,circleStyles3(data[0]));
+                    printLegendText(dxLeg,dyLeg+dyLeg,yTexts[2]);                 
                 };
                 if (yCount >= 4) {
                     y4Var = yAxisVar(4,data[0]);
-                    yText = yText + ' / ' + y4Var;
+                    yTexts.push(y4Var);
                     y4Var = y4Var + '_5';
+                    printLegendSquare(0,dyLeg+dyLeg+dyLeg,squareStyles4(data[0]));
+                    printLegendText(dxLeg,dyLeg+dyLeg+dyLeg,yTexts[3]);                 
                 };
+                gLeg.attr("transform", "translate(" + xLeg + "," + yLeg + ")");
             }
             var xG = xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
             var yG = yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
@@ -502,16 +568,6 @@ function init(container, width, height) {
                 yAxisGroup = g.append("g")
                     .attr("class", "y axis")
                     .call(yAxis);
-
-                yAxisGroup.append("text")
-                    .attr("transform", "rotate(-90)")
-                    .attr("y", 6)
-                    .attr("dx", "-0.71em")
-                    .attr("dy", ".71em")
-                    .attr('font-size', '1.5em')
-                    .attr('fill','#000')                    
-                    .style("text-anchor", "end")
-                    .text(yText);
 
             } else {
                 if (xG) {
