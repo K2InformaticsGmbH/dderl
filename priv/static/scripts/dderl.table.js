@@ -8,6 +8,7 @@ import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter
 import {evalD3Script} from '../graph/graph';
 import './dderl.termEditor';
 import './dderl.statsTable';
+import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
@@ -2573,6 +2574,27 @@ import './dderl.statsTable';
                 let d = document.createElement("div");
                 d.classList.add("d3-container");
                 d.style.bottom = this.options.toolBarHeight + 'px';
+                d.tabIndex = 1;
+                d.onkeydown = function(e) {
+                    var c = e.keyCode;
+                    var ctrlDown = e.ctrlKey || e.metaKey;
+
+                    // Check for ctrl+c
+                    if(ctrlDown && c === 67) {
+                        console.log("ctrl+C detected");
+                        var focusElement = document.activeElement;
+                        var ta = createCopyTextBox(d.innerHTML);
+                        ta.focus();
+                        
+                        setTimeout(function(){
+                            document.body.removeChild(ta);
+                            // restore focus
+                            if (focusElement) {
+                                focusElement.focus();
+                            }
+                        }, 100);
+                    }
+                };
                 this._dlg.append(d);
                 let container = d3.select(d);
                 try {
