@@ -7,7 +7,7 @@
 
 -include("dderl.hrl").
 
--export([start_link/3
+-export([start_link/1
         , get_session/2
         , process_request/6
         , get_state/1
@@ -49,23 +49,14 @@
 %% Helper functions
 -spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    Ref = erlang:make_ref(),
-    Bytes = crypto:rand_bytes(64),
-    {ok, _Pid} = dderl_session_sup:start_session(Ref, Bytes, ConnInfoFun),
-    DderlSess = {?MODULE, Ref, Bytes},
+    {ok, Pid} = dderl_session_sup:start_session(ConnInfoFun),
+    DderlSess = base64:encode(crypto:encrypt(erlang:get_cookie(),term_to_binary(Pid))),
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
     try
-        DDerlSessBin = ?Decrypt(DDerlSessStr),
-        RefSize = byte_size(DDerlSessBin) - 64,
-        << First:32/binary
-           , RefBin:RefSize/binary
-           , Last:32/binary >> = DDerlSessBin,        
-        Ref = binary_to_term(RefBin),
-        Bytes = << First/binary, Last/binary >>,
-        DDerlSession = {?MODULE, Ref, Bytes},
-        case whereis_name(Ref) of
+        DDerlSession = binary_to_term(crypto:decrypt(eralng:get_cookie(), base64:deocde(DDerlSessStr)))
+        case whereis(DDerlSession) of
             Pid when is_pid(Pid) ->
                 case is_process_alive(Pid) of
                     true -> {ok, DDerlSession};
@@ -83,13 +74,13 @@ get_session(S, ConnInfoFun) when is_binary(S) ->
 get_session(_, ConnInfoFun) ->
     get_session(<<>>, ConnInfoFun).
 
--spec start_link(reference(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Ref, Bytes, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes, Ref, ConnInfoFun()], []).
+-spec start_link(fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    gen_server:start_link(?MODULE, [ConnInfoFun()], []).
 
--spec get_state({atom(), pid()}) -> #state{}.
-get_state({?MODULE, Ref, Bytes}) ->
-    gen_server:call({via, ?MODULE, Ref}, {get_state, Bytes}, infinity).
+-spec get_state(pid()) -> #state{}.
+get_state(DDerlSessPid) ->
+    gen_server:call(DDerlSessPid, {get_state, Bytes}, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
@@ -100,7 +91,7 @@ process_request(Adapter, Type, Body, ReplyPid, RemoteEp, {?MODULE, Ref, Bytes}) 
     true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
     gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
-init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
+init([ConnInfo]) when is_binary(Bytes) ->
     process_flag(trap_exit, true),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of

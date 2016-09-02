@@ -31,8 +31,8 @@ start_link() ->
     end.
 
 -spec start_session(reference(), binary(), fun(() -> map())) -> {error, term()} | {ok, pid()}.
-start_session(Ref, RandBytes, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-	supervisor:start_child(?MODULE, [Ref, RandBytes, ConnInfoFun]).
+start_session(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+	supervisor:start_child(?MODULE, [ConnInfoFun]).
 
 -spec close_session(pid()) -> ok | {error, not_found | simple_one_for_one}.
 close_session(SessionPid) ->
