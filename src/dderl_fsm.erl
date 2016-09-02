@@ -36,6 +36,7 @@
         ]).
 
 -export([ rows/2        %% incoming rows          [RowList,true] | [RowList,false] | [RowList,tail]    RowList=list(KeyTuples)
+        , delete/2      %% delete row event
         , rows_limit/3  %% limit of the rows that can be fetched in one request to the driver
         , gui_req/4     %% button <<"Button">> =  <<">">>
                         %%                        <<"|<">>
@@ -301,6 +302,14 @@ rows({Rows,Completed},{?MODULE,Pid}) ->
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
     gen_fsm:send_event(Pid, {rows_limit, {NRows, Recs}}).
+
+-spec delete({delete, {atom(), any()}} | {delete_object, any()}, {atom(), pid()}) -> ok.
+delete({Tab, Key}, {?MODULE,Pid}) ->
+    ?Info("delete ~p ~p", [Tab, Key]),
+    gen_fsm:send_event(Pid,{delete, Tab, Key});
+delete(Record, {?MODULE,Pid}) ->
+    ?Info("delete ~p", [Record]),
+    gen_fsm:send_event(Pid,{delete_object, Record}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
@@ -882,6 +891,12 @@ tailing({button, <<">|">>, ReplyTo}, State0) ->
 %             State1 = data_append(tailing,{[Rec],tail},State0),
 %             {next_state, tailing, State1#state{pfc=0}}
 %     end;      
+tailing({delete, Tab,Key}, State) ->
+    ?Info("tailing  -- row deleted ~p:~p~n", [Tab,Key]),
+    {next_state, tailing, State};
+tailing({delete, Record}, State) ->
+    ?Info("tailing  -- row deleted ~p~n", [Record]),
+    {next_state, tailing, State};
 tailing({rows, {Recs,Complete}}, State0) ->
     % ?Info("tailing  -- row~n", []),
     State1 = data_append(tailing,{Recs,Complete},State0),
