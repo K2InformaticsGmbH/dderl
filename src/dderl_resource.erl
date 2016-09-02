@@ -5,6 +5,7 @@
 -behaviour(cowboy_loop_handler).
  
 -include("dderl.hrl").
+-include_lib("esaml/include/esaml.hrl").
 
 -export([init/3]).
 -export([info/3]).
@@ -16,11 +17,11 @@
 init({ssl, http}, Req, []) ->
     display_req(Req),
     {_Method, Req0} = cowboy_req:method(Req),
-    case cowboy_req:has_body(Req0) of
+    {Typ, Req1} = cowboy_req:path_info(Req0),
+    case cowboy_req:has_body(Req0) or (Typ == [<<"auth">>]) of
     true ->
-        {Session, Req1} = cowboy_req:header(<<"dderl-session">>,Req0),
-        {Adapter, Req2} = cowboy_req:header(<<"dderl-adapter">>,Req1),
-        {Typ, Req3} = cowboy_req:path_info(Req2),
+        {Session, Req2} = cowboy_req:header(<<"dderl-session">>,Req1),
+        {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
         %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
         process_request(Session, Adapter, Req3, Typ);
     _Else ->
@@ -54,6 +55,26 @@ stream_file(Req, Buffer) ->
         {more, Body, Req2} ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
+
+%% SAML Requests 
+process_request(_Session, _, Req, [<<"auth">>]) ->
+    {SP, IdpMeta} = dderl_saml_handler:initialize(),
+    #esaml_idp_metadata{login_location = IDP} = IdpMeta,
+    {ok, Req1} = esaml_cowboy:reply_with_authnreq(SP, IDP, <<"foo">>, Req),
+    {loop, Req1, <<>>, 5000, hibernate};
+process_request(Session, Adapter, Req, [<<"consume">>] = Typ) ->
+    {SP, _} = dderl_saml_handler:initialize(),
+    case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
+        {ok, Assertion, _RelayState, Req1} ->
+            Attrs = Assertion#esaml_assertion.attributes,
+            AccName = proplists:get_value(windowsaccountname, Attrs),
+            process_request_low(Session, Adapter, Req1, jsx:encode(#{samlUser => list_to_binary(AccName)}), Typ);
+        {error, Reason, Req2} ->
+            {ok, Req3} = cowboy_req:reply(403, [{<<"content-type">>, <<"text/plain">>}],
+                ["Access denied, assertion failed validation:\n", io_lib:format("~p\n", [Reason])],
+                Req2),
+            {loop, Req3, <<>>, 5000, hibernate}
+    end;
 
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
@@ -139,8 +160,11 @@ info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
     spawn(SpawnFun),
     {loop, Req, DDerlSessPid, hibernate};
 info({reply, Body}, Req, DDerlSessPid) ->
-    ?Debug("reply ~n~s to ~p", [jsx:prettify(Body), DDerlSessPid]),
-    {ok, Req2} = reply_200_json(Body, DDerlSessPid, Req),
+    ?Debug("reply ~n~p to ~p", [Body, DDerlSessPid]),
+    BodyEnc = if is_binary(Body) -> Body;
+                 true -> jsx:encode(Body)
+              end,
+    {ok, Req2} = reply_200_json(BodyEnc, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
     ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),

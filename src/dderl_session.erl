@@ -171,19 +171,24 @@ process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{ses
     {process_login_reply(
        ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
       ), State#state{user=User}};
+process_login(SessionId,#{<<"samlUser">>:=User}, #state{sess = ErlImemSess} = State) ->
+    {process_login_reply(
+       ErlImemSess:auth(dderl,SessionId,{saml,User})), State#state{user=User}};
 process_login(SessionId,#{}, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State}.
 
 process_login_reply(ok)                         -> ok;
 process_login_reply({ok, []})                   -> ok;
 process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{pwdmd5=>process_data(Data)};
-process_login_reply({ok, [{saml,Data}|_]})      -> #{saml=>process_data(Data#{urlSuffix => <<"auth/auth">>})};
+process_login_reply({ok, [{saml,Data}|_]})      -> #{saml=>process_data(Data#{urlSuffix => <<"saml/auth">>})};
 process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}.
 
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
 process_data(Data) -> Data.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
+process_call({[<<"consume">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    process_login_req(ReqData, From, State, SrcIp);
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "restart", "", "", "", "", ""),
@@ -205,62 +210,7 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
     end,
     State;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
-    #state{id = << First:32/binary, Last:32/binary >> =  Id,
-           registered_name = RegisteredName, sess = ErlImemSess} = State,
-    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    ReqDataMap = jsx:decode(ReqData, [return_maps]),
-    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-    case catch process_login(SessionId,ReqDataMap,State) of
-        {{E,M},St} when is_atom(E) ->
-            ?Error("Error(~p) ~p~n~p", [E,M,St]),
-            reply(From, #{login=>
-                               #{error=>
-                                 if is_binary(M) -> M;
-                                    is_list(M) -> list_to_binary(M);
-                                    true -> list_to_binary(io_lib:format("~p", [M]))
-                               end}}, self()),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                        Id, "login unsuccessful", "", "", "", "", ""),
-            self() ! invalid_credentials,
-            State;
-        {Reply, State1} ->
-            {Reply1, State2}
-            = case Reply of
-                  ok ->
-                      case ErlImemSess:run_cmd(login,[]) of
-                          {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
-                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
-                              {#{changePass=>State1#state.user}, State1};
-                          _ ->
-                              {[UserId],true} = imem_meta:select(
-                                                  ddAccount,
-                                                  [{#ddAccount{name=State1#state.user,
-                                                               id='$1',_='_'},
-                                                    [], ['$1']}]),
-                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", 
-                                    "", "", "", "", ""),
-                              {#{accountName=>State1#state.user},
-                               State1#state{user_id = UserId}}
-                      end;
-                  _ -> {Reply, State1}
-              end,
-            {ok,Vsn} = application:get_key(dderl, vsn),
-            Host =
-            lists:foldl(
-              fun({App,_,_}, undefined) ->
-                      {ok, Apps} = application:get_key(App, applications),
-                      case lists:member(dderl, Apps) of
-                          true -> atom_to_binary(App, utf8);
-                          _ -> undefined
-                      end;
-                 (_, App) -> App
-              end, undefined, application:which_applications()),
-            Reply2 = if is_binary(Host) -> Reply1#{app => Host};
-                        true -> Reply1 end,
-            reply(From, #{login => Reply2#{vsn => list_to_binary(Vsn),
-                                           node => list_to_binary(imem_meta:node_shard())}}, self()),
-            State2
-    end;
+    process_login_req(ReqData, From, State, SrcIp);
 
 %% IMPORTANT:
 % This function clause is placed right after login to be able to catch all
@@ -594,8 +544,66 @@ spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
 
+process_login_req(ReqData, From, State, SrcIp) ->
+    #state{id = << First:32/binary, Last:32/binary >> =  Id,
+           registered_name = RegisteredName, sess = ErlImemSess} = State,
+    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    ReqDataMap = jsx:decode(ReqData, [return_maps]),
+    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
+    case catch process_login(SessionId,ReqDataMap,State) of
+        {{E,M},St} when is_atom(E) ->
+            ?Error("Error(~p) ~p~n~p", [E,M,St]),
+            reply(From, #{login=>
+                               #{error=>
+                                 if is_binary(M) -> M;
+                                    is_list(M) -> list_to_binary(M);
+                                    true -> list_to_binary(io_lib:format("~p", [M]))
+                               end}}, self()),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                        Id, "login unsuccessful", "", "", "", "", ""),
+            self() ! invalid_credentials,
+            State;
+        {Reply, State1} ->
+            {Reply1, State2}
+            = case Reply of
+                  ok ->
+                      case ErlImemSess:run_cmd(login,[]) of
+                          {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
+                              {#{changePass=>State1#state.user}, State1};
+                          _ ->
+                              {[UserId],true} = imem_meta:select(
+                                                  ddAccount,
+                                                  [{#ddAccount{name=State1#state.user,
+                                                               id='$1',_='_'},
+                                                    [], ['$1']}]),
+                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", 
+                                    "", "", "", "", ""),
+                              {#{accountName=>State1#state.user},
+                               State1#state{user_id = UserId}}
+                      end;
+                  _ -> {Reply, State1}
+              end,
+            {ok,Vsn} = application:get_key(dderl, vsn),
+            Host =
+            lists:foldl(
+              fun({App,_,_}, undefined) ->
+                      {ok, Apps} = application:get_key(App, applications),
+                      case lists:member(dderl, Apps) of
+                          true -> atom_to_binary(App, utf8);
+                          _ -> undefined
+                      end;
+                 (_, App) -> App
+              end, undefined, application:which_applications()),
+            Reply2 = if is_binary(Host) -> Reply1#{app => Host};
+                        true -> Reply1 end,
+            reply(From, #{login => Reply2#{vsn => list_to_binary(Vsn),
+                                           node => list_to_binary(imem_meta:node_shard())}}, self()),
+            State2
+    end.
+
 reply(From, Data, Master) ->
-    From ! {reply, jsx:encode(Data)},
+    From ! {reply, Data},
     Master ! rearm_session_idle_timer.
 
 -spec jsq(term()) -> term().
