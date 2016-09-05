@@ -20,7 +20,6 @@ export function check_already_connected() {
        !window.opener.exposedjQuery('#btn-change-password').data("logged_in_user")) {
         loginAjax();
     } else {
-        dderlState.session = window.opener.connState.session;
         dderlState.connectionSelected = window.opener.connState.connectionSelected;
         dderlState.app = window.opener.connState.app;
         dderlState.vsn = window.opener.connState.vsn;
@@ -88,6 +87,7 @@ function loginCb(resp) {
         });
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
+        dderlState.isLoggedIn = true;
         resetPingTimer();
         connect_dlg();
     } else if (resp.hasOwnProperty('changePass')) {
@@ -202,17 +202,11 @@ function inputEnter(layout) {
 }
 
 export function logout() {
-
-    if (!dderlState.session) {
-        return;
-    }
-
     var headers = {};
 
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',
@@ -236,14 +230,10 @@ export function logout() {
 
 //TODO: Does this function belong here ?
 export function restart() {
-    if (!dderlState.session) {
-        return;
-    }
     var headers = {};
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
     confirm_jq({title: "Confirm restart", content:''},
             function() {
                 $.ajax({
@@ -276,20 +266,18 @@ export function restart() {
 
 var children = [];
 export function new_connection_tab() {
-    if(dderlState.session) {
-        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
-            connect_dlg();
-        } else {
-            if(!window.connState) {
-                // TODO: Until we find a better way to share the login session.
-                window.connState = dderlState;
-                window.exposedjQuery = $;
-            }
-            console.log($('#btn-change-password').data("logged_in_user"));
-            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
-            console.log(newURL);
-            children.push(window.open(newURL, "_blank"));
+    if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+        connect_dlg();
+    } else {
+        if(!window.connState) {
+            // TODO: Until we find a better way to share the login session.
+            window.connState = dderlState;
+            window.exposedjQuery = $;
         }
+        console.log($('#btn-change-password').data("logged_in_user"));
+        var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
+        console.log(newURL);
+        children.push(window.open(newURL, "_blank"));
     }
 }
 
@@ -300,10 +288,6 @@ function process_logout() {
     dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
-    if (!dderlState.session) {
-        return;
-    }
-    dderlState.session = null;
     resetPingTimer();
 
     $('#login-button').html('');

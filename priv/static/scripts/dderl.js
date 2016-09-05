@@ -10,7 +10,7 @@ import '../dashboard/dderl.dashboard';
 import * as DashboardMenu from '../dashboard/DashboardMenu';
 
 export var dderlState = {
-    session: null,
+    isLoggedIn : false,
     adapter: null,
     connection: null,
     connected_user: null,
@@ -58,9 +58,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
     var headers = {};
     if (dderlState.adapter !== null) headers['DDERL-Adapter'] = dderlState.adapter;
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
     if (self) {
-        if(self.hasOwnProperty('_session')) headers['DDERL-Session'] = self._session;
         if(self.hasOwnProperty('_adapter')) headers['DDERL-Adapter'] = self._adapter;
     }
 
@@ -79,14 +77,6 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             if(this && this.hasOwnProperty('_spinCounter') &&
                this._dlg && this._dlg.hasClass('ui-dialog-content')) {
                 this.removeWheel();
-            }
-
-            // Save the session if the request was to log in.
-            if(_url == 'app/login') {
-                var s = request.getResponseHeader('dderl-session');
-                console.log("The session response header dderl-session: ");
-                console.log(s);
-                dderlState.session = s;
             }
 
             if(request.status === 204) {
@@ -118,7 +108,6 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 if(_url == 'app/ping' && _data.error) {
                     dderlState.connection = null;
                     dderlState.adapter = null;
-                    dderlState.session = null;
                     resetPingTimer();
                 }
                 if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
@@ -211,7 +200,7 @@ export function resetPingTimer() {
     }
 
     //Stop ping if there is no session.
-    if(!dderlState.session) {
+    if(!dderlState.isLoggedIn) {
         console.log("ping canceled");
         return;
     }
@@ -321,7 +310,6 @@ function uploadFiles(files) {
     xhr.addEventListener("abort", function() {progressLbl.text("upload cancled!");}, false);
 
     xhr.open("POST", "app/upload");
-    xhr.setRequestHeader('dderl-session', (dderlState.session !== null ? '' + dderlState.session : ''));
     xhr.send(fd);
 }
 

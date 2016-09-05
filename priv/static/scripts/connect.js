@@ -544,7 +544,7 @@ export function disconnect_tab() {
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
+    
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
