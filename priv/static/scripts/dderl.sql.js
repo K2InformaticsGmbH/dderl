@@ -75,6 +75,7 @@ function insertAtCursor(myField, myValue) {
     _spinCounter    : 0,
     _pendingQueries : null,
     _optBinds       : null,
+    _outParamInputs : null,
 
     // private event handlers
     _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
@@ -148,6 +149,7 @@ function insertAtCursor(myField, myValue) {
 
         self._history = [];
         self._pendingQueries = [];
+        self._outParamInputs = [];
 
         self._fnt = $(document.body).css('font-family');
         self._fntSz = $(document.body).css('font-size');
@@ -765,7 +767,7 @@ function insertAtCursor(myField, myValue) {
                     self._renderParsed(parse_stmt, false);
                     if (parse_stmt.hasOwnProperty("binds")) {
                         self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
-                        sql_params_dlg(self._paramsDiv, self._optBinds);
+                        sql_params_dlg(self._paramsDiv, self._optBinds, self._outParamInputs);
                         self._editDiv.tabs("option", "active", 3);
                         self._setTabFocus();
                     } else {
@@ -827,7 +829,7 @@ function insertAtCursor(myField, myValue) {
                     } else {
                         if (parse_stmt.hasOwnProperty("binds")) {
                             self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
-                            sql_params_dlg(self._paramsDiv, self._optBinds);
+                            sql_params_dlg(self._paramsDiv, self._optBinds,  self._outParamInputs);
                             self._editDiv.tabs("option", "active", 3);
                             self._cmdChanged = true;
                             self._setTabFocus();
@@ -846,7 +848,7 @@ function insertAtCursor(myField, myValue) {
             self._pendingQueries = $.extend(true, {}, _parsed.flat_list); // deep copy
             self._execMultStmts();
         } else {
-            clear_out_fields();
+            clear_out_fields(self._outParamInputs);
             var params = null;
             if(self._optBinds !== null && self._optBinds.hasOwnProperty('pars')) {
                 params = self._optBinds.pars;
@@ -890,7 +892,7 @@ function insertAtCursor(myField, myValue) {
         } else if(resultQry.hasOwnProperty('error')) {
             alert_jq(resultQry.error + "<br><br><b><center>" + self._pendingQueries.length + " statements not executed</center></b>");
         } else if(resultQry.hasOwnProperty('data')) {
-            result_out_params(resultQry.data);
+            result_out_params(resultQry.data, self._outParamInputs);
         } else if(!resultQry.hasOwnProperty('statement')) {
             alert_jq('missing statement handle <br><br><b><center>' + self._pendingQueries.length + " statements not executed</center></b>");
         } else if(isMultiple) {
@@ -1197,7 +1199,7 @@ function insertAtCursor(myField, myValue) {
         }
         this._refreshHistoryBoxSize();
         if (this._optBinds !== null) {
-            sql_params_dlg(this._paramsDiv, this._optBinds);
+            sql_params_dlg(this._paramsDiv, this._optBinds, this._outParamInputs);
             this._editDiv.tabs("option", "active", 3);
             this._cmdChanged = true;
         }
