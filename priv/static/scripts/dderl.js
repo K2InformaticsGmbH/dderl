@@ -106,6 +106,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
             }
             else if(_data.hasOwnProperty('error')) {
                 if(_url == 'app/ping' && _data.error) {
+                    dderlState.isLoggedIn = false;
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     resetPingTimer();
