@@ -165,11 +165,17 @@ terminate(_Reason, _Req, _State) ->
 reply_200_json(Body, EncryptedPid, Req) when is_list(EncryptedPid) ->
     reply_200_json(Body, list_to_binary(EncryptedPid), Req);
 reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
-    Req1 = set_cookies(Req, EncryptedPid),
+    Req2 = case cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>) of
+        {EncryptedPid, Req1} -> Req1;
+        {_, Req1} ->
+            {Host,Req1} = cowboy_req:host(Req1),
+            cowboy_req:set_resp_cookie(?DDERL_COOKIE_NAME, EncryptedPid,
+                                              ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
+    end,
     cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
-        ], Body, Req1).
+        ], Body, Req2).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
     case ChunkIdx of
@@ -195,11 +201,6 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             ok = cowboy_req:chunk(Chunk, Req),
             {ok, Req}
     end.
-
-set_cookies(Req, Session) ->
-    {Host,Req} = cowboy_req:host(Req),
-    cowboy_req:set_resp_cookie(?DDERL_COOKIE_NAME, Session,
-                                      ?HTTP_ONLY_COOKIE_OPTS(Host), Req).
 
 %-define(DISP_REQ, true).
 -ifdef(DISP_REQ).
