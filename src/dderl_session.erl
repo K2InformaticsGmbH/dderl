@@ -23,14 +23,6 @@
         , format_status/2
         ]).
 
-% via exports
--export([ register_name/2
-          , register_name/3
-          , unregister_name/1
-          , whereis_name/1
-          , send/2
-        ]).
-
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
@@ -621,18 +613,6 @@ adapter_name(gen_adapter) -> gen;
 adapter_name(AdaptMod) ->
     [BinAdapter|_] = binary:split(atom_to_binary(AdaptMod, utf8), <<"_">>),
     binary_to_existing_atom(BinAdapter, utf8).
-
-
-% VIA API
-register_name(Name, Pid) ->
-    ?Info("Registering ~p with ~p", [Name, Pid]),
-    global:register_name(Name, Pid).
-register_name(Name, Pid, Resolve) ->
-    ?Info("Registering ~p with ~p", [Name, Pid]),
-    global:register_name(Name, Pid, Resolve).
-unregister_name(Name) -> global:unregister_name(Name).
-whereis_name(Name) -> global:whereis_name(Name).
-send(Name, Msg) -> global:send(Name, Msg).
 
 find_deps_app_seq(App) -> find_deps_app_seq(App, []).
 find_deps_app_seq(App,Chain) ->
