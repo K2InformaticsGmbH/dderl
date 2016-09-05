@@ -69,8 +69,9 @@ process_request(_, _, Req, [<<"upload">>]) ->
                           end || F <- Files]}
                       )},
     {loop, Req1, <<>>, 5000, hibernate};
-process_request(Session, Adapter, Req, [<<"download_query">>] = Typ) ->
+process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
+    Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
