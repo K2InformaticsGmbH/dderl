@@ -55,9 +55,12 @@ get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
 get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
     try
         Pid = session_to_pid(DDerlSessStr),
-        case is_pid(Pid) andalso is_process_alive(Pid) of
-            true -> {ok, DDerlSessStr};
-            _ -> {error, <<"process not found">>}
+        if is_pid(Pid) ->
+                case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
+                    true -> {ok, DDerlSessStr};
+                    _ -> {error, <<"process not found">>}
+                end;
+           true -> {error, <<"process not found">>}
         end
     catch
         Error:Reason ->
