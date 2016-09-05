@@ -58,6 +58,12 @@ $(document).ready(function () {
             return "You will lose all unsaved data, are you sure you want to continue?";
         }
     });
+    $(window).on('unload', function() {
+        if(dderlState.isLoggedIn) {
+            console.log("Logging out ");
+            logout();
+        }
+    });
 });
 
 // Set up main-menu handlers from index.html

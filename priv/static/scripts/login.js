@@ -16,10 +16,11 @@ function refresh_header_information() {
 }
 
 export function check_already_connected() {
-    if(!window.opener || !window.opener.connState || !window.opener.connState.session ||
+    if(!window.opener || !window.opener.connState || !window.opener.connState.isLoggedIn ||
        !window.opener.exposedjQuery('#btn-change-password').data("logged_in_user")) {
         loginAjax();
     } else {
+        dderlState.isLoggedIn = window.opener.connState.isLoggedIn;
         dderlState.connectionSelected = window.opener.connState.connectionSelected;
         dderlState.app = window.opener.connState.app;
         dderlState.vsn = window.opener.connState.vsn;
@@ -284,6 +285,7 @@ export function new_connection_tab() {
 //TODO: until we fix the session sharing
 window.process_logout = process_logout;
 function process_logout() {
+    dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
@@ -293,7 +295,7 @@ function process_logout() {
     $('#login-button').html('');
     $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
-    if(window.opener) {
+    if(window.opener &&  window.opener.connState.isLoggedIn) {
         window.opener.process_logout();
     }
     if(children) {
