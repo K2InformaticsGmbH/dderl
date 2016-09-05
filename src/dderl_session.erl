@@ -42,7 +42,6 @@
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
-          , registered_name             :: reference()
           , conn_info                   :: map()
          }).
 
@@ -50,18 +49,14 @@
 -spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
     {ok, Pid} = dderl_session_sup:start_session(ConnInfoFun),
-    DderlSess = base64:encode(crypto:encrypt(erlang:get_cookie(),term_to_binary(Pid))),
+    DderlSess = pid_to_session(Pid),
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
     try
-        DDerlSession = binary_to_term(crypto:decrypt(eralng:get_cookie(), base64:deocde(DDerlSessStr)))
-        case whereis(DDerlSession) of
-            Pid when is_pid(Pid) ->
-                case is_process_alive(Pid) of
-                    true -> {ok, DDerlSession};
-                    _ -> {error, <<"process not found">>}
-                end;
+        Pid = session_to_pid(DDerlSessStr),
+        case is_pid(Pid) andalso is_process_alive(Pid) of
+            true -> {ok, DDerlSessStr};
             _ -> {error, <<"process not found">>}
         end
     catch
@@ -74,24 +69,29 @@ get_session(S, ConnInfoFun) when is_binary(S) ->
 get_session(_, ConnInfoFun) ->
     get_session(<<>>, ConnInfoFun).
 
+session_to_pid(DDerlSessStr) -> binary_to_term(base64:decode(DDerlSessStr)).
+
+pid_to_session(Pid) when is_pid(Pid) -> base64:encode(term_to_binary(Pid)).
+
 -spec start_link(fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
 start_link(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    gen_server:start_link(?MODULE, [ConnInfoFun()], []).
+    {ok, Pid} = gen_server:start_link(?MODULE, [ConnInfoFun()], []),
+    Pid ! {set_id, pid_to_session(Pid)},
+    {ok, Pid}.
 
 -spec get_state(pid()) -> #state{}.
-get_state(DDerlSessPid) ->
-    gen_server:call(DDerlSessPid, {get_state, Bytes}, infinity).
+get_state(DDerlSessStr) ->
+    gen_server:call(session_to_pid(DDerlSessStr), get_state, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
-process_request(undefined, Type, Body, ReplyPid, Ref, RemoteEp) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, Ref, RemoteEp);
-process_request(Adapter, Type, Body, ReplyPid, RemoteEp, {?MODULE, Ref, Bytes}) ->
+process_request(undefined, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, DderlSess);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
-    gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
+    gen_server:cast(session_to_pid(DderlSess), {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
-init([ConnInfo]) when is_binary(Bytes) ->
+init([ConnInfo]) ->
     process_flag(trap_exit, true),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of
@@ -99,18 +99,12 @@ init([ConnInfo]) when is_binary(Bytes) ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
         {ok, ErlImemSess} ->
-            {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName,
-                        conn_info = ConnInfo, sess=ErlImemSess}}
+            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess}}
     end.
 
-handle_call({verify, InBytes}, _From, State) ->
-    {reply, InBytes =:= State#state.id, State};
-handle_call({get_state, Bytes}, _From, #state{id = Bytes} = State) ->
+handle_call(get_state, _From, State) ->
     ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
-handle_call({get_state, _}, _From, State) ->
-    ?Debug("get_state, unauthorized access attempt result: ~p~n", [State]),
-    {reply, unauthorized, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
@@ -143,6 +137,8 @@ handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor 
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
+handle_info({set_id, DderlSess}, State) ->
+    {noreply, State#state{id = DderlSess}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -195,12 +191,10 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
     end,
     State;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
-    #state{id = << First:32/binary, Last:32/binary >> =  Id,
-           registered_name = RegisteredName, sess = ErlImemSess} = State,
-    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    #state{id = Id, sess = ErlImemSess} = State,
     ReqDataMap = jsx:decode(ReqData, [return_maps]),
     catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-    case catch process_login(SessionId,ReqDataMap,State) of
+    case catch process_login(Id,ReqDataMap,State) of
         {{E,M},St} when is_atom(E) ->
             ?Error("Error(~p) ~p~n~p", [E,M,St]),
             reply(From, #{login=>
@@ -526,8 +520,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                     conn_info = ConnInfo, id = Id} = State)
   when Cmd =:= [<<"connect">>];
        Cmd =:= [<<"disconnect">>] ->
-    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
+    #state{id = Id} = State,
     BodyJson = jsx:decode(ReqData),
     {Host, ConnStr} = 
             case proplists:get_value(<<"host">>, BodyJson, none) of
@@ -548,7 +541,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
         try
-            Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
+            Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
