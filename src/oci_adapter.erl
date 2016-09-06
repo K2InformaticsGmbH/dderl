@@ -845,6 +845,8 @@ make_binds(Binds) ->
                           V when byte_size(V) == 0 ->
                               if Dir == out orelse Dir == inout ->
                                      case Typ of
+                                         'SQLT_INT' -> 0;
+                                         'SQLT_DAT' -> list_to_binary(lists:duplicate(7,0));
                                          'SQLT_VNU' -> list_to_binary(lists:duplicate(22,0));
                                          _ -> list_to_binary(lists:duplicate(4400, 0))
                                      end;
