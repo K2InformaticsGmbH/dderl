@@ -55,13 +55,23 @@ $(document).ready(function () {
 
     $(window).on('beforeunload', function () {
         if (dderlState.connection) {
-            return "You will lose all unsaved data, are you sure you want to continue?";
+            var msg = "";
+            if(window.opener) {
+                msg = "You will loose all the children sessions if you continue";
+            } else {
+                msg = "You will be logged out and all children session will be lost";
+            }
+            return msg;
         }
     });
+
     $(window).on('unload', function() {
         if(dderlState.isLoggedIn) {
-            console.log("Logging out ");
-            logout();
+            if(window.opener) {
+                logout(1); //not the parent so kill children
+            } else {
+                logout(0); //parent logout nad 
+            }
         }
     });
 });

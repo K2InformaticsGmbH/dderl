@@ -2,7 +2,7 @@ import $ from 'jquery';
 import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
-import {connect_dlg} from './connect';
+import {connect_dlg, disconnect_tab} from './connect';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
@@ -202,31 +202,36 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-export function logout() {
-    var headers = {};
+export function logout(val = 0) {
+    if (val === 0) {
+        var headers = {};
 
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
-    }
-
-    $.ajax({
-        type: 'POST',
-        url: 'app/logout',
-        data: JSON.stringify({}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
-
-        success: function(_data, textStatus) {
-            console.log('Request logout Result ' + textStatus);
-        },
-
-        error: function (request, textStatus) {
-            console.log('Request logout Error, status: ' + textStatus);
+        if (dderlState.adapter !== null) {
+            headers['DDERL-Adapter'] = dderlState.adapter;
         }
-    });
-    process_logout();
+
+        $.ajax({
+            type: 'POST',
+            url: 'app/logout',
+            data: JSON.stringify({}),
+            dataType: "JSON",
+            contentType: "application/json; charset=utf-8",
+            headers: headers,
+            async: false,
+            context: null,
+
+            success: function(_data, textStatus) {
+                console.log('Request logout Result ' + textStatus);
+            },
+
+            error: function (request, textStatus) {
+                console.log('Request logout Error, status: ' + textStatus);
+            }
+        });
+    } else {
+        disconnect_tab();
+    }
+    process_logout(val);
 }
 
 //TODO: Does this function belong here ?
@@ -284,7 +289,7 @@ export function new_connection_tab() {
 
 //TODO: until we fix the session sharing
 window.process_logout = process_logout;
-function process_logout() {
+function process_logout(val = 0) {
     dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
@@ -295,13 +300,14 @@ function process_logout() {
     $('#login-button').html('');
     $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
-    if(window.opener &&  window.opener.connState.isLoggedIn) {
+    if(val === 0 && window.opener &&  window.opener.connState.isLoggedIn) {
         window.opener.process_logout();
     }
     if(children) {
         for(var i=0; i < children.length; ++i){
             if(!children[i].closed) {
-                children[i].process_logout();
+                children[i].process_logout(val);
+                children[i].close();
             }
         }
     }
