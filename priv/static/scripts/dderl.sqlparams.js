@@ -21,14 +21,13 @@ function inpFocusHandler() {
     }).select();
 }
 
-var outInputs = [];
-export function clear_out_fields() {
+export function clear_out_fields(outInputs) {
     outInputs.forEach(function(outParam) {
         outParam.inp.val("");
     });
 }
 
-export function result_out_params(data) {
+export function result_out_params(data, outInputs) {
     outInputs.forEach(function(outParam) {
         for(var param in data) {
             if(outParam.name == param) {
@@ -38,8 +37,7 @@ export function result_out_params(data) {
     });
 }
 
-export function sql_params_dlg(container, qpars) {
-    outInputs = [];    
+export function sql_params_dlg(container, qpars, outInputs) {
     container.empty();
 
     var tab = $('<table/>')
