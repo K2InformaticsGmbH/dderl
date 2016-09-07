@@ -55,7 +55,7 @@ $(document).ready(function () {
 
     $(window).on('beforeunload', function () {
         if (dderlState.connection) {
-                return "You will lose all unsaved data, are you sure you want to continue?";
+            return "You will lose all unsaved data, are you sure you want to continue?";
         }
     });
 });
