@@ -583,6 +583,9 @@ export function disconnect_tab() {
 }
 
 export function close_tab() {
+    if($('#btn-disconnect').hasClass('disabled'))
+        return;
+
     if (!dderlState.connection)
         return;
 
@@ -601,7 +604,7 @@ export function close_tab() {
         contentType: "application/json; charset=utf-8",
         headers: headers,
         context: null,
-        
+
         success: function(_data, textStatus) {
             console.log('Request close_tab result ' + textStatus);
         },
