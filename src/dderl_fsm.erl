@@ -303,13 +303,10 @@ rows({Rows,Completed},{?MODULE,Pid}) ->
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
     gen_fsm:send_event(Pid, {rows_limit, {NRows, Recs}}).
 
--spec delete({delete, {atom(), any()}} | {delete_object, any()}, {atom(), pid()}) -> ok.
-delete({Tab, Key}, {?MODULE,Pid}) ->
-    ?Info("delete ~p ~p", [Tab, Key]),
-    gen_fsm:send_event(Pid,{delete, Tab, Key});
-delete(Record, {?MODULE,Pid}) ->
-    ?Info("delete ~p", [Record]),
-    gen_fsm:send_event(Pid,{delete_object, Record}).
+-spec delete({list(), _}, {atom(), pid()}) -> ok.
+delete({Rows,Completed},{?MODULE,Pid}) ->
+    ?Info("delete ~p ~p", [Rows, Completed]),
+    gen_fsm:send_event(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
@@ -890,15 +887,11 @@ tailing({button, <<">|">>, ReplyTo}, State0) ->
 %             ?Info("fallback to tailing -- row~n~p~n", [Rec]),
 %             State1 = data_append(tailing,{[Rec],tail},State0),
 %             {next_state, tailing, State1#state{pfc=0}}
-%     end;      
-tailing({delete, Tab,Key}, State) ->
-    ?Info("tailing  -- row deleted ~p:~p~n", [Tab,Key]),
-    {next_state, tailing, State};
-tailing({delete, Record}, State) ->
-    ?Info("tailing  -- row deleted ~p~n", [Record]),
-    {next_state, tailing, State};
+%     end;
+tailing({delete, {Recs,Complete}}, State0) ->
+    State1 = data_append(tailing,{Recs,Complete,del},State0),
+    {next_state, tailing, State1#state{pfc=0}};
 tailing({rows, {Recs,Complete}}, State0) ->
-    % ?Info("tailing  -- row~n", []),
     State1 = data_append(tailing,{Recs,Complete},State0),
     {next_state, tailing, State1#state{pfc=0}};
 tailing(Other, State) ->
@@ -2210,20 +2203,22 @@ gui_clear(State) ->
                 }. 
 
 -spec data_append(atom(), tuple(), #state{}) -> #state{}.
-data_append(SN, {[],_Complete},#state{nav=_Nav,rawBot=_RawBot}=State0) -> 
+data_append(SN, {Rows,Status}, State) ->
+    data_append(SN, {Rows, Status, nop}, State);
+data_append(SN, {[],_Complete,_Op},#state{nav=_Nav,rawBot=_RawBot}=State0) -> 
     NewPfc=State0#state.pfc-1,
     % ?Info("data_append -~p- count ~p bufBottom ~p pfc ~p", [_Nav,0,_RawBot,NewPfc]),
     serve_stack(SN, State0#state{pfc=NewPfc});
-data_append(SN, {Recs,_Complete},#state{nav=raw,tableId=TableId,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) ->
+data_append(SN, {Recs,_Complete,Op},#state{nav=raw,tableId=TableId,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) ->
     NewPfc=State0#state.pfc-1,
     Cnt = length(Recs),
     NewRawCnt = RawCnt+Cnt,
     NewRawTop = min(RawTop,RawBot+1),   % initialized .. 1 and then changed only in delete or clear
     NewRawBot = RawBot+Cnt,
     % ?Info("data_append (~p) count ~p bufBot ~p pfc ~p", [SN,Cnt,NewRawBot,NewPfc]),
-    ets:insert(TableId, [list_to_tuple([I,nop|[R]])||{I,R}<-lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)]),
+    ets:insert(TableId, [list_to_tuple([I,Op|[R]])||{I,R}<-lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)]),
     serve_stack(SN, set_buf_counters(State0#state{pfc=NewPfc,rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot}));
-data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
+data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=IndexId
         ,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot,indCnt=IndCnt
         ,guiTop=GuiTop,guiBot=GuiBot,guiCol=GuiCol
         ,rowFun=RowFun,filterFun=FilterFun,sortFun=SortFun}=State0) ->
@@ -2232,7 +2227,7 @@ data_append(SN, {Recs,_Complete},#state{nav=ind,tableId=TableId,indexId=IndexId
     NewRawCnt = RawCnt+Cnt,
     NewRawTop = min(RawTop,RawBot+1),   % initialized .. 1 and then changed only in delete or clear
     NewRawBot = RawBot+Cnt,
-    RawRows = [raw_row_expand({I,nop,RK}, RowFun) || {I,RK} <- lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)],
+    RawRows = [raw_row_expand({I,Op,RK}, RowFun) || {I,RK} <- lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)],
     ets:insert(TableId, RawRows),
     IndRows = [?IndRec(R,SortFun) || R <- lists:filter(FilterFun,RawRows)],
     % ?Info("data_append (~p) -IndRows- ~p", [SN,IndRows]),
