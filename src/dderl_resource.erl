@@ -20,9 +20,9 @@ init({ssl, http}, Req, []) ->
     {Typ, Req1} = cowboy_req:path_info(Req0),
     case cowboy_req:has_body(Req0) or (Typ == [<<"auth">>]) of
     true ->
-        {Session, Req2} = cowboy_req:header(<<"dderl-session">>,Req1),
+        {Session, Req2} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req1, <<>>),
         {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
-        %?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
+        % ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
         process_request(Session, Adapter, Req3, Typ);
     _Else ->
         ?Error("DDerl request ~p, error ~p", [Req0, _Else]),
@@ -90,9 +90,8 @@ process_request(_, _, Req, [<<"upload">>]) ->
                           end || F <- Files]}
                       )},
     {loop, Req1, <<>>, 5000, hibernate};
-process_request(_, _, Req, [<<"download_query">>] = Typ) ->
+process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
-    Session = proplists:get_value(<<"dderl-session">>, ReqDataList, <<>>),
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
@@ -105,6 +104,10 @@ process_request(_, _, Req, [<<"download_query">>] = Typ) ->
                                       {<<"queryToDownload">>, QueryToDownload},
                                       {<<"binds">>,BindVals}]
                                     }]), Typ);
+process_request(Session, Adapter, Req, [<<"close_tab">>]) ->
+    {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
+    process_request_low(Session, Adapter, Req1, 
+        jsx:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(Session, Adapter, Req1, Body, Typ).
@@ -117,13 +120,13 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
     {{Ip, Port}, Req} = cowboy_req:peer(Req),
     case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
         {ok, DderlSess} ->
-            DderlSess:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
+            dderl_session:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}, DderlSess),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
                     {ok, DderlSess2} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
-                    DderlSess2:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}),
+                    dderl_session:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}, DderlSess2),
                     {loop, Req, DderlSess2, 3600000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
@@ -187,19 +190,20 @@ terminate(_Reason, _Req, _State) ->
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Body, {_, Ref
-                      , << First:32/binary, Last:32/binary >>}, Req)
-  when is_reference(Ref), is_binary(First), is_binary(Last) ->
-    reply_200_json(Body
-                   , ?Encrypt(list_to_binary(
-                                [First, term_to_binary(Ref), Last]
-                               )), Req);
+reply_200_json(Body, EncryptedPid, Req) when is_list(EncryptedPid) ->
+    reply_200_json(Body, list_to_binary(EncryptedPid), Req);
 reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
-	cowboy_req:reply(200, [
+    Req2 = case cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>) of
+        {EncryptedPid, Req1} -> Req1;
+        {_, Req1} ->
+            {Host,Req1} = cowboy_req:host(Req1),
+            cowboy_req:set_resp_cookie(?DDERL_COOKIE_NAME, EncryptedPid,
+                                              ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
+    end,
+    cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
-        , {<<"dderl-session">>, EncryptedPid}
-        ], Body, Req).
+        ], Body, Req2).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
     case ChunkIdx of

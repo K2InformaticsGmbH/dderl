@@ -8,6 +8,7 @@ import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter
 import {evalD3Script} from '../graph/graph';
 import './dderl.termEditor';
 import './dderl.statsTable';
+import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
@@ -528,7 +529,6 @@ import './dderl.statsTable';
 
         var adapter = this._adapter;
         var connection = dderlState.connection;
-        var dderl_sess = dderlState.session ? '' + dderlState.session : '';
         var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
             this._optBinds.pars : null);
 
@@ -539,7 +539,6 @@ import './dderl.statsTable';
                 .on('load',function() {
                     var iframe = $(this);
                     var form = $('<form method="post" action="app/download_query">')
-                        .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
                         .append($('<input type="hidden" name="connection">').val(connection))
                         .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                         .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
@@ -2573,6 +2572,27 @@ import './dderl.statsTable';
                 let d = document.createElement("div");
                 d.classList.add("d3-container");
                 d.style.bottom = this.options.toolBarHeight + 'px';
+                d.tabIndex = 1;
+                d.onkeydown = function(e) {
+                    var c = e.keyCode;
+                    var ctrlDown = e.ctrlKey || e.metaKey;
+
+                    // Check for ctrl+c
+                    if(ctrlDown && c === 67) {
+                        console.log("ctrl+C detected");
+                        var focusElement = document.activeElement;
+                        var ta = createCopyTextBox(d.innerHTML);
+                        ta.focus();
+                        
+                        setTimeout(function(){
+                            document.body.removeChild(ta);
+                            // restore focus
+                            if (focusElement) {
+                                focusElement.focus();
+                            }
+                        }, 100);
+                    }
+                };
                 this._dlg.append(d);
                 let container = d3.select(d);
                 try {
@@ -3142,7 +3162,7 @@ import './dderl.statsTable';
     },
 
     close_stmt: function() {
-        if(this._stmt && dderlState.session && dderlState.connection) {
+        if(this._stmt && dderlState.connection) {
             this.buttonPress("close");
         }
     },

@@ -94,6 +94,10 @@ import {ajaxCall, unescapeNewLines} from './dderl';
                 .addClass('sql_text_editor')
                 .addClass('sql_text_flat')
                 .attr('wrap', 'off')
+                .attr('autocomplete', 'off')
+                .attr('autocorrect', 'off')
+                .attr('autocapitalize', 'off')
+                .attr('spellcheck', 'false')
                 .val(self._term)
                 .keydown(function(e) {
                     if(e.keyCode === 9) {

@@ -225,18 +225,6 @@ import {dderlState} from '../../scripts/dderl';
             }
         });
     }
-
-    function _createTextBox(innerText){
-      var ta = document.createElement('textarea');
-      ta.style.position = 'absolute';
-      ta.style.left = '-1000px';
-      ta.style.top = document.body.scrollTop + 'px';
-      ta.value = innerText;
-      document.body.appendChild(ta);
-      ta.select();
-      
-      return ta;
-    }
     
     function _decodeTabularTextData(clipText) {
         setTimeout(function() {
@@ -518,7 +506,7 @@ import {dderlState} from '../../scripts/dderl';
             }
             var focusElement = document.activeElement;
 
-            var ta = _createTextBox(clipText);
+            var ta = createCopyTextBox(clipText);
             ta.focus();
             
             setTimeout(function(){
@@ -690,4 +678,16 @@ function unescapeNewLines(str) {
         str = str.replace(/\\n/gi, "\n");
     }
     return unescape(str);
+}
+
+export function createCopyTextBox(innerText) {
+    var ta = document.createElement('textarea');
+    ta.style.position = 'absolute';
+    ta.style.left = '-1000px';
+    ta.style.top = document.body.scrollTop + 'px';
+    ta.value = innerText;
+    document.body.appendChild(ta);
+    ta.select();
+
+    return ta;
 }

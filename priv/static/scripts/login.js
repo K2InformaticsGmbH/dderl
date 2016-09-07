@@ -15,24 +15,7 @@ function refresh_header_information() {
     $('#node').text(dderlState.node);
 }
 
-export function check_already_connected() {
-    if(!window.opener || !window.opener.connState || !window.opener.connState.session ||
-       !window.opener.exposedjQuery('#btn-change-password').data("logged_in_user")) {
-        loginAjax();
-    } else {
-        dderlState.session = window.opener.connState.session;
-        dderlState.connectionSelected = window.opener.connState.connectionSelected;
-        dderlState.app = window.opener.connState.app;
-        dderlState.vsn = window.opener.connState.vsn;
-        dderlState.node = window.opener.connState.node;
-        refresh_header_information();
-        var user = window.opener.exposedjQuery('#btn-change-password').data("logged_in_user");
-        update_user_information(user);
-        connect_dlg();
-    }
-}
-
-function loginAjax(data = {}) {
+export function loginAjax(data = {}) {
     ajaxCall(null, 'login', data, 'login', loginCb);
 }
 
@@ -92,6 +75,7 @@ function loginCb(resp) {
         }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
+        dderlState.isLoggedIn = true;
         resetPingTimer();
         connect_dlg();
     } else if (resp.hasOwnProperty('changePass')) {
@@ -206,17 +190,11 @@ function inputEnter(layout) {
 }
 
 export function logout() {
-
-    if (!dderlState.session) {
-        return;
-    }
-
     var headers = {};
 
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
 
     $.ajax({
         type: 'POST',
@@ -229,25 +207,21 @@ export function logout() {
 
         success: function(_data, textStatus) {
             console.log('Request logout Result ' + textStatus);
+            process_logout();
         },
 
         error: function (request, textStatus) {
             console.log('Request logout Error, status: ' + textStatus);
         }
     });
-    process_logout();
 }
 
 //TODO: Does this function belong here ?
 export function restart() {
-    if (!dderlState.session) {
-        return;
-    }
     var headers = {};
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
     confirm_jq({title: "Confirm restart", content:''},
             function() {
                 $.ajax({
@@ -278,51 +252,26 @@ export function restart() {
             });
 }
 
-var children = [];
 export function new_connection_tab() {
-    if(dderlState.session) {
-        if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
-            connect_dlg();
-        } else {
-            if(!window.connState) {
-                // TODO: Until we find a better way to share the login session.
-                window.connState = dderlState;
-                window.exposedjQuery = $;
-            }
-            console.log($('#btn-change-password').data("logged_in_user"));
-            var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
-            console.log(newURL);
-            children.push(window.open(newURL, "_blank"));
-        }
+    if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
+        connect_dlg();
+    } else {
+        var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
+        console.log(newURL);
+        window.open(newURL, "_blank");
     }
 }
 
-//TODO: until we fix the session sharing
-window.process_logout = process_logout;
 function process_logout() {
+    dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
-    if (!dderlState.session) {
-        return;
-    }
-    dderlState.session = null;
     resetPingTimer();
-
     $('#login-button').html('');
     $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
-    if(window.opener) {
-        window.opener.process_logout();
-    }
-    if(children) {
-        for(var i=0; i < children.length; ++i){
-            if(!children[i].closed) {
-                children[i].process_logout();
-            }
-        }
-    }
     loginAjax();
 }
 

@@ -13,12 +13,12 @@ req.keys().forEach(function(key){
     req(key);
 });
 
-import {check_already_connected} from "./scripts/login";
+import {loginAjax} from "./scripts/login";
 import {alert_jq} from './dialogs/dialogs';
 import {dderlState, show_qry_files, import_query,
         change_password, show_about_dlg} from "./scripts/dderl";
 import {new_connection_tab, logout, restart} from "./scripts/login";
-import {disconnect_tab} from "./scripts/connect";
+import {disconnect_tab, close_tab} from "./scripts/connect";
 import {StartSqlEditor} from "./scripts/dderl.sql";
 
 import 'font-awesome/css/font-awesome.css';
@@ -47,7 +47,7 @@ $(document).ready(function () {
     $('#main-body').css('top', $('#main-menu-bar').height());
     if (Object.hasOwnProperty('freeze')) {
         patch_jquery_ui(); // Add support for html titles on dialogs.
-        check_already_connected();
+        loginAjax();
     } else {
         $('#main-menu-bar').hide();
         alert_jq("We are really sorry, but we don't support your current browser version.");
@@ -57,6 +57,10 @@ $(document).ready(function () {
         if (dderlState.connection) {
             return "You will lose all unsaved data, are you sure you want to continue?";
         }
+    });
+
+    $(window).on('unload', function() {
+        close_tab();
     });
 });
 

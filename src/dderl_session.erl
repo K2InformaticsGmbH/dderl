@@ -7,7 +7,7 @@
 
 -include("dderl.hrl").
 
--export([start_link/3
+-export([start_link/1
         , get_session/2
         , process_request/6
         , get_state/1
@@ -23,14 +23,6 @@
         , format_status/2
         ]).
 
-% via exports
--export([ register_name/2
-          , register_name/3
-          , unregister_name/1
-          , whereis_name/1
-          , send/2
-        ]).
-
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
 
@@ -42,36 +34,25 @@
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
-          , registered_name             :: reference()
           , conn_info                   :: map()
          }).
 
 %% Helper functions
 -spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    Ref = erlang:make_ref(),
-    Bytes = crypto:rand_bytes(64),
-    {ok, _Pid} = dderl_session_sup:start_session(Ref, Bytes, ConnInfoFun),
-    DderlSess = {?MODULE, Ref, Bytes},
+    {ok, Pid} = dderl_session_sup:start_session(ConnInfoFun),
+    DderlSess = pid_to_session(Pid),
     ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
     {ok, DderlSess};
 get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
     try
-        DDerlSessBin = ?Decrypt(DDerlSessStr),
-        RefSize = byte_size(DDerlSessBin) - 64,
-        << First:32/binary
-           , RefBin:RefSize/binary
-           , Last:32/binary >> = DDerlSessBin,        
-        Ref = binary_to_term(RefBin),
-        Bytes = << First/binary, Last/binary >>,
-        DDerlSession = {?MODULE, Ref, Bytes},
-        case whereis_name(Ref) of
-            Pid when is_pid(Pid) ->
-                case is_process_alive(Pid) of
-                    true -> {ok, DDerlSession};
+        Pid = session_to_pid(DDerlSessStr),
+        if is_pid(Pid) ->
+                case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
+                    true -> {ok, DDerlSessStr};
                     _ -> {error, <<"process not found">>}
                 end;
-            _ -> {error, <<"process not found">>}
+           true -> {error, <<"process not found">>}
         end
     catch
         Error:Reason ->
@@ -83,24 +64,29 @@ get_session(S, ConnInfoFun) when is_binary(S) ->
 get_session(_, ConnInfoFun) ->
     get_session(<<>>, ConnInfoFun).
 
--spec start_link(reference(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Ref, Bytes, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    gen_server:start_link({via, ?MODULE, Ref}, ?MODULE, [Bytes, Ref, ConnInfoFun()], []).
+session_to_pid(DDerlSessStr) -> binary_to_term(base64:decode(DDerlSessStr)).
 
--spec get_state({atom(), pid()}) -> #state{}.
-get_state({?MODULE, Ref, Bytes}) ->
-    gen_server:call({via, ?MODULE, Ref}, {get_state, Bytes}, infinity).
+pid_to_session(Pid) when is_pid(Pid) -> base64:encode(term_to_binary(Pid)).
+
+-spec start_link(fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    {ok, Pid} = gen_server:start_link(?MODULE, [ConnInfoFun()], []),
+    Pid ! {set_id, pid_to_session(Pid)},
+    {ok, Pid}.
+
+-spec get_state(pid()) -> #state{}.
+get_state(DDerlSessStr) ->
+    gen_server:call(session_to_pid(DDerlSessStr), get_state, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
-process_request(undefined, Type, Body, ReplyPid, Ref, RemoteEp) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, Ref, RemoteEp);
-process_request(Adapter, Type, Body, ReplyPid, RemoteEp, {?MODULE, Ref, Bytes}) ->
+process_request(undefined, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, DderlSess);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    true = gen_server:call({via, ?MODULE, Ref}, {verify, Bytes}),
-    gen_server:cast({via, ?MODULE, Ref}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
+    gen_server:cast(session_to_pid(DderlSess), {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
-init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
+init([ConnInfo]) ->
     process_flag(trap_exit, true),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of
@@ -108,18 +94,12 @@ init([Bytes, RegisteredName, ConnInfo]) when is_binary(Bytes) ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
         {ok, ErlImemSess} ->
-            {ok, #state{tref=TRef, id=Bytes, registered_name=RegisteredName,
-                        conn_info = ConnInfo, sess=ErlImemSess}}
+            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess}}
     end.
 
-handle_call({verify, InBytes}, _From, State) ->
-    {reply, InBytes =:= State#state.id, State};
-handle_call({get_state, Bytes}, _From, #state{id = Bytes} = State) ->
+handle_call(get_state, _From, State) ->
     ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
-handle_call({get_state, _}, _From, State) ->
-    ?Debug("get_state, unauthorized access attempt result: ~p~n", [State]),
-    {reply, unauthorized, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
@@ -152,6 +132,8 @@ handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor 
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
+handle_info({set_id, DderlSess}, State) ->
+    {noreply, State#state{id = DderlSess}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -209,7 +191,7 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
             reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
     end,
     State;
-process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _}, State) ->
     process_login_req(ReqData, From, State, SrcIp);
 
 %% IMPORTANT:
@@ -486,8 +468,6 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                     conn_info = ConnInfo, id = Id} = State)
   when Cmd =:= [<<"connect">>];
        Cmd =:= [<<"disconnect">>] ->
-    #state{id = << First:32/binary, Last:32/binary >>, registered_name = RegisteredName} = State,
-    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
     BodyJson = jsx:decode(ReqData),
     {Host, ConnStr} = 
             case proplists:get_value(<<"host">>, BodyJson, none) of
@@ -508,7 +488,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
         try
-            Adapter:process_cmd({Cmd, BodyJson, SessionId}, Sess, UserId, From, CurrentPriv, self())
+            Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self())
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
@@ -545,61 +525,58 @@ spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
     end.
 
 process_login_req(ReqData, From, State, SrcIp) ->
-    #state{id = << First:32/binary, Last:32/binary >> =  Id,
-           registered_name = RegisteredName, sess = ErlImemSess} = State,
-    SessionId = ?Hash(list_to_binary([First, term_to_binary(RegisteredName), Last])),
-    ReqDataMap = jsx:decode(ReqData, [return_maps]),
-    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-    case catch process_login(SessionId,ReqDataMap,State) of
-        {{E,M},St} when is_atom(E) ->
-            ?Error("Error(~p) ~p~n~p", [E,M,St]),
-            reply(From, #{login=>
-                               #{error=>
-                                 if is_binary(M) -> M;
-                                    is_list(M) -> list_to_binary(M);
-                                    true -> list_to_binary(io_lib:format("~p", [M]))
-                               end}}, self()),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                        Id, "login unsuccessful", "", "", "", "", ""),
-            self() ! invalid_credentials,
+    #state{id = Id, sess = ErlImemSess} = State,
+    Host =
+    lists:foldl(
+      fun({App,_,_}, <<>>) ->
+              {ok, Apps} = application:get_key(App, applications),
+              case lists:member(dderl, Apps) of
+                  true -> atom_to_binary(App, utf8);
+                  _ -> <<>>
+              end;
+         (_, App) -> App
+      end, <<>>, application:which_applications()),
+    {ok, Vsn} = application:get_key(dderl, vsn),
+    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
+               node => list_to_binary(imem_meta:node_shard())},
+    case catch ErlImemSess:run_cmd(login,[]) of
+        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
+            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
             State;
-        {Reply, State1} ->
-            {Reply1, State2}
-            = case Reply of
-                  ok ->
-                      case ErlImemSess:run_cmd(login,[]) of
-                          {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
-                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
-                              {#{changePass=>State1#state.user}, State1};
-                          _ ->
-                              {[UserId],true} = imem_meta:select(
-                                                  ddAccount,
-                                                  [{#ddAccount{name=State1#state.user,
-                                                               id='$1',_='_'},
-                                                    [], ['$1']}]),
-                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", 
-                                    "", "", "", "", ""),
-                              {#{accountName=>State1#state.user},
-                               State1#state{user_id = UserId}}
-                      end;
-                  _ -> {Reply, State1}
-              end,
-            {ok,Vsn} = application:get_key(dderl, vsn),
-            Host =
-            lists:foldl(
-              fun({App,_,_}, undefined) ->
-                      {ok, Apps} = application:get_key(App, applications),
-                      case lists:member(dderl, Apps) of
-                          true -> atom_to_binary(App, utf8);
-                          _ -> undefined
-                      end;
-                 (_, App) -> App
-              end, undefined, application:which_applications()),
-            Reply2 = if is_binary(Host) -> Reply1#{app => Host};
-                        true -> Reply1 end,
-            reply(From, #{login => Reply2#{vsn => list_to_binary(Vsn),
-                                           node => list_to_binary(imem_meta:node_shard())}}, self()),
-            State2
+        {error, _} ->
+            ReqDataMap = jsx:decode(ReqData, [return_maps]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
+            case catch process_login(Id,ReqDataMap,State) of
+                {{E,M},St} when is_atom(E) ->
+                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                    reply(From, #{login=>
+                                       #{error=>
+                                         if is_binary(M) -> M;
+                                            is_list(M) -> list_to_binary(M);
+                                            true -> list_to_binary(io_lib:format("~p", [M]))
+                                       end}}, self()),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    self() ! invalid_credentials,
+                    State;
+                {Reply, State1} ->
+                    {Reply1, State2} = case Reply of
+                          ok -> process_login_req(#{}, From, State1, SrcIp);
+                          _ -> {Reply, State1}
+                    end,
+                    reply(From, #{login => maps:merge(Reply0, Reply1)}, self()),
+                    State2
+            end;
+        _ ->
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
+            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
+               true -> 
+                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
+                    State#state{user_id = UserId}
+            end
     end.
 
 reply(From, Data, Master) ->
@@ -643,18 +620,6 @@ adapter_name(gen_adapter) -> gen;
 adapter_name(AdaptMod) ->
     [BinAdapter|_] = binary:split(atom_to_binary(AdaptMod, utf8), <<"_">>),
     binary_to_existing_atom(BinAdapter, utf8).
-
-
-% VIA API
-register_name(Name, Pid) ->
-    ?Info("Registering ~p with ~p", [Name, Pid]),
-    global:register_name(Name, Pid).
-register_name(Name, Pid, Resolve) ->
-    ?Info("Registering ~p with ~p", [Name, Pid]),
-    global:register_name(Name, Pid, Resolve).
-unregister_name(Name) -> global:unregister_name(Name).
-whereis_name(Name) -> global:whereis_name(Name).
-send(Name, Msg) -> global:send(Name, Msg).
 
 find_deps_app_seq(App) -> find_deps_app_seq(App, []).
 find_deps_app_seq(App,Chain) ->

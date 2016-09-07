@@ -54,11 +54,13 @@ function init(container, width, height) {
     // node radius in virtual coordinates
     var nradius = 90; // TODO: 90 for 17 nodes seems ok, formula ?
 
-    var centerNodes = [
+    var animDuration = 500;
+
+    var centerNodes = {
         // Position relative to the bottom center after margin.
-        { id: 'stag', position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
-        { id: 'prod', position: { x: 0, y: -nradius }, status: 'idle' }
-    ];
+        stag: { position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
+        prod: { position: { x: 0, y: -nradius }, status: 'idle' }
+    };
 
     /** Helper functions for data extraction */
     var getKey = function(row) {
@@ -69,53 +71,59 @@ function init(container, width, height) {
         return JSON.parse(row.cvalue_2);
     };
 
-    var extractLinksNodes = function(rows) {
-        var links = [];
-        var nlset = new Set();
-        // Add already included center nodes to the set
-        centerNodes.forEach(function(n) {
-            nlset.add(n.id);
-        });
-        var nodes = [];
-        var status = [];
+    var extractLinksNodes = function(rows, graph) {
+        var links = graph.links;
+        var nodes = graph.nodes;
+        var status = graph.status;
         rows.forEach(function(row) {
             var key = getKey(row);
             var value = getValue(row);
 
             if(key.length === 3) {
                 var triangleId = key[0] + '_' + key[1] + '_' + key[2];
-                var linkId = key[0] + '_' + key[1];
-                if(!nlset.has(triangleId)) {
-                    nlset.add(triangleId);
-                    status.push({
-                        id: triangleId,
-                        link: linkId,
-                        status: value.status
-                    });
-                }
+                var jobId = key[0] + '_' + key[1];
+                status[triangleId] = {
+                    id: triangleId,
+                    job: jobId,
+                    status: value.status
+                };
             } else if(key.length === 2) {
                 var nodeId = value.platform;
                 var group = value.args.group;
-                if(!nlset.has(nodeId)) {
-                    nlset.add(nodeId);
-                    nodes.push({
+                if(!centerNodes.hasOwnProperty(nodeId)) {
+                    nodes[nodeId] = {
                         id: nodeId,
                         group: group
-                    });
+                    };
                 }
-                var linkId = key[0] + '_' + key[1];
-                if(!nlset.has(linkId)) {
-                    nlset.add(linkId);
-                    links.push({
-                        id: linkId,
-                        source: key[0],
-                        target: nodeId,
-                        legend: key[1],
-                        enabled: value.enabled,
-                        direction: value.direction
-                    });
+                var linkId = key[0] + '_' + nodeId;
+                var jobId = key[0] + '_' + key[1];
+                var jobs = {};
+                if(links.hasOwnProperty(linkId)) {
+                    jobs = links[linkId].jobs;
+                    enabled = links[linkId].enabled;
+                }
+                jobs[jobId] = {
+                    id: jobId,
+                    legend: key[1],
+                    enabled: value.enabled,
+                    direction: value.direction
+                };
+                var enabled = false;
+                for(var jId in jobs) {
+                    if(jobs[jId].enabled) {
+                        enabled = true;
+                        break;
+                    }
                 }
 
+                links[linkId] = {
+                    id: linkId,
+                    source: key[0],
+                    target: nodeId,
+                    enabled: enabled,
+                    jobs: jobs
+                };
             }
         });
         return { links: links, nodes: nodes, status: status };
@@ -192,7 +200,7 @@ function init(container, width, height) {
 
     function hideTooltip() {
         tootipDiv.transition()
-            .duration(500)
+            .duration(animDuration)
             .style('opacity', 0);
     }
 
@@ -202,6 +210,16 @@ function init(container, width, height) {
         });
     }
 
+    function entries(obj) {
+        var res = [];
+        for(var k in obj) {
+            obj[k].id = k;
+            res.push(obj[k]);
+        }
+        return res;
+    }
+
+    var graph = { links: {}, nodes: {}, status: {} };
     var firstData = true;
     return {
         on_data: function(data) {
@@ -213,7 +231,7 @@ function init(container, width, height) {
                 firstData = false;
                 // Add center nodes
                 svg.selectAll('circle')
-                    .data(centerNodes, function(d) { return d.id; })
+                    .data(entries(centerNodes), function(d) { return d.id; })
                     .enter()
                     .append('circle')
                     .attr('r', nradius)
@@ -228,12 +246,17 @@ function init(container, width, height) {
                     .on('mouseout', hideTooltip);
             }
 
-            var graph = extractLinksNodes(data);
+            graph = extractLinksNodes(data, graph);
             console.log('the links', graph.links);
             console.log('the nodes', graph.nodes);
 
+            // Note: entries adds the id to the values in the original object
+            var nodes = entries(graph.nodes);
+            var links = entries(graph.links);
+            var status = entries(graph.status);
+
             var newNodes = svg.selectAll('.node')
-                .data(graph.nodes, function(d) {
+                .data(nodes, function(d) {
                     return d.id;
                 })
                 .enter()
@@ -287,32 +310,32 @@ function init(container, width, height) {
                 positions[nData[i].id] = {x: x, y: y};
             }
             // Append center node positions.
-            for(var i = 0; i < centerNodes.length; ++i) {
-                positions[centerNodes[i].id] = centerNodes[i].position;
+            for(var k in centerNodes) {
+                positions[k] = centerNodes[k].position;
             }
 
             allPoints
                 .transition()
-                .duration(500)
+                .duration(animDuration)
                 .attr('cx', function(d) {
                     return positions[d.id].x;
                 })
-                .attr('cy', function(d, i) {
+                .attr('cy', function(d) {
                     return positions[d.id].y;
                 });
 
             svg.selectAll('text')
                 .transition()
-                .duration(500)
-                .attr('x', function(d, i) {
+                .duration(animDuration)
+                .attr('x', function(d) {
                     return positions[d.id].x;
                 })
-                .attr('y', function(d, i) {
+                .attr('y', function(d) {
                     return positions[d.id].y;
-                })
+                });
 
             svg.selectAll('line')
-                .data(graph.links, function(d) {
+                .data(links, function(d) {
                     return d.id;
                 })
                 .enter()
@@ -330,7 +353,7 @@ function init(container, width, height) {
             // Adding connecting links
             allLinks
                 .transition()
-                .duration(500)
+                .duration(animDuration)
                 .attr('x1', function(d) {
                     if(!positions[d.source]) { return 0; }
                     return positions[d.source].x;
@@ -356,19 +379,29 @@ function init(container, width, height) {
                 if(!positions[d.source] || !positions[d.target]) {
                     return;
                 }
-                var midX = 0.5 * (positions[d.source].x + positions[d.target].x);
-                var midY = 0.5 * (positions[d.source].y + positions[d.target].y);
                 var dirX = positions[d.source].x - positions[d.target].x;
                 var dirY = positions[d.source].y - positions[d.target].y;
+                /*
                 if(d.direction === "pull") {
                     dirX = -dirX;
                     dirY = -dirY;
                 }
-                linksMid[d.id] = {mid: {x: midX, y: midY}, direction: {x: dirX, y: dirY}};
+                */
+                var jobsId = Object.keys(d.jobs);
+                // TODO: We only support 4 set of jobs in the same line.
+                var start = 0.5 - (jobsId.length - 1)*0.1;
+                console.log("the length", jobsId.length);                
+                for(var i = 0; i < jobsId.length; ++i) {
+                    var pct = start + i * 0.2;
+                    console.log("the pct used i", pct);
+                    var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
+                    var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
+                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: {x: dirX, y: dirY}};
+                }
             });
 
             svg.selectAll('polygon')
-                .data(graph.status, function(d) {
+                .data(status, function(d) {
                     return d.id;
                 })
                 .enter()
@@ -376,27 +409,21 @@ function init(container, width, height) {
                 .attr('id', function(d) {
                     return d.id;
                 })
+                .attr('points', '0,0 -15,40 15,40')
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
                 .on('mouseout', hideTooltip);
             
-            // TODO: Triangles should be created in origin and then translated.
             svg.selectAll('polygon')
-                .attr('points', function(d) {
-                    var x = linksMid[d.link].mid.x;
-                    var y = linksMid[d.link].mid.y;
-                    var p1 = x + "," + y;
-                    var p2 = (x - 15) + "," + (y + 45);
-                    var p3 = (x + 15) + "," + (y + 45);
-                    return p1 + " " + p2 + " " + p3;
-                })
+                .transition()
+                .duration(animDuration)
                 .attr('transform', function(d) {
-                    var dx = linksMid[d.link].direction.x;
-                    var dy = linksMid[d.link].direction.y;
+                    var dx = linksMid[d.job].direction.x;
+                    var dy = linksMid[d.job].direction.y;
                     var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
-                    var x = linksMid[d.link].mid.x;
-                    var y = linksMid[d.link].mid.y;
-                    return "rotate(" + angle + " " + x + " " + y + ")";
+                    var x = linksMid[d.job].mid.x;
+                    var y = linksMid[d.job].mid.y;
+                    return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                 })
                 .style('stroke', 'black')
                 .style('stroke-width', 3)
