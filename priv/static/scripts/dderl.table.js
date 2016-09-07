@@ -529,7 +529,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         var adapter = this._adapter;
         var connection = dderlState.connection;
-        var dderl_sess = dderlState.session ? '' + dderlState.session : '';
         var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
             this._optBinds.pars : null);
 
@@ -540,7 +539,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 .on('load',function() {
                     var iframe = $(this);
                     var form = $('<form method="post" action="app/download_query">')
-                        .append($('<input type="hidden" name="dderl-session">').val(dderl_sess))
                         .append($('<input type="hidden" name="connection">').val(connection))
                         .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                         .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
@@ -3164,7 +3162,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     },
 
     close_stmt: function() {
-        if(this._stmt && dderlState.session && dderlState.connection) {
+        if(this._stmt && dderlState.connection) {
             this.buttonPress("close");
         }
     },

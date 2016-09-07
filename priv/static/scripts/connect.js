@@ -544,10 +544,11 @@ export function disconnect_tab() {
     if (dderlState.adapter !== null) {
         headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    headers['DDERL-Session'] = (dderlState.session !== null ? '' + dderlState.session : '');
+    
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
+    var response = false;
     $.ajax({
         type: 'POST',
         url: 'app/disconnect',
@@ -564,6 +565,7 @@ export function disconnect_tab() {
             dderlState.connected_user = null;
             dderlState.service = null;
             connect_dlg();
+            response = true;
         },
 
         error: function (request, textStatus) {
@@ -575,8 +577,50 @@ export function disconnect_tab() {
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
+            response = true;
         }
     });
+}
+
+export function close_tab() {
+    if($('#btn-disconnect').hasClass('disabled'))
+        return;
+
+    if (!dderlState.connection)
+        return;
+
+    var headers = {};
+
+    if (dderlState.adapter !== null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
+        headers['DDERL-Connection'] = dderlState.connection;
+    }
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/close_tab',
+        data: "{}",
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus) {
+            console.log('Request close_tab result ' + textStatus);
+        },
+
+        error: function (request, textStatus) {
+            console.log('Request close_tab result ' + textStatus);
+        }
+    });
+    
+    // Since disconnect is called on tab the request does not go throught as the
+    // connection is closed after the request is sent.
+    // this is a workaround to send the request completely by not using sync req
+    // following code would do sleep of 1 second.
+    var now = new Date().getTime();
+    while((new Date().getTime() - now) < 1000) {}
+    console.log("giving up...");
 }
 
 export function change_connect_password(loggedInUser, connectSuccessCb) {
