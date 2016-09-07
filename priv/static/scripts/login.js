@@ -2,7 +2,7 @@ import $ from 'jquery';
 import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
-import {connect_dlg, disconnect_tab} from './connect';
+import {connect_dlg} from './connect';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
@@ -15,24 +15,7 @@ function refresh_header_information() {
     $('#node').text(dderlState.node);
 }
 
-export function check_already_connected() {
-    if(!window.opener || !window.opener.connState || !window.opener.connState.isLoggedIn ||
-       !window.opener.exposedjQuery('#btn-change-password').data("logged_in_user")) {
-        loginAjax();
-    } else {
-        dderlState.isLoggedIn = window.opener.connState.isLoggedIn;
-        dderlState.connectionSelected = window.opener.connState.connectionSelected;
-        dderlState.app = window.opener.connState.app;
-        dderlState.vsn = window.opener.connState.vsn;
-        dderlState.node = window.opener.connState.node;
-        refresh_header_information();
-        var user = window.opener.exposedjQuery('#btn-change-password').data("logged_in_user");
-        update_user_information(user);
-        connect_dlg();
-    }
-}
-
-function loginAjax(data = {}) {
+export function loginAjax(data = {}) {
     ajaxCall(null, 'login', data, 'login', loginCb);
 }
 
@@ -202,36 +185,31 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-export function logout(val = 0) {
-    if (val === 0) {
-        var headers = {};
+export function logout() {
+    var headers = {};
 
-        if (dderlState.adapter !== null) {
-            headers['DDERL-Adapter'] = dderlState.adapter;
-        }
-
-        $.ajax({
-            type: 'POST',
-            url: 'app/logout',
-            data: JSON.stringify({}),
-            dataType: "JSON",
-            contentType: "application/json; charset=utf-8",
-            headers: headers,
-            async: false,
-            context: null,
-
-            success: function(_data, textStatus) {
-                console.log('Request logout Result ' + textStatus);
-            },
-
-            error: function (request, textStatus) {
-                console.log('Request logout Error, status: ' + textStatus);
-            }
-        });
-    } else {
-        disconnect_tab();
+    if (dderlState.adapter !== null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
     }
-    process_logout(val);
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/logout',
+        data: JSON.stringify({}),
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+
+        success: function(_data, textStatus) {
+            console.log('Request logout Result ' + textStatus);
+            process_logout();
+        },
+
+        error: function (request, textStatus) {
+            console.log('Request logout Error, status: ' + textStatus);
+        }
+    });
 }
 
 //TODO: Does this function belong here ?
@@ -270,47 +248,26 @@ export function restart() {
             });
 }
 
-var children = [];
 export function new_connection_tab() {
     if(!dderlState.connection && !($("#dialog-db-login").hasClass('ui-dialog-content'))) {
         connect_dlg();
     } else {
-        if(!window.connState) {
-            // TODO: Until we find a better way to share the login session.
-            window.connState = dderlState;
-            window.exposedjQuery = $;
-        }
-        console.log($('#btn-change-password').data("logged_in_user"));
         var newURL = window.location.protocol+"//"+window.location.host+window.location.pathname;
         console.log(newURL);
-        children.push(window.open(newURL, "_blank"));
+        window.open(newURL, "_blank");
     }
 }
 
-//TODO: until we fix the session sharing
-window.process_logout = process_logout;
-function process_logout(val = 0) {
+function process_logout() {
     dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
     resetPingTimer();
-
     $('#login-button').html('');
     $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
-    if(val === 0 && window.opener &&  window.opener.connState.isLoggedIn) {
-        window.opener.process_logout();
-    }
-    if(children) {
-        for(var i=0; i < children.length; ++i){
-            if(!children[i].closed) {
-                children[i].process_logout(val);
-                children[i].close();
-            }
-        }
-    }
     loginAjax();
 }
 

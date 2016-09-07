@@ -13,7 +13,7 @@ req.keys().forEach(function(key){
     req(key);
 });
 
-import {check_already_connected} from "./scripts/login";
+import {loginAjax} from "./scripts/login";
 import {alert_jq} from './dialogs/dialogs';
 import {dderlState, show_qry_files, import_query,
         change_password, show_about_dlg} from "./scripts/dderl";
@@ -47,7 +47,7 @@ $(document).ready(function () {
     $('#main-body').css('top', $('#main-menu-bar').height());
     if (Object.hasOwnProperty('freeze')) {
         patch_jquery_ui(); // Add support for html titles on dialogs.
-        check_already_connected();
+        loginAjax();
     } else {
         $('#main-menu-bar').hide();
         alert_jq("We are really sorry, but we don't support your current browser version.");
@@ -55,23 +55,7 @@ $(document).ready(function () {
 
     $(window).on('beforeunload', function () {
         if (dderlState.connection) {
-            var msg = "";
-            if(window.opener) {
-                msg = "You will loose all the children sessions if you continue";
-            } else {
-                msg = "You will be logged out and all children session will be lost";
-            }
-            return msg;
-        }
-    });
-
-    $(window).on('unload', function() {
-        if(dderlState.isLoggedIn) {
-            if(window.opener) {
-                logout(1); //not the parent so kill children
-            } else {
-                logout(0); //parent logout nad 
-            }
+                return "You will lose all unsaved data, are you sure you want to continue?";
         }
     });
 });

@@ -184,61 +184,60 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
         _ ->
             reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
     end,
-    State;
-process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    {ok, State};
+process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
     #state{id = Id, sess = ErlImemSess} = State,
-    ReqDataMap = jsx:decode(ReqData, [return_maps]),
-    catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-    case catch process_login(Id,ReqDataMap,State) of
-        {{E,M},St} when is_atom(E) ->
-            ?Error("Error(~p) ~p~n~p", [E,M,St]),
-            reply(From, #{login=>
-                               #{error=>
-                                 if is_binary(M) -> M;
-                                    is_list(M) -> list_to_binary(M);
-                                    true -> list_to_binary(io_lib:format("~p", [M]))
-                               end}}, self()),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                        Id, "login unsuccessful", "", "", "", "", ""),
-            self() ! invalid_credentials,
+    Host =
+    lists:foldl(
+      fun({App,_,_}, <<>>) ->
+              {ok, Apps} = application:get_key(App, applications),
+              case lists:member(dderl, Apps) of
+                  true -> atom_to_binary(App, utf8);
+                  _ -> <<>>
+              end;
+         (_, App) -> App
+      end, <<>>, application:which_applications()),
+    {ok, Vsn} = application:get_key(dderl, vsn),
+    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
+               node => list_to_binary(imem_meta:node_shard())},
+    case catch ErlImemSess:run_cmd(login,[]) of
+        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
+            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
             State;
-        {Reply, State1} ->
-            {Reply1, State2}
-            = case Reply of
-                  ok ->
-                      case ErlImemSess:run_cmd(login,[]) of
-                          {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
-                              ?Warn("Password expired ~s~n~p", [State1#state.user, ST]),
-                              {#{changePass=>State1#state.user}, State1};
-                          _ ->
-                              {[UserId],true} = imem_meta:select(
-                                                  ddAccount,
-                                                  [{#ddAccount{name=State1#state.user,
-                                                               id='$1',_='_'},
-                                                    [], ['$1']}]),
-                              catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", 
-                                    "", "", "", "", ""),
-                              {#{accountName=>State1#state.user},
-                               State1#state{user_id = UserId}}
-                      end;
-                  _ -> {Reply, State1}
-              end,
-            {ok,Vsn} = application:get_key(dderl, vsn),
-            Host =
-            lists:foldl(
-              fun({App,_,_}, undefined) ->
-                      {ok, Apps} = application:get_key(App, applications),
-                      case lists:member(dderl, Apps) of
-                          true -> atom_to_binary(App, utf8);
-                          _ -> undefined
-                      end;
-                 (_, App) -> App
-              end, undefined, application:which_applications()),
-            Reply2 = if is_binary(Host) -> Reply1#{app => Host};
-                        true -> Reply1 end,
-            reply(From, #{login => Reply2#{vsn => list_to_binary(Vsn),
-                                           node => list_to_binary(imem_meta:node_shard())}}, self()),
-            State2
+        {error, _} ->
+            ReqDataMap = jsx:decode(ReqData, [return_maps]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
+            case catch process_login(Id,ReqDataMap,State) of
+                {{E,M},St} when is_atom(E) ->
+                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                    reply(From, #{login=>
+                                       #{error=>
+                                         if is_binary(M) -> M;
+                                            is_list(M) -> list_to_binary(M);
+                                            true -> list_to_binary(io_lib:format("~p", [M]))
+                                       end}}, self()),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    self() ! invalid_credentials,
+                    State;
+                {Reply, State1} ->
+                    {Reply1, State2} = case Reply of
+                          ok -> process_call({[<<"login">>], #{}}, Adapter, From, {SrcIp, Port}, State1);
+                          _ -> {Reply, State1}
+                    end,
+                    reply(From, #{login => maps:merge(Reply0, Reply1)}, self()),
+                    State2
+            end;
+        _ ->
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
+            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
+               true -> 
+                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
+                    State#state{user_id = UserId}
+            end
     end;
 
 %% IMPORTANT:
