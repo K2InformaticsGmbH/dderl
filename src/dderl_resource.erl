@@ -83,6 +83,10 @@ process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
                                       {<<"queryToDownload">>, QueryToDownload},
                                       {<<"binds">>,BindVals}]
                                     }]), Typ);
+process_request(Session, Adapter, Req, [<<"close_tab">>]) ->
+    {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
+    process_request_low(Session, Adapter, Req1, 
+        jsx:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(Session, Adapter, Req1, Body, Typ).

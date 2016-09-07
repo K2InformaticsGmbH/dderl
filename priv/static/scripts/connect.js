@@ -580,13 +580,43 @@ export function disconnect_tab() {
             response = true;
         }
     });
+}
+
+export function close_tab() {
+    if (!dderlState.connection)
+        return;
+
+    var headers = {};
+
+    if (dderlState.adapter !== null) {
+        headers['DDERL-Adapter'] = dderlState.adapter;
+        headers['DDERL-Connection'] = dderlState.connection;
+    }
+
+    $.ajax({
+        type: 'POST',
+        url: 'app/close_tab',
+        data: "{}",
+        dataType: "JSON",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        context: null,
+        
+        success: function(_data, textStatus) {
+            console.log('Request close_tab result ' + textStatus);
+        },
+
+        error: function (request, textStatus) {
+            console.log('Request close_tab result ' + textStatus);
+        }
+    });
     
     // Since disconnect is called on tab the request does not go throught as the
     // connection is closed after the request is sent.
     // this is a workaround to send the request completely by not using sync req
     // following code would do sleep of 1 second.
     var now = new Date().getTime();
-    while(!response && (new Date().getTime() - now) < 1000) {}
+    while((new Date().getTime() - now) < 1000) {}
     console.log("giving up...");
 }
 

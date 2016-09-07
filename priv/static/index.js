@@ -18,7 +18,7 @@ import {alert_jq} from './dialogs/dialogs';
 import {dderlState, show_qry_files, import_query,
         change_password, show_about_dlg} from "./scripts/dderl";
 import {new_connection_tab, logout, restart} from "./scripts/login";
-import {disconnect_tab} from "./scripts/connect";
+import {disconnect_tab, close_tab} from "./scripts/connect";
 import {StartSqlEditor} from "./scripts/dderl.sql";
 
 import 'font-awesome/css/font-awesome.css';
@@ -60,9 +60,7 @@ $(document).ready(function () {
     });
 
     $(window).on('unload', function() {
-        if (dderlState.connection) {
-            disconnect_tab();
-        }
+        close_tab();
     });
 });
 
