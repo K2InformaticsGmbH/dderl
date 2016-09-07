@@ -186,30 +186,40 @@ function inputEnter(layout) {
 }
 
 export function logout() {
-    var headers = {};
-
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
+    if(dderlState.connection) {
+        confirm_jq({title: "Confirm logout", content:'', height: 150}, function() {
+            exec_logout();
+        });
+    } else {
+        exec_logout();
     }
 
-    $.ajax({
-        type: 'POST',
-        url: 'app/logout',
-        data: JSON.stringify({}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
+    function exec_logout() {
+        var headers = {};
 
-        success: function(_data, textStatus) {
-            console.log('Request logout Result ' + textStatus);
-            process_logout();
-        },
-
-        error: function (request, textStatus) {
-            console.log('Request logout Error, status: ' + textStatus);
+        if (dderlState.adapter !== null) {
+            headers['DDERL-Adapter'] = dderlState.adapter;
         }
-    });
+
+        $.ajax({
+            type: 'POST',
+            url: 'app/logout',
+            data: JSON.stringify({}),
+            dataType: "JSON",
+            contentType: "application/json; charset=utf-8",
+            headers: headers,
+            context: null,
+
+            success: function(_data, textStatus) {
+                console.log('Request logout Result ' + textStatus);
+                process_logout();
+            },
+
+            error: function (request, textStatus) {
+                console.log('Request logout Error, status: ' + textStatus);
+            }
+        });
+    }
 }
 
 //TODO: Does this function belong here ?

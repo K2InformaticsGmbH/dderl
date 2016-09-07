@@ -42,8 +42,8 @@ export function confirm_jq(dom, callback) {
         .append(content)
         .dialog({
             modal:false,
-            width: 300,
-            height: 300,
+            width: dom.width || 300,
+            height: dom.height || 300,
             title: dom.title,
             appendTo: "#main-body",
             close: function() {
