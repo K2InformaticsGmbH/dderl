@@ -514,7 +514,6 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                     conn_info = ConnInfo, id = Id} = State)
   when Cmd =:= [<<"connect">>];
        Cmd =:= [<<"disconnect">>] ->
-    #state{id = Id} = State,
     BodyJson = jsx:decode(ReqData),
     {Host, ConnStr} = 
             case proplists:get_value(<<"host">>, BodyJson, none) of

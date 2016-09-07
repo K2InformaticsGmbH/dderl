@@ -548,6 +548,7 @@ export function disconnect_tab() {
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
+    var response = false;
     $.ajax({
         type: 'POST',
         url: 'app/disconnect',
@@ -564,6 +565,7 @@ export function disconnect_tab() {
             dderlState.connected_user = null;
             dderlState.service = null;
             connect_dlg();
+            response = true;
         },
 
         error: function (request, textStatus) {
@@ -575,8 +577,17 @@ export function disconnect_tab() {
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
+            response = true;
         }
     });
+    
+    // Since disconnect is called on tab the request does not go throught as the
+    // connection is closed after the request is sent.
+    // this is a workaround to send the request completely by not using sync req
+    // following code would do sleep of 1 second.
+    var now = new Date().getTime();
+    while(!response && (new Date().getTime() - now) < 1000) {}
+    console.log("giving up...");
 }
 
 export function change_connect_password(loggedInUser, connectSuccessCb) {
