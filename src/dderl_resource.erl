@@ -11,7 +11,6 @@
 -export([info/3]).
 -export([terminate/3]).
 
-
 %-define(DISP_REQ, 1).
 
 init({ssl, http}, Req, []) ->
@@ -162,6 +161,15 @@ info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [DDerlSessPid]),
     spawn(SpawnFun),
     {loop, Req, DDerlSessPid, hibernate};
+info({reply, saml}, Req, DDerlSessPid) ->
+    {Url, Req1} = cowboy_req:host_url(Req),
+    TargetUrl = binary_to_list(Url) ++ dderl:get_url_suffix(),
+    cowboy_req:reply(302, [
+            {<<"Cache-Control">>, <<"no-cache">>},
+            {<<"Pragma">>, <<"no-cache">>},
+            {<<"Location">>, list_to_binary(TargetUrl)}
+        ], <<"Redirecting...">>, Req1),
+    {ok, Req1, DDerlSessPid};
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~p to ~p", [Body, DDerlSessPid]),
     BodyEnc = if is_binary(Body) -> Body;

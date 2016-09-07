@@ -565,7 +565,10 @@ process_login_req(ReqData, From, State, SrcIp) ->
                           ok -> process_login_req(#{}, From, State1, SrcIp);
                           _ -> {Reply, State1}
                     end,
-                    reply(From, #{login => maps:merge(Reply0, Reply1)}, self()),
+                    case ReqDataMap of
+                        #{<<"samlUser">> := _} -> reply(From, saml, self());
+                        _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
+                    end,
                     State2
             end;
         _ ->

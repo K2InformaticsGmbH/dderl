@@ -1,8 +1,6 @@
 -module(dderl_cow_mw).
 -behavior(cowboy_middleware).
 
--include("dderl.hrl").
-
 -export([execute/2]).
 
 execute(Req0, Env) ->
@@ -10,7 +8,7 @@ execute(Req0, Env) ->
     Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "DENY", Req0),
     Req2 = cowboy_req:set_resp_header(<<"x-xss-protection">>, "1", Req1),
     Req3 = cowboy_req:set_resp_header(<<"x-content-type-options">>, "nosniff", Req2),
-    case re:run(Path, "^"++?URLSUFFIX) of
+    case re:run(Path, "^" ++ dderl:get_url_suffix()) of
         nomatch ->
             {ok, Req3, Env};
         _ ->

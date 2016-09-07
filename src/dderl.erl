@@ -20,6 +20,8 @@
 
 -export([access/10]).
 
+-export([get_url_suffix/0]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -78,7 +80,7 @@ start(_Type, _Args) ->
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
-                         end, ":~p~s"]), [Port,?URLSUFFIX]),
+                         end, ":~p~s"]), [Port,get_url_suffix()]),
     ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
                                               io_lib:format("~p",[NRP]))
                                             ||NRP<-DDerlRoutes], "\n")]),
@@ -163,7 +165,6 @@ insert_routes(Intf, [{'_',[],Dispatch}]) ->
            https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
                    | Opts1]).
 
-
 -spec reset_routes(atom()) -> ok.
 reset_routes(Intf) ->
     Opts = ranch:get_protocol_options(Intf),
@@ -180,7 +181,7 @@ reset_routes(Intf) ->
 %%-----------------------------------------------------------------------------
 get_routes() ->
     PrivDir = get_priv_dir(),
-    UrlPathPrefix = ?URLSUFFIX,
+    UrlPathPrefix = get_url_suffix(),
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      % {UrlPathPrefix++"/"++?SPURLPREFIX++"/:operation", dderl_saml_handler, []},
@@ -240,6 +241,8 @@ get_ssl_options({ok, []}) ->
     end;
 get_ssl_options({ok, SslOpts}) ->
     SslOpts.
+
+get_url_suffix() -> ?URLSUFFIX.
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
