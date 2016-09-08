@@ -189,7 +189,7 @@
 
 %% SAML configs
 -define(IDPMETAURL,         ?GET_CONFIG(samlIdpMetaUrl, [], "https://sts.testswisscom.com/FederationMetadata/2007-06/FederationMetadata.xml", "IDP Metadata URL for dderl")).
--define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "auth", "URL Prefix for all SP links")).
+-define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "saml", "URL Prefix for all SP links")).
 -define(METAURLSUFFIX,      ?GET_CONFIG(samlSpMetaUrlSuffix, [], <<"metadata">>, "URL suffix of SP metadata")).
 -define(AUTHRESPURLSUFFIX,  ?GET_CONFIG(samlSpAuthRespUrlSuffix, [], <<"consume">>, "URL suffix of SP to receive SAML AuthResp")).
 -define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).

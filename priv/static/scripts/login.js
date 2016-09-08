@@ -70,8 +70,8 @@ function loginCb(resp) {
                             val         : ""}]
         });
     } else if(resp.hasOwnProperty('saml')) {
-        if(resp.saml.hasOwnProperty('urlSuffix')) {
-            window.location.href = window.location.href + resp.saml.urlSuffix;
+        if(resp.saml.hasOwnProperty('forwardUrl')) {
+            window.location.href = resp.saml.forwardUrl;
         }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);

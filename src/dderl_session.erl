@@ -6,6 +6,7 @@
 -type ipport() :: {inet:ip_address(), inet:port_number()}.
 
 -include("dderl.hrl").
+-include_lib("esaml/include/esaml.hrl").
 
 -export([start_link/1
         , get_session/2
@@ -162,7 +163,12 @@ process_login(SessionId,#{}, #state{conn_info=ConnInfo, sess = ErlImemSess}=Stat
 process_login_reply(ok)                         -> ok;
 process_login_reply({ok, []})                   -> ok;
 process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{pwdmd5=>process_data(Data)};
-process_login_reply({ok, [{saml,Data}|_]})      -> #{saml=>process_data(Data#{urlSuffix => <<"saml/auth">>})};
+process_login_reply({ok, [{saml,Data}|_]})      ->
+    #{saml => process_data(
+                Data#{forwardUrl =>
+                      dderl_saml_handler:fwdUrl(
+                        fun dderl_resource:samlRelayStateHandle/2)}
+               )};
 process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}.
 
 process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
@@ -566,7 +572,8 @@ process_login_req(ReqData, From, State, SrcIp) ->
                           _ -> {Reply, State1}
                     end,
                     case ReqDataMap of
-                        #{<<"samlUser">> := _} -> reply(From, saml, self());
+                        #{<<"samlUser">> := _} ->
+                            reply(From, {saml, dderl:get_url_suffix()}, self());
                         _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
                     end,
                     State2

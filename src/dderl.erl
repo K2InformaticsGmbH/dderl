@@ -184,9 +184,7 @@ get_routes() ->
     UrlPathPrefix = get_url_suffix(),
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
-     % {UrlPathPrefix++"/"++?SPURLPREFIX++"/:operation", dderl_saml_handler, []},
-     % {UrlPathPrefix++"/saml/:operation", dderl_saml_handler, []},
-     {UrlPathPrefix++"/saml/[...]", dderl_resource, []},
+     {UrlPathPrefix++"/"++?SPURLPREFIX++"/:operation", dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
 get_priv_dir() ->

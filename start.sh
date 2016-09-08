@@ -10,7 +10,7 @@ if [ "$#" -ne 4 ]; then
     nid=1
     cid=2
     port=1236
-    dderlport=8443
+    dderlport=8081
 fi
 
 unamestr=`uname`

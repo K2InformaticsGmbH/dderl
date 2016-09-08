@@ -5,28 +5,28 @@
 -behaviour(cowboy_loop_handler).
  
 -include("dderl.hrl").
--include_lib("esaml/include/esaml.hrl").
 
 -export([init/3]).
 -export([info/3]).
 -export([terminate/3]).
 
+-export([samlRelayStateHandle/2]).
+
 %-define(DISP_REQ, 1).
 
 init({ssl, http}, Req, []) ->
     display_req(Req),
-    {_Method, Req0} = cowboy_req:method(Req),
-    {Typ, Req1} = cowboy_req:path_info(Req0),
-    case cowboy_req:has_body(Req0) or (Typ == [<<"auth">>]) of
-    true ->
-        {Session, Req2} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req1, <<>>),
-        {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
-        % ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
-        process_request(Session, Adapter, Req3, Typ);
-    _Else ->
-        ?Error("DDerl request ~p, error ~p", [Req0, _Else]),
-        self() ! {reply, <<"{}">>},
-        {loop, Req, <<>>, 5000, hibernate}
+    case cowboy_req:has_body(Req) of
+        true ->
+            {Typ, Req1} = cowboy_req:path_info(Req),
+            {Session, Req2} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req1, <<>>),
+            {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
+            % ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
+            process_request(Session, Adapter, Req3, Typ);
+        Else ->
+            ?Error("DDerl request ~p, error ~p", [Req, Else]),
+            self() ! {reply, <<"{}">>},
+            {loop, Req, <<>>, 5000, hibernate}
     end.
 
 multipart(Req) -> multipart(Req, []).
@@ -54,26 +54,6 @@ stream_file(Req, Buffer) ->
         {more, Body, Req2} ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
-
-%% SAML Requests 
-process_request(_Session, _, Req, [<<"auth">>]) ->
-    {SP, IdpMeta} = dderl_saml_handler:initialize(),
-    #esaml_idp_metadata{login_location = IDP} = IdpMeta,
-    {ok, Req1} = esaml_cowboy:reply_with_authnreq(SP, IDP, <<"foo">>, Req),
-    {loop, Req1, <<>>, 5000, hibernate};
-process_request(Session, Adapter, Req, [<<"consume">>] = Typ) ->
-    {SP, _} = dderl_saml_handler:initialize(),
-    case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
-        {ok, Assertion, _RelayState, Req1} ->
-            Attrs = Assertion#esaml_assertion.attributes,
-            AccName = proplists:get_value(windowsaccountname, Attrs),
-            process_request_low(Session, Adapter, Req1, jsx:encode(#{samlUser => list_to_binary(AccName)}), Typ);
-        {error, Reason, Req2} ->
-            {ok, Req3} = cowboy_req:reply(403, [{<<"content-type">>, <<"text/plain">>}],
-                ["Access denied, assertion failed validation:\n", io_lib:format("~p\n", [Reason])],
-                Req2),
-            {loop, Req3, <<>>, 5000, hibernate}
-    end;
 
 process_request(_, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
@@ -136,6 +116,12 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             end
     end.
 
+samlRelayStateHandle(Req, SamlAttrs) ->
+    {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
+    {Session, Req1} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>),
+    AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
+    process_request_low(Session, Adapter, Req1, jsx:encode(#{samlUser => AccName}), [<<"login">>]).
+
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
     Sock = cowboy_req:get(socket, Req),
@@ -161,15 +147,6 @@ info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [DDerlSessPid]),
     spawn(SpawnFun),
     {loop, Req, DDerlSessPid, hibernate};
-info({reply, saml}, Req, DDerlSessPid) ->
-    {Url, Req1} = cowboy_req:host_url(Req),
-    TargetUrl = binary_to_list(Url) ++ dderl:get_url_suffix(),
-    cowboy_req:reply(302, [
-            {<<"Cache-Control">>, <<"no-cache">>},
-            {<<"Pragma">>, <<"no-cache">>},
-            {<<"Location">>, list_to_binary(TargetUrl)}
-        ], <<"Redirecting...">>, Req1),
-    {ok, Req1, DDerlSessPid};
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~p to ~p", [Body, DDerlSessPid]),
     BodyEnc = if is_binary(Body) -> Body;

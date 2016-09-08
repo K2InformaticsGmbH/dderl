@@ -3,55 +3,47 @@
 -include_lib("esaml/include/esaml.hrl").
 -include("dderl.hrl").
 
--export([init/3, handle/2, terminate/3]).
+-export([init/3, info/3, terminate/3]).
 
--export([initialize/0]).
+-export([fwdUrl/1]).
 
 -record(state, {sp, idp}).
 
 init(_Transport, Req, _Args) ->
+    ?Info("host       ~p~n", [element(1,cowboy_req:host(Req))]),
+    ?Info("host_info  ~p~n", [element(1,cowboy_req:host_info(Req))]),
+    ?Info("path       ~p~n", [element(1,cowboy_req:path(Req))]),
+    ?Info("path_info  ~p~n", [element(1,cowboy_req:path_info(Req))]),
+    ?Info("host_url   ~p~n", [element(1,cowboy_req:host_url(Req))]),
+    ?Info("url        ~p~n", [element(1,cowboy_req:url(Req))]),    
     {SP, IdpMeta} = initialize(),
-    {ok, Req, #state{sp = SP, idp = IdpMeta}}.
-
-handle(Req, S = #state{}) ->
     {Operation, Req2} = cowboy_req:binding(operation, Req),
     {Method, Req3} = cowboy_req:method(Req2),
-    handle(Method, Operation, Req3, S).
+    process_req(Method, Operation, Req3, #state{sp = SP, idp = IdpMeta}).
 
 % Handles HTTP-POST bound assertions coming back from the IDP.
 % handle(<<"POST">>, ?AUTHRESPURLSUFFIX, Req, S = #state{sp = SP}) ->
-handle(<<"POST">>, <<"consume">>, Req, S = #state{sp = SP}) ->
-    io:format("$$$$$$ GOt consume url~n"),
+process_req(<<"POST">>, <<"consume">>, Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
-        {ok, Assertion, RelayState, Req2} ->
-            Attrs = Assertion#esaml_assertion.attributes,
-            Uid = proplists:get_value(windowsaccountname, Attrs),
-            Output = io_lib:format("<html><head><title>SAML SP demo</title></head><body><h1>Hi there!</h1><p>This is the <code>esaml_sp_default</code> demo SP callback module from eSAML.</p><table><tr><td>Your name:</td><td>\n~p\n</td></tr><tr><td>Your UID:</td><td>\n~p\n</td></tr></table><hr /><p>RelayState:</p><pre>\n~p\n</pre><p>The assertion I got was:</p><pre>\n~p\n</pre></body></html>", [Assertion#esaml_assertion.subject#esaml_subject.name, Uid, RelayState, Assertion]),
-            {ok, Req3} = cowboy_req:reply(200, [{<<"Content-Type">>, <<"text/html">>}], Output, Req2),
-            {ok, Req3, S};
-
+        {ok, Assertion, RelayState, Req1} ->
+            Fun = binary_to_term(base64:decode(http_uri:decode(binary_to_list(RelayState)))),
+            Fun(Req1, Assertion#esaml_assertion.attributes);
         {error, Reason, Req2} ->
             {ok, Req3} = cowboy_req:reply(403, [{<<"content-type">>, <<"text/plain">>}],
                 ["Access denied, assertion failed validation:\n", io_lib:format("~p\n", [Reason])],
                 Req2),
             {ok, Req3, S}
-    end;
-% Return our SP metadata as signed XML
-% handle(<<"GET">>, ?METAURLSUFFIX, Req, S = #state{sp = SP}) ->
-handle(<<"GET">>, <<"metadata">>, Req, S = #state{sp = SP}) ->
-    {ok, Req2} = esaml_cowboy:reply_with_metadata(SP, Req),
-    {ok, Req2, S};
+    end.
 
-% Visit /saml/auth to start the authentication process -- we will make an AuthnRequest
-% and send it to our IDP
-handle(<<"GET">>, <<"auth">>, Req, S = #state{sp = SP,
-    idp = #esaml_idp_metadata{login_location = IDP}}) ->
-    {ok, Req2} = esaml_cowboy:reply_with_authnreq(SP, IDP, <<"foo">>, Req),
-    {ok, Req2, S};
-
-handle(_, _, Req, S = #state{}) ->
-    {ok, Req2} = cowboy_req:reply(404, [], <<"Not found">>, Req),
-    {ok, Req2, S}.
+info({reply, {saml, UrlSuffix}}, Req, State) ->
+    {Url, Req1} = cowboy_req:host_url(Req),
+    TargetUrl = list_to_binary([Url,UrlSuffix]),
+    {ok, Req2} = cowboy_req:reply(302, [
+            {<<"Cache-Control">>, <<"no-cache">>},
+            {<<"Pragma">>, <<"no-cache">>},
+            {<<"Location">>, TargetUrl}
+        ], <<"Redirecting...">>, Req1),
+    {ok, Req2, State}.
 
 terminate(_Reason, _Req, _State) -> ok.
 
@@ -93,3 +85,8 @@ initialize() ->
     {SP, IdpMeta}.
     
 
+fwdUrl(RelayStateCbFun) when is_function(RelayStateCbFun) ->
+    fwdUrl(base64:encode(term_to_binary(RelayStateCbFun)));
+fwdUrl(RelayState) when is_binary(RelayState) ->
+    {SP, #esaml_idp_metadata{login_location = IDP}} = initialize(),
+    esaml_binding:encode_http_redirect(IDP, SP:generate_authn_request(IDP), RelayState).
