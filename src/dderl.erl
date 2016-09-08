@@ -20,7 +20,7 @@
 
 -export([access/10]).
 
--export([get_url_suffix/0]).
+-export([get_url_suffix/0, get_sp_url_suffix/0]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -184,7 +184,7 @@ get_routes() ->
     UrlPathPrefix = get_url_suffix(),
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
-     {UrlPathPrefix++"/"++?SPURLPREFIX++"/:operation", dderl_saml_handler, []},
+     {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
 get_priv_dir() ->
@@ -241,6 +241,8 @@ get_ssl_options({ok, SslOpts}) ->
     SslOpts.
 
 get_url_suffix() -> ?URLSUFFIX.
+
+get_sp_url_suffix() -> ?SPURLPREFIX.
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 

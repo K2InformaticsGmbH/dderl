@@ -97,15 +97,22 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
         true -> undefined
     end,
     {{Ip, Port}, Req} = cowboy_req:peer(Req),
+    NewBody =
+    if Typ == [<<"login">>] -> 
+            {HostUrl, Req} = cowboy_req:host_url(Req),
+            BodyMap = jsx:decode(Body, [return_maps]),
+            jsx:encode(BodyMap#{host_url => HostUrl});
+       true -> Body
+    end,
     case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
         {ok, DderlSess} ->
-            dderl_session:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}, DderlSess),
+            dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, DderlSess),
             {loop, Req, DderlSess, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
                     {ok, DderlSess2} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
-                    dderl_session:process_request(AdaptMod, Typ, Body, self(), {Ip, Port}, DderlSess2),
+                    dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, DderlSess2),
                     {loop, Req, DderlSess2, 3600000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
