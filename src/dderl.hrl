@@ -188,7 +188,7 @@
 -define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
 
 %% SAML configs
--define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://sts.swisscom.com/adfs/ls/", "IDP Login URL")).
+-define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://idp.host.com/", "IDP Login URL")).
 -define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "/saml", "URL Prefix for all SP links")).
 -define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).
 

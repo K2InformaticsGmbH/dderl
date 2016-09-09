@@ -100,7 +100,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
     NewBody =
     if Typ == [<<"login">>] -> 
             {HostUrl, Req} = cowboy_req:host_url(Req),
-            BodyMap = jsx:decode(Body, [return_maps]),
+            BodyMap = imem_json:decode(Body, [return_maps]),
             jsx:encode(BodyMap#{host_url => HostUrl});
        true -> Body
     end,
