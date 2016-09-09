@@ -169,7 +169,7 @@ process_login_reply({ok, [{saml,Data}|_]}, Body)       ->
     HostUrl = binary_to_list(HostUrlBin),
     #{saml => process_data(
                 Data#{forwardUrl =>
-                      dderl_saml_handler:fwdUrl(HostUrl, HostUrl ++ dderl:get_sp_url_suffix(),
+                      dderl_saml_handler:fwdUrl(HostUrl, HostUrl ++ dderl:get_url_suffix() ++ dderl:get_sp_url_suffix(),
                         fun dderl_resource:samlRelayStateHandle/2)}
                )}.
 
