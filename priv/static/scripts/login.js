@@ -187,7 +187,7 @@ function inputEnter(layout) {
 
 export function logout() {
     if(dderlState.connection) {
-        confirm_jq({title: "Confirm logout", content:'', height: 150}, function() {
+        confirm_jq({title: "Confirm logout", content:''}, function() {
             exec_logout();
         });
     } else {
