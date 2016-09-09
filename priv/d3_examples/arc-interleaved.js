@@ -13,7 +13,8 @@ function init(container, width, height) {
 
 ["prod","job01"]	{"platform": "platform01", "direction":"pull", "args": {"group": "03"}, "enabled": true}	ZSPGI
 ["prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
-["prod","job02"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	11TOKT
+["prod","job02"]	{"platform": "platform02", "direction":"push", "args": {"group":"03"}, "enabled": true}	11TOKT
+["prod","job02","10.0.0.1"]	{"status":"idle"}	BKEK9
 ["prod","job03"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1SF3PY
 ["prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
 ["prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
@@ -247,8 +248,6 @@ function init(container, width, height) {
             }
 
             graph = extractLinksNodes(data, graph);
-            console.log('the links', graph.links);
-            console.log('the nodes', graph.nodes);
 
             // Note: entries adds the id to the values in the original object
             var nodes = entries(graph.nodes);
@@ -381,23 +380,38 @@ function init(container, width, height) {
                 }
                 var dirX = positions[d.source].x - positions[d.target].x;
                 var dirY = positions[d.source].y - positions[d.target].y;
-                /*
-                if(d.direction === "pull") {
-                    dirX = -dirX;
-                    dirY = -dirY;
+                var dirM = Math.sqrt(dirX * dirX + dirY + dirY);
+                if(dirM > 0.01) {
+                    dirX /= dirM;
+                    dirY /= dirM;
+                } else {
+                    dirX = 0;
+                    dirY = -1;
                 }
-                */
+
                 var jobsId = Object.keys(d.jobs);
                 // TODO: We only support 4 set of jobs in the same line.
                 var start = 0.5 - (jobsId.length - 1)*0.1;
-                console.log("the length", jobsId.length);                
                 for(var i = 0; i < jobsId.length; ++i) {
                     var pct = start + i * 0.2;
-                    console.log("the pct used i", pct);
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
+                    if(d.jobs[jobsId[i]].direction === "pull") {
+                        dirX = -dirX;
+                        dirY = -dirY;
+                    }
                     linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: {x: dirX, y: dirY}};
                 }
+            });
+
+            var groupStatus = {};
+            var statusPos = {};
+            status.forEach(function(s) {
+                if(!groupStatus.hasOwnProperty(s.job)) {
+                    groupStatus[s.job] = 0;
+                }
+                statusPos[s.id] = groupStatus[s.job];
+                groupStatus[s.job] = groupStatus[s.job] + 1;                
             });
 
             svg.selectAll('polygon')
@@ -421,8 +435,8 @@ function init(container, width, height) {
                     var dx = linksMid[d.job].direction.x;
                     var dy = linksMid[d.job].direction.y;
                     var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
-                    var x = linksMid[d.job].mid.x;
-                    var y = linksMid[d.job].mid.y;
+                    var x = linksMid[d.job].mid.x + statusPos[d.id] * dx * 20;
+                    var y = linksMid[d.job].mid.y + statusPos[d.id] * dy * 20;
                     return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                 })
                 .style('stroke', 'black')
