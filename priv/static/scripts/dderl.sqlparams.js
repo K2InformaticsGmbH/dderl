@@ -44,7 +44,7 @@ function buildCtxHandler(container, inp) {
         menu.style.left = (e.clientX - 10) + "px";
         menu.onmouseleave = function() {
             mainBody.removeChild(menu);
-        }
+        };
         var menuEntry = document.createElement("li");
         menu.appendChild(menuEntry);
         menuEntry.appendChild(document.createTextNode("Edit"));
@@ -64,10 +64,10 @@ function buildCtxHandler(container, inp) {
             termOwner._divDisable = disable(container);
             termOwner.enableDialog = function() {
                 enable(termOwner._divDisable);
-            }
+            };
             termOwner.updateErlangCell = function(newValue) {
                 inp.val(newValue);
-            }
+            };
 
             $('<div>')
                 .appendTo(document.body)
