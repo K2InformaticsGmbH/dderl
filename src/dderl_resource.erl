@@ -60,7 +60,7 @@ process_request(_, _, Req, [<<"upload">>]) ->
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
     {{SrcIp, _}, Req} = cowboy_req:peer(Req),
     catch dderl:access(?CMD_WITHARGS, SrcIp, "", "upload", io_lib:format("~p", [Files]), "", "", "", "", ""),
-    self() ! {reply, jsx:encode(
+    self() ! {reply, imem_json:encode(
                        #{upload =>
                          [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
                               "text/plain" -> F;
@@ -77,7 +77,7 @@ process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
     BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
     process_request_low(Session, Adapter, Req1,
-                        jsx:encode([{<<"download_query">>,
+                        imem_json:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
                                       {<<"fileToDownload">>, FileToDownload},
                                       {<<"queryToDownload">>, QueryToDownload},
@@ -86,7 +86,7 @@ process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
 process_request(Session, Adapter, Req, [<<"close_tab">>]) ->
     {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
     process_request_low(Session, Adapter, Req1, 
-        jsx:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
+        imem_json:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
 process_request(Session, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(Session, Adapter, Req1, Body, Typ).
@@ -118,7 +118,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
                           [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
-                    self() ! {reply, jsx:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
+                    self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
                     {loop, Req, Session, 5000, hibernate}
             end
     end.
@@ -127,7 +127,7 @@ samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
     {Session, Req1} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
-    process_request_low(Session, Adapter, Req1, jsx:encode(#{samlUser => AccName}), [<<"login">>]).
+    process_request_low(Session, Adapter, Req1, imem_json:encode(#{samlUser => AccName}), [<<"login">>]).
 
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
@@ -157,7 +157,7 @@ info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
 info({reply, Body}, Req, DDerlSessPid) ->
     ?Debug("reply ~n~p to ~p", [Body, DDerlSessPid]),
     BodyEnc = if is_binary(Body) -> Body;
-                 true -> jsx:encode(Body)
+                 true -> imem_json:encode(Body)
               end,
     {ok, Req2} = reply_200_json(BodyEnc, DDerlSessPid, Req),
     {ok, Req2, DDerlSessPid};

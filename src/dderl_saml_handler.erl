@@ -40,7 +40,7 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
 info({reply, Body}, Req, State) ->
     ?Debug("reply ~n~p to ~p", [Body, State]),
     BodyEnc = if is_binary(Body) -> Body;
-                 true -> jsx:encode(Body)
+                 true -> imem_json:encode(Body)
               end,
     {ok, Req1} =  cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
