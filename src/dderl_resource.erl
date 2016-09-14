@@ -10,7 +10,7 @@
 -export([info/3]).
 -export([terminate/3]).
 
--export([samlRelayStateHandle/2]).
+-export([samlRelayStateHandle/2, conn_info/1]).
 
 %-define(DISP_REQ, 1).
 
