@@ -305,7 +305,6 @@ rows_limit(NRows, Recs, {?MODULE, Pid}) ->
 
 -spec delete({list(), _}, {atom(), pid()}) -> ok.
 delete({Rows,Completed},{?MODULE,Pid}) ->
-    ?Info("delete ~p ~p", [Rows, Completed]),
     gen_fsm:send_event(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
