@@ -24,7 +24,7 @@ function init(container, width, height) {
     var yDom, yParse, yScaleTemplate, yScale, yAutoscale, yAllowance;
     var xMin, xMax, yMin, yMax;   // current zoom domain extent with Allowance
     var xMinFull, xMaxFull, yMinFull, yMaxFull; // raw full domain extent
-    var xAxisGroup, xAxis, xText, yAxisGroup, yAxis, yTexts;
+    var gxAxis, xAxis, xText, gyAxis, yAxis, yTexts;
     var xTickCount, xTickFormatSpecifier, yTickCount, yTickFormatSpecifier;      
     var radius;     // circle point default radius
     var a;          // square point default radius
@@ -36,8 +36,9 @@ function init(container, width, height) {
     var xLeg, yLeg, dxLeg, dyLeg, xLegStart, yLegStart, fsLeg;  // legend position and font size
     var zoom = svg.append("g").attr("class", "brush_zoom");
     var brush_zoom = d3.brush().on("end", brush_zoom_ended);    // zoom brush
-    var g = svg.append("g");            // main svg item group (axes, point groups)
-    var gLeg = svg.append("g");          // legend group
+    var g = svg.append("g");                    // main svg item group (axes, point groups)
+    var gxTitle = svg.append("g");              // x axis title group
+    var gLeg = svg.append("g");                 // legend group
     var idleTimeout, idleDelay = 350;
     var tParse = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse
 
@@ -156,7 +157,6 @@ function init(container, width, height) {
 
     function init() {
         g.selectAll('svg > g > *').remove();
-        gLeg.selectAll('svg > g > *').remove();
         g.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
         g1 = g.append("g");
         g2 = g.append("g");
@@ -196,24 +196,33 @@ function init(container, width, height) {
         resize(width, height);
     }
 
-    var dragEvents = d3.drag();
-    
-    dragEvents.on("start", function() {
-        xLegStart = d3.event.x - xLeg;
-        yLegStart = d3.event.y - yLeg;
-    });
+    var drag = d3.drag()
+        .subject(dragsubject)
+        .on("start", dragstarted)
+        .on("drag", dragged); 
 
-    dragEvents.on("end", function() {
-        if(!d3.event.active) {
-            // simulation.alphaTarget(0)
-        };
-    });
-    
-    dragEvents.on("drag", function() {
-        xLeg = d3.event.x - xLegStart; // -d3.event.offsetX;
-        yLeg = d3.event.y - yLegStart; //  -d3.event.offsetY;
-        gLeg.attr("transform", "translate(" + xLeg + "," + yLeg + ")");
-    });
+    function dragsubject() {
+      return d3.select(this);
+    }
+
+    function dragstarted() {
+        var translation = getTranslation(d3.event.subject.attr("transform"));
+        d3.event.subject.fx = d3.event.x - translation[0];
+        d3.event.subject.fy = d3.event.y - translation[1];
+    }
+
+    function dragged() {
+        var x = d3.event.x - d3.event.subject.fx;
+        var y = d3.event.y - d3.event.subject.fy;
+        d3.event.subject.attr("transform", "translate(" + x + "," + y + ")");
+    }
+
+    function getTranslation(transform) {
+        var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttributeNS(null, "transform", transform);
+        var matrix = g.transform.baseVal.consolidate().matrix;
+        return [matrix.e, matrix.f];
+    }
 
     var idVal = function(d) {
         return d.id;
@@ -340,6 +349,18 @@ function init(container, width, height) {
         return obj;
     };
 
+    function printHorTitle(x,y,text) {
+        gxTitle.append("text")
+            .text(text)
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr('font-size', fsLeg)
+            .attr('font-family','sans-serif')
+            .attr('fill','#000')
+            .style("text-anchor", "end");
+        gxTitle.attr("transform", "translate(" + x + "," + y + ")");
+    };
+
     function printLegendText(x,y,text) {
         gLeg.append("text")
             .text(text)
@@ -441,22 +462,13 @@ function init(container, width, height) {
         svg.attr('width', width).attr('height', height);
         if (!noData) {
             rescale();
-            xAxisGroup.remove();
-            xAxisGroup = g.append("g")
+            gxAxis.remove();
+            gxAxis = g.append("g")
                 .attr("class", "x axis")
                 .attr("transform", "translate(0," + cHeight + ")")
                 .call(xAxis);
-
-            xAxisGroup.append("text")
-                .attr("x", cWidth)
-                .attr("dx", "-0.71em")
-                .attr("dy", "-0.71em")
-                .attr('font-size', '1.5em')
-                .attr('fill','#000')
-                .style("text-anchor", "end")
-                .text(xText);
-
-            yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+            gyAxis.transition().call(yAxis);  // Update Y-Axis
+            gxTitle.attr("transform", "translate(" + (w-margin.right) + "," + (h-dyLeg) + ")");
 
             g1.selectAll("circle").transition().attrs(circleAttrs1);
             if (yCount >= 2) {
@@ -493,7 +505,8 @@ function init(container, width, height) {
     init();
     resize(width, height);
     zoom.call(brush_zoom);
-    gLeg.call(dragEvents);
+    gLeg.call(drag);
+    gxTitle.call(drag);
 
     return {
 
@@ -534,6 +547,7 @@ function init(container, width, height) {
                     printLegendText(dxLeg,dyLeg+dyLeg+dyLeg,yTexts[3]);                 
                 };
                 gLeg.attr("transform", "translate(" + xLeg + "," + yLeg + ")");
+                printHorTitle(width-margin.right,height-dyLeg,xText);
             }
             var xG = xGrow(Math.min(xMin, d3.min(data, xVal)), Math.max(xMax, d3.max(data, xVal)));
             var yG = yGrow(Math.min(yMin, d3.min(data, y1Val)), Math.max(yMax, d3.max(data, y1Val)));
@@ -551,32 +565,21 @@ function init(container, width, height) {
 
             if (noData) {
                 noData = false;
-                xAxisGroup = g.append("g")
+                gxAxis = g.append("g")
                     .attr("class", "x axis")
                     .attr("transform", "translate(0," + cHeight + ")")
                     .call(xAxis);
-
-                xAxisGroup.append("text")
-                    .attr("x", cWidth)
-                    .attr("dx", "-0.71em")
-                    .attr("dy", "-0.71em")
-                    .attr('font-size', '1.5em')
-                    .attr('fill','#000')
-                    .style("text-anchor", "end")
-                    .text(xText);
-
-                yAxisGroup = g.append("g")
+                gyAxis = g.append("g")
                     .attr("class", "y axis")
                     .call(yAxis);
-
             } else {
                 if (xG) {
-                    xAxisGroup
+                    gxAxis
                     .attr("transform", "translate(0," + cHeight + ")")
                     .transition().call(xAxis);  // Update X-Axis
                 }
                 if (yG) {
-                    yAxisGroup.transition().call(yAxis);  // Update Y-Axis
+                    gyAxis.transition().call(yAxis);  // Update Y-Axis
                 }
             }
 

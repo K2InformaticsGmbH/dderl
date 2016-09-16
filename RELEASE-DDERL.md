@@ -3,6 +3,16 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.2 (Release Date 16.09.2016)
+======================================
+* imem 1.5.3
+* erlimem 1.2.6
+* included dderloci inside dderl instead of as dependency
+* Replaced brunch with webpack included es6 support
+* Added d3 graph examples
+* PL/SQL in/out paramter support
+* Using cookies to hold the session
+
 Version 1.6.1 (Release Date 16.06.2016)
 ======================================
 * imem 1.5.3

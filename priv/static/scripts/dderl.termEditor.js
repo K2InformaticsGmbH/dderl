@@ -253,8 +253,8 @@ import {ajaxCall, unescapeNewLines} from './dderl';
 
         open: function() {
             var self = this;
-            var termOwnerDlg = self._termOwner._dlg.dialog("widget");
-            self._dlg.dialog("option", "position", {at : 'left+20 top+25', my : 'left top', of: termOwnerDlg, collision : 'flipfit'});
+
+            self._dlg.dialog("option", "position", {at : 'left+20 top+25', my : 'left top', of: self._termOwner._divDisable, collision : 'flipfit'});
             self._dlg.dialog("open").dialog("widget").draggable("option","containment", self._container);
             self._termOwner._divDisable.click(function() {
                 //Add this to prevent hiding this dialog behind the disabled parent window.
