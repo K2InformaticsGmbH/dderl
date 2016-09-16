@@ -41,9 +41,11 @@ function loginCb(resp) {
         display({title  : "Login",
                   fields :[{type       : "text",
                             placeholder: "User",
+                            name       : "user",
                             val        : accountName},
                            {type       : "password",
                             placeholder: "Password",
+                            name       : "password",
                             val        : ""},
                            {type       : "label",
                             val        : resp.error,
@@ -54,9 +56,11 @@ function loginCb(resp) {
         display({title  : "Login",
                  fields : [{type        : "text",
                             placeholder : "User",
+                            name        : "user",
                             val         : resp.pwdmd5.accountName},
                            {type        : "password",
                             placeholder : "Password",
+                            name        : "password",
                             val         : ""}]
         });
     } else if(resp.hasOwnProperty('smsott')) {
@@ -67,6 +71,7 @@ function loginCb(resp) {
                                           ". Please enter the token below"},
                            {type        : "text",
                             placeholder : "SMS Token",
+                            name        : "smsott",
                             val         : ""}]
         });
     } else if(resp.hasOwnProperty('saml')) {
@@ -180,9 +185,9 @@ function inputEnter(layout) {
         }
         if (layout.fields[fldIdx].type != "label") {
             if(layout.fields[fldIdx].type == "password") {
-                data[layout.fields[fldIdx].placeholder] = md5Arr(layout.fields[fldIdx].val);
+                data[layout.fields[fldIdx].name] = md5Arr(layout.fields[fldIdx].val);
             } else {
-                data[layout.fields[fldIdx].placeholder] = layout.fields[fldIdx].val;
+                data[layout.fields[fldIdx].name] = layout.fields[fldIdx].val;
             }
         }
     }

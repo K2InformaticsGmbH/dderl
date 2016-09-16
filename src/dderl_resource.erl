@@ -127,7 +127,7 @@ samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
     {Session, Req1} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
-    process_request_low(Session, Adapter, Req1, imem_json:encode(#{samlUser => AccName}), [<<"login">>]).
+    process_request_low(Session, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),

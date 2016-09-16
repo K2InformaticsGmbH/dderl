@@ -148,13 +148,13 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_login(SessionId,#{<<"SMS Token">>:=Token} = Body, #state{sess=ErlImemSess}=State) ->
+process_login(SessionId,#{<<"smsott">>:=Token} = Body, #state{sess=ErlImemSess}=State) ->
     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token}), Body), State};
-process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password} = Body, #state{sess = ErlImemSess} = State) ->
+process_login(SessionId,#{<<"user">>:=User,<<"password">>:=Password} = Body, #state{sess = ErlImemSess} = State) ->
     {process_login_reply(
        ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}), Body
       ), State#state{user=User}};
-process_login(SessionId,#{<<"samlUser">>:=User} = Body, #state{sess = ErlImemSess} = State) ->
+process_login(SessionId,#{<<"samluser">>:=User} = Body, #state{sess = ErlImemSess} = State) ->
     {process_login_reply(
        ErlImemSess:auth(dderl,SessionId,{saml,User}), Body), State#state{user=User}};
 process_login(SessionId, Body, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
@@ -243,7 +243,7 @@ process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
                           _ -> {Reply, State1}
                     end,
                     case ReqDataMap of
-                        #{<<"samlUser">> := _} ->
+                        #{<<"samluser">> := _} ->
                             reply(From, {saml, dderl:get_url_suffix()}, self());
                         _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
                     end,
