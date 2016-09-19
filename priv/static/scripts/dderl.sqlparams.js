@@ -21,6 +21,73 @@ function inpFocusHandler() {
     }).select();
 }
 
+function disable(container) {
+    var divDisable = document.createElement('div');
+    divDisable.className = 'ui-dialog-disabled';
+    container.append(divDisable);
+    return $(divDisable);
+}
+
+function enable(divDisable) {
+    divDisable.remove();
+}
+
+function buildCtxHandler(container, inp) {
+    return function (e) {
+        e.preventDefault();
+        console.log("context menu");
+
+        var mainBody = document.getElementById("main-body");
+        var menu = document.createElement("ul");
+        menu.className = "context_menu";
+        menu.style.top = (e.clientY - 35) + "px";
+        menu.style.left = (e.clientX - 10) + "px";
+        menu.onmouseleave = function() {
+            mainBody.removeChild(menu);
+        };
+        var menuEntry = document.createElement("li");
+        menu.appendChild(menuEntry);
+        menuEntry.appendChild(document.createTextNode("Edit"));
+        menuEntry.onclick = function() {
+            var content = {isFormatted: true, string: inp.val()};
+            var isJson = false;
+            var title = "Text editor";
+            try {
+                if(JSON.parse(content.string)) {
+                    isJson = true;
+                    title = "Json editor";
+                    content = content.string;
+                }
+            } catch (e) {}
+
+            var termOwner = {};
+            termOwner._divDisable = disable(container);
+            termOwner.enableDialog = function() {
+                enable(termOwner._divDisable);
+            };
+            termOwner.updateErlangCell = function(newValue) {
+                inp.val(newValue);
+            };
+
+            $('<div>')
+                .appendTo(document.body)
+                .termEditor({
+                    autoOpen: false,
+                    title: title,
+                    termOwner: termOwner,
+                    readOnly: false,
+                    container: $("#main-body"),
+                    appendTo: "#main-body",
+                    term: content,
+                    isJson: isJson
+                }).termEditor('open');
+            mainBody.removeChild(menu);
+        };
+        mainBody.appendChild(menu);
+        console.log("finished :)");
+    };
+}
+
 export function clear_out_fields(outInputs) {
     outInputs.forEach(function(outParam) {
         outParam.inp.val("");
@@ -83,11 +150,15 @@ export function sql_params_dlg(container, qpars, outInputs) {
 
         if(param.dir === "out") { outInputs.push({name: param.name, inp: i}); }
 
+        i.val(param.val)
+            .on('focus', inpFocusHandler)
+            .on('contextmenu', buildCtxHandler(container, i));
+        
         s.find('option[value="'+param.typ+'"]').attr('selected','selected');
         $('<tr/>')
             .append($('<td>' + param.name + '</td>').addClass('fit-content'))
             .append($('<td/>').addClass('fit-content').append(s))
-            .append($('<td/>').append(i.on('focus', inpFocusHandler).val(param.val)))
+            .append($('<td/>').append(i))
             .appendTo(tab);
     });
 }
