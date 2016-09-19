@@ -1080,15 +1080,11 @@ handle_event({sort, _GuiSortSpec, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = gui_nop(#gres{state=SN,beep=true,message= ?MustCommitSort},State1),
     {next_state, SN, State2#state{tailLock=true}};
-handle_event({button, <<"close">>, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) when DC==0 ->
+handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = gui_close(#gres{state=SN},State2),
     {stop, normal, State3#state{tailLock=true}};
-handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
-    State1 = reply_stack(SN, ReplyTo, State0),
-    State2 = gui_nop(#gres{state=SN,beep=true,message= ?MustCommit},State1),
-    {next_state, SN, State2#state{tailLock=true}};
 handle_event({error, Error}, SN, State) ->
     ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
     ErrorMsg = iolist_to_binary(io_lib:format("~p", [Error])),

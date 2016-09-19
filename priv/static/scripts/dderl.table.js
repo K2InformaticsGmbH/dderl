@@ -2501,7 +2501,14 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 }
             })
             .bind("dialogbeforeclose", function() {
+                console.log("dialog before close");
+                console.log("is logged in: ", dderlState.isLoggedIn);
+                if(!self._tbCommit.prop('disabled') && dderlState.isLoggedIn) {
+                    alert_jq("Please commit or rollback changes before closing the table");
+                    return false;
+                }
                 self._grid.resetHeaderScroll();
+                return true;
             })
             .dialogExtend({
                 "minimizable" : true,
