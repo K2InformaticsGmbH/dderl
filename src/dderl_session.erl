@@ -147,34 +147,31 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 format_status(_Opt, [_PDict, State]) -> State.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_login(SessionId,#{<<"smsott">>:=Token} = Body, #state{sess=ErlImemSess}=State) ->
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token}), Body), State};
-process_login(SessionId,#{<<"user">>:=User,<<"password">>:=Password} = Body, #state{sess = ErlImemSess} = State) ->
-    {process_login_reply(
-       ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}), Body
-      ), State#state{user=User}};
-process_login(SessionId,#{<<"samluser">>:=User} = Body, #state{sess = ErlImemSess} = State) ->
-    {process_login_reply(
-       ErlImemSess:auth(dderl,SessionId,{saml,User}), Body), State#state{user=User}};
-process_login(SessionId, Body, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}), Body), State}.
-
-process_login_reply(ok, _Body)                         -> ok;
-process_login_reply({ok, []}, _Body)                   -> ok;
-process_login_reply({ok, [{pwdmd5,Data}|_]}, _Body)    -> #{pwdmd5=>process_data(Data)};
-process_login_reply({ok, [{smsott,Data}|_]}, _Body)    -> #{smsott=>process_data(Data)};
-process_login_reply({ok, [{saml,Data}|_]}, Body)       ->
-    #{<<"host_url">> := HostUrlBin} = Body,
-    HostUrl = binary_to_list(HostUrlBin),
-    #{saml => process_data(
-                Data#{forwardUrl =>
-                      dderl_saml_handler:fwdUrl(HostUrl, HostUrl ++ dderl:get_url_suffix() ++ dderl:get_sp_url_suffix(),
-                        fun dderl_resource:samlRelayStateHandle/2)}
-               )}.
-
-process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
-process_data(Data) -> Data.
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% process_login(SessionId,#{<<"smsott">>:=Token} = Body, #state{sess=ErlImemSess}=State) ->
+%%     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token}), Body), State};
+%% process_login(SessionId,#{<<"user">>:=User,<<"password">>:=Password} = Body, #state{sess = ErlImemSess} = State) ->
+%%     {process_login_reply(
+%%        ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}}), Body
+%%       ), State#state{user=User}};
+%% process_login(SessionId,#{<<"samluser">>:=User} = Body, #state{sess = ErlImemSess} = State) ->
+%%     {process_login_reply(
+%%        ErlImemSess:auth(dderl,SessionId,{saml,User}), Body), State#state{user=User}};
+%% process_login(SessionId, Body, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
+%%     {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}), Body), State}.
+%% 
+%% process_login_reply(ok, _Body)                         -> ok;
+%% process_login_reply({ok, []}, _Body)                   -> ok;
+%% process_login_reply({ok, [{pwdmd5,Data}|_]}, _Body)    -> #{pwdmd5=>dderl_dal:fix_login_data(Data)};
+%% process_login_reply({ok, [{smsott,Data}|_]}, _Body)    -> #{smsott=>dderl_dal:fix_login_data(Data)};
+%% process_login_reply({ok, [{saml,Data}|_]}, Body)       ->
+%%     #{<<"host_url">> := HostUrlBin} = Body,
+%%     HostUrl = binary_to_list(HostUrlBin),
+%%     #{saml => dderl_dal:fix_login_data(
+%%                 Data#{forwardUrl =>
+%%                       dderl_saml_handler:fwdUrl(HostUrl, HostUrl ++ dderl:get_url_suffix() ++ dderl:get_sp_url_suffix(),
+%%                         fun dderl_resource:samlRelayStateHandle/2)}
+%%                )}.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
@@ -220,7 +217,19 @@ process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
         {error, _} ->
             ReqDataMap = jsx:decode(ReqData, [return_maps]),
             catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-            case catch process_login(Id,ReqDataMap,State) of
+            case catch dderl_dal:process_login(
+                         ReqDataMap, State,
+                         #{auth => fun(Auth) ->
+                                           Res = (State#state.sess):auth(dderl, Id, Auth),
+                                           ?Info("Auth ~p", [Auth]),
+                                           ?Info("Resp ~p", [Res]),
+                                           Res
+                                   end,
+                           stateUpdateUsr =>  fun(St, Usr) -> St#state{user=Usr} end,
+                           stateUpdateSKey =>  fun(St, _) -> St end,
+                           connInfo => fun(St) -> St#state.conn_info end,
+                           relayState => fun dderl_resource:samlRelayStateHandle/2,
+                           urlPrefix => dderl:get_url_suffix()}) of
                 {{E,M},St} when is_atom(E) ->
                     ?Error("Error(~p) ~p~n~p", [E,M,St]),
                     reply(From, #{login=>

@@ -37,6 +37,7 @@
         ,add_adapter_to_cmd/3
         ,user_name/1
         ,get_restartable_apps/0
+        ,process_login/3
         ]).
 
 -record(state, { schema :: term()
@@ -694,3 +695,70 @@ filter_view_result([V | Views], Sess, Adapter) ->
 get_restartable_apps() ->
     {ok, CurrApp} = application:get_application(?MODULE),
     ?RESTARTAPPS(CurrApp).
+
+
+-spec process_login(map(), any(),
+                    #{auth => fun((any()) -> ok | {any(), list()}),
+                      connInfo => fun((any()) -> any()),
+                      stateUpdateUsr =>  fun((any(), any()) -> any()),
+                      stateUpdateSKey => fun((any(), any()) -> any()),
+                      relayState => fun((any(), any()) -> any()), 
+                      urlPrefix => list()}) -> ok | map().
+process_login(#{<<"smsott">> := Token} = Body, State,
+              #{auth := AuthFun} = Ctx) ->
+    process_login_reply(AuthFun({smsott,Token}), Body, Ctx, State);
+process_login(#{<<"user">>:=User, <<"password">>:=Password} = Body, State,
+              #{stateUpdateUsr := StateUpdateFun, auth := AuthFun} = Ctx) ->
+    process_login_reply(AuthFun({pwdmd5,
+                                 {User, list_to_binary(Password)}}),
+                        Body, Ctx, StateUpdateFun(State, User));
+process_login(#{<<"samluser">>:=User} = Body, State,
+              #{stateUpdateUsr := StateUpdateFun, auth := AuthFun} = Ctx)
+  when is_function(StateUpdateFun, 2), is_function(AuthFun, 1) ->
+    process_login_reply(AuthFun({saml, User}), Body, Ctx,
+                        StateUpdateFun(State, User));
+process_login(Body, State, #{connInfo := GetConnInfo, auth := AuthFun} = Ctx)
+  when is_function(GetConnInfo, 1), is_function(AuthFun, 1) ->
+    process_login_reply(AuthFun({access, GetConnInfo(State)}), Body, Ctx, State).
+
+process_login_reply(ok, _Body, _Ctx, State) -> {ok, State};
+
+process_login_reply({ok, []}, _Body, _Ctx, State) -> {ok, State};
+process_login_reply({SKey, []}, _Body, #{stateUpdateSKey := StateUpdateFun},
+                    State) when is_function(StateUpdateFun, 2) ->
+    {ok, StateUpdateFun(State, SKey)};
+
+process_login_reply({ok, [{pwdmd5, Data}|_]}, _Body, _Ctx, State) ->
+    {#{pwdmd5=>fix_login_data(Data)}, State};
+process_login_reply({SKey, [{pwdmd5, Data}|_]}, _Body,
+                    #{stateUpdateSKey := StateUpdateFun}, State)
+  when is_function(StateUpdateFun, 2) ->
+    {#{pwdmd5=>fix_login_data(Data)}, StateUpdateFun(State, SKey)};
+
+process_login_reply({ok, [{smsott, Data}|_]}, _Body, _Ctx, State) ->
+    {#{smsott=>fix_login_data(Data)}, State};
+process_login_reply({SKey, [{smsott, Data}|_]}, _Body,
+                    #{stateUpdateSKey := StateUpdateFun}, State)
+  when is_function(StateUpdateFun, 2) ->
+    {#{smsott=>fix_login_data(Data)}, StateUpdateFun(State, SKey)};
+
+process_login_reply({SKey, [{saml, _Data}|_]}, Body,
+                    #{urlPrefix := UrlPrefix,
+                      stateUpdateSKey := StateUpdateFun,
+                      relayState := RelayStateFun}, State)
+  when is_function(RelayStateFun, 2), is_function(StateUpdateFun, 2) ->
+    #{<<"host_url">> := HostUrlBin} = Body,
+    HostUrl = binary_to_list(HostUrlBin),
+    {#{saml =>
+       fix_login_data(
+         #{forwardUrl =>
+           dderl_saml_handler:fwdUrl(
+             HostUrl, HostUrl ++ UrlPrefix ++ dderl:get_sp_url_suffix(),
+             RelayStateFun)})},
+     if SKey == ok  -> State;
+        true -> StateUpdateFun(State, SKey)
+     end}.
+
+fix_login_data(#{accountName:=undefined}=Data) ->
+    fix_login_data(Data#{accountName=><<"">>});
+fix_login_data(Data) -> Data.
