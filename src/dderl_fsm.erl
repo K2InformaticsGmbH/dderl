@@ -138,6 +138,7 @@
 -define(UnknownCommand,<<"Unknown command">>).
 -define(NoPendingUpdates,<<"No pending changes">>).
 -define(PassThroughOnlyRestart,<<"Only restart & passthrough are allowed in passthrough state">>).
+-define(PtNoSort,<<"Passthrough can't be used in sorted tables">>).
 
 
 %% gen_fsm callbacks
@@ -633,6 +634,10 @@ empty({button, <<"...">>, ReplyTo}, State0) ->
     % skip fetch, schedule tail
     State1 = fetch(skip,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, tailing, State1#state{stack={button,<<"...">>,ReplyTo}}};
+empty({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+    % reject command because of uncommitted changes
+    State1 = gui_nop(#gres{state=empty,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
+    {next_state, empty, State1};
 empty({button, <<"pt">>, ReplyTo}, State0) ->
     % passthrough, schedule tail
     State1 = fetch(push,true, State0#state{tailMode=true,tailLock=false}),
@@ -673,6 +678,10 @@ filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
 filling({button, <<"...">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
+    {next_state, filling, State1};
+filling({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+    % reject command because of uncommitted changes
+    State1 = gui_nop(#gres{state=filling,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
 filling({button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % passthrough, schedule tail
@@ -949,12 +958,16 @@ completed({button, <<">|...">>, ReplyTo}, State0) ->
     State3 = gui_clear(State2),
     State4 = gui_nop(#gres{state=tailing,loop= <<"tail">>},State3),
     {next_state, tailing, State4#state{tailMode=true,tailLock=false}};
+completed({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+    % reject command because of uncommitted changes
+    State1 = gui_nop(#gres{state=completed,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
+    {next_state, completed, State1};
 completed({button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % passthrough, schedule tail
     State1 = reply_stack(completed, ReplyTo, State0),
-    State2 = fetch(push,true,State1#state{tailMode=true,tailLock=false}),
-    State3 = data_clear(State2),
-    State4 = gui_clear(#gres{state=passthrough,loop= <<"tail">>}, State3),
+    State2 = data_clear(State1),
+    State3 = gui_clear(#gres{state=passthrough,loop= <<"tail">>}, State2),
+    State4 = fetch(push,true,State3#state{tailMode=true,tailLock=false}),
     {next_state, passthrough, State4};
 completed({button, <<"pt">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
@@ -1510,11 +1523,12 @@ handle_info({_Pid,{Rows,Completed}}, SN, State) ->
     Fsm = {?MODULE,self()},
     Fsm:rows({Rows,Completed}),
     {next_state, SN, State, infinity};
-handle_info(cmd_stack_timeout, tailing, #state{stack={button, <<"tail">>, RT}}=State) ->
+handle_info(cmd_stack_timeout, SN, #state{stack={button, <<"tail">>, RT}}=State)
+    when SN =:= tailing; SN =:= passthrough ->
     % we didn't get any new data to send, so we reply with nop.
     ?NoDbLog(debug, [], "Tail timeout, replying with nop", []),
-    State1 = gui_nop(#gres{state=tailing, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
-    {next_state, tailing, State1, infinity};
+    State1 = gui_nop(#gres{state=SN, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
+    {next_state, SN, State1, infinity};
 handle_info({'EXIT', _Pid, Reason} = ExitMsg, _SN, State) ->
     ?Debug("~p received exit message ~p", [self(), ExitMsg]),
     {stop, Reason, State};
@@ -1987,15 +2001,15 @@ serve_bot(SN, Loop, #state{nav=Nav,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiC
             %% no data, serve empty
             State1 = prefetch(SN,State0),
             gui_clear(#gres{state=SN,loop=Loop},State1);
+        (Loop == <<"tail">>) andalso (SN == passthrough) ->
+            %% passthrough should always append only               
+            gui_append(#gres{state=SN,loop=Loop,focus=-1},State0#state{tailLock=false});
         (GuiCnt == 0) ->
             %% uninitialized view, must refresh    
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
         (GuiCol == true) ->
             %% dirty index view, must refresh anyways    
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
-        (Loop == <<"tail">>) andalso (SN == passthrough) ->
-            %% passthrough should always append only               
-            gui_append(#gres{state=SN,loop=Loop,focus=-1},State0#state{tailLock=false});
         (GuiTop > BufTop) andalso (GuiCnt < GL) ->                                  % was BL
             %% prepend incomplete gui buffer
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
