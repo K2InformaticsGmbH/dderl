@@ -164,6 +164,7 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 .tb_autofilling    { background:#FFC266 !important; }
 .tb_completed      { background:#CCFF66 !important; }
 .tb_tailing        { background:#FFCCCC !important; }
+.tb_passthrough    { background:#AAAAFF !important; }
 
 .menubar {
     background:#AFAFAF;
@@ -777,6 +778,7 @@ input.inputText.ui-button.ui-widget.ui-state-default {
 }
 
 .colorIcon .fa-arrow-right,
+.colorIcon .fa-arrow-down,
 .colorIcon .fa-step-backward,
 .colorIcon .fa-backward,
 .colorIcon .fa-play,
@@ -789,6 +791,7 @@ input.inputText.ui-button.ui-widget.ui-state-default {
 }
 
 .colorIcon:hover .fa-arrow-right,
+.colorIcon:hover .fa-arrow-down,
 .colorIcon:hover .fa-step-backward,
 .colorIcon:hover .fa-backward,
 .colorIcon:hover .fa-play,

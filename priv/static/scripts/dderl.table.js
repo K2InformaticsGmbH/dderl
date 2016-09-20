@@ -114,6 +114,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                        '>'        : {tip: 'Next page',             typ : 'btn', icn : 'play',                  clk : '_toolBarGo2Nex',   dom: '_tbGoNext' },
                        '>>'       : {tip: 'Jump to next page',     typ : 'btn', icn : 'forward',               clk : '_toolBarJmNext',   dom: '_tbJmNext' },
                        '->|'      : {tip: 'Scan to end',           typ : 'btn', icn : 'arrow-right',           clk : '_toolBarScnEnd',   dom: '_tbScnEnd' },
+                       'pt'       : {tip: 'Passthrough',           typ : 'btn', icn : 'arrow-down',            clk : '_toolBarPssThr',   dom: '_tbPssThr' },
                        '>|'       : {tip: 'Jump to end',           typ : 'btn', icn : 'step-forward',          clk : '_toolBarSekEnd',   dom: '_tbSekEnd' },
                        '>|...'    : {tip: 'Jump to end then Tail', typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarSkTail',   dom: '_tbSkTail' },
                        '...'      : {tip: 'Skip to end and Tail',  typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarSkipTl',   dom: '_tbSkipTl' },
@@ -1970,6 +1971,10 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         console.log('['+self.options.title+'] cb _toolBarScnEnd');
         self._scanToEnd = true;
         self.buttonPress(">");
+    },
+    _toolBarPssThr: function(self) {
+        console.log('['+self.options.title+'] cb _toolBarScnEnd');
+        self.buttonPress("pt");
     },
     _toolBarSekEnd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarSekEnd');
