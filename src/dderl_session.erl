@@ -169,7 +169,7 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
     end,
     State;
 process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
-    #state{id = Id, sess = ErlImemSess} = State,
+    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
     Host =
     lists:foldl(
       fun({App,_,_}, <<>>) ->
@@ -196,7 +196,7 @@ process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
                          #{auth => fun(Auth) ->
                                        (State#state.sess):auth(dderl, Id, Auth)
                                    end,
-                           connInfo => fun(St) -> St#state.conn_info end,
+                           connInfo => ConnInfo,
                            relayState => fun dderl_resource:samlRelayStateHandle/2,
                            stateUpdateUsr =>  fun(St, Usr) -> St#state{user=Usr} end,
                            stateUpdateSKey =>  fun(St, _) -> St end,

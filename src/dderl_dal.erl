@@ -699,7 +699,7 @@ get_restartable_apps() ->
 
 -spec process_login(map(), any(),
                     #{auth => fun((any()) -> ok | {any(), list()}),
-                      connInfo => fun((any()) -> any()),
+                      connInfo => map(),
                       stateUpdateUsr =>  fun((any(), any()) -> any()),
                       stateUpdateSKey => fun((any(), any()) -> any()),
                       relayState => fun((any(), any()) -> any()), 
@@ -717,9 +717,9 @@ process_login(#{<<"samluser">>:=User} = Body, State,
   when is_function(StateUpdateFun, 2), is_function(AuthFun, 1) ->
     process_login_reply(AuthFun({saml, User}), Body, Ctx,
                         StateUpdateFun(State, User));
-process_login(Body, State, #{connInfo := GetConnInfo, auth := AuthFun} = Ctx)
-  when is_function(GetConnInfo, 1), is_function(AuthFun, 1) ->
-    process_login_reply(AuthFun({access, GetConnInfo(State)}), Body, Ctx, State).
+process_login(Body, State, #{connInfo := ConnInfo, auth := AuthFun} = Ctx)
+  when is_map(ConnInfo), is_function(AuthFun, 1) ->
+    process_login_reply(AuthFun({access, ConnInfo}), Body, Ctx, State).
 
 process_login_reply(ok, _Body, _Ctx, State) -> {ok, State};
 
