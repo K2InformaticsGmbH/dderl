@@ -19,7 +19,7 @@ init({ssl, http}, Req, []) ->
     case cowboy_req:has_body(Req) of
         true ->
             {Typ, Req1} = cowboy_req:path_info(Req),
-            {Session, Req2} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req1, <<>>),
+            {Session, Req2} = cowboy_req:cookie(cookie_name(Req1), Req1, <<>>),
             {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
             % ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
             process_request(Session, Adapter, Req3, Typ);
@@ -125,7 +125,7 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {Session, Req1} = cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>),
+    {Session, Req1} = cowboy_req:cookie(cookie_name(Req), Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
     process_request_low(Session, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
@@ -174,7 +174,7 @@ info(Message, Req, State) ->
     {loop, Req, State, hibernate}.
 
 terminate(_Reason, _Req, _State) ->
-	ok.
+    ok.
 
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
@@ -185,11 +185,12 @@ terminate(_Reason, _Req, _State) ->
 reply_200_json(Body, EncryptedPid, Req) when is_list(EncryptedPid) ->
     reply_200_json(Body, list_to_binary(EncryptedPid), Req);
 reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
-    Req2 = case cowboy_req:cookie(?DDERL_COOKIE_NAME, Req, <<>>) of
+    CookieName = cookie_name(Req),
+    Req2 = case cowboy_req:cookie(CookieName, Req, <<>>) of
         {EncryptedPid, Req1} -> Req1;
         {_, Req1} ->
             {Host,Req1} = cowboy_req:host(Req1),
-            cowboy_req:set_resp_cookie(?DDERL_COOKIE_NAME, EncryptedPid,
+            cowboy_req:set_resp_cookie(CookieName, EncryptedPid,
                                               ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
     end,
     cowboy_req:reply(200, [
@@ -221,6 +222,10 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             ok = cowboy_req:chunk(Chunk, Req),
             {ok, Req}
     end.
+
+cookie_name(Req) ->
+    {Port, Req} = cowboy_req:port(Req),
+    list_to_binary([?DDERL_COOKIE_NAME, integer_to_list(Port)]).
 
 %-define(DISP_REQ, true).
 -ifdef(DISP_REQ).
