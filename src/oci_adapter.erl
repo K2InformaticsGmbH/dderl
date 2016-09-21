@@ -828,7 +828,7 @@ get_value_empty_default(Key, Proplist, Defaults) ->
       end).
 
 -spec get_deps() -> [atom()].
-get_deps() -> [dderloci, erloci].
+get_deps() -> [erloci].
 
 make_binds(null) -> undefined;
 make_binds(Binds) ->
