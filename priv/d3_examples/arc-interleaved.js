@@ -170,37 +170,38 @@ function init(container, width, height) {
 
     resize(width, height);
 
-    var tootipDiv = d3.select("body").append('div')
+    var tooltipDiv = d3.select("body").append('div')
         .styles({
             position: "absolute",
-            "text-align": "center",
-            width: "60px",			
-            height: "30px",
+            "text-align": "left",
             padding: "2px",				
-            font: "18px sans-serif",
+            font: "18px courier",
             border: "0px",		
             "border-radius": "8px",			
             "pointer-events": "none",
             opacity: 0,
-            "z-index": 99996
+            "z-index": 99996,
+            "background-color": "lightsteelblue",
         });
 
     function showTooltip(d) {
-        tootipDiv
-            .html(JSON.stringify(d))
+        var txt = JSON.stringify(d, null, 2);
+        var html = txt.split('\n').join('<br>').split(' ').join('&nbsp;');
+        tooltipDiv
+            .html(html)
             .transition()
             .duration(200)
             .style('opacity', 0.95);
     }
 
     function moveTooltip() {
-        tootipDiv
+        tooltipDiv
             .style('left', (d3.event.pageX-30) + "px")
             .style('top', (d3.event.pageY-40) + "px");
     }
 
     function hideTooltip() {
-        tootipDiv.transition()
+        tooltipDiv.transition()
             .duration(animDuration)
             .style('opacity', 0);
     }
