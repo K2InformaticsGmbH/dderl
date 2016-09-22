@@ -64,12 +64,27 @@ function init(container, width, height) {
     };
 
     /** Helper functions for data extraction */
+    var parseError = function(term) {
+        return new Error(term + " is not a valid json term");
+    }
     var getKey = function(row) {
-        return JSON.parse(row.ckey_1);
+        var k = [];
+        try {
+            k = JSON.parse(row.ckey_1);
+        } catch (e) {
+            throw parseError(row.ckey_1);
+        }
+        return k;
     };
 
     var getValue = function(row) {
-        return JSON.parse(row.cvalue_2);
+        var v = {};
+        try {
+            v = JSON.parse(row.cvalue_2);
+        } catch (e) {
+            throw parseError(row.cvalue_2);
+        }
+        return v;
     };
 
     var extractLinksNodes = function(rows, graph) {
@@ -174,10 +189,10 @@ function init(container, width, height) {
         .styles({
             position: "absolute",
             "text-align": "left",
-            padding: "2px",				
-            font: "18px courier",
-            border: "0px",		
-            "border-radius": "8px",			
+            padding: "2px",
+            font: "14px courier",
+            border: "0px",
+            "border-radius": "8px",
             "pointer-events": "none",
             opacity: 0,
             "z-index": 99996,
@@ -392,16 +407,21 @@ function init(container, width, height) {
 
                 var jobsId = Object.keys(d.jobs);
                 // TODO: We only support 4 set of jobs in the same line.
-                var start = 0.5 - (jobsId.length - 1)*0.1;
+                var start = 0.2;
+                var step = 0.8/jobsId.length;
+                if(jobsId.length > 4) {
+                    console.log("the jobs", jobsId);
+                }
                 for(var i = 0; i < jobsId.length; ++i) {
-                    var pct = start + i * 0.2;
+                    var pct = start + i * step;
+                    console.log("the pct", pct);
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
+                    var dir = {x: dirX, y: dirY};
                     if(d.jobs[jobsId[i]].direction === "pull") {
-                        dirX = -dirX;
-                        dirY = -dirY;
+                        dir = {x: -dirX, y: -dirY};
                     }
-                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: {x: dirX, y: dirY}};
+                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
                 }
             });
 
@@ -433,6 +453,9 @@ function init(container, width, height) {
                 .transition()
                 .duration(animDuration)
                 .attr('transform', function(d) {
+                    if(!linksMid[d.job]) {
+                        throw new Error(JSON.stringify(d.job));
+                    }
                     var dx = linksMid[d.job].direction.x;
                     var dy = linksMid[d.job].direction.y;
                     var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
