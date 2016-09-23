@@ -473,6 +473,9 @@ function init(container, width, height) {
         on_reset: function() {
             svg.selectAll('svg > *').remove();
             firstData = true;
+        },
+        on_close: function() {
+            tooltipDiv.remove();
         }
     };
 }

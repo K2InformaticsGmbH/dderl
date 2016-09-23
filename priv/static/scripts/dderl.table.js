@@ -3185,6 +3185,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _closeGraphs: function() {
         console.log("closing the graphs");
+        if(this._graphSpec && $.isFunction(this._graphSpec.on_close)) {
+            this._graphSpec.on_close();
+        }
         this._graphSpec = null;
         for(var i = 0; i < this._graphDivs.length; ++i) {
             if(this._graphDivs[i]) {
