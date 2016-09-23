@@ -447,7 +447,7 @@ input.editor-text {
 
 div#main-bg {
     position:fixed;
-    bottom : 10px;
+    bottom : 25px;
     right: 20px;
     height : 100px;
     width : 100px
