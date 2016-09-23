@@ -210,9 +210,26 @@ function init(container, width, height) {
     }
 
     function moveTooltip() {
+        // Position the tooltip without letting it go outside the window.
+        var availableHeight = document.documentElement.clientHeight;
+        var availableWidth = document.documentElement.clientWidth;
+
+        var d = tooltipDiv.node();
+        var tooltipHeight = d.scrollHeight;
+        var tooltipWidth = d.scrollWidth;
+
+        var left = d3.event.pageX - 30;
+        if(left + tooltipWidth + 5 > availableWidth) {
+            left = Math.max(availableWidth-tooltipWidth-5, 0);
+        }
+        var top = d3.event.pageY - 40;
+        if(top + tooltipHeight + 5 > availableHeight) {
+            top = Math.max(availableHeight-tooltipHeight-5, 0);
+        }
+
         tooltipDiv
-            .style('left', (d3.event.pageX-30) + "px")
-            .style('top', (d3.event.pageY-40) + "px");
+            .style('left', left + "px")
+            .style('top', top + "px");
     }
 
     function hideTooltip() {
