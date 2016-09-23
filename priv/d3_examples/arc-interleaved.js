@@ -407,10 +407,10 @@ function init(container, width, height) {
 
                 var jobsId = Object.keys(d.jobs);
                 // TODO: We only support 4 set of jobs in the same line.
-                var start = 0.2;
-                var step = 0.8/jobsId.length;
-                if(jobsId.length > 4) {
-                    console.log("the jobs", jobsId);
+                var step, start;
+                if(jobsId.length !== 0) {
+                    step = Math.min(0.8/jobsId.length, 0.2);
+                    start = 0.5 - step*(jobsId.length-1)*0.5;
                 }
                 for(var i = 0; i < jobsId.length; ++i) {
                     var pct = start + i * step;
