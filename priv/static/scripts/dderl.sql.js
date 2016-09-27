@@ -97,9 +97,9 @@ function insertAtCursor(myField, myValue) {
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',               clk : '_toolBarValidate'        },
                        'Execute fetch first block'  : { typ : 'btn', icn : 'play',                  clk : '_toolBarTblReload'       },
-                       'Execute fetch to end'       : { typ : 'btn', icn : 'forward',               clk : '_toolBarTblFetch2End'    },
-                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetchNTail'   },
-                       'Execute tail mode only'     : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblTailOnly'     },
+                       'Execute fetch to end'       : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetch2End'    },
+                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblFetchNTail'   },
+                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarTblTailOnly'     },
                        ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},
 
     // These options will be used as defaults
