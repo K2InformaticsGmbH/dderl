@@ -751,7 +751,7 @@ process_login_reply({SKey, [{saml, _Data}|_]}, Body,
     HostUrl = binary_to_list(HostUrlBin),
     {#{saml =>
        fix_login_data(
-         #{forwardUrl =>
+         #{form =>
            dderl_saml_handler:fwdUrl(
              HostUrl, HostUrl ++ UrlPrefix ++ dderl:get_sp_url_suffix(),
              RelayStateFun)})},

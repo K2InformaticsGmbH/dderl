@@ -52,16 +52,19 @@ terminate(_Reason, _Req, _State) -> ok.
 
 initialize(HostUrl, ConsumeUrl) ->
     % Load the certificate and private key for the SP
-    % PrivKey = esaml_util:load_private_key("priv/test.key"),
-    % Cert = esaml_util:load_certificate("priv/test.crt"),
+    PrivKey = esaml_util:load_private_key(code:priv_dir("dderl") ++ "/certs/saml.key"),
+    Cert = esaml_util:load_certificate(code:priv_dir("dderl") ++ "/certs/saml.crt"),
+    % io:format("############Cert : ~p~n", [Cert]),
+    % io:format("############PrivKey : ~p~n", [PrivKey]),
     % We build all of our URLs (in metadata, and in requests) based on this
     % Certificate fingerprints to accept from our IDP
     NewHostUrl = re:replace(HostUrl, ":[0-9]+", "", [{return, list}]) ++ "/",
     NewConsumerUrl = re:replace(ConsumeUrl, ":[0-9]+", "", [{return, list}]),
-    FPs = ["6b:d1:24:4b:38:cf:6c:1f:4e:53:56:c5:c8:90:63:68:55:5e:27:28"],
+    FPs = ["69:D1:0A:C5:C3:AB:FE:A0:E5:D7:15:37:19:D0:34:6B:05:7F:7A:CA:F1:69:61:BC:05:C9:48:3D:1F:72:99:1A"],
+
     SP = esaml_sp:setup(#esaml_sp{
-        % key = PrivKey,
-        % certificate = Cert,
+        key = PrivKey,
+        %certificate = Cert,
         sp_sign_requests = false,
         trusted_fingerprints = FPs,
         consume_uri = NewConsumerUrl,
@@ -79,4 +82,4 @@ fwdUrl(HostUrl, ConsumeUrl, RelayStateCbFun) when is_function(RelayStateCbFun) -
     fwdUrl(HostUrl, ConsumeUrl, base64:encode(term_to_binary(RelayStateCbFun)));
 fwdUrl(HostUrl, ConsumeUrl, RelayState) when is_binary(RelayState) ->
     {SP, #esaml_idp_metadata{login_location = IDP}} = initialize(HostUrl, ConsumeUrl),
-    esaml_binding:encode_http_redirect(IDP, SP:generate_authn_request(IDP), RelayState).
+    esaml_binding:encode_http_post(IDP, SP:generate_authn_request(IDP), RelayState).

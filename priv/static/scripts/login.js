@@ -75,8 +75,9 @@ function loginCb(resp) {
                             val         : ""}]
         });
     } else if(resp.hasOwnProperty('saml')) {
-        if(resp.saml.hasOwnProperty('forwardUrl')) {
-            window.location.href = resp.saml.forwardUrl;
+        if(resp.saml.hasOwnProperty('form')) {
+            $("body").append(resp.saml.form);
+            $("#samlForm").submit();
         }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
