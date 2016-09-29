@@ -156,7 +156,7 @@ function init(container, width, height) {
         cleaned: 'blue',
         refreshing: 'cornflowerblue',
         refreshed: 'purple',
-        stopped: 'red'
+        stopped: 'lightgrey'
     };
     // To see the complete circle when drawing negative coordinates
     // and width and height for the virtual coordinates
@@ -403,6 +403,14 @@ function init(container, width, height) {
                     return positions[d.target].y;
                 })
                 .attr('stroke', function(d) {
+                    var jobsId = Object.keys(d.jobs);
+                    for(var i = 0; i < status.length; ++i) {
+                        if(d.jobs.hasOwnProperty(status[i].job)) {
+                            if(status[i].status == "error") {
+                                return 'red';
+                            }
+                        }
+                    }
                     return d.enabled ? 'green' : 'lightgrey';
                 });
 
