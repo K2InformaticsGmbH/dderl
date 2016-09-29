@@ -1492,6 +1492,8 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
             var vStrings = [];
             self._filters[c].vals = {};
+            var tmpSet = new Set(_vStrings);
+            _vStrings = [...tmpSet]; // Unique entries.
             for (var i=0; i < _vStrings.length; ++i) {
                 vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
                 self._filters[c].vals[_vStrings[i]] = true;
