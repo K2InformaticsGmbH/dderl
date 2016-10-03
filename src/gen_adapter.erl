@@ -379,7 +379,7 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
                                        }])};
         _ ->
             ?Debug("The string to format: ~p", [StringToFormat]),
-            format_json_or_term(jsx:is_json(StringToFormat), StringToFormat, From, BodyJson)
+            format_json_or_term(jsx:is_json(StringToFormat, [strict]), StringToFormat, From, BodyJson)
     end;
 % generate sql from table data
 process_cmd({[<<"get_sql">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv) ->

@@ -1492,6 +1492,8 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             if (_vStrings.length === 1 && _vStrings[0].length === 0) _vStrings = [];
             var vStrings = [];
             self._filters[c].vals = {};
+            var tmpSet = new Set(_vStrings);
+            _vStrings = [...tmpSet]; // Unique entries.
             for (var i=0; i < _vStrings.length; ++i) {
                 vStrings[i] = _vStrings[i].replace(/\\n/g,'\n');
                 self._filters[c].vals[_vStrings[i]] = true;
@@ -1957,7 +1959,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     },
     _toolBarGo2Nex: function(self) {
         console.log('['+self.options.title+'] cb _toolBarGo2Nex');
-        if(!self._atBottom()) {
+        if(!self._atBottom() && self._planeToShow === 0) {
             self._scrollNext();
         } else {
             self.buttonPress(">");
@@ -2531,7 +2533,27 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             });
 
         self._dlg.dialog("widget").draggable("option","containment","#main-body");
-        
+        var $buttonPane = self._dlg.dialog("widget").find(".ui-dialog-titlebar-buttonpane");
+
+        var graphToggleLnk = document.createElement("a");
+        graphToggleLnk.className = "ui-dialog-titlebar-toggle-graph ui-corner-all ui-state-default";
+        graphToggleLnk.href = "#";
+        graphToggleLnk.setAttribute("role", "button");
+        graphToggleLnk.onclick = function() {
+            if(self._planeToShow === 1) {
+                self.showPlane(0);
+            } else {
+                self.showPlane(1);
+            }
+        };
+
+        var graphToggleBtn = document.createElement("span");
+        graphToggleBtn.className = "ui-icon ui-icon-image";
+
+        graphToggleBtn.appendChild(document.createTextNode("Toogle Graph"));
+        graphToggleLnk.appendChild(graphToggleBtn);
+
+        $buttonPane.append(graphToggleLnk);
 
         // converting the title text to a link
         self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
@@ -2563,6 +2585,10 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     // plane to show 1 based, 0 represents the grid
     showPlane: function(newPlaneToShow) {
         if(newPlaneToShow !== undefined) {
+            if(newPlaneToShow !== 0 && (!this._planeSpecs || !this._planeSpecs[newPlaneToShow -1])) {
+                alert_jq("No graph definition found");
+                return;
+            }
             if(this._graphDivs[this._planeToShow - 1]) {
                 $(this._graphDivs[this._planeToShow - 1].node()).hide();
             }
@@ -2577,6 +2603,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         
         var planeIdx = this._planeToShow - 1;
         this._tableDiv.hide();
+
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
             var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script);
@@ -3185,6 +3212,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _closeGraphs: function() {
         console.log("closing the graphs");
+        if(this._graphSpec && $.isFunction(this._graphSpec.on_close)) {
+            this._graphSpec.on_close();
+        }
         this._graphSpec = null;
         for(var i = 0; i < this._graphDivs.length; ++i) {
             if(this._graphDivs[i]) {
@@ -3548,9 +3578,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     alert_js_error(e);
                 }
             }
-
-            // TODO: do we need to have data in slickgrid updated too ?
-            return;
         }
 
         var c = self._grid.getColumns();
