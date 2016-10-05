@@ -27,7 +27,6 @@ export var dderlState = {
     operationLogs: "",
     screensaver: false,
     username: "",
-    isSamlAuth: false,
     app: "",
     vsn: "",
     node: ""

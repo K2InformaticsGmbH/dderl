@@ -101,7 +101,6 @@ function loginCb(resp) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
-        dderlState.isSamlAuth = resp.isSaml ? true : false;
         if(dderlState.screensaver) {
             window.isScreensaver = false;
             dderlState.screensaver = false;
@@ -133,7 +132,7 @@ function display(layout) {
         autoOpen: false,
         minHeight: 80,
         height: 'auto',
-        width: 180,
+        width: 200,
         resizable: false,
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
@@ -226,10 +225,8 @@ function inputEnter(layout) {
             }
         }
     } else {
-        if(dderlState.isSamlAuth) {
-            window.isScreensaver = true;
-            window.tab = window.open('', '_blank');
-        }
+        window.isScreensaver = true;
+        window.tab = window.open('', '_blank');
         data = {};
     }
     loginAjax(data);

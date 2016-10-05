@@ -105,9 +105,9 @@ process_request_low(Token, Adapter, Req, Body, Typ) ->
        true -> Body
     end,
     case dderl_session:get_session(Token, fun() -> conn_info(Req) end) of
-        {ok, Token} ->
-            dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token),
-            {loop, Req, Token, 3600000, hibernate};
+        {ok, Token1} ->
+            dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token1),
+            {loop, Req, Token1, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
