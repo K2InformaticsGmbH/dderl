@@ -1,7 +1,7 @@
 import $ from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import './dderl.table';
-import {change_login_password, loginAjax} from './login';
+import {change_login_password, showScreeSaver} from './login';
 import {change_connect_password} from './connect';
 import {StartSqlEditor} from './dderl.sql';
 
@@ -27,6 +27,7 @@ export var dderlState = {
     operationLogs: "",
     screensaver: false,
     username: "",
+    isSamlAuth: false,
     app: "",
     vsn: "",
     node: ""
@@ -116,7 +117,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
 
                 if(_data.error == 'screensaver') {
                     dderlState.screensaver = true;
-                    loginAjax();
+                    showScreeSaver();
                 } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
@@ -222,7 +223,7 @@ export function resetPingTimer() {
                 } else if(response.error == "show_screen_saver" && !dderlState.screensaver) {
                     console.log("showing screen saver");
                     dderlState.screensaver = true;
-                    loginAjax();
+                    showScreeSaver();
                 }
             });
         },

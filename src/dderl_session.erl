@@ -26,7 +26,6 @@
 
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
--define(SCREEN_SAVER_TIMEOUT, 90000000). % 90 secs
 
 -record(state, {
           id            = <<>>          :: binary()
@@ -40,6 +39,7 @@
           , conn_info                   :: map()
           , screensaver = false         :: boolean()
           , tmp_login   = false         :: boolean()
+          , is_saml     = false         :: boolean()
           , old_state                   :: tuple()
          }).
 
@@ -593,7 +593,7 @@ find_deps_app_seq(App,Chain) ->
     end.
 
 login(ReqData, From, SrcIp, State) ->
-    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
+    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo, is_saml = IsSaml} = State,
     Host =
     lists:foldl(
       fun({App,_,_}, <<>>) ->
@@ -605,7 +605,7 @@ login(ReqData, From, SrcIp, State) ->
          (_, App) -> App
       end, <<>>, application:which_applications()),
     {ok, Vsn} = application:get_key(dderl, vsn),
-    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
+    Reply0 = #{vsn => list_to_binary(Vsn), host => Host, isSaml => IsSaml,
                node => list_to_binary(imem_meta:node_shard())},
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
@@ -645,16 +645,17 @@ login(ReqData, From, SrcIp, State) ->
                     State;
                 {Reply, State1} ->
                     {Reply1, State2} = case Reply of
-                          % ok -> process_call({[<<"login">>], #{}}, Adapter, From, {SrcIp, Port}, State1);
                           ok -> login(#{}, From, SrcIp, State1);
                           _ -> {Reply, State1}
                     end,
                     case ReqDataMap of
                         #{<<"samluser">> := _} ->
-                            reply(From, {saml, dderl:get_url_suffix()}, self());
-                        _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
-                    end,
-                    State2
+                            reply(From, {saml, dderl:get_url_suffix()}, self()),
+                            State2#state{is_saml = true};
+                        _ -> 
+                            reply(From, #{login => maps:merge(Reply0, Reply1)}, self()),
+                            State2
+                    end
             end;
         _ ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,

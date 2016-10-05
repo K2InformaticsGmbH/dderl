@@ -190,7 +190,11 @@
 %% SAML configs
 -define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://idp.host.com/", "IDP Login URL")).
 -define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "/saml", "URL Prefix for all SP links")).
+% -define(SAMLSSLOPTS,        ?GET_CONFIG(samlSslOpts,[],'$no_ssl_conf',"SAML SSL cert and key options")).
 -define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).
+
+%% Screensaver config
+-define(SCREEN_SAVER_TIMEOUT, ?GET_CONFIG(screensaverTimeout, [], 3600000, "Screen saver activation timeout")).
 
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).

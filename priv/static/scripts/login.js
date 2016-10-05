@@ -30,6 +30,10 @@ function loginCb(resp) {
         return;
     }
 
+    if(dderlState.screensaver && window.tab && !resp.saml) {
+        window.tab.close();
+    }
+
     if (resp.hasOwnProperty('vsn')) {
         dderlState.vsn = resp.vsn;
     }
@@ -84,11 +88,10 @@ function loginCb(resp) {
         });
     } else if(resp.hasOwnProperty('saml')) {
         if(resp.saml.hasOwnProperty('form')) {
-            if(dderlState.screensaver) {
-                display({title  : "Login",
-                         fields : [],
-                         form   : resp.saml.form
-                }); 
+            if(dderlState.screensaver && window.tab) {
+                var form = $(resp.saml.form);
+                $(window.tab.document.body).append(form);
+                form.submit();
             } else {
                 $("body").append(resp.saml.form);
                 $("#samlForm").submit();
@@ -98,9 +101,11 @@ function loginCb(resp) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
+        dderlState.isSamlAuth = resp.isSaml ? true : false;
         if(dderlState.screensaver) {
             window.isScreensaver = false;
             dderlState.screensaver = false;
+            $('#main-body').css('filter', '');
         } else {
             connect_dlg();
         }
@@ -111,6 +116,13 @@ function loginCb(resp) {
     }
 }
 
+export function showScreeSaver() {
+    $('#main-body').css('filter', 'blur(5px)');
+    display({title  : "Session is locked",
+             fields : [],
+    }); 
+}
+
 function display(layout) {
     var dlg = $('<div title="'+layout.title+'" style="display:none">')
         .appendTo($('#login-bg').css('display', 'block').addClass('center'));
@@ -119,9 +131,9 @@ function display(layout) {
 
     dlg.dialog({
         autoOpen: false,
-        minHeight: 100,
+        minHeight: 80,
         height: 'auto',
-        width: 'auto',
+        width: 180,
         resizable: false,
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
@@ -213,14 +225,14 @@ function inputEnter(layout) {
                 }
             }
         }
-        loginAjax(data);
-    } else if(layout.form) {
-        window.isScreensaver = true;
-        var tab = window.open('', '_blank');
-        var form = $(layout.form);
-        $(tab.document.body).append(form);
-        form.submit();
+    } else {
+        if(dderlState.isSamlAuth) {
+            window.isScreensaver = true;
+            window.tab = window.open('', '_blank');
+        }
+        data = {};
     }
+    loginAjax(data);
 }
 
 export function logout() {
