@@ -8,7 +8,7 @@
 -include("dderl.hrl").
 -include_lib("esaml/include/esaml.hrl").
 
--export([start_link/1
+-export([start_link/2
         , get_session/2
         , process_request/6
         , get_state/1
@@ -47,51 +47,45 @@
 %% Helper functions
 -spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = dderl_session_sup:start_session(ConnInfoFun),
-    DderlSess = pid_to_session(Pid),
-    ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
-    {ok, DderlSess};
-get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
+    Token = base64:encode(crypto:rand_bytes(64)),
+    dderl_session_sup:start_session(Token, ConnInfoFun),
+    ?Debug("new dderl session ~p from ~p", [Token, self()]),
+    {ok, Token};
+get_session(Token, _ConnInfoFun) when is_binary(Token) ->
     try
-        Pid = session_to_pid(DDerlSessStr),
-        if is_pid(Pid) ->
+        case global:whereis_name(Token) of
+            undefined -> {error, <<"process not found">>};
+            Pid ->
                 case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
-                    true -> {ok, DDerlSessStr};
+                    true -> {ok, Token};
                     _ -> {error, <<"process not found">>}
-                end;
-           true -> {error, <<"process not found">>}
+                end
         end
     catch
         Error:Reason ->
             ?Warn("Request attempted on a dead session"),
             {error, {Error, Reason}}
     end;
-get_session(S, ConnInfoFun) when is_binary(S) ->
-    get_session(binary_to_list(S), ConnInfoFun);
 get_session(_, ConnInfoFun) ->
     get_session(<<>>, ConnInfoFun).
 
-session_to_pid(DDerlSessStr) -> binary_to_term(base64:decode(DDerlSessStr)).
-
-pid_to_session(Pid) when is_pid(Pid) -> base64:encode(term_to_binary(Pid)).
-
--spec start_link(fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = gen_server:start_link(?MODULE, [ConnInfoFun()], []),
-    Pid ! {set_id, pid_to_session(Pid)},
+-spec start_link(binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Token, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    {ok, Pid} = gen_server:start_link({global, Token}, ?MODULE, [ConnInfoFun()], []),
+    Pid ! {set_id, Token},
     {ok, Pid}.
 
 -spec get_state(pid()) -> #state{}.
-get_state(DDerlSessStr) ->
-    gen_server:call(session_to_pid(DDerlSessStr), get_state, infinity).
+get_state(Token) ->
+    gen_server:call({global, Token}, get_state, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
-process_request(undefined, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, DderlSess);
-process_request(Adapter, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
+process_request(undefined, Type, Body, ReplyPid, RemoteEp, Token) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, Token);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, Token) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    gen_server:cast(session_to_pid(DderlSess), {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
+    gen_server:cast({global, Token}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
 init([ConnInfo]) ->
     process_flag(trap_exit, true),
@@ -147,8 +141,8 @@ handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor 
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
-handle_info({set_id, DderlSess}, State) ->
-    {noreply, State#state{id = DderlSess}};
+handle_info({set_id, Token}, State) ->
+    {noreply, State#state{id = Token}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -171,11 +165,14 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
                                 tmp_login = true, screensaver = true,
                                 old_state = State}
                end,
-    Login = login(ReqData, From, SrcIp, TmpState),
-    case Login of
-        #state{user_id = undefined} = NewState -> NewState;
-        #state{old_state = OldState} -> 
-            OldState#state{screensaver = false, is_locked = false}
+    Token = base64:encode(crypto:rand_bytes(64)),
+    global:unregister_name(Id),
+    global:register_name(Token, self()),
+    From ! {newToken, Token},
+    case login(ReqData, From, SrcIp, TmpState) of
+        #state{user_id = undefined} = NewState -> NewState#state{id = Token};
+        #state{old_state = OldState} ->
+            OldState#state{screensaver = false, is_locked = false, id = Token}
     end;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
     login(ReqData, From, SrcIp, State);

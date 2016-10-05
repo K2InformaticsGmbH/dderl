@@ -19,10 +19,10 @@ init({ssl, http}, Req, []) ->
     case cowboy_req:has_body(Req) of
         true ->
             {Typ, Req1} = cowboy_req:path_info(Req),
-            {Session, Req2} = cowboy_req:cookie(cookie_name(Req1), Req1, <<>>),
+            {Token, Req2} = cowboy_req:cookie(cookie_name(Req1), Req1, <<>>),
             {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
-            % ?Info("DDerl {session, adapter} from header ~p", [{Session,Adapter,Typ}]),
-            process_request(Session, Adapter, Req3, Typ);
+            % ?Info("DDerl {Token, adapter} from header ~p", [{Token,Adapter,Typ}]),
+            process_request(Token, Adapter, Req3, Typ);
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req, Else]),
             self() ! {reply, <<"{}">>},
@@ -69,29 +69,29 @@ process_request(_, _, Req, [<<"upload">>]) ->
                           end || F <- Files]}
                       )},
     {loop, Req1, <<>>, 5000, hibernate};
-process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
+process_request(Token, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
-    process_request_low(Session, Adapter, Req1,
+    process_request_low(Token, Adapter, Req1,
                         imem_json:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
                                       {<<"fileToDownload">>, FileToDownload},
                                       {<<"queryToDownload">>, QueryToDownload},
                                       {<<"binds">>,BindVals}]
                                     }]), Typ);
-process_request(Session, Adapter, Req, [<<"close_tab">>]) ->
+process_request(Token, Adapter, Req, [<<"close_tab">>]) ->
     {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
-    process_request_low(Session, Adapter, Req1, 
+    process_request_low(Token, Adapter, Req1, 
         imem_json:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
-process_request(Session, Adapter, Req, Typ) ->
+process_request(Token, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
-    process_request_low(Session, Adapter, Req1, Body, Typ).
+    process_request_low(Token, Adapter, Req1, Body, Typ).
 
-process_request_low(Session, Adapter, Req, Body, Typ) ->
+process_request_low(Token, Adapter, Req, Body, Typ) ->
     AdaptMod = if
         is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
         true -> undefined
@@ -104,30 +104,30 @@ process_request_low(Session, Adapter, Req, Body, Typ) ->
             jsx:encode(BodyMap#{host_url => HostUrl});
        true -> Body
     end,
-    case dderl_session:get_session(Session, fun() -> conn_info(Req) end) of
-        {ok, DderlSess} ->
-            dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, DderlSess),
-            {loop, Req, DderlSess, 3600000, hibernate};
+    case dderl_session:get_session(Token, fun() -> conn_info(Req) end) of
+        {ok, Token} ->
+            dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token),
+            {loop, Req, Token, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
-                    {ok, DderlSess2} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
-                    dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, DderlSess2),
-                    {loop, Req, DderlSess2, 3600000, hibernate};
+                    {ok, NewToken} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
+                    dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, NewToken),
+                    {loop, Req, NewToken, 3600000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
-                          [Session, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+                          [Token, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
                     self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {loop, Req, Session, 5000, hibernate}
+                    {loop, Req, Token, 5000, hibernate}
             end
     end.
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {Session, Req1} = cowboy_req:cookie(cookie_name(Req), Req, <<>>),
+    {Token, Req1} = cowboy_req:cookie(cookie_name(Req), Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
-    process_request_low(Session, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
+    process_request_low(Token, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
@@ -150,25 +150,28 @@ conn_info(Req) ->
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
 
-info({spawn, SpawnFun}, Req, DDerlSessPid) when is_function(SpawnFun) ->
-    ?Debug("spawn fun~n to ~p", [DDerlSessPid]),
+info({spawn, SpawnFun}, Req, Token) when is_function(SpawnFun) ->
+    ?Debug("spawn fun~n to ~p", [Token]),
     spawn(SpawnFun),
-    {loop, Req, DDerlSessPid, hibernate};
-info({reply, Body}, Req, DDerlSessPid) ->
-    ?Debug("reply ~n~p to ~p", [Body, DDerlSessPid]),
+    {loop, Req, Token, hibernate};
+info({reply, Body}, Req, Token) ->
+    ?Debug("reply ~n~p to ~p", [Body, Token]),
     BodyEnc = if is_binary(Body) -> Body;
                  true -> imem_json:encode(Body)
               end,
-    {ok, Req2} = reply_200_json(BodyEnc, DDerlSessPid, Req),
-    {ok, Req2, DDerlSessPid};
-info({reply_csv, FileName, Chunk, ChunkIdx}, Req, DDerlSessPid) ->
+    {ok, Req2} = reply_200_json(BodyEnc, Token, Req),
+    {ok, Req2, Token};
+info({reply_csv, FileName, Chunk, ChunkIdx}, Req, Token) ->
     ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     {ok, Req1} = reply_csv(FileName, Chunk, ChunkIdx, Req),
     case ChunkIdx of
-        last -> {ok, Req1, DDerlSessPid};
-        single -> {ok, Req1, DDerlSessPid};
-        _ -> {loop, Req1, DDerlSessPid, hibernate}
+        last -> {ok, Req1, Token};
+        single -> {ok, Req1, Token};
+        _ -> {loop, Req1, Token, hibernate}
     end;
+info({newToken, Token}, Req, _) ->
+    ?Debug("cookie chnaged to ~p", [Token]),
+    {loop, Req, Token, hibernate};
 info(Message, Req, State) ->
     ?Error("~p unknown message in loop ~p", [self(), Message]),
     {loop, Req, State, hibernate}.
@@ -182,15 +185,13 @@ terminate(_Reason, _Req, _State) ->
 % {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
-reply_200_json(Body, EncryptedPid, Req) when is_list(EncryptedPid) ->
-    reply_200_json(Body, list_to_binary(EncryptedPid), Req);
-reply_200_json(Body, EncryptedPid, Req) when is_binary(EncryptedPid) ->
+reply_200_json(Body, Token, Req) when is_binary(Token) ->
     CookieName = cookie_name(Req),
     Req2 = case cowboy_req:cookie(CookieName, Req, <<>>) of
-        {EncryptedPid, Req1} -> Req1;
+        {Token, Req1} -> Req1;
         {_, Req1} ->
             {Host,Req1} = cowboy_req:host(Req1),
-            cowboy_req:set_resp_cookie(CookieName, EncryptedPid,
+            cowboy_req:set_resp_cookie(CookieName, Token,
                                               ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
     end,
     cowboy_req:reply(200, [
