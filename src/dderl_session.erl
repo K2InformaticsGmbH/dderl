@@ -26,16 +26,21 @@
 
 -define(SESSION_IDLE_TIMEOUT, 90000). % 90 secs
 %%-define(SESSION_IDLE_TIMEOUT, 5000). % 5 sec (for testing)
+-define(SCREEN_SAVER_TIMEOUT, 90000000). % 90 secs
 
 -record(state, {
           id            = <<>>          :: binary()
           , adapt_priv  = []            :: list()
           , tref                        :: timer:tref()
+          , inactive_tref               :: timer:tref()
           , user        = <<>>          :: binary()
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
           , conn_info                   :: map()
+          , screensaver = false         :: boolean()
+          , tmp_login   = false         :: boolean()
+          , old_state                   :: tuple()
          }).
 
 %% Helper functions
@@ -105,22 +110,30 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
-handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef} = State) ->
+handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef, inactive_tref = ITref} = State) ->
     timer:cancel(TRef),
+    NewITref = if Typ == [<<"ping">>] -> ITref;
+                  ITref == undefined -> erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive);
+                  true -> erlang:cancel_timer(ITref), erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive)
+               end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
             State
     end,
-    {noreply, State0#state{tref=undefined}};
+    {noreply, State0#state{tref=undefined, inactive_tref = NewITref}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
+
 handle_info(rearm_session_idle_timer, State) ->
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {noreply, State#state{tref=NewTRef}};
+    {noreply, State#state{tref = NewTRef}};
+handle_info(inactive, #state{user=User}=State) ->
+    ?Info([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
+    {noreply, State#state{screensaver = true}};
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
     {stop, normal, State};
@@ -148,6 +161,46 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{screensaver = true} = State) ->
+    #state{id = Id, conn_info = ConnInfo, tmp_login = TmpLogin} = State,
+    TmpState = if TmpLogin -> State;
+                  true -> 
+                        {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+                        #state{sess = Sess, id = Id, conn_info = ConnInfo, 
+                                tmp_login = true, screensaver = true,
+                                old_state = State}
+               end,
+    Login = login(ReqData, From, SrcIp, TmpState),
+    case Login of
+        #state{user_id = undefined} = NewState -> NewState;
+        #state{old_state = OldState} -> 
+            OldState#state{screensaver = false}
+    end;
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
+    login(ReqData, From, SrcIp, State);
+process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
+             #state{user_id = UserId, id = Id, screensaver = Inactive} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
+    if Inactive -> reply(From, #{ping => #{error => show_screen_saver}}, self());
+       true -> reply(From, #{<<"ping">> => node()}, self())
+    end,
+    State;
+%% IMPORTANT:
+% This function clause is placed right after login to be able to catch all
+% request (other than login above) which are NOT to be allowed without a login
+%
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "invalid", io_lib:format("~p", [Req]), "", "", "", ""),
+    ?Debug("Request from a not logged in user: ~n~p", [Req]),
+    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
+    State;
+
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{screensaver = true, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "screensaver is enabled", io_lib:format("~p", [Req]), "", "", "", ""),
+    ?Debug("Request when screensaver is active from user: ~n~p", [Req]),
+    reply(From, [{<<"error">>, <<"screensaver">>}], self()),
+    State;
+
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "restart", "", "", "", "", ""),
@@ -168,89 +221,6 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
             reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
     end,
     State;
-process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
-    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
-    Host =
-    lists:foldl(
-      fun({App,_,_}, <<>>) ->
-              {ok, Apps} = application:get_key(App, applications),
-              case lists:member(dderl, Apps) of
-                  true -> atom_to_binary(App, utf8);
-                  _ -> <<>>
-              end;
-         (_, App) -> App
-      end, <<>>, application:which_applications()),
-    {ok, Vsn} = application:get_key(dderl, vsn),
-    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
-               node => list_to_binary(imem_meta:node_shard())},
-    case catch ErlImemSess:run_cmd(login,[]) of
-        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
-            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
-            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
-            State;
-        {error, _} ->
-            ReqDataMap = jsx:decode(ReqData, [return_maps]),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-            case catch dderl_dal:process_login(
-                         ReqDataMap, State,
-                         #{auth => fun(Auth) ->
-                                       (State#state.sess):auth(dderl, Id, Auth)
-                                   end,
-                           connInfo => ConnInfo,
-                           relayState => fun dderl_resource:samlRelayStateHandle/2,
-                           stateUpdateUsr =>  fun(St, Usr) -> St#state{user=Usr} end,
-                           stateUpdateSKey =>  fun(St, _) -> St end,
-                           urlPrefix => dderl:get_url_suffix()}) of
-                {{E,M},St} when is_atom(E) ->
-                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
-                    reply(From, #{login=>
-                                       #{error=>
-                                         if is_binary(M) -> M;
-                                            is_list(M) -> list_to_binary(M);
-                                            true -> list_to_binary(io_lib:format("~p", [M]))
-                                       end}}, self()),
-                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                                Id, "login unsuccessful", "", "", "", "", ""),
-                    self() ! invalid_credentials,
-                    State;
-                {'EXIT', Error} ->
-                    ?Error("Error logging in : ~p", [Error]),
-                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                                Id, "login unsuccessful", "", "", "", "", ""),
-                    reply(From, #{login => #{error => imem_datatype:term_to_io(Error)}}, self()),
-                    State;
-                {Reply, State1} ->
-                    {Reply1, State2} = case Reply of
-                          ok -> process_call({[<<"login">>], #{}}, Adapter, From, {SrcIp, Port}, State1);
-                          _ -> {Reply, State1}
-                    end,
-                    case ReqDataMap of
-                        #{<<"samluser">> := _} ->
-                            reply(From, {saml, dderl:get_url_suffix()}, self());
-                        _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
-                    end,
-                    State2
-            end;
-        _ ->
-            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
-                                           id='$1',_='_'}, [], ['$1']}]),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
-            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
-               true -> 
-                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
-                    State#state{user_id = UserId}
-            end
-    end;
-%% IMPORTANT:
-% This function clause is placed right after login to be able to catch all
-% request (other than login above) which are NOT to be allowed without a login
-%
-process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "invalid", io_lib:format("~p", [Req]), "", "", "", ""),
-    ?Debug("Request from a not logged in user: ~n~p", [Req]),
-    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
-    State;
-
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     #{<<"change_pswd">> := BodyMap} = jsx:decode(ReqData, [return_maps]),
@@ -338,12 +308,6 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, {SrcIp,_},
     Apps = application:which_applications(),
     Versions = get_apps_version(Apps, [dderl|Deps]),
     reply(From, [{<<"about">>, Versions}], self()),
-    State;
-
-process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
-             #state{user_id = UserId, id = Id} = State) ->
-    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
-    reply(From, [{<<"ping">>, atom_to_binary(node(), utf8)}], self()),
     State;
 
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
@@ -626,4 +590,79 @@ find_deps_app_seq(App,Chain) ->
         [] -> Chain;
         [A|_] -> % Follow signgle chain for now
             find_deps_app_seq(A,[A|Chain])
+    end.
+
+login(ReqData, From, SrcIp, State) ->
+    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
+    Host =
+    lists:foldl(
+      fun({App,_,_}, <<>>) ->
+              {ok, Apps} = application:get_key(App, applications),
+              case lists:member(dderl, Apps) of
+                  true -> atom_to_binary(App, utf8);
+                  _ -> <<>>
+              end;
+         (_, App) -> App
+      end, <<>>, application:which_applications()),
+    {ok, Vsn} = application:get_key(dderl, vsn),
+    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
+               node => list_to_binary(imem_meta:node_shard())},
+    case catch ErlImemSess:run_cmd(login,[]) of
+        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
+            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
+            State;
+        {error, _} ->
+            ReqDataMap = jsx:decode(ReqData, [return_maps]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
+            case catch dderl_dal:process_login(
+                         ReqDataMap, State,
+                         #{auth => fun(Auth) ->
+                                       (State#state.sess):auth(dderl, Id, Auth)
+                                   end,
+                           connInfo => ConnInfo,
+                           relayState => fun dderl_resource:samlRelayStateHandle/2,
+                           stateUpdateUsr =>  fun(St, Usr) -> St#state{user=Usr} end,
+                           stateUpdateSKey =>  fun(St, _) -> St end,
+                           urlPrefix => dderl:get_url_suffix()}) of
+                {{E,M},St} when is_atom(E) ->
+                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                    reply(From, #{login=>
+                                       #{error=>
+                                         if is_binary(M) -> M;
+                                            is_list(M) -> list_to_binary(M);
+                                            true -> list_to_binary(io_lib:format("~p", [M]))
+                                       end}}, self()),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    self() ! invalid_credentials,
+                    State;
+                {'EXIT', Error} ->
+                    ?Error("Error logging in : ~p", [Error]),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    reply(From, #{login => #{error => imem_datatype:term_to_io(Error)}}, self()),
+                    State;
+                {Reply, State1} ->
+                    {Reply1, State2} = case Reply of
+                          % ok -> process_call({[<<"login">>], #{}}, Adapter, From, {SrcIp, Port}, State1);
+                          ok -> login(#{}, From, SrcIp, State1);
+                          _ -> {Reply, State1}
+                    end,
+                    case ReqDataMap of
+                        #{<<"samluser">> := _} ->
+                            reply(From, {saml, dderl:get_url_suffix()}, self());
+                        _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
+                    end,
+                    State2
+            end;
+        _ ->
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
+            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
+               true -> 
+                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
+                    State#state{user_id = UserId}
+            end
     end.

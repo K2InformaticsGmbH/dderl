@@ -7,6 +7,7 @@ import {connect_dlg} from './connect';
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
+    dderlState.username = user;
 }
 
 function refresh_header_information() {
@@ -19,8 +20,15 @@ export function loginAjax(data = {}) {
     ajaxCall(null, 'login', data, 'login', loginCb);
 }
 
+window.loginCb = loginCb;
+
 function loginCb(resp) {
     $('#btn-disconnect').removeClass('disabled');
+    if(window.opener && window.opener.isScreensaver && window.opener.loginCb && $.isFunction(window.opener.loginCb)) {
+        window.opener.loginCb(resp);
+        window.close();
+        return;
+    }
 
     if (resp.hasOwnProperty('vsn')) {
         dderlState.vsn = resp.vsn;
@@ -57,7 +65,7 @@ function loginCb(resp) {
                  fields : [{type        : "text",
                             placeholder : "User",
                             name        : "user",
-                            val         : resp.pwdmd5.accountName},
+                            val         : resp.pwdmd5.accountName || dderlState.username},
                            {type        : "password",
                             placeholder : "Password",
                             name        : "password",
@@ -76,14 +84,26 @@ function loginCb(resp) {
         });
     } else if(resp.hasOwnProperty('saml')) {
         if(resp.saml.hasOwnProperty('form')) {
-            $("body").append(resp.saml.form);
-            $("#samlForm").submit();
+            if(dderlState.screensaver) {
+                display({title  : "Login",
+                         fields : [],
+                         form   : resp.saml.form
+                }); 
+            } else {
+                $("body").append(resp.saml.form);
+                $("#samlForm").submit();
+            }
         }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
-        connect_dlg();
+        if(dderlState.screensaver) {
+            window.isScreensaver = false;
+            dderlState.screensaver = false;
+        } else {
+            connect_dlg();
+        }
     } else if (resp.hasOwnProperty('changePass')) {
         change_login_password(resp.changePass, true);
     } else {
@@ -180,19 +200,27 @@ function display(layout) {
 
 function inputEnter(layout) {
     var data = {};
-    for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
-        if (layout.fields[fldIdx].hasOwnProperty('elm')) {
-            layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
-        }
-        if (layout.fields[fldIdx].type != "label") {
-            if(layout.fields[fldIdx].type == "password") {
-                data[layout.fields[fldIdx].name] = md5Arr(layout.fields[fldIdx].val);
-            } else {
-                data[layout.fields[fldIdx].name] = layout.fields[fldIdx].val;
+    if(layout.fields.length) {
+        for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
+            if (layout.fields[fldIdx].hasOwnProperty('elm')) {
+                layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
+            }
+            if (layout.fields[fldIdx].type != "label") {
+                if(layout.fields[fldIdx].type == "password") {
+                    data[layout.fields[fldIdx].name] = md5Arr(layout.fields[fldIdx].val);
+                } else {
+                    data[layout.fields[fldIdx].name] = layout.fields[fldIdx].val;
+                }
             }
         }
+        loginAjax(data);
+    } else if(layout.form) {
+        window.isScreensaver = true;
+        var tab = window.open('', '_blank');
+        var form = $(layout.form);
+        $(tab.document.body).append(form);
+        form.submit();
     }
-    loginAjax(data);
 }
 
 export function logout() {
@@ -282,6 +310,8 @@ function process_logout() {
     dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
+    dderlState.username = '';
+    dderlState.screensaver = false;
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
     resetPingTimer();

@@ -1,7 +1,7 @@
 import $ from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import './dderl.table';
-import {change_login_password} from './login';
+import {change_login_password, loginAjax} from './login';
 import {change_connect_password} from './connect';
 import {StartSqlEditor} from './dderl.sql';
 
@@ -25,6 +25,8 @@ export var dderlState = {
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
     operationLogs: "",
+    screensaver: false,
+    username: "",
     app: "",
     vsn: "",
     node: ""
@@ -105,13 +107,17 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping' && _data.error) {
+                if(_url == 'app/ping') {
                     dderlState.isLoggedIn = false;
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     resetPingTimer();
                 }
-                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+
+                if(_data.error == 'screensaver') {
+                    dderlState.screensaver = true;
+                    loginAjax();
+                } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
             }
@@ -213,6 +219,10 @@ export function resetPingTimer() {
                 if(!response) {
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
+                } else if(response.error == "show_screen_saver" && !dderlState.screensaver) {
+                    console.log("showing screen saver");
+                    dderlState.screensaver = true;
+                    loginAjax();
                 }
             });
         },
