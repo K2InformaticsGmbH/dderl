@@ -41,6 +41,7 @@
           , tmp_login   = false         :: boolean()
           , is_saml     = false         :: boolean()
           , old_state                   :: tuple()
+          , is_locked   = false         :: boolean()
          }).
 
 %% Helper functions
@@ -174,7 +175,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
     case Login of
         #state{user_id = undefined} = NewState -> NewState;
         #state{old_state = OldState} -> 
-            OldState#state{screensaver = false}
+            OldState#state{screensaver = false, is_locked = false}
     end;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
     login(ReqData, From, SrcIp, State);
@@ -184,7 +185,7 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_},
     if Inactive -> reply(From, #{ping => #{error => show_screen_saver}}, self());
        true -> reply(From, #{<<"ping">> => node()}, self())
     end,
-    State;
+    State#state{is_locked = true};
 %% IMPORTANT:
 % This function clause is placed right after login to be able to catch all
 % request (other than login above) which are NOT to be allowed without a login
@@ -195,7 +196,7 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = Stat
     reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
-process_call(Req, _Adapter, From, {SrcIp,_}, #state{screensaver = true, id = Id} = State) ->
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{is_locked = true, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "screensaver is enabled", io_lib:format("~p", [Req]), "", "", "", ""),
     ?Debug("Request when screensaver is active from user: ~n~p", [Req]),
     reply(From, [{<<"error">>, <<"screensaver">>}], self()),
