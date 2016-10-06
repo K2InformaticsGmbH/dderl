@@ -3,6 +3,7 @@ import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
 import {connect_dlg} from './connect';
+import {stopScreensaver, startScreensaver} from './screensaver';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
@@ -104,7 +105,8 @@ function loginCb(resp) {
         if(dderlState.screensaver) {
             window.isScreensaver = false;
             dderlState.screensaver = false;
-            $('#main-body').css('filter', '');
+            stopScreensaver();
+            $("#world").hide();
         } else {
             connect_dlg();
         }
@@ -116,7 +118,7 @@ function loginCb(resp) {
 }
 
 export function showScreeSaver() {
-    $('#main-body').css('filter', 'blur(5px)');
+    startScreensaver();
     display({title  : "Session is locked",
              fields : [],
     }); 

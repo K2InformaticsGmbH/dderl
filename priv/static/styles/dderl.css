@@ -468,6 +468,17 @@ div#main-body {
     user-select: none;
 }
 
+div#main-body #screensaver{
+    display: block;
+    z-index: 99997;
+    position: relative;
+}
+
+#world{
+    display: none;
+    background-color: #000000;
+}
+
 div#angular-panel {
     position:absolute;
     overflow: auto;

@@ -20,6 +20,7 @@ import {dderlState, show_qry_files, import_query,
 import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab, close_tab} from "./scripts/connect";
 import {StartSqlEditor} from "./scripts/dderl.sql";
+import {stopScreensaver, startScreensaver} from "./scripts/screensaver.js";
 
 import 'font-awesome/css/font-awesome.css';
 // Add our jquery-ui theme (smoothness) from http://jqueryui.com/download/
