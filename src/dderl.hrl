@@ -190,7 +190,7 @@
 %% SAML configs
 -define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://idp.host.com/", "IDP Login URL")).
 -define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "/saml", "URL Prefix for all SP links")).
-% -define(SAMLSSLOPTS,        ?GET_CONFIG(samlSslOpts,[],'$no_ssl_conf',"SAML SSL cert and key options")).
+-define(SAMLSSLOPTS,        ?GET_CONFIG(samlSslOpts,[],'$no_ssl_conf',"SAML SSL cert and key options")).
 -define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).
 
 %% Screensaver config

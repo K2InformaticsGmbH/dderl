@@ -124,7 +124,9 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
 handle_info(rearm_session_idle_timer, State) ->
     {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     {noreply, State#state{tref = NewTRef}};
-handle_info(inactive, State) ->
+handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
+    ?Debug([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
+    erlang:cancel_timer(ITref),
     {noreply, State#state{screensaver = true}};
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
@@ -157,29 +159,29 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
     #state{id = Id, conn_info = ConnInfo, tmp_login = TmpLogin} = State,
     {TmpState, NewToken} = 
     if TmpLogin -> {State, Id};
-      true -> 
+       true -> 
             Token = base64:encode(crypto:rand_bytes(64)),
             global:unregister_name(Id),
             global:register_name(Token, self()),
             From ! {newToken, Token},
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
-                    tmp_login = true, screensaver = true,
+                    tmp_login = true, screensaver = true, is_locked = true,
                     old_state = State}, Token} 
    end,
     case login(ReqData, From, SrcIp, TmpState) of
         #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
-        #state{old_state = OldState} ->
+        #state{sess = TmpSess, old_state = OldState} ->
+            TmpSess:close(),
             OldState#state{screensaver = false, is_locked = false, id = NewToken}
     end;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
     login(ReqData, From, SrcIp, State);
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
-             #state{user_id = UserId, id = Id, user = User, screensaver = Inactive} = State) ->
+             #state{user_id = UserId, id = Id, screensaver = Inactive} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
     if Inactive -> 
             reply(From, #{ping => #{error => show_screen_saver}}, self()),
-            ?Info([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
             State#state{is_locked = true};
        true -> 
             reply(From, #{<<"ping">> => node()}, self()),
