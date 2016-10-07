@@ -26,6 +26,7 @@ export var dderlState = {
     copyMode: "normal",             // normal, header, json
     operationLogs: "",
     screensaver: false,
+    xsrfToken: "",
     username: "",
     app: "",
     vsn: "",
@@ -63,6 +64,8 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     if (self) {
         if(self.hasOwnProperty('_adapter')) headers['DDERL-Adapter'] = self._adapter;
     }
+
+    headers["X-XSRF-TOKEN"] = dderlState.xsrfToken;
 
     $.ajax({
         type: 'POST',

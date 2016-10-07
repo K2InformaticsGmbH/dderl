@@ -108,6 +108,16 @@ function loginCb(resp) {
             stopScreensaver();
             $("#world").hide();
         } else {
+            var cookies = document.cookie;
+            if(cookies) {
+                var cs = cookies.split("; ");
+                for(var i = 0; i < cs.length; i++) { 
+                    if(cs[i].includes("DDERL-XSRF-TOKEN")) {
+                        dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
+                        break;
+                    }
+                }
+            }
             connect_dlg();
         }
     } else if (resp.hasOwnProperty('changePass')) {

@@ -204,6 +204,8 @@
 
 %% Cookie info
 -define(DDERL_COOKIE_NAME, <<"DdErlSession">>).
+-define(DDERL_XSRF_COOKIE, <<"DDERL-XSRF-TOKEN">>).
+-define(XSRF_HEADER, <<"x-xsrf-token">>).
 -define(COOKIE_OPTS(__Domain), [{path, <<"/">>}, {secure, true}, {domain, __Domain}]).
 -define(HTTP_ONLY_COOKIE_OPTS(__Domain), [{http_only, true}|?COOKIE_OPTS(__Domain)]).
 

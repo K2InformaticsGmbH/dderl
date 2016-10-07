@@ -8,10 +8,11 @@
 -include("dderl.hrl").
 -include_lib("esaml/include/esaml.hrl").
 
--export([start_link/2
-        , get_session/2
+-export([start_link/3
+        , get_session/4
         , process_request/6
         , get_state/1
+        , get_xsrf_token/1
         , get_apps_version/2
         ]).
 
@@ -41,22 +42,31 @@
           , tmp_login   = false         :: boolean()
           , old_state                   :: tuple()
           , is_locked   = false         :: boolean()
+          , xsrf_token  = <<>>          :: binary()
          }).
 
 %% Helper functions
--spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
-get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+-spec get_session(binary() , binary(), boolean(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
+get_session(<<>>, _, _, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
     Token = base64:encode(crypto:rand_bytes(64)),
-    dderl_session_sup:start_session(Token, ConnInfoFun),
+    XSRFToken = base64:encode(crypto:rand_bytes(32)),
+    dderl_session_sup:start_session(Token, XSRFToken, ConnInfoFun),
     ?Debug("new dderl session ~p from ~p", [Token, self()]),
-    {ok, Token};
-get_session(Token, _ConnInfoFun) when is_binary(Token) ->
+    {ok, Token, XSRFToken};
+get_session(Token, XSRFToken, CheckXSRF, _ConnInfoFun) when is_binary(Token) ->
     try
         case global:whereis_name(Token) of
             undefined -> {error, <<"process not found">>};
             Pid ->
                 case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
-                    true -> {ok, Token};
+                    true -> 
+                        if CheckXSRF ->
+                                case get_xsrf_token(Token) of
+                                    XSRFToken -> {ok, Token, XSRFToken};
+                                    _ -> {error, <<"xsrf attack">>}
+                                end;
+                           true -> {ok, Token, XSRFToken}
+                        end;
                     _ -> {error, <<"process not found">>}
                 end
         end
@@ -65,18 +75,22 @@ get_session(Token, _ConnInfoFun) when is_binary(Token) ->
             ?Warn("Request attempted on a dead session"),
             {error, {Error, Reason}}
     end;
-get_session(_, ConnInfoFun) ->
-    get_session(<<>>, ConnInfoFun).
+get_session(_, XSRFToken, CheckXSRF, ConnInfoFun) ->
+    get_session(<<>>, XSRFToken, CheckXSRF, ConnInfoFun).
 
--spec start_link(binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Token, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = gen_server:start_link({global, Token}, ?MODULE, [ConnInfoFun()], []),
+-spec start_link(binary(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Token, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    {ok, Pid} = gen_server:start_link({global, Token}, ?MODULE, [XSRFToken, ConnInfoFun()], []),
     Pid ! {set_id, Token},
     {ok, Pid}.
 
--spec get_state(pid()) -> #state{}.
+-spec get_state(binary()) -> #state{}.
 get_state(Token) ->
     gen_server:call({global, Token}, get_state, infinity).
+
+-spec get_xsrf_token(binary()) -> binary().
+get_xsrf_token(Token) ->
+    gen_server:call({global, Token}, get_xsrf_token, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
@@ -86,7 +100,7 @@ process_request(Adapter, Type, Body, ReplyPid, RemoteEp, Token) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
     gen_server:cast({global, Token}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
-init([ConnInfo]) ->
+init([XSRFToken, ConnInfo]) ->
     process_flag(trap_exit, true),
     {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of
@@ -94,12 +108,16 @@ init([ConnInfo]) ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
         {ok, ErlImemSess} ->
-            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess}}
+            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess,
+                        xsrf_token = XSRFToken}}
     end.
 
 handle_call(get_state, _From, State) ->
     ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
+handle_call(get_xsrf_token, _From, #state{xsrf_token = XSRFToken} = State) ->
+    ?Debug("get_xsrf_token, result: ~p~n", [XSRFToken]),
+    {reply, XSRFToken, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.

@@ -19,10 +19,12 @@ init({ssl, http}, Req, []) ->
     case cowboy_req:has_body(Req) of
         true ->
             {Typ, Req1} = cowboy_req:path_info(Req),
-            {Token, Req2} = cowboy_req:cookie(cookie_name(Req1), Req1, <<>>),
+            {Token, Req2} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req1), Req1, <<>>),
+            % {XSRFToken, _} = cowboy_req:cookie(cookie_name(?DDERL_XSRF_COOKIE, Req2), Req, <<>>),
+            {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
             {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
             % ?Info("DDerl {Token, adapter} from header ~p", [{Token,Adapter,Typ}]),
-            process_request(Token, Adapter, Req3, Typ);
+            process_request(Token, XSRFToken, Adapter, Req3, Typ);
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req, Else]),
             self() ! {reply, <<"{}">>},
@@ -55,7 +57,7 @@ stream_file(Req, Buffer) ->
             stream_file(Req2, list_to_binary([Buffer, Body]))
     end.
 
-process_request(_, _, Req, [<<"upload">>]) ->
+process_request(_, _, _, Req, [<<"upload">>]) ->
     {Files, Req1} = multipart(Req),
     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
     {{SrcIp, _}, Req} = cowboy_req:peer(Req),
@@ -69,29 +71,29 @@ process_request(_, _, Req, [<<"upload">>]) ->
                           end || F <- Files]}
                       )},
     {loop, Req1, <<>>, 5000, hibernate};
-process_request(Token, _Adapter, Req, [<<"download_query">>] = Typ) ->
+process_request(Token, XSRFToken, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
-    process_request_low(Token, Adapter, Req1,
+    process_request_low(Token, XSRFToken, Adapter, Req1,
                         imem_json:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
                                       {<<"fileToDownload">>, FileToDownload},
                                       {<<"queryToDownload">>, QueryToDownload},
                                       {<<"binds">>,BindVals}]
                                     }]), Typ);
-process_request(Token, Adapter, Req, [<<"close_tab">>]) ->
+process_request(Token, XSRFToken, Adapter, Req, [<<"close_tab">>]) ->
     {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
-    process_request_low(Token, Adapter, Req1, 
+    process_request_low(Token, XSRFToken, Adapter, Req1, 
         imem_json:encode(#{disconnect => #{connection => Connection}}), [<<"disconnect">>]);
-process_request(Token, Adapter, Req, Typ) ->
+process_request(Token, XSRFToken, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
-    process_request_low(Token, Adapter, Req1, Body, Typ).
+    process_request_low(Token, XSRFToken, Adapter, Req1, Body, Typ).
 
-process_request_low(Token, Adapter, Req, Body, Typ) ->
+process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
     AdaptMod = if
         is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
         true -> undefined
@@ -104,16 +106,17 @@ process_request_low(Token, Adapter, Req, Body, Typ) ->
             jsx:encode(BodyMap#{host_url => HostUrl});
        true -> Body
     end,
-    case dderl_session:get_session(Token, fun() -> conn_info(Req) end) of
-        {ok, Token1} ->
+    CheckXSRF = Typ =/= [<<"login">>],
+    case dderl_session:get_session(Token, XSRFToken, CheckXSRF, fun() -> conn_info(Req) end) of
+        {ok, Token1, XSRFToken1} ->
             dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token1),
-            {loop, Req, Token1, 3600000, hibernate};
+            {loop, set_xsrf_cookie(Req, XSRFToken, XSRFToken1), Token1, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
-                    {ok, NewToken} = dderl_session:get_session(<<>>, fun() -> conn_info(Req) end),
+                    {ok, NewToken, NewXSRFToken} = dderl_session:get_session(<<>>, <<>>, CheckXSRF, fun() -> conn_info(Req) end),
                     dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, NewToken),
-                    {loop, Req, NewToken, 3600000, hibernate};
+                    {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken), NewToken, 3600000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
                           [Token, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
@@ -125,9 +128,11 @@ process_request_low(Token, Adapter, Req, Body, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {Token, Req1} = cowboy_req:cookie(cookie_name(Req), Req, <<>>),
+    {Token, Req1} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req), Req, <<>>),
+    % {XSRFToken, _} = cowboy_req:cookie(cookie_name(?DDERL_XSRF_COOKIE, Req1), Req1, <<>>),
+    {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
-    process_request_low(Token, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
+    process_request_low(Token, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
@@ -186,11 +191,11 @@ terminate(_Reason, _Req, _State) ->
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, Token, Req) when is_binary(Token) ->
-    CookieName = cookie_name(Req),
+    CookieName = cookie_name(?DDERL_COOKIE_NAME, Req),
     Req2 = case cowboy_req:cookie(CookieName, Req, <<>>) of
         {Token, Req1} -> Req1;
         {_, Req1} ->
-            {Host,Req1} = cowboy_req:host(Req1),
+            {Host, Req} = cowboy_req:host(Req),
             cowboy_req:set_resp_cookie(CookieName, Token,
                                               ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
     end,
@@ -224,9 +229,15 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
             {ok, Req}
     end.
 
-cookie_name(Req) ->
+set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
+set_xsrf_cookie(Req, _, XSRFToken) ->
+    XSRFCookie = cookie_name(?DDERL_XSRF_COOKIE, Req),
+    {Host, Req} = cowboy_req:host(Req),
+    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, ?COOKIE_OPTS(Host), Req).
+
+cookie_name(Name, Req) ->
     {Port, Req} = cowboy_req:port(Req),
-    list_to_binary([?DDERL_COOKIE_NAME, integer_to_list(Port)]).
+    list_to_binary([Name, integer_to_list(Port)]).
 
 %-define(DISP_REQ, true).
 -ifdef(DISP_REQ).

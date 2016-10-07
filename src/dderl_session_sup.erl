@@ -5,7 +5,7 @@
 
 %% API
 -export([start_link/0
-        ,start_session/2
+        ,start_session/3
         ,close_session/1
         ,list_sessions/0]).
 
@@ -30,9 +30,9 @@ start_link() ->
             Error
     end.
 
--spec start_session(binary(), fun(() -> map())) -> {error, term()} | {ok, pid()}.
-start_session(Token, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-	supervisor:start_child(?MODULE, [Token, ConnInfoFun]).
+-spec start_session(binary(), binary(), fun(() -> map())) -> {error, term()} | {ok, pid()}.
+start_session(Token, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+	supervisor:start_child(?MODULE, [Token, XSRFToken, ConnInfoFun]).
 
 -spec close_session(binary()) -> ok | {error, not_found | simple_one_for_one}.
 close_session(Token) ->
