@@ -16,16 +16,15 @@ init(_Transport, Req, _Args) ->
     {Method, Req1} = cowboy_req:method(Req),
     process_req(Method, Req1, #state{sp = SP, idp = IdpMeta}).
 
-process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
+process_req(<<"POST">>, Req, S = #state{sp = #esaml_sp{metadata_uri = Url} = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
         {ok, Assertion, RelayState, Req1} ->
             Fun = binary_to_term(base64:decode(http_uri:decode(binary_to_list(RelayState)))),
             Fun(Req1, Assertion#esaml_assertion.attributes),
             {loop, Req1, S, 50000, hibernate};
         {error, Reason, Req2} ->
-            {ok, Req3} = cowboy_req:reply(403, [{<<"content-type">>, <<"text/plain">>}],
-                ["Access denied, assertion failed validation:\n", io_lib:format("~p\n", [Reason])],
-                Req2),
+            {ok, Req3} = unauthorized(Req2, Url),
+            ?Error("SAML - Auth error : ~p", [Reason]),
             {ok, Req3, S}
     end.
 
@@ -40,12 +39,7 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
     {ok, Req2, State};
 info({reply, Body}, Req, #state{sp = #esaml_sp{metadata_uri = Url}} = State) ->
     ?Info("error logging in via saml ~p ", [Body]),
-    TargetUrl = Url ++ string:strip(dderl:get_url_suffix(), both, $/) ++ "/unauthorized.html",
-    {ok, Req1} = cowboy_req:reply(302, [
-            {<<"Cache-Control">>, <<"no-cache">>},
-            {<<"Pragma">>, <<"no-cache">>},
-            {<<"Location">>, TargetUrl}
-        ], <<"Redirecting...">>, Req),
+    {ok, Req1} = unauthorized(Req, Url),
     {ok, Req1, State}.
 
 terminate(_Reason, _Req, _State) -> ok.
@@ -141,3 +135,11 @@ get_priv_key(KeyBin) ->
             public_key:der_decode('RSAPrivateKey', KeyDataBin);
         Other -> Other
     end.
+
+unauthorized(Req, MetaUrl) ->
+    TargetUrl = MetaUrl ++ string:strip(dderl:get_url_suffix(), both, $/) ++ "/unauthorized.html",
+    cowboy_req:reply(302, [
+            {<<"Cache-Control">>, <<"no-cache">>},
+            {<<"Pragma">>, <<"no-cache">>},
+            {<<"Location">>, TargetUrl}
+        ], <<"Redirecting...">>, Req).
