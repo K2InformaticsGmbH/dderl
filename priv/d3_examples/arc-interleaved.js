@@ -64,12 +64,27 @@ function init(container, width, height) {
     };
 
     /** Helper functions for data extraction */
+    var parseError = function(term) {
+        return new Error(term + " is not a valid json term");
+    }
     var getKey = function(row) {
-        return JSON.parse(row.ckey_1);
+        var k = [];
+        try {
+            k = JSON.parse(row.ckey_1);
+        } catch (e) {
+            throw parseError(row.ckey_1);
+        }
+        return k;
     };
 
     var getValue = function(row) {
-        return JSON.parse(row.cvalue_2);
+        var v = {};
+        try {
+            v = JSON.parse(row.cvalue_2);
+        } catch (e) {
+            throw parseError(row.cvalue_2);
+        }
+        return v;
     };
 
     var extractLinksNodes = function(rows, graph) {
@@ -141,7 +156,7 @@ function init(container, width, height) {
         cleaned: 'blue',
         refreshing: 'cornflowerblue',
         refreshed: 'purple',
-        stopped: 'red'
+        stopped: 'lightgrey'
     };
     // To see the complete circle when drawing negative coordinates
     // and width and height for the virtual coordinates
@@ -170,37 +185,55 @@ function init(container, width, height) {
 
     resize(width, height);
 
-    var tootipDiv = d3.select("body").append('div')
+    var tooltipDiv = d3.select("body").append('div')
         .styles({
             position: "absolute",
-            "text-align": "center",
-            width: "60px",			
-            height: "30px",
-            padding: "2px",				
-            font: "18px sans-serif",
-            border: "0px",		
-            "border-radius": "8px",			
+            "text-align": "left",
+            padding: "2px",
+            font: "14px courier",
+            border: "0px",
+            "border-radius": "8px",
             "pointer-events": "none",
             opacity: 0,
-            "z-index": 99996
+            "z-index": 99996,
+            "background-color": "lightsteelblue",
         });
 
     function showTooltip(d) {
-        tootipDiv
-            .html(JSON.stringify(d))
+        var txt = JSON.stringify(d, null, 2);
+        var html = txt.split('\n').join('<br>').split(' ').join('&nbsp;');
+        tooltipDiv
+            .html(html)
             .transition()
             .duration(200)
             .style('opacity', 0.95);
     }
 
     function moveTooltip() {
-        tootipDiv
-            .style('left', (d3.event.pageX-30) + "px")
-            .style('top', (d3.event.pageY-40) + "px");
+        // Position the tooltip without letting it go outside the window.
+        var availableHeight = document.documentElement.clientHeight;
+        var availableWidth = document.documentElement.clientWidth;
+
+        var d = tooltipDiv.node();
+        var tooltipHeight = d.scrollHeight;
+        var tooltipWidth = d.scrollWidth;
+
+        var left = d3.event.pageX - 30;
+        if(left + tooltipWidth + 5 > availableWidth) {
+            left = Math.max(availableWidth-tooltipWidth-5, 0);
+        }
+        var top = d3.event.pageY - 40;
+        if(top + tooltipHeight + 5 > availableHeight) {
+            top = Math.max(availableHeight-tooltipHeight-5, 0);
+        }
+
+        tooltipDiv
+            .style('left', left + "px")
+            .style('top', top + "px");
     }
 
     function hideTooltip() {
-        tootipDiv.transition()
+        tooltipDiv.transition()
             .duration(animDuration)
             .style('opacity', 0);
     }
@@ -370,6 +403,14 @@ function init(container, width, height) {
                     return positions[d.target].y;
                 })
                 .attr('stroke', function(d) {
+                    var jobsId = Object.keys(d.jobs);
+                    for(var i = 0; i < status.length; ++i) {
+                        if(d.jobs.hasOwnProperty(status[i].job)) {
+                            if(status[i].status == "error") {
+                                return 'red';
+                            }
+                        }
+                    }
                     return d.enabled ? 'green' : 'lightgrey';
                 });
 
@@ -391,16 +432,21 @@ function init(container, width, height) {
 
                 var jobsId = Object.keys(d.jobs);
                 // TODO: We only support 4 set of jobs in the same line.
-                var start = 0.5 - (jobsId.length - 1)*0.1;
+                var step, start;
+                if(jobsId.length !== 0) {
+                    step = Math.min(0.8/jobsId.length, 0.2);
+                    start = 0.5 - step*(jobsId.length-1)*0.5;
+                }
                 for(var i = 0; i < jobsId.length; ++i) {
-                    var pct = start + i * 0.2;
+                    var pct = start + i * step;
+                    console.log("the pct", pct);
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
+                    var dir = {x: dirX, y: dirY};
                     if(d.jobs[jobsId[i]].direction === "pull") {
-                        dirX = -dirX;
-                        dirY = -dirY;
+                        dir = {x: -dirX, y: -dirY};
                     }
-                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: {x: dirX, y: dirY}};
+                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
                 }
             });
 
@@ -432,6 +478,9 @@ function init(container, width, height) {
                 .transition()
                 .duration(animDuration)
                 .attr('transform', function(d) {
+                    if(!linksMid[d.job]) {
+                        throw new Error(JSON.stringify(d.job));
+                    }
                     var dx = linksMid[d.job].direction.x;
                     var dy = linksMid[d.job].direction.y;
                     var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
@@ -449,6 +498,9 @@ function init(container, width, height) {
         on_reset: function() {
             svg.selectAll('svg > *').remove();
             firstData = true;
+        },
+        on_close: function() {
+            tooltipDiv.remove();
         }
     };
 }

@@ -1,5 +1,5 @@
 import jQuery from "jquery";
-import {dderlState} from '../../scripts/dderl';
+import {dderlState, unescapeNewLines} from '../../scripts/dderl';
 
 (function ($) {
   // register namespace
@@ -668,16 +668,6 @@ function escapeNewLines(str) {
         result = str;
     }
     return result;
-}
-
-function unescapeNewLines(str) {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        str = str.replace(/\\t/gi, "\t");
-        str = str.replace(/\\n/gi, "\n");
-    }
-    return unescape(str);
 }
 
 export function createCopyTextBox(innerText) {

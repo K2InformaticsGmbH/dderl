@@ -755,3 +755,14 @@ export function password_change_dlg(title, loggedInUser, change_pass_fn) {
     $("#dialog-change-password").parent()
         .find("button:contains('Change Password')").button("disable");
 }
+
+
+export function unescapeNewLines(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        str = str.replace(/\\t/gi, "\t");
+        str = str.replace(/\\n/gi, "\n");
+    }
+    return unescape(str);
+}

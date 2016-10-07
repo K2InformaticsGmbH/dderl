@@ -97,9 +97,9 @@ function insertAtCursor(myField, myValue) {
 
     _toolsBtns      : {'Validate SQL'               : { typ : 'btn', icn : 'refresh',               clk : '_toolBarValidate'        },
                        'Execute fetch first block'  : { typ : 'btn', icn : 'play',                  clk : '_toolBarTblReload'       },
-                       'Execute fetch to end'       : { typ : 'btn', icn : 'forward',               clk : '_toolBarTblFetch2End'    },
-                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetchNTail'   },
-                       'Execute tail mode only'     : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblTailOnly'     },
+                       'Execute fetch to end'       : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetch2End'    },
+                       'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblFetchNTail'   },
+                       'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarTblTailOnly'     },
                        ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},
 
     // These options will be used as defaults
@@ -270,6 +270,7 @@ function insertAtCursor(myField, myValue) {
 
     return {
         on_data: function(data) {
+            // Process data and add draw here.
             console.log("the new data arrived", data);
             var points = svg
                 .selectAll('circle')
@@ -283,10 +284,19 @@ function insertAtCursor(myField, myValue) {
                 .attr('cy', 60);
         },
         on_resize: function(w, h) {
+            // Apply transformations and scale if when the dialog is resized.
             svg.attr('width', w)
                 .attr('height', h);
         },
-        on_reset: function() {}
+        on_reset: function() {
+            // Called when the button clear the graph is clicked.
+            svg.selectAll('svg > *').remove();
+        },
+        on_close: function() {
+            // This should cleanup event listeners and element added
+            // outside the container, the container itself will be removed
+            // after this function call.
+        }
     };
 }`;
             self._graphEdit.val(graphScriptHelp);
@@ -343,10 +353,16 @@ function insertAtCursor(myField, myValue) {
             .css('bottom', self.options.toolBarHeight+'px')
             .tabs()
             .on("tabsactivate", function(event, ui) {
-                self._setTabFocus();
-                if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
-                    self.addWheel();
-                    ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}},'parse_stmt','parsedCmd');
+                var selected = self._editDiv.tabs("option", "active");
+
+                if(selected === 3) {
+                    
+                } else {
+                    self._setTabFocus();
+                    if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
+                        self.addWheel();
+                        ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._modCmd } }, 'parse_stmt', 'parsedCmd');
+                    }
                 }
             })
             .removeClass('ui-corner-all')
