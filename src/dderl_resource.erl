@@ -20,7 +20,6 @@ init({ssl, http}, Req, []) ->
         true ->
             {Typ, Req1} = cowboy_req:path_info(Req),
             {Token, Req2} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req1), Req1, <<>>),
-            % {XSRFToken, _} = cowboy_req:cookie(cookie_name(?DDERL_XSRF_COOKIE, Req2), Req, <<>>),
             {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
             {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
             % ?Info("DDerl {Token, adapter} from header ~p", [{Token,Adapter,Typ}]),
@@ -120,6 +119,7 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
                           [Token, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
+                    ?Info("Typ : ~p", [Typ]),
                     Node = atom_to_binary(node(), utf8),
                     self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
                     {loop, Req, Token, 5000, hibernate}
@@ -129,7 +129,6 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
     {Token, Req1} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req), Req, <<>>),
-    % {XSRFToken, _} = cowboy_req:cookie(cookie_name(?DDERL_XSRF_COOKIE, Req1), Req1, <<>>),
     {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
     process_request_low(Token, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).

@@ -218,7 +218,6 @@ export function resetPingTimer() {
     dderlState.pingTimer = setTimeout(
         function() {
             ajaxCall(null, 'ping', null, 'ping', function(response) {
-                console.log("ping " + response);
                 if(!response) {
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);

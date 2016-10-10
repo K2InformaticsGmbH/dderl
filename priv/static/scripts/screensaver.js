@@ -2,7 +2,7 @@
 var timer;
 export function startScreensaver(){
     $('#world').show();
-    var FPS = 30;
+    var FPS = 20;
     var F = 300;
     var N = 3;
     var VERTEX_MAX = 10;

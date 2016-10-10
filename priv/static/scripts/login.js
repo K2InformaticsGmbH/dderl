@@ -254,64 +254,25 @@ export function logout() {
     }
 
     function exec_logout() {
-        var headers = {};
-
-        if (dderlState.adapter !== null) {
-            headers['DDERL-Adapter'] = dderlState.adapter;
-        }
-
-        $.ajax({
-            type: 'POST',
-            url: 'app/logout',
-            data: JSON.stringify({}),
-            dataType: "JSON",
-            contentType: "application/json; charset=utf-8",
-            headers: headers,
-            context: null,
-
-            success: function(_data, textStatus) {
-                console.log('Request logout Result ' + textStatus);
-                process_logout();
-            },
-
-            error: function (request, textStatus) {
-                console.log('Request logout Error, status: ' + textStatus);
-            }
+        ajaxCall(null, 'logout', JSON.stringify({}), 'logout', function(data) {
+            console.log('Request logout Result ' + data);
+            process_logout();
         });
     }
 }
 
 //TODO: Does this function belong here ?
 export function restart() {
-    var headers = {};
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
-    }
     confirm_jq({title: "Confirm restart", content:''},
             function() {
-                $.ajax({
-                    type: 'POST',
-                    url: 'app/restart',
-                    data: JSON.stringify({}),
-                    dataType: "JSON",
-                    contentType: "application/json; charset=utf-8",
-                    headers: headers,
-                    context: null,
-                    success: function(response) {
-                        if (response.hasOwnProperty('restart')) {
-                           if (response.restart == 'ok') { location.reload(true); }
-                           else if (response.restart.hasOwnProperty('error')) {
-                               alert_jq(response.restart.error);
-                           }
-                           else {
-                               console.error("malformed response " + JSON.stringify(response));
-                           }
-                        } else {
-                            console.error("malformed response " + JSON.stringify(response));
-                        }
-                    },
-                    error: function (request, textStatus) {
-                        console.log('Request restart Error, status: ' + textStatus);
+                ajaxCall(null, 'restart', JSON.stringify({}), 'restart', function(data) {
+                    console.log('Request restart Result ' + data);
+                    if (data == 'ok') { 
+                        location.reload(true); 
+                    } else if (data.hasOwnProperty('error')) {
+                        alert_jq(data.error);
+                    } else {
+                        console.error("malformed response " + JSON.stringify(response));
                     }
                 });
             });
