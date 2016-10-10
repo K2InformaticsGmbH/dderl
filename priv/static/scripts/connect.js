@@ -539,37 +539,19 @@ export function disconnect_tab() {
     if (!dderlState.connection)
         return;
 
-    var headers = {};
-
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
-    }
-    
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
-    var response = false;
-    $.ajax({
-        type: 'POST',
-        url: 'app/disconnect',
-        data: JSON.stringify({disconnect: {connection: dderlState.connection}}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
-
-        success: function(_data, textStatus) {
-            console.log('Request disconnect result ' + textStatus);
+    ajaxCall(null, 'disconnect', JSON.stringify({disconnect: {connection: dderlState.connection}}), 
+        'disconnect', function(data) {
+            console.log('Request disconnect result ' + data);
             dderlState.connection = null;
             dderlState.adapter = null;
             dderlState.connected_user = null;
             dderlState.service = null;
             connect_dlg();
-            response = true;
-        },
-
-        error: function (request, textStatus) {
-            console.log('Request disconnect result ' + textStatus);
+        }, function(error) {
+            console.log('Request disconnect result ' + error);
             dderlState.connection = null;
             dderlState.adapter = null;
             dderlState.connected_user = null;
@@ -577,9 +559,8 @@ export function disconnect_tab() {
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
-            response = true;
         }
-    });
+    );
 }
 
 export function close_tab() {
@@ -595,6 +576,8 @@ export function close_tab() {
         headers['DDERL-Adapter'] = dderlState.adapter;
         headers['DDERL-Connection'] = dderlState.connection;
     }
+
+    headers["X-XSRF-TOKEN"] = dderlState.xsrfToken;
 
     $.ajax({
         type: 'POST',

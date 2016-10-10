@@ -38,7 +38,7 @@ export var dderlState = {
 //       is determined by the presence of the
 //       context variable for widget there is
 //       no this['context']
-export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
+export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
     resetPingTimer();
     var self = _ref;
 
@@ -135,14 +135,13 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 this.removeWheel();
             }
 
-            if(_url == '/app/ping') {
-                _successevt("error");
-            } else {
-                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
-                    dderlState.currentErrorAlert = alert_jq('HTTP Error'+
-                        (textStatus.length > 0 ? ' '+textStatus:'') +
-                        (errorThrown.length > 0 ? ' details '+errorThrown:''));
-                }
+            if($.isFunction(_errorevt)) {
+                _errorevt(errorThrown, textStatus);
+            } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+                dderlState.currentErrorAlert = alert_jq('HTTP Error'+
+                    (textStatus.length > 0 ? ' '+textStatus:'') +
+                    (errorThrown.length > 0 ? ' details '+errorThrown:''));
+                
             }
         }
     });
@@ -217,16 +216,20 @@ export function resetPingTimer() {
 
     dderlState.pingTimer = setTimeout(
         function() {
-            ajaxCall(null, 'ping', null, 'ping', function(response) {
-                if(!response) {
+            ajaxCall(null, 'ping', null, 'ping', 
+                function(response) {
+                    if(response.error == "show_screen_saver" && !dderlState.screensaver) {
+                        console.log("showing screen saver");
+                        dderlState.screensaver = true;
+                        showScreeSaver();
+                    }
+                },
+                function(error) {
+                    console.log("Error on ping : ", error);
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
-                } else if(response.error == "show_screen_saver" && !dderlState.screensaver) {
-                    console.log("showing screen saver");
-                    dderlState.screensaver = true;
-                    showScreeSaver();
                 }
-            });
+            );
         },
     30000); // Ping time 30 secs.
 }

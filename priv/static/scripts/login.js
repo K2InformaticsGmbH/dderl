@@ -46,6 +46,17 @@ function loginCb(resp) {
     }
     refresh_header_information();
 
+    var cookies = document.cookie;
+    if(cookies) {
+        var cs = cookies.split("; ");
+        for(var i = 0; i < cs.length; i++) { 
+            if(cs[i].indexOf("DDERL-XSRF-TOKEN") !== -1) {
+                dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
+                break;
+            }
+        }
+    }
+
     if (resp.hasOwnProperty('error')) {
         var accountName = "";
         if(resp.hasOwnProperty('pwdmd5')) {
@@ -108,16 +119,6 @@ function loginCb(resp) {
             stopScreensaver();
             $("#world").hide();
         } else {
-            var cookies = document.cookie;
-            if(cookies) {
-                var cs = cookies.split("; ");
-                for(var i = 0; i < cs.length; i++) { 
-                    if(cs[i].includes("DDERL-XSRF-TOKEN")) {
-                        dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
-                        break;
-                    }
-                }
-            }
             connect_dlg();
         }
     } else if (resp.hasOwnProperty('changePass')) {
@@ -254,7 +255,7 @@ export function logout() {
     }
 
     function exec_logout() {
-        ajaxCall(null, 'logout', JSON.stringify({}), 'logout', function(data) {
+        ajaxCall(null, 'logout', '{}', 'logout', function(data) {
             console.log('Request logout Result ' + data);
             process_logout();
         });

@@ -152,6 +152,9 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
+handle_info(invalid_credentials, #state{tmp_login = true} = State) -> %% TODO : perhaps monitor erlimemsession
+    {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+    {noreply, State#state{sess = Sess}};
 handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, normal, State};
