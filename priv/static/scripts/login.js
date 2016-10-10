@@ -272,7 +272,7 @@ export function restart() {
                     } else if (data.hasOwnProperty('error')) {
                         alert_jq(data.error);
                     } else {
-                        console.error("malformed response " + JSON.stringify(response));
+                        console.error("malformed response " + JSON.stringify(data));
                     }
                 });
             });

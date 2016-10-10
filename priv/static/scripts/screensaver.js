@@ -1,4 +1,5 @@
 // !+-+-+!+-+-+!+-+-+!+-+-+!+-+-+!+-+-+!+-+-+!+-+-+!
+import $ from 'jquery';
 var timer;
 export function startScreensaver(){
     $('#world').show();
@@ -101,7 +102,6 @@ export function startScreensaver(){
         if(perspective(this.vertexes[0], camera, ps)){
             ctx.moveTo(ps.x, ps.y);
         }
-        var x0 = ps.x;
         rt = (t-this.start_time)/this.take_time;
         for(i=1; i<this.vertexes.length; i++){
             ddt = 0.01;
@@ -182,8 +182,8 @@ export function startScreensaver(){
         }
         return false;
     };
-    var updateScene = function(ctx){
-        var i, goal;
+    var updateScene = function(){
+        var i;
         time_now = new Date().getTime();
         var time_d = time_now-time_pre;
         trails[0].update(time_now);
@@ -210,39 +210,44 @@ export function startScreensaver(){
     var time_now = new Date().getTime();
     var time_pre = time_now;
     var camera = {x:0, y:0, z:-200};
+    var whiteFun = function(){return "#FFFFFF";};
     for(i=0; i<N; i++){
         trails.push(new Trail({x:myrand(), y:myrand(), z:myrand()},
-                              time_now,
-                              function(a,z){return "#FFFFFF";}));
+                              time_now, whiteFun));
     }
-    for(i=0; i<N; i++){
-        switch(i%3){
-            case 0:
-                trails[i].color_f=function(ctx, a, dz){
+
+    var trails1 = function(ctx, a, dz){
                     var b = dz<10?0:a*F/dz;
                     b = (b>1?1:b)*(dz<30?(dz-10)/20:1);
                     ctx.strokeStyle = "rgba(255,"+Math.floor(255*a)+",0,"+b+")";
                     ctx.lineWidth = F/dz;
                     ctx.lineCap = b>0.8?"round":"butt";
                 };
-                break;
-            case 1:
-                trails[i].color_f=function(ctx, a, dz){
+    var trails2 = function(ctx, a, dz){
                     var b = dz<10?0:a*F/dz;
                     b = (b>1?1:b)*(dz<30?(dz-10)/20:1);
                     ctx.strokeStyle = "rgba(0, 255,"+Math.floor(255*a)+","+b+")";
                     ctx.lineWidth = F/dz;
                     ctx.lineCap = b>0.8?"round":"butt";
                 };
-                break;
-            default:
-                trails[i].color_f=function(ctx, a, dz){
+    var trails3 = function(ctx, a, dz){
                     var b = dz<10?0:a*F/dz;
                     b = (b>1?1:b)*(dz<30?(dz-10)/20:1);
                     ctx.strokeStyle = "rgba("+Math.floor(255*a)+",0,255,"+b+")";
                     ctx.lineWidth = F/dz;
                     ctx.lineCap = b>0.8?"round":"butt";
                 };
+
+    for(i=0; i<N; i++){
+        switch(i%3){
+            case 0:
+                trails[i].color_f= trails1;
+                break;
+            case 1:
+                trails[i].color_f= trails2;
+                break;
+            default:
+                trails[i].color_f= trails3;
                 break;
         }
     }
@@ -253,7 +258,7 @@ export function startScreensaver(){
         updateScene();
         drawScene(ctx);
     }, 1000/FPS);
-};
+}
 
 export function stopScreensaver() {
     $('#world').hide();
