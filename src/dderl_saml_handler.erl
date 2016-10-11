@@ -9,6 +9,8 @@
 
 -record(state, {sp, idp}).
 
+-define(CERTKEYCACHE, samlCertKey).
+
 init(_Transport, Req, _Args) ->
     {HostUrl, Req} = cowboy_req:host_url(Req),
     {Url, Req} = cowboy_req:url(Req),
@@ -45,28 +47,25 @@ info({reply, Body}, Req, #state{sp = #esaml_sp{metadata_uri = Url}} = State) ->
 terminate(_Reason, _Req, _State) -> ok.
 
 initialize(HostUrl, ConsumeUrl) ->
-    % PrivKey = esaml_util:load_private_key(code:priv_dir("dderl") ++ "/certs/saml.key"),
-    % Cert = esaml_util:load_certificate(code:priv_dir("dderl") ++ "/certs/saml.crt"),
-    % Certificate fingerprints to accept from our IDP
     % Load the certificate and private key for the SP
     #{cert := Cert, key := PrivKey} = fetch_cert_key(),
     NewHostUrl = re:replace(HostUrl, ":[0-9]+", "", [{return, list}]) ++ "/",
     NewConsumerUrl = re:replace(ConsumeUrl, ":[0-9]+", "", [{return, list}]),
-    FPs = ["78:cf:3e:f9:51:1f:d5:d5:e3:5a:88:0e:b5:4b:ee:47:67:ce:94:64"],  %sign cert
-    % FPs = ["80:d1:54:b6:58:fd:34:96:23:93:39:76:e0:00:5a:f2:96:98:ab:5a"],  %saml cert
 
     SP = esaml_sp:setup(#esaml_sp{
         key = PrivKey,
         certificate = Cert,
-        sp_sign_requests = true,
-        trusted_fingerprints = FPs,
+        sp_sign_requests = ?SAMLSIGNREQUEST,
+        trusted_fingerprints = ?SAMLFINGERPRINT,
         consume_uri = NewConsumerUrl,
-        metadata_uri = NewHostUrl
+        metadata_uri = NewHostUrl,
+        idp_signs_envelopes = false,
+        idp_signs_assertions = ?VERIFYRESPONSESIGN,
+        encrypt_mandatory = ?ISENCRYPTMANDATORY
     }),
     IdpMeta = #esaml_idp_metadata{org = #esaml_org{name = [],
                                      displayname = [],url = []},
                     tech = #esaml_contact{name = [],email = []},
-                    signed_requests = true,
                     login_location = ?IDPLOGINURL,
                     name_format = unknown},
     {SP, IdpMeta}.
@@ -78,12 +77,12 @@ fwdUrl(HostUrl, ConsumeUrl, RelayState) when is_binary(RelayState) ->
     esaml_binding:encode_http_post(IDP, SP:generate_authn_request(IDP), RelayState).
 
 fetch_cert_key() ->
-    case imem_cache:read({?MODULE, samlSslOpts}) of
-        [] -> fetch_cert_key(?SAMLSSLOPTS);
+    case imem_cache:read({?MODULE, ?CERTKEYCACHE}) of
+        [] -> fetch_cert_key(?SAMLCERTKEY);
         [CertKey] -> CertKey
     end.
 
-fetch_cert_key('$no_ssl_conf') ->
+fetch_cert_key('$no_cert_key') ->
     {CertBin, KeyBin} = 
     case file:read_file(priv_cert_file("saml.crt")) of
         {ok, CertB} -> 
@@ -98,13 +97,13 @@ fetch_cert_key('$no_ssl_conf') ->
     SamlSslCache = #{cert => Cert, key => Key},
     SamlSslConfig = #{cert => CertBin, key => KeyBin},
     ?Info("Installing SAML SSL ~p", [SamlSslConfig]),
-    ?PUT_CONFIG(samlSslOpts, [], SamlSslConfig,
+    ?PUT_CONFIG(?CERTKEYCACHE, [], SamlSslConfig,
                 list_to_binary(
                   io_lib:format(
                     "Installed at ~p on ~s",
                     [node(), imem_datatype:timestamp_to_io(
                                os:timestamp())]))),
-    imem_cache:write({?MODULE, samlSslOpts}, SamlSslCache),
+    imem_cache:write({?MODULE, ?CERTKEYCACHE}, SamlSslCache),
     SamlSslCache;
 fetch_cert_key(#{cert := CertBin, key := KeyBin}) ->
     CertFile = priv_cert_file("saml.crt"),
@@ -120,7 +119,7 @@ fetch_cert_key(#{cert := CertBin, key := KeyBin}) ->
     [{cert, Cert}] = imem_server:get_cert_key(CertBin),
     Key = get_priv_key(KeyBin),
     SamlSsl = #{cert => Cert, key => Key},
-    imem_cache:write({?MODULE, samlSslOpts}, SamlSsl),
+    imem_cache:write({?MODULE, ?CERTKEYCACHE}, SamlSsl),
     SamlSsl.
     
 priv_cert_file(FileName) -> filename:join([code:priv_dir("dderl"), "certs", FileName]).
