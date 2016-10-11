@@ -542,7 +542,7 @@ export function disconnect_tab() {
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
-    ajaxCall(null, 'disconnect', JSON.stringify({disconnect: {connection: dderlState.connection}}), 
+    ajaxCall(null, 'disconnect', {disconnect: {connection: dderlState.connection}}, 
         'disconnect', function(data) {
             console.log('Request disconnect result ' + data);
             dderlState.connection = null;
@@ -596,7 +596,7 @@ export function close_tab() {
             console.log('Request close_tab result ' + textStatus);
         }
     });
-    
+
     // Since disconnect is called on tab the request does not go throught as the
     // connection is closed after the request is sent.
     // this is a workaround to send the request completely by not using sync req

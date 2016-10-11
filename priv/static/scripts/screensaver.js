@@ -4,10 +4,10 @@ var timer;
 export function startScreensaver(){
     $('#world').show();
     var FPS = 20;
-    var F = 300;
+    var F = 100;
     var N = 3;
     var VERTEX_MAX = 10;
-    var TRAIL_QUALITY = 4000;
+    var TRAIL_QUALITY = 2000;
     var mu = 0.5;
     var bmRandom = function(mu, sigma){
         var x, y, r, tmp=null, tmp2;

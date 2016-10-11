@@ -24,7 +24,6 @@ export function loginAjax(data = {}) {
 window.loginCb = loginCb;
 
 function loginCb(resp) {
-    $('#btn-disconnect').removeClass('disabled');
     if(window.opener && window.opener.isScreensaver && window.opener.loginCb && $.isFunction(window.opener.loginCb)) {
         window.opener.loginCb(resp);
         window.close();
