@@ -105,7 +105,7 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
             jsx:encode(BodyMap#{host_url => HostUrl});
        true -> Body
     end,
-    CheckXSRF = Typ =/= [<<"login">>],
+    CheckXSRF = not lists:member(Typ, [[<<"login">>], [<<"download_query">>]]),
     case dderl_session:get_session(Token, XSRFToken, CheckXSRF, fun() -> conn_info(Req) end) of
         {ok, Token1, XSRFToken1} ->
             dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token1),
