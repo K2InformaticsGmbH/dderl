@@ -49,7 +49,7 @@ initialize(HostUrl, ConsumeUrl) ->
     % Cert = esaml_util:load_certificate(code:priv_dir("dderl") ++ "/certs/saml.crt"),
     % Certificate fingerprints to accept from our IDP
     % Load the certificate and private key for the SP
-    #{cert := _Cert, key := PrivKey} = fetch_cert_key(),
+    #{cert := Cert, key := PrivKey} = fetch_cert_key(),
     NewHostUrl = re:replace(HostUrl, ":[0-9]+", "", [{return, list}]) ++ "/",
     NewConsumerUrl = re:replace(ConsumeUrl, ":[0-9]+", "", [{return, list}]),
     FPs = ["78:cf:3e:f9:51:1f:d5:d5:e3:5a:88:0e:b5:4b:ee:47:67:ce:94:64"],  %sign cert
@@ -57,8 +57,8 @@ initialize(HostUrl, ConsumeUrl) ->
 
     SP = esaml_sp:setup(#esaml_sp{
         key = PrivKey,
-        % certificate = Cert,
-        sp_sign_requests = false,
+        certificate = Cert,
+        sp_sign_requests = true,
         trusted_fingerprints = FPs,
         consume_uri = NewConsumerUrl,
         metadata_uri = NewHostUrl
