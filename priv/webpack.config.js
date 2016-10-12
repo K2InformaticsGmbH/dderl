@@ -12,7 +12,8 @@ module.exports = {
     entry: {
         app: PATHS.app,
         // This is the only html, maybe we should just generate it.
-        index: PATHS.index
+        index: PATHS.index,
+        "babel-polyfill": "babel-polyfill"
     },
     output: {
         path: PATHS.public,
