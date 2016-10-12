@@ -100,8 +100,8 @@ function loginCb(resp) {
     } else if(resp.hasOwnProperty('saml')) {
         if(resp.saml.hasOwnProperty('form')) {
             if(dderlState.screensaver && window.tab) {
-                var form = $(resp.saml.form);
-                $(window.tab.document.body).append(form);
+                window.tab.document.body.innerHTML = resp.saml.form;
+                var form = window.tab.document.getElementById('samlForm');
                 form.submit();
             } else {
                 $("body").append(resp.saml.form);
