@@ -544,6 +544,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
                         .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
                         .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                        .append($('<input type="hidden" name="xsrfToken">').val(dderlState.xsrfToken))
                         .append($('<input type="hidden" name="binds">').val(binds));
                     $(this).contents().find('body').append(form);
                     form.submit();

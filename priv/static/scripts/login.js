@@ -57,24 +57,34 @@ function loginCb(resp) {
     }
 
     if (resp.hasOwnProperty('error')) {
-        var accountName = "";
-        if(resp.hasOwnProperty('pwdmd5')) {
-            accountName = resp.pwdmd5.accountName;
-        }
-        display({title  : "Login",
-                  fields :[{type       : "text",
-                            placeholder: "User",
-                            name       : "user",
-                            val        : accountName},
-                           {type       : "password",
-                            placeholder: "Password",
-                            name       : "password",
-                            val        : ""},
-                           {type       : "label",
+        if(dderlState.screensaver) {
+            display(
+                {title  : "Session is locked",
+                 screensaver : true,
+                 fields : [{type       : "label",
                             val        : resp.error,
                             color      : "#DD1122"}] //Swisscom red color
-        });
-        ajaxCall(null, 'login',  {},'login', null);
+            });
+        } else {
+            var accountName = "";
+            if(resp.hasOwnProperty('pwdmd5')) {
+                accountName = resp.pwdmd5.accountName;
+            }
+            display({title  : "Login",
+                      fields :[{type       : "text",
+                                placeholder: "User",
+                                name       : "user",
+                                val        : accountName},
+                               {type       : "password",
+                                placeholder: "Password",
+                                name       : "password",
+                                val        : ""},
+                               {type       : "label",
+                                val        : resp.error,
+                                color      : "#DD1122"}] //Swisscom red color
+            });
+            ajaxCall(null, 'login',  {},'login', null);
+        }
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
@@ -131,6 +141,7 @@ export function showScreeSaver() {
     startScreensaver();
     display({title  : "Session is locked",
              fields : [],
+             screensaver : true
     }); 
 }
 
@@ -223,7 +234,7 @@ function display(layout) {
 
 function inputEnter(layout) {
     var data = {};
-    if(layout.fields.length) {
+    if(!layout.screensaver) {
         for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
             if (layout.fields[fldIdx].hasOwnProperty('elm')) {
                 layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
@@ -315,6 +326,8 @@ export function change_login_password(loggedInUser, shouldConnect) {
                 if(data == "ok") {
                     $("#dialog-change-password").dialog("close");
                     resetPingTimer();
+                    dderlState.isLoggedIn = true;
+                    update_user_information(loggedInUser);
                     if(shouldConnect) {
                         connect_dlg();
                     }

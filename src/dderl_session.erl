@@ -152,7 +152,8 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{tmp_login = true} = State) -> %% TODO : perhaps monitor erlimemsession
+handle_info(invalid_credentials, #state{tmp_login = true, sess = OldSess} = State) ->
+    OldSess:close(),
     {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {noreply, State#state{sess = Sess}};
 handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
@@ -177,7 +178,7 @@ format_status(_Opt, [_PDict, State]) -> State.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{screensaver = true} = State) ->
-    #state{id = Id, conn_info = ConnInfo, tmp_login = TmpLogin} = State,
+    #state{id = Id, conn_info = ConnInfo, tmp_login = TmpLogin, xsrf_token = XSRFToken} = State,
     {TmpState, NewToken} = 
     if TmpLogin -> {State, Id};
        true -> 
@@ -188,7 +189,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
                     tmp_login = true, screensaver = true, is_locked = true,
-                    old_state = State}, Token} 
+                    old_state = State, xsrf_token = XSRFToken}, Token} 
    end,
     case login(ReqData, From, SrcIp, TmpState) of
         #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
@@ -633,8 +634,15 @@ login(ReqData, From, SrcIp, State) ->
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
             ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
-            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
-            State;
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            State1 = State#state{user_id = UserId},
+            if State#state.tmp_login -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
+               is_map(ReqData) -> {#{changePass => State#state.user}, State1};
+               true -> 
+                    reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
+                    State1
+            end;
         {error, _} ->
             ReqDataMap = jsx:decode(ReqData, [return_maps]),
             catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
