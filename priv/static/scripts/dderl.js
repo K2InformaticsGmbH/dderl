@@ -3,7 +3,6 @@ import {alert_jq} from '../dialogs/dialogs';
 import './dderl.table';
 import {change_login_password, showScreeSaver} from './login';
 import {change_connect_password} from './connect';
-import {StartSqlEditor} from './dderl.sql';
 
 import '../dashboard/dderl.dashView';
 import '../dashboard/dderl.dashboard';
@@ -256,78 +255,79 @@ export function show_qry_files(useSystem) {
     .table('loadViews', useSystem);
 }
 
-export function import_query() {
-    if ($("#fileToUpload").length === 0) {
-        $('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;" multiple>')
-            .appendTo(document.body)
-            .change(function() {
-                uploadFiles(this.files);
-                $(this).attr("value", "");
-            });
-    }
-    $("#fileToUpload").click();
-}
+// to be used in future for uploading files
+// function import_query() {
+//     if ($("#fileToUpload").length === 0) {
+//         $('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;" multiple>')
+//             .appendTo(document.body)
+//             .change(function() {
+//                 uploadFiles(this.files);
+//                 $(this).attr("value", "");
+//             });
+//     }
+//     $("#fileToUpload").click();
+// }
 
-function uploadFiles(files) {
-    var xhr = new XMLHttpRequest();
-    var fd = new FormData();
-    for(var i = 0; i < files.length; ++i) {
-        fd.append(files[i].name+' ('+files[i].lastModifiedDate+')', files[i]);
-    }
+// function uploadFiles(files) {
+//     var xhr = new XMLHttpRequest();
+//     var fd = new FormData();
+//     for(var i = 0; i < files.length; ++i) {
+//         fd.append(files[i].name+' ('+files[i].lastModifiedDate+')', files[i]);
+//     }
     
-    var dlg = $('<div title="Upload">').appendTo(document.body);
-    var progressBar = $('<div></div>').appendTo(dlg);
-    var progressLbl = $('<div>Starting upload...</div>').appendTo(dlg);
+//     var dlg = $('<div title="Upload">').appendTo(document.body);
+//     var progressBar = $('<div></div>').appendTo(dlg);
+//     var progressLbl = $('<div>Starting upload...</div>').appendTo(dlg);
 
-    dlg = dlg.dialog({
-        autoOpen: false,
-        closeOnEscape: false,
-        resizable: false,
-        close: function() { $(this).dialog('destroy').remove(); },
-        open: function() {
-            $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
-        }
-    })
-    .dialog("open");
+//     dlg = dlg.dialog({
+//         autoOpen: false,
+//         closeOnEscape: false,
+//         resizable: false,
+//         close: function() { $(this).dialog('destroy').remove(); },
+//         open: function() {
+//             $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
+//         }
+//     })
+//     .dialog("open");
 
-    progressBar.progressbar({
-      value: false,
-      change: function() {
-          progressLbl.text('Uploaded '+progressBar.progressbar('value')+'%');
-      },
-      complete: function() {
-          progressLbl.text('Upload complete. Waiting response...');
-      }
-    });
+//     progressBar.progressbar({
+//       value: false,
+//       change: function() {
+//           progressLbl.text('Uploaded '+progressBar.progressbar('value')+'%');
+//       },
+//       complete: function() {
+//           progressLbl.text('Upload complete. Waiting response...');
+//       }
+//     });
 
-    // event listners
-    xhr.upload.addEventListener('progress',
-        function(e) {
-            if(e.lengthComputable) {
-                var percentComplete = Math.floor((e.loaded / e.total) * 100);
-                progressBar.progressbar('value',percentComplete);
-            }
-        }, false);
-    xhr.addEventListener('progress',
-            function(e) {
-                if(e.lengthComputable) {
-                    var percentComplete = Math.floor((e.loaded / e.total) * 100);
-                    progressBar.progressbar('value',percentComplete);
-                }
-            }, false);
-    xhr.addEventListener("load", function(e) {
-            var fileObjs = JSON.parse(e.target.responseText).upload;
-            dlg.dialog("close");
-            for(var idx = 0; idx < fileObjs.length; ++idx) {
-                StartSqlEditor(fileObjs[idx].fileName, fileObjs[idx].data);
-            }
-        }, false);
-    xhr.addEventListener("error", function() {progressLbl.text("upload error!");}, false);
-    xhr.addEventListener("abort", function() {progressLbl.text("upload cancled!");}, false);
+//     // event listners
+//     xhr.upload.addEventListener('progress',
+//         function(e) {
+//             if(e.lengthComputable) {
+//                 var percentComplete = Math.floor((e.loaded / e.total) * 100);
+//                 progressBar.progressbar('value',percentComplete);
+//             }
+//         }, false);
+//     xhr.addEventListener('progress',
+//             function(e) {
+//                 if(e.lengthComputable) {
+//                     var percentComplete = Math.floor((e.loaded / e.total) * 100);
+//                     progressBar.progressbar('value',percentComplete);
+//                 }
+//             }, false);
+//     xhr.addEventListener("load", function(e) {
+//             var fileObjs = JSON.parse(e.target.responseText).upload;
+//             dlg.dialog("close");
+//             for(var idx = 0; idx < fileObjs.length; ++idx) {
+//                 StartSqlEditor(fileObjs[idx].fileName, fileObjs[idx].data);
+//             }
+//         }, false);
+//     xhr.addEventListener("error", function() {progressLbl.text("upload error!");}, false);
+//     xhr.addEventListener("abort", function() {progressLbl.text("upload cancled!");}, false);
 
-    xhr.open("POST", "app/upload");
-    xhr.send(fd);
-}
+//     xhr.open("POST", "app/upload");
+//     xhr.send(fd);
+// }
 
 function show_more_apps() {
     if($(".extra-app").css('display') === 'none') {

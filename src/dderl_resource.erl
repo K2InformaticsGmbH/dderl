@@ -30,53 +30,55 @@ init({ssl, http}, Req, []) ->
             {loop, Req, <<>>, 5000, hibernate}
     end.
 
-multipart(Req) -> multipart(Req, []).
-multipart(Req, Files) ->
-    case cowboy_req:part(Req) of
-        {ok, Headers, Req1} ->
-            case cow_multipart:form_data(Headers) of
-                {file, FieldName, Filename, CType, CTransferEncoding} ->                    
-                    {Data, Req2} = stream_file(Req1),
-                    multipart(
-                      Req2,
-                      [#{fieldName => FieldName, fileName => Filename,
-                         contentType => CType, data => Data,
-                         contentTransferEncoding => CTransferEncoding} | Files])
-            end;
-        {done, Req2} ->
-            {Files, Req2}
-    end.
+% will be used in the future
+% multipart(Req) -> multipart(Req, []).
+% multipart(Req, Files) ->
+%     case cowboy_req:part(Req) of
+%         {ok, Headers, Req1} ->
+%             case cow_multipart:form_data(Headers) of
+%                 {file, FieldName, Filename, CType, CTransferEncoding} ->                    
+%                     {Data, Req2} = stream_file(Req1),
+%                     multipart(
+%                       Req2,
+%                       [#{fieldName => FieldName, fileName => Filename,
+%                          contentType => CType, data => Data,
+%                          contentTransferEncoding => CTransferEncoding} | Files])
+%             end;
+%         {done, Req2} ->
+%             {Files, Req2}
+%     end.
  
-stream_file(Req) -> stream_file(Req, <<>>).
-stream_file(Req, Buffer) ->
-    case cowboy_req:part_body(Req) of
-        {ok, Body, Req2} ->
-            {list_to_binary([Buffer, Body]), Req2};
-        {more, Body, Req2} ->
-            stream_file(Req2, list_to_binary([Buffer, Body]))
-    end.
+% stream_file(Req) -> stream_file(Req, <<>>).
+% stream_file(Req, Buffer) ->
+%     case cowboy_req:part_body(Req) of
+%         {ok, Body, Req2} ->
+%             {list_to_binary([Buffer, Body]), Req2};
+%         {more, Body, Req2} ->
+%             stream_file(Req2, list_to_binary([Buffer, Body]))
+%     end.
 
-process_request(_, _, _, Req, [<<"upload">>]) ->
-    {Files, Req1} = multipart(Req),
-    ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
-    {{SrcIp, _}, Req} = cowboy_req:peer(Req),
-    catch dderl:access(?CMD_WITHARGS, SrcIp, "", "upload", io_lib:format("~p", [Files]), "", "", "", "", ""),
-    self() ! {reply, imem_json:encode(
-                       #{upload =>
-                         [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
-                              "text/plain" -> F;
-                              _ ->
-                                  F#{data:=base64:encode(maps:get(data,F))}
-                          end || F <- Files]}
-                      )},
-    {loop, Req1, <<>>, 5000, hibernate};
-process_request(Token, XSRFToken, _Adapter, Req, [<<"download_query">>] = Typ) ->
+% process_request(_, _, _, Req, [<<"upload">>]) ->
+%     {Files, Req1} = multipart(Req),
+%     ?Debug("Files ~p", [[F#{data := byte_size(maps:get(data, F))}|| F <- Files]]),
+%     {{SrcIp, _}, Req} = cowboy_req:peer(Req),
+%     catch dderl:access(?CMD_WITHARGS, SrcIp, "", "upload", io_lib:format("~p", [Files]), "", "", "", "", ""),
+%     self() ! {reply, imem_json:encode(
+%                        #{upload =>
+%                          [case string:to_lower(binary_to_list(maps:get(contentType,F))) of
+%                               "text/plain" -> F;
+%                               _ ->
+%                                   F#{data:=base64:encode(maps:get(data,F))}
+%                           end || F <- Files]}
+%                       )},
+%     {loop, Req1, <<>>, 5000, hibernate};
+process_request(Token, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
     QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
     BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
     Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
+    XSRFToken = proplists:get_value(<<"xsrfToken">>, ReqDataList, <<>>),
     process_request_low(Token, XSRFToken, Adapter, Req1,
                         imem_json:encode([{<<"download_query">>,
                                      [{<<"connection">>, Connection},
@@ -105,7 +107,7 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
             jsx:encode(BodyMap#{host_url => HostUrl});
        true -> Body
     end,
-    CheckXSRF = not lists:member(Typ, [[<<"login">>], [<<"download_query">>]]),
+    CheckXSRF = Typ =/= [<<"login">>],
     case dderl_session:get_session(Token, XSRFToken, CheckXSRF, fun() -> conn_info(Req) end) of
         {ok, Token1, XSRFToken1} ->
             dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, Token1),
