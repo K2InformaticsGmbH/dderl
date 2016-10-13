@@ -43,7 +43,10 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
-    refresh_header_information();
+
+    if(!dderlState.screensaver) {
+        refresh_header_information();
+    }
 
     var cookies = document.cookie;
     if(cookies) {
