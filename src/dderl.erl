@@ -20,7 +20,7 @@
 
 -export([access/10]).
 
--export([get_url_suffix/0, get_sp_url_suffix/0]).
+-export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -243,6 +243,9 @@ get_ssl_options({ok, SslOpts}) ->
 get_url_suffix() -> ?URLSUFFIX.
 
 get_sp_url_suffix() -> ?SPURLPREFIX.
+
+format_path([]) -> <<"/">>;
+format_path(Path) when is_list(Path) -> list_to_binary(Path).
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 

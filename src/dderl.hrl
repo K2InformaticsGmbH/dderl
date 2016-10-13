@@ -207,10 +207,10 @@
 -define(CUST_SQL,       4).
 
 %% Cookie info
--define(DDERL_COOKIE_NAME, <<"DdErlSession">>).
--define(DDERL_XSRF_COOKIE, <<"DDERL-XSRF-TOKEN">>).
+-define(SESSION_COOKIE, <<"DDERL-SESSION">>).
+-define(XSRF_COOKIE, <<"DDERL-XSRF-TOKEN">>).
 -define(XSRF_HEADER, <<"x-xsrf-token">>).
--define(COOKIE_OPTS(__Domain), [{path, <<"/">>}, {secure, true}, {domain, __Domain}]).
--define(HTTP_ONLY_COOKIE_OPTS(__Domain), [{http_only, true}|?COOKIE_OPTS(__Domain)]).
+-define(COOKIE_OPTS(__Domain, __Path), [{path, __Path}, {secure, true}, {domain, __Domain}]).
+-define(HTTP_ONLY_COOKIE_OPTS(__Domain, __Path), [{http_only, true}|?COOKIE_OPTS(__Domain, __Path)]).
 
 -endif.

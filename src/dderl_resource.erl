@@ -19,7 +19,7 @@ init({ssl, http}, Req, []) ->
     case cowboy_req:has_body(Req) of
         true ->
             {Typ, Req1} = cowboy_req:path_info(Req),
-            {Token, Req2} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req1), Req1, <<>>),
+            {Token, Req2} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
             {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
             {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
             % ?Info("DDerl {Token, adapter} from header ~p", [{Token,Adapter,Typ}]),
@@ -130,7 +130,7 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {Token, Req1} = cowboy_req:cookie(cookie_name(?DDERL_COOKIE_NAME, Req), Req, <<>>),
+    {Token, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
     {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
     process_request_low(Token, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
@@ -192,13 +192,14 @@ terminate(_Reason, _Req, _State) ->
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, Token, Req) when is_binary(Token) ->
-    CookieName = cookie_name(?DDERL_COOKIE_NAME, Req),
+    CookieName = cookie_name(?SESSION_COOKIE, Req),
     Req2 = case cowboy_req:cookie(CookieName, Req, <<>>) of
         {Token, Req1} -> Req1;
         {_, Req1} ->
             {Host, Req} = cowboy_req:host(Req),
+            Path = dderl:format_path(dderl:get_url_suffix()),
             cowboy_req:set_resp_cookie(CookieName, Token,
-                                              ?HTTP_ONLY_COOKIE_OPTS(Host), Req1)
+                                        ?HTTP_ONLY_COOKIE_OPTS(Host, Path), Req1)
     end,
     cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
@@ -232,9 +233,10 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->
-    XSRFCookie = cookie_name(?DDERL_XSRF_COOKIE, Req),
+    XSRFCookie = cookie_name(?XSRF_COOKIE, Req),
     {Host, Req} = cowboy_req:host(Req),
-    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, ?COOKIE_OPTS(Host), Req).
+    Path = dderl:format_path(dderl:get_url_suffix()),
+    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, ?COOKIE_OPTS(Host, Path), Req).
 
 cookie_name(Name, Req) ->
     {Port, Req} = cowboy_req:port(Req),
