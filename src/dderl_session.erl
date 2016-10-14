@@ -470,6 +470,30 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
             reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
             State#state{active_sender = undefined}
     end;
+process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
+             #state{user_id = UserId, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "activate_receiver", ReqData, "", "", "", ""),
+    [{<<"download_buffer_csv">>, BodyJson}] = jsx:decode(ReqData),
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
+    Filename = proplists:get_value(<<"filename">>, BodyJson, <<>>),
+    {TableId, IndexId, Nav, RowFun, Clms} = Statement:get_sender_params(),
+    UsedTable = case Nav of
+        raw -> TableId;
+        ind -> IndexId
+    end,
+    Columns = gen_adapter:build_column_csv(imem, Clms),
+    From ! {reply_csv, Filename, Columns, first},
+    FirstKey = ets:first(UsedTable),
+    RowSep = gen_adapter:get_csv_row_sep_char(adapter_name(Adapter)),
+    ColSep = gen_adapter:get_csv_col_sep_char(adapter_name(Adapter)),
+    spawn(fun() ->
+        FirstRows = dderl_dal:rows_from(UsedTable, FirstKey, 100),
+        produce_buffer_csv_rows(FirstRows, From, TableId, RowFun, ColumnPositions, ColSep, RowSep)
+    end),
+    %% Timer needs to be rearmed as we are replying with in a no standard way
+    self() ! rearm_session_idle_timer,
+    State;
 process_call({[<<"password_strength">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{user_id = UserId, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "activate_receiver", ReqData, "", "", "", ""),
@@ -557,14 +581,18 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
     State.
 
 spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    try Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid)
+    try
+        Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid),
+        SelfPid ! rearm_session_idle_timer
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
 
 spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
-    try gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined)
+    try
+        gen_adapter:process_cmd({[C], BodyJson}, adapter_name(Adapter), Sess, UserId, From, undefined),
+        SelfPid ! rearm_session_idle_timer
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
@@ -626,3 +654,28 @@ find_deps_app_seq(App,Chain) ->
         [A|_] -> % Follow signgle chain for now
             find_deps_app_seq(A,[A|Chain])
     end.
+
+-spec add_csv_separators([[binary()]], list(), list()) -> [[binary() | list()]]. 
+add_csv_separators([], _ColSep, _RowSep) -> [];
+add_csv_separators([Row | Rest], ColSep, RowSep) ->
+    [[add_col_separator(Row, ColSep), RowSep] | add_csv_separators(Rest, ColSep, RowSep)].
+
+-spec add_col_separator([binary()], list()) -> [binary() | list()].
+add_col_separator([], _ColSep) -> [];
+add_col_separator([Col], _ColSep) -> [Col];
+add_col_separator([Col | Rest], ColSep) ->
+    [Col, ColSep | add_col_separator(Rest, ColSep)].
+
+produce_buffer_csv_rows('$end_of_table', From, _, _, _, _, _) ->
+    From ! {reply_csv, <<>>, <<>>, last};
+produce_buffer_csv_rows({[], '$end_of_table'}, From, _, _, _, _, _) ->
+    From ! {reply_csv, <<>>, <<>>, last};
+produce_buffer_csv_rows({Rows, '$end_of_table'}, From, TableId, RowFun, ColumnPositions, ColSep, RowSep) ->
+    ExpandedRows = dderl_dal:expand_rows(Rows, TableId, RowFun, ColumnPositions),
+    CsvRows = iolist_to_binary(add_csv_separators(ExpandedRows, ColSep, RowSep)),
+    From ! {reply_csv, <<>>, CsvRows, last};
+produce_buffer_csv_rows({Rows, Continuation}, From, TableId, RowFun, ColumnPositions, ColSep, RowSep) ->
+    ExpandedRows = dderl_dal:expand_rows(Rows, TableId, RowFun, ColumnPositions),
+    CsvRows = iolist_to_binary(add_csv_separators(ExpandedRows, ColSep, RowSep)),
+    From ! {reply_csv, <<>>, CsvRows, continue},
+    produce_buffer_csv_rows(ets:select(Continuation), From, TableId, RowFun, ColumnPositions, ColSep, RowSep).

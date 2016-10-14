@@ -73,16 +73,28 @@ process_request(Session, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:body_qs(Req),
     Adapter = proplists:get_value(<<"dderl-adapter">>, ReqDataList, <<>>),
     FileToDownload = proplists:get_value(<<"fileToDownload">>, ReqDataList, <<>>),
-    QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
-    BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
-    Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
-    process_request_low(Session, Adapter, Req1,
-                        jsx:encode([{<<"download_query">>,
-                                     [{<<"connection">>, Connection},
-                                      {<<"fileToDownload">>, FileToDownload},
-                                      {<<"queryToDownload">>, QueryToDownload},
-                                      {<<"binds">>,BindVals}]
-                                    }]), Typ);
+    case proplists:get_value(<<"exportAll">>, ReqDataList, <<"false">>) of
+        <<"true">> ->
+            QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
+            BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
+            Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
+            process_request_low(Session, Adapter, Req1,
+                jsx:encode([{<<"download_query">>,
+                                [{<<"connection">>, Connection},
+                                {<<"fileToDownload">>, FileToDownload},
+                                {<<"queryToDownload">>, QueryToDownload},
+                                {<<"binds">>,BindVals}]
+                            }]), Typ);
+        _ ->
+            FsmStmt = proplists:get_value(<<"statement">>, ReqDataList, <<>>),
+            ColumnPositions = jsx:decode(proplists:get_value(<<"column_positions">>, ReqDataList, <<"[]">>)),
+            process_request_low(Session, Adapter, Req1,
+                jsx:encode([{<<"download_buffer_csv">>,
+                                [{<<"statement">>, FsmStmt},
+                                {<<"filename">>, FileToDownload},
+                                {<<"column_positions">>, ColumnPositions}]
+                            }]), [<<"download_buffer_csv">>])
+    end;
 process_request(Session, Adapter, Req, [<<"close_tab">>]) ->
     {Connection, Req1} = cowboy_req:header(<<"dderl-connection">>, Req),
     process_request_low(Session, Adapter, Req1, 
