@@ -40,7 +40,8 @@ function init(container, width, height) {
     var gxTitle = svg.append("g");              // x axis title group
     var gLeg = svg.append("g");                 // legend group
     var idleTimeout, idleDelay = 350;
-    var tParse = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse
+    var tParseEuL = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse with msec
+    var tParseEu = d3.utcParse("%d.%m.%Y %H:%M:%S");    // timeParse without msec
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
@@ -67,10 +68,13 @@ function init(container, width, height) {
             xTickFormatSpecifier = ".0s";      
         break;
         case dom.time:
-            // xParse = function(tStr) { return d3.timeParse(tStr.substr(0,23), "%d.%m.%Y %H:%M:%S.%L");};
             xParse = function(tStr) {
-                var s =  "" + tStr.substr(0,23);
-                return  tParse(s);
+                var s =  tStr.substr(0,23);
+                if (s.length === 23) {
+                    return  tParseEuL(s);
+                } else {
+                    return  tParseEu(s);
+                }
             };
             xScaleTemplate = d3.scaleUtc();    // scaleTime
             xMin = 1e100;   // xParse("01.01.2300 00:00:00.000");   // autoscale defaults
@@ -78,7 +82,7 @@ function init(container, width, height) {
             xAutoscale = true;
             xAllowance = 0.05;
             xTickCount = 8;
-            xTickFormatSpecifier = "%H:%M";
+            xTickFormatSpecifier = "%H:%M:%S";
             /*
             %Y - for year boundaries, such as 2011.
             %B - for month boundaries, such as February.
@@ -125,15 +129,19 @@ function init(container, width, height) {
         case dom.time:
             yParse = function(tStr) {
                 var s =  tStr.substr(0,23);
-                return  tParse(s);
-            };
+                if (s.length === 23) {
+                    return  tParseEuL(s);
+                } else {
+                    return  tParseEu(s);
+                }
+            };            
             yScaleTemplate = d3.scaleUtc();     // scaleTime
             yMin = 1e100;   // yParse("01.01.2300 00:00:00.000");   // autoscale defaults
             yMax = 0;       // yParse("01.01.1900 00:00:00.000");   // autoscale defaults
             yAutoscale = true;
             yAllowance = 0.05;
             yTickCount = 8;
-            yTickFormatSpecifier = "%H:%M";
+            yTickFormatSpecifier = "%H:%M:%S";
             /*
             %Y - for year boundaries, such as 2011.
             %B - for month boundaries, such as February.
@@ -225,7 +233,7 @@ function init(container, width, height) {
     }
 
     var idVal = function(d) {
-        return d.id;
+        return d.id;    // d.label_4; 
     }
 
     var xVal = function(d) {
@@ -288,7 +296,7 @@ function init(container, width, height) {
             'clip-path': 'url(#clip)',
             cx: xScale(xVal(d)),
             cy: yScale(y1Val(d)),
-            r: radius
+            r: radius   // r: radius + radius - d.label_4.split('_').length
         };
     };
 
@@ -326,6 +334,23 @@ function init(container, width, height) {
             fill: "steelblue"
         };
         return obj;
+        /*
+        var color;
+        switch (d.label_4.split('_').length) {
+        case 1: 
+            color = "red";
+            break;
+        case 2: 
+            color = "steelblue";
+            break;
+        case 3: 
+            color = "green";
+            break;
+        default:
+            color = "black";
+        };
+        return {fill: color};
+        */
     };
 
     var squareStyles2 = function(d) { 
