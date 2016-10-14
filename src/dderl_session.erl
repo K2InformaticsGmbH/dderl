@@ -646,7 +646,7 @@ login(ReqData, From, SrcIp, State) ->
         {error, _} ->
             ReqDataMap = jsx:decode(ReqData, [return_maps]),
             catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-            case catch dderl_dal:process_login(
+            try dderl_dal:process_login(
                          ReqDataMap, State,
                          #{auth => fun(Auth) ->
                                        (State#state.sess):auth(dderl, Id, Auth)
@@ -668,12 +668,6 @@ login(ReqData, From, SrcIp, State) ->
                                 Id, "login unsuccessful", "", "", "", "", ""),
                     self() ! invalid_credentials,
                     State;
-                {'EXIT', Error} ->
-                    ?Error("Error logging in : ~p", [Error]),
-                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                                Id, "login unsuccessful", "", "", "", "", ""),
-                    reply(From, #{login => #{error => imem_datatype:term_to_io(Error)}}, self()),
-                    State;
                 {Reply, State1} ->
                     {Reply1, State2} = case Reply of
                           ok -> login(#{}, From, SrcIp, State1);
@@ -684,6 +678,13 @@ login(ReqData, From, SrcIp, State) ->
                         _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
                     end,
                     State2
+            catch
+                _ : Error ->
+                    ?Error("Error logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    reply(From, #{login => #{error => imem_datatype:term_to_io(Error)}}, self()),
+                    State
             end;
         _ ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,

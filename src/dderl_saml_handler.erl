@@ -51,16 +51,28 @@ initialize(HostUrl, ConsumeUrl) ->
     #{cert := Cert, key := PrivKey} = fetch_cert_key(),
     NewHostUrl = re:replace(HostUrl, ":[0-9]+", "", [{return, list}]) ++ "/",
     NewConsumerUrl = re:replace(ConsumeUrl, ":[0-9]+", "", [{return, list}]),
-
+    VerifyResponse = ?VERIFYRESPONSESIGN,
+    FingerPrints = 
+        case {?SAMLFINGERPRINT, VerifyResponse} of 
+            {_, false} -> [<<"none">>];
+            {'$none', true} -> error("No Certificate Thumbprint configured");
+            {FPs, _} -> 
+                try esaml_util:convert_fingerprints(FPs)
+                catch
+                    _:Error ->
+                        ?Error("Not valid Certificate Thumbprints configured : ~p ~p", [Error, erlang:get_stacktrace()]),
+                        error("Not valid Certificate Thumbprints configured")
+                end
+        end,
     SP = esaml_sp:setup(#esaml_sp{
         key = PrivKey,
         certificate = Cert,
         sp_sign_requests = ?SAMLSIGNREQUEST,
-        trusted_fingerprints = ?SAMLFINGERPRINT,
+        trusted_fingerprints = FingerPrints,
         consume_uri = NewConsumerUrl,
         metadata_uri = NewHostUrl,
         idp_signs_envelopes = false,
-        idp_signs_assertions = ?VERIFYRESPONSESIGN,
+        idp_signs_assertions = VerifyResponse,
         encrypt_mandatory = ?ISENCRYPTMANDATORY
     }),
     IdpMeta = #esaml_idp_metadata{org = #esaml_org{name = [],
@@ -88,9 +100,9 @@ fetch_cert_key('$no_cert_key') ->
         {ok, CertB} -> 
             case file:read_file(priv_cert_file("saml.key")) of
                 {ok, KeyB} -> {CertB, KeyB};
-                _ -> error("SAML : Private key is not available")
+                _ -> error("No SAML Private key configured")
             end;
-        _ -> error("SAML : Certificate is not available")
+        _ -> error("No SAML Certificate configured")
     end,
     [{cert, Cert}] = imem_server:get_cert_key(CertBin),
     Key = get_priv_key(KeyBin),
