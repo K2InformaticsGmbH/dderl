@@ -156,7 +156,7 @@ function display(layout) {
 
     dlg.dialog({
         autoOpen: false,
-        minHeight: 80,
+        minHeight: 70,
         height: 'auto',
         width: 200,
         resizable: false,
