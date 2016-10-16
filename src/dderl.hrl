@@ -195,10 +195,9 @@
 -define(SAMLSIGNREQUEST,    ?GET_CONFIG(samlSignRequest,[], true,"SAML - flag to sign the requests or not")).
 -define(ISENCRYPTMANDATORY, ?GET_CONFIG(samlEncryptIsMandatory,[], true,"SAML - Expect encrypted data")).
 -define(VERIFYRESPONSESIGN, ?GET_CONFIG(samlVerifyResponseSignature,[], true,"SAML - flag to verify response signature")).
--define(AUTHREFRESHTIME,    ?GET_CONFIG(samlAuthRefreshTime, [], 3600000, "SAML re-authenticate period in milliseconds")).
 
 %% Screensaver config
--define(SCREEN_SAVER_TIMEOUT, ?GET_CONFIG(screensaverTimeout, [], 3600000, "Screen saver activation timeout")).
+-define(SCREEN_SAVER_TIMEOUT, ?GET_CONFIG(screenSaverTimeout, [], 60, "Screen saver activation timeout in minutes") * 60 * 1000).
 
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).

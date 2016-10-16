@@ -124,9 +124,11 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
 
 handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef, inactive_tref = ITref, user_id = UserId} = State) ->
     timer:cancel(TRef),
+    ScreenSaverTimeout = ?SCREEN_SAVER_TIMEOUT,
     NewITref = if Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
-                  ITref == undefined -> erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive);
-                  true -> erlang:cancel_timer(ITref), erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive)
+                  ITref == undefined andalso ScreenSaverTimeout /= 0 -> erlang:send_after(ScreenSaverTimeout, self(), inactive);
+                  ScreenSaverTimeout /= 0 -> erlang:cancel_timer(ITref), erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive);
+                  true -> undefined
                end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
     catch Class:Error ->
