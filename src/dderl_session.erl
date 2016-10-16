@@ -658,12 +658,7 @@ login(ReqData, From, SrcIp, State) ->
                            urlPrefix => dderl:get_url_suffix()}) of
                 {{E,M},St} when is_atom(E) ->
                     ?Error("Error(~p) ~p~n~p", [E,M,St]),
-                    reply(From, #{login=>
-                                       #{error=>
-                                         if is_binary(M) -> M;
-                                            is_list(M) -> list_to_binary(M);
-                                            true -> list_to_binary(io_lib:format("~p", [M]))
-                                       end}}, self()),
+                    reply(From, #{login=> #{error=> format_error(M)}}, self()),
                     catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
                                 Id, "login unsuccessful", "", "", "", "", ""),
                     self() ! invalid_credentials,
@@ -680,10 +675,19 @@ login(ReqData, From, SrcIp, State) ->
                     State2
             catch
                 _ : Error ->
-                    ?Error("Error logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
+                    ErrMsg = 
+                    case Error of
+                        {{E, M}, St} -> 
+                            ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                            self() ! invalid_credentials,
+                            M;
+                        _ -> 
+                            ?Error("Error logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
+                            Error
+                    end,
                     catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
                                 Id, "login unsuccessful", "", "", "", "", ""),
-                    reply(From, #{login => #{error => imem_datatype:term_to_io(Error)}}, self()),
+                    reply(From, #{login => #{error => format_error(ErrMsg)}}, self()),
                     State
             end;
         _ ->
@@ -696,3 +700,7 @@ login(ReqData, From, SrcIp, State) ->
                     State#state{user_id = UserId}
             end
     end.
+
+format_error(Error) when is_binary(Error) -> Error;
+format_error(Error) when is_list(Error) -> list_to_binary(Error);
+format_error(Error) -> list_to_binary(io_lib:format("~p", [Error])).
