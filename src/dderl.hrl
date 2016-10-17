@@ -191,7 +191,7 @@
 -define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://missing.saml_idp.host/", "IDP Login URL")).
 -define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "/saml", "URL Prefix for all SP links")).
 -define(SAMLCERTKEY,        ?GET_CONFIG(samlCertKey,[],'$no_cert_key',"SAML cert and key options for encryption and signature")).
--define(SAMLFINGERPRINT,    ?GET_CONFIG(samlSignThumbPrint,[], '$none',"SAML - Fingerprint of the certificate used by idp to sign the response")).
+-define(SAMLFINGERPRINT,    ?GET_CONFIG(samlSignThumbPrint,[], '$nofp',"SAML - Fingerprint of the certificate used by idp to sign the response")).
 -define(SAMLSIGNREQUEST,    ?GET_CONFIG(samlSignRequest,[], true,"SAML - flag to sign the requests or not")).
 -define(ISENCRYPTMANDATORY, ?GET_CONFIG(samlEncryptIsMandatory,[], true,"SAML - Expect encrypted data")).
 -define(VERIFYRESPONSESIGN, ?GET_CONFIG(samlVerifyResponseSignature,[], true,"SAML - flag to verify response signature")).
