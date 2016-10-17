@@ -533,25 +533,29 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
             this._optBinds.pars : null);
 
-        prompt_jq(
-            {label: "Download CSV", value:filename, content: ''},
-            function(fileNewName) {
-                $('<iframe>')
-                .on('load',function() {
-                    var iframe = $(this);
-                    var form = $('<form method="post" action="app/download_query">')
-                        .append($('<input type="hidden" name="connection">').val(connection))
-                        .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
-                        .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
-                        .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
-                        .append($('<input type="hidden" name="xsrfToken">').val(dderlState.xsrfToken))
-                        .append($('<input type="hidden" name="binds">').val(binds));
-                    $(this).contents().find('body').append(form);
-                    form.submit();
-                    setTimeout(function() {iframe.remove();}, 500);
-                })
-                .appendTo(document.body);
-            });
+        var statement = this._stmt;
+        var columnPos = this._getColumnPositions();
+
+        exportCsvPrompt(filename, function(fileNewName, exportAll) {
+            $('<iframe>')
+            .on('load', function() {
+                var iframe = $(this);
+                var form = $('<form method="post" action="app/download_query">')
+                    .append($('<input type="hidden" name="connection">').val(connection))
+                    .append($('<input type="hidden" name="dderl-adapter">').val(adapter))
+                    .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
+                    .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
+                    .append($('<input type="hidden" name="binds">').val(binds))
+                    .append($('<input type="hidden" name="xsrfToken">').val(dderlState.xsrfToken))
+                    .append($('<input type="hidden" name="exportAll">').val(exportAll))
+                    .append($('<input type="hidden" name="statement">').val(statement))
+                    .append($('<input type="hidden" name="column_positions">').val(JSON.stringify(columnPos)));
+                $(this).contents().find('body').append(form);
+                form.submit();
+                setTimeout(function() {iframe.remove();}, 500);
+            })
+            .appendTo(document.body);
+        });
     },
 
     _getTableLayout: function(_viewName) {
@@ -3828,6 +3832,69 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     }
   });
 }());
+
+
+function exportCsvPrompt(filename, callback) {
+    var filenameDiv = document.createElement('div');
+    filenameDiv.appendChild(document.createTextNode("Filename: "));
+    var inp = document.createElement('input');
+    inp.className = "text ui-widget-content ui-corner-all";
+    inp.value = filename;
+    inp.autofocus = true;
+
+    inp.onkeydown = function(e) {
+        var c = e.keyCode;
+        if(c === 13) {
+            e.preventDefault();
+            e.stopPropagation();
+            exec_callback();
+        }
+    };
+    filenameDiv.appendChild(inp);
+
+    var checkboxDiv = document.createElement('div');
+    var chk = document.createElement('input');
+    chk.type = "checkbox";
+    chk.className = "chk-export-csv";
+    checkboxDiv.appendChild(chk);
+    checkboxDiv.appendChild(document.createTextNode("Export all (re-execute the query)"));
+
+    function exec_callback() {
+        if (inp.value) {
+            dlgDiv.dialog("close");
+            callback(inp.value, chk.checked);
+        }
+    }
+
+    var dlgDiv =
+        $('<div>')
+        .append(filenameDiv)
+        .append(checkboxDiv)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: "Download CSV",
+            appendTo: "#main-body",
+            close: function() {
+                //We have to remove the added child
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    exec_callback();
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
+}
 
 function groupByColumn(dataView, col, seperator) {
     var getters = [];

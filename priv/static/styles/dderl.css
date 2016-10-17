@@ -853,6 +853,10 @@ ul.dropdown.floatNone ul li {
 	height: 15px;
 }
 
+.chk-export-csv {
+    margin: 10px 10px 0 0;
+}
+
 /* dialog extend minimize container */
 #dialog-extend-fixed-container {
     background-color: lightblue;

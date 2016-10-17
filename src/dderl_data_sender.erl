@@ -101,7 +101,7 @@ handle_cast(fetch_first_block, #state{nav = Nav, table_id = TableId, index_id = 
         ind -> UsedTable = IndexId
     end,
     FirstKey = ets:first(UsedTable),
-    case rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
+    case dderl_dal:rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
         '$end_of_table' ->
             retry_more_data(),
             {noreply, State};
@@ -149,9 +149,6 @@ terminate(Reason, #state{}) ->
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %% Helper internal functions
-rows_from(TableId, Key, Limit) ->
-    ets:select(TableId, [{'$1', [{'>=',{element,1,'$1'}, {const, Key}}],['$_']}], Limit).
-
 send_rows(Rows, #state{receiver_pid = ReceiverPid, skip = Skip} = State) ->
     case lists:nthtail(Skip, Rows) of
         [] ->
@@ -159,21 +156,11 @@ send_rows(Rows, #state{receiver_pid = ReceiverPid, skip = Skip} = State) ->
             State;
         RowsToSend ->
             NewSkip = Skip + length(RowsToSend),
-            dderl_data_receiver:data(ReceiverPid, expand_rows(RowsToSend, State)),
+            #state{table_id = TableId, row_fun = RowFun, column_pos = ColumnPos} = State,
+            ExpandedRows = dderl_dal:expand_rows(RowsToSend, TableId, RowFun, ColumnPos),
+            dderl_data_receiver:data(ReceiverPid, ExpandedRows),
             State#state{skip = NewSkip}
     end.
-
-expand_rows([], _) -> [];
-expand_rows([{_, Id} | RestRows], #state{table_id = TableId} = State) ->
-    Row = lists:nth(1, ets:lookup(TableId, Id)),
-    expand_rows([Row | RestRows], State);
-expand_rows([{_I,_Op, RK} | RestRows], #state{row_fun = RowFun, column_pos = ColumnPos} = State) ->
-    ExpandedRow = list_to_tuple(RowFun(RK)), %% As tuple for faster access.
-    SelectedColumns = [element(Col, ExpandedRow) || Col <- ColumnPos],
-    [SelectedColumns | expand_rows(RestRows, State)];
-expand_rows([FullRowTuple | RestRows], #state{column_pos = ColumnPos} = State) ->
-    SelectedColumns = [element(3+Col, FullRowTuple) || Col <- ColumnPos],
-    [SelectedColumns | expand_rows(RestRows, State)].
 
 -spec retry_more_data() -> ok.
 retry_more_data() ->
