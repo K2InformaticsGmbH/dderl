@@ -1113,6 +1113,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             switch (col) {
                 case "select": // delete the row
                     sgrid.getData().splice(args.row, 1);
+                    sgrid.invalidateAllRows();
                     sgrid.updateRowCount();
                     sgrid.render();
                     break;
