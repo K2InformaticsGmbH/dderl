@@ -3,9 +3,18 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.3 (Release Date 17.10.2016)
+======================================
+* imem 1.5.5
+* Added export csv option to use fsm buffer instead of all data
+* Fixed bug on sort dialog not updating deleted entries [issue 304](https://github.com/K2InformaticsGmbH/dderl/issues/304)
+* Added missing babel polyfill
+* Added passthrough state to avoid filling up memory on long tails
+* Preventing the user from closing dirty tables
+
 Version 1.6.2 (Release Date 16.09.2016)
 ======================================
-* imem 1.5.3
+* imem 1.5.4
 * erlimem 1.2.6
 * included dderloci inside dderl instead of as dependency
 * Replaced brunch with webpack included es6 support
