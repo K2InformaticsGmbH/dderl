@@ -206,6 +206,9 @@ function display(layout) {
                 .val(layout.fields[fldIdx].val)
                 .keypress(loginEnterKeyPressHandler)
                 .appendTo(td);
+            if(layout.fields[fldIdx].val) {
+                txt = txt.attr('readonly', 'readonly');
+            }
             layout.fields[fldIdx].elm = txt;
             if(!focused && layout.fields[fldIdx].val.length === 0) {
                 setFocus(txt, 100);
