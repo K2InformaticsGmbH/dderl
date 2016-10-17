@@ -130,6 +130,9 @@ process_request_low(Token, XSRFToken, Adapter, Req, Body, Typ) ->
                     {ok, NewToken, NewXSRFToken} = dderl_session:get_session(<<>>, <<>>, CheckXSRF, fun() -> conn_info(Req) end),
                     dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, NewToken),
                     {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken), NewToken, 3600000, hibernate};
+                [<<"logout">>] ->
+                    self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
+                    {loop, Req, Token, 5000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
                           [Token, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),

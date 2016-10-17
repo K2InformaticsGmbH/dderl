@@ -601,13 +601,15 @@ jsq(OtherTypes) -> OtherTypes.
 logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
     [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
     State#state{adapt_priv = []};
-logout(#state{sess = Sess} = State) ->
+logout(#state{sess = Sess, old_state = OldState} = State) ->
     try Sess:close()
     catch Class:Error ->
             ?Error("Error trying to close the session ~p ~p:~p~n~p~n",
                    [Sess, Class, Error, erlang:get_stacktrace()])
     end,
-    logout(State#state{sess = undefined}).
+    if OldState == undefined -> logout(State#state{sess = undefined});
+       true -> logout(OldState)
+    end.
 
 -spec get_apps_version([{atom(), list(), list()}], [atom()]) -> [{binary(), list()}].
 get_apps_version([], _Deps) -> [];
