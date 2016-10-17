@@ -1763,6 +1763,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         self._grid.onContextMenu.subscribe($.proxy(self._gridContextMenu, self));
         self._grid.onHeaderContextMenu.subscribe($.proxy(self._gridHeaderContextMenu, self));
+        self._grid.onHeaderClick.subscribe($.proxy(self._handleHeaderClick, self));
         self._grid.onCellChange.subscribe($.proxy(self._gridCellChange, self));
         self._grid.onBeforeEditCell.subscribe($.proxy(self._gridBeforeEdit, self));
         self._grid.onBeforeCellEditorDestroy.subscribe($.proxy(self._gridAfterEdit, self));
@@ -3091,6 +3092,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _handleDragInit: function(e) {
         e.stopImmediatePropagation();
+        var self = this;
+        self._dlg.dialog("moveToTop");
+        self._grid.focus();
+        console.log("Focus set");
+    },
+
+    _handleHeaderClick: function() {
         var self = this;
         self._dlg.dialog("moveToTop");
         self._grid.focus();
