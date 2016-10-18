@@ -102,7 +102,7 @@ process_request(Adapter, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
 
 init([XSRFToken, ConnInfo]) ->
     process_flag(trap_exit, true),
-    {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
+    TRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of
         {error, Error} ->
             ?Error("erlimem open error : ~p", [Error]),
@@ -123,11 +123,10 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     {reply, {not_supported, Unknown} , State}.
 
 handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef, inactive_tref = ITref, user_id = UserId} = State) ->
-    timer:cancel(TRef),
+    cancel_timer(TRef),
     ScreenSaverTimeout = ?SCREEN_SAVER_TIMEOUT,
     NewITref = if Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
-                  ITref == undefined andalso ScreenSaverTimeout /= 0 -> erlang:send_after(ScreenSaverTimeout, self(), inactive);
-                  ScreenSaverTimeout /= 0 -> erlang:cancel_timer(ITref), erlang:send_after(?SCREEN_SAVER_TIMEOUT, self(), inactive);
+                  ScreenSaverTimeout /= 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout, self(), inactive);
                   true -> undefined
                end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
@@ -141,14 +140,15 @@ handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
-handle_info(rearm_session_idle_timer, State) ->
-    {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {noreply, State#state{tref = NewTRef}};
+handle_info(rearm_session_idle_timer, #state{tref=TRef} = State) ->
+    cancel_timer(TRef),
+    NewTRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
+    {noreply, State#state{tref=NewTRef}};
 handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
     ?Debug([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
     if ITref == undefined -> {noreply, State};
        true ->
-            erlang:cancel_timer(ITref),
+            cancel_timer(ITref),
             {noreply, State#state{screensaver = true}}
     end;
 handle_info(die, #state{user=User}=State) ->
@@ -552,7 +552,9 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
         try
-            Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self())
+            TmpPriv = Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self()),
+            self() ! rearm_session_idle_timer,
+            TmpPriv            
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
@@ -764,3 +766,9 @@ produce_buffer_csv_rows({Rows, Continuation}, From, TableId, RowFun, ColumnPosit
     CsvRows = iolist_to_binary(add_csv_separators(ExpandedRows, ColSep, RowSep)),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_buffer_csv_rows(ets:select(Continuation), From, TableId, RowFun, ColumnPositions, ColSep, RowSep).
+
+-spec cancel_timer(undefined | reference()) -> ok.
+cancel_timer(undefined) -> ok;
+cancel_timer(TRef) ->
+    erlang:cancel_timer(TRef),
+    ok.
