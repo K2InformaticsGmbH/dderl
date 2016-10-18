@@ -48,24 +48,24 @@
 %% Helper functions
 -spec get_session(binary() , binary(), boolean(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, _, _, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    Token = base64:encode(crypto:rand_bytes(64)),
+    SessionToken = base64:encode(crypto:rand_bytes(64)),
     XSRFToken = base64:encode(crypto:rand_bytes(32)),
-    dderl_session_sup:start_session(Token, XSRFToken, ConnInfoFun),
-    ?Debug("new dderl session ~p from ~p", [Token, self()]),
-    {ok, Token, XSRFToken};
-get_session(Token, XSRFToken, CheckXSRF, _ConnInfoFun) when is_binary(Token) ->
+    dderl_session_sup:start_session(SessionToken, XSRFToken, ConnInfoFun),
+    ?Debug("new dderl session ~p from ~p", [SessionToken, self()]),
+    {ok, SessionToken, XSRFToken};
+get_session(SessionToken, XSRFToken, CheckXSRF, _ConnInfoFun) when is_binary(SessionToken) ->
     try
-        case global:whereis_name(Token) of
+        case global:whereis_name(SessionToken) of
             undefined -> {error, <<"process not found">>};
             Pid ->
                 case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
                     true -> 
                         if CheckXSRF ->
-                                case get_xsrf_token(Token) of
-                                    XSRFToken -> {ok, Token, XSRFToken};
+                                case get_xsrf_token(SessionToken) of
+                                    XSRFToken -> {ok, SessionToken, XSRFToken};
                                     _ -> {error, <<"xsrf attack">>}
                                 end;
-                           true -> {ok, Token, XSRFToken}
+                           true -> {ok, SessionToken, XSRFToken}
                         end;
                     _ -> {error, <<"process not found">>}
                 end
@@ -79,26 +79,26 @@ get_session(_, XSRFToken, CheckXSRF, ConnInfoFun) ->
     get_session(<<>>, XSRFToken, CheckXSRF, ConnInfoFun).
 
 -spec start_link(binary(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Token, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = gen_server:start_link({global, Token}, ?MODULE, [XSRFToken, ConnInfoFun()], []),
-    Pid ! {set_id, Token},
+start_link(SessionToken, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    {ok, Pid} = gen_server:start_link({global, SessionToken}, ?MODULE, [XSRFToken, ConnInfoFun()], []),
+    Pid ! {set_id, SessionToken},
     {ok, Pid}.
 
 -spec get_state(binary()) -> #state{}.
-get_state(Token) ->
-    gen_server:call({global, Token}, get_state, infinity).
+get_state(SessionToken) ->
+    gen_server:call({global, SessionToken}, get_state, infinity).
 
 -spec get_xsrf_token(binary()) -> binary().
-get_xsrf_token(Token) ->
-    gen_server:call({global, Token}, get_xsrf_token, infinity).
+get_xsrf_token(SessionToken) ->
+    gen_server:call({global, SessionToken}, get_xsrf_token, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
-process_request(undefined, Type, Body, ReplyPid, RemoteEp, Token) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, Token);
-process_request(Adapter, Type, Body, ReplyPid, RemoteEp, Token) ->
+process_request(undefined, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, SessionToken);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    gen_server:cast({global, Token}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
+    gen_server:cast({global, SessionToken}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
 init([XSRFToken, ConnInfo]) ->
     process_flag(trap_exit, true),
@@ -146,8 +146,11 @@ handle_info(rearm_session_idle_timer, State) ->
     {noreply, State#state{tref = NewTRef}};
 handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
     ?Debug([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
-    erlang:cancel_timer(ITref),
-    {noreply, State#state{screensaver = true}};
+    if ITref == undefined -> {noreply, State};
+       true ->
+            erlang:cancel_timer(ITref),
+            {noreply, State#state{screensaver = true}}
+    end;
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
     {stop, normal, State};
@@ -164,8 +167,8 @@ handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor 
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
-handle_info({set_id, Token}, State) ->
-    {noreply, State#state{id = Token}};
+handle_info({set_id, SessionToken}, State) ->
+    {noreply, State#state{id = SessionToken}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -184,14 +187,14 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
     {TmpState, NewToken} = 
     if TmpLogin -> {State, Id};
        true -> 
-            Token = base64:encode(crypto:rand_bytes(64)),
+            SessionToken = base64:encode(crypto:rand_bytes(64)),
             global:unregister_name(Id),
-            global:register_name(Token, self()),
-            From ! {newToken, Token},
+            global:register_name(SessionToken, self()),
+            From ! {newToken, SessionToken},
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
                     tmp_login = true, screensaver = true, is_locked = true,
-                    old_state = State, xsrf_token = XSRFToken}, Token} 
+                    old_state = State, xsrf_token = XSRFToken}, SessionToken} 
    end,
     case login(ReqData, From, SrcIp, TmpState) of
         #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};

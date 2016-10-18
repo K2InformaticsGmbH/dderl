@@ -51,17 +51,17 @@ initialize(HostUrl, ConsumeUrl) ->
     #{cert := Cert, key := PrivKey} = fetch_cert_key(),
     NewHostUrl = re:replace(HostUrl, ":[0-9]+", "", [{return, list}]) ++ "/",
     NewConsumerUrl = re:replace(ConsumeUrl, ":[0-9]+", "", [{return, list}]),
-    VerifyResponse = ?VERIFYRESPONSESIGN,
+    VerifyResponseSignature = ?VERIFYRESPONSESIGN,
     FingerPrints = 
-        case {?SAMLFINGERPRINT, VerifyResponse} of 
+        case {?SAMLFINGERPRINT, VerifyResponseSignature} of 
             {_, false} -> [<<"none">>];
             {'$none', true} -> error("No Certificate Thumbprint configured");
             {FPs, _} -> 
                 try esaml_util:convert_fingerprints(FPs)
                 catch
                     _:Error ->
-                        ?Error("Not valid Certificate Thumbprints configured : ~p ~p", [Error, erlang:get_stacktrace()]),
-                        error("Not valid Certificate Thumbprints configured")
+                        ?Error("No valid Certificate Thumbprints configured : ~p ~p", [Error, erlang:get_stacktrace()]),
+                        error("No valid Certificate Thumbprints configured")
                 end
         end,
     SP = esaml_sp:setup(#esaml_sp{
@@ -72,7 +72,7 @@ initialize(HostUrl, ConsumeUrl) ->
         consume_uri = NewConsumerUrl,
         metadata_uri = NewHostUrl,
         idp_signs_envelopes = false,
-        idp_signs_assertions = VerifyResponse,
+        idp_signs_assertions = VerifyResponseSignature,
         encrypt_mandatory = ?ISENCRYPTMANDATORY
     }),
     IdpMeta = #esaml_idp_metadata{org = #esaml_org{name = [],
