@@ -31,7 +31,7 @@
 -record(state, {
           id            = <<>>          :: binary()
           , adapt_priv  = []            :: list()
-          , tref                        :: timer:tref()
+          , session_idle_tref           :: timer:tref()
           , inactive_tref               :: timer:tref()
           , user        = <<>>          :: binary()
           , user_id                     :: ddEntityId()
@@ -39,7 +39,7 @@
           , active_sender               :: pid()
           , conn_info                   :: map()
           , screensaver = false         :: boolean()
-          , tmp_login   = false         :: boolean()
+          , relogin     = false         :: boolean()
           , old_state                   :: tuple()
           , is_locked   = false         :: boolean()
           , xsrf_token  = <<>>          :: binary()
@@ -108,7 +108,7 @@ init([XSRFToken, ConnInfo]) ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
         {ok, ErlImemSess} ->
-            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess,
+            {ok, #state{session_idle_tref=TRef, conn_info = ConnInfo, sess=ErlImemSess,
                         xsrf_token = XSRFToken}}
     end.
 
@@ -122,30 +122,32 @@ handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
-handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef, inactive_tref = ITref, user_id = UserId} = State) ->
+handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{session_idle_tref=TRef, inactive_tref = ITref, user_id = UserId} = State) ->
     cancel_timer(TRef),
     ScreenSaverTimeout = ?SCREEN_SAVER_TIMEOUT,
-    NewITref = if Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
-                  ScreenSaverTimeout /= 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout, self(), inactive);
-                  true -> undefined
-               end,
+    NewITref = 
+    if 
+        Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
+        ScreenSaverTimeout /= 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout, self(), inactive);
+        true -> undefined
+    end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
             State
     end,
-    {noreply, State0#state{tref=undefined, inactive_tref = NewITref}};
+    {noreply, State0#state{session_idle_tref=undefined, inactive_tref = NewITref}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
-handle_info(rearm_session_idle_timer, #state{tref=TRef} = State) ->
+handle_info(rearm_session_idle_timer, #state{session_idle_tref=TRef} = State) ->
     cancel_timer(TRef),
     NewTRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
-    {noreply, State#state{tref=NewTRef}};
+    {noreply, State#state{session_idle_tref=NewTRef}};
 handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
-    ?Debug([{user, User}], "session ~p inactive for ~p ms Starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
+    ?Debug([{user, User}], "session ~p inactive for ~p ms starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
     if ITref == undefined -> {noreply, State};
        true ->
             cancel_timer(ITref),
@@ -157,7 +159,7 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{tmp_login = true, sess = OldSess} = State) ->
+handle_info(invalid_credentials, #state{relogin = true, sess = OldSess} = State) ->
     OldSess:close(),
     {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {noreply, State#state{sess = Sess}};
@@ -183,7 +185,7 @@ format_status(_Opt, [_PDict, State]) -> State.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{screensaver = true} = State) ->
-    #state{id = Id, conn_info = ConnInfo, tmp_login = TmpLogin, xsrf_token = XSRFToken} = State,
+    #state{id = Id, conn_info = ConnInfo, relogin = TmpLogin, xsrf_token = XSRFToken} = State,
     {TmpState, NewToken} = 
     if TmpLogin -> {State, Id};
        true -> 
@@ -193,7 +195,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
             From ! {newToken, SessionToken},
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
-                    tmp_login = true, screensaver = true, is_locked = true,
+                    relogin = true, screensaver = true, is_locked = true,
                     old_state = State, xsrf_token = XSRFToken}, SessionToken} 
    end,
     case login(ReqData, From, SrcIp, TmpState) of
@@ -674,7 +676,7 @@ login(ReqData, From, SrcIp, State) ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
                                            id='$1',_='_'}, [], ['$1']}]),
             State1 = State#state{user_id = UserId},
-            if State#state.tmp_login -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
+            if State#state.relogin -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
                is_map(ReqData) -> {#{changePass => State#state.user}, State1};
                true -> 
                     reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),

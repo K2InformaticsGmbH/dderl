@@ -31,12 +31,12 @@ start_link() ->
     end.
 
 -spec start_session(binary(), binary(), fun(() -> map())) -> {error, term()} | {ok, pid()}.
-start_session(Token, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-	supervisor:start_child(?MODULE, [Token, XSRFToken, ConnInfoFun]).
+start_session(SessionToken, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+	supervisor:start_child(?MODULE, [SessionToken, XSRFToken, ConnInfoFun]).
 
 -spec close_session(binary()) -> ok | {error, not_found | simple_one_for_one}.
-close_session(Token) ->
-    supervisor:terminate_child(?MODULE, Token).
+close_session(SessionToken) ->
+    supervisor:terminate_child(?MODULE, SessionToken).
 
 -spec list_sessions() -> list().
 list_sessions() ->
