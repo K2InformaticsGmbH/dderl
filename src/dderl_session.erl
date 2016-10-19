@@ -38,10 +38,8 @@
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
           , conn_info                   :: map()
-          , screensaver = false         :: boolean()
-          , relogin     = false         :: boolean()
           , old_state                   :: tuple()
-          , is_locked   = false         :: boolean()
+          , lock_state  = unlocked      :: unlocked | locked | screensaver
           , xsrf_token  = <<>>          :: binary()
          }).
 
@@ -151,7 +149,7 @@ handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
     if ITref == undefined -> {noreply, State};
        true ->
             cancel_timer(ITref),
-            {noreply, State#state{screensaver = true}}
+            {noreply, State#state{lock_state = screensaver}}
     end;
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
@@ -159,13 +157,13 @@ handle_info(die, #state{user=User}=State) ->
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{relogin = true, sess = OldSess} = State) ->
+handle_info(invalid_credentials, #state{old_state = undefined} = State) -> %% TODO : perhaps monitor erlimemsession
+    ?Debug("terminating session ~p due to invalid credentials", [self()]),
+    {stop, normal, State};
+handle_info(invalid_credentials, #state{sess = OldSess} = State) ->
     OldSess:close(),
     {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
     {noreply, State#state{sess = Sess}};
-handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
-    ?Debug("terminating session ~p due to invalid credentials", [self()]),
-    {stop, normal, State};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
@@ -184,10 +182,11 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 format_status(_Opt, [_PDict, State]) -> State.
 
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
-process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{screensaver = true} = State) ->
-    #state{id = Id, conn_info = ConnInfo, relogin = TmpLogin, xsrf_token = XSRFToken} = State,
-    {TmpState, NewToken} = 
-    if TmpLogin -> {State, Id};
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, 
+    #state{lock_state = LockState} = State) when LockState == locked; LockState == screensaver ->
+    #state{id = Id, conn_info = ConnInfo, old_state = OldState, xsrf_token = XSRFToken} = State,
+    {ReloginTempState, NewToken} = 
+    if OldState /= undefined -> {State, Id};
        true -> 
             SessionToken = base64:encode(crypto:rand_bytes(64)),
             global:unregister_name(Id),
@@ -195,26 +194,26 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, #state{sc
             From ! {newToken, SessionToken},
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
-                    relogin = true, screensaver = true, is_locked = true,
-                    old_state = State, xsrf_token = XSRFToken}, SessionToken} 
+                    lock_state = locked, old_state = State, 
+                    xsrf_token = XSRFToken}, SessionToken} 
    end,
-    case login(ReqData, From, SrcIp, TmpState) of
+    case login(ReqData, From, SrcIp, ReloginTempState) of
         #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
         #state{sess = TmpSess, old_state = OldState} ->
             TmpSess:close(),
-            OldState#state{screensaver = false, is_locked = false, id = NewToken}
+            OldState#state{lock_state = unlocked, id = NewToken}
     end;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
     login(ReqData, From, SrcIp, State);
 process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
-             #state{user_id = UserId, id = Id, screensaver = Inactive} = State) ->
+             #state{user_id = UserId, id = Id, lock_state = LockState} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
-    if Inactive -> 
-            reply(From, #{ping => #{error => show_screen_saver}}, self()),
-            State#state{is_locked = true};
-       true -> 
+    if LockState == unlocked -> 
             reply(From, #{<<"ping">> => node()}, self()),
-            State
+            State;
+       true -> 
+            reply(From, #{ping => #{error => show_screen_saver}}, self()),
+            State#state{lock_state = screensaver}
     end;
 %% IMPORTANT:
 % This function clause is placed right after login to be able to catch all
@@ -226,10 +225,10 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = Stat
     reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
-process_call(Req, _Adapter, From, {SrcIp,_}, #state{is_locked = true, id = Id} = State) ->
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{lock_state = locked, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "screensaver is enabled", io_lib:format("~p", [Req]), "", "", "", ""),
     ?Debug("Request when screensaver is active from user: ~n~p", [Req]),
-    reply(From, [{<<"error">>, <<"screensaver">>}], self()),
+    reply(From, [{<<"error">>, <<"Session is locked">>}], self()),
     State;
 
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
@@ -676,7 +675,7 @@ login(ReqData, From, SrcIp, State) ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
                                            id='$1',_='_'}, [], ['$1']}]),
             State1 = State#state{user_id = UserId},
-            if State#state.relogin -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
+            if State#state.old_state /= undefined -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
                is_map(ReqData) -> {#{changePass => State#state.user}, State1};
                true -> 
                     reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
