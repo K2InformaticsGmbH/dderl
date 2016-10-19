@@ -270,32 +270,35 @@ process_cmd({[<<"smstoken">>], BodyJson}, _Sess, _UserId, From, #priv{connection
     end;
 process_cmd({[<<"change_conn_pswd">>], BodyJson}, _Sess, _UserId, From, #priv{connections = Connections} = Priv, _SessPid) ->
     ErlImemSess = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
-    User        = proplists:get_value(<<"user">>, BodyJson, <<>>),
     OldPassword = list_to_binary(proplists:get_value(<<"password">>, BodyJson, [])),
-    NewPassword = list_to_binary(proplists:get_value(<<"new_password">>, BodyJson, [])),
+    NewPassword = proplists:get_value(<<"new_password">>, BodyJson, []),
     case lists:member(ErlImemSess, Connections) of
         true ->
-            case ErlImemSess:run_cmd(
-                   change_credentials,
-                   [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
-                  ) of
-                SeKey when is_integer(SeKey) ->
-                    ?Debug("change password successful for ~p", [User]),
-                    From ! {reply, jsx:encode(#{change_conn_pswd=><<"ok">>})};
-                {error, {error, {E, M}}} ->
-                    ?Error("change password failed for ~p, result ~n~p", [User, {E, M}]),
-                    From ! {reply, jsx:encode(#{change_conn_pswd=>
-                                                #{error=>
-                                                  list_to_binary(io_lib:format("~p: ~p", [E,M]))
-                                                 }})};
-                {error, {{E, M}, ST}} ->
-                    ?Error("change password failed for ~p, result ~p~n~p", [User, {E, M}, ST]),
-                    From ! {reply, jsx:encode(#{change_conn_pswd=>
-                                                #{error=>
-                                                  list_to_binary(io_lib:format("~p: ~p", [E,M]))
-                                                 }})}
-            end,
-            Priv;
+            case (imem_seco:password_strength_fun())(NewPassword) of
+                strong ->
+                    case ErlImemSess:run_cmd(
+                           change_credentials,
+                           [{pwdmd5, OldPassword}, {pwdmd5, erlang:md5(NewPassword)}]
+                          ) of
+                        SeKey when is_integer(SeKey) ->
+                            ?Debug("change password successful"),
+                            From ! {reply, jsx:encode(#{change_conn_pswd=><<"ok">>})};
+                        {error, {error, {E, M}}} ->
+                            ?Error("change password failed result ~n~p", [{E, M}]),
+                            From ! {reply, jsx:encode(#{change_conn_pswd=>
+                                                        #{error=>
+                                                          list_to_binary(io_lib:format("~p: ~p", [E,M]))
+                                                         }})};
+                        {error, {{E, M}, ST}} ->
+                            ?Error("change password failed for result ~p~n~p", [{E, M}, ST]),
+                            From ! {reply, jsx:encode(#{change_conn_pswd=>
+                                                        #{error=>
+                                                          list_to_binary(io_lib:format("~p: ~p", [E,M]))
+                                                         }})}
+                    end,
+                    Priv;
+                _ -> From ! {reply, jsx:encode(#{change_conn_pswd=>#{error => <<"Password is not strong">>}})}
+            end;
         false ->
             From ! {reply, jsx:encode(#{change_conn_pswd=>
                                         #{error=><<"Connection not found">>}})},
