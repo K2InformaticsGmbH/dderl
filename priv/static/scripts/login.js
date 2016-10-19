@@ -326,7 +326,7 @@ export function change_login_password(loggedInUser, shouldConnect) {
             var newPassJson = { change_pswd: {
                 user  : loggedInUser,
                 password  : md5Arr($('#old_password_login').val()),
-                new_password  : md5Arr($('#password_change_login').val())
+                new_password  : $('#password_change_login').val()
             }};
             ajaxCall(null,'login_change_pswd',newPassJson,'login_change_pswd', function(data) {
                 if(data == "ok") {

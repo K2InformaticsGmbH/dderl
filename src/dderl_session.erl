@@ -257,24 +257,28 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyMap, "", "", "", ""),
     User        = maps:get(<<"user">>, BodyMap, <<>>),
     OldPassword = list_to_binary(maps:get(<<"password">>, BodyMap, [])),
-    NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyMap, [])),
-    case ErlImemSess:run_cmd(
-           change_credentials,
-           [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
-          ) of
-        SeKey when is_integer(SeKey)  ->
-            ?Debug("change password successful for ~p", [User]),
-            reply(From, [{<<"login_change_pswd">>,<<"ok">>}], self());
-        {error, {error, {Exception, M}}} ->
-            ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            reply(From, [{<<"login_change_pswd">>, Err}], self());
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("change password failed for ~p, result ~n~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            reply(From, [{<<"login_change_pswd">>, Err}], self())
+    NewPassword = maps:get(<<"new_password">>, BodyMap, []),
+    case (imem_seco:password_strength_fun())(NewPassword) of
+        strong ->    
+            case ErlImemSess:run_cmd(
+                   change_credentials,
+                   [{pwdmd5, OldPassword}, {pwdmd5, erlang:md5(NewPassword)}]
+                  ) of
+                SeKey when is_integer(SeKey)  ->
+                    ?Debug("change password successful for ~p", [User]),
+                    reply(From, [{<<"login_change_pswd">>,<<"ok">>}], self());
+                {error, {error, {Exception, M}}} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
+                    Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    reply(From, [{<<"login_change_pswd">>, Err}], self());
+                {error, {{Exception, M}, _Stacktrace} = Error} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, Error]),
+                    Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    reply(From, [{<<"login_change_pswd">>, Err}], self())
+            end;
+        _ -> reply(From, #{error => <<"Password is not strong">>}, self())
     end,
     State;
 
