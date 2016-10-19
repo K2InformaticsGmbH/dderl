@@ -40,7 +40,7 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
         ], <<"Redirecting...">>, Req1),
     {ok, Req2, State};
 info({reply, Body}, Req, #state{sp = #esaml_sp{metadata_uri = Url}} = State) ->
-    ?Info("error logging in via saml ~p ", [Body]),
+    ?Error("logging in via saml ~s ", [Body]),
     {ok, Req1} = unauthorized(Req, Url),
     {ok, Req1, State}.
 
