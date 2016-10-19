@@ -607,14 +607,13 @@ export function close_tab() {
 }
 
 export function change_connect_password(loggedInUser, connectSuccessCb) {
-    password_change_dlg("Change account password", loggedInUser, function () {
+    password_change_dlg("Change connection password", '', function () {
         if ($('#conf_password_login').val() == $('#password_change_login').val()) {
             var newPassJson = {
                 connection: dderlState.connection,
                 service: dderlState.service,
-                user: loggedInUser,
                 password: md5Arr($('#old_password_login').val()),
-                new_password: md5Arr($('#password_change_login').val())
+                new_password: $('#password_change_login').val()
             };
             ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function (resp) {
                 if (resp == "ok") {

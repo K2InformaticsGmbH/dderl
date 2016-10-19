@@ -604,10 +604,14 @@ export function updateWindowTitle(link, title) {
 }
 
 export function password_change_dlg(title, loggedInUser, change_pass_fn) {
-    $('<div id="dialog-change-password" title="'+title+'">' +
-      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>' +
-      '      <tr><td align=right valign=center>User&nbsp;</td>'+
-      '         <td valign=center><b>'+loggedInUser+'</b></td></tr>' +
+    var change_password_dlg = 
+      '<div id="dialog-change-password" title="'+title+'">' +
+      '  <table border=0 width=100% height=85% cellpadding=0 cellspacing=0>';
+    if (loggedInUser) {
+        change_password_dlg += '<tr><td align=right valign=center>User&nbsp;</td>'+
+                                    '<td valign=center><b>'+loggedInUser+'</b></td></tr>';
+    }
+      change_password_dlg +=
       '      <tr><td align=right valign=center>Old Password&nbsp;</td>'+
       '         <td valign=bottom>' +
       '             <input type="password" id="old_password_login" class="text ui-widget-content ui-corner-all"/>' +
@@ -623,7 +627,8 @@ export function password_change_dlg(title, loggedInUser, change_pass_fn) {
       '             <input type="password" id="conf_password_login" class="text ui-widget-content ui-corner-all"/>' +
       '         </td></tr>' +
       '  </table>' +
-      '</div>').appendTo(document.body);
+      '</div>';
+    $(change_password_dlg).appendTo(document.body);
 
     $('#password_change_login').keyup(function() {
         $('#passstrength').removeClass().html('');
