@@ -20,6 +20,8 @@
 
 -export([access/10]).
 
+-export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -27,13 +29,17 @@ start() ->
     imem:start(),
     ok = application:start(cowlib),
     ok = application:start(cowboy),
+    application:start(xmerl),
+    ok = application:start(esaml),
     erlimem:start(),
     catch ok = application:start(erloci),
-	ok = application:start(?MODULE).
+    ok = application:start(?MODULE).
 
 stop() ->
     ok = application:stop(?MODULE),
     catch application:stop(erloci),
+    ok = application:stop(esaml),
+    ok = application:stop(xmerl),
     erlimem:stop(),
     ok = application:stop(cowboy),
     ok = application:stop(cowlib),
@@ -74,7 +80,7 @@ start(_Type, _Args) ->
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
-                         end, ":~p~s"]), [Port,?URLSUFFIX]),
+                         end, ":~p~s"]), [Port,get_url_suffix()]),
     ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
                                               io_lib:format("~p",[NRP]))
                                             ||NRP<-DDerlRoutes], "\n")]),
@@ -159,7 +165,6 @@ insert_routes(Intf, [{'_',[],Dispatch}]) ->
            https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
                    | Opts1]).
 
-
 -spec reset_routes(atom()) -> ok.
 reset_routes(Intf) ->
     Opts = ranch:get_protocol_options(Intf),
@@ -176,9 +181,10 @@ reset_routes(Intf) ->
 %%-----------------------------------------------------------------------------
 get_routes() ->
     PrivDir = get_priv_dir(),
-    UrlPathPrefix = ?URLSUFFIX,
+    UrlPathPrefix = get_url_suffix(),
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
+     {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
 get_priv_dir() ->
@@ -233,6 +239,13 @@ get_ssl_options({ok, []}) ->
     end;
 get_ssl_options({ok, SslOpts}) ->
     SslOpts.
+
+get_url_suffix() -> ?URLSUFFIX.
+
+get_sp_url_suffix() -> ?SPURLPREFIX.
+
+format_path([]) -> <<"/">>;
+format_path(Path) when is_list(Path) -> list_to_binary(Path).
 
 % dderl:access(1, "", "", "", "", "", "", "", "", "").
 access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 

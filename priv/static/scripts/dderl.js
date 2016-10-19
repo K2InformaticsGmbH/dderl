@@ -1,9 +1,8 @@
 import $ from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import './dderl.table';
-import {change_login_password} from './login';
+import {change_login_password, showScreeSaver} from './login';
 import {change_connect_password} from './connect';
-import {StartSqlEditor} from './dderl.sql';
 
 import '../dashboard/dderl.dashView';
 import '../dashboard/dderl.dashboard';
@@ -25,6 +24,9 @@ export var dderlState = {
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
     operationLogs: "",
+    screensaver: false,
+    xsrfToken: "",
+    username: "",
     app: "",
     vsn: "",
     node: ""
@@ -35,7 +37,7 @@ export var dderlState = {
 //       is determined by the presence of the
 //       context variable for widget there is
 //       no this['context']
-export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
+export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
     resetPingTimer();
     var self = _ref;
 
@@ -61,6 +63,8 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
     if (self) {
         if(self.hasOwnProperty('_adapter')) headers['DDERL-Adapter'] = self._adapter;
     }
+
+    headers["X-XSRF-TOKEN"] = dderlState.xsrfToken;
 
     $.ajax({
         type: 'POST',
@@ -105,13 +109,17 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping' && _data.error) {
+                if(_url == 'app/ping') {
                     dderlState.isLoggedIn = false;
                     dderlState.connection = null;
                     dderlState.adapter = null;
                     resetPingTimer();
                 }
-                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+
+                if(_data.error == 'screensaver') {
+                    dderlState.screensaver = true;
+                    showScreeSaver();
+                } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
             }
@@ -126,14 +134,13 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt) {
                 this.removeWheel();
             }
 
-            if(_url == '/app/ping') {
-                _successevt("error");
-            } else {
-                if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
-                    dderlState.currentErrorAlert = alert_jq('HTTP Error'+
-                        (textStatus.length > 0 ? ' '+textStatus:'') +
-                        (errorThrown.length > 0 ? ' details '+errorThrown:''));
-                }
+            if($.isFunction(_errorevt)) {
+                _errorevt(errorThrown, textStatus);
+            } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+                dderlState.currentErrorAlert = alert_jq('HTTP Error'+
+                    (textStatus.length > 0 ? ' '+textStatus:'') +
+                    (errorThrown.length > 0 ? ' details '+errorThrown:''));
+                
             }
         }
     });
@@ -208,13 +215,20 @@ export function resetPingTimer() {
 
     dderlState.pingTimer = setTimeout(
         function() {
-            ajaxCall(null, 'ping', null, 'ping', function(response) {
-                console.log("ping " + response);
-                if(!response) {
+            ajaxCall(null, 'ping', null, 'ping', 
+                function(response) {
+                    if(response.error == "show_screen_saver" && !dderlState.screensaver) {
+                        console.log("showing screen saver");
+                        dderlState.screensaver = true;
+                        showScreeSaver();
+                    }
+                },
+                function(error) {
+                    console.log("Error on ping : ", error);
                     alert_jq("Failed to reach the server, the connection might be lost.");
                     clearTimeout(dderlState.pingTimer);
                 }
-            });
+            );
         },
     30000); // Ping time 30 secs.
 }
@@ -239,79 +253,6 @@ export function show_qry_files(useSystem) {
         title        : "All ddViews"
     })
     .table('loadViews', useSystem);
-}
-
-export function import_query() {
-    if ($("#fileToUpload").length === 0) {
-        $('<input type="file" id="fileToUpload" style="position:absolute; top:-100px;" multiple>')
-            .appendTo(document.body)
-            .change(function() {
-                uploadFiles(this.files);
-                $(this).attr("value", "");
-            });
-    }
-    $("#fileToUpload").click();
-}
-
-function uploadFiles(files) {
-    var xhr = new XMLHttpRequest();
-    var fd = new FormData();
-    for(var i = 0; i < files.length; ++i) {
-        fd.append(files[i].name+' ('+files[i].lastModifiedDate+')', files[i]);
-    }
-    
-    var dlg = $('<div title="Upload">').appendTo(document.body);
-    var progressBar = $('<div></div>').appendTo(dlg);
-    var progressLbl = $('<div>Starting upload...</div>').appendTo(dlg);
-
-    dlg = dlg.dialog({
-        autoOpen: false,
-        closeOnEscape: false,
-        resizable: false,
-        close: function() { $(this).dialog('destroy').remove(); },
-        open: function() {
-            $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
-        }
-    })
-    .dialog("open");
-
-    progressBar.progressbar({
-      value: false,
-      change: function() {
-          progressLbl.text('Uploaded '+progressBar.progressbar('value')+'%');
-      },
-      complete: function() {
-          progressLbl.text('Upload complete. Waiting response...');
-      }
-    });
-
-    // event listners
-    xhr.upload.addEventListener('progress',
-        function(e) {
-            if(e.lengthComputable) {
-                var percentComplete = Math.floor((e.loaded / e.total) * 100);
-                progressBar.progressbar('value',percentComplete);
-            }
-        }, false);
-    xhr.addEventListener('progress',
-            function(e) {
-                if(e.lengthComputable) {
-                    var percentComplete = Math.floor((e.loaded / e.total) * 100);
-                    progressBar.progressbar('value',percentComplete);
-                }
-            }, false);
-    xhr.addEventListener("load", function(e) {
-            var fileObjs = JSON.parse(e.target.responseText).upload;
-            dlg.dialog("close");
-            for(var idx = 0; idx < fileObjs.length; ++idx) {
-                StartSqlEditor(fileObjs[idx].fileName, fileObjs[idx].data);
-            }
-        }, false);
-    xhr.addEventListener("error", function() {progressLbl.text("upload error!");}, false);
-    xhr.addEventListener("abort", function() {progressLbl.text("upload cancled!");}, false);
-
-    xhr.open("POST", "app/upload");
-    xhr.send(fd);
 }
 
 function show_more_apps() {

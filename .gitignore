@@ -208,3 +208,7 @@ rel/erlpkg*
 priv/public/
 priv/static/public/
 node_modules
+
+# SAML certs
+priv/certs/saml.crt
+priv/certs/saml.key

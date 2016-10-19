@@ -532,6 +532,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         var connection = dderlState.connection;
         var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
             this._optBinds.pars : null);
+
         var statement = this._stmt;
         var columnPos = this._getColumnPositions();
 
@@ -545,6 +546,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     .append($('<input type="hidden" name="fileToDownload">').val(fileNewName))
                     .append($('<input type="hidden" name="queryToDownload">').val(cmd_str))
                     .append($('<input type="hidden" name="binds">').val(binds))
+                    .append($('<input type="hidden" name="xsrfToken">').val(dderlState.xsrfToken))
                     .append($('<input type="hidden" name="exportAll">').val(exportAll))
                     .append($('<input type="hidden" name="statement">').val(statement))
                     .append($('<input type="hidden" name="column_positions">').val(JSON.stringify(columnPos)));

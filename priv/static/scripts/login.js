@@ -3,10 +3,12 @@ import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
 import {connect_dlg} from './connect';
+import {stopScreensaver, startScreensaver} from './screensaver';
 
 function update_user_information(user) {
     $('#btn-change-password').data("logged_in_user", user);
     $('#login-button').html('Log out ' + user);
+    dderlState.username = user;
 }
 
 function refresh_header_information() {
@@ -19,8 +21,18 @@ export function loginAjax(data = {}) {
     ajaxCall(null, 'login', data, 'login', loginCb);
 }
 
+window.loginCb = loginCb;
+
 function loginCb(resp) {
-    $('#btn-disconnect').removeClass('disabled');
+    if(window.opener && window.opener.isScreensaver && window.opener.loginCb && $.isFunction(window.opener.loginCb)) {
+        window.opener.loginCb(resp);
+        window.close();
+        return;
+    }
+
+    if(dderlState.screensaver && window.tab && !resp.saml) {
+        window.tab.close();
+    }
 
     if (resp.hasOwnProperty('vsn')) {
         dderlState.vsn = resp.vsn;
@@ -31,32 +43,60 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
-    refresh_header_information();
+
+    if(!dderlState.screensaver) {
+        refresh_header_information();
+    }
+
+    var cookies = document.cookie;
+    if(cookies) {
+        var cs = cookies.split("; ");
+        for(var i = 0; i < cs.length; i++) { 
+            if(cs[i].indexOf("DDERL-XSRF-TOKEN") !== -1) {
+                dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
+                break;
+            }
+        }
+    }
 
     if (resp.hasOwnProperty('error')) {
-        var accountName = "";
-        if(resp.hasOwnProperty('pwdmd5')) {
-            accountName = resp.pwdmd5.accountName;
-        }
-        display({title  : "Login",
-                  fields :[{type       : "text",
-                            placeholder: "User",
-                            val        : accountName},
-                           {type       : "password",
-                            placeholder: "Password",
-                            val        : ""},
-                           {type       : "label",
+        if(dderlState.screensaver) {
+            display(
+                {title  : "Session is locked",
+                 screensaver : true,
+                 fields : [{type       : "label",
                             val        : resp.error,
                             color      : "#DD1122"}] //Swisscom red color
-        });
-        ajaxCall(null, 'login',  {},'login', null);
+            });
+        } else {
+            var accountName = "";
+            if(resp.hasOwnProperty('pwdmd5')) {
+                accountName = resp.pwdmd5.accountName;
+            }
+            display({title  : "Login",
+                      fields :[{type       : "text",
+                                placeholder: "User",
+                                name       : "user",
+                                val        : accountName},
+                               {type       : "password",
+                                placeholder: "Password",
+                                name       : "password",
+                                val        : ""},
+                               {type       : "label",
+                                val        : resp.error,
+                                color      : "#DD1122"}] //Swisscom red color
+            });
+            ajaxCall(null, 'login',  {},'login', null);
+        }
     } else if(resp.hasOwnProperty('pwdmd5')) {
         display({title  : "Login",
                  fields : [{type        : "text",
                             placeholder : "User",
-                            val         : resp.pwdmd5.accountName},
+                            name        : "user",
+                            val         : resp.pwdmd5.accountName || dderlState.username},
                            {type        : "password",
                             placeholder : "Password",
+                            name        : "password",
                             val         : ""}]
         });
     } else if(resp.hasOwnProperty('smsott')) {
@@ -67,18 +107,45 @@ function loginCb(resp) {
                                           ". Please enter the token below"},
                            {type        : "text",
                             placeholder : "SMS Token",
+                            name        : "smsott",
                             val         : ""}]
         });
+    } else if(resp.hasOwnProperty('saml')) {
+        if(resp.saml.hasOwnProperty('form')) {
+            if(dderlState.screensaver && window.tab) {
+                window.tab.document.body.innerHTML = resp.saml.form;
+                var form = window.tab.document.getElementById('samlForm');
+                form.submit();
+            } else {
+                $("body").append(resp.saml.form);
+                $("#samlForm").submit();
+            }
+        }
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
-        connect_dlg();
+        if(dderlState.screensaver) {
+            window.isScreensaver = false;
+            dderlState.screensaver = false;
+            stopScreensaver();
+            $("#world").hide();
+        } else {
+            connect_dlg();
+        }
     } else if (resp.hasOwnProperty('changePass')) {
         change_login_password(resp.changePass, true);
     } else {
         alert_jq("Unexpected "+JSON.stringify(resp));
     }
+}
+
+export function showScreeSaver() {
+    startScreensaver();
+    display({title  : "Session is locked",
+             fields : [],
+             screensaver : true
+    }); 
 }
 
 function display(layout) {
@@ -89,9 +156,9 @@ function display(layout) {
 
     dlg.dialog({
         autoOpen: false,
-        minHeight: 100,
+        minHeight: 70,
         height: 'auto',
-        width: 'auto',
+        width: 200,
         resizable: false,
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
@@ -139,6 +206,9 @@ function display(layout) {
                 .val(layout.fields[fldIdx].val)
                 .keypress(loginEnterKeyPressHandler)
                 .appendTo(td);
+            if(layout.fields[fldIdx].val) {
+                txt = txt.attr('readonly', 'readonly');
+            }
             layout.fields[fldIdx].elm = txt;
             if(!focused && layout.fields[fldIdx].val.length === 0) {
                 setFocus(txt, 100);
@@ -170,17 +240,23 @@ function display(layout) {
 
 function inputEnter(layout) {
     var data = {};
-    for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
-        if (layout.fields[fldIdx].hasOwnProperty('elm')) {
-            layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
-        }
-        if (layout.fields[fldIdx].type != "label") {
-            if(layout.fields[fldIdx].type == "password") {
-                data[layout.fields[fldIdx].placeholder] = md5Arr(layout.fields[fldIdx].val);
-            } else {
-                data[layout.fields[fldIdx].placeholder] = layout.fields[fldIdx].val;
+    if(!layout.screensaver) {
+        for(var fldIdx = 0; fldIdx < layout.fields.length; ++fldIdx) {
+            if (layout.fields[fldIdx].hasOwnProperty('elm')) {
+                layout.fields[fldIdx].val = layout.fields[fldIdx].elm.val();
+            }
+            if (layout.fields[fldIdx].type != "label") {
+                if(layout.fields[fldIdx].type == "password") {
+                    data[layout.fields[fldIdx].name] = md5Arr(layout.fields[fldIdx].val);
+                } else {
+                    data[layout.fields[fldIdx].name] = layout.fields[fldIdx].val;
+                }
             }
         }
+    } else {
+        window.isScreensaver = true;
+        window.tab = window.open('', '_blank');
+        data = {};
     }
     loginAjax(data);
 }
@@ -195,64 +271,25 @@ export function logout() {
     }
 
     function exec_logout() {
-        var headers = {};
-
-        if (dderlState.adapter !== null) {
-            headers['DDERL-Adapter'] = dderlState.adapter;
-        }
-
-        $.ajax({
-            type: 'POST',
-            url: 'app/logout',
-            data: JSON.stringify({}),
-            dataType: "JSON",
-            contentType: "application/json; charset=utf-8",
-            headers: headers,
-            context: null,
-
-            success: function(_data, textStatus) {
-                console.log('Request logout Result ' + textStatus);
-                process_logout();
-            },
-
-            error: function (request, textStatus) {
-                console.log('Request logout Error, status: ' + textStatus);
-            }
+        ajaxCall(null, 'logout', '{}', 'logout', function(data) {
+            console.log('Request logout Result ' + data);
+            process_logout();
         });
     }
 }
 
 //TODO: Does this function belong here ?
 export function restart() {
-    var headers = {};
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
-    }
     confirm_jq({title: "Confirm restart", content:''},
             function() {
-                $.ajax({
-                    type: 'POST',
-                    url: 'app/restart',
-                    data: JSON.stringify({}),
-                    dataType: "JSON",
-                    contentType: "application/json; charset=utf-8",
-                    headers: headers,
-                    context: null,
-                    success: function(response) {
-                        if (response.hasOwnProperty('restart')) {
-                           if (response.restart == 'ok') { location.reload(true); }
-                           else if (response.restart.hasOwnProperty('error')) {
-                               alert_jq(response.restart.error);
-                           }
-                           else {
-                               console.error("malformed response " + JSON.stringify(response));
-                           }
-                        } else {
-                            console.error("malformed response " + JSON.stringify(response));
-                        }
-                    },
-                    error: function (request, textStatus) {
-                        console.log('Request restart Error, status: ' + textStatus);
+                ajaxCall(null, 'restart', JSON.stringify({}), 'restart', function(data) {
+                    console.log('Request restart Result ' + data);
+                    if (data == 'ok') { 
+                        location.reload(true); 
+                    } else if (data.hasOwnProperty('error')) {
+                        alert_jq(data.error);
+                    } else {
+                        console.error("malformed response " + JSON.stringify(data));
                     }
                 });
             });
@@ -272,6 +309,8 @@ function process_logout() {
     dderlState.isLoggedIn = false;
     dderlState.connection = null;
     dderlState.adapter = null;
+    dderlState.username = '';
+    dderlState.screensaver = false;
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
     resetPingTimer();
@@ -293,6 +332,8 @@ export function change_login_password(loggedInUser, shouldConnect) {
                 if(data == "ok") {
                     $("#dialog-change-password").dialog("close");
                     resetPingTimer();
+                    dderlState.isLoggedIn = true;
+                    update_user_information(loggedInUser);
                     if(shouldConnect) {
                         connect_dlg();
                     }
