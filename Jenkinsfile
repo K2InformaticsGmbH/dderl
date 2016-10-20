@@ -1,10 +1,10 @@
-node ('master') {
+/* node ('master') {
   stage('Cleanup') {
     sh 'rm -rf *'
   }
   stage('Checkout') {
       checkout([$class: 'GitSCM',
-                branches: [[name: '*/master']],
+                branches: [[name: '*\/master']],
                 doGenerateSubmoduleConfigurations: false,
                 extensions: [],
                 submoduleCfg: [],
@@ -32,10 +32,9 @@ cd ..
     sh 'deps/erlpkg/linux/build_rpm.escript -v'
   }
   stage('Archive') {
-    archiveArtifacts artifacts: 'rel/erlpkg_release/build/**/*.rpm', onlyIfSuccessful: true
+    archiveArtifacts artifacts: 'rel/erlpkg_release/build/**\/*.rpm', onlyIfSuccessful: true
   }
-}
-
+}*/
 node ('windows7_vm') {
   stage('Cleanup') {
     sh 'rm -rf *'
