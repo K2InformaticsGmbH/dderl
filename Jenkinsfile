@@ -36,9 +36,9 @@ cd ..
   }
 }*/
 node ('windows7_vm') {
-  stage('Cleanup') {
+  /*stage('Cleanup') {
     sh 'rm -rf *'
-  }
+  }*/
   stage('Checkout') {
       checkout([$class: 'GitSCM',
                 branches: [[name: '*/master']],
