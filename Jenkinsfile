@@ -36,9 +36,9 @@ cd ..
   }
 }*/
 node ('windows7_vm') {
-  /*stage('Cleanup') {
-    sh 'rm -rf *'
-  }*/
+  stage('Cleanup') {
+    bat 'for /D %%p IN ("*.*") do rmdir "%%p" /s /q'
+  }
   stage('Checkout') {
       checkout([$class: 'GitSCM',
                 branches: [[name: '*/master']],
@@ -50,7 +50,7 @@ node ('windows7_vm') {
             ])
   }
   stage('Get Deps') {
-    sh 'rebar get-deps'
+    bat 'rebar get-deps'
   }
   stage('Build DDerl UI') {
     def cmd = /
@@ -60,12 +60,12 @@ npm run build
 ls -1 | grep -v -e 'public\|certs' | xargs -L1 rm -rf
 cd ..
 /
-    sh cmd
+    bat cmd
   }
   stage('Build') {
     env.INSTANT_CLIENT_LIB_PATH = "C:\\oracle\\instantclient\\instantclient_12_1"
     env.ERL_INTERFACE_DIR = "C:\\Program Files\\erlang\\erl7.0\\lib\\erl_interface-3.8"
-    sh 'deps/erlpkg/linux/build_msi.escript -v'
+    bat 'deps/erlpkg/linux/build_msi.escript -v'
   }
   stage('Archive') {
     archiveArtifacts artifacts: 'rel/erlpkg_release/build/**/*.msi', onlyIfSuccessful: true
