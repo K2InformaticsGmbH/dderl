@@ -1,7 +1,6 @@
 import jQuery from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
-import {addWindowFinder, ajaxCall, beep, dderlState,
-        smartDialogPosition} from './dderl';
+import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
 
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
