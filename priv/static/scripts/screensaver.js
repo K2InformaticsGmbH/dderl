@@ -2,8 +2,17 @@
 //src - https://codepen.io/yashbhardwaj/pen/hHgtE
 import $ from 'jquery';
 var timer;
+var screan;
 export function startScreensaver(){
-    $('#world').show();
+    var canvas = document.createElement('canvas');
+    screan = $('<div></div>', 
+                    {css : {"z-index" : "99997",
+                            "position" : "relative",
+                            "height" : "100%",
+                            "background" : "#000000"
+                           }});
+    $('#main-body').prepend(screan);
+    screan.append(canvas);
     var FPS = 20;
     var F = 100;
     var N = 3;
@@ -204,7 +213,7 @@ export function startScreensaver(){
         }
     };
     var myrand = bmRandom(0,20);
-    var canvas = document.getElementById("world");
+    // var canvas = document.getElementsByTagName("canvas")[0];
     var ctx = canvas.getContext("2d");
     var trails = [];
     var i;
@@ -262,6 +271,6 @@ export function startScreensaver(){
 }
 
 export function stopScreensaver() {
-    $('#world').hide();
+    screan.remove();
     clearInterval(timer);
 }
