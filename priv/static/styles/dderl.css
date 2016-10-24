@@ -468,6 +468,13 @@ div#main-body {
     user-select: none;
 }
 
+div.screensaver {
+    z-index: 99997;
+    position:relative;
+    height: 100%;
+    background: #000000;
+}
+
 div#angular-panel {
     position:absolute;
     overflow: auto;
