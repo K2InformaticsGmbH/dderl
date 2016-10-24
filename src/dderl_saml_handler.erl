@@ -18,14 +18,14 @@ init(_Transport, Req, _Args) ->
     {Method, Req1} = cowboy_req:method(Req),
     process_req(Method, Req1, #state{sp = SP, idp = IdpMeta}).
 
-process_req(<<"POST">>, Req, S = #state{sp = #esaml_sp{metadata_uri = Url} = SP}) ->
+process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
         {ok, Assertion, RelayState, Req1} ->
             Fun = binary_to_term(base64:decode(http_uri:decode(binary_to_list(RelayState)))),
             Fun(Req1, Assertion#esaml_assertion.attributes),
             {loop, Req1, S, 50000, hibernate};
         {error, Reason, Req2} ->
-            {ok, Req3} = unauthorized(Req2, Url),
+            {ok, Req3} = unauthorized(Req2),
             ?Error("SAML - Auth error : ~p", [Reason]),
             {ok, Req3, S}
     end.
@@ -39,9 +39,8 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
             {<<"Location">>, TargetUrl}
         ], <<"Redirecting...">>, Req1),
     {ok, Req2, State};
-info({reply, Body}, Req, #state{sp = #esaml_sp{metadata_uri = Url}} = State) ->
-    ?Error("logging in via saml ~s ", [Body]),
-    {ok, Req1} = unauthorized(Req, Url),
+info({reply, _Body}, Req, State) ->
+    {ok, Req1} = unauthorized(Req),
     {ok, Req1, State}.
 
 terminate(_Reason, _Req, _State) -> ok.
@@ -147,10 +146,9 @@ get_priv_key(KeyBin) ->
         Other -> Other
     end.
 
-unauthorized(Req, MetaUrl) ->
-    TargetUrl = MetaUrl ++ string:strip(dderl:get_url_suffix(), both, $/) ++ "/unauthorized.html",
-    cowboy_req:reply(302, [
+unauthorized(Req) ->
+    cowboy_req:reply(200, [
             {<<"Cache-Control">>, <<"no-cache">>},
             {<<"Pragma">>, <<"no-cache">>},
-            {<<"Location">>, TargetUrl}
-        ], <<"Redirecting...">>, Req).
+            {<<"content-type">>, <<"text/html">>}
+        ], ?UNAUTHORIZEDPAGE, Req).
