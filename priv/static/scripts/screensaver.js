@@ -2,8 +2,12 @@
 //src - https://codepen.io/yashbhardwaj/pen/hHgtE
 import $ from 'jquery';
 var timer;
+var screenDiv;
 export function startScreensaver(){
-    $('#world').show();
+    var canvas = document.createElement('canvas');
+    screenDiv = $('<div class="screensaver"></div>');
+    $('#main-body').prepend(screenDiv);
+    screenDiv.append(canvas);
     var FPS = 20;
     var F = 100;
     var N = 3;
@@ -204,7 +208,6 @@ export function startScreensaver(){
         }
     };
     var myrand = bmRandom(0,20);
-    var canvas = document.getElementById("world");
     var ctx = canvas.getContext("2d");
     var trails = [];
     var i;
@@ -262,6 +265,6 @@ export function startScreensaver(){
 }
 
 export function stopScreensaver() {
-    $('#world').hide();
+    screenDiv.remove();
     clearInterval(timer);
 }
