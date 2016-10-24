@@ -720,11 +720,11 @@ login(ReqData, From, SrcIp, State) ->
                     ErrMsg = 
                     case Error of
                         {{E, M}, St} -> 
-                            ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                            ?Error("~p ~p~n~p", [E,M,St]),
                             self() ! invalid_credentials,
                             M;
                         _ -> 
-                            ?Error("Error logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
+                            ?Error("logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
                             Error
                     end,
                     catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
