@@ -190,8 +190,16 @@ export function connect_dlg()
     owners_list.change(function() {
         if(owners_list.children().length < 1) {
             owners_list.parent().find('input').val('');
-            for(var idx = 0; idx < owners.length; ++idx)
-                owners_list.append($('<option>', {value: owners[idx], text : owners[idx]}));
+            for(var idx = 0; idx < owners.length; ++idx) {
+                var optionAttrs = {
+                    value: owners[idx],
+                    text: owners[idx]
+                };
+                if(owners[idx] === dderlState.username) {
+                    optionAttrs.selected = "selected";
+                }
+                owners_list.append($('<option>', optionAttrs));
+            }
             owners_list.combobox();
 
             // FIXIT: Bad bad hack to remove scrollbar
@@ -223,8 +231,7 @@ export function connect_dlg()
     });
 }
 
-function login_save(dlg, connection_list, adapter_list, owners_list)
-{
+function login_save(dlg, connection_list, adapter_list, owners_list) {
     var conn = connection_list.find("option:selected").data('connect');
     var conn_name = connection_list.parent().find('input').val();
     if(conn.name != conn_name)
