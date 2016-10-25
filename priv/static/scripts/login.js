@@ -317,7 +317,9 @@ function process_logout() {
     $('#login-button').html('');
     $('#btn-change-password').data("logged_in_user", "");
     $('#login-msg').html('Welcome guest');
-    loginAjax();
+    display({title  : "Successfully logged out",
+             fields : []
+    }); 
 }
 
 export function change_login_password(loggedInUser, shouldConnect) {

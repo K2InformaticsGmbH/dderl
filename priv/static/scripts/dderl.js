@@ -119,6 +119,10 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                 if(_data.error == 'screensaver') {
                     dderlState.screensaver = true;
                     showScreeSaver();
+                } else if(_url == 'app/logout') {
+                    if($.isFunction(_successevt)) {
+                        _successevt({error: _data.error});
+                    }
                 } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }
