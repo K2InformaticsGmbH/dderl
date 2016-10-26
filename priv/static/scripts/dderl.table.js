@@ -2447,7 +2447,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     _createDlg: function() {
         var self = this;
 
-        if(self._tbllay !== null) {
+        if(self._tbllay !== null && self._tbllay.hasOwnProperty('x')) {
             self.options.width = self._tbllay.width;
             self.options.height = self._tbllay.height;
             self.options.position = {
@@ -3491,7 +3491,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
         self._grid.setColumns(columns);
 
-        if(self._tbllay === null && !self._dlgResized) {
+        if((self._tbllay === null || !self._tbllay.hasOwnProperty('x')) && !self._dlgResized) {
             var necessaryWidth = Math.max(self._footerWidth, self._getGridWidth() + 13);
             var availableSpace = $(window).width() - dlg.offset().left - 20;
             self._dlg.dialog("option", "width", Math.min(necessaryWidth, availableSpace));
@@ -3526,8 +3526,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     // public function for loading rows
     // used by ajaxCall but can also be used directly
-    appendRows: function(_rows)
-    {
+    appendRows: function(_rows) {
         //console.time('appendRows');
         //console.profile();
         var self = this;
@@ -3713,7 +3712,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             self._grid.resizeCanvas();
 
             // only if the dialog don't have a predefined height/width
-            if(!self._tbllay) {
+            if(!self._tbllay || !self._tbllay.hasOwnProperty('x')) {
                 // since columns' width doesn't change after the first block we can skip this
                 if (firstChunk) {
                     var dlg = this._dlg.dialog('widget');
@@ -3757,16 +3756,17 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for the window
                         // Height used for header and footer (total - content).
                         var extraHeight = oldDlgHeight - self._dlg.height();
+                        if(Number.isNaN(extraHeight)) {
+                            extraHeight = 0;
+                        }
                         if (self._dlg.height() > gHeight || gHeight < rWindowHeight) {
                             // if content of dialog is already bigger than height required by the table
                             // or if table height is less then remaining window height
                             self._dlg.dialog("option", "height", gHeight + extraHeight);
+                            self._grid.resizeCanvas();
                         } else {
                             // if table height is still bigger than the remaining window height
                             self._dlg.dialog("option", "height", rWindowHeight + extraHeight);
-                        }
-
-                        if (oldDlgHeight != self._dlg.dialog("option", "height")) {
                             self._grid.resizeCanvas();
                         }
                     }
