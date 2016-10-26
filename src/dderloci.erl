@@ -461,8 +461,9 @@ filter_and_sort_internal(_Connection, FilterSpec, SortSpec, Cols, Query, StmtCol
                 false ->
                     NewSections0 = SelectSections
             end,
-            Filter =  imem_sql_expr:filter_spec_where(FilterSpec, FullMap, WhereTree),
-            NewSections1 = lists:keyreplace('where', 1, NewSections0, {'where',Filter}),
+            Filter = imem_sql_expr:filter_spec_where(FilterSpec, FullMap, WhereTree),
+            FilterEmptyAsNull = filter_replace_empty(Filter),
+            NewSections1 = lists:keyreplace('where', 1, NewSections0, {'where',FilterEmptyAsNull}),
             OrderBy = imem_sql_expr:sort_spec_order(SortSpec, FullMap, FullMap),
             NewSections2 = lists:keyreplace('order by', 1, NewSections1, {'order by',OrderBy}),
             NewSql = sqlparse:pt_to_string({select, NewSections2});
@@ -470,6 +471,17 @@ filter_and_sort_internal(_Connection, FilterSpec, SortSpec, Cols, Query, StmtCol
             NewSql = Query
     end,
     {ok, NewSql, NewSortFun}.
+
+filter_replace_empty({'=', Column, <<"''">>}) -> {is, Column, <<"null">>};
+filter_replace_empty({in, Column, {list, List}} = In) ->
+    EmptyRemoved = [E || E <- List, E =/= <<"''">>],
+    case length(EmptyRemoved) =:= length(List) of
+        true -> In; % Nothing to do
+        false -> {'or', {in, Column, {list, EmptyRemoved}}, {is, Column, <<"null">>}}
+    end;
+filter_replace_empty({Op, Parameter1, Parameter2}) ->
+    {Op, filter_replace_empty(Parameter1), filter_replace_empty(Parameter2)};
+filter_replace_empty(Condition) -> Condition.
 
 -spec to_imem_type(atom()) -> atom().
 to_imem_type('SQLT_NUM') -> number;
