@@ -42,6 +42,7 @@ function init(container, width, height) {
     var idleTimeout, idleDelay = 350;
     var tParseEuL = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse with msec
     var tParseEu = d3.utcParse("%d.%m.%Y %H:%M:%S");    // timeParse without msec
+    var tParseInt = d3.utcParse("%Y-%m-%d %H:%M:%S");    // timeParse international format
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
