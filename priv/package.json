@@ -13,7 +13,7 @@
     "font-awesome": "^4.6.3",
     "jquery": "^2.2.4",
     "jquery-dialogextend": "git+https://github.com/ROMB/jquery-dialogextend.git#ae24ecb32d24334ce241c66dd3e593e4484db7e6",
-    "jquery-ui": "github:jquery/jquery-ui#1.11.4",
+    "jquery-ui": "https://github.com/jquery/jquery-ui.git#1.11.4",
     "jquery.event.drag": "^2.2.2"
   },
   "devDependencies": {
