@@ -468,6 +468,13 @@ div#main-body {
     user-select: none;
 }
 
+div.screensaver {
+    z-index: 99997;
+    position:relative;
+    height: 100%;
+    background: #000000;
+}
+
 div#angular-panel {
     position:absolute;
     overflow: auto;
@@ -665,7 +672,7 @@ div#main_footer {
 }
 .error-msg {
     word-wrap: break-word;
-    width: 200px;
+    width: 175px;
     display: inline-block;
 }
 /*new icons for sort dialog*/

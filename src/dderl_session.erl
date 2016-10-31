@@ -6,11 +6,13 @@
 -type ipport() :: {inet:ip_address(), inet:port_number()}.
 
 -include("dderl.hrl").
+-include_lib("esaml/include/esaml.hrl").
 
--export([start_link/1
-        , get_session/2
+-export([start_link/3
+        , get_session/4
         , process_request/6
         , get_state/1
+        , get_xsrf_token/1
         , get_apps_version/2
         ]).
 
@@ -29,111 +31,144 @@
 -record(state, {
           id            = <<>>          :: binary()
           , adapt_priv  = []            :: list()
-          , tref                        :: timer:tref()
+          , session_idle_tref           :: timer:tref()
+          , inactive_tref               :: timer:tref()
           , user        = <<>>          :: binary()
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
           , conn_info                   :: map()
+          , old_state                   :: tuple()
+          , lock_state  = unlocked      :: unlocked | locked | screensaver
+          , xsrf_token  = <<>>          :: binary()
          }).
 
 %% Helper functions
--spec get_session(binary() | list(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
-get_session(<<>>, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = dderl_session_sup:start_session(ConnInfoFun),
-    DderlSess = pid_to_session(Pid),
-    ?Debug("new dderl session ~p from ~p", [DderlSess, self()]),
-    {ok, DderlSess};
-get_session(DDerlSessStr, _ConnInfoFun) when is_list(DDerlSessStr) ->
+-spec get_session(binary() , binary(), boolean(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
+get_session(<<>>, _, _, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    SessionToken = base64:encode(crypto:rand_bytes(64)),
+    XSRFToken = base64:encode(crypto:rand_bytes(32)),
+    dderl_session_sup:start_session(SessionToken, XSRFToken, ConnInfoFun),
+    ?Debug("new dderl session ~p from ~p", [SessionToken, self()]),
+    {ok, SessionToken, XSRFToken};
+get_session(SessionToken, XSRFToken, CheckXSRF, _ConnInfoFun) when is_binary(SessionToken) ->
     try
-        Pid = session_to_pid(DDerlSessStr),
-        if is_pid(Pid) ->
+        case global:whereis_name(SessionToken) of
+            undefined -> {error, <<"process not found">>};
+            Pid ->
                 case rpc:call(node(Pid), erlang, is_process_alive, [Pid]) of
-                    true -> {ok, DDerlSessStr};
+                    true -> 
+                        if CheckXSRF ->
+                                case get_xsrf_token(SessionToken) of
+                                    XSRFToken -> {ok, SessionToken, XSRFToken};
+                                    _ -> {error, <<"xsrf attack">>}
+                                end;
+                           true -> {ok, SessionToken, XSRFToken}
+                        end;
                     _ -> {error, <<"process not found">>}
-                end;
-           true -> {error, <<"process not found">>}
+                end
         end
     catch
         Error:Reason ->
             ?Warn("Request attempted on a dead session"),
             {error, {Error, Reason}}
     end;
-get_session(S, ConnInfoFun) when is_binary(S) ->
-    get_session(binary_to_list(S), ConnInfoFun);
-get_session(_, ConnInfoFun) ->
-    get_session(<<>>, ConnInfoFun).
+get_session(_, XSRFToken, CheckXSRF, ConnInfoFun) ->
+    get_session(<<>>, XSRFToken, CheckXSRF, ConnInfoFun).
 
-session_to_pid(DDerlSessStr) -> binary_to_term(base64:decode(DDerlSessStr)).
-
-pid_to_session(Pid) when is_pid(Pid) -> base64:encode(term_to_binary(Pid)).
-
--spec start_link(fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
-start_link(ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    {ok, Pid} = gen_server:start_link(?MODULE, [ConnInfoFun()], []),
-    Pid ! {set_id, pid_to_session(Pid)},
+-spec start_link(binary(), binary(), fun(() -> map())) -> {ok, pid()} | ignore | {error, term()}.
+start_link(SessionToken, XSRFToken, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
+    {ok, Pid} = gen_server:start_link({global, SessionToken}, ?MODULE, [XSRFToken, ConnInfoFun()], []),
+    Pid ! {set_id, SessionToken},
     {ok, Pid}.
 
--spec get_state(pid()) -> #state{}.
-get_state(DDerlSessStr) ->
-    gen_server:call(session_to_pid(DDerlSessStr), get_state, infinity).
+-spec get_state(binary()) -> #state{}.
+get_state(SessionToken) ->
+    gen_server:call({global, SessionToken}, get_state, infinity).
+
+-spec get_xsrf_token(binary()) -> binary().
+get_xsrf_token(SessionToken) ->
+    gen_server:call({global, SessionToken}, get_xsrf_token, infinity).
 
 -spec process_request(atom(), [binary()], term(), pid(), {atom(), pid()},
                       ipport()) -> term().
-process_request(undefined, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
-    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, DderlSess);
-process_request(Adapter, Type, Body, ReplyPid, RemoteEp, DderlSess) ->
+process_request(undefined, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
+    process_request(gen_adapter, Type, Body, ReplyPid, RemoteEp, SessionToken);
+process_request(Adapter, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
     ?NoDbLog(debug, [], "request received, type ~p body~n~s", [Type, jsx:prettify(Body)]),
-    gen_server:cast(session_to_pid(DderlSess), {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
+    gen_server:cast({global, SessionToken}, {process, Adapter, Type, Body, ReplyPid, RemoteEp}).
 
-init([ConnInfo]) ->
+init([XSRFToken, ConnInfo]) ->
     process_flag(trap_exit, true),
-    {ok, TRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
+    TRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
     case erlimem:open({rpc, node()}, imem_meta:schema()) of
         {error, Error} ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
         {ok, ErlImemSess} ->
-            {ok, #state{tref=TRef, conn_info = ConnInfo, sess=ErlImemSess}}
+            {ok, #state{session_idle_tref=TRef, conn_info = ConnInfo, sess=ErlImemSess,
+                        xsrf_token = XSRFToken}}
     end.
 
 handle_call(get_state, _From, State) ->
     ?Debug("get_state, result: ~p~n", [State]),
     {reply, State, State};
+handle_call(get_xsrf_token, _From, #state{xsrf_token = XSRFToken} = State) ->
+    ?Debug("get_xsrf_token, result: ~p~n", [XSRFToken]),
+    {reply, XSRFToken, State};
 handle_call(Unknown, _From, #state{user=_User}=State) ->
     ?Error("unknown call ~p", [Unknown]),
     {reply, {not_supported, Unknown} , State}.
 
-handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{tref=TRef} = State) ->
-    timer:cancel(TRef),
+handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{session_idle_tref=TRef, inactive_tref = ITref, user_id = UserId} = State) ->
+    cancel_timer(TRef),
+    ScreenSaverTimeout = ?SCREEN_SAVER_TIMEOUT,
+    NewITref = 
+    if 
+        Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
+        ScreenSaverTimeout /= 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout, self(), inactive);
+        true -> undefined
+    end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
     catch Class:Error ->
             ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
             State
     end,
-    {noreply, State0#state{tref=undefined}};
+    {noreply, State0#state{session_idle_tref=undefined, inactive_tref = NewITref}};
 handle_cast(_Unknown, #state{user=_User}=State) ->
     ?Error("~p received unknown cast ~p for ~p", [self(), _Unknown, _User]),
     {noreply, State}.
 
-handle_info(rearm_session_idle_timer, State) ->
-    {ok, NewTRef} = timer:send_after(?SESSION_IDLE_TIMEOUT, die),
-    {noreply, State#state{tref=NewTRef}};
+handle_info(rearm_session_idle_timer, #state{session_idle_tref=TRef} = State) ->
+    cancel_timer(TRef),
+    NewTRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
+    {noreply, State#state{session_idle_tref=NewTRef}};
+handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
+    ?Debug([{user, User}], "session ~p inactive for ~p ms starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
+    if ITref == undefined -> {noreply, State};
+       true ->
+            cancel_timer(ITref),
+            {noreply, State#state{lock_state = screensaver}}
+    end;
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
     {stop, normal, State};
 handle_info(logout, #state{user = User} = State) ->
     ?Debug("terminating session of logged out user ~p", [User]),
     {stop, normal, State};
-handle_info(invalid_credentials, #state{} = State) -> %% TODO : perhaps monitor erlimemsession
+handle_info(invalid_credentials, #state{old_state = undefined} = State) -> %% TODO : perhaps monitor erlimemsession
     ?Debug("terminating session ~p due to invalid credentials", [self()]),
     {stop, normal, State};
+handle_info(invalid_credentials, #state{sess = OldSess} = State) ->
+    OldSess:close(),
+    {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+    {noreply, State#state{sess = Sess}};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
     {noreply, State};
-handle_info({set_id, DderlSess}, State) ->
-    {noreply, State#state{id = DderlSess}};
+handle_info({set_id, SessionToken}, State) ->
+    {noreply, State#state{id = SessionToken}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -146,25 +181,56 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 format_status(_Opt, [_PDict, State]) -> State.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_login(SessionId,#{<<"SMS Token">>:=Token}, #state{sess=ErlImemSess}=State) ->
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{smsott,Token})), State};
-process_login(SessionId,#{<<"User">>:=User,<<"Password">>:=Password}, #state{sess = ErlImemSess} = State) ->
-    {process_login_reply(
-       ErlImemSess:auth(dderl,SessionId,{pwdmd5,{User,list_to_binary(Password)}})
-      ), State#state{user=User}};
-process_login(SessionId,#{}, #state{conn_info=ConnInfo, sess = ErlImemSess}=State) ->
-    {process_login_reply(ErlImemSess:auth(dderl,SessionId,{access,ConnInfo})), State}.
-
-process_login_reply(ok)                         -> ok;
-process_login_reply({ok, []})                   -> ok;
-process_login_reply({ok, [{pwdmd5,Data}|_]})    -> #{pwdmd5=>process_data(Data)};
-process_login_reply({ok, [{smsott,Data}|_]})    -> #{smsott=>process_data(Data)}.
-
-process_data(#{accountName:=undefined}=Data) -> process_data(Data#{accountName=><<"">>});
-process_data(Data) -> Data.
-
 -spec process_call({[binary()], term()}, atom(), pid(), #state{}, ipport()) -> #state{}.
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, 
+    #state{lock_state = LockState} = State) when LockState == locked; LockState == screensaver ->
+    #state{id = Id, conn_info = ConnInfo, old_state = OldState, xsrf_token = XSRFToken} = State,
+    {ReloginTempState, NewToken} = 
+    if OldState /= undefined -> {State, Id};
+       true -> 
+            SessionToken = base64:encode(crypto:rand_bytes(64)),
+            global:unregister_name(Id),
+            global:register_name(SessionToken, self()),
+            From ! {newToken, SessionToken},
+            {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+            {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
+                    lock_state = locked, old_state = State, 
+                    xsrf_token = XSRFToken}, SessionToken} 
+   end,
+    case login(ReqData, From, SrcIp, ReloginTempState) of
+        #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
+        #state{sess = TmpSess, old_state = OldState} ->
+            TmpSess:close(),
+            OldState#state{lock_state = unlocked, id = NewToken}
+    end;
+process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
+    login(ReqData, From, SrcIp, State);
+process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
+             #state{user_id = UserId, id = Id, lock_state = LockState} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
+    if LockState == unlocked -> 
+            reply(From, #{<<"ping">> => node()}, self()),
+            State;
+       true -> 
+            reply(From, #{ping => #{error => show_screen_saver}}, self()),
+            State#state{lock_state = screensaver}
+    end;
+%% IMPORTANT:
+% This function clause is placed right after login to be able to catch all
+% request (other than login above) which are NOT to be allowed without a login
+%
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "invalid", io_lib:format("~p", [Req]), "", "", "", ""),
+    ?Debug("Request from a not logged in user: ~n~p", [Req]),
+    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
+    State;
+
+process_call(Req, _Adapter, From, {SrcIp,_}, #state{lock_state = locked, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "screensaver is enabled", io_lib:format("~p", [Req]), "", "", "", ""),
+    ?Debug("Request when screensaver is active from user: ~n~p", [Req]),
+    reply(From, [{<<"error">>, <<"Session is locked">>}], self()),
+    State;
+
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "restart", "", "", "", "", ""),
@@ -184,96 +250,35 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
         _ ->
             reply(From, #{restart => #{error => <<"insufficient privilege">>}}, self())
     end,
-    {ok, State};
-process_call({[<<"login">>], ReqData}, Adapter, From, {SrcIp, Port}, State) ->
-    #state{id = Id, sess = ErlImemSess} = State,
-    Host =
-    lists:foldl(
-      fun({App,_,_}, <<>>) ->
-              {ok, Apps} = application:get_key(App, applications),
-              case lists:member(dderl, Apps) of
-                  true -> atom_to_binary(App, utf8);
-                  _ -> <<>>
-              end;
-         (_, App) -> App
-      end, <<>>, application:which_applications()),
-    {ok, Vsn} = application:get_key(dderl, vsn),
-    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
-               node => list_to_binary(imem_meta:node_shard())},
-    case catch ErlImemSess:run_cmd(login,[]) of
-        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
-            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
-            reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
-            State;
-        {error, _} ->
-            ReqDataMap = jsx:decode(ReqData, [return_maps]),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
-            case catch process_login(Id,ReqDataMap,State) of
-                {{E,M},St} when is_atom(E) ->
-                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
-                    reply(From, #{login=>
-                                       #{error=>
-                                         if is_binary(M) -> M;
-                                            is_list(M) -> list_to_binary(M);
-                                            true -> list_to_binary(io_lib:format("~p", [M]))
-                                       end}}, self()),
-                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
-                                Id, "login unsuccessful", "", "", "", "", ""),
-                    self() ! invalid_credentials,
-                    State;
-                {Reply, State1} ->
-                    {Reply1, State2} = case Reply of
-                          ok -> process_call({[<<"login">>], #{}}, Adapter, From, {SrcIp, Port}, State1);
-                          _ -> {Reply, State1}
-                    end,
-                    reply(From, #{login => maps:merge(Reply0, Reply1)}, self()),
-                    State2
-            end;
-        _ ->
-            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
-                                           id='$1',_='_'}, [], ['$1']}]),
-            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
-            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
-               true -> 
-                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
-                    State#state{user_id = UserId}
-            end
-    end;
-
-%% IMPORTANT:
-% This function clause is placed right after login to be able to catch all
-% request (other than login above) which are NOT to be allowed without a login
-%
-process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "invalid", io_lib:format("~p", [Req]), "", "", "", ""),
-    ?Debug("Request from a not logged in user: ~n~p", [Req]),
-    reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
-
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     #{<<"change_pswd">> := BodyMap} = jsx:decode(ReqData, [return_maps]),
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "login_change_pswd", BodyMap, "", "", "", ""),
     User        = maps:get(<<"user">>, BodyMap, <<>>),
     OldPassword = list_to_binary(maps:get(<<"password">>, BodyMap, [])),
-    NewPassword = list_to_binary(maps:get(<<"new_password">>, BodyMap, [])),
-    case ErlImemSess:run_cmd(
-           change_credentials,
-           [{pwdmd5, OldPassword}, {pwdmd5, NewPassword}]
-          ) of
-        SeKey when is_integer(SeKey)  ->
-            ?Debug("change password successful for ~p", [User]),
-            reply(From, [{<<"login_change_pswd">>,<<"ok">>}], self());
-        {error, {error, {Exception, M}}} ->
-            ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            reply(From, [{<<"login_change_pswd">>, Err}], self());
-        {error, {{Exception, M}, _Stacktrace} = Error} ->
-            ?Error("change password failed for ~p, result ~n~p", [User, Error]),
-            Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
-                                     lists:flatten(io_lib:format("~p", [M]))),
-            reply(From, [{<<"login_change_pswd">>, Err}], self())
+    NewPassword = maps:get(<<"new_password">>, BodyMap, []),
+    case (imem_seco:password_strength_fun())(NewPassword) of
+        strong ->    
+            case ErlImemSess:run_cmd(
+                   change_credentials,
+                   [{pwdmd5, OldPassword}, {pwdmd5, erlang:md5(NewPassword)}]
+                  ) of
+                SeKey when is_integer(SeKey)  ->
+                    ?Debug("change password successful for ~p", [User]),
+                    reply(From, [{<<"login_change_pswd">>,<<"ok">>}], self());
+                {error, {error, {Exception, M}}} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, {Exception, M}]),
+                    Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    reply(From, [{<<"login_change_pswd">>, Err}], self());
+                {error, {{Exception, M}, _Stacktrace} = Error} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, Error]),
+                    Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
+                                             lists:flatten(io_lib:format("~p", [M]))),
+                    reply(From, [{<<"login_change_pswd">>, Err}], self())
+            end;
+        _ -> reply(From, #{error => <<"Password is not strong">>}, self())
     end,
     State;
 
@@ -337,12 +342,6 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, {SrcIp,_},
     Apps = application:which_applications(),
     Versions = get_apps_version(Apps, [dderl|Deps]),
     reply(From, [{<<"about">>, Versions}], self()),
-    State;
-
-process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
-             #state{user_id = UserId, id = Id} = State) ->
-    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "ping", "", "", "", "", ""),
-    reply(From, [{<<"ping">>, atom_to_binary(node(), utf8)}], self()),
     State;
 
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
@@ -558,7 +557,9 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
     NewCurrentPriv =
         try
-            Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self())
+            TmpPriv = Adapter:process_cmd({Cmd, BodyJson, Id}, Sess, UserId, From, CurrentPriv, self()),
+            self() ! rearm_session_idle_timer,
+            TmpPriv            
         catch Class:Error ->
                 ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, erlang:get_stacktrace()]),
                 reply(From, [{<<"error">>, <<"Unable to process the request">>}], self()),
@@ -599,7 +600,7 @@ spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, SelfPid) ->
     end.
 
 reply(From, Data, Master) ->
-    From ! {reply, jsx:encode(Data)},
+    From ! {reply, Data},
     Master ! rearm_session_idle_timer.
 
 -spec jsq(term()) -> term().
@@ -610,13 +611,15 @@ jsq(OtherTypes) -> OtherTypes.
 logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
     [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
     State#state{adapt_priv = []};
-logout(#state{sess = Sess} = State) ->
+logout(#state{sess = Sess, old_state = OldState} = State) ->
     try Sess:close()
     catch Class:Error ->
             ?Error("Error trying to close the session ~p ~p:~p~n~p~n",
                    [Sess, Class, Error, erlang:get_stacktrace()])
     end,
-    logout(State#state{sess = undefined}).
+    if OldState == undefined -> logout(State#state{sess = undefined});
+       true -> logout(OldState)
+    end.
 
 -spec get_apps_version([{atom(), list(), list()}], [atom()]) -> [{binary(), list()}].
 get_apps_version([], _Deps) -> [];
@@ -655,6 +658,95 @@ find_deps_app_seq(App,Chain) ->
             find_deps_app_seq(A,[A|Chain])
     end.
 
+login(ReqData, From, SrcIp, State) ->
+    #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
+    Host =
+    lists:foldl(
+      fun({App,_,_}, <<>>) ->
+              {ok, Apps} = application:get_key(App, applications),
+              case lists:member(dderl, Apps) of
+                  true -> atom_to_binary(App, utf8);
+                  _ -> <<>>
+              end;
+         (_, App) -> App
+      end, <<>>, application:which_applications()),
+    {ok, Vsn} = application:get_key(dderl, vsn),
+    Reply0 = #{vsn => list_to_binary(Vsn), host => Host,
+               node => list_to_binary(imem_meta:node_shard())},
+    case catch ErlImemSess:run_cmd(login,[]) of
+        {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
+            ?Warn("Password expired ~s~n~p", [State#state.user, ST]),
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            State1 = State#state{user_id = UserId},
+            if State#state.old_state /= undefined -> {#{accountName => State#state.user}, State1}; %% For screensaver login change password is hidden
+               is_map(ReqData) -> {#{changePass => State#state.user}, State1};
+               true -> 
+                    reply(From, #{login => Reply0#{changePass=>State#state.user}}, self()),
+                    State1
+            end;
+        {error, _} ->
+            ReqDataMap = jsx:decode(ReqData, [return_maps]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, "", Id, "login", ReqDataMap, "", "", "", ""),
+            try dderl_dal:process_login(
+                         ReqDataMap, State,
+                         #{auth => fun(Auth) ->
+                                       (State#state.sess):auth(dderl, Id, Auth)
+                                   end,
+                           connInfo => ConnInfo,
+                           relayState => fun dderl_resource:samlRelayStateHandle/2,
+                           stateUpdateUsr =>  fun(St, Usr) -> St#state{user=Usr} end,
+                           stateUpdateSKey =>  fun(St, _) -> St end,
+                           urlPrefix => dderl:get_url_suffix()}) of
+                {{E,M},St} when is_atom(E) ->
+                    ?Error("Error(~p) ~p~n~p", [E,M,St]),
+                    reply(From, #{login=> #{error=> format_error(M)}}, self()),
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    self() ! invalid_credentials,
+                    State;
+                {Reply, State1} ->
+                    {Reply1, State2} = case Reply of
+                          ok -> login(#{}, From, SrcIp, State1);
+                          _ -> {Reply, State1}
+                    end,
+                    case ReqDataMap of
+                        #{<<"samluser">> := _} -> reply(From, {saml, dderl:get_url_suffix()}, self());
+                        _ -> reply(From, #{login => maps:merge(Reply0, Reply1)}, self())
+                    end,
+                    State2
+            catch
+                _ : Error ->
+                    ErrMsg = 
+                    case Error of
+                        {{E, M}, St} -> 
+                            ?Error("~p ~p~n~p", [E,M,St]),
+                            self() ! invalid_credentials,
+                            M;
+                        _ -> 
+                            ?Error("logging in : ~p ~p", [Error , erlang:get_stacktrace()]),
+                            Error
+                    end,
+                    catch dderl:access(?LOGIN_CONNECT, SrcIp, maps:get(<<"User">>, ReqDataMap, ""),
+                                Id, "login unsuccessful", "", "", "", "", ""),
+                    reply(From, #{login => #{error => format_error(ErrMsg)}}, self()),
+                    State
+            end;
+        _ ->
+            {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
+                                           id='$1',_='_'}, [], ['$1']}]),
+            catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "login successful", "", "", "", "", ""),
+            if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
+               true -> 
+                    reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
+                    State#state{user_id = UserId}
+            end
+    end.
+
+format_error(Error) when is_binary(Error) -> Error;
+format_error(Error) when is_list(Error) -> list_to_binary(Error);
+format_error(Error) -> list_to_binary(io_lib:format("~p", [Error])).
+
 -spec add_csv_separators([[binary()]], list(), list()) -> [[binary() | list()]]. 
 add_csv_separators([], _ColSep, _RowSep) -> [];
 add_csv_separators([Row | Rest], ColSep, RowSep) ->
@@ -679,3 +771,9 @@ produce_buffer_csv_rows({Rows, Continuation}, From, TableId, RowFun, ColumnPosit
     CsvRows = iolist_to_binary(add_csv_separators(ExpandedRows, ColSep, RowSep)),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_buffer_csv_rows(ets:select(Continuation), From, TableId, RowFun, ColumnPositions, ColSep, RowSep).
+
+-spec cancel_timer(undefined | reference()) -> ok.
+cancel_timer(undefined) -> ok;
+cancel_timer(TRef) ->
+    erlang:cancel_timer(TRef),
+    ok.

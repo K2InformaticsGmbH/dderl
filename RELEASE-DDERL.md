@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.4 (Release Date 19.10.2016)
+======================================
+* imem 1.5.6
+* SAML Implementation
+
 Version 1.6.3 (Release Date 17.10.2016)
 ======================================
 * imem 1.5.5

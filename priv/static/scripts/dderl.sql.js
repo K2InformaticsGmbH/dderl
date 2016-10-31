@@ -731,8 +731,9 @@ function insertAtCursor(myField, myValue) {
             if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
-                    .button({icons: {primary: 'fa  fa-' + elm.icn}, text: false})
+                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
                     .css('height', this.options.toolBarHeight+'px')
+                    .addClass('colorIcon')
                     .click(self, toolElmFn)
                     .appendTo(toolDiv);
             }

@@ -187,6 +187,19 @@
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
 -define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
 
+%% SAML configs
+-define(IDPLOGINURL,        ?GET_CONFIG(samlIdpLoginUrl, [], "https://missing.saml_idp.host/", "IDP Login URL")).
+-define(SPURLPREFIX,        ?GET_CONFIG(samlSpBaseUrl, [], "/saml", "URL Prefix for all SP links")).
+-define(SAMLCERTKEY,        ?GET_CONFIG(samlCertKey,[],'$no_cert_key',"SAML cert and key options for encryption and signature")).
+-define(SAMLFINGERPRINT,    ?GET_CONFIG(samlSignThumbPrint,[], '$nofp',"SAML - Fingerprint of the certificate used by idp to sign the response")).
+-define(SAMLSIGNREQUEST,    ?GET_CONFIG(samlSignRequest,[], true,"SAML - flag to sign the requests or not")).
+-define(ISENCRYPTMANDATORY, ?GET_CONFIG(samlEncryptIsMandatory,[], true,"SAML - Expect encrypted data")).
+-define(VERIFYRESPONSESIGN, ?GET_CONFIG(samlVerifyResponseSignature,[], true,"SAML - flag to verify response signature")).
+-define(UNAUTHORIZEDPAGE,   ?GET_CONFIG(samlUnauthorizedPage,[], <<"<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>Unauthorized!</title> <style>::-moz-selection{background: #b3d4fc; text-shadow: none;}::selection{background: #b3d4fc; text-shadow: none;}html{padding: 30px 10px; font-size: 20px; line-height: 1.4; color: #737373; background: #f0f0f0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;}html, input{font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;}body{max-width: 500px; _width: 500px; padding: 30px 20px 50px; border: 1px solid #b3b3b3; border-radius: 4px; margin: 0 auto; box-shadow: 0 1px 10px #a7a7a7, inset 0 1px 0 #fff; background: #fcfcfc;}h1{margin: 0 10px; font-size: 50px; text-align: center;}h1 span{color: #bbb;}.container{max-width: 380px; _width: 380px; margin: 0 auto;}</style> </head> <body> <div class=\"container\"> <h1>You are unauthorized to access the page</h1> </div></body></html>">>, "SAML - Unauthorized Page")).
+
+%% Screensaver config
+-define(SCREEN_SAVER_TIMEOUT, ?GET_CONFIG(screenSaverTimeout, [], 60, "Screen saver activation timeout in minutes") * 60 * 1000).
+
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).
 -define(CMD_NOARGS,     2).
@@ -194,8 +207,10 @@
 -define(CUST_SQL,       4).
 
 %% Cookie info
--define(DDERL_COOKIE_NAME, <<"DdErlSession">>).
--define(COOKIE_OPTS(__Domain), [{path, <<"/">>}, {secure, true}, {domain, __Domain}]).
--define(HTTP_ONLY_COOKIE_OPTS(__Domain), [{http_only, true}|?COOKIE_OPTS(__Domain)]).
+-define(SESSION_COOKIE, <<"DDERL-SESSION">>).
+-define(XSRF_COOKIE, <<"DDERL-XSRF-TOKEN">>).
+-define(XSRF_HEADER, <<"x-xsrf-token">>).
+-define(COOKIE_OPTS(__Domain, __Path), [{path, __Path}, {secure, true}, {domain, __Domain}]).
+-define(HTTP_ONLY_COOKIE_OPTS(__Domain, __Path), [{http_only, true}|?COOKIE_OPTS(__Domain, __Path)]).
 
 -endif.

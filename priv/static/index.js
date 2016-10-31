@@ -15,7 +15,7 @@ req.keys().forEach(function(key){
 
 import {loginAjax} from "./scripts/login";
 import {alert_jq} from './dialogs/dialogs';
-import {dderlState, show_qry_files, import_query,
+import {dderlState, show_qry_files,
         change_password, show_about_dlg} from "./scripts/dderl";
 import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab, close_tab} from "./scripts/connect";
@@ -70,7 +70,6 @@ function addClick(id, handler) {
 }
 
 addClick('btn-tables',          () => { show_qry_files(true);   });
-addClick('btn-import-query',    () => { import_query();         });
 addClick('btn-change-password', () => { change_password(false); });
 addClick('btn-about',           () => { show_about_dlg();       });
 addClick('btn-disconnect',      () => { disconnect_tab();       });

@@ -190,8 +190,16 @@ export function connect_dlg()
     owners_list.change(function() {
         if(owners_list.children().length < 1) {
             owners_list.parent().find('input').val('');
-            for(var idx = 0; idx < owners.length; ++idx)
-                owners_list.append($('<option>', {value: owners[idx], text : owners[idx]}));
+            for(var idx = 0; idx < owners.length; ++idx) {
+                var optionAttrs = {
+                    value: owners[idx],
+                    text: owners[idx]
+                };
+                if(owners[idx] === dderlState.username) {
+                    optionAttrs.selected = "selected";
+                }
+                owners_list.append($('<option>', optionAttrs));
+            }
             owners_list.combobox();
 
             // FIXIT: Bad bad hack to remove scrollbar
@@ -223,8 +231,7 @@ export function connect_dlg()
     });
 }
 
-function login_save(dlg, connection_list, adapter_list, owners_list)
-{
+function login_save(dlg, connection_list, adapter_list, owners_list) {
     var conn = connection_list.find("option:selected").data('connect');
     var conn_name = connection_list.parent().find('input').val();
     if(conn.name != conn_name)
@@ -539,37 +546,19 @@ export function disconnect_tab() {
     if (!dderlState.connection)
         return;
 
-    var headers = {};
-
-    if (dderlState.adapter !== null) {
-        headers['DDERL-Adapter'] = dderlState.adapter;
-    }
-    
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
 
-    var response = false;
-    $.ajax({
-        type: 'POST',
-        url: 'app/disconnect',
-        data: JSON.stringify({disconnect: {connection: dderlState.connection}}),
-        dataType: "JSON",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        context: null,
-
-        success: function(_data, textStatus) {
-            console.log('Request disconnect result ' + textStatus);
+    ajaxCall(null, 'disconnect', {disconnect: {connection: dderlState.connection}}, 
+        'disconnect', function(data) {
+            console.log('Request disconnect result ' + data);
             dderlState.connection = null;
             dderlState.adapter = null;
             dderlState.connected_user = null;
             dderlState.service = null;
             connect_dlg();
-            response = true;
-        },
-
-        error: function (request, textStatus) {
-            console.log('Request disconnect result ' + textStatus);
+        }, function(error) {
+            console.log('Request disconnect result ' + error);
             dderlState.connection = null;
             dderlState.adapter = null;
             dderlState.connected_user = null;
@@ -577,9 +566,8 @@ export function disconnect_tab() {
             $(".ui-dialog-content").dialog('close');
             $('#dashboard-menu').empty();
             connect_dlg();
-            response = true;
         }
-    });
+    );
 }
 
 export function close_tab() {
@@ -595,6 +583,8 @@ export function close_tab() {
         headers['DDERL-Adapter'] = dderlState.adapter;
         headers['DDERL-Connection'] = dderlState.connection;
     }
+
+    headers["X-XSRF-TOKEN"] = dderlState.xsrfToken;
 
     $.ajax({
         type: 'POST',
@@ -613,7 +603,7 @@ export function close_tab() {
             console.log('Request close_tab result ' + textStatus);
         }
     });
-    
+
     // Since disconnect is called on tab the request does not go throught as the
     // connection is closed after the request is sent.
     // this is a workaround to send the request completely by not using sync req
@@ -624,14 +614,13 @@ export function close_tab() {
 }
 
 export function change_connect_password(loggedInUser, connectSuccessCb) {
-    password_change_dlg("Change account password", loggedInUser, function () {
+    password_change_dlg("Change connection password", '', function () {
         if ($('#conf_password_login').val() == $('#password_change_login').val()) {
             var newPassJson = {
                 connection: dderlState.connection,
                 service: dderlState.service,
-                user: loggedInUser,
                 password: md5Arr($('#old_password_login').val()),
-                new_password: md5Arr($('#password_change_login').val())
+                new_password: $('#password_change_login').val()
             };
             ajaxCall(null, 'change_conn_pswd', newPassJson, 'change_conn_pswd', function (resp) {
                 if (resp == "ok") {

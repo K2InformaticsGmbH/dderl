@@ -1,7 +1,6 @@
 import jQuery from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
-import {addWindowFinder, ajaxCall, beep, dderlState,
-        smartDialogPosition} from './dderl';
+import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
 
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
@@ -20,6 +19,9 @@ import {addWindowFinder, ajaxCall, beep, dderlState,
         _columns        : null,
         _parent         : null,
         _type           : 'statistics',
+        _fnt            : null,
+        _fntSz          : null,
+        _MAX_ROW_WIDTH  : 1000,
 
         _handlers : {queryResult        : function(e, _result) { e.data._createHisto(_result); },
                      updateData         : function(e, _result) { e.data._updatePlot(_result); },
@@ -75,6 +77,9 @@ import {addWindowFinder, ajaxCall, beep, dderlState,
 
         _create : function() {
             var self = this;
+
+            self._fnt = $(document.body).css('font-family');
+            self._fntSz = $(document.body).css('font-size');
 
             if(self.options.title !== self._title) {self._title = self.options.title;}
             if(self.options.dderlStatement  !== self._stmt) {self._stmt = self.options.dderlStatement;}
@@ -409,13 +414,13 @@ import {addWindowFinder, ajaxCall, beep, dderlState,
                 alert_jq(stats.error);
                 return;
             }
-            self._dlg.dialog("option", "position", {at : 'left top', my : 'left top', collision : 'none'});
-            self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
+
             if(self._parent) {
-                smartDialogPosition($("#main-body"), self._parent, self._dlg, ['center']);
+                self._dlg.dialog("option", "position", {at : 'left top+60', my : 'left top', of : self._parent.dialog("widget"), collision : 'none'});
             } else {
-                smartDialogPosition($("#main-body"), $("#main-body"), self._dlg, ['center']);
+                self._dlg.dialog("option", "position", {at : 'left top+60', my : 'left top', of : $("#main-body"), collision : 'none'});
             }
+            self._dlg.dialog("widget").draggable("option", "containment", "#main-body");
             self.setColumns(stats.cols, stats.type != "stats");
             self.appendRows(stats.gres);
             addWindowFinder(self, self.options.title);
@@ -688,11 +693,21 @@ import {addWindowFinder, ajaxCall, beep, dderlState,
                             var orig_top = dlg.offset().top;
                             var new_left = dlg.offset().left - gWidth + rWindowWidth;
                             if(new_left > 0) {
-                                self._dlg.dialog("option", "position", [new_left, orig_top]);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left+" + new_left + " top+" + orig_top,
+                                    of: "#main-body",
+                                    collision : 'none'
+                                });
                                 self._dlg.dialog("option", "width", gWidth);
                             } else {
-                                self._dlg.dialog("option", "position", [0, orig_top]);
-                                self._dlg.dialog("option", "width", $(window).width() - 20);
+                                self._dlg.dialog("option", "position", {
+                                    my: "left top",
+                                    at: "left top+" + orig_top,
+                                    of: "#main-body",
+                                    collision : 'none'
+                                });
+                                self._dlg.dialog("option", "width", $(window).width() - 40);
                             }
                         }
 
