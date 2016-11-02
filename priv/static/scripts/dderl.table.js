@@ -3867,6 +3867,8 @@ function exportCsvPrompt(filename, callback) {
     checkboxDiv.appendChild(chk);
     checkboxDiv.appendChild(document.createTextNode("Export all (re-execute the query)"));
 
+    var noteDiv = document.createElement('div');
+    noteDiv.appendChild(document.createTextNode("Implicit rownum limit still applies"));
     function exec_callback() {
         if (inp.value) {
             dlgDiv.dialog("close");
@@ -3878,6 +3880,7 @@ function exportCsvPrompt(filename, callback) {
         $('<div>')
         .append(filenameDiv)
         .append(checkboxDiv)
+        .append(noteDiv)
         .dialog({
             modal:false,
             width: 300,
