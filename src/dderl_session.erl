@@ -186,7 +186,14 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port},
     #state{lock_state = LockState} = State) when LockState == locked; LockState == screensaver ->
     #state{id = Id, conn_info = ConnInfo, old_state = OldState, xsrf_token = XSRFToken} = State,
     {ReloginTempState, NewToken} = 
-    if OldState /= undefined -> {State, Id};
+    if OldState /= undefined ->  
+            {erlimem_session, SessPid} = State#state.sess, 
+            case erlang:is_process_alive(SessPid) of 
+                true -> {State, Id}; 
+                false ->  
+                    {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()), 
+                    {State#state{sess = Sess}, Id} 
+            end;
        true -> 
             SessionToken = base64:encode(crypto:rand_bytes(64)),
             global:unregister_name(Id),
@@ -196,7 +203,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port},
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
                     lock_state = locked, old_state = State, 
                     xsrf_token = XSRFToken}, SessionToken} 
-   end,
+    end,
     case login(ReqData, From, SrcIp, ReloginTempState) of
         #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
         #state{sess = TmpSess, old_state = OldState} ->
