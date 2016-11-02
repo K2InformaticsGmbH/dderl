@@ -11,14 +11,14 @@ IF "%4" == "" (
    SET nid=1
    SET cid=2
    SET port=1236
-   SET dderlport=8443
+   SET dderlport=443
 )
 
 IF NOT "%5" == "" (
    SET nid=1
    SET cid=2
    SET port=1236
-   SET dderlport=8443
+   SET dderlport=443
 )
 
 SET unamestr=%USERNAME%
