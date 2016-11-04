@@ -145,13 +145,11 @@ handle_info(rearm_session_idle_timer, #state{session_idle_tref=TRef} = State) ->
     NewTRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
     {noreply, State#state{session_idle_tref=NewTRef}};
 handle_info(inactive, #state{user = User, inactive_tref = ITref} = State) ->
-    ScreenSaverTimeout = ?SCREEN_SAVER_TIMEOUT,
-    ?Debug([{user, User}], "session ~p inactive for ~p ms starting screensaver", [{self(), User}, ScreenSaverTimeout]),
+    ?Debug([{user, User}], "session ~p inactive for ~p ms starting screensaver", [{self(), User}, ?SCREEN_SAVER_TIMEOUT]),
     if ITref == undefined -> {noreply, State};
        true ->
             cancel_timer(ITref),
-            NewITref = erlang:send_after(ScreenSaverTimeout, self(), inactive),
-            {noreply, State#state{lock_state = screensaver, inactive_tref = NewITref}}
+            {noreply, State#state{lock_state = screensaver}}
     end;
 handle_info(die, #state{user=User}=State) ->
     ?Info([{user, User}], "session ~p idle for ~p ms", [{self(), User}, ?SESSION_IDLE_TIMEOUT]),
