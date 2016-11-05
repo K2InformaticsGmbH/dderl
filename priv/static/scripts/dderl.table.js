@@ -1944,7 +1944,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     },
 
     _toolBarLive: function(self) {
-        if(self._tbLive.button("option","active") != true) {
+        if(self._tbLive.button("option","active") !== true) {
             self._tbReload.hide();
             self._tbSkFrst.hide();
             self._tbJmPrev.hide();
@@ -1960,7 +1960,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             self._tbCommit.hide();
             self._tbDiscrd.hide();
             self._tbLive.button("option","active",true);
-            self.buttonPress("live-on");
+            self.buttonPress("live");
             console.log('['+self.options.title+'] cb _toolBarLive arm');
         } else {
             self._tbReload.show();

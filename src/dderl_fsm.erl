@@ -247,9 +247,9 @@ gui_req(button, <<"pt">>, ReplyTo, {?MODULE,Pid}) ->
 gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"tail">>]),
     gen_fsm:send_event(Pid,{button, <<"tail">>, ReplyTo});
-gui_req(button, <<"live-on">>, ReplyTo, {?MODULE,Pid}) ->
-    ?NoDbLog(debug, [], "button ~p", [<<"live-on">>]),
-    gen_fsm:send_event(Pid,{button, <<"live-on">>, ReplyTo});
+gui_req(button, <<"live">>, ReplyTo, {?MODULE,Pid}) ->
+    ?NoDbLog(debug, [], "button ~p", [<<"live">>]),
+    gen_fsm:send_event(Pid,{button, <<"live">>, ReplyTo});
 gui_req(button, <<"live-off">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"live-off">>]),
     gen_fsm:send_event(Pid,{button, <<"live-off">>, ReplyTo});
@@ -997,12 +997,13 @@ completed({button, <<"more">>, ReplyTo}, #state{gl=GL,bufBot=BufBot}=State0) ->
 completed({rows, _}, State) ->
     % ignore unsolicited rows
     {next_state, completed, State};
-completed({button, <<"live-on">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+completed({button, <<"live">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % clear buffers, close and reopen fetch with skip and tail options
     State1 = reply_stack(completed, ReplyTo, State0),
+    State2 = fetch_close(State1),
     State3 = fetch(skip,true,State2),
-    State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>},State4),
-    {next_state, live, State5#state{tailMode=true,tailLock=false}};
+    State4 = gui_clear(#gres{state=tailing,loop= <<"live">>},State3),
+    {next_state, tailing, State4#state{tailMode=true,tailLock=false}};
 completed(Other, State) ->
     ?Info("completed -- unexpected event ~p", [Other]),
     {next_state, completed, State}.
@@ -1180,7 +1181,7 @@ handle_event({button, <<"rollback">>, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) 
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = gui_nop(#gres{state=SN,beep=true,message= ?NoPendingUpdates},State1),
     {next_state, SN, State2#state{tailLock=true}};
-%% --handle_event({button, <<"live-on">>, ReplyTo}, SN, State0) ->
+%% --handle_event({button, <<"live">>, ReplyTo}, SN, State0) ->
 %% --    ?Info("~p live on~n", [SN]),
 %% --    State1 = reply_stack(SN, ReplyTo, State0),
 %% --    {next_state, SN, State1};
