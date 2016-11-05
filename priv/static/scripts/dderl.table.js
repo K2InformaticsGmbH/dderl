@@ -107,6 +107,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',               clk : '_toolBarReload',   dom: '_tbReload' },
+                       ':))'      : {tip: 'Live',                  typ : 'btn', icn : 'podcast',               clk : '_toolBarLive',     dom: '_tbLive'   },
                        '|<'       : {tip: 'Jump to first',         typ : 'btn', icn : 'step-backward',         clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',              clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
                        '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',     clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
@@ -1940,6 +1941,46 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
         self._gridDataView.setGrouping([]);
         self.buttonPress("restart");
+    },
+
+    _toolBarLive: function(self) {
+        if(self._tbLive.button("option","active") != true) {
+            self._tbReload.hide();
+            self._tbSkFrst.hide();
+            self._tbJmPrev.hide();
+            self._tbGoPrev.hide();
+            self._tbTxtBox.hide();
+            self._tbGoNext.hide();
+            self._tbJmNext.hide();
+            self._tbScnEnd.hide();
+            self._tbPssThr.hide();
+            self._tbSekEnd.hide();
+            self._tbSkTail.hide();
+            self._tbSkipTl.hide();
+            self._tbCommit.hide();
+            self._tbDiscrd.hide();
+            self._tbLive.button("option","active",true);
+            self.buttonPress("live-on");
+            console.log('['+self.options.title+'] cb _toolBarLive arm');
+        } else {
+            self._tbReload.show();
+            self._tbSkFrst.show();
+            self._tbJmPrev.show();
+            self._tbGoPrev.show();
+            self._tbTxtBox.show();
+            self._tbGoNext.show();
+            self._tbJmNext.show();
+            self._tbScnEnd.show();
+            self._tbPssThr.show();
+            self._tbSekEnd.show();
+            self._tbSkTail.show();
+            self._tbSkipTl.show();
+            self._tbCommit.show();
+            self._tbDiscrd.show();
+            self._tbLive.button("option","active",false);
+            self.buttonPress("live-off");
+            console.log('['+self.options.title+'] cb _toolBarLive dis-arm');
+        }
     },
 
     _toolBarSkFrst: function(self) {
