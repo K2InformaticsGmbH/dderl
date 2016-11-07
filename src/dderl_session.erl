@@ -185,8 +185,13 @@ format_status(_Opt, [_PDict, State]) -> State.
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, 
     #state{lock_state = LockState} = State) when LockState == locked; LockState == screensaver ->
     #state{id = Id, conn_info = ConnInfo, old_state = OldState, xsrf_token = XSRFToken} = State,
-    {ReloginTempState, NewToken} = 
-    if OldState /= undefined -> {State, Id};
+    {ReloginTempState, NewToken, IsTimedOut} = 
+    if OldState /= undefined ->  
+            {erlimem_session, SessPid} = State#state.sess, 
+            case erlang:is_process_alive(SessPid) of 
+                true -> {State, Id, false}; 
+                false -> {State, Id, true}
+            end;
        true -> 
             SessionToken = base64:encode(crypto:rand_bytes(64)),
             global:unregister_name(Id),
@@ -195,13 +200,18 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port},
             {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo, 
                     lock_state = locked, old_state = State, 
-                    xsrf_token = XSRFToken}, SessionToken} 
-   end,
-    case login(ReqData, From, SrcIp, ReloginTempState) of
-        #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
-        #state{sess = TmpSess, old_state = OldState} ->
-            TmpSess:close(),
-            OldState#state{lock_state = unlocked, id = NewToken}
+                    xsrf_token = XSRFToken}, SessionToken, false} 
+    end,
+    if IsTimedOut ->
+            reply(From, [{<<"login">>, <<"logout">>}], self()),
+            ReloginTempState;
+       true ->
+            case login(ReqData, From, SrcIp, ReloginTempState) of
+                #state{user_id = undefined} = NewState -> NewState#state{id = NewToken};
+                #state{sess = TmpSess, old_state = OldState} ->
+                    TmpSess:close(),
+                    OldState#state{lock_state = unlocked, id = NewToken}
+            end
     end;
 process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port}, State) ->
     login(ReqData, From, SrcIp, State);
@@ -219,6 +229,13 @@ process_call({[<<"ping">>], _ReqData}, _Adapter, From, {SrcIp,_},
 % This function clause is placed right after login to be able to catch all
 % request (other than login above) which are NOT to be allowed without a login
 %
+process_call({[<<"logout">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
+             #state{id = Id, user_id = UserId} = State) ->
+    catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "logout", "", "", "", "", ""),
+    NewState = logout(State),
+    reply(From, [{<<"logout">>, <<"ok">>}], self()),
+    self() ! logout,
+    NewState;
 process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, "", Id, "invalid", io_lib:format("~p", [Req]), "", "", "", ""),
     ?Debug("Request from a not logged in user: ~n~p", [Req]),
@@ -281,14 +298,6 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_},
         _ -> reply(From, #{error => <<"Password is not strong">>}, self())
     end,
     State;
-
-process_call({[<<"logout">>], _ReqData}, _Adapter, From, {SrcIp,_}, 
-             #state{id = Id, user_id = UserId} = State) ->
-    catch dderl:access(?LOGIN_CONNECT, SrcIp, UserId, Id, "logout", "", "", "", "", ""),
-    NewState = logout(State),
-    reply(From, [{<<"logout">>, <<"ok">>}], self()),
-    self() ! logout,
-    NewState;
 
 process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, {SrcIp,_}, 
              #state{user_id = UserId, id = Id} = State) ->

@@ -128,16 +128,12 @@ function loginCb(resp) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
-        if(dderlState.screensaver) {
-            window.isScreensaver = false;
-            dderlState.screensaver = false;
-            stopScreensaver();
-            $("#world").hide();
-        } else {
-            connect_dlg();
-        }
+        removeScreenSaver();
     } else if (resp.hasOwnProperty('changePass')) {
         change_login_password(resp.changePass, true);
+    } else if (resp == 'logout') {
+        removeScreenSaver();
+        logout(true);
     } else {
         alert_jq("Unexpected "+JSON.stringify(resp));
     }
@@ -149,6 +145,17 @@ export function showScreeSaver() {
              fields : [],
              screensaver : true
     }); 
+}
+
+function removeScreenSaver(){
+    if(dderlState.screensaver) {
+        window.isScreensaver = false;
+        dderlState.screensaver = false;
+        stopScreensaver();
+        $("#world").hide();
+    } else {
+        connect_dlg();
+    }
 }
 
 function display(layout) {
@@ -264,8 +271,8 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-export function logout() {
-    if(dderlState.connection) {
+export function logout(isForceful) {
+    if(dderlState.connection && isForceful !== true) {
         confirm_jq({title: "Confirm logout", content:''}, function() {
             exec_logout();
         });
