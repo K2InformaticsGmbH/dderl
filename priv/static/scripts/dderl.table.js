@@ -3778,13 +3778,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     }
                 }
             } else if(firstChunk && !self._dlgResized) {
-                let dlg = this._dlg.dialog('widget');
                 let gWidth = self._tbllay.width;
-                let rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
+                let orig_left = self._tbllay.x;
+                let orig_top = self._tbllay.y;
+                let rWindowWidth = $(window).width() - orig_left - 20; // available width for the window
 
                 if(gWidth > rWindowWidth) {
-                    let orig_top = dlg.offset().top;
-                    let new_left = dlg.offset().left - gWidth + rWindowWidth;
+                    let new_left = $(window).width() - gWidth - 20;
                     if(new_left > 0) {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
@@ -3792,7 +3792,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                             of: "#main-body",
                             collision : 'none'
                         });
-                        self._dlg.dialog("option", "width", gWidth);
                     } else {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
@@ -3805,10 +3804,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     self._grid.resizeCanvas();
                 }
                 let gHeight = self._tbllay.height;
-                let rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for 
+                let rWindowHeight = $(window).height() - orig_top - 20; // available height for the window
                 if (gHeight > rWindowHeight) {
-                    let orig_left = dlg.offset().left;
-                    let new_top = dlg.offset().top - gHeight + rWindowHeight;
+                    let new_top = $(window).height() - gHeight - 20;
                     if(new_top > 0) {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
