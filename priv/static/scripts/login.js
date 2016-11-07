@@ -131,8 +131,7 @@ function loginCb(resp) {
     } else if (resp == 'logout') {
         removeScreenSaver();
         logout(true);
-    }
-      else {
+    } else {
         alert_jq("Unexpected "+JSON.stringify(resp));
     }
 }
@@ -269,8 +268,8 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-export function logout(isForceufl) {
-    if(dderlState.connection && isForceufl !== true) {
+export function logout(isForceful) {
+    if(dderlState.connection && isForceful !== true) {
         confirm_jq({title: "Confirm logout", content:''}, function() {
             exec_logout();
         });
