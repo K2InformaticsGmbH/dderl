@@ -54,9 +54,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
-    RegEx = "[^a-zA-Z0-9(]:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
-         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
-    case re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}]) of
+    case sql_params(Sql, Types) of
         {match, Parameters} ->
             [{<<"binds">>,
               [{<<"types">>, Types},
@@ -69,11 +67,32 @@ opt_bind_json_obj(Sql, Adapter) ->
                                      _ -> <<"in">>
                                  end},
                       {<<"val">>,<<>>}]}
-                 || [P,T,D] <- Parameters]}]
+                 || [P,T,D] <- lists:usort(Parameters)]}]
              }];
         % No bind parameters can be extracted
         % possibly query string is not parameterized
         _ -> []
+    end.
+
+sql_params(Sql, Types) ->
+    RegEx = "[^a-zA-Z0-9(]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
+            ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
+    try
+        {ok, PTree} = sqlparse:parsetree(Sql),
+        Params = sqlparse:foldtd(
+                   fun({param, P}, A) ->
+                           case re:run(
+                                  P, RegEx,
+                                  [global,{capture, [0,1,2], binary}]) of
+                               {match, Prms} -> Prms ++ A;
+                               _ -> A
+                           end;
+                      (_, A) -> A
+                   end, [], PTree),
+        {match, Params}
+    catch C:R ->
+              ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
+              re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
     end.
 
 -spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
