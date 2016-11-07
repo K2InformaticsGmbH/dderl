@@ -4023,12 +4023,16 @@ export function renderNewTable(table, position, force) {
     var cl = null;
     var viewId = null;
 
+    if(table.hasOwnProperty('view_id')) {
+        viewId = table.view_id;
+    }
+
     if(table.hasOwnProperty('error')) {
         alert_jq(table.error);
-        openFailedSql(table.name, table.content, null, null);
+        openFailedSql(table.name, table.content, null, viewId, tl);
         return;
     } else if(table.hasOwnProperty('binds')) {
-        openFailedSql(table.name, table.content, table.binds, table.view_id, tl);
+        openFailedSql(table.name, table.content, table.binds, viewId, tl);
         return;
     }
 
@@ -4045,10 +4049,6 @@ export function renderNewTable(table, position, force) {
         of: "#main-body",
         collision: 'none'
     };
-
-    if(table.hasOwnProperty('view_id')) {
-        viewId = table.view_id;
-    }
 
     if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
         cl = table.column_layout;
