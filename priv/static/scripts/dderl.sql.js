@@ -61,7 +61,7 @@ function insertAtCursor(myField, myValue) {
     _prettyTb       : null,
     _boxDiv         : null,
     _paramsDiv      : null,
-    _graphEdit      : null,
+    _graphEdits     : null,
 
     _modCmd         : "",
     _cmdFlat        : "",
@@ -84,7 +84,8 @@ function insertAtCursor(myField, myValue) {
                         opViewResult    : function(e, _result) { e.data._operateViewResult (_result); },
                         saveViewResult  : function(e, _result) { e.data._saveViewResult    (_result); },
                         resultMultStmt  : function(e, _result) { e.data._resultMultStmt    (_result); },
-                        resultStmt      : function(e, _result) { e.data._resultStmt        (_result); }
+                        resultStmt      : function(e, _result) { e.data._resultStmt        (_result); },
+                        listTemplates   : function(e, _result) { e.data._listTemplates     (_result); }
                       },
 
     // Dialog context menus
@@ -132,15 +133,21 @@ function insertAtCursor(myField, myValue) {
         viewId          : null
     },
  
-    _refreshHistoryBoxSize: function() {
+    _getToobarSelectWidth: function() {
         var self = this;
-        // footer total width
+         // footer total width
         var childs = self._footerDiv.children();
         var totWidth = 0;
         for(var i = 0; i + 1 < childs.length; ++i) {
             totWidth += $(childs[i]).width();
         }
-        self._historySelect.css('width', self._footerDiv.width() - totWidth);
+        return (self._footerDiv.width() - totWidth);
+    },
+
+    _refreshHistoryBoxSize: function() {
+        var self = this;
+        var w = self._getToobarSelectWidth();
+        self._historySelect.css('width', w);
     },
 
     // Set up the widget
@@ -241,8 +248,7 @@ function insertAtCursor(myField, myValue) {
         self._paramsDiv = $('<div>').css("display", "inline-block;");
         
         // TODO: This should be ace probably instead of just text area / snippets is good idea...
-        self._graphEdit =
-            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+        var graphTextArea = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .addClass('sql_text_editor')
             .on('keydown', this, function(e) {
                 if((e.keyCode || e.which) == 9) {
@@ -251,8 +257,8 @@ function insertAtCursor(myField, myValue) {
                 }
             });
 
-        if(!self._script) {
-            var graphScriptHelp = `function initGraph(container, width, height) {
+        var graphScriptHelp =
+`function initGraph(container, width, height) {
     // This code is executed once and it should initialize the graph, the
     // available parameters are (container, width, height)
 
@@ -299,23 +305,27 @@ function insertAtCursor(myField, myValue) {
         }
     };
 }`;
-            self._graphEdit.val(graphScriptHelp);
+
+        if(!self._script) {
+            graphTextArea.val(graphScriptHelp);
         } else {
-            self._graphEdit.val(self._script);
+            graphTextArea.val(self._script);
         }
         
+        self._graphEdits = [graphTextArea];
+
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
-        self._editDiv =
-            $('<div>')
-            .append(
-              $('<ul>' +
+        var titleHeight = 26; // Default height it is recalculated later...
+        var ulTabs = $('<ul>' +
               '  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>' +
               '  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>' +
               '  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>' +
               '  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>' +
               '  <li><a href="#tabgraph">D3 Graph</a></li>' +
-              '</ul>')
-            )
+              '</ul>');
+        self._editDiv =
+            $('<div>')
+            .append(ulTabs)
             .append(
               $('<div>')
               .attr('id','tabflat')
@@ -343,7 +353,7 @@ function insertAtCursor(myField, myValue) {
             .append(
                 $('<div>')
                 .attr('id','tabgraph')
-                .append(self._graphEdit)    
+                .append(graphTextArea)    
             )
             .css('position', 'absolute')
             .css('overflow', 'hidden')
@@ -377,11 +387,14 @@ function insertAtCursor(myField, myValue) {
             .css('border-right', 'none');
         self._editDiv.find('li').removeClass('ui-corner-top');
 
-        var titleHeight = tabTitles.height();
+        titleHeight = tabTitles.height();
         $('#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph').css('top', titleHeight+'px');
 
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
+
+        // populate the graph dropdown with the template names
+        ajaxCall(self, 'list_d3_templates', {}, 'list_d3_templates', 'listTemplates');
 
         // need the max footer with to set as dlg minWidth
         self._createDlgFooter();
@@ -391,6 +404,62 @@ function insertAtCursor(myField, myValue) {
 
         // setting up the event handlers last to aid debugging
         self._setupEventHandlers();
+    },
+
+    _listTemplates: function(templateList) {
+        // Reference to objects we need.
+        var historySelect = this._historySelect[0];
+        var footerDiv = this._footerDiv[0];
+
+        console.log("The templates found", templateList);
+        var templates = document.createElement('select');
+        templates.className = 'ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right';
+        templates.style.width = this._getToobarSelectWidth() + 'px';
+        templates.style.margin = 0;
+        templates.style.height = this.options.toolBarHeight + 'px';
+        templates.style.textAlign = 'left';
+        templateList.forEach(function(t) {
+            templates.appendChild(new Option(t, t));
+        });
+        templates.selectedIndex = -1;
+
+        // We load the content on demand, but keep it cached on the client.
+        var templatesContent = {};
+
+        templates.onchange = (evt) => {
+            var name = evt.target.value;
+            var selectedEditIdx = this._editDiv.tabs("option", "active") - 4;
+            if(templatesContent.hasOwnProperty(name)) {
+                console.log("content cached found for", name);
+                this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+            } else {
+                ajaxCall(null, "get_d3_template", {get_d3_template: {name: name}}, 'get_d3_template', (content) => {
+                    console.log("Content requested from server for", name);
+                    templatesContent[name] = content;
+                    this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+                });
+            }
+        };
+
+
+        this._dlg.on("dialogresizestop", () => {
+            templates.style.width = this._getToobarSelectWidth() + 'px';
+        });
+
+        this._editDiv.on("tabsactivate", () => {
+            var selected = this._editDiv.tabs("option", "active");
+            console.log("Selected tab", selected);
+            if(selected <= 3) {
+                if(historySelect.parentNode) { return; }
+                footerDiv.removeChild(templates);
+                footerDiv.appendChild(historySelect);
+            } else {
+                if(templates.parentNode) { return; }
+                footerDiv.removeChild(historySelect);
+                footerDiv.appendChild(templates);
+                templates.selectedIndex = -1;
+            }
+        });
     },
 
     getEditor: function() {
@@ -949,12 +1018,16 @@ function insertAtCursor(myField, myValue) {
     _getPlaneData: function() {
         var self = this;
         var planeToShow = 0;
+        var script = "";
         if(self._editDiv.tabs("option", "active") > 3) {
+            planeToShow = self._editDiv.tabs("option", "active") - 3;
+            script = self._graphEdits[planeToShow-1].val();
+            // TODO: Remove this as the plane_spec has to contain all definitions...
             planeToShow = 1;
         }
         return {
             plane_specs: [{
-                script: self._graphEdit.val()
+                script: script
             }],
             plane_to_show: planeToShow
         };        

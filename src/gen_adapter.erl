@@ -430,6 +430,34 @@ process_cmd({[<<"cache_data">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     end,
     From ! {reply, RespJson};
 
+process_cmd({[<<"list_d3_templates">>], _ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    %% TODO: This should be path join so we have the correct separators...
+    TemplateList = case file:list_dir(dderl:priv_dir() ++ "/d3_templates") of
+        {ok, AllFiles} ->
+            TemplateNames = [list_to_binary(filename:rootname(F)) || F <- AllFiles, filename:extension(F) =:= ".js"],
+            TemplateNames;
+        {error, Reason} ->
+            ?Error("Error reading the d3 templates: ~p", [Reason]),
+            []
+    end,
+    ?Info("the template list ~p", [TemplateList]),
+    RespJson = jsx:encode([{<<"list_d3_templates">>, TemplateList}]),
+    From ! {reply, RespJson};
+
+process_cmd({[<<"get_d3_template">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"get_d3_template">>, BodyJson}] = ReqBody,
+    TemplateName = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
+    %% TODO: This should be path join so we have the correct directory separators.
+    Filename = dderl:priv_dir() ++ "/d3_templates/" ++ TemplateName ++ ".js",
+    TemplateJs = case file:read_file(Filename) of
+        {ok, Content} -> Content;
+        {error, Reason} ->
+            ?Error("Error: ~p reading content of graph template, filename: ~p", [Reason, Filename]),
+            <<>>
+    end,
+    RespJson = jsx:encode([{<<"get_d3_template">>, TemplateJs}]),
+    From ! {reply, RespJson};
+
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
     ?Error("Unknown cmd ~p ~p~n", [Cmd, _BodyJson]),
     From ! {reply, jsx:encode([{<<"error">>, <<"unknown command">>}])}.
