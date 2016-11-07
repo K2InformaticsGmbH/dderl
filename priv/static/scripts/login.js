@@ -43,6 +43,9 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
+    if (resp.hasOwnProperty('port')) {
+        dderlState.port = resp.port;
+    }
 
     if(!dderlState.screensaver) {
         refresh_header_information();
@@ -52,7 +55,7 @@ function loginCb(resp) {
     if(cookies) {
         var cs = cookies.split("; ");
         for(var i = 0; i < cs.length; i++) { 
-            if(cs[i].indexOf("DDERL-XSRF-TOKEN") !== -1) {
+            if(cs[i].indexOf("DDERL-XSRF-TOKEN" + dderlState.port) !== -1) {
                 dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
                 break;
             }
