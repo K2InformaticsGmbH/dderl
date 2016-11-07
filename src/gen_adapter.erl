@@ -87,7 +87,7 @@ opt_bind_json_obj(Sql, Adapter) ->
                                      _ -> <<"in">>
                                  end},
                       {<<"val">>,<<>>}]}
-                 || [P,T,D] <- Parameters]}]
+                 || [P,T,D] <- lists:usort(Parameters)]}]
              }];
         % No bind parameters can be extracted
         % possibly query string is not parameterized
