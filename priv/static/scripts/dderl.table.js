@@ -2517,8 +2517,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             .bind("dialogbeforeclose", function() {
                 console.log("dialog before close");
                 console.log("is logged in: ", dderlState.isLoggedIn);
-                if(!self._tbCommit.prop('disabled') && dderlState.isLoggedIn) {
-                    alert_jq("Please commit or rollback changes before closing the table");
+                if(!self._tbCommit.prop('disabled') && dderlState.isLoggedIn && self._gdata.length !== 0 && !self._forceClose) {
+                    confirm_jq({title: "Data modified on the table", content: 'close anyway?'}, function() {
+                        self._forceClose = true;                        
+                        self._dlg.dialog('close');
+                    });
                     return false;
                 }
                 self._grid.resetHeaderScroll();
