@@ -3745,10 +3745,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         if (redraw) {
             self._grid.updateRowCount();
-            if(computedFocus > self._gdata.length || computedFocus < 0)
+            if(computedFocus > self._gdata.length || computedFocus < 0) {
                 self._grid.scrollRowIntoView(self._gdata.length-1);
-            else if(needScroll)
+            } else if(needScroll) {
                 self._grid.scrollRowIntoView(computedFocus);
+            }
 
             self._grid.resizeCanvas();
 
@@ -3756,7 +3757,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             if(!self._tbllay || !self._tbllay.hasOwnProperty('x')) {
                 // since columns' width doesn't change after the first block we can skip this
                 if (firstChunk) {
-                    var dlg = this._dlg.dialog('widget');
+                    let dlg = this._dlg.dialog('widget');
 
                     if (!self._dlgResized) {
                         var gWidth = self._getGridWidth() + 13;
@@ -3792,11 +3793,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                             }
                         }
 
-                        var oldDlgHeight = self._dlg.dialog("option", "height");
-                        var gHeight = self._getGridHeight();
-                        var rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for the window
+                        let oldDlgHeight = self._dlg.dialog("option", "height");
+                        let gHeight = self._getGridHeight();
+                        let rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for the window
                         // Height used for header and footer (total - content).
-                        var extraHeight = oldDlgHeight - self._dlg.height();
+                        let extraHeight = oldDlgHeight - self._dlg.height();
                         if(Number.isNaN(extraHeight)) {
                             extraHeight = 0;
                         }
@@ -3817,14 +3818,57 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         self._grid.setColumns(c);
                     }
                 }
+            } else if(firstChunk && !self._dlgResized) {
+                let dlg = this._dlg.dialog('widget');
+                let gWidth = self._tbllay.width;
+                let rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
+
+                if(gWidth > rWindowWidth) {
+                    let orig_top = dlg.offset().top;
+                    let new_left = dlg.offset().left - gWidth + rWindowWidth;
+                    if(new_left > 0) {
+                        self._dlg.dialog("option", "position", {
+                            my: "left top",
+                            at: "left+" + new_left + " top+" + orig_top,
+                            of: "#main-body",
+                            collision : 'none'
+                        });
+                        self._dlg.dialog("option", "width", gWidth);
+                    } else {
+                        self._dlg.dialog("option", "position", {
+                            my: "left top",
+                            at: "left top+" + orig_top,
+                            of: "#main-body",
+                            collision : 'none'
+                        });
+                        self._dlg.dialog("option", "width", $(window).width() - 40);
+                    }
+                    self._grid.resizeCanvas();
+                }
+                let gHeight = self._tbllay.height;
+                let rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for 
+                if (gHeight > rWindowHeight) {
+                    let orig_left = dlg.offset().left;
+                    let new_top = dlg.offset().top - gHeight + rWindowHeight;
+                    if(new_top > 0) {
+                        self._dlg.dialog("option", "position", {
+                            my: "left top",
+                            at: "left+" + orig_left + " top+" + new_top,
+                            of: "#main-body",
+                            collision : 'none'
+                        });
+                    } else {
+                        self._dlg.dialog("option", "position", {
+                            my: "left top",
+                            at: "left+" + orig_left + " top",
+                            of: "#main-body",
+                            collision : 'none'
+                        });
+                        self._dlg.dialog("option", "height", $(window).height() - 40);
+                    }
+                    self._grid.resizeCanvas();
+                }
             }
-
-            // 
-            // loading of rows is the costliest of the operations
-            // compared to computing and adjusting the table width/height
-            // (so for now total time of function entry/exit is appromately equal to only row loading)
-            //
-
         }
         // If we are tailing we need to keep the editor
         // TODO: Improve this design to avoid errors in edge cases.
@@ -3908,6 +3952,8 @@ function exportCsvPrompt(filename, callback) {
     checkboxDiv.appendChild(chk);
     checkboxDiv.appendChild(document.createTextNode("Export all (re-execute the query)"));
 
+    var noteDiv = document.createElement('div');
+    noteDiv.appendChild(document.createTextNode("Implicit rownum limit still applies"));
     function exec_callback() {
         if (inp.value) {
             dlgDiv.dialog("close");
@@ -3919,6 +3965,7 @@ function exportCsvPrompt(filename, callback) {
         $('<div>')
         .append(filenameDiv)
         .append(checkboxDiv)
+        .append(noteDiv)
         .dialog({
             modal:false,
             width: 300,

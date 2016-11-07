@@ -3,6 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.5 (Release Date 01.11.2016)
+======================================
+* imem 1.5.7
+* Set width and height automatically for views saved without layout [issue 314](https://github.com/K2InformaticsGmbH/dderl/issues/314)
+* Fixed sql for Oracle fiter for '' [issue 300](https://github.com/K2InformaticsGmbH/dderl/issues/300)
+* Select default connection based on logged in user
+* Improved parameters detection regexp
+* Improved statistics table positioning
+
 Version 1.6.4 (Release Date 19.10.2016)
 ======================================
 * imem 1.5.6

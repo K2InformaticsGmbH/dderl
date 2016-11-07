@@ -49,6 +49,7 @@ SET paths=%paths% %cd%\deps\erlimem\ebin
 SET paths=%paths% %cd%\deps\erloci\ebin
 SET paths=%paths% %cd%\deps\erlpkg\ebin
 SET paths=%paths% %cd%\deps\erlscrypt\ebin
+SET paths=%paths% %cd%\deps\esaml\ebin
 SET paths=%paths% %cd%\deps\goldrush\ebin
 SET paths=%paths% %cd%\deps\imem\ebin
 SET paths=%paths% %cd%\deps\jpparse\ebin
