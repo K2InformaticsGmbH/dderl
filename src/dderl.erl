@@ -20,7 +20,7 @@
 
 -export([access/10]).
 
--export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1]).
+-export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -173,6 +173,9 @@ reset_routes(Intf) ->
     ok = ranch:set_protocol_options(
            https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
                    | Opts1]).
+
+-spec priv_dir() -> list().
+priv_dir() -> get_priv_dir().
 
 %%-----------------------------------------------------------------------------
 

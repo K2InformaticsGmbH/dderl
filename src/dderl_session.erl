@@ -524,7 +524,9 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"dashboards">>;
       C =:= <<"edit_term_or_view">>;
       C =:= <<"get_sql">>;
-      C =:= <<"cache_data">> ->
+      C =:= <<"cache_data">>;
+      C =:= <<"list_d3_templates">>;
+      C =:= <<"get_d3_template">> ->
     BodyJson = jsx:decode(ReqData),
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, binary_to_list(C), 
         maps:from_list(proplists:get_value(C, BodyJson, [])), "", "", "", ""),
