@@ -29,7 +29,8 @@ export var dderlState = {
     username: "",
     app: "",
     vsn: "",
-    node: ""
+    node: "",
+    port: ""
 };
 
 // generic dderlserver call interface
