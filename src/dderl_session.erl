@@ -620,7 +620,7 @@ jsq(OtherTypes) -> OtherTypes.
 
 -spec logout(#state{}) -> #state{}.
 logout(#state{sess = undefined, adapt_priv = AdaptPriv} = State) ->
-    [Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
+    [catch Adapter:disconnect(Priv) || {Adapter, Priv} <- AdaptPriv],
     State#state{adapt_priv = []};
 logout(#state{sess = Sess, old_state = OldState} = State) ->
     try Sess:close()
