@@ -55,6 +55,7 @@ opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
     case sql_params(Sql, Types) of
+        {match, []} -> [];
         {match, Parameters} ->
             [{<<"binds">>,
               [{<<"types">>, Types},
