@@ -2536,9 +2536,12 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 "load" : function() {
                 },
                 "minimize" : function() {
+                    self._dlgMinimized = true;
                 },
                 "restore" : function() {
+                    self._dlgMinimized = false;
                     self._dlg.dialog("moveToTop");
+                    console.log("restored called");
                 }
             });
 
@@ -3346,11 +3349,15 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         var self = this;
         self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
         self._dlg.dialog("widget").find(".table-title").on("contextmenu click", function(e) {
-            self._dlgTtlCnxtMnu.dom
-                .css("top", e.clientY - 10)
-                .css("left", e.clientX)
-                .data('cnxt', self)
-                .show();
+            if(self._dlgMinimized) {
+                self._dlg.dialogExtend("restore");
+            } else {
+                self._dlgTtlCnxtMnu.dom
+                    .css("top", e.clientY - 10)
+                    .css("left", e.clientX)
+                    .data('cnxt', self)
+                    .show();
+            }
             return false;
         });
     },
