@@ -16,7 +16,7 @@
         , build_column_csv/2
         , extract_modified_rows/1
         , decrypt_to_term/1
-        , encrypt_to_binary/1 
+        , encrypt_to_binary/1
         , get_deps/0
         , opt_bind_json_obj/2
         , add_conn_info/2
@@ -282,14 +282,14 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
             ?Debug("dashboards as json ~s", [jsx:prettify(Res)])
     end,
     From ! {reply, Res};
-process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
-    [{<<"histogram">>, BodyJson}] = ReqBody,
+process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"distinct_count">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
-    RespJson = case Statement:get_histogram(ColumnId) of
+    RespJson = case Statement:get_distinct_count(ColumnId) of
         {error, Error, St} ->
-            ?Error("Histogram error ~p", [Error], St),
-            jsx:encode([{<<"histogram">>, [{error, Error}]}]);
+            ?Error("Distinct count error ~p", [Error], St),
+            jsx:encode([{<<"distinct_count">>, [{error, Error}]}]);
         {Total, ColRecs, HistoRows, SN} ->
             HistoJson = gui_resp(#gres{operation = <<"rpl">>
                                       ,cnt       = Total
@@ -305,7 +305,7 @@ process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
                                       ,disable   = <<"">>
                                       ,promote   = <<"">>}
                                 ,ColRecs),
-            jsx:encode([{<<"histogram">>, [{type, <<"histo">>}
+            jsx:encode([{<<"distinct_count">>, [{type, <<"histo">>}
                                           ,{column_ids, [ColumnId]}
                                           ,{cols, build_column_json(lists:reverse(ColRecs))}
                                           ,{gres, HistoJson}]}])
@@ -609,7 +609,7 @@ widest_cell_per_clm([R|_] = Rows) ->
 -spec widest_cell_per_clm(list(), [binary()]) -> [binary()].
 widest_cell_per_clm([],V) -> V;
 widest_cell_per_clm([R|Rows],V) ->
-    NewV = 
+    NewV =
     [case {Re, Ve} of
         {Re, Ve} ->
             ReS = if
@@ -640,7 +640,7 @@ r2jsn([Row|Rows], JCols, NewRows) ->
                      %% check if it is a valid utf8
                      %% else we convert it from latin1
                      case unicode:characters_to_binary(R) of
-                         Invalid when is_tuple(Invalid) -> 
+                         Invalid when is_tuple(Invalid) ->
                              unicode:characters_to_binary(R, latin1, utf8);
                          UnicodeBin ->
                              UnicodeBin

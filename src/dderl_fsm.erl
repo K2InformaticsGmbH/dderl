@@ -59,7 +59,7 @@
         , get_columns/1
         , get_query/1
         , get_table_name/1
-        , get_histogram/2
+        , get_distinct_count/2
         , get_statistics/2
         , get_statistics/3
         , get_sender_params/1
@@ -89,8 +89,8 @@
 
 -record(state,  { %% fsm combined state
                   ctx                 %% statement & fetch context
-                , tableId             %% ets raw buffer table id 
-                , indexId             %% ets index table id 
+                , tableId             %% ets raw buffer table id
+                , indexId             %% ets index table id
                 , bl                  %% block_length (passed .. init)
                 , gl                  %% gui max length (row count) = gui_max(#state.bl)
                 , stmtColsCount       %% number of statement columns
@@ -101,13 +101,13 @@
                 , filterFun           %% follows filterSpec
 
                 , rawCnt = 0          %% buffer row count
-                , rawTop = ?RawMax    %% id of top buffer row 
+                , rawTop = ?RawMax    %% id of top buffer row
                 , rawBot = 0          %% id of bottom buffer row
                 , dirtyCnt = 0        %% count of dirty rows in buffer
                 , dirtyTop = ?RawMax  %% record id of first dirty row in buffer
                 , dirtyBot = 0        %% record id of last dirty row in buffer
 
-                , indCnt = 0          %% count of indexed buffer entries (after filtering) 
+                , indCnt = 0          %% count of indexed buffer entries (after filtering)
                 , indTop = ?IndMax    %% smallest index after filtering, initialized to big value
                 , indBot = ?IndMin    %% biggest index after filtering, initialized to small value
 
@@ -115,7 +115,7 @@
                 , bufTop              %% id of top buffer row       (either rawTop or indTop, depending on nav)
                 , bufBot              %% id of bottom buffer row    (either rawBot or indBot, depending on nav)
 
-                , guiCnt = 0          %% count of scrollable entries in gui 
+                , guiCnt = 0          %% count of scrollable entries in gui
                 , guiTop              %% top gui pointer (Id for raw / SortKey for ind)
                 , guiBot              %% bottom gui pointer (Id for raw / SortKey for ind)
                 , guiCol = false      %% index collision (stale view in gui)
@@ -216,7 +216,7 @@ fsm_ctx(#fsmctx{ id                         = Id
         }.
 
 -spec stop({atom(), pid()}) -> ok.
-stop({?MODULE,Pid}) -> 
+stop({?MODULE,Pid}) ->
 	gen_fsm:send_all_state_event(Pid,stop).
 
 -spec refresh_session_ctx(#fsmctx{}, {atom(), pid()}) -> ok.
@@ -226,19 +226,19 @@ refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {refresh_ctx, Ctx}).
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
-gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) -> 
+gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"restart">>]),
     gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
-gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) -> 
+gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<">|">>]),
     gen_fsm:send_event(Pid,{button, <<">|">>, ReplyTo});
 gui_req(button, <<"more">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"more">>]),
     gen_fsm:send_event(Pid,{button, <<"more">>, ReplyTo});
-gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) -> 
+gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<">|...">>]),
     gen_fsm:send_event(Pid,{button, <<">|...">>, ReplyTo});
-gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) -> 
+gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"...">>]),
     gen_fsm:send_event(Pid,{button, <<"...">>, ReplyTo});
 gui_req(button, <<"pt">>, ReplyTo, {?MODULE,Pid}) ->
@@ -252,7 +252,7 @@ gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) 
     gen_fsm:send_all_state_event(Pid,{CommandStr, Parameter, ReplyTo}).
 
 -spec row_with_key(integer(), {atom(), pid()}) -> tuple().
-row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) -> 
+row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) ->
     % ?Debug("row_with_key ~p", [RowId]),
     gen_fsm:sync_send_all_state_event(Pid,{"row_with_key", RowId}).
 
@@ -274,9 +274,9 @@ get_query({?MODULE, Pid}) ->
 get_table_name({?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, get_table_name).
 
--spec get_histogram(pos_integer(), {atom(), pid()}) -> [tuple()].
-get_histogram(ColumnId, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {histogram, ColumnId}, 60000).
+-spec get_distinct_count(pos_integer(), {atom(), pid()}) -> [tuple()].
+get_distinct_count(ColumnId, {?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, {distinct_count, ColumnId}, 60000).
 
 -spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
 get_statistics(ColumnIds, {?MODULE, Pid}) ->
@@ -323,10 +323,10 @@ fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun
     case Fraf(Opts, Count) of
         %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
         %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
-        ok -> 
+        ok ->
             % ?Info("fetch(~p, ~p, ~p) ok", [FetchMode, TailMode, State0#state.pfc+1]),
             State0#state{pfc=State0#state.pfc+1};
-        {_, Error} -> 
+        {_, Error} ->
             ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Error]),
             State0
     end.
@@ -350,12 +350,12 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
         {ok, NewSql, NewSortFun} ->
             ?NoDbLog(debug, [], "filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
             {ok, NewSql, NewSortFun};
-        {_, Error} -> 
+        {_, Error} ->
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Error]),
             {error, Error};
         Else ->
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
-            {error, Else}            
+            {error, Else}
     end.
 
 -spec update_cursor_prepare(list(), #state{}) -> ok | {ok, term()} | {error, term()}.
@@ -416,11 +416,11 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}
 navigation_type(SortFun,FilterSpec) ->
     case catch (SortFun(1)) of
         ?NoSortFunResult ->
-            case FilterSpec of 
+            case FilterSpec of
                 ?NoFilter ->    {raw,false};
                 _ ->            {ind,false}
             end;
-        _ ->    
+        _ ->
             {ind,true}
     end.
 
@@ -434,14 +434,14 @@ navigation_type(SortFun,FilterSpec) ->
 % buf_bot(#state{nav=ind,indBot=IndBot}) -> IndBot.
 
 -spec reset_buf_counters(#state{}) -> #state{}.
-reset_buf_counters(#state{nav=Nav,tableId=TableId,indexId=IndexId}=State0) -> 
+reset_buf_counters(#state{nav=Nav,tableId=TableId,indexId=IndexId}=State0) ->
     RawCnt=ets:info(TableId,size),
     {RawTop,RawBot} = case RawCnt of
         0 ->    {?RawMax,?RawMin};
         _ ->    {ets:first(TableId),ets:last(TableId)}
     end,
     IndCnt = ets:info(IndexId,size),
-    {IndTop,IndBot} = if 
+    {IndTop,IndBot} = if
         (Nav == ind) andalso (IndCnt > 0) ->
             {ets:first(IndexId),ets:last(IndexId)};
         true ->
@@ -451,9 +451,9 @@ reset_buf_counters(#state{nav=Nav,tableId=TableId,indexId=IndexId}=State0) ->
                                  ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).
 
 -spec set_buf_counters(#state{}) -> #state{}.
-set_buf_counters(#state{nav=raw,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) -> 
+set_buf_counters(#state{nav=raw,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) ->
     State0#state{bufCnt=RawCnt,bufTop=RawTop,bufBot=RawBot};
-set_buf_counters(#state{nav=ind,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}=State0) -> 
+set_buf_counters(#state{nav=ind,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}=State0) ->
     State0#state{bufCnt=IndCnt,bufTop=IndTop,bufBot=IndBot}.
 
 -spec filter_fun({'and' | 'or' | undefined, list()}) -> fun().
@@ -461,16 +461,16 @@ filter_fun(?NoFilter) ->
     fun(_) -> true end;
 filter_fun({'and',Conditions}) ->
     CConditions = like_compile(Conditions),
-    fun(__R) -> 
+    fun(__R) ->
         filter_and(__R,CConditions)
     end;
 filter_fun({'or',Conditions}) ->
     CConditions = like_compile(Conditions),
-    fun(__R) -> 
+    fun(__R) ->
         filter_or(__R,CConditions)
     end.
 
-like_compile(Conditions) -> 
+like_compile(Conditions) ->
     like_compile(Conditions,[]).
 
 like_compile([],CCs) -> lists:reverse(CCs);
@@ -505,7 +505,7 @@ filter_and_like(_,[{_,[]}|_]) -> false;
 filter_and_like(__R,[{Col,[__RE|__REs]}|__Conditions]) ->
     case re:run(element(Col+3,__R), __RE) of
         nomatch ->  filter_and_like(__R,[{Col,__REs}|__Conditions]);
-        _ ->        filter_and(__R,__Conditions) 
+        _ ->        filter_and(__R,__Conditions)
     end.
 
 filter_and_not_in(__R,[{Col,__Values}|__Conditions]) ->
@@ -518,7 +518,7 @@ filter_and_not_like(__R,[{_,[]}|__Conditions]) -> filter_and(__R,__Conditions);
 filter_and_not_like(__R,[{Col,[__RE|__REs]}|__Conditions]) ->
     case re:run(element(Col+3,__R), __RE) of
         nomatch ->  filter_and_not_like(__R,[{Col,__REs}|__Conditions]);
-        _ ->        false 
+        _ ->        false
     end.
 
 -spec filter_or(tuple(), [{integer(), term()}]) -> boolean().
@@ -557,7 +557,7 @@ filter_or_not_like(_,[{_,[]}|_]) -> true;
 filter_or_not_like(__R,[{__Col,[__RE|__REs]}|__Conditions]) ->
     case re:run(element(__Col+3,__R), __RE) of
         nomatch ->  filter_or_not_like(__R,[{__Col,__REs}|__Conditions]);
-        _ ->        filter_or(__R,__Conditions) 
+        _ ->        filter_or(__R,__Conditions)
     end.
 
 -spec reply_stack(atom(), fun(), #state{}) -> #state{}.
@@ -565,12 +565,12 @@ reply_stack(_SN,ReplyTo, #state{stack=undefined}=State0) ->
     % stack is empty, nothing to do
     State0#state{replyToFun=ReplyTo};
 reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=undefined}=State0) ->
-    % stack is obsolete, overriden by new command, reply delayed request with nop    
+    % stack is obsolete, overriden by new command, reply delayed request with nop
     State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT}),
     State1#state{replyToFun=ReplyTo};
 reply_stack(SN,ReplyTo, #state{stack={button,_Button,RT},tRef=TRef}=State0) ->
     % stack is obsolete, overriden by new command, reply delayed request with nop
-    timer:cancel(TRef),    
+    timer:cancel(TRef),
     State1 = gui_nop(#gres{state=SN},State0#state{stack=undefined,replyToFun=RT,tRef=undefined}),
     State1#state{replyToFun=ReplyTo}.
 
@@ -597,7 +597,7 @@ init({#ctx{} = Ctx, SessPid}) ->
          } = Ctx,
     TableId=ets:new(raw, [ordered_set]),        %% {Id,Op,Keys,Col1,Col2,...Coln}
     IndexId=ets:new(ind, [ordered_set]),        %% {{SortFun(Keys),Id},Id}
-    FilterSpec = ?NoFilter, 
+    FilterSpec = ?NoFilter,
     State0=#state{ bl                           = BL
                  , gl                           = gui_max(BL)
                  , ctx                          = Ctx
@@ -662,7 +662,7 @@ filling({button, <<"restart">>, ReplyTo}, State0) ->
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
 filling({button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
-    % too quick, defer request .. when we have the first block of data 
+    % too quick, defer request .. when we have the first block of data
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = prefetch(filling,State1),
     ?NoDbLog(debug, [], "filling stack ~p", [Button]),
@@ -700,7 +700,7 @@ filling({button, <<">|...">>, ReplyTo}=Cmd, State0) ->
     ?NoDbLog(debug, [], "filling stack '>|...'", []),
     {next_state, autofilling, State3#state{tailMode=true,tailLock=false,stack=Cmd}};
 filling({button, <<">|">>, ReplyTo}=Cmd, State0) ->
-    % switch fetch .. push mode, defer answer .. bulk fetch completed 
+    % switch fetch .. push mode, defer answer .. bulk fetch completed
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,none,State1),
     ?NoDbLog(debug, [], "filling stack '>|'", []),
@@ -715,14 +715,14 @@ filling({rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=Stat
     State1 = data_append(filling, {Recs,false},State0),
     % ?Debug("Target ~p", [Target]),
     % ?Debug("BufCnt ~p", [State1#state.bufCnt]),
-    State2 = if  
-        (Nav == ind) andalso (Target > State1#state.bufCnt) ->  
+    State2 = if
+        (Nav == ind) andalso (Target > State1#state.bufCnt) ->
             prefetch(filling,State1);
-        (Nav == raw) andalso (Target+BL > State1#state.bufCnt) ->  
+        (Nav == raw) andalso (Target+BL > State1#state.bufCnt) ->
             prefetch(filling,State1);
-        true ->                     
+        true ->
             State1
-    end,    
+    end,
     {next_state, filling, State2};
 filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
     % receive and store data, prefetch if a 'button sprint' is ongoing (only necessary for Nav=ind)
@@ -737,7 +737,7 @@ filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
         (Button == <<"<<">>) ->     prefetch(filling,State1);
         (NewGuiBot == NewBufBot) -> prefetch(filling,State1);
         true ->                     State1
-    end,    
+    end,
     {next_state, filling, State2};
 filling({rows, {Recs,false}}, State0) ->
     % receive and store data, no prefetch needed here
@@ -788,7 +788,7 @@ autofilling({button, <<"...">>, ReplyTo}, State0) ->
     State1 = gui_nop(#gres{state=autofilling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, autofilling, State1};
 autofilling({button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
-    if 
+    if
         (TailMode == false) ->
             % too late .. change .. seamless tail mode now
             State1 = gui_nop(#gres{state=autofilling,beep=true},State0#state{replyToFun=ReplyTo}),
@@ -801,7 +801,7 @@ autofilling({button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0
             {next_state, autofilling, State2#state{tailLock=false,stack=Cmd}}
     end;
 autofilling({button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
-    if 
+    if
         (TailMode == true) ->
             % too late .. revoke tail mode now
             State1 = gui_nop(#gres{state=autofilling,beep=true},State0#state{replyToFun=ReplyTo}),
@@ -1418,7 +1418,7 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
                 [[_, nop, _, Count, Min, Max, Sum, Avg, Median, StdDev, Variance, Hash]] = format_stat_rows([lists:nth(Idx, ColNames)], StatsResult, 1),
                 [{[Count | Counts], [Min | Mins], [Max | Maxs], [Sum | Sums], [Avg | Avgs], [Median | Medians], [StdDev | StdDevs], [Variance | Variances], [Hash | Hashs]}, Idx + 1]
             end,
-          
+
         [{Counts, Mins, Maxs, Sums, Avgs, Medians, StdDevs, Variances, Hashs}, _Idx] = lists:foldl(StatsFunRow, [{[], [], [], [], [], [], [], [], []}, 1], Rows),
         StatsRowsZipped = zip10(ColNames, lists:reverse(Counts), lists:reverse(Mins), lists:reverse(Maxs), lists:reverse(Sums), lists:reverse(Avgs), lists:reverse(Medians), lists:reverse(StdDevs), lists:reverse(Variances), lists:reverse(Hashs)),
         StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
@@ -1430,12 +1430,12 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
             {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
                   , SN, State, infinity}
     end;
-handle_sync_event({histogram, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
-    end,            
-    ?Info("Getting the histogram of the column ~p, nav ~p", [ColumnId, Nav]),
+    end,
+    ?Info("Getting the distinct_count of the column ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
             {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
@@ -1541,7 +1541,7 @@ handle_info(Unknown, SN, State) ->
 %% Purpose: Shutdown the fsm
 %% Returns: any
 %% --------------------------------------------------------------------
-terminate(Reason, _SN, #state{ctx=Ctx}) -> 
+terminate(Reason, _SN, #state{ctx=Ctx}) ->
     ?Debug("fsm ~p terminating reason: ~p", [self(), Reason]),
     F= Ctx#ctx.stmt_close_fun,
     F().
@@ -1612,12 +1612,12 @@ empty_override([]) -> [{}];
 empty_override(List) -> List.
 
 -spec gui_close(#gres{}, #state{}) -> #state{}.
-gui_close(GuiResult,State) -> 
+gui_close(GuiResult,State) ->
     ?Debug("gui_close () ~p", [GuiResult#gres.state]),
     gui_response(GuiResult#gres{operation= <<"close">>},State).
 
 -spec gui_nop(#gres{}, #state{}) -> #state{}.
-gui_nop(GuiResult,State) -> 
+gui_nop(GuiResult,State) ->
     ?NoDbLog(debug, [], "gui_nop () ~p ~p", [GuiResult#gres.state, GuiResult#gres.loop]),
     gui_response(GuiResult#gres{operation= <<"nop">>},State).
 
@@ -1726,9 +1726,9 @@ gui_prepend(GuiResult,#state{nav=raw,bl=BL,gl=GL,guiCnt=GuiCnt,guiTop=GuiTop}=St
 gui_prepend(GuiResult,#state{nav=ind,bl=BL,tableId=TableId,guiCnt=0}=State0) ->
     Keys=keys_before(?IndMax, BL, State0),
     case length(Keys) of
-        0 ->    
+        0 ->
              gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
-        Cnt ->  
+        Cnt ->
             Rows = rows_for_keys(Keys,TableId),
             NewGuiCnt = Cnt,
             NewGuiTop = hd(Keys),
@@ -1755,7 +1755,7 @@ gui_append(GuiResult,#state{nav=raw,bl=BL,guiCnt=0}=State0) ->
     case length(Rows) of
         0 ->
              gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
-        Cnt ->  
+        Cnt ->
             NewGuiCnt = Cnt,
             NewGuiTop = hd(hd(Rows)),
             NewGuiBot = hd(lists:last(Rows)),
@@ -1770,7 +1770,7 @@ gui_append(GuiResult,#state{nav=raw,bl=BL,tableId=TableId,gl=GL,guiCnt=GuiCnt,gu
     {NewGuiCnt,NewGuiTop,NewGuiBot} = case length(Rows) of
         0 ->
             {GuiCnt,GuiTop,GuiBot};
-        Cnt ->  
+        Cnt ->
             case ids_before(GuiBot,min(GuiCnt-1,GL-Cnt-1),State0) of
                 [] ->       {Cnt+1,GuiBot,hd(lists:last(Rows))};
                 IdsKept ->  {length(IdsKept)+Cnt+1,hd(IdsKept),hd(lists:last(Rows))}
@@ -1786,9 +1786,9 @@ gui_append(GuiResult,#state{nav=raw,bl=BL,tableId=TableId,gl=GL,guiCnt=GuiCnt,gu
 gui_append(GuiResult,#state{nav=ind,bl=BL,tableId=TableId,guiCnt=0}=State0) ->
     Keys=keys_after(?IndMin, BL, State0),
     case length(Keys) of
-        0 ->    
+        0 ->
              gui_response(GuiResult#gres{operation= <<"clr">>,keep=0}, State0);
-        Cnt ->  
+        Cnt ->
             Rows = rows_for_keys(Keys,TableId),
             NewGuiCnt = Cnt,
             NewGuiTop = hd(Keys),
@@ -1800,9 +1800,9 @@ gui_append(GuiResult,#state{nav=ind,bl=BL,tableId=TableId,guiCnt=0}=State0) ->
 gui_append(GuiResult,#state{nav=ind,bl=BL,gl=GL,tableId=TableId,guiCnt=GuiCnt,guiBot=GuiBot}=State0) ->
     Keys=keys_after(GuiBot, BL, State0),
     case length(Keys) of
-        0 ->   
+        0 ->
             gui_response(GuiResult#gres{operation= <<"nop">>},State0);
-        Cnt ->  
+        Cnt ->
             Rows = rows_for_keys(Keys,TableId),
             {NewGuiCnt,NewGuiTop,NewGuiBot} = case keys_before(GuiBot,min(GuiCnt-1,GL-Cnt-1),State0) of
                 [] ->       {Cnt+1,GuiBot,lists:last(Keys)};
@@ -1857,7 +1857,7 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
             State1#state{stack={button,<<">">>,ReplyTo}};
         (Nav == raw) andalso (GuiBot > BufBot-BL-BL) ->
             %% prefetch and go forward
-            State1 = prefetch(SN,State0), 
+            State1 = prefetch(SN,State0),
             gui_append(#gres{state=SN},State1);
         true ->
             %% go forward
@@ -1900,7 +1900,7 @@ serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,gui
                     ?Debug("~p stack ~p", [SN,NewGuiBot]),
                     State1#state{stack={button,NewGuiBot,ReplyTo}};
                 true ->
-                    %% jump is not possible in existing buffer, show end of it 
+                    %% jump is not possible in existing buffer, show end of it
                     gui_replace_until(BufBot,BL,#gres{state=SN},State0)
             end
     end.
@@ -1917,7 +1917,7 @@ serve_bwd(SN,#state{srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,guiTop=Gui
             serve_top(SN,State0);
         (GuiTop == BufTop) andalso Srt and (SN == filling) ->
             %% we are at the top of the buffer, must fetch .. go backward, stack command
-            State1 = prefetch(SN,State0),       
+            State1 = prefetch(SN,State0),
             ?Debug("~p stack ~p", [SN,<<"<">>]),
             State1#state{stack={button,<<"<">>,ReplyTo}};
         (GuiTop == BufTop) ->
@@ -1939,7 +1939,7 @@ serve_fbwd(SN,#state{bl=BL,srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,gui
             serve_top(SN,State0);
         (GuiTop == BufTop) andalso Srt and (SN == filling) ->
             %% we are at the top of the buffer, must fetch .. go backward, stack command
-            State1 = prefetch(SN,State0),       
+            State1 = prefetch(SN,State0),
             ?Debug("~p stack ~p", [SN,<<"<<">>]),
             State1#state{stack={button,<<"<<">>,ReplyTo}};
         (GuiTop == BufTop)  ->
@@ -1962,7 +1962,7 @@ serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufC
             %% (re)initialize buffer
             serve_top(SN,State0);
         (Target =< 0) andalso (BufCnt+Target > 0) ->
-            %% target given relative to buffer bottom, retry with absolute target position 
+            %% target given relative to buffer bottom, retry with absolute target position
             serve_target(SN,BufCnt+Target,State0);
         (Target =< 0)  ->
             %% target points to key smaller than top key
@@ -2002,28 +2002,28 @@ serve_bot(SN, Loop, #state{nav=Nav,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiC
             State1 = prefetch(SN,State0),
             gui_clear(#gres{state=SN,loop=Loop},State1);
         (Loop == <<"tail">>) andalso (SN == passthrough) ->
-            %% passthrough should always append only               
+            %% passthrough should always append only
             gui_append(#gres{state=SN,loop=Loop,focus=-1},State0#state{tailLock=false});
         (GuiCnt == 0) ->
-            %% uninitialized view, must refresh    
+            %% uninitialized view, must refresh
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
         (GuiCol == true) ->
-            %% dirty index view, must refresh anyways    
+            %% dirty index view, must refresh anyways
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
         (GuiTop > BufTop) andalso (GuiCnt < GL) ->                                  % was BL
             %% prepend incomplete gui buffer
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
         (GuiBot == BufBot) ->
-            %% gui is already there, noting .. do       
-            gui_nop(#gres{state=SN,loop=Loop,focus=-1},State0); 
+            %% gui is already there, noting .. do
+            gui_nop(#gres{state=SN,loop=Loop,focus=-1},State0);
         (Nav == raw) andalso (GuiBot < BufBot-GL) ->
-            %% uninitialized view, must refresh    
+            %% uninitialized view, must refresh
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0); % was BL
         (Loop == <<"tail">>) andalso (SN == tailing) ->
-            %% tailing should append (don't call this far from bottom of big buffer)                 
-            gui_append(#gres{state=SN,loop=Loop,focus=-1},State0#state{tailLock=false}); 
+            %% tailing should append (don't call this far from bottom of big buffer)
+            gui_append(#gres{state=SN,loop=Loop,focus=-1},State0#state{tailLock=false});
         true ->
-            %% jump to end and discard other cases (avoid scrolling big buffer)                 
+            %% jump to end and discard other cases (avoid scrolling big buffer)
             gui_replace_until(BufBot,GL,#gres{state=SN,loop=Loop,focus=-1},State0)  % was BL
     end.
 
@@ -2035,7 +2035,7 @@ serve_stack( _, #state{stack=undefined}=State) ->
     % no stack, nothing .. do
     State;
 serve_stack(aborted, #state{stack={button,But,RT}}=State0) when But== <<"|<">>;But== <<"<">>;But== <<"<<">> ->
-    % deferred button can be executed for backward button <<"<">> 
+    % deferred button can be executed for backward button <<"<">>
     serve_top(aborted,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(aborted, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
@@ -2048,7 +2048,7 @@ serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,stack={button,Button,RT}
       Button =:= <<">|...">>;
       Button =:= <<"more">> ->
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-% serve_stack( _SN, #state{nav=ind,bufBot=B,guiBot=B}=State) -> 
+% serve_stack( _SN, #state{nav=ind,bufBot=B,guiBot=B}=State) ->
 %     % ?Info("serve_stack at end of buffer ~p (NOP)",[B]),
 %     % gui is current at the end of the buffer, no new interesting data, nothing to do
 %     State;
@@ -2107,7 +2107,7 @@ serve_stack(tailing, #state{stack={button,<<"...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
 serve_stack(tailing, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol,stack={button,<<"tail">>,RT},tailLock=TailLock,replyToFun=ReplyTo}=State0) ->
     if
-        TailLock -> 
+        TailLock ->
             reply_stack(tailing, ReplyTo, State0);                  % tailing is cancelled
         (BufCnt == 0) -> State0;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State0;     % no new data, nothing to do, keep stack
@@ -2137,7 +2137,7 @@ serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot
             % serve new data at the bottom of the buffer, ask client to come back
             gui_append(#gres{state = autofilling, loop = <<"more">>, focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
-serve_stack(_SN, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) -> 
+serve_stack(_SN, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<">|">>, ReplyTo}} = State) ->
     if
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
@@ -2166,7 +2166,7 @@ serve_stack(_SN , #state{stack = _Stack} = State) ->
 -spec rows_after(integer(), integer(), #state{}) -> list().
 rows_after(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Key}],['$_']}],Limit) of
-        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- Rs];  
+        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- Rs];
         '$end_of_table' ->  []
     end.
 
@@ -2186,7 +2186,7 @@ keys_before(Id, Limit, #state{nav=raw}=State) ->
     ids_before(Id, Limit, State);
 keys_before(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
     case ets:select_reverse(IndexId,[{'$1',[{'<',{element,1,'$1'},{const,Key}}],[{element,1,'$1'}]}],Limit) of
-        {Keys, _Cont} ->    lists:reverse(Keys);  
+        {Keys, _Cont} ->    lists:reverse(Keys);
         '$end_of_table' ->  []
     end.
 
@@ -2194,7 +2194,7 @@ keys_before(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
 keys_after(_, 0, _) -> [];
 keys_after(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
     case ets:select(IndexId,[{'$1',[{'>',{element,1,'$1'},{const,Key}}],[{element,1,'$1'}]}],Limit) of
-        {Keys, _Cont} ->    Keys;  
+        {Keys, _Cont} ->    Keys;
         '$end_of_table' ->  []
     end.
 
@@ -2202,7 +2202,7 @@ keys_after(Key, Limit, #state{nav=ind,indexId=IndexId}) ->
 rows_before(_, 0, _) -> [];
 rows_before(Key, Limit, #state{nav=raw,rowFun=RowFun,tableId=TableId}) ->
     case ets:select_reverse(TableId,[{'$1',[{'<',{element,1,'$1'},Key}],['$_']}],Limit) of
-        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- lists:reverse(Rs)];  
+        {Rs, _Cont} ->      [gui_row_expand(R, TableId, RowFun) || R <- lists:reverse(Rs)];
         '$end_of_table' ->  []
     end;
 rows_before(Key, Limit, #state{tableId=TableId}=State) ->
@@ -2213,7 +2213,7 @@ rows_before(Key, Limit, #state{tableId=TableId}=State) ->
 ids_before(_, 0, _) -> [];
 ids_before(Id, Limit, #state{nav=raw,tableId=TableId}) ->
     case ets:select_reverse(TableId,[{'$1',[{'<',{element,1,'$1'},Id}],[{element,1,'$1'}]}],Limit) of
-        {Ids, _Cont} ->     lists:reverse(Ids);  
+        {Ids, _Cont} ->     lists:reverse(Ids);
         '$end_of_table' ->  []
     end.
 
@@ -2221,7 +2221,7 @@ ids_before(Id, Limit, #state{nav=raw,tableId=TableId}) ->
 ids_after(_, 0, _) -> [];
 ids_after(Id, Limit, #state{nav=raw,tableId=TableId}) ->
     case ets:select(TableId,[{'$1',[{'>',{element,1,'$1'},Id}],[{element,1,'$1'}]}],Limit) of
-        {Ids, _Cont} ->     Ids;  
+        {Ids, _Cont} ->     Ids;
         '$end_of_table' ->  []
     end.
 
@@ -2283,46 +2283,46 @@ raw_row_expand({I,Op,RK}, RowFun) ->
     list_to_tuple([I, Op, RK | RowFun(RK)]).
 
 -spec data_clear(#state{}) -> #state{}.
-data_clear(State) -> 
+data_clear(State) ->
     gui_clear(ind_clear(raw_clear(State))).
 
 -spec raw_clear(#state{}) -> #state{}.
-raw_clear(#state{tableId=TableId}=State) -> 
+raw_clear(#state{tableId=TableId}=State) ->
     ?NoDbLog(debug, [], "raw_clear", []),
-    true = ets:delete_all_objects(TableId),    
-    Default = #state{}, 
+    true = ets:delete_all_objects(TableId),
+    Default = #state{},
     set_buf_counters(State#state{ rawCnt = Default#state.rawCnt
-                                , rawTop = Default#state.rawTop          
-                                , rawBot = Default#state.rawBot          
+                                , rawTop = Default#state.rawTop
+                                , rawBot = Default#state.rawBot
                                 , dirtyCnt = Default#state.dirtyCnt
-                                , dirtyTop = Default#state.dirtyTop 
-                                , dirtyBot = Default#state.dirtyBot        
-                    }). 
+                                , dirtyTop = Default#state.dirtyTop
+                                , dirtyBot = Default#state.dirtyBot
+                    }).
 
 -spec ind_clear(#state{}) -> #state{}.
-ind_clear(#state{indexId=IndexId}=State) -> 
+ind_clear(#state{indexId=IndexId}=State) ->
     ?NoDbLog(debug, [], "ind_clear", []),
-    true = ets:delete_all_objects(IndexId),    
-    Default = #state{}, 
+    true = ets:delete_all_objects(IndexId),
+    Default = #state{},
     set_buf_counters(State#state{ indCnt = Default#state.indCnt
-                                , indTop = Default#state.indTop                
+                                , indTop = Default#state.indTop
                                 , indBot = Default#state.indBot
-                    }). 
+                    }).
 
 -spec gui_clear(#state{}) -> #state{}.
-gui_clear(State) -> 
+gui_clear(State) ->
     ?NoDbLog(debug, [], "gui_clear", []),
-    Default = #state{}, 
+    Default = #state{},
     State#state{  guiCnt = Default#state.guiCnt
-                , guiTop = Default#state.guiTop         
-                , guiBot = Default#state.guiBot         
-                , guiCol = Default#state.guiCol         
-                }. 
+                , guiTop = Default#state.guiTop
+                , guiBot = Default#state.guiBot
+                , guiCol = Default#state.guiCol
+                }.
 
 -spec data_append(atom(), tuple(), #state{}) -> #state{}.
 data_append(SN, {Rows,Status}, State) ->
     data_append(SN, {Rows, Status, nop}, State);
-data_append(SN, {[],_Complete,_Op},#state{nav=_Nav,rawBot=_RawBot}=State0) -> 
+data_append(SN, {[],_Complete,_Op},#state{nav=_Nav,rawBot=_RawBot}=State0) ->
     NewPfc=State0#state.pfc-1,
     % ?Info("data_append -~p- count ~p bufBottom ~p pfc ~p", [_Nav,0,_RawBot,NewPfc]),
     serve_stack(SN, State0#state{pfc=NewPfc});
@@ -2348,7 +2348,7 @@ data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=Index
     ets:insert(TableId, RawRows),
     IndRows = [?IndRec(R,SortFun) || R <- lists:filter(FilterFun,RawRows)],
     % ?Info("data_append (~p) -IndRows- ~p", [SN,IndRows]),
-    FunCol = fun({X,_},{IT,IB,C}) ->  {IT,IB,(C orelse ((X>IT) and (X<IB)))}  end, 
+    FunCol = fun({X,_},{IT,IB,C}) ->  {IT,IB,(C orelse ((X>IT) and (X<IB)))}  end,
     {_,_,Collision} = lists:foldl(FunCol, {GuiTop, GuiBot, false}, IndRows),    %% detect data collisions with gui content
     ets:insert(IndexId, IndRows),
     NewIndCnt = IndCnt + length(IndRows),
@@ -2356,7 +2356,7 @@ data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=Index
         0 ->    {?IndMax,?IndMin};
         _ ->    {ets:first(IndexId),ets:last(IndexId)}
     end,
-    NewGuiCol = (GuiCol or Collision),    
+    NewGuiCol = (GuiCol or Collision),
     % ?Info("data_append (~p) count ~p bufBot ~p pfc=~p stale=~p", [SN,Cnt,NewRawBot,NewPfc,NewGuiCol]),
     serve_stack(SN, set_buf_counters(State0#state{ pfc=NewPfc
                                                 , rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot
@@ -2374,7 +2374,7 @@ data_reorder(SN,ColOrder,#state{sortSpec=SortSpec,filterSpec=FilterSpec}=State0)
             gui_nop(#gres{state=SN}, State1#state{sql=NewSql});
         {error, _Error} ->
             gui_nop(#gres{state=SN,beep=true}, State1)
-    end.    
+    end.
 
 -spec data_filter(atom(), [{atom() | integer(), term()}], #state{}) -> #state{}.
 data_filter(SN,?NoFilter,#state{nav=raw}=State0) ->
@@ -2415,7 +2415,7 @@ data_sort(SN,?NoSort,#state{filterSpec=?NoFilter,colOrder=ColOrder}=State0) ->
             serve_top(SN, State1#state{sortSpec=?NoSort, sql=NewSql});
         {error, _Error} ->
             serve_top(SN, State1)
-    end;    
+    end;
 data_sort(SN,SortSpec,#state{filterSpec=FilterSpec,colOrder=ColOrder}=State0) ->
     ?Debug("data_sort ~p data_filter ~p col_order ~p", [SortSpec,FilterSpec,ColOrder]),
     case filter_and_sort(FilterSpec, SortSpec, ColOrder, State0) of
@@ -2437,19 +2437,19 @@ data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=Row
         ({Id,Op,RK},Acc) ->
             ets:insert(TableId, raw_row_expand({Id,Op,RK}, RowFun)),
             Acc+1;
-        (_,Acc) ->  
+        (_,Acc) ->
             Acc
-    end, 
+    end,
     ets:foldl(CompleteFun, 0, TableId),
-    IndexFun = fun(R,Acc) -> 
-                case FilterFun(R) of 
+    IndexFun = fun(R,Acc) ->
+                case FilterFun(R) of
                     true ->
                         ets:insert(IndexId, ?IndRec(R,SortFun)),
                         Acc+1;
-                    false -> 
+                    false ->
                         Acc
                 end
-    end, 
+    end,
     IndCnt = ets:foldl(IndexFun, 0, TableId),
     {IndTop,IndBot} = case IndCnt of
         0 ->    {?IndMax,?IndMin};
@@ -2492,10 +2492,10 @@ data_update_row({Id,Op,Fields}, _ColCount, #state{tableId=TableId}=State0) when 
         {ins,upd} ->    {ins, upd_tuple(Fields,OldRow), State0};
         {ins,del} ->    DC =  State0#state.dirtyCnt-1,
                         {nop, undefined, State0#state{dirtyCnt=DC}};
-        {upd,upd} ->    {upd, upd_tuple(Fields,OldRow), State0};        
-        {upd,del} ->    {del, upd_tuple(Fields,OldRow), State0}        
+        {upd,upd} ->    {upd, upd_tuple(Fields,OldRow), State0};
+        {upd,del} ->    {del, upd_tuple(Fields,OldRow), State0}
     end,
-    case {element(2,OldRow),Op} of 
+    case {element(2,OldRow),Op} of
         {ins,del} ->    ets:delete(TableId, Id);
         _ ->            ets:insert(TableId, setelement(2, NewTuple, O))
     end,
@@ -2506,16 +2506,16 @@ data_update_row({Id,Op,Fields}, _ColCount, #state{tableId=TableId}=State0) when 
     end,
     {[],State1#state{rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}};
 data_update_row({_,ins,Fields}, ColCount, #state{nav=raw,tableId=TableId,rawCnt=RawCnt,rawBot=RawBot,guiCnt=GuiCnt,dirtyTop=DT0,dirtyCnt=DC0}=State0) ->
-    Id = RawBot+1,          
+    Id = RawBot+1,
     ?Debug("insert fields ~p", [Fields]),
     RowAsList = [Id,ins,{{}, ?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
     ets:insert(TableId, list_to_tuple(RowAsList)),
     {[[Id,ins|lists:nthtail(3, RowAsList)]],State0#state{rawCnt=RawCnt+1,rawBot=Id,guiCnt=GuiCnt+1,dirtyTop=min(DT0,Id),dirtyBot=Id,dirtyCnt=DC0+1}};
 data_update_row({_,ins,Fields}, ColCount, #state{nav=ind,tableId=TableId,rawCnt=RawCnt,rawBot=RawBot,guiCnt=GuiCnt,dirtyTop=DT0,dirtyCnt=DC0}=State0) ->
-    Id = RawBot+1,          
+    Id = RawBot+1,
     ?Debug("insert fields ~p", [Fields]),
     RowAsList = [Id,ins,{{}, ?NoKey}|tuple_to_list(ins_tuple(Fields,ColCount))],
-    ets:insert(TableId, list_to_tuple(RowAsList)),    
+    ets:insert(TableId, list_to_tuple(RowAsList)),
     {[[Id,ins|lists:nthtail(3, RowAsList)]],State0#state{rawCnt=RawCnt+1,rawBot=Id,guiCnt=GuiCnt+1,dirtyTop=min(DT0,Id),dirtyBot=Id,dirtyCnt=DC0+1}}.
 
 -spec ins_tuple([tuple()], integer()) -> tuple().
@@ -2581,15 +2581,15 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                         ind ->  data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,0,?IndMax,?IndMin)
                     end,
                     case {change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),GuiCnt} of
-                        {[],0} ->   
+                        {[],0} ->
                             State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
                             ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
                             {NewSN,gui_replace_from(GuiTop0,GL,#gres{state=NewSN,focus=1},State1)};
-                        {[],_} ->   
+                        {[],_} ->
                             State1 = reset_buf_counters(State0#state{dirtyCnt=0,dirtyTop=?RawMax,dirtyBot=?RawMin}),
                             ?Debug("commit result Nav / GuiTop0~n~p, ~p, ~p", [Nav, {GuiCnt,GuiTop,GuiBot},GuiTop0]),
                             {NewSN,gui_replace_from(GuiTop,GL,#gres{state=NewSN,focus=1},State1)};
-                        {DL,_} ->   
+                        {DL,_} ->
                             ?Error("Dirty rows after commit~n~p",[DL]),
                             Message = <<"Dirty rows after commit">>,
                             State1 = reset_buf_counters(State0),
@@ -2604,12 +2604,12 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
 
 -spec data_commit_state_name(atom()) -> atom().
 data_commit_state_name(SN) ->
-    case SN of 
+    case SN of
         filling ->      aborted;
         autofilling ->  aborted;
         tailing ->      tailing;
         _ ->            SN
-    end.    
+    end.
 
 -spec data_commit_raw(integer(), list(), integer(), integer(), integer()) -> tuple().
 data_commit_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
@@ -2617,7 +2617,7 @@ data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (elemen
     ets:delete(TableId,Id),
     data_commit_raw(TableId,ChangedKeys,GuiCnt,GuiTop,GuiBot);
 data_commit_raw(TableId,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) ->
-    ets:insert(TableId,{Id,nop,NK}),    
+    ets:insert(TableId,{Id,nop,NK}),
     data_commit_raw(TableId,ChangedKeys,GuiCnt+1,min(GuiTop,Id),max(GuiBot,Id)).
 
 -spec data_commit_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> tuple().
@@ -2625,7 +2625,7 @@ data_commit_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) when (element(2,NK)==?NoKey)  ->
     [OldRow] = ets:lookup(TableId,Id),
     ets:delete(IndexId,?IndKey(OldRow,SortFun)),
-    ets:delete(TableId,Id),    
+    ets:delete(TableId,Id),
     data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangedKeys,GuiCnt,GuiTop,GuiBot);
 data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],GuiCnt,GuiTop,GuiBot) ->
     [OldRow] = ets:lookup(TableId,Id),
@@ -2648,7 +2648,7 @@ data_commit_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[{Id,NK}|ChangedKeys],G
 data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot
-                      ,guiTop=GuiTop0}=State0) -> 
+                      ,guiTop=GuiTop0}=State0) ->
     ChangeList = change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot),
     {_GuiCnt,GuiTop,_GuiBot} = case Nav of
         raw ->  data_rollback_raw(TableId,ChangeList,0,?RawMax,?RawMin);
@@ -2667,29 +2667,29 @@ data_rollback(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
 data_rollback_raw(_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(2,element(3,Row))==?NoKey)  ->
     Id = element(1,Row),
-    ets:delete(TableId,Id),    
+    ets:delete(TableId,Id),
     data_rollback_raw(TableId,ChangeList,GuiCnt,GuiTop,GuiBot);
 data_rollback_raw(TableId,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) ->
     Id = element(1,Row),
-    ets:insert(TableId,{Id,nop,element(3,Row)}),    
+    ets:insert(TableId,{Id,nop,element(3,Row)}),
     data_rollback_raw(TableId,ChangeList,GuiCnt+1,min(GuiTop,Id),max(GuiBot,Id)).
 
 -spec data_rollback_ind(integer(), integer(), fun(), fun(), fun(), list(), integer(), tuple(), tuple()) -> {integer(), tuple(), tuple()}.
 data_rollback_ind(_,_,_,_,_,[],GuiCnt,GuiTop,GuiBot) -> {GuiCnt,GuiTop,GuiBot};
 data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) when (element(2,element(3,Row))==?NoKey) ->
     Id = element(1,Row),
-    ets:delete(TableId,Id),    
+    ets:delete(TableId,Id),
     data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangeList,GuiCnt,GuiTop,GuiBot);
 data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,[Row|ChangeList],GuiCnt,GuiTop,GuiBot) ->
     Id = element(1,Row),
     RestRow = raw_row_expand({Id,nop,element(3,Row)}, RowFun),
     ets:insert(TableId,RestRow),
     case FilterFun(RestRow) of
-        true ->     
+        true ->
             RestKey = ?IndKey(RestRow,SortFun),
             ets:insert(IndexId,{RestKey,Id}),
             data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangeList,GuiCnt+1,min(GuiTop,RestKey),max(GuiBot,RestKey));
-        false ->    
+        false ->
             data_rollback_ind(TableId,IndexId,RowFun,SortFun,FilterFun,ChangeList,GuiCnt,GuiTop,GuiBot)
     end.
 
@@ -2698,9 +2698,9 @@ change_tuples(TableId, _DirtyCnt, DirtyTop, DirtyBot) ->
     Guard = [{'>=',{element,1,'$1'},DirtyTop}
             ,{'=<',{element,1,'$1'},DirtyBot}
             ,{'=/=',nop,{element,2,'$1'}}],
-    ets:select(TableId,[{'$1',Guard,['$_']}]). 
+    ets:select(TableId,[{'$1',Guard,['$_']}]).
 
 -spec change_list(integer(), integer(), integer(), integer()) -> list().
 change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
-    [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)]. 
+    [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)].
 
