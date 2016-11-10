@@ -290,25 +290,25 @@ process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _
         {error, Error, St} ->
             ?Error("Distinct count error ~p", [Error], St),
             jsx:encode([{<<"distinct_count">>, [{error, Error}]}]);
-        {Total, ColRecs, HistoRows, SN} ->
-            HistoJson = gui_resp(#gres{operation = <<"rpl">>
+        {Total, ColRecs, StatsRows, SN} ->
+            StatsJson = gui_resp(#gres{operation = <<"rpl">>
                                       ,cnt       = Total
                                       ,toolTip   = <<"">>
                                       ,message   = <<"">>
                                       ,beep      = <<"">>
                                       ,state     = SN
                                       ,loop      = <<"">>
-                                      ,rows      = HistoRows
+                                      ,rows      = StatsRows
                                       ,keep      = <<"">>
                                       ,focus     = 0
                                       ,sql       = <<"">>
                                       ,disable   = <<"">>
                                       ,promote   = <<"">>}
                                 ,ColRecs),
-            jsx:encode([{<<"distinct_count">>, [{type, <<"histo">>}
+            jsx:encode([{<<"distinct_count">>, [{type, <<"stats">>}
                                           ,{column_ids, [ColumnId]}
                                           ,{cols, build_column_json(lists:reverse(ColRecs))}
-                                          ,{gres, HistoJson}]}])
+                                          ,{gres, StatsJson}]}])
     end,
     From ! {reply, RespJson};
 process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
