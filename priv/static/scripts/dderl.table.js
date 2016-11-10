@@ -143,7 +143,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                        'Sort Clear'       : '_sortClear',
                        'Distinct Count'   : '_showDistinctCount',
                        'Statistics'       : '_showStatisticsFull',
-                       'Toggle Grouping'  : '_toggleGrouping',
                        'Shrink'           : '_shrinkColumn',
                        'Fit to Data'      : '_fitColumnToData'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
@@ -332,7 +331,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     columnId = $('#' + _menu).data('column-id');
                 }
                 self[_menu].dom.hide();
-                self._cnxtMenuAction(_menu, $(this).attr("action"), columnId);
+                self._cnxtMenuAction(_menu, $(this).attr("action"));
             }
         }
 
@@ -365,7 +364,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     },
 
     // delegate actions of context menu
-    _cnxtMenuAction: function(_menu, _action, _columnId) {
+    _cnxtMenuAction: function(_menu, _action) {
         var funName = this[_menu][_action];
         var fun = $.proxy(this[funName], this);
         if($.isFunction(fun)) {
@@ -380,9 +379,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         }
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnIds: _columnIds};
-                    } else if(_action === "Toggle Grouping") {
-                        data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
-                                columnId: _columnId};
                     } else {
                         data = this._grid.getSelectionModel().getSelectedRanges();
                     }
@@ -3860,35 +3856,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         //console.timeEnd('appendRows');
         //console.profileEnd();
-    },
-
-    _toggleGrouping: function (data) {
-        var self = this;
-        var separator = /[#/.\\]/; //TODO: Check if the correct value is not: /[#\/.\\]/
-        var columnId = data.columnId;
-        var columns = self._grid.getColumns();
-        var columnIndex = self._grid.getColumnIndex(columnId);
-
-        if ('sel' == columnId) {
-            alert_jq('Error: No appropriate column for the menu item "Toggle Grouping" selected!');
-            return;
-        }
-
-        console.log('toggle grouping ' + JSON.stringify(data));
-        if (self._gridDataView.getGrouping().length === 0) {
-            columns[columnIndex].oldformatter = columns[columnIndex].formatter;
-            columns[columnIndex].formatter = function (row, cell, value) {
-                if (value !== null && value !== undefined) {
-                    return value.split(separator).pop();
-                }
-                return "";
-            };
-            groupByColumn(self._gridDataView, columnId, separator);
-        }
-        else {
-            columns[columnIndex].formatter = columns[columnIndex].oldformatter;
-            self._gridDataView.setGrouping([]);
-        }
     }
   });
 }());
@@ -3957,47 +3924,6 @@ function exportCsvPrompt(filename, callback) {
 
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
-}
-
-function groupByColumn(dataView, col, seperator) {
-    var getters = [];
-    var ldata = dataView.getItems();
-    var level = 0;
-
-    for (let r = 0; r < ldata.length; ++r) {
-        let curlength = ldata[r][col].split(seperator).length - 1;
-        if (level < curlength) {
-            level = curlength;
-        }
-    }
-
-    for (let r = 0; r < ldata.length; ++r) {
-        let curlength = ldata[r][col].split(seperator).length - 1;
-        let parts = ldata[r][col].split(seperator);
-        for (let li = 0; li < level - curlength; ++li) {
-            parts.splice(-1, 0, "");
-        }
-        ldata[r][col+'_grp'] = parts.join('/');
-    }
-
-    function createGetterFun(idx) {
-        return function (row) {
-            return row[col + '_grp'].split('/')[idx];
-        };
-    }
-
-    function formatter(g) {
-        return "" + g.value + "<span class='slick-group-count'>(" + g.count + ")</span>";
-    }
-
-    for(var i = 0; i < level; ++i) {
-        getters.push({
-            getter: createGetterFun(i),
-            formatter: formatter,
-            collapsed: true
-        });
-    }
-    dataView.setGrouping(getters);
 }
 
 function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
