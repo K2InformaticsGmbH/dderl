@@ -311,6 +311,35 @@ process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _
                                           ,{gres, DistinctCountJson}]}])
     end,
     From ! {reply, RespJson};
+process_cmd({[<<"distinct_statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"distinct_statistics">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
+    RespJson = case Statement:get_distinct_statistics(ColumnId) of
+                   {error, Error, St} ->
+                       ?Error("Distinct statistics error ~p", [Error], St),
+                       jsx:encode([{<<"distinct_statistics">>, [{error, Error}]}]);
+                   {Total, ColRecs, DistinctStatisticsRows, SN} ->
+                       DistinctStatisticsJson = gui_resp(#gres{operation = <<"rpl">>
+                           ,cnt       = Total
+                           ,toolTip   = <<"">>
+                           ,message   = <<"">>
+                           ,beep      = <<"">>
+                           ,state     = SN
+                           ,loop      = <<"">>
+                           ,rows      = DistinctStatisticsRows
+                           ,keep      = <<"">>
+                           ,focus     = 0
+                           ,sql       = <<"">>
+                           ,disable   = <<"">>
+                           ,promote   = <<"">>}
+                           ,ColRecs),
+                       jsx:encode([{<<"distinct_statistics">>, [{type, <<"stats">>}
+                           ,{column_ids, [ColumnId]}
+                           ,{cols, build_column_json(lists:reverse(ColRecs))}
+                           ,{gres, DistinctStatisticsJson}]}])
+               end,
+    From ! {reply, RespJson};
 process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"statistics">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),

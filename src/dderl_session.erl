@@ -528,6 +528,7 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"rename_dashboard">>;
       C =:= <<"delete_dashboard">>;
       C =:= <<"distinct_count">>;
+      C =:= <<"distinct_statistics">>;
       C =:= <<"statistics">>;
       C =:= <<"statistics_full">>;
       C =:= <<"dashboards">>;
