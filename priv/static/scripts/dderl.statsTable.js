@@ -23,7 +23,7 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
         _fntSz          : null,
         _MAX_ROW_WIDTH  : 1000,
 
-        _handlers : {queryResult        : function(e, _result) { e.data._createHisto(_result); },
+        _handlers : {queryResult        : function(e, _result) { e.data._createDistinctCount(_result); },
                      updateData         : function(e, _result) { e.data._updatePlot(_result); },
                      statsResult        : function(e, _result) { e.data._reload(_result); },
                      statsLoadResult    : function(e, _result) { e.data.open(_result); }
@@ -743,7 +743,7 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
             //console.profileEnd('appendRows');
         },
 
-        _createHisto: function(_data) {
+        _createDistinctCount: function(_data) {
             if(_data.hasOwnProperty('result') && _data.result === 'ok') {
                 this._dlg.dialog('close');
             } else if(_data.hasOwnProperty('error')) {

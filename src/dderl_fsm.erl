@@ -1453,26 +1453,26 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
             OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
         end
     end, {0, []}, TableUsed),
-    ?Debug("Histo Rows ~p", [Result]),
-    HistoRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
-    HistoRowsCount = length(lists:nth(1, HistoRows)) - 1,
-    HistoRowsLen = HistoRowsCount - 2,
+    ?Debug("Distinct Count Rows ~p", [Result]),
+    DistinctCountRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    DistinctCountRowsCount = length(lists:nth(1, DistinctCountRows)) - 1,
+    DistinctCountRowsLen = DistinctCountRowsCount - 2,
     SortFun = fun(X,Y) ->
-        XCount = binary_to_integer(lists:nth(HistoRowsCount, X)),
-        YCount = binary_to_integer(lists:nth(HistoRowsCount, Y)),
+        XCount = binary_to_integer(lists:nth(DistinctCountRowsCount, X)),
+        YCount = binary_to_integer(lists:nth(DistinctCountRowsCount, Y)),
         if
              XCount > YCount -> true;
              XCount < YCount -> false;
-             true -> sort_histo_rows(lists:sublist(X, 2, HistoRowsLen), lists:sublist(Y, 2, HistoRowsLen))
+             true -> sort_distinct_count_rows(lists:sublist(X, 2, DistinctCountRowsLen), lists:sublist(Y, 2, DistinctCountRowsLen))
         end
     end,
-    HistoRowsSort = lists:sort(SortFun,HistoRows),
-    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRowsSort)] || Idx <- lists:seq(1, length(HistoRowsSort))],
+    DistinctCountRowsSort = lists:sort(SortFun,DistinctCountRows),
+    DistinctCountRowsWithId = [[Idx | lists:nth(Idx, DistinctCountRowsSort)] || Idx <- lists:seq(1, length(DistinctCountRowsSort))],
     ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
-    HistoColumns = ColInfo ++
+    DistinctCountColumns = ColInfo ++
         [#stmtCol{alias = <<"count">>, type = float, readonly = true}
         ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
-    {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
+    {reply, {Total, DistinctCountColumns, DistinctCountRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,
@@ -1508,10 +1508,10 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 
-sort_histo_rows([], []) -> true;
-sort_histo_rows([XH | _], [YH | _]) when XH < YH -> true;
-sort_histo_rows([XH | _], [YH | _]) when XH > YH -> false;
-sort_histo_rows([_ | XT], [_ | YT]) -> sort_histo_rows(XT, YT).
+sort_distinct_count_rows([], []) -> true;
+sort_distinct_count_rows([XH | _], [YH | _]) when XH < YH -> true;
+sort_distinct_count_rows([XH | _], [YH | _]) when XH > YH -> false;
+sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT).
 
 %% --------------------------------------------------------------------
 %% Func: handle_info/3
