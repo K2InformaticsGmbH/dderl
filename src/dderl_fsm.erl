@@ -1463,7 +1463,7 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
         if
              XCount > YCount -> true;
              XCount < YCount -> false;
-             true -> sort_stats_rows(lists:sublist(X, 2, StatsRowsLen), lists:sublist(Y, 2, StatsRowsLen))
+             true -> sort_distinct_count(lists:sublist(X, 2, StatsRowsLen), lists:sublist(Y, 2, StatsRowsLen))
         end
     end,
     StatsRowsSort = lists:sort(SortFun,StatsRows),
@@ -1508,10 +1508,10 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 
-sort_stats_rows([], []) -> true;
-sort_stats_rows([XH | _], [YH | _]) when XH < YH -> true;
-sort_stats_rows([XH | _], [YH | _]) when XH > YH -> false;
-sort_stats_rows([_ | XT], [_ | YT]) -> sort_stats_rows(XT, YT).
+sort_distinct_count([], []) -> true;
+sort_distinct_count([XH | _], [YH | _]) when XH < YH -> true;
+sort_distinct_count([XH | _], [YH | _]) when XH > YH -> false;
+sort_distinct_count([_ | XT], [_ | YT]) -> sort_distinct_count(XT, YT).
 
 %% --------------------------------------------------------------------
 %% Func: handle_info/3
