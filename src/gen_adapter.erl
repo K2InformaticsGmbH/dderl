@@ -16,7 +16,7 @@
         , build_column_csv/2
         , extract_modified_rows/1
         , decrypt_to_term/1
-        , encrypt_to_binary/1 
+        , encrypt_to_binary/1
         , get_deps/0
         , opt_bind_json_obj/2
         , add_conn_info/2
@@ -54,9 +54,8 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
 opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
-    RegEx = "[^a-zA-Z0-9(]:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
-         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
-    case re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}]) of
+    case sql_params(Sql, Types) of
+        {match, []} -> [];
         {match, Parameters} ->
             [{<<"binds">>,
               [{<<"types">>, Types},
@@ -69,11 +68,32 @@ opt_bind_json_obj(Sql, Adapter) ->
                                      _ -> <<"in">>
                                  end},
                       {<<"val">>,<<>>}]}
-                 || [P,T,D] <- Parameters]}]
+                 || [P,T,D] <- lists:usort(Parameters)]}]
              }];
         % No bind parameters can be extracted
         % possibly query string is not parameterized
         _ -> []
+    end.
+
+sql_params(Sql, Types) ->
+    RegEx = "[^a-zA-Z0-9(]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
+            ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
+    try
+        {ok, PTree} = sqlparse:parsetree(Sql),
+        Params = sqlparse:foldtd(
+                   fun({param, P}, A) ->
+                           case re:run(
+                                  P, RegEx,
+                                  [global,{capture, [0,1,2], binary}]) of
+                               {match, Prms} -> Prms ++ A;
+                               _ -> A
+                           end;
+                      (_, A) -> A
+                   end, [], PTree),
+        {match, Params}
+    catch C:R ->
+              ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
+              re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
     end.
 
 -spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
@@ -262,14 +282,14 @@ process_cmd({[<<"dashboards">>], _ReqBody}, _Adapter, Sess, UserId, From, _Priv)
             ?Debug("dashboards as json ~s", [jsx:prettify(Res)])
     end,
     From ! {reply, Res};
-process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
-    [{<<"histogram">>, BodyJson}] = ReqBody,
+process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"distinct_count">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
-    RespJson = case Statement:get_histogram(ColumnId) of
+    RespJson = case Statement:get_distinct_count(ColumnId) of
         {error, Error, St} ->
-            ?Error("Histogram error ~p", [Error], St),
-            jsx:encode([{<<"histogram">>, [{error, Error}]}]);
+            ?Error("Distinct count error ~p", [Error], St),
+            jsx:encode([{<<"distinct_count">>, [{error, Error}]}]);
         {Total, ColRecs, HistoRows, SN} ->
             HistoJson = gui_resp(#gres{operation = <<"rpl">>
                                       ,cnt       = Total
@@ -285,7 +305,7 @@ process_cmd({[<<"histogram">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
                                       ,disable   = <<"">>
                                       ,promote   = <<"">>}
                                 ,ColRecs),
-            jsx:encode([{<<"histogram">>, [{type, <<"histo">>}
+            jsx:encode([{<<"distinct_count">>, [{type, <<"histo">>}
                                           ,{column_ids, [ColumnId]}
                                           ,{cols, build_column_json(lists:reverse(ColRecs))}
                                           ,{gres, HistoJson}]}])
@@ -410,6 +430,34 @@ process_cmd({[<<"cache_data">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             jsx:encode([{<<"cache_data">>, [{error, ErrorMsg}]}]);
         ok -> jsx:encode([{<<"cache_data">>, <<"ok">>}])
     end,
+    From ! {reply, RespJson};
+
+process_cmd({[<<"list_d3_templates">>], _ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    %% TODO: This should be path join so we have the correct separators...
+    TemplateList = case file:list_dir(dderl:priv_dir() ++ "/d3_templates") of
+        {ok, AllFiles} ->
+            TemplateNames = [list_to_binary(filename:rootname(F)) || F <- AllFiles, filename:extension(F) =:= ".js"],
+            TemplateNames;
+        {error, Reason} ->
+            ?Error("Error reading the d3 templates: ~p", [Reason]),
+            []
+    end,
+    ?Info("the template list ~p", [TemplateList]),
+    RespJson = jsx:encode([{<<"list_d3_templates">>, TemplateList}]),
+    From ! {reply, RespJson};
+
+process_cmd({[<<"get_d3_template">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"get_d3_template">>, BodyJson}] = ReqBody,
+    TemplateName = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
+    %% TODO: This should be path join so we have the correct directory separators.
+    Filename = dderl:priv_dir() ++ "/d3_templates/" ++ TemplateName ++ ".js",
+    TemplateJs = case file:read_file(Filename) of
+        {ok, Content} -> Content;
+        {error, Reason} ->
+            ?Error("Error: ~p reading content of graph template, filename: ~p", [Reason, Filename]),
+            <<>>
+    end,
+    RespJson = jsx:encode([{<<"get_d3_template">>, TemplateJs}]),
     From ! {reply, RespJson};
 
 process_cmd({Cmd, _BodyJson}, _Adapter, _Sess, _UserId, From, _Priv) ->
@@ -561,7 +609,7 @@ widest_cell_per_clm([R|_] = Rows) ->
 -spec widest_cell_per_clm(list(), [binary()]) -> [binary()].
 widest_cell_per_clm([],V) -> V;
 widest_cell_per_clm([R|Rows],V) ->
-    NewV = 
+    NewV =
     [case {Re, Ve} of
         {Re, Ve} ->
             ReS = if
@@ -592,7 +640,7 @@ r2jsn([Row|Rows], JCols, NewRows) ->
                      %% check if it is a valid utf8
                      %% else we convert it from latin1
                      case unicode:characters_to_binary(R) of
-                         Invalid when is_tuple(Invalid) -> 
+                         Invalid when is_tuple(Invalid) ->
                              unicode:characters_to_binary(R, latin1, utf8);
                          UnicodeBin ->
                              UnicodeBin

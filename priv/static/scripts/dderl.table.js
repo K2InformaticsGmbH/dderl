@@ -56,7 +56,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     _divSqlEditor   : null,
     _planeToShow    : 0,
     _planeSpecs     : null,
-    
+
     // for edit erlang terms
     _erlangCellPos  : null,
     _divDisable     : null,
@@ -142,7 +142,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                        'Sort ASC'         : '_sortAsc',
                        'Sort DESC'        : '_sortDesc',
                        'Sort Clear'       : '_sortClear',
-                       'Histogram'        : '_showHistogram',
+                       'Distinct Count'   : '_showDistinctCount',
                        'Statistics'       : '_showStatisticsFull',
                        'Toggle Grouping'  : '_toggleGrouping',
                        'Shrink'           : '_shrinkColumn',
@@ -215,7 +215,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
     },
- 
+
     // Set up the widget
     _create: function() {
         var self = this;
@@ -317,7 +317,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         self._cnxtMenu('_slkHdrCnxtMnu');  // header context menu
         self._cnxtMenu('_dlgTtlCnxtMnu');  // header context menu
     },
-                    
+
     // create the context menu and add them to document.body
     // only if they do not exist
     // TODO: Create a context menu once per table instead of the global
@@ -373,7 +373,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Histogram") {
+                    if(_action === "Distinct Count") {
                         let _ranges = this._grid.getSelectionModel().getSelectedRanges();
                         var _columnIds = [];
                         for (var i = 0; i < _ranges.length; i++) {
@@ -522,7 +522,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         });
     },
 
-    _exportCsv: function() {        
+    _exportCsv: function() {
         var filename = this.options.title;
         var csv_ext = /\.csv$/g;
         if(!csv_ext.test(filename))
@@ -596,7 +596,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         };
     },
 
-    // Wrapper function used to get the layout from the sql editor. 
+    // Wrapper function used to get the layout from the sql editor.
     getTableLayout: function() {
         return this._getTableLayout().save_view.table_layout;
     },
@@ -629,13 +629,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         self._ajax('save_view', saveView, 'save_view', 'newViewResult');
     },
 
-    _showHistogram: function(data) {
+    _showDistinctCount: function(data) {
         var self = this;
         var columnIds = data.columnIds;
-        console.log('show histogram ' + JSON.stringify(data));
+        console.log('show distinct count ' + JSON.stringify(data));
 
         if (0 === columnIds) {
-            alert_jq('Error: No appropriate column for the menu item "Histogram" selected!');
+            alert_jq('Error: No appropriate column for the menu item "Distinct Count" selected!');
             return;
         }
 
@@ -647,13 +647,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         $('<div>').appendTo(document.body)
             .statsTable({
-                title          : "Histogram",
+                title          : "Distinct Count",
                 initialQuery   : self._cmd,
                 columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
                 parent         : self._dlg
             })
-            .statsTable('load', 'histogram');
+            .statsTable('load', 'distinct_count');
     },
 
     _showStatistics: function(_ranges) {
@@ -1133,7 +1133,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     break;
             }
         });
-        
+
         var moveRowsPlugin = new Slick.RowMoveManager({
             cancelEditOnDrag: true
         });
@@ -1196,7 +1196,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
             return self._sortSpec2Json();
         };
-        
+
         self._sortDlg.dialog({
             width : 336,
             modal : false,
@@ -1238,7 +1238,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         this.addWheel();
         ajaxCall(this, url, data, resp, callback);
     },
-    
+
     _sortSpec2Json: function() {
         var self = this;
         var sortspec = [];
@@ -1521,12 +1521,12 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
         return filterspec;
     },
-    
+
     // table actions
     _browseCellData: function(ranges) {
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
-        
+
         var cells = [];
         for(let i = 0; i < ranges.length; ++i) {
             // For complete rows use the first column only
@@ -1603,7 +1603,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     _truncateTable: function(ranges) {
         var self = this;
         var truncateTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm truncate", content:truncateTables}, 
+        confirm_jq({title: "Confirm truncate", content:truncateTables},
                 function() {
                     self._runTableCmd.apply(self, ['truncate_table', 'truncateResult', truncateTables]);
                 });
@@ -1611,7 +1611,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     _dropTable: function (ranges) {
         var self = this;
         var dropTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm delete", content:dropTables}, 
+        confirm_jq({title: "Confirm delete", content:dropTables},
                 function() {
                     self._runTableCmd.apply(self, ['drop_table', 'dropResult', dropTables]);
                 });
@@ -1624,7 +1624,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     _restoreTable: function(ranges) {
         var self = this;
         var restoreTables = self._get_range_values(ranges);
-        confirm_jq({title: "Confirm restore from snapshot", content:restoreTables}, 
+        confirm_jq({title: "Confirm restore from snapshot", content:restoreTables},
                 function() {
                     self._runTableCmd.apply(self, ['restore_table', 'restoreResult', restoreTables]);
                 });
@@ -1669,7 +1669,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         var restoreAsData = [];
         var fCount = 0;
-        var maxFieldLen = 0; 
+        var maxFieldLen = 0;
         for(fCount = 0; fCount < tables.length; ++fCount) {
             if (maxFieldLen < tables[fCount].length)
                 maxFieldLen = tables[fCount].length;
@@ -2058,13 +2058,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
     },
     ////////////////////////////
-    
+
     /*
      * ajaxCall success callbacks
      */
     _checkUpdateResult: function(_update) {
         this.appendRows(_update);
-        /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));        
+        /* console.log('[AJAX] update_data resp '+JSON.stringify(_update));
         if(_update === 'ok') {
             console.log('update success');
         } else {
@@ -2306,7 +2306,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
             this._initPlanes(_table.table_layout);
         }
-        
+
         if(!_table.hasOwnProperty('columns')) {
             console.log('[_renderTable] missing columns - '+_table);
             alert_jq('missing columns');
@@ -2322,10 +2322,10 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         this._gridDataView.endUpdate();
         this._gdata = this._gridDataView.getItems();
         this._gridColumnsReorder();
-        
+
         this.showPlane();
         this.buttonPress(this._startBtn);
-        
+
         console.log('>>>>> table ' + _table.name + ' ' + _table.connection);
     },
 
@@ -2558,8 +2558,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             .bind("dialogbeforeclose", function() {
                 console.log("dialog before close");
                 console.log("is logged in: ", dderlState.isLoggedIn);
-                if(!self._tbCommit.prop('disabled') && dderlState.isLoggedIn) {
-                    alert_jq("Please commit or rollback changes before closing the table");
+                if(!self._tbCommit.prop('disabled') && dderlState.isLoggedIn && self._gdata.length !== 0 && !self._forceClose) {
+                    confirm_jq({title: "Data modified on the table", content: 'close anyway?'}, function() {
+                        self._forceClose = true;
+                        self._dlg.dialog('close');
+                    });
                     return false;
                 }
                 self._grid.resetHeaderScroll();
@@ -2574,9 +2577,12 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 "load" : function() {
                 },
                 "minimize" : function() {
+                    self._dlgMinimized = true;
                 },
                 "restore" : function() {
+                    self._dlgMinimized = false;
                     self._dlg.dialog("moveToTop");
+                    console.log("restored called");
                 }
             });
 
@@ -2648,7 +2654,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             this._tableDiv.show();
             return;
         }
-        
+
         var planeIdx = this._planeToShow - 1;
         this._tableDiv.hide();
 
@@ -2670,7 +2676,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         var focusElement = document.activeElement;
                         var ta = createCopyTextBox(d.innerHTML);
                         ta.focus();
-                        
+
                         setTimeout(function(){
                             document.body.removeChild(ta);
                             // restore focus
@@ -2725,7 +2731,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             self._tbClearG.show();
         }
     },
-      
+
     // context menus invocation for slickgrid
     _gridContextMenu: function(e, args) {
         e.preventDefault();
@@ -2738,7 +2744,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         if(!g.getData().getItem(cell.row)) {
             return;
         }
-        
+
         var column      = g.getColumns()[cell.cell];
 
         //Check if we are in the id column
@@ -3083,7 +3089,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
                 // would be nice to have xor in javascript to avoid confusing ternary operator.
                 if (this._grid.getColumns()[col].editor && !(e.ctrlKey? !e.altKey : e.altKey)) {
-                    // If we have an active cell but no range means that we are in a new cell, 
+                    // If we have an active cell but no range means that we are in a new cell,
                     // so we open the editor.
                     var currentSelectedRanges = this._grid.getSelectionModel().getSelectedRanges();
                     if(currentSelectedRanges.length === 0 ||
@@ -3279,7 +3285,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
         this._graphDivs.length = 0;
     },
-      
+
     // loading the views table
     loadViews: function(useSystem) {
         if(useSystem){
@@ -3375,7 +3381,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 $.error('adapter is already set to '+self._adapter+' and can\'t be changed to '+value);
             break;
         }
- 
+
         // In jQuery UI 1.9 and above, you use the _super method instead
         if (save) this._super( "_setOption", key, value );
     },
@@ -3384,11 +3390,15 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         var self = this;
         self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
         self._dlg.dialog("widget").find(".table-title").on("contextmenu click", function(e) {
-            self._dlgTtlCnxtMnu.dom
-                .css("top", e.clientY - 10)
-                .css("left", e.clientX)
-                .data('cnxt', self)
-                .show();
+            if(self._dlgMinimized) {
+                self._dlg.dialogExtend("restore");
+            } else {
+                self._dlgTtlCnxtMnu.dom
+                    .css("top", e.clientY - 10)
+                    .css("left", e.clientX)
+                    .data('cnxt', self)
+                    .show();
+            }
             return false;
         });
     },
@@ -3636,7 +3646,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         var c = self._grid.getColumns();
         var firstChunk = (self._grid.getDataLength() === 0);
-        
+
         if (firstChunk && _rows.hasOwnProperty('max_width_vec') && !$.isEmptyObject(_rows.max_width_vec) && !self._clmlay) {
             var fieldWidth = 0;
             for (let i = 0; i < c.length; ++i) {
@@ -3738,7 +3748,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         } else if(_rows.focus > 0) {
             computedFocus = _rows.focus - 1;
         }
-        
+
         if(!redraw && needScroll) {
             self._grid.scrollRowIntoView(computedFocus);
         }
@@ -3762,7 +3772,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     if (!self._dlgResized) {
                         var gWidth = self._getGridWidth() + 13;
                         var rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
-                        
+
                         // Dialog width adjustment
                         if (self._footerWidth > gWidth) {
                             // table is smaller than the footer
@@ -3819,13 +3829,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     }
                 }
             } else if(firstChunk && !self._dlgResized) {
-                let dlg = this._dlg.dialog('widget');
                 let gWidth = self._tbllay.width;
-                let rWindowWidth = $(window).width()-dlg.offset().left-20; // available width for the window
+                let orig_left = self._tbllay.x;
+                let orig_top = self._tbllay.y;
+                let rWindowWidth = $(window).width() - orig_left - 20; // available width for the window
 
                 if(gWidth > rWindowWidth) {
-                    let orig_top = dlg.offset().top;
-                    let new_left = dlg.offset().left - gWidth + rWindowWidth;
+                    let new_left = $(window).width() - gWidth - 20;
                     if(new_left > 0) {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
@@ -3833,7 +3843,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                             of: "#main-body",
                             collision : 'none'
                         });
-                        self._dlg.dialog("option", "width", gWidth);
                     } else {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
@@ -3846,10 +3855,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     self._grid.resizeCanvas();
                 }
                 let gHeight = self._tbllay.height;
-                let rWindowHeight = $(window).height()-dlg.offset().top-2*self.options.toolBarHeight-40; // available height for 
+                let rWindowHeight = $(window).height() - orig_top - 20; // available height for the window
                 if (gHeight > rWindowHeight) {
-                    let orig_left = dlg.offset().left;
-                    let new_top = dlg.offset().top - gHeight + rWindowHeight;
+                    let new_top = $(window).height() - gHeight - 20;
                     if(new_top > 0) {
                         self._dlg.dialog("option", "position", {
                             my: "left top",
@@ -3890,7 +3898,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                                      self._pendingEditorCell.cell);
             delete self._pendingEditorCell;
         }
-        
+
         //console.timeEnd('appendRows');
         //console.profileEnd();
     },
@@ -3914,7 +3922,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 if (value !== null && value !== undefined) {
                     return value.split(separator).pop();
                 }
-                return "";                
+                return "";
             };
             groupByColumn(self._gridDataView, columnId, separator);
         }
@@ -4064,12 +4072,16 @@ export function renderNewTable(table, position, force) {
     var cl = null;
     var viewId = null;
 
+    if(table.hasOwnProperty('view_id')) {
+        viewId = table.view_id;
+    }
+
     if(table.hasOwnProperty('error')) {
         alert_jq(table.error);
-        openFailedSql(table.name, table.content, null, null);
+        openFailedSql(table.name, table.content, null, viewId, tl);
         return;
     } else if(table.hasOwnProperty('binds')) {
-        openFailedSql(table.name, table.content, table.binds, table.view_id, tl);
+        openFailedSql(table.name, table.content, table.binds, viewId, tl);
         return;
     }
 
@@ -4086,10 +4098,6 @@ export function renderNewTable(table, position, force) {
         of: "#main-body",
         collision: 'none'
     };
-
-    if(table.hasOwnProperty('view_id')) {
-        viewId = table.view_id;
-    }
 
     if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
         cl = table.column_layout;

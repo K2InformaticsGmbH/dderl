@@ -43,6 +43,9 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
+    if (resp.hasOwnProperty('port')) {
+        dderlState.port = resp.port;
+    }
 
     if(!dderlState.screensaver) {
         refresh_header_information();
@@ -52,7 +55,7 @@ function loginCb(resp) {
     if(cookies) {
         var cs = cookies.split("; ");
         for(var i = 0; i < cs.length; i++) { 
-            if(cs[i].indexOf("DDERL-XSRF-TOKEN") !== -1) {
+            if(cs[i].indexOf("DDERL-XSRF-TOKEN" + dderlState.port) !== -1) {
                 dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
                 break;
             }
@@ -125,16 +128,12 @@ function loginCb(resp) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
         resetPingTimer();
-        if(dderlState.screensaver) {
-            window.isScreensaver = false;
-            dderlState.screensaver = false;
-            stopScreensaver();
-            $("#world").hide();
-        } else {
-            connect_dlg();
-        }
+        removeScreenSaver();
     } else if (resp.hasOwnProperty('changePass')) {
         change_login_password(resp.changePass, true);
+    } else if (resp == 'logout') {
+        removeScreenSaver();
+        logout(true);
     } else {
         alert_jq("Unexpected "+JSON.stringify(resp));
     }
@@ -146,6 +145,17 @@ export function showScreeSaver() {
              fields : [],
              screensaver : true
     }); 
+}
+
+function removeScreenSaver(){
+    if(dderlState.screensaver) {
+        window.isScreensaver = false;
+        dderlState.screensaver = false;
+        stopScreensaver();
+        $("#world").hide();
+    } else {
+        connect_dlg();
+    }
 }
 
 function display(layout) {
@@ -261,8 +271,8 @@ function inputEnter(layout) {
     loginAjax(data);
 }
 
-export function logout() {
-    if(dderlState.connection) {
+export function logout(isForceful) {
+    if(dderlState.connection && isForceful !== true) {
         confirm_jq({title: "Confirm logout", content:''}, function() {
             exec_logout();
         });

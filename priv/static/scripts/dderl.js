@@ -29,7 +29,8 @@ export var dderlState = {
     username: "",
     app: "",
     vsn: "",
-    node: ""
+    node: "",
+    port: ""
 };
 
 // generic dderlserver call interface
@@ -102,7 +103,13 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                     if($.isFunction(_successevt)) {
                         _successevt(_data[_resphead]);
                     } else if(this._handlers.hasOwnProperty(_successevt)) {
-                        this.element.trigger(_successevt, _data[_resphead]);
+                        var result = _data[_resphead];
+                        // When the object contains length property it has to be wrapped
+                        // in an array, see notes at http://api.jquery.com/trigger/
+                        if (result && result.length) {
+                            result = [result];
+                        }
+                        this.element.trigger(_successevt, result);
                     } else {
                         throw('unsupported success event '+_successevt+' for '+_url);
                     }
