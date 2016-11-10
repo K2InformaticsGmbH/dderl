@@ -497,6 +497,7 @@ function init(container, width, height) {
         on_resize: resize,
         on_reset: function() {
             svg.selectAll('svg > *').remove();
+            graph = { links: {}, nodes: {}, status: {} };
             firstData = true;
         },
         on_close: function() {
