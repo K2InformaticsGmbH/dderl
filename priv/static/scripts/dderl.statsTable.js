@@ -30,7 +30,7 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'refresh', clk : '_toolBarReload',   dom: '_tbReload' },
-                           'textBox'  : {tip: '',       typ : 'txt',                           clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
+                           'textBox'  : {tip: '',       typ : 'txt',                  clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // slick context menus
         _statsSlkHdrCnxtMnu  : {'Hide'      : '_hide',

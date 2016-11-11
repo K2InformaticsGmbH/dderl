@@ -133,18 +133,19 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                        'Cache Data'     : '_cacheData'},
 
     // slick context menus
-    _slkHdrCnxtMnu  : {'Hide'             : '_hide',
-                       'UnHide'           : '_unhide',
-                       'Filter...'        : '_filterColumn',
-                       'Filter Clear'     : '_filterClear',
-                       'Sort...'          : '_sort',
-                       'Sort ASC'         : '_sortAsc',
-                       'Sort DESC'        : '_sortDesc',
-                       'Sort Clear'       : '_sortClear',
-                       'Distinct Count'   : '_showDistinctCount',
-                       'Statistics'       : '_showStatisticsFull',
-                       'Shrink'           : '_shrinkColumn',
-                       'Fit to Data'      : '_fitColumnToData'},
+    _slkHdrCnxtMnu  : {'Column Hide'         : '_hide',
+                       'Columns Unhide'      : '_unhide',
+                       'Column Shrink'       : '_shrinkColumn',
+                       'Distinct Count'      : '_showDistinctCount',
+                       'Distinct Statistics' : '_showDistinctStatistics',
+                       'Filter...'           : '_filterColumn',
+                       'Filter Clear'        : '_filterClear',
+                       'Fit to Data'         : '_fitColumnToData',
+                       'Sort...'             : '_sort',
+                       'Sort ASC'            : '_sortAsc',
+                       'Sort DESC'           : '_sortDesc',
+                       'Sort Clear'          : '_sortClear',
+                       'Statistics'          : '_showStatisticsFull'},
     _slkCellCnxtMnu : {'Browse Data'      : '_browseCellData',
                        'Filter'           : '_filterCell',
                        'Filter...'        : '_filterCellDialog',
@@ -371,7 +372,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if(_action === "Distinct Count") {
+                    if((_action === "Distinct Count") || (_action === "Distinct Statistics")) {
                         let _ranges = this._grid.getSelectionModel().getSelectedRanges();
                         var _columnIds = [];
                         for (var i = 0; i < _ranges.length; i++) {
@@ -649,6 +650,38 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 parent         : self._dlg
             })
             .statsTable('load', 'distinct_count');
+    },
+
+    _showDistinctStatistics: function(data) {
+        var self = this;
+        var columnIds = data.columnIds;
+        console.log('show distinct statistics ' + JSON.stringify(data));
+
+        if (0 === columnIds) {
+            alert_jq('Error: No appropriate column for the menu item "Distinct Statistics" selected!');
+            return;
+        }
+
+        if (2 > columnIds.length) {
+            alert_jq('Error: Please select at least two columns for the menu item "Distinct Statistics"!');
+            return;
+        }
+
+        // Considering hidden columns
+        var columnIdsEff = [];
+        for(var i = 0; i < columnIds.length; i++) {
+            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+        }
+
+        $('<div>').appendTo(document.body)
+            .statsTable({
+                title          : "Distinct Statistics",
+                initialQuery   : self._cmd,
+                columnIds      : columnIdsEff,
+                dderlStatement : self._stmt,
+                parent         : self._dlg
+            })
+            .statsTable('load', 'distinct_statistics');
     },
 
     _showStatistics: function(_ranges) {
@@ -3859,7 +3892,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
     }
   });
 }());
-
 
 function exportCsvPrompt(filename, callback) {
     var filenameDiv = document.createElement('div');
