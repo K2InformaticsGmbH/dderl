@@ -1640,7 +1640,7 @@ calculate_distinct_statistics([{GroupingData, StatsData} | Tail] = _InWWE, Calcu
     calculate_distinct_statistics(Tail, CalculatedData ++ [[nop] ++ GroupingData ++ [list_to_binary(io_lib:format("~p / ~p", [CountTotal, Count])), Min, Max, Sum, Average, Median, StdDev, Variance, erlang:phash2(erlang:list_to_binary(HashList))]]).
 
 group_distinct_statistics([], _, _, Map) ->
-    maps:to_list(Map);
+    lists:sort(maps:to_list(Map));
 group_distinct_statistics([Row | Tail], GColumns, SColumn, Map) ->
     Key = lists:sublist(Row, 1, GColumns),
     Value = lists:nth(SColumn, Row),
