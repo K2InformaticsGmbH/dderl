@@ -240,6 +240,7 @@ gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) ->
     gen_fsm:send_event(Pid,{button, <<">|...">>, ReplyTo});
 gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"...">>]),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     gen_fsm:send_event(Pid,{button, <<"...">>, ReplyTo});
 gui_req(button, <<"pt">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"pt">>]),
@@ -639,6 +640,7 @@ empty({button, <<">|...">>, ReplyTo}, State0) ->
 empty({button, <<"...">>, ReplyTo}, State0) ->
     % skip fetch, schedule tail
     State1 = fetch(skip,true, State0#state{tailMode=true,tailLock=false}),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State1#state{stack={button,<<"...">>,ReplyTo}}};
 empty({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
     % reject command because of uncommitted changes
@@ -680,9 +682,11 @@ filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State3 = data_clear(State2),
     State4 = fetch(skip,true,State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>}, State4),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
 filling({button, <<"...">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
 filling({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
@@ -788,9 +792,11 @@ autofilling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0
     State3 = data_clear(State2),
     State4 = fetch(skip,true, State3),
     State5 = gui_clear(#gres{state=tailing, loop= <<"tail">>},State4),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
 autofilling({button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     State1 = gui_nop(#gres{state=autofilling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, autofilling, State1};
 autofilling({button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
@@ -872,9 +878,11 @@ tailing({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = data_clear(State1),
     State3 = gui_clear(#gres{state=tailing, loop= <<"tail">>},State2),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State3#state{tailLock=false}};
 tailing({button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     State1 = gui_nop(#gres{state=tailing,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, tailing, State1};
 tailing({button, <<">|...">>, ReplyTo}, State0) ->
@@ -952,9 +960,11 @@ completed({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 -
     State3 = fetch(skip,true,State2),
     State4 = data_clear(State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>},State4),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
 completed({button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     State1 = gui_nop(#gres{state=completed,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, completed, State1};
 completed({button, <<">|...">>, ReplyTo}, State0) ->
@@ -1026,9 +1036,11 @@ aborted({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State3 = fetch(skip,true,State2),
     State4 = data_clear(State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>},State4),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
 aborted({button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     State1 = gui_nop(#gres{state=aborted,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, aborted, State1};
 aborted({button, <<">|...">>, ReplyTo}, State0) ->
@@ -1069,6 +1081,7 @@ passthrough({button, <<"restart">>, ReplyTo}, State0) ->
 passthrough({button, <<"...">>, ReplyTo}, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = gui_nop(#gres{state=passthrough,beep=true,message= ?PassThroughOnlyRestart},State1),
+io:format("... ~p~n", [{?MODULE,?LINE}]),
     {next_state, passthrough, State2};
 passthrough({button, <<">|...">>, ReplyTo}, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
