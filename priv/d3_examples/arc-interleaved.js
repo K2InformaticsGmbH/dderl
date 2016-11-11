@@ -95,15 +95,15 @@ function init(container, width, height) {
             var key = getKey(row);
             var value = getValue(row);
 
-            if(key.length === 3) {
-                var triangleId = key[0] + '_' + key[1] + '_' + key[2];
-                var jobId = key[0] + '_' + key[1];
+            if(key.length === 4) {
+                var triangleId = key[1] + '_' + key[2] + '_' + key[3];
+                var jobId = key[1] + '_' + key[2];
                 status[triangleId] = {
                     id: triangleId,
                     job: jobId,
                     status: value.status
                 };
-            } else if(key.length === 2) {
+            } else if(key.length === 3) {
                 var nodeId = value.platform;
                 var group = value.args.group;
                 if(!centerNodes.hasOwnProperty(nodeId)) {
@@ -112,8 +112,8 @@ function init(container, width, height) {
                         group: group
                     };
                 }
-                var linkId = key[0] + '_' + nodeId;
-                var jobId = key[0] + '_' + key[1];
+                var linkId = key[1] + '_' + nodeId;
+                var jobId = key[1] + '_' + key[2];
                 var jobs = {};
                 if(links.hasOwnProperty(linkId)) {
                     jobs = links[linkId].jobs;
@@ -121,7 +121,7 @@ function init(container, width, height) {
                 }
                 jobs[jobId] = {
                     id: jobId,
-                    legend: key[1],
+                    legend: key[2],
                     enabled: value.enabled,
                     direction: value.direction
                 };
@@ -135,7 +135,7 @@ function init(container, width, height) {
 
                 links[linkId] = {
                     id: linkId,
-                    source: key[0],
+                    source: key[1],
                     target: nodeId,
                     enabled: enabled,
                     jobs: jobs
