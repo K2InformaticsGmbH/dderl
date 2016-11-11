@@ -76,7 +76,7 @@ opt_bind_json_obj(Sql, Adapter) ->
     end.
 
 sql_params(Sql, Types) ->
-    RegEx = "[^a-zA-Z0-9(]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
+    RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
             ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
         {ok, PTree} = sqlparse:parsetree(Sql),
