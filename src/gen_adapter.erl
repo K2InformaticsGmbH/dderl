@@ -471,7 +471,6 @@ process_cmd({[<<"list_d3_templates">>], _ReqBody}, _Adapter, _Sess, _UserId, Fro
             ?Error("Error reading the d3 templates: ~p", [Reason]),
             []
     end,
-    ?Info("the template list ~p", [TemplateList]),
     RespJson = jsx:encode([{<<"list_d3_templates">>, TemplateList}]),
     From ! {reply, RespJson};
 
