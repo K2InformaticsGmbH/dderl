@@ -669,13 +669,17 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         // Considering hidden columns
         var columnIdsEff = [];
+
+        var columns = self._grid.getColumns();
+
         for(var i = 0; i < columnIds.length; i++) {
-            columnIdsEff.push(self._origcolumns[self._grid.getColumns()[columnIds[i]].field]);
+            columnIdsEff.push(self._origcolumns[columns[columnIds[i]].field]);
         }
+        var statsFor = columns[columnIds[columnIds.length-1]].name;
 
         $('<div>').appendTo(document.body)
             .statsTable({
-                title          : "Distinct Statistics",
+                title          : "Distinct Statistics for " + statsFor,
                 initialQuery   : self._cmd,
                 columnIds      : columnIdsEff,
                 dderlStatement : self._stmt,
