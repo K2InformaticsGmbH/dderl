@@ -343,6 +343,8 @@ import {ajaxCall, unescapeNewLines} from './dderl';
                         force: false
                     }
                 }, 'format_json_to_save', 'saveChangesResponse');
+            } else if (self.options.title.includes("Text")) {
+                self._saveChangesResponse(self._editText.val());
             } else {
                 ajaxCall(self, 'format_erlang_term', {
                     format_erlang_term: {
