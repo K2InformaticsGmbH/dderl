@@ -3,6 +3,14 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.6 (Release Date 16.11.2016)
+======================================
+* imem 1.5.8
+* Saved views stays inside visible screen
+* Removed screensaver animation due to high CPU usage
+* Added d3 template loading
+* Implemented distinct statistics
+
 Version 1.6.5 (Release Date 01.11.2016)
 ======================================
 * imem 1.5.7
