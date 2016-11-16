@@ -95,17 +95,26 @@ function init(container, width, height) {
             var key = getKey(row);
             var value = getValue(row);
 
-            if(key.length === 4) {
+            if (key.length == 3 && key[1] == "heartbeat") {
+                // Ignored heartbeat entries.
+            } else if(key.length === 4) {
                 var triangleId = key[1] + '_' + key[2] + '_' + key[3];
                 var jobId = key[1] + '_' + key[2];
-                status[triangleId] = {
-                    id: triangleId,
-                    job: jobId,
-                    status: value.status
-                };
-            } else if(key.length === 3) {
+                if (row.op === "del") {
+                    delete status[triangleId];
+                } else { 
+                    status[triangleId] = {
+                        id: triangleId,
+                        job: jobId,
+                        status: value.status
+                    };
+                }
+            } else if(key.length === 3 && key[2] != "error") {
                 var nodeId = value.platform;
                 var group = value.args.group;
+                if(!group) {
+                    group = "01";
+                }
                 if(!centerNodes.hasOwnProperty(nodeId)) {
                     nodes[nodeId] = {
                         id: nodeId,
@@ -439,7 +448,6 @@ function init(container, width, height) {
                 }
                 for(var i = 0; i < jobsId.length; ++i) {
                     var pct = start + i * step;
-                    console.log("the pct", pct);
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
                     var dir = {x: dirX, y: dirY};
@@ -460,11 +468,14 @@ function init(container, width, height) {
                 groupStatus[s.job] = groupStatus[s.job] + 1;                
             });
 
-            svg.selectAll('polygon')
+            var polySelection = svg.selectAll('polygon')
                 .data(status, function(d) {
                     return d.id;
-                })
-                .enter()
+                });
+
+            polySelection.exit().remove();
+
+            polySelection.enter()
                 .append('polygon')
                 .attr('id', function(d) {
                     return d.id;
