@@ -91,6 +91,7 @@ function init(container, width, height) {
         var links = graph.links;
         var nodes = graph.nodes;
         var status = graph.status;
+        var center = graph.center;
         rows.forEach(function(row) {
             var key = getKey(row);
             var value = getValue(row);
@@ -108,6 +109,25 @@ function init(container, width, height) {
                         job: jobId,
                         status: value.status
                     };
+                }
+            } else if(key.length === 4 && key[2] == "error") {
+                if (row.op === "del") {
+                    delete center[key[1]][key[3] + "_error"];
+                    var still_errors = false;
+                    var centerOtherKeys = Object.keys(center[key[1]]);
+                    for(var kIdx = 0; kIdx < centerOtherKeys.length; ++kIdx) {
+                        if(centerOtherKeys[kIdx].includes("_error")) {
+                            still_errors = true;
+                            break;
+                        }
+                    }
+                    if (!still_errors) {
+                        center[key[1]].status = "idle";
+                    }
+                } else {
+                    console.log("Setting status error");
+                    center[key[1]].status = "error";
+                    center[key[1]][key[3] + "_error"] = value;
                 }
             } else if(key.length === 3 && key[2] != "error") {
                 var nodeId = value.platform;
@@ -151,7 +171,7 @@ function init(container, width, height) {
                 };
             }
         });
-        return { links: links, nodes: nodes, status: status };
+        return { links: links, nodes: nodes, status: status, center: center};
     };
     /** End data extraction functions */
 
@@ -262,7 +282,7 @@ function init(container, width, height) {
         return res;
     }
 
-    var graph = { links: {}, nodes: {}, status: {} };
+    var graph = { links: {}, nodes: {}, status: {}, center: centerNodes };
     var firstData = true;
     return {
         on_data: function(data) {
@@ -308,6 +328,17 @@ function init(container, width, height) {
             var nodes = entries(graph.nodes);
             var links = entries(graph.links);
             var status = entries(graph.status);
+            var center = entries(graph.center);
+            console.log("center", center);
+
+            svg.selectAll('.center-nodes')
+                .data(center, function(d) {
+                    return d.id;
+                })
+                .selectAll('circle')
+                .style('fill', function(d) {
+                    return colorStatus[d.status];
+                });
 
             var newNodes = svg.selectAll('.node')
                 .data(nodes, function(d) {
@@ -477,7 +508,7 @@ function init(container, width, height) {
                     groupStatus[s.job] = 0;
                 }
                 statusPos[s.id] = groupStatus[s.job];
-                groupStatus[s.job] = groupStatus[s.job] + 1;                
+                groupStatus[s.job] = groupStatus[s.job] + 1;
             });
 
             var polySelection = svg.selectAll('polygon')
