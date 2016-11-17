@@ -97,7 +97,7 @@ function init(container, width, height) {
 
             if (key.length == 3 && key[1] == "heartbeat") {
                 // Ignored heartbeat entries.
-            } else if(key.length === 4) {
+            } else if(key.length === 4 && key[2] != "error") {
                 var triangleId = key[1] + '_' + key[2] + '_' + key[3];
                 var jobId = key[1] + '_' + key[2];
                 if (row.op === "del") {
@@ -272,11 +272,17 @@ function init(container, width, height) {
 
             if(firstData) {
                 firstData = false;
+
                 // Add center nodes
-                svg.selectAll('circle')
-                    .data(entries(centerNodes), function(d) { return d.id; })
+                var NewCenterNodesDom = svg.selectAll('.center-nodes')
+                    .data(entries(centerNodes), function(d) {
+                        return d.id;
+                    })
                     .enter()
-                    .append('circle')
+                    .append('g')
+                    .attr("class", "center-nodes");
+
+                NewCenterNodesDom.append('circle')
                     .attr('r', nradius)
                     .attr('cx', function(d) { return d.position.x; })
                     .attr('cy', function(d) { return d.position.y; })
@@ -287,6 +293,13 @@ function init(container, width, height) {
                     .on('mouseover', showTooltip)
                     .on('mousemove', moveTooltip)
                     .on('mouseout', hideTooltip);
+
+                NewCenterNodesDom.append('text')
+                    .text(function(d) {
+                        return d.id;
+                    })
+                    .style('font-size', '24px')
+                    .style('text-anchor', 'middle');
             }
 
             graph = extractLinksNodes(data, graph);
@@ -314,8 +327,7 @@ function init(container, width, height) {
                 .style('fill', 'white')
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
-                .on('mouseout', hideTooltip)
-                .on('click', openView);
+                .on('mouseout', hideTooltip);
 
             newNodes.append('text')
                 .text(function(d) {
@@ -380,7 +392,7 @@ function init(container, width, height) {
                     return d.id;
                 })
                 .enter()
-                .insert('line', 'circle')
+                .insert('line', '.center-nodes')
                 .attr('stroke-width', 6)
                 .attr('id', function(d) {
                     return d.id;
@@ -484,20 +496,22 @@ function init(container, width, height) {
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
                 .on('mouseout', hideTooltip);
-            
+
             svg.selectAll('polygon')
                 .transition()
                 .duration(animDuration)
                 .attr('transform', function(d) {
                     if(!linksMid[d.job]) {
-                        throw new Error(JSON.stringify(d.job));
+                        console.log("Moving outside the visible area as we don't have a position yet", JSON.stringify(d.job));
+                        return "translate(0, 250) rotate(180)"
+                    } else {
+                        var dx = linksMid[d.job].direction.x;
+                        var dy = linksMid[d.job].direction.y;
+                        var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
+                        var x = linksMid[d.job].mid.x + statusPos[d.id] * dx * 20;
+                        var y = linksMid[d.job].mid.y + statusPos[d.id] * dy * 20;
+                        return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                     }
-                    var dx = linksMid[d.job].direction.x;
-                    var dy = linksMid[d.job].direction.y;
-                    var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
-                    var x = linksMid[d.job].mid.x + statusPos[d.id] * dx * 20;
-                    var y = linksMid[d.job].mid.y + statusPos[d.id] * dy * 20;
-                    return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                 })
                 .style('stroke', 'black')
                 .style('stroke-width', 3)
