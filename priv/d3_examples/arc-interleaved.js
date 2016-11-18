@@ -56,11 +56,18 @@ function init(container, width, height) {
     var nradius = 100;
     var animDuration = 500;
 
-    var centerNodes = {
-        // Position relative to the bottom center after margin.
-        stag: { position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
-        prod: { position: { x: 0, y: -nradius }, status: 'idle' }
-    };
+    var initGraph = function() {
+        return {
+            links: {},
+            nodes: {},
+            status: {},
+            center: {
+                // Position relative to the bottom center after margin.
+                stag: { position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
+                prod: { position: { x: 0, y: -nradius }, status: 'idle' }
+            }
+        };
+    }
 
     /** Helper functions for data extraction */
     var parseError = function(term) {
@@ -134,7 +141,7 @@ function init(container, width, height) {
                 if(!group) {
                     group = "01";
                 }
-                if(!centerNodes.hasOwnProperty(nodeId)) {
+                if(!center.hasOwnProperty(nodeId)) {
                     nodes[nodeId] = {
                         id: nodeId,
                         group: group
@@ -281,7 +288,7 @@ function init(container, width, height) {
         return res;
     }
 
-    var graph = { links: {}, nodes: {}, status: {}, center: centerNodes };
+    var graph = initGraph();
     var firstData = true;
     return {
         on_data: function(data) {
@@ -294,7 +301,7 @@ function init(container, width, height) {
 
                 // Add center nodes
                 var NewCenterNodesDom = svg.selectAll('.center-nodes')
-                    .data(entries(centerNodes), function(d) {
+                    .data(entries(graph.center), function(d) {
                         return d.id;
                     })
                     .enter()
@@ -330,7 +337,7 @@ function init(container, width, height) {
             var center = entries(graph.center);
 
             var numberNodes = nodes.length;
-            vArcRadius = (numberNodes*nradius*1.8)/Math.PI;
+            vArcRadius = Math.max((numberNodes*nradius*1.8)/Math.PI, 1000);
             vBox = {
                 x: -1 * (vArcRadius + nradius),
                 y: -1 * (vArcRadius + nradius),
@@ -404,8 +411,8 @@ function init(container, width, height) {
                 positions[nData[i].id] = {x: x, y: y};
             }
             // Append center node positions.
-            for(var k in centerNodes) {
-                positions[k] = centerNodes[k].position;
+            for(var k in graph.center) {
+                positions[k] = graph.center[k].position;
             }
 
             allPoints
@@ -422,6 +429,8 @@ function init(container, width, height) {
                 .transition()
                 .duration(animDuration)
                 .attr('x', function(d) {
+                    console.log("Positions : ", positions);
+                    console.log("ID : ", d);
                     return positions[d.id].x;
                 })
                 .attr('y', function(d) {
@@ -563,7 +572,7 @@ function init(container, width, height) {
         on_resize: resize,
         on_reset: function() {
             svg.selectAll('svg > *').remove();
-            graph = { links: {}, nodes: {}, status: {} };
+            graph = initGraph();
             firstData = true;
         },
         on_close: function() {
