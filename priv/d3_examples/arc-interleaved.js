@@ -53,8 +53,7 @@ function init(container, width, height) {
     // virtual coordinates drawing arc radius
     var vArcRadius = 1000;
     // node radius in virtual coordinates
-    var nradius = 90; // TODO: 90 for 17 nodes seems ok, formula ?
-
+    var nradius = 100;
     var animDuration = 500;
 
     var centerNodes = {
@@ -329,6 +328,17 @@ function init(container, width, height) {
             var links = entries(graph.links);
             var status = entries(graph.status);
             var center = entries(graph.center);
+
+            var numberNodes = nodes.length;
+            vArcRadius = (numberNodes*nradius*1.8)/Math.PI;
+            vBox = {
+                x: -1 * (vArcRadius + nradius),
+                y: -1 * (vArcRadius + nradius),
+                w: vArcRadius * 2 + nradius * 2,
+                h: vArcRadius + 3 * nradius
+            }
+            svg.attr('viewBox', vBox.x + ' ' + vBox.y + ' ' + vBox.w + ' ' + vBox.h);
+
             console.log("center", center);
 
             svg.selectAll('.center-nodes')
