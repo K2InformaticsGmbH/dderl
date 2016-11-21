@@ -11,41 +11,41 @@ function init(container, width, height) {
     // Copy and paste the following data in the table:
     /*****
 
-["prod","job01"]	{"platform": "platform01", "direction":"pull", "args": {"group": "03"}, "enabled": true}	ZSPGI
-["prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
-["prod","job02"]	{"platform": "platform02", "direction":"push", "args": {"group":"03"}, "enabled": true}	11TOKT
-["prod","job02","10.0.0.1"]	{"status":"idle"}	BKEK9
-["prod","job03"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1SF3PY
-["prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
-["prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
-["prod","job03","10.0.0.3"]	{"status":"idle"}	22ES62
-["prod","job04"]	{"platform": "platform04", "direction":"pull", "args": {"group":"03"}, "enabled": false}	16DMNI
-["prod","job05"]	{"platform": "platform05", "direction":"pull", "args": {"group":"02"}, "enabled": false}	13ZI63
-["prod","job06"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	T6SIK
-["prod","job06","10.0.0.1"]	{"status":"idle"}	R9WKE
-["prod","job06","10.0.0.2"]	{"status":"idle"}	1YPVKM
-["prod","job07"]	{"platform": "platform07", "direction":"pull", "args": {"group":"02"}, "enabled": true}	21GJH
-["prod","job07","10.0.0.3"]	{"status":"error"}	1C0VIR
-["prod","job08"]	{"platform": "platform08", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1G8553
-["prod","job08","10.0.0.2"]	{"status":"idle"}	1K5JDG
-["prod","job09"]	{"platform": "platform09", "direction":"push", "args": {"group":"02"}, "enabled": true}	174V1F
-["prod","job09","10.0.0.1"]	{"status":"idle"}	K6X90
-["prod","job10"]	{"platform": "platform10", "direction":"pull", "args": {"group":"02"}, "enabled": true}	203DBM
-["prod","job10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
-["stag","job11"]	{"platform": "platform11", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1UQK0V
-["stag","job11","192.168.0.1"]	{"status":"idle"}	IOW3P
-["stag","job11","192.168.0.2"]	{"status":"idle"}	1YAQRX
-["stag","job12"]	{"platform": "platform12", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1NOQXI
-["stag","job13"]	{"platform": "platform13", "direction":"pull", "args": {"group":"01"}, "enabled": false}	JPIZY
-["stag","job14"]	{"platform": "platform14", "direction":"pull", "args": {"group":"01"}, "enabled": true}	2FBUU
-["stag","job14","192.168.0.1"]	{"status": "idle"}	208ASX
-["stag","job15"]	{"platform": "platform15", "direction":"pull", "args": {"group":"01"}, "enabled": false}	1EX091
-["stag","job16"]	{"platform": "platform16", "direction":"pull", "args": {"group":"01"}, "enabled": true}	VORM4
-["stag","job16","192.168.0.1"]	{"status": "cleaned"}	XYI25
-["stag","job17"]	{"platform": "platform17", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1LVEOW
-["stag","job17","192.168.0.1"]	{"status": "idle"}	1DEQ20
-["stag","job18"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	23SE1K
-["stag","job18","192.168.0.1"]	{"status":"idle"}	PBG1Y
+["baseid","prod","job01"]	{"platform": "platform01", "direction":"pull", "args": {"group": "03"}, "enabled": true}	ZSPGI
+["baseid","prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
+["baseid","prod","job02"]	{"platform": "platform02", "direction":"push", "args": {"group":"03"}, "enabled": true}	11TOKT
+["baseid","prod","job02","10.0.0.1"]	{"status":"idle"}	BKEK9
+["baseid","prod","job03"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1SF3PY
+["baseid","prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
+["baseid","prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
+["baseid","prod","job03","10.0.0.3"]	{"status":"idle"}	22ES62
+["baseid","prod","job04"]	{"platform": "platform04", "direction":"pull", "args": {"group":"03"}, "enabled": false}	16DMNI
+["baseid","prod","job05"]	{"platform": "platform05", "direction":"pull", "args": {"group":"02"}, "enabled": false}	13ZI63
+["baseid","prod","job06"]	{"platform": "platform06", "direction":"pull", "args": {"group":"015"}, "enabled": true}	T6SIK
+["baseid","prod","job06","10.0.0.1"]	{"status":"idle"}	R9WKE
+["baseid","prod","job06","10.0.0.2"]	{"status":"idle"}	1YPVKM
+["baseid","prod","job07"]	{"platform": "platform07", "direction":"pull", "args": {"group":"02"}, "enabled": true}	21GJH
+["baseid","prod","job07","10.0.0.3"]	{"status":"error"}	1C0VIR
+["baseid","prod","job08"]	{"platform": "platform08", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1G8553
+["baseid","prod","job08","10.0.0.2"]	{"status":"idle"}	1K5JDG
+["baseid","prod","job09"]	{"platform": "platform09", "direction":"push", "args": {"group":"02"}, "enabled": true}	174V1F
+["baseid","prod","job09","10.0.0.1"]	{"status":"idle"}	K6X90
+["baseid","prod","job10"]	{"platform": "platform10", "direction":"pull", "args": {"group":"02"}, "enabled": true}	203DBM
+["baseid","prod","job10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
+["baseid","stag","job11"]	{"platform": "platform11", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1UQK0V
+["baseid","stag","job11","192.168.0.1"]	{"status":"idle"}	IOW3P
+["baseid","stag","job11","192.168.0.2"]	{"status":"idle"}	1YAQRX
+["baseid","stag","job12"]	{"platform": "platform12", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1NOQXI
+["baseid","stag","job13"]	{"platform": "platform13", "direction":"pull", "args": {"group":"01"}, "enabled": false}	JPIZY
+["baseid","stag","job14"]	{"platform": "platform14", "direction":"pull", "args": {"group":"01"}, "enabled": true}	2FBUU
+["baseid","stag","job14","192.168.0.1"]	{"status": "idle"}	208ASX
+["baseid","stag","job15"]	{"platform": "platform15", "direction":"pull", "args": {"group":"01"}, "enabled": false}	1EX091
+["baseid","stag","job16"]	{"platform": "platform16", "direction":"pull", "args": {"group":"01"}, "enabled": true}	VORM4
+["baseid","stag","job16","192.168.0.1"]	{"status": "cleaned"}	XYI25
+["baseid","stag","job17"]	{"platform": "platform17", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1LVEOW
+["baseid","stag","job17","192.168.0.1"]	{"status": "idle"}	1DEQ20
+["baseid","stag","job18"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	23SE1K
+["baseid","stag","job18","192.168.0.1"]	{"status":"idle"}	PBG1Y
     *****/
 
     /** Size & positioning parameters */
@@ -253,11 +253,11 @@ function init(container, width, height) {
         var tooltipHeight = d.scrollHeight;
         var tooltipWidth = d.scrollWidth;
 
-        var left = d3.event.pageX - 30;
+        var left = d3.event.pageX + 15;
         if(left + tooltipWidth + 5 > availableWidth) {
             left = Math.max(availableWidth-tooltipWidth-5, 0);
         }
-        var top = d3.event.pageY - 40;
+        var top = d3.event.pageY + 15;
         if(top + tooltipHeight + 5 > availableHeight) {
             top = Math.max(availableHeight-tooltipHeight-5, 0);
         }
@@ -492,7 +492,7 @@ function init(container, width, height) {
                 }
                 var dirX = positions[d.source].x - positions[d.target].x;
                 var dirY = positions[d.source].y - positions[d.target].y;
-                var dirM = Math.sqrt(dirX * dirX + dirY + dirY);
+                var dirM = Math.sqrt(dirX*dirX + dirY*dirY);
                 if(dirM > 0.01) {
                     dirX /= dirM;
                     dirY /= dirM;
@@ -502,20 +502,36 @@ function init(container, width, height) {
                 }
 
                 var jobsId = Object.keys(d.jobs);
-                // TODO: We only support 4 set of jobs in the same line.
-                var step, start;
+                var step;
                 if(jobsId.length !== 0) {
-                    step = Math.min(0.8/jobsId.length, 0.2);
-                    start = 0.5 - step*(jobsId.length-1)*0.5;
+                    step = 0.8/jobsId.length;
                 }
+
+                var pullJobs = [];
+                var pushJobs = [];
                 for(var i = 0; i < jobsId.length; ++i) {
+                    if(d.jobs[jobsId[i]].direction === "pull") {
+                        pullJobs.push(d.jobs[jobsId[i]]);
+                    } else {
+                        pushJobs.push(d.jobs[jobsId[i]]);
+                    }
+                }
+
+                // TODO: How to merge this too loops in one function... 
+                var start = 0.225;
+                var dir = {x: dirX, y: dirY};
+                for(var i = 0; i < pushJobs.length; ++i) {
+                    var pct = start + i * step;
+                    var midX = (1 - pct) * positions[d.source].x + pct * positions[d.target].x;
+                    var midY = (1 - pct) * positions[d.source].y + pct * positions[d.target].y;
+                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
+                }
+
+                dir = {x: -dirX, y: -dirY};
+                for(var i = 0; i < pullJobs.length; ++i) {
                     var pct = start + i * step;
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
-                    var dir = {x: dirX, y: dirY};
-                    if(d.jobs[jobsId[i]].direction === "pull") {
-                        dir = {x: -dirX, y: -dirY};
-                    }
                     linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
                 }
             });
