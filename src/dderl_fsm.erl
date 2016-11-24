@@ -60,6 +60,7 @@
         , get_query/1
         , get_table_name/1
         , get_distinct_count/2
+        , get_distinct_statistics/2
         , get_statistics/2
         , get_statistics/3
         , get_sender_params/1
@@ -284,6 +285,10 @@ get_table_name({?MODULE, Pid}) ->
 -spec get_distinct_count(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_distinct_count(ColumnId, {?MODULE, Pid}) ->
     gen_fsm:sync_send_all_state_event(Pid, {distinct_count, ColumnId}, 60000).
+
+-spec get_distinct_statistics(pos_integer(), {atom(), pid()}) -> [tuple()].
+get_distinct_statistics(ColumnId, {?MODULE, Pid}) ->
+    gen_fsm:sync_send_all_state_event(Pid, {distinct_statistics, ColumnId}, 60000).
 
 -spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
 get_statistics(ColumnIds, {?MODULE, Pid}) ->
@@ -1286,6 +1291,7 @@ format_stat_rows([ColName | RestColNames], [{CountTotal, Count, Min, Max, Sum, S
               end,
     Variance = case Count of
                    0 -> undefined;
+                   1 -> 0;
                    _ -> abs(Squares - Sum * Sum / Count) / (Count - 1)
                end,
     StdDev = case Count of
@@ -1469,7 +1475,7 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
     end,
-    ?Info("Getting the distinct_count of the column ~p, nav ~p", [ColumnId, Nav]),
+    ?Info("Getting the distinct count of the column(s) ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
             {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
@@ -1487,26 +1493,69 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
             OldCount -> {Total+1, lists:keyreplace(Value, 1, CountList, {Value, OldCount+1})}
         end
     end, {0, []}, TableUsed),
-    ?Debug("Histo Rows ~p", [Result]),
-    HistoRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
-    HistoRowsCount = length(lists:nth(1, HistoRows)) - 1,
-    HistoRowsLen = HistoRowsCount - 2,
+    ?Debug("Distinct Count Rows ~p", [Result]),
+    DistinctCountRows = [[nop | Value] ++ [integer_to_binary(Count), 100 * Count / Total] || {Value, Count} <- Result],
+    DistinctCountRowsCount = length(lists:nth(1, DistinctCountRows)) - 1,
+    DistinctCountRowsLen = DistinctCountRowsCount - 2,
     SortFun = fun(X,Y) ->
-        XCount = binary_to_integer(lists:nth(HistoRowsCount, X)),
-        YCount = binary_to_integer(lists:nth(HistoRowsCount, Y)),
+        XCount = binary_to_integer(lists:nth(DistinctCountRowsCount, X)),
+        YCount = binary_to_integer(lists:nth(DistinctCountRowsCount, Y)),
         if
              XCount > YCount -> true;
              XCount < YCount -> false;
-             true -> sort_histo_rows(lists:sublist(X, 2, HistoRowsLen), lists:sublist(Y, 2, HistoRowsLen))
+             true -> sort_distinct_count_rows(lists:sublist(X, 2, DistinctCountRowsLen), lists:sublist(Y, 2, DistinctCountRowsLen))
         end
     end,
-    HistoRowsSort = lists:sort(SortFun,HistoRows),
-    HistoRowsWithId = [[Idx | lists:nth(Idx, HistoRowsSort)] || Idx <- lists:seq(1, length(HistoRowsSort))],
+    DistinctCountRowsSort = lists:sort(SortFun,DistinctCountRows),
+    DistinctCountRowsWithId = [[Idx | lists:nth(Idx, DistinctCountRowsSort)] || Idx <- lists:seq(1, length(DistinctCountRowsSort))],
     ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
-    HistoColumns = ColInfo ++
+    DistinctCountColumns = ColInfo ++
         [#stmtCol{alias = <<"count">>, type = float, readonly = true}
         ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
-    {reply, {Total, HistoColumns, HistoRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
+    {reply, {Total, DistinctCountColumns, DistinctCountRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
+handle_sync_event({distinct_statistics, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = StmtCols}} = State) ->
+    case Nav of
+        raw -> TableUsed = TableId;
+        _ -> TableUsed = IndexId
+    end,
+    ?Info("Getting the distinct statistics of the column(s) ~p, nav ~p", [ColumnId, Nav]),
+    {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
+        RealRow = case Row of
+                      {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
+                      Row -> Row
+                  end,
+        case RealRow of
+            {_, _, RK} ->
+                ExpandedRow = RowFun(RK),
+                Value = [lists:nth(Column, ExpandedRow) || Column <- ColumnId];
+            _ ->
+                Value = [element(3 + Column, RealRow) || Column <- ColumnId]
+        end,
+        {Total + 1, [Value | CountList]}
+                                end, {0, []}, TableUsed),
+    SColumn = length(ColumnId),
+    GColumns = SColumn - 1,
+    ResultsGrouped = group_distinct_statistics(Result, GColumns, SColumn, maps:new()),
+    ResultsCalculated = calculate_distinct_statistics(ResultsGrouped, []),
+    ResultRowsWithId = [[Idx | lists:nth(Idx, ResultsCalculated)] || Idx <- lists:seq(1, length(ResultsCalculated))],
+    ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- lists:sublist(ColumnId, 1, GColumns)],
+    ResultColumns = ColInfo ++
+        [#stmtCol{alias = <<"count">>, type = binstr, readonly = true}
+            , #stmtCol{alias = <<"min">>, type = binstr, readonly = true}
+            , #stmtCol{alias = <<"max">>, type = binstr, readonly = true}
+            , #stmtCol{alias = <<"sum">>, type = float, readonly = true}
+            , #stmtCol{alias = <<"avg">>, type = float, readonly = true}
+            , #stmtCol{alias = <<"median">>, type = float, readonly = true}
+            , #stmtCol{alias = <<"std_dev">>, type = float, readonly = true}
+            , #stmtCol{alias = <<"variance">>, type = float, readonly = true}
+            , #stmtCol{alias = <<"hash">>, type = float, readonly = true}],
+    try
+        {reply, {Total, ResultColumns, ResultRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity}
+    catch
+        _:Error ->
+            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
+                , SN, State, infinity}
+    end;
 handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,
@@ -1542,10 +1591,105 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
 handle_sync_event(_Event, _From, empty, StateData) ->
     {no_reply, empty, StateData, infinity}.
 
-sort_histo_rows([], []) -> true;
-sort_histo_rows([XH | _], [YH | _]) when XH < YH -> true;
-sort_histo_rows([XH | _], [YH | _]) when XH > YH -> false;
-sort_histo_rows([_ | XT], [_ | YT]) -> sort_histo_rows(XT, YT).
+calculate_base_values([], {CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList}) ->
+    {CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList};
+calculate_base_values([Value | Tail], {CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList}) ->
+    calculate_base_values(Tail, case bin_to_number(Value) of
+                                    {error, _} ->
+                                        {
+                                            CountTotal + 1,
+                                            Count, case Min of
+                                                       undefined ->
+                                                           Value;
+                                                       _ ->
+                                                           min(Min, Value)
+                                                   end,
+                                            case Max of
+                                                undefined ->
+                                                    Value;
+                                                _ ->
+                                                    max(Max, Value)
+                                            end,
+                                            Sum,
+                                            Squares,
+                                            [Value | HashList],
+                                            MedianList
+                                        };
+                                    Number ->
+                                        MinNew = case Min of
+                                                     undefined ->
+                                                         Number;
+                                                     _ ->
+                                                         min(Min, Number)
+                                                 end,
+                                        MaxNew = case Max of
+                                                     undefined ->
+                                                         Number;
+                                                     _ ->
+                                                         max(Max, Number)
+                                                 end,
+                                        {
+                                            CountTotal + 1,
+                                            Count + 1,
+                                            MinNew,
+                                            MaxNew,
+                                            Sum + Number,
+                                            Squares + Number * Number,
+                                            [Value | HashList],
+                                            [binary_to_number(Value) | MedianList]
+                                        }
+                                end).
+
+calculate_distinct_statistics([], CalculatedData) ->
+    CalculatedData;
+calculate_distinct_statistics([{GroupingData, StatsData} | Tail] = _InWWE, CalculatedData) ->
+    {CountTotal, Count, Min, Max, SumInt, Squares, HashList, MedianList} = calculate_base_values(StatsData, {0, 0, undefined, undefined, 0, 0, [], []}),
+    {Average, Median, Sum, Variance} = case Count of
+                                           0 ->
+                                               {
+                                                   undefined,
+                                                   undefined,
+                                                   undefined,
+                                                   undefined
+                                               };
+                                           _ ->
+                                               {
+                                                   SumInt / Count,
+                                                   calculate_median(MedianList),
+                                                   SumInt,
+                                                   case Count == 1 of
+                                                       true ->
+                                                           0;
+                                                       _ ->
+                                                           abs(Squares - SumInt * SumInt / Count) / (Count - 1)
+                                                   end
+                                               }
+                                       end,
+    StdDev = case Count of
+                 0 ->
+                     undefined;
+                 _ ->
+                     math:sqrt(Variance)
+             end,
+    calculate_distinct_statistics(Tail, CalculatedData ++ [[nop] ++ GroupingData ++ [list_to_binary(io_lib:format("~p / ~p", [CountTotal, Count])), Min, Max, Sum, Average, Median, StdDev, Variance, erlang:phash2(erlang:list_to_binary(HashList))]]).
+
+group_distinct_statistics([], _, _, Map) ->
+    lists:sort(maps:to_list(Map));
+group_distinct_statistics([Row | Tail], GColumns, SColumn, Map) ->
+    Key = lists:sublist(Row, 1, GColumns),
+    Value = lists:nth(SColumn, Row),
+    MapNew = case maps:find(Key, Map) of
+                 error ->
+                     maps:put(Key, [Value], Map);
+                 {ok, ValueOld} ->
+                     maps:update(Key, ValueOld ++ [Value], Map)
+             end,
+    group_distinct_statistics(Tail, GColumns, SColumn, MapNew).
+
+sort_distinct_count_rows([], []) -> true;
+sort_distinct_count_rows([XH | _], [YH | _]) when XH < YH -> true;
+sort_distinct_count_rows([XH | _], [YH | _]) when XH > YH -> false;
+sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT).
 
 %% --------------------------------------------------------------------
 %% Func: handle_info/3

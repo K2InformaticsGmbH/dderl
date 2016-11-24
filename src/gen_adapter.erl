@@ -76,7 +76,7 @@ opt_bind_json_obj(Sql, Adapter) ->
     end.
 
 sql_params(Sql, Types) ->
-    RegEx = "[^a-zA-Z0-9(]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
+    RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
             ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
         {ok, PTree} = sqlparse:parsetree(Sql),
@@ -290,26 +290,55 @@ process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _
         {error, Error, St} ->
             ?Error("Distinct count error ~p", [Error], St),
             jsx:encode([{<<"distinct_count">>, [{error, Error}]}]);
-        {Total, ColRecs, HistoRows, SN} ->
-            HistoJson = gui_resp(#gres{operation = <<"rpl">>
+        {Total, ColRecs, DistinctCountRows, SN} ->
+            DistinctCountJson = gui_resp(#gres{operation = <<"rpl">>
                                       ,cnt       = Total
                                       ,toolTip   = <<"">>
                                       ,message   = <<"">>
                                       ,beep      = <<"">>
                                       ,state     = SN
                                       ,loop      = <<"">>
-                                      ,rows      = HistoRows
+                                      ,rows      = DistinctCountRows
                                       ,keep      = <<"">>
                                       ,focus     = 0
                                       ,sql       = <<"">>
                                       ,disable   = <<"">>
                                       ,promote   = <<"">>}
                                 ,ColRecs),
-            jsx:encode([{<<"distinct_count">>, [{type, <<"histo">>}
+            jsx:encode([{<<"distinct_count">>, [{type, <<"distinct_count">>}
                                           ,{column_ids, [ColumnId]}
                                           ,{cols, build_column_json(lists:reverse(ColRecs))}
-                                          ,{gres, HistoJson}]}])
+                                          ,{gres, DistinctCountJson}]}])
     end,
+    From ! {reply, RespJson};
+process_cmd({[<<"distinct_statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
+    [{<<"distinct_statistics">>, BodyJson}] = ReqBody,
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
+    RespJson = case Statement:get_distinct_statistics(ColumnId) of
+                   {error, Error, St} ->
+                       ?Error("Distinct statistics error ~p", [Error], St),
+                       jsx:encode([{<<"distinct_statistics">>, [{error, Error}]}]);
+                   {Total, ColRecs, DistinctStatisticsRows, SN} ->
+                       DistinctStatisticsJson = gui_resp(#gres{operation = <<"rpl">>
+                           ,cnt       = Total
+                           ,toolTip   = <<"">>
+                           ,message   = <<"">>
+                           ,beep      = <<"">>
+                           ,state     = SN
+                           ,loop      = <<"">>
+                           ,rows      = DistinctStatisticsRows
+                           ,keep      = <<"">>
+                           ,focus     = 0
+                           ,sql       = <<"">>
+                           ,disable   = <<"">>
+                           ,promote   = <<"">>}
+                           ,ColRecs),
+                       jsx:encode([{<<"distinct_statistics">>, [{type, <<"stats">>}
+                           ,{column_ids, [ColumnId]}
+                           ,{cols, build_column_json(lists:reverse(ColRecs))}
+                           ,{gres, DistinctStatisticsJson}]}])
+               end,
     From ! {reply, RespJson};
 process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"statistics">>, BodyJson}] = ReqBody,
@@ -442,7 +471,6 @@ process_cmd({[<<"list_d3_templates">>], _ReqBody}, _Adapter, _Sess, _UserId, Fro
             ?Error("Error reading the d3 templates: ~p", [Reason]),
             []
     end,
-    ?Info("the template list ~p", [TemplateList]),
     RespJson = jsx:encode([{<<"list_d3_templates">>, TemplateList}]),
     From ! {reply, RespJson};
 

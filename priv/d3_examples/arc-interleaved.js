@@ -11,41 +11,41 @@ function init(container, width, height) {
     // Copy and paste the following data in the table:
     /*****
 
-["prod","job01"]	{"platform": "platform01", "direction":"pull", "args": {"group": "03"}, "enabled": true}	ZSPGI
-["prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
-["prod","job02"]	{"platform": "platform02", "direction":"push", "args": {"group":"03"}, "enabled": true}	11TOKT
-["prod","job02","10.0.0.1"]	{"status":"idle"}	BKEK9
-["prod","job03"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1SF3PY
-["prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
-["prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
-["prod","job03","10.0.0.3"]	{"status":"idle"}	22ES62
-["prod","job04"]	{"platform": "platform04", "direction":"pull", "args": {"group":"03"}, "enabled": false}	16DMNI
-["prod","job05"]	{"platform": "platform05", "direction":"pull", "args": {"group":"02"}, "enabled": false}	13ZI63
-["prod","job06"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	T6SIK
-["prod","job06","10.0.0.1"]	{"status":"idle"}	R9WKE
-["prod","job06","10.0.0.2"]	{"status":"idle"}	1YPVKM
-["prod","job07"]	{"platform": "platform07", "direction":"pull", "args": {"group":"02"}, "enabled": true}	21GJH
-["prod","job07","10.0.0.3"]	{"status":"error"}	1C0VIR
-["prod","job08"]	{"platform": "platform08", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1G8553
-["prod","job08","10.0.0.2"]	{"status":"idle"}	1K5JDG
-["prod","job09"]	{"platform": "platform09", "direction":"push", "args": {"group":"02"}, "enabled": true}	174V1F
-["prod","job09","10.0.0.1"]	{"status":"idle"}	K6X90
-["prod","job10"]	{"platform": "platform10", "direction":"pull", "args": {"group":"02"}, "enabled": true}	203DBM
-["prod","job10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
-["stag","job11"]	{"platform": "platform11", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1UQK0V
-["stag","job11","192.168.0.1"]	{"status":"idle"}	IOW3P
-["stag","job11","192.168.0.2"]	{"status":"idle"}	1YAQRX
-["stag","job12"]	{"platform": "platform12", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1NOQXI
-["stag","job13"]	{"platform": "platform13", "direction":"pull", "args": {"group":"01"}, "enabled": false}	JPIZY
-["stag","job14"]	{"platform": "platform14", "direction":"pull", "args": {"group":"01"}, "enabled": true}	2FBUU
-["stag","job14","192.168.0.1"]	{"status": "idle"}	208ASX
-["stag","job15"]	{"platform": "platform15", "direction":"pull", "args": {"group":"01"}, "enabled": false}	1EX091
-["stag","job16"]	{"platform": "platform16", "direction":"pull", "args": {"group":"01"}, "enabled": true}	VORM4
-["stag","job16","192.168.0.1"]	{"status": "cleaned"}	XYI25
-["stag","job17"]	{"platform": "platform17", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1LVEOW
-["stag","job17","192.168.0.1"]	{"status": "idle"}	1DEQ20
-["stag","job18"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	23SE1K
-["stag","job18","192.168.0.1"]	{"status":"idle"}	PBG1Y
+["baseid","prod","job01"]	{"platform": "platform01", "direction":"pull", "args": {"group": "03"}, "enabled": true}	ZSPGI
+["baseid","prod","job01","10.0.0.1"]	{"status":"idle"}	1UUXWW
+["baseid","prod","job02"]	{"platform": "platform02", "direction":"push", "args": {"group":"03"}, "enabled": true}	11TOKT
+["baseid","prod","job02","10.0.0.1"]	{"status":"idle"}	BKEK9
+["baseid","prod","job03"]	{"platform": "platform02", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1SF3PY
+["baseid","prod","job03","10.0.0.1"]	{"status":"idle"}	KG4FV
+["baseid","prod","job03","10.0.0.2"]	{"status":"idle"}	TZ1G7
+["baseid","prod","job03","10.0.0.3"]	{"status":"idle"}	22ES62
+["baseid","prod","job04"]	{"platform": "platform04", "direction":"pull", "args": {"group":"03"}, "enabled": false}	16DMNI
+["baseid","prod","job05"]	{"platform": "platform05", "direction":"pull", "args": {"group":"02"}, "enabled": false}	13ZI63
+["baseid","prod","job06"]	{"platform": "platform06", "direction":"pull", "args": {"group":"015"}, "enabled": true}	T6SIK
+["baseid","prod","job06","10.0.0.1"]	{"status":"idle"}	R9WKE
+["baseid","prod","job06","10.0.0.2"]	{"status":"idle"}	1YPVKM
+["baseid","prod","job07"]	{"platform": "platform07", "direction":"pull", "args": {"group":"02"}, "enabled": true}	21GJH
+["baseid","prod","job07","10.0.0.3"]	{"status":"error"}	1C0VIR
+["baseid","prod","job08"]	{"platform": "platform08", "direction":"pull", "args": {"group":"03"}, "enabled": true}	1G8553
+["baseid","prod","job08","10.0.0.2"]	{"status":"idle"}	1K5JDG
+["baseid","prod","job09"]	{"platform": "platform09", "direction":"push", "args": {"group":"02"}, "enabled": true}	174V1F
+["baseid","prod","job09","10.0.0.1"]	{"status":"idle"}	K6X90
+["baseid","prod","job10"]	{"platform": "platform10", "direction":"pull", "args": {"group":"02"}, "enabled": true}	203DBM
+["baseid","prod","job10","10.0.0.1"]	{"status": "refreshed"}	XC5I1
+["baseid","stag","job11"]	{"platform": "platform11", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1UQK0V
+["baseid","stag","job11","192.168.0.1"]	{"status":"idle"}	IOW3P
+["baseid","stag","job11","192.168.0.2"]	{"status":"idle"}	1YAQRX
+["baseid","stag","job12"]	{"platform": "platform12", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1NOQXI
+["baseid","stag","job13"]	{"platform": "platform13", "direction":"pull", "args": {"group":"01"}, "enabled": false}	JPIZY
+["baseid","stag","job14"]	{"platform": "platform14", "direction":"pull", "args": {"group":"01"}, "enabled": true}	2FBUU
+["baseid","stag","job14","192.168.0.1"]	{"status": "idle"}	208ASX
+["baseid","stag","job15"]	{"platform": "platform15", "direction":"pull", "args": {"group":"01"}, "enabled": false}	1EX091
+["baseid","stag","job16"]	{"platform": "platform16", "direction":"pull", "args": {"group":"01"}, "enabled": true}	VORM4
+["baseid","stag","job16","192.168.0.1"]	{"status": "cleaned"}	XYI25
+["baseid","stag","job17"]	{"platform": "platform17", "direction":"pull", "args": {"group":"01"}, "enabled": true}	1LVEOW
+["baseid","stag","job17","192.168.0.1"]	{"status": "idle"}	1DEQ20
+["baseid","stag","job18"]	{"platform": "platform06", "direction":"pull", "args": {"group":"01"}, "enabled": true}	23SE1K
+["baseid","stag","job18","192.168.0.1"]	{"status":"idle"}	PBG1Y
     *****/
 
     /** Size & positioning parameters */
@@ -53,15 +53,21 @@ function init(container, width, height) {
     // virtual coordinates drawing arc radius
     var vArcRadius = 1000;
     // node radius in virtual coordinates
-    var nradius = 90; // TODO: 90 for 17 nodes seems ok, formula ?
-
+    var nradius = 100;
     var animDuration = 500;
 
-    var centerNodes = {
-        // Position relative to the bottom center after margin.
-        stag: { position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
-        prod: { position: { x: 0, y: -nradius }, status: 'idle' }
-    };
+    var initGraph = function() {
+        return {
+            links: {},
+            nodes: {},
+            status: {},
+            center: {
+                // Position relative to the bottom center after margin.
+                stag: { position: { x: -1.9 * nradius, y: 0.3 * nradius }, status: 'idle' },
+                prod: { position: { x: 0, y: -nradius }, status: 'idle' }
+            }
+        };
+    }
 
     /** Helper functions for data extraction */
     var parseError = function(term) {
@@ -91,29 +97,58 @@ function init(container, width, height) {
         var links = graph.links;
         var nodes = graph.nodes;
         var status = graph.status;
+        var center = graph.center;
         rows.forEach(function(row) {
             var key = getKey(row);
             var value = getValue(row);
 
-            if(key.length === 3) {
-                var triangleId = key[0] + '_' + key[1] + '_' + key[2];
-                var jobId = key[0] + '_' + key[1];
-                status[triangleId] = {
-                    id: triangleId,
-                    job: jobId,
-                    status: value.status
-                };
-            } else if(key.length === 2) {
+            if (key.length == 3 && key[1] == "heartbeat") {
+                // Ignored heartbeat entries.
+            } else if(key.length === 4 && key[2] != "error") {
+                var triangleId = key[1] + '_' + key[2] + '_' + key[3];
+                var jobId = key[1] + '_' + key[2];
+                if (row.op === "del") {
+                    delete status[triangleId];
+                } else { 
+                    status[triangleId] = {
+                        id: triangleId,
+                        job: jobId,
+                        status: value.status
+                    };
+                }
+            } else if(key.length === 4 && key[2] == "error") {
+                if (row.op === "del") {
+                    delete center[key[1]][key[3] + "_error"];
+                    var still_errors = false;
+                    var centerOtherKeys = Object.keys(center[key[1]]);
+                    for(var kIdx = 0; kIdx < centerOtherKeys.length; ++kIdx) {
+                        if(centerOtherKeys[kIdx].includes("_error")) {
+                            still_errors = true;
+                            break;
+                        }
+                    }
+                    if (!still_errors) {
+                        center[key[1]].status = "idle";
+                    }
+                } else {
+                    console.log("Setting status error");
+                    center[key[1]].status = "error";
+                    center[key[1]][key[3] + "_error"] = value;
+                }
+            } else if(key.length === 3 && key[2] != "error") {
                 var nodeId = value.platform;
                 var group = value.args.group;
-                if(!centerNodes.hasOwnProperty(nodeId)) {
+                if(!group) {
+                    group = "01";
+                }
+                if(!center.hasOwnProperty(nodeId)) {
                     nodes[nodeId] = {
                         id: nodeId,
                         group: group
                     };
                 }
-                var linkId = key[0] + '_' + nodeId;
-                var jobId = key[0] + '_' + key[1];
+                var linkId = key[1] + '_' + nodeId;
+                var jobId = key[1] + '_' + key[2];
                 var jobs = {};
                 if(links.hasOwnProperty(linkId)) {
                     jobs = links[linkId].jobs;
@@ -121,7 +156,7 @@ function init(container, width, height) {
                 }
                 jobs[jobId] = {
                     id: jobId,
-                    legend: key[1],
+                    legend: key[2],
                     enabled: value.enabled,
                     direction: value.direction
                 };
@@ -135,14 +170,14 @@ function init(container, width, height) {
 
                 links[linkId] = {
                     id: linkId,
-                    source: key[0],
+                    source: key[1],
                     target: nodeId,
                     enabled: enabled,
                     jobs: jobs
                 };
             }
         });
-        return { links: links, nodes: nodes, status: status };
+        return { links: links, nodes: nodes, status: status, center: center};
     };
     /** End data extraction functions */
 
@@ -218,11 +253,11 @@ function init(container, width, height) {
         var tooltipHeight = d.scrollHeight;
         var tooltipWidth = d.scrollWidth;
 
-        var left = d3.event.pageX - 30;
+        var left = d3.event.pageX + 15;
         if(left + tooltipWidth + 5 > availableWidth) {
             left = Math.max(availableWidth-tooltipWidth-5, 0);
         }
-        var top = d3.event.pageY - 40;
+        var top = d3.event.pageY + 15;
         if(top + tooltipHeight + 5 > availableHeight) {
             top = Math.max(availableHeight-tooltipHeight-5, 0);
         }
@@ -253,7 +288,7 @@ function init(container, width, height) {
         return res;
     }
 
-    var graph = { links: {}, nodes: {}, status: {} };
+    var graph = initGraph();
     var firstData = true;
     return {
         on_data: function(data) {
@@ -263,11 +298,17 @@ function init(container, width, height) {
 
             if(firstData) {
                 firstData = false;
+
                 // Add center nodes
-                svg.selectAll('circle')
-                    .data(entries(centerNodes), function(d) { return d.id; })
+                var NewCenterNodesDom = svg.selectAll('.center-nodes')
+                    .data(entries(graph.center), function(d) {
+                        return d.id;
+                    })
                     .enter()
-                    .append('circle')
+                    .append('g')
+                    .attr("class", "center-nodes");
+
+                NewCenterNodesDom.append('circle')
                     .attr('r', nradius)
                     .attr('cx', function(d) { return d.position.x; })
                     .attr('cy', function(d) { return d.position.y; })
@@ -278,6 +319,13 @@ function init(container, width, height) {
                     .on('mouseover', showTooltip)
                     .on('mousemove', moveTooltip)
                     .on('mouseout', hideTooltip);
+
+                NewCenterNodesDom.append('text')
+                    .text(function(d) {
+                        return d.id;
+                    })
+                    .style('font-size', '24px')
+                    .style('text-anchor', 'middle');
             }
 
             graph = extractLinksNodes(data, graph);
@@ -286,6 +334,28 @@ function init(container, width, height) {
             var nodes = entries(graph.nodes);
             var links = entries(graph.links);
             var status = entries(graph.status);
+            var center = entries(graph.center);
+
+            var numberNodes = nodes.length;
+            vArcRadius = Math.max((numberNodes*nradius*1.8)/Math.PI, 1000);
+            vBox = {
+                x: -1 * (vArcRadius + nradius),
+                y: -1 * (vArcRadius + nradius),
+                w: vArcRadius * 2 + nradius * 2,
+                h: vArcRadius + 3 * nradius
+            }
+            svg.attr('viewBox', vBox.x + ' ' + vBox.y + ' ' + vBox.w + ' ' + vBox.h);
+
+            console.log("center", center);
+
+            svg.selectAll('.center-nodes')
+                .data(center, function(d) {
+                    return d.id;
+                })
+                .selectAll('circle')
+                .style('fill', function(d) {
+                    return colorStatus[d.status];
+                });
 
             var newNodes = svg.selectAll('.node')
                 .data(nodes, function(d) {
@@ -305,8 +375,7 @@ function init(container, width, height) {
                 .style('fill', 'white')
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
-                .on('mouseout', hideTooltip)
-                .on('click', openView);
+                .on('mouseout', hideTooltip);
 
             newNodes.append('text')
                 .text(function(d) {
@@ -342,8 +411,8 @@ function init(container, width, height) {
                 positions[nData[i].id] = {x: x, y: y};
             }
             // Append center node positions.
-            for(var k in centerNodes) {
-                positions[k] = centerNodes[k].position;
+            for(var k in graph.center) {
+                positions[k] = graph.center[k].position;
             }
 
             allPoints
@@ -360,6 +429,8 @@ function init(container, width, height) {
                 .transition()
                 .duration(animDuration)
                 .attr('x', function(d) {
+                    console.log("Positions : ", positions);
+                    console.log("ID : ", d);
                     return positions[d.id].x;
                 })
                 .attr('y', function(d) {
@@ -371,7 +442,7 @@ function init(container, width, height) {
                     return d.id;
                 })
                 .enter()
-                .insert('line', 'circle')
+                .insert('line', '.center-nodes')
                 .attr('stroke-width', 6)
                 .attr('id', function(d) {
                     return d.id;
@@ -421,7 +492,7 @@ function init(container, width, height) {
                 }
                 var dirX = positions[d.source].x - positions[d.target].x;
                 var dirY = positions[d.source].y - positions[d.target].y;
-                var dirM = Math.sqrt(dirX * dirX + dirY + dirY);
+                var dirM = Math.sqrt(dirX*dirX + dirY*dirY);
                 if(dirM > 0.01) {
                     dirX /= dirM;
                     dirY /= dirM;
@@ -431,21 +502,36 @@ function init(container, width, height) {
                 }
 
                 var jobsId = Object.keys(d.jobs);
-                // TODO: We only support 4 set of jobs in the same line.
-                var step, start;
+                var step;
                 if(jobsId.length !== 0) {
-                    step = Math.min(0.8/jobsId.length, 0.2);
-                    start = 0.5 - step*(jobsId.length-1)*0.5;
+                    step = 0.8/jobsId.length;
                 }
+
+                var pullJobs = [];
+                var pushJobs = [];
                 for(var i = 0; i < jobsId.length; ++i) {
+                    if(d.jobs[jobsId[i]].direction === "pull") {
+                        pullJobs.push(d.jobs[jobsId[i]]);
+                    } else {
+                        pushJobs.push(d.jobs[jobsId[i]]);
+                    }
+                }
+
+                // TODO: How to merge this too loops in one function... 
+                var start = 0.225;
+                var dir = {x: dirX, y: dirY};
+                for(var i = 0; i < pushJobs.length; ++i) {
                     var pct = start + i * step;
-                    console.log("the pct", pct);
+                    var midX = (1 - pct) * positions[d.source].x + pct * positions[d.target].x;
+                    var midY = (1 - pct) * positions[d.source].y + pct * positions[d.target].y;
+                    linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
+                }
+
+                dir = {x: -dirX, y: -dirY};
+                for(var i = 0; i < pullJobs.length; ++i) {
+                    var pct = start + i * step;
                     var midX = pct * positions[d.source].x + (1 - pct) * positions[d.target].x;
                     var midY = pct * positions[d.source].y + (1 - pct) * positions[d.target].y;
-                    var dir = {x: dirX, y: dirY};
-                    if(d.jobs[jobsId[i]].direction === "pull") {
-                        dir = {x: -dirX, y: -dirY};
-                    }
                     linksMid[jobsId[i]] = {mid: {x: midX, y: midY}, direction: dir};
                 }
             });
@@ -457,14 +543,17 @@ function init(container, width, height) {
                     groupStatus[s.job] = 0;
                 }
                 statusPos[s.id] = groupStatus[s.job];
-                groupStatus[s.job] = groupStatus[s.job] + 1;                
+                groupStatus[s.job] = groupStatus[s.job] + 1;
             });
 
-            svg.selectAll('polygon')
+            var polySelection = svg.selectAll('polygon')
                 .data(status, function(d) {
                     return d.id;
-                })
-                .enter()
+                });
+
+            polySelection.exit().remove();
+
+            polySelection.enter()
                 .append('polygon')
                 .attr('id', function(d) {
                     return d.id;
@@ -473,20 +562,22 @@ function init(container, width, height) {
                 .on('mouseover', showTooltip)
                 .on('mousemove', moveTooltip)
                 .on('mouseout', hideTooltip);
-            
+
             svg.selectAll('polygon')
                 .transition()
                 .duration(animDuration)
                 .attr('transform', function(d) {
                     if(!linksMid[d.job]) {
-                        throw new Error(JSON.stringify(d.job));
+                        console.log("Moving outside the visible area as we don't have a position yet", JSON.stringify(d.job));
+                        return "translate(0, 250) rotate(180)"
+                    } else {
+                        var dx = linksMid[d.job].direction.x;
+                        var dy = linksMid[d.job].direction.y;
+                        var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
+                        var x = linksMid[d.job].mid.x + statusPos[d.id] * dx * 20;
+                        var y = linksMid[d.job].mid.y + statusPos[d.id] * dy * 20;
+                        return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                     }
-                    var dx = linksMid[d.job].direction.x;
-                    var dy = linksMid[d.job].direction.y;
-                    var angle = -1 * Math.atan2(dx, dy) * 180 / Math.PI;
-                    var x = linksMid[d.job].mid.x + statusPos[d.id] * dx * 20;
-                    var y = linksMid[d.job].mid.y + statusPos[d.id] * dy * 20;
-                    return "translate(" + x + ", " + y + ") rotate(" + angle + ")";
                 })
                 .style('stroke', 'black')
                 .style('stroke-width', 3)
@@ -497,6 +588,7 @@ function init(container, width, height) {
         on_resize: resize,
         on_reset: function() {
             svg.selectAll('svg > *').remove();
+            graph = initGraph();
             firstData = true;
         },
         on_close: function() {
