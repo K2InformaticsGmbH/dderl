@@ -519,6 +519,12 @@ process_cmd({[<<"open_graph_view">>], ReqBody}, Sess, UserId, From,
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
     Priv;
+process_cmd({[<<"graph_subscribe">>], BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    Topic = proplists:get_value(<<"topic">>, BodyJson, <<>>),
+    Statement:gui_req(subscribe, {Topic, Key}, gui_resp_cb_fun(<<"graph_subscribe">>, Statement, From)),
+    Priv;
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
     [{<<"sort">>,BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),

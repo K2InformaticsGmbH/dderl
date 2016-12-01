@@ -2652,7 +2652,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
-            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script);
+            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt);
             if(planeFunc) {
                 let d = document.createElement("div");
                 d.classList.add("d3-container");

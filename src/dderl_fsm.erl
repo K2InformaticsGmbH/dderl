@@ -1116,6 +1116,7 @@ passthrough(Other, State) ->
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 
+
 handle_event({error, Error}, SN, State) ->
     ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
     ErrorMsg = iolist_to_binary(io_lib:format("~p", [Error])),
@@ -1177,6 +1178,16 @@ handle_event({button, <<"rollback">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_rollback(SN, State1),
     {next_state, SN, State2#state{tailLock=true}};
+handle_event({subscribe, {Topic, Key}, ReplyTo}, SN, State0) ->
+    State1 = reply_stack(SN, ReplyTo, State0),
+    Result = case write_subscription(Topic, Key, State1) of
+        ok -> <<"ok">>;
+        {error, Error} ->
+            ?Error("Unable to write subscription row ~p", [Error]),
+            <<"error">>
+    end,
+    State2 = gui_nop(#gres{state=SN, beep=true ,message=Result}, State1),
+    {next_state, SN, State2};
 handle_event({filter, FilterSpec, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_filter(SN, FilterSpec, State1),
@@ -2848,3 +2859,23 @@ change_tuples(TableId, _DirtyCnt, DirtyTop, DirtyBot) ->
 change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)].
 
+-spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
+write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}}) ->
+    %% TODO: Read and update maybe is needed for multiple topic subscription.
+    SubsKey = imem_json:encode([<<"register">>, <<"focus">>, list_to_binary(pid_to_list(self()))]),
+    Value = imem_json:encode([[Topic, Key]]),
+    Hash = <<>>,
+    SubscriptionRow = [[undefined, ins, {{},{}}, SubsKey, Value, Hash]],
+    case Ucpf(SubscriptionRow) of
+        ok ->
+            case Ucef(none) of
+                {_, Error} -> {error, Error};
+                _ChangedKeys -> ok
+            end;
+        {ok, UpdtRef} ->
+            case Ucef(none, UpdtRef) of
+                {_, Error} -> {error, Error};
+                _ChangedKeys -> ok
+            end;
+        {_, Error} -> {error, Error}
+    end.
