@@ -5,7 +5,7 @@
 
 
 % Sample Parameters
-% ../dderl/bin/editconfs.escript dderl@127.0.0.1 dderlc 127.0.0.1:8443 ram dderlstag ['dderl@127.0.0.1'] 127.0.0.1:1234 ../dderl/releases/1.0.7 ../dderl/log
+% ../dderl/bin/editconfs.escript dderl@127.0.0.1 dderlc 127.0.0.1:8443 ram dderlstag ['dderl@127.0.0.1'] 127.0.0.1:1234 \"fun(N) -> end.\" ../dderl/releases/1.0.7 ../dderl/log
 
 -define(T, "").
 %-define(T, dtfstr()).
@@ -46,7 +46,7 @@ main(Options) ->
     end.
 
 unsafe(FileHandle, Options) ->
-    if length(Options) < 9 ->
+    if length(Options) < 10 ->
            ?L("Invalid parameters~n~p~n"
               "Args  dderl_node~n"
               "      dderl_cookie~n"
@@ -55,19 +55,21 @@ unsafe(FileHandle, Options) ->
               "      imem_mnesia_schema_name~n"
               "      imem_erl_cluster_mgrs~n"
               "      imem_ip_port~n"
+              "      imem_node_shard_fun~n"
               "      config_folder~n"
               "      app_data_folder"
               , [Options]);
        true ->
-           [DDerlNode, DDerlCookie, DDerlIpPort, ImemNodeType, ImemSchemaName
-            , ImemClusterMgrs, ImemIpPort, ConfigFolder, AppDataFolder]
-           = Options,
-       ?L("starting configure..."),
-       update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie),
-       update_sys_config(FileHandle, ConfigFolder
-                         , DDerlIpPort, ImemNodeType, ImemSchemaName
-                         , ImemClusterMgrs, ImemIpPort, AppDataFolder),
-       ?L("configuring success!")
+           [DDerlNode, DDerlCookie, DDerlIpPort, ImemNodeType, ImemSchemaName,
+            ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, ConfigFolder,
+            AppDataFolder] = Options,
+           ?L("starting configure..."),
+           update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie),
+           update_sys_config(
+             FileHandle, ConfigFolder, DDerlIpPort, ImemNodeType,
+             ImemSchemaName, ImemClusterMgrs, ImemIpPort, ImemNodeShardFun,
+             AppDataFolder),
+           ?L("configuring success!")
     end.
 
 update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie) ->
@@ -94,20 +96,21 @@ update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie) ->
                     , DDerlCookie}
                   ]).
 
-update_sys_config(FileHandle, ConfigFolder
-                  , DDerlIpPort, ImemNodeType, ImemSchemaName
-                  , ImemClusterMgrs, ImemIpPort, AppDataFolder) ->
+update_sys_config(FileHandle, ConfigFolder,
+                  DDerlIpPort, ImemNodeType, ImemSchemaName, ImemClusterMgrs,
+                  ImemIpPort, ImemNodeShardFun, AppDataFolder) ->
     ?L("editing sys.config"),
     ?L("Args (Input) -~n"
-       "    Path            : ~p~n"
-       "    DDerlIpPort     : ~p~n"
-       "    ImemNodeType    : ~p~n"
-       "    ImemSchemaName  : ~p~n"
-       "    ImemClusterMgrs : ~p~n"
-       "    ImemIpPort      : ~p~n"
-       "    AppDataFolder   : ~p"
-       , [ConfigFolder, DDerlIpPort, ImemNodeType, ImemSchemaName
-          , ImemClusterMgrs, ImemIpPort, AppDataFolder]),
+       "    Path             : ~p~n"
+       "    DDerlIpPort      : ~p~n"
+       "    ImemNodeType     : ~p~n"
+       "    ImemSchemaName   : ~p~n"
+       "    ImemClusterMgrs  : ~p~n"
+       "    ImemIpPort       : ~p~n"
+       "    ImemNodeShardFun : ~p~n"
+       "    AppDataFolder    : ~p",
+       [ConfigFolder, DDerlIpPort, ImemNodeType, ImemSchemaName,
+        ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, AppDataFolder]),
     {DDerlHost, DDerlPort} = case re:run(DDerlIpPort
                 , "([^:]*):([0-9]*)"
                 , [{capture, [1,2], list}]) of
@@ -135,32 +138,31 @@ update_sys_config(FileHandle, ConfigFolder
        "    ImemClusterMgrsTerm : ~p~n"
        "    ImemHost            : ~p~n"
        "    ImemPort            : ~p~n"
-       "    AppDataFolder       : ~p"
-       , [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom, ImemSchemaNameAtom
-          , ImemClusterMgrsTerm, ImemHost, ImemPort, AppDataFolder]),
-    %%SnapDir = filename:join([AppDataFolder, "snapshot"]),
-    %%ErrorLog = filename:join([AppDataFolder, "log", "error.log"]),
-    %%ConsoleLog = filename:join([AppDataFolder, "log", "console.log"]),
-    %%CrashLog = filename:join([AppDataFolder, "log", "crash.log"]),
+       "    ImemNodeShardFun    : ~p~n"
+       "    AppDataFolder       : ~p",
+       [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom,
+        ImemSchemaNameAtom, ImemClusterMgrsTerm, ImemHost, ImemPort,
+        ImemNodeShardFun, AppDataFolder]),
     SnapDir = "./snapshot",
     ErrorLog = "./log/error.log",
     ConsoleLog = "./log/console.log",
     CrashLog = "./log/crash.log",
-    update_file_term(FileHandle, ConfigFolder, "sys.config",
-                    [{[dderl, interface], [], DDerlHost}
-                     , {[dderl, port], [], DDerlPort}
-                     , {[imem, mnesia_node_type], [], ImemNodeTypeAtom}
-                     , {[imem, mnesia_schema_name], [], ImemSchemaNameAtom}
-                     , {[imem, erl_cluster_mgrs], [], ImemClusterMgrsTerm}
-                     , {[imem, tcp_ip], [], ImemHost}
-                     , {[imem, tcp_port], [], ImemPort}
-                     , {[imem, imem_snapshot_dir], [], SnapDir}
-                     , {[lager, handlers, lager_file_backend, file]
-                        , [{level, error}], ErrorLog}
-                     , {[lager, handlers, lager_file_backend, file]
-                        , [{level, info}], ConsoleLog}
-                     , {[lager, crash_log], [], CrashLog}
-                    ]).
+    update_file_term(
+      FileHandle, ConfigFolder, "sys.config",
+      [{[dderl, interface], [], DDerlHost},
+       {[dderl, port], [], DDerlPort},
+       {[imem, mnesia_node_type], [], ImemNodeTypeAtom},
+       {[imem, mnesia_schema_name], [], ImemSchemaNameAtom},
+       {[imem, erl_cluster_mgrs], [], ImemClusterMgrsTerm},
+       {[imem, tcp_ip], [], ImemHost},
+       {[imem, tcp_port], [], ImemPort},
+       {[imem, imem_snapshot_dir], [], SnapDir},
+       {[imem, node_shard_fun], [], ImemNodeShardFun},
+       {[lager, handlers, lager_file_backend, file],
+        [{level, error}], ErrorLog},
+       {[lager, handlers, lager_file_backend, file],
+        [{level, info}], ConsoleLog},
+       {[lager, crash_log], [], CrashLog}]).
 
 update_file_term(FileHandle, ConfigFolder, File, Configs) ->
     FilePath = filename:join(ConfigFolder, File),
@@ -252,7 +254,7 @@ build_string([Tok|T], Str) ->
     ++ case Tok of
            {white_space, _, WS}     -> WS;
            {comment, _, Cmt}        -> Cmt;
-           {string,_,S}             -> "\""++S++"\"";
+           {string,_,S}             -> lists:flatten(io_lib:format("~p",[S]));
            {atom, _, A}             -> lists:flatten(io_lib:format("~p",[A]));
            {char, _, C}             -> [C];
            {float, _, F}            -> float_to_list(F);
