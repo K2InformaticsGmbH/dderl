@@ -35,11 +35,16 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
 }
 
 function buildReq(statement) {
-    function req(topic, key) {
+    function req(viewName, suffix, topic, key, binds) {
         var data = {
+            view_name: viewName,
+            suffix: suffix,
             topic: topic,
             key: key,
-            statement: statement
+            statement: statement,
+            binds: binds,
+            connection: dderlState.connection,
+            conn_id: dderlState.connectionSelected.connection
         };
         ajaxCall(null, 'graph_subscribe', data, 'graph_subscribe', function(result){
             console.log("Result subscription", result);
