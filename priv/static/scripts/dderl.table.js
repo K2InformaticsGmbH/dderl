@@ -374,9 +374,12 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 case '_slkHdrCnxtMnu':
                     if((_action === "Distinct Count") || (_action === "Distinct Statistics")) {
                         let _ranges = this._grid.getSelectionModel().getSelectedRanges();
-                        var _columnIds = [];
+                        let _columnIds = [];
+
                         for (var i = 0; i < _ranges.length; i++) {
-                            _columnIds[i] = _ranges[i].fromCell;
+                            for(var j = _ranges[i].fromCell; j <= _ranges[i].toCell; ++j) {
+                                _columnIds.push(j);
+                            }
                         }
                         data = {ranges: this._grid.getSelectionModel().getSelectedRanges(),
                                 columnIds: _columnIds};
@@ -2652,7 +2655,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
-            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script);
+            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt);
             if(planeFunc) {
                 let d = document.createElement("div");
                 d.classList.add("d3-container");

@@ -47,6 +47,7 @@ format(String, Expand) ->
                         {error, ErrorInfo, _} ->
                             {error, ErrorInfo}
                     end;
+                {ok, <<>>} -> <<"<<>>">>;
                 {ok, Term} ->
                     case Expand of
                         0 ->
