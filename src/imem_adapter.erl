@@ -519,8 +519,38 @@ process_cmd({[<<"open_graph_view">>], ReqBody}, Sess, UserId, From,
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
     Priv;
+process_cmd({[<<"update_focus_stmt">>], BodyJson}, Sess, UserId, From, Priv, SessPid) ->
+    Statement = ?D2T(proplists:get_value(<<"statement">>, BodyJson, <<>>)),
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    DashView = proplists:get_value(<<"view_name">>, BodyJson, <<>>),
+    Suffix = proplists:get_value(<<"suffix">>, BodyJson, <<>>),
+    ViewName = case Key of
+        <<>> -> DashView;
+        _ -> <<DashView/binary, Suffix/binary>>
+    end,
+    View = case dderl_dal:get_view(Sess, ViewName, imem, UserId) of
+        undefined -> dderl_dal:get_view(Sess, ViewName, imem, '_');
+        VRes -> VRes
+    end,
+    case View of
+        undefined ->
+            From ! {reply, jsx:encode([{<<"update_focus_stmt">>,[{<<"error">>, <<"unable to find the view">>}]}])};
+        _ ->
+            Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
+            Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
+            ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
+            Result = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
+            case proplists:get_value(<<"error">>, Result, undefined) of
+                undefined ->
+                    Statement:close(),
+                    From ! {reply, jsx:encode(#{<<"update_focus_stmt">> => Result})};
+                Error ->
+                    From ! {reply, jsx:encode([{<<"update_focus_stmt">>,[{<<"error">>, Error}]}])}
+            end
+    end,
+    Priv;
 process_cmd({[<<"graph_subscribe">>], BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    Statement = ?D2T(proplists:get_value(<<"statement">>, BodyJson, <<>>)),
     Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
     Topic = proplists:get_value(<<"topic">>, BodyJson, <<>>),
     Statement:gui_req(subscribe, {Topic, Key}, gui_resp_cb_fun(<<"graph_subscribe">>, Statement, From)),
@@ -745,7 +775,6 @@ filter_json_to_term([[{C,Vs}]|Filters]) ->
 make_binds(null) -> [];
 make_binds(Binds) ->
     [{B, binary_to_existing_atom(proplists:get_value(<<"typ">>, TV, <<>>), utf8), 0, [proplists:get_value(<<"val">>, TV, <<>>)]} || {B, TV} <- Binds].
-    
 
 -spec add_param(boolean(), [tuple()], tuple()) -> [tuple()].
 add_param(false, Params, _ParamToAdd) -> Params;

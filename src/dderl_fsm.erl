@@ -67,6 +67,7 @@
         , get_receiver_params/1
         , refresh_session_ctx/2
         , cache_data/1
+        , close/1
         ]).
 
 -record(ctx,    { %% session context
@@ -251,6 +252,10 @@ gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
 gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) ->
     ?NoDbLog(debug, [], "~p ~p", [CommandStr,Parameter]),
     gen_fsm:send_all_state_event(Pid,{CommandStr, Parameter, ReplyTo}).
+
+-spec close({atom(), pid()}) -> ok.
+close({?MODULE, Pid}) ->
+    gen_fsm:send_all_state_event(Pid, close_stmt).
 
 -spec row_with_key(integer(), {atom(), pid()}) -> tuple().
 row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) ->
@@ -1186,8 +1191,11 @@ handle_event({subscribe, {Topic, Key}, ReplyTo}, SN, State0) ->
             ?Error("Unable to write subscription row ~p", [Error]),
             <<"error">>
     end,
-    State2 = gui_nop(#gres{state=SN, beep=true ,message=Result}, State1),
+    State2 = gui_nop(#gres{state=SN, beep=true, message=Result}, State1),
     {next_state, SN, State2};
+handle_event(close_stmt, _SN, State0) ->
+    State1 = fetch_close(State0),
+    {stop, normal, State1#state{tailLock=true}};
 handle_event({filter, FilterSpec, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_filter(SN, FilterSpec, State1),

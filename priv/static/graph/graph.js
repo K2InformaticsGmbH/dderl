@@ -3,14 +3,14 @@ import {alert_js_error, alert_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
 import {renderNewTable} from '../scripts/dderl.table';
 
-export function evalD3Script(script, statement) {
+export function evalD3Script(script, statement, tableStmtReload) {
     /* jshint evil:true */
     // Here we can inject libraries we would like to make available to d3 scripts.
     var f = new Function('script', 'd3', 'helper', "return eval('(' + script + ')')");
     var result = null;
     var helper = {
         browse: openGraphView,
-        req: buildReq(statement)
+        req: buildReq(statement, tableStmtReload)
     };
     try {
         result = f(script, d3, helper);
@@ -34,21 +34,44 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
     });
 }
 
-function buildReq(statement) {
-    function req(topic, key) {
-        var data = {
-            topic: topic,
+function buildReq(statement, tableStmtReload) {
+    function req(viewName, suffix, topic, key, binds, graphFocusCb) {
+        var update_stmt_data = {
+            view_name: viewName,
+            suffix: suffix,
             key: key,
-            statement: statement
+            statement: statement,
+            binds: binds,
+            connection: dderlState.connection,
+            conn_id: dderlState.connectionSelected.connection
         };
-        ajaxCall(null, 'graph_subscribe', data, 'graph_subscribe', function(result){
+        ajaxCall(null, 'update_focus_stmt', update_stmt_data, 'update_focus_stmt', function(result) {
             console.log("Result subscription", result);
             if (!result) {
                 alert_jq("Error response on subscription");
-            } else if(result.message == "error") {
-                alert_jq("Error on subscription");
-            } else if(result.message != "ok") {
-                alert_jq("Error on subscription: " + result.message);
+            } else if(result.hasOwnProperty('error')) {
+                alert_jq(result.error);
+            } else {
+                statement = result.statement;
+                graphFocusCb();
+                tableStmtReload(result);
+                var subscribe_data = {
+                    statement: statement,
+                    key: key,
+                    topic: topic
+                };
+                //TODO: Should graph_subscribe trigger a reply_stack on fsm ??...
+                setTimeout(function() {
+                    ajaxCall(null, 'graph_subscribe', subscribe_data, 'graph_subscribe', function (subsResult) {
+                        if (!subsResult) {
+                            alert_jq("Error response on subscription");
+                        } else if(subsResult.message == "error") {
+                            alert_jq("Error on subscription");
+                        } else if(subsResult.message != "ok") {
+                            alert_jq("Error on subscription: " + subsResult.message);
+                        }
+                    });
+                }, 100);
             }
         });
     }

@@ -2324,6 +2324,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         console.log('>>>>> table ' + _table.name + ' ' + _table.connection);
     },
 
+    _replaceGraphStmt: function(_table) {
+        this._gridDataView.setItems([]);
+        this._gdata = this._gridDataView.getItems();
+        this._stmt = _table.statement;
+        this.buttonPress(this._startBtn);
+    },
+
     _renderNewTable: function(_table) {
         this.removeWheel();
         var dlg = this._dlg.dialog('widget');
@@ -2655,7 +2662,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
-            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt);
+            var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt, (_result) => {
+                this._replaceGraphStmt(_result);
+            });
             if(planeFunc) {
                 let d = document.createElement("div");
                 d.classList.add("d3-container");
