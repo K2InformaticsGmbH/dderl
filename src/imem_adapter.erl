@@ -519,44 +519,40 @@ process_cmd({[<<"open_graph_view">>], ReqBody}, Sess, UserId, From,
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
     Priv;
-process_cmd({[<<"graph_subscribe">>], BodyJson}, Sess, _UserId, From, Priv, SessPid) ->
-    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+process_cmd({[<<"update_focus_stmt">>], BodyJson}, Sess, UserId, From, Priv, SessPid) ->
+    Statement = ?D2T(proplists:get_value(<<"statement">>, BodyJson, <<>>)),
     Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
-    Topic = proplists:get_value(<<"topic">>, BodyJson, <<>>),
     DashView = proplists:get_value(<<"view_name">>, BodyJson, <<>>),
     Suffix = proplists:get_value(<<"suffix">>, BodyJson, <<>>),
-    ?Info("The dashboard viewname ~p the suffix ~p", [DashView, Suffix]),
     ViewName = case Key of
         <<>> -> DashView;
         _ -> <<DashView/binary, Suffix/binary>>
     end,
-    View = case dderl_dal:get_view(Sess, ViewName) of
-        undefined ->
-            dderl_dal:get_view(Sess, ViewName, imem, '_');
+    View = case dderl_dal:get_view(Sess, ViewName, imem, UserId) of
+        undefined -> dderl_dal:get_view(Sess, ViewName, imem, '_');
         VRes -> VRes
     end,
     case View of
         undefined ->
-            From ! {reply, jsx:encode([{<<"graph_subscribe">>,[{<<"error">>, <<"unable to find the view">>}]}])}
+            From ! {reply, jsx:encode([{<<"update_focus_stmt">>,[{<<"error">>, <<"unable to find the view">>}]}])};
         _ ->
             Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
             Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
             ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
-                %% TODO: Maybe this is too high level, call some directly to get the
-                %% fsm and change it for the one we currently have??
-                %% Should I browse a new one and close the old ? ...
-            Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View)
-
-    ?Info("the view to use ~p", [ViewToUse]),
-    Qry = Statement:get_query(),
-    case sqlparse:parsetree(Qry) of
-        {ok, Pt} ->
-            %% TODO: add filters to pt
-            ?Info("The pt of the query ~p", [Pt]);
-            %sqlparse:pt_to_string(Pt);
-        _ ->
-            From ! {reply, jsx:encode([{<<"graph_subscribe">>,[{<<"error">>, <<"unable to parse query.">>}]}])}
+            Result = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
+            case proplists:get_value(<<"error">>, Result, undefined) of
+                undefined ->
+                    Statement:close(),
+                    From ! {reply, jsx:encode(#{<<"update_focus_stmt">> => Result})};
+                Error ->
+                    From ! {reply, jsx:encode([{<<"update_focus_stmt">>,[{<<"error">>, Error}]}])}
+            end
     end,
+    Priv;
+process_cmd({[<<"graph_subscribe">>], BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
+    Statement = ?D2T(proplists:get_value(<<"statement">>, BodyJson, <<>>)),
+    Key = proplists:get_value(<<"key">>, BodyJson, <<>>),
+    Topic = proplists:get_value(<<"topic">>, BodyJson, <<>>),
     Statement:gui_req(subscribe, {Topic, Key}, gui_resp_cb_fun(<<"graph_subscribe">>, Statement, From)),
     Priv;
 process_cmd({[<<"sort">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
