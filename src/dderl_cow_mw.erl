@@ -5,7 +5,7 @@
 
 execute(Req0, Env) ->
     {Path, Req0} = cowboy_req:path(Req0),
-    Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "DENY", Req0),
+    Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "SAMEORIGIN", Req0),
     Req2 = cowboy_req:set_resp_header(<<"x-xss-protection">>, "1", Req1),
     Req3 = cowboy_req:set_resp_header(<<"x-content-type-options">>, "nosniff", Req2),
     case re:run(Path, [$^ | dderl:get_url_suffix()]) of
