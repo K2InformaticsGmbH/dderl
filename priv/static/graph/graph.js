@@ -55,6 +55,11 @@ function buildReq(statement, tableStmtReload) {
                 statement = result.statement;
                 graphFocusCb();
                 tableStmtReload(result);
+                if(!key) {
+                    // We should not register with empty keys.
+                    return;
+                }
+
                 var subscribe_data = {
                     statement: statement,
                     key: key,
