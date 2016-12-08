@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.7 (Release Date 16.11.2016)
+======================================
+* imem 1.5.9
+* Fixed export csv not working on IE due to iframe deny header
+* Implemented subscription for d3 graphs
+* Fixed bug on erlang term editor not working for <<>>
+
 Version 1.6.6 (Release Date 16.11.2016)
 ======================================
 * imem 1.5.8
