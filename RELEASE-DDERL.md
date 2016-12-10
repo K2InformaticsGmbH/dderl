@@ -5,6 +5,7 @@ Release history with new or improved features and bugfixes
 
 Version 1.6.7 (Release Date 16.11.2016)
 ======================================
+* Node sharded fun as unquoted string
 * imem 1.5.9
 * Fixed export csv not working on IE due to iframe deny header
 * Implemented subscription for d3 graphs
