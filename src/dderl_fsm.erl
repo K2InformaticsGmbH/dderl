@@ -2870,7 +2870,7 @@ change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
 -spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
 write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}}) ->
     %% TODO: Read and update maybe is needed for multiple topic subscription.
-    SubsKey = imem_json:encode([<<"register">>, <<"focus">>, list_to_binary(pid_to_list(self()))]),
+    SubsKey = imem_json:encode([<<"register">>, <<"focus">>, [atom_to_binary(node(), utf8), list_to_binary(pid_to_list(self()))]]),
     Value = imem_json:encode([[Topic, Key]]),
     Hash = <<>>,
     SubscriptionRow = [[undefined, ins, {{},{}}, SubsKey, Value, Hash]],
