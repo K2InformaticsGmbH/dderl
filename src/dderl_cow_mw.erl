@@ -5,6 +5,7 @@
 
 execute(Req0, Env) ->
     {Path, Req0} = cowboy_req:path(Req0),
+    %% WARNING: changing x-frame-options from SAMEORIGIN to DENY will break the all file downloads through browsers (IE, Chrome).
     Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "SAMEORIGIN", Req0),
     Req2 = cowboy_req:set_resp_header(<<"x-xss-protection">>, "1", Req1),
     Req3 = cowboy_req:set_resp_header(<<"x-content-type-options">>, "nosniff", Req2),
