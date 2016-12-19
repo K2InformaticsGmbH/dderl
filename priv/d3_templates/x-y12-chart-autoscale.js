@@ -31,7 +31,9 @@ function init(container, width, height) {
     var yCount;     // number of y-values data item (x)
     var noData;     // false before receiving any new data after reset
     var svg = container.append('svg');
-    var clipPath = svg.append("defs").append("clipPath").attr("id", "clip").append("rect");
+    // Added random id suffix to avoid clip id conflict with multiple graphs
+    var clipId = "clip_" + Math.random().toString(36).substr(2, 14);
+    var clipPath = svg.append("defs").append("clipPath").attr("id", clipId).append("rect");
     var g1, g2, g3, g4;                 // data point groups
     var xLeg, yLeg, dxLeg, dyLeg, xLegStart, yLegStart, fsLeg;  // legend position and font size
     var zoom = svg.append("g").attr("class", "brush_zoom");
@@ -293,7 +295,7 @@ function init(container, width, height) {
     var circleAttrs1 = function(d) { 
         // console.log("xVal(d):" + xVal(d));
         return {
-            'clip-path': 'url(#clip)',
+            'clip-path': 'url(#' + clipId + ')',
             cx: xScale(xVal(d)),
             cy: yScale(y1Val(d)),
             r: radius   // r: radius + radius - d.label_4.split('_').length
@@ -302,7 +304,7 @@ function init(container, width, height) {
 
     var squareAttrs2 = function(d) { 
         return {
-            'clip-path': 'url(#clip)',
+            'clip-path': 'url(#' + clipId + ')',
             x: xScale(xVal(d))-a,
             y: yScale(y2Val(d))-a,
             width: a+a,
@@ -312,7 +314,7 @@ function init(container, width, height) {
 
     var circleAttrs3 = function(d) { 
         return {
-            'clip-path': 'url(#clip)',            
+            'clip-path': 'url(#' + clipId + ')',            
             cx: xScale(xVal(d)),
             cy: yScale(y3Val(d)),
             r: radius
@@ -321,7 +323,7 @@ function init(container, width, height) {
 
     var squareAttrs4 = function(d) { 
         return {
-            'clip-path': 'url(#clip)',
+            'clip-path': 'url(#' + clipId + ')',
             x: xScale(xVal(d))-a,
             y: yScale(y4Val(d))-a,
             width: a+a,
