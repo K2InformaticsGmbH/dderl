@@ -388,11 +388,27 @@ create_rowfun(RowIdAdded, Clms, Stmt) ->
 
 can_expand([<<"*">>], _, _) -> true;
 can_expand(SelectFields, [TableName], AllFields) when is_binary(TableName) ->
-    LowerSelectFields = [string:to_lower(binary_to_list(sqlparse:pt_to_string(X)))
-                         || X <- SelectFields, is_binary(X) orelse element(1, X) =:= 'fun'],
+    LowerSelectFields = normalize_pt_fields(SelectFields),
     LowerAllFields = [string:to_lower(binary_to_list(X)) || X <- AllFields],
     length(LowerSelectFields) =:= length(LowerAllFields) andalso [] =:= (LowerSelectFields -- LowerAllFields);
 can_expand(_, _, _) -> false.
+
+normalize_pt_fields([]) -> [];
+normalize_pt_fields([{as, _Field, Alias} | Rest]) when is_binary(Alias) -> 
+    [string:to_lower(binary_to_list(Alias)) | normalize_pt_fields(Rest)];
+normalize_pt_fields([TupleField | Rest]) when is_tuple(TupleField) ->
+    case element(1, TupleField) of
+        'fun' ->
+            BinField = sqlparse:pt_to_string(TupleField),
+            [string:to_lower(binary_to_list(BinField)) | normalize_pt_fields(Rest)];
+        _ ->
+            normalize_pt_fields(Rest)
+    end;
+normalize_pt_fields([Field | Rest]) when is_binary(Field) ->
+    [string:to_lower(binary_to_list(Field)) | normalize_pt_fields(Rest)];
+normalize_pt_fields([_Ignored | Rest]) ->
+    normalize_pt_fields(Rest).
+
 
 build_sort_spec(SelectSections, StmtCols) ->
     FullMap = build_full_map(StmtCols),
