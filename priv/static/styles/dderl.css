@@ -523,6 +523,7 @@ div#main_footer {
     resize: none;
     border: none;
     font-size: 1.14em;
+    padding-left: 15px;
 }
 
 .sql_text_flat {

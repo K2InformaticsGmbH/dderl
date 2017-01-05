@@ -134,6 +134,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     // slick context menus
     _slkHdrCnxtMnu  : {'Column Hide'         : '_hide',
+                       'Columns Hide Empty'  : '_hideEmpty',
                        'Columns Unhide'      : '_unhide',
                        'Column Shrink'       : '_shrinkColumn',
                        'Distinct Count'      : '_showDistinctCount',
@@ -977,16 +978,43 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
 
         for(j=0; j < toHideArray.length; ++j) {
-            self._hiddenColumns.push(
-                {
-                    idxCol: toHideArray[j],
-                    colContent: columns[toHideArray[j]]
-                }
-            );
+            self._hiddenColumns.push({
+                idxCol: toHideArray[j],
+                colContent: columns[toHideArray[j]]
+            });
             columns.splice(toHideArray[j],1);
         }
         self._grid.setColumns(columns);
         self._gridColumnsReorder();
+    },
+
+    _hideEmpty: function() {
+        var self = this;
+        var cols = self._grid.getColumns();
+        var colsObj = {};
+        for(var i = 1; i < cols.length; ++i) {
+            colsObj[cols[i].field] = i;
+        }
+        var k;
+        for(i = 0; i < self._gdata.length; ++i) {
+            for(k in colsObj) {
+                if(self._gdata[i][k] !== "") {
+                    delete colsObj[k];
+                }
+            }
+            // Nothing to do as there are no empty columns.
+            if(Object.keys(colsObj).length === 0) { return; }
+        }
+
+        var hideRanges = [];
+        for(k in colsObj) {
+            hideRanges.push({
+                fromCell: colsObj[k],
+                toCell: colsObj[k],
+                fullCol: true
+            });
+        }
+        self._hide(hideRanges);
     },
 
     _unhide: function() {
