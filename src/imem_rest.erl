@@ -1,0 +1,400 @@
+-module(imem_rest).
+
+-include("dderl.hrl").
+-include_lib("imem/include/imem_sql.hrl").
+
+% gen_server exports
+-export([start_link/0, init/1, terminate/2, handle_call/3, handle_cast/2,
+         handle_info/2, code_change/3, format_status/2]).
+
+-record(state, {stmts = #{}}).
+
+% cowboy rest exports
+-export([init/3, info/3, terminate/3]).
+
+% imem statement callbacks
+-export([rows/2, delete/2, stop/1]).
+
+% service export
+-export([stop/0, start/0]).
+
+-define(API_VERSION, "0.0.1").
+-define(VIEWS_SQL, "select ddView.id id, ddView.name name, command"
+                   " from ddView, ddCmd"
+                   " where adapters = to_list('[imem]')"
+                          " and ddView.cmd = ddCmd.id").
+
+-ifdef(TEST).
+f().
+{ok, S} = erlimem:open(local_sec, imem_meta:schema()).
+S:auth(imem_rest, undefined, {pwdmd5, {<<"system">>, erlang:md5("a")}}).
+S:run_cmd(login,[]).
+Sql = "select ddView.id id, ddView.name name, command from ddView, ddCmd where adapters = to_list('[imem]') and ddView.cmd = ddCmd.id".
+S:exec(Sql, 1000, []).
+
+S:run_cmd(logout, []).
+S:close().
+
+-endif.
+
+rows(Rows, {?MODULE, StmtRef, Pid}) -> Pid ! {rows, StmtRef, Rows}.
+delete(Rows, {?MODULE, StmtRef, Pid}) -> Pid ! {dels, StmtRef, Rows}.
+stop({?MODULE, StmtRef, Pid}) -> Pid ! {stop, StmtRef}.
+
+stop() -> supervisor:terminate_child(dderl_sup, ?MODULE).
+start() -> supervisor:restart_child(dderl_sup, ?MODULE).
+
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
+    ?Info("~p starting...~n", [?MODULE]),
+    case gen_server:start_link({local, ?MODULE}, ?MODULE, [], []) of
+        {ok, _} = Success ->
+            ?Info("~p started!~n", [?MODULE]),
+            Success;
+        Error ->
+            ?Error("~p failed to start ~p~n", [?MODULE, Error]),
+            Error
+    end.
+
+init([]) ->
+    process_flag(trap_exit, true),
+    try
+        init_interface(),
+        {ok, #state{}}
+    catch
+        _:Error -> {stop, Error}
+    end.
+
+handle_call({login, User, Password}, _From, State) ->
+    {reply,
+     try
+         {ok, ErlimemSession} = erlimem:open(local_sec, imem_meta:schema()),
+         ErlimemSession:auth(imem_rest, undefined, {pwdmd5, {User, Password}}),
+         ErlimemSession:run_cmd(login,[]),
+         {ok, ErlimemSession}
+     catch
+         _:Error -> {error, Error}
+     end, State};
+handle_call(Request, _From, State) ->
+    ?Warn("Unsupported handle_call ~p", [Request]),
+    {reply, ok, State}.
+
+handle_cast(#{cmd := views, params := #{viewid := all}} = Request, State) ->
+    handle_cast(
+      Request#{params => #{sql => ?VIEWS_SQL, row_count => 1000}, cmd => sql},
+      State);
+handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
+              opts := #{session := Connection}},
+            #state{stmts = Stmts} = State) ->
+    ok = Connection:fetch_recs_async([], StmtRef),
+    #{stmtResult := StmtRslt} = maps:get(StmtRef, Stmts),
+    {noreply,
+     State#state{
+       stmts =
+       (State#state.stmts)#{StmtRef =>
+                            #{respPid => {more, RespPid}, stmtResult => StmtRslt,
+                              connection => Connection}}
+      }};
+handle_cast(#{reply := RespPid, cmd := sql,
+              params := #{sql := Sql, row_count := RowCount},
+              opts := #{session := Connection}}, State) ->
+    case Connection:exec(Sql, RowCount, []) of
+        {error, Exception} ->
+            RespPid ! {reply, {400, [{<<"connection">>, Connection}],
+                               list_to_binary(io_lib:format("~p", [Exception]))}},
+            {noreply, State};
+        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef} = StmtRslt} ->
+            ok = Connection:add_stmt_fsm(StmtRef, {?MODULE, StmtRef, self()}),
+            ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),
+            ClmsJson = [maps:from_list(C)
+                        || C <- gen_adapter:build_column_json(lists:reverse(Clms))],
+            {noreply,
+             State#state{
+               stmts =
+               (State#state.stmts)#{StmtRef =>
+                                    #{stmtResult => StmtRslt#stmtResult{stmtCols = ClmsJson},
+                                      connection => Connection,
+                                      respPid => {first, RespPid}}}
+              }}
+    end;
+handle_cast(#{reply := RespPid}, State) ->
+    RespPid ! {reply, bad_req},
+    {noreply, State};
+handle_cast(Request, State) ->
+    ?Warn("Unsupported handle_cast ~p", [Request]),
+    {noreply, State}.
+
+handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State) ->
+    case maps:get(StmtRef, Stmts) of
+        #{respPid := {first, RespPid}, connection := Connection,
+          stmtResult := #stmtResult{rowFun = RowFun, stmtCols = Clms}} ->
+            RowsJson = [RowFun(R) || R <- Rows],
+            RespPid ! {reply,
+                       {200,
+                        [{<<"connection">>, Connection}],
+                        #{rows => RowsJson,
+                          clms => Clms,
+                          more => EOT,
+                          stmt => base64:encode(term_to_binary(StmtRef))}}};
+        #{respPid := {more, RespPid}, connection := Connection,
+          stmtResult := #stmtResult{rowFun = RowFun}} ->
+            RowsJson = [RowFun(R) || R <- Rows],
+            RespPid ! {reply,
+                       {200,
+                        [{<<"connection">>, Connection}],
+                        #{rows => RowsJson, more => EOT}}}
+    end,
+    {noreply, State};
+handle_info(Request, State) ->
+    ?Warn("Unsupported handle_info ~p", [Request]),
+    {noreply, State}.
+
+terminate(Reason, _State) ->
+    try
+        stop_interface(Reason),
+        ?Info("terminate ~p", [Reason])
+    catch
+        _:Error ->
+        ?Error("terminate ~p:~p", [Reason, Error])
+    end.
+
+code_change(OldVsn, State, Extra) ->
+    ?Info("code_change ~p: ~p", [OldVsn, Extra]),
+    {ok, State}.
+
+format_status(Opt, [PDict, State]) ->
+    ?Info("format_status ~p: ~p", [Opt, PDict]),
+    State.
+
+init_interface() ->
+    MaxAcceptors = ?MAXACCEPTORS,
+    MaxConnections = ?MAXCONNS,
+    IpWhitelist = ?IMEMREST_IPWHITELIST,
+    Opts = #{resource => self(), whitelist => IpWhitelist},
+    Dispatch =
+    cowboy_router:compile(
+      [{'_',
+        [{"/imemrest/swagger/", imem_rest, swagger},
+         {"/imemrest/swagger/[...]", cowboy_static,
+          {priv_dir, dderl, "imemrest/swagger"}},
+         {"/imemrest/"?API_VERSION"/", imem_rest, spec},
+         {"/imemrest/"?API_VERSION"/:cmd/[:viewid]",
+          [{cmd, function, fun cmd_constraint/1},
+           {viewid, int}], ?MODULE, Opts}]
+       }]),
+    ProtoOpts = [{compress,true}, {env,[{dispatch,Dispatch}]}],
+    lists:foreach(
+      fun({Ip, Port}) ->
+              IpStr = inet:ntoa(Ip),
+              TransOpts = [{ip, Ip}, {port, Port}, {max_connections, MaxConnections}],
+              case ?IMEMREST_SSLOPTS of
+                  #{cert := Cert, key := Key} ->
+                      SslTransOpts = TransOpts
+                        ++ [{versions, ['tlsv1.2','tlsv1.1',tlsv1]}
+                            | imem_server:get_cert_key(Cert)]
+                        ++ imem_server:get_cert_key(Key),
+                      {ok, P} = cowboy:start_https({?MODULE, Ip, Port},
+                                                   MaxAcceptors, SslTransOpts,
+                                                   ProtoOpts),
+                      ?Info("[~p] Activated https://~s:~p", [P, IpStr, Port]);
+                  _ ->
+                      {ok, P} = cowboy:start_http({?MODULE, Ip, Port},
+                                                  MaxAcceptors, TransOpts,
+                                                  ProtoOpts),
+                      ?Info("[~p] Activated http://~s:~p", [P, IpStr, Port])
+              end
+      end, ?IMEMREST_IPS).
+
+cmd_constraint(<<"sql">>) -> {true, sql};
+cmd_constraint(<<"views">>) -> {true, views};
+cmd_constraint(_) -> false.
+
+stop_interface(Reason) ->
+    lists:foreach(
+      fun({Ip, Port}) ->
+              IpStr = inet:ntoa(Ip),
+              case catch cowboy:stop_listener({?MODULE, Ip, Port}) of
+                  ok ->
+                      ?Info("De-Activated http(s)://~s:~p", [IpStr, Port]);
+                  Error ->
+                      ?Error("[~p] Deactivating http(s)://~s:~p : ~p",
+                             [Reason, IpStr, Error])
+              end
+      end, ?IMEMREST_IPS).
+
+%%
+%% Cowboy REST resource
+%%
+
+-define(REPLY_HEADRS,
+        [{<<"access-control-allow-origin">>,<<"*">>},
+         {<<"server">>, <<"DDErl IMEM-REST">>}]).
+-define(REPLY_JSON_HEADRS, [{<<"content-encoding">>, <<"utf-8">>},
+                            {<<"content-type">>, <<"application/json">>}
+                            | ?REPLY_HEADRS]).
+-define(REPLY_JSON_SPEC_HEADERS,
+        [{<<"connection">>, <<"close">>},
+         {<<"content-type">>,
+          <<"application/json; charset=UTF-8">>},
+         {<<"content-disposition">>,
+          <<"attachment; filename=\"imemrest.json\"">>}
+         | ?REPLY_HEADRS]).
+-define(REPLY_OPT_HEADERS, [{<<"connection">>, <<"close">>} | ?REPLY_HEADRS]).
+
+-define(E1400(__M,__D),
+        #{errorCode => 1400,
+          errorMessage => list_to_binary(__M),
+          errorDetails => list_to_binary(__D)}).
+
+-define(E2400,
+        #{errorCode => 2400,
+          errorMessage => <<"Missing body">>,
+          errorDetails => <<"Missing request payload">>}).
+
+-define(E1401,
+        #{errorCode => 1401,
+          errorMessage => <<"Invalid credentials">>,
+          errorDetails => <<"Incorrect Username/Password">>}).
+
+-define(E1403,
+        #{errorCode => 1403,
+          errorMessage => <<"Not Whitelisted">>,
+          errorDetails => <<"Requesting IP address is not in whitelist">>}).
+
+-define(E1405,
+        #{errorCode => 1405,
+          errorMessage => <<"Method Not Allowed">>,
+          errorDetails => <<"HTTP method isn't allowed on this resource">>}).
+
+-define(JSON(__BODY), imem_json:encode(__BODY)).
+
+init(_, Req, swagger) ->
+    {Url, Req} = cowboy_req:url(Req),
+    LastAt = byte_size(Url) - 1,
+    {ok, Req1} =
+    cowboy_req:reply(
+      302, [{<<"Cache-Control">>, <<"no-cache">>},
+            {<<"Pragma">>, <<"no-cache">>},
+            {<<"Location">>,
+             list_to_binary([Url, case Url of
+                                      <<_:LastAt/binary, "/">> -> "";
+                                      _ -> "/"
+                                  end, "index.html"])}],
+      <<"Redirecting...">>, Req),
+    {shutdown, Req1, #state{}};
+init(_, Req, spec) ->
+    {ok, Req1} =
+    case cowboy_req:method(Req) of
+        {<<"GET">>, Req} ->
+            {ok, Content} = file:read_file(
+                              filename:join([code:priv_dir(dderl),
+                                             "imemrest", "imemrest.json"])),
+            cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
+        {<<"OPTIONS">>, Req} ->
+            {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
+            cowboy_req:reply(200, [{<<"allow">>, <<"GET,OPTIONS">>},
+                                   {<<"access-control-allow-headers">>, ACRHS}
+                                   | ?REPLY_OPT_HEADERS], <<>>, Req);
+        {Method, Req} ->
+            ?Error("~p not supported", [Method]),
+            cowboy_req:reply(405, ?REPLY_JSON_HEADRS, ?JSON(?E1405), Req)
+    end,
+    {shutdown, Req1, #state{}};
+init(_, Req, #{whitelist := WhiteList} = Opts) ->
+    % whitelist check
+    {{Ip, _Port}, Req} = cowboy_req:peer(Req),
+    case lists:member(Ip, WhiteList) of
+        true ->
+            {Cmd, Req} = cowboy_req:binding(cmd, Req),
+            {Op, Req} = cowboy_req:method(Req),
+            case cowboy_req:header("connection", Req, '$notfound') of
+                {'$notfound', Req} ->
+                    case cowboy_req:parse_header(<<"authorization">>, Req) of
+                        {ok, {<<"basic">>, {Username, Password}}, Req1} ->
+                            case gen_server:call(
+                                   ?MODULE, {login, Username,
+                                             erlang:md5(Password)}) of
+                                {ok, Session} ->
+                                    push_request(Cmd, Op, Req1,
+                                                 Opts#{session => Session});
+                                {error, Error} ->
+                                    {ok, Req2} =
+                                    cowboy_req:reply(
+                                      400, ?REPLY_JSON_HEADRS,
+                                      ?JSON(?E1400(
+                                               "DB login error",
+                                               io_lib:format("~p", [Error]))),
+                                      Req1),
+                                    {shutdown, Req2, undefined}
+                            end;
+                        _ ->
+                            {ok, Req1} = cowboy_req:reply(
+                                           401, ?REPLY_JSON_HEADRS,
+                                           ?JSON(?E1401), Req),
+                            {shutdown, Req1, undefined}
+                    end;
+                {SessionBin, Req} when is_binary(SessionBin) ->
+                    push_request(
+                      Cmd, Op, Req,
+                      Opts#{session => binary_to_term(
+                                         base64:decode(SessionBin))})
+            end;
+        _ ->
+            {ok, Req1} = cowboy_req:reply(403, ?REPLY_JSON_HEADRS,
+                                          ?JSON(?E1403), Req),
+            {shutdown, Req1, undefined}
+    end.
+
+push_request(Cmd, Op, Req, Opts) ->
+    case cowboy_req:has_body(Req) of
+        false when Op == <<"GET">> ->
+            case get_params(Cmd, Req) of
+                {{error, _Error}, Req1} ->
+                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS,
+                                                  ?JSON(?E2400), Req1),
+                    {shutdown, Req2, undefined};
+                {Params, Req1} when is_map(Params) ->
+                    ok = gen_server:cast(
+                           ?MODULE, #{cmd => Cmd, params => Params,
+                                      reply => self(), opts => Opts}),
+                    {loop, Req1, Opts, 30000, hibernate}
+            end;
+        _ ->            
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E2400),
+                                          Req),
+            {shutdown, Req1, undefined}
+    end.
+
+get_params(sql, Req) ->
+    {Params, Req1} = cowboy_req:qs_vals(Req),
+    case maps:from_list(Params) of
+        #{<<"q">> := Sql, <<"r">> := RC} ->
+            case catch binary_to_integer(RC) of
+                Rows when is_integer(Rows) ->
+                    {#{sql => Sql, row_count => Rows}, Req1};
+                _ -> {{error, non_numeric_row_count}, Req1}
+            end;
+        #{<<"s">> := StmtRef} ->
+            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req1};
+        _ -> {{error, invalid_parameters}, Req}
+    end;
+get_params(views, Req) ->
+    {ViewId, Req} = cowboy_req:binding(viewid, Req, all),
+    {#{viewid => ViewId}, Req}.
+
+info({reply, bad_req}, Req, State) ->
+    {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADRS, "", Req),
+    {ok, Req1, State};
+info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(Body) ->
+    info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
+info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binary(Body) ->
+    RespHeaders =
+    ?REPLY_JSON_HEADRS ++
+    lists:map(
+      fun({H,V}) when is_binary(V) -> {H, base64:encode(V)};
+         ({H,V}) -> {H, base64:encode(term_to_binary(V))}
+      end, Headers),
+    {ok, Req1} = cowboy_req:reply(Code, RespHeaders, Body, Req),
+    {ok, Req1, State}.
+
+terminate(_Reason, _Req, _State) -> ok.

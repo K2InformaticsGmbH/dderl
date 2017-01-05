@@ -213,4 +213,10 @@
 -define(COOKIE_OPTS(__Domain, __Path), [{path, __Path}, {secure, true}, {domain, __Domain}]).
 -define(HTTP_ONLY_COOKIE_OPTS(__Domain, __Path), [{http_only, true}|?COOKIE_OPTS(__Domain, __Path)]).
 
+% IMEM REST interface
+-define(IMEMREST,               ?GET_CONFIG(active,         [], true,                   "Enable disable IMEM REST service")).
+-define(IMEMREST_IPS,           ?GET_CONFIG(listenIntfs,    [], [{{127,0,0,1}, 9443}],  "Listen IPs and TCP ports")).
+-define(IMEMREST_SSLOPTS,       ?GET_CONFIG(ssl,            [], '$no_ssl_conf',         "SSL listen socket options")).
+-define(IMEMREST_IPWHITELIST,   ?GET_CONFIG(ipWhiteLists,   [], [{127,0,0,1}],          "White listed IP address")).
+
 -endif.

@@ -1,0 +1,153 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "version": "0.0.1",
+        "title": "IMEM REST interface",
+        "description": "RESTful access to IMEM DB"
+    },
+    "schemes": ["http", "https"],
+    "securityDefinitions": {
+        "basicAuth": {
+            "type": "basic",
+            "description": "HTTP Basic Authentication Username:Password"
+        }
+    },
+    "tags": [
+        {"name":"json", "description": "Download Swagger 2.0 JSON specification of this API"},
+        {"name":"views", "description": "Create, list or access DDErl views"},
+        {"name":"sql", "description": "Execute SQL and fetch data"}
+    ],
+    "basePath": "/imemrest/0.0.1",
+    "paths": {
+        "/": {
+            "get": {
+                "tags": ["json"],
+                "summary": "Dwonloades Swagger 2.0 JSON specification of this API",
+                "produces": ["application/json"],
+                "responses": {
+                    "200": {"description": "Swagger 2.0 JSON spec file download startad",
+                            "schema": {"type": "object", "additionalProperties": {"type": "integer", "format": "int32"}}
+                    }
+                }
+            }
+        },
+        "/views/": {
+            "get": {
+                "tags": ["views"],
+                "security": [{"basicAuth":[]}],
+                "summary": "list all views",
+                "operationId": "listViews",
+                "description": "List all ddViews",
+                "parameters": [
+                    {"name": "connection",
+                     "in": "header",
+                     "required": false,
+                     "description": "IMEM connection identifier",
+                     "type": "string"}
+                ],
+                "produces": ["application/json"],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "schema": {"$ref": "#/definitions/DDErlViews"},
+                        "headers": {"connection":{
+                              "description": "IMEM connection identifier",
+                              "type": "string"}}
+                    },
+                    "403": {
+                        "description": "Malformed/Invalid",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            }
+        },
+        "/sql/": {
+            "get": {
+                "tags": ["sql"],
+                "security": [{"basicAuth":[]}],
+                "summary": "execute SQL",
+                "operationId": "execSql",
+                "description": "Prepare and execute SQL statements",
+                "parameters": [
+                    {"name": "q",
+                     "in": "query",
+                     "required": false,
+                     "description": "URL encoded SQL query string",
+                     "type": "string"},
+                    {"name": "s",
+                     "in": "query",
+                     "required": false,
+                     "description": "Prepared SQL statement handle",
+                     "type": "string"},
+					{"name": "r",
+                     "in": "query",
+                     "required": true,
+                     "description": "Number of rows to return",
+                     "type": "integer"}
+                ],
+                "produces": ["application/json"],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "schema": {"$ref": "#/definitions/DDErlViews"},
+                        "headers": {"connection":{
+                              "description": "IMEM connection identifier",
+                              "type": "string"}}
+                    },
+                    "403": {
+                        "description": "Malformed/Invalid",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ErrorResponse": {
+            "readOnly" : true,
+            "type": "object",
+            "required": ["errorCode", "errorMessage", "errorDetails"],
+            "properties": {
+                "errorCode": {
+                    "description": "Error Code",
+                    "type": "number",
+                    "example": 1400
+                },
+                "errorMessage": {
+                    "description": "Error Message",
+                    "type": "string",
+                    "example": "malformed"
+                },
+                "errorDetails": {
+                    "description": "Error Details",
+                    "type": "string",
+                    "example": "mandatory properties missing or bad type"
+                }
+            }
+        },
+        "DDErlViews": {
+            "type":"array",
+            "items":{
+                "type": "object",
+                "required": ["id","name","command"],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "View identifier",
+                        "example": 12345
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "View name",
+                        "example": "Remote Tables"
+                    },
+                    "command": {
+                        "type": "string",
+                        "description": "SQL query of the view",
+                        "example": "select * from ddTable"
+                    }
+                }
+            }
+        }
+    }
+}
