@@ -176,7 +176,7 @@ init_interface() ->
       [{'_',
         [{"/imemrest/swagger/", imem_rest, swagger},
          {"/imemrest/swagger/[...]", cowboy_static,
-          {priv_dir, dderl, "imemrest/swagger"}},
+          {dir, filename:join([dderl:priv_dir(), "imemrest", "swagger"])}},
          {"/imemrest/"?API_VERSION"/", imem_rest, spec},
          {"/imemrest/"?API_VERSION"/:cmd/[:viewid]",
           [{cmd, function, fun cmd_constraint/1},
@@ -287,7 +287,7 @@ init(_, Req, spec) ->
     case cowboy_req:method(Req) of
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
-                              filename:join([code:priv_dir(dderl),
+                              filename:join([dderl:priv_dir(),
                                              "imemrest", "imemrest.json"])),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
