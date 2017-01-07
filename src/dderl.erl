@@ -20,7 +20,7 @@
 
 -export([access/10]).
 
--export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0]).
+-export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -107,7 +107,7 @@ handle(Req, State) ->
     {Url, Req} = cowboy_req:url(Req),
     {ok, Req1} = case binary:last(Url) of
                      $/ ->
-                         Filename = filename:join([get_priv_dir(),
+                         Filename = filename:join([priv_dir(),
                                                    "public",
                                                    "index.html"]),
                          {ok, Html} = file:read_file(Filename),
@@ -174,30 +174,32 @@ reset_routes(Intf) ->
            https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
                    | Opts1]).
 
--spec priv_dir() -> list().
-priv_dir() -> get_priv_dir().
-
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------
 %% Local Functions
 %%-----------------------------------------------------------------------------
 get_routes() ->
-    PrivDir = get_priv_dir(),
+    PrivDir = priv_dir(),
     UrlPathPrefix = get_url_suffix(),
     [{UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 
-get_priv_dir() ->
-    case code:priv_dir(?MODULE) of
+
+-spec priv_dir() -> list().
+priv_dir() -> priv_dir(?MODULE).
+
+-spec priv_dir(atom()) -> list().
+priv_dir(App) ->
+    case code:priv_dir(App) of
         {error, bad_name} -> "priv";
         PDir -> PDir
     end.
 
 check_file(F) ->
-    PrivDir = get_priv_dir(),
+    PrivDir = priv_dir(),
     File = filename:join([PrivDir, F]),
     IsFile = filelib:is_file(File),
     if IsFile =:= true -> ok;
@@ -226,12 +228,12 @@ get_ssl_options({ok, []}) ->
                                        os:timestamp())]))),
             DDErlSslDefault;
         #{cert := CertBin, key := KeyBin} ->
-            CertFile = filename:join([get_priv_dir(), "certs/server.crt"]),
+            CertFile = filename:join([priv_dir(), "certs/server.crt"]),
             case file:read_file(CertFile) of
                 {ok, CertBin} -> nop;
                 _ -> ok = file:write_file(CertFile, CertBin)
             end,
-            KeyFile = filename:join([get_priv_dir(), "certs/server.key"]),
+            KeyFile = filename:join([priv_dir(), "certs/server.key"]),
             case file:read_file(KeyFile) of
                 {ok, KeyBin} -> nop;
                 _ -> ok = file:write_file(KeyFile, KeyBin)
