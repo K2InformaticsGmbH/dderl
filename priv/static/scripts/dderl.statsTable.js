@@ -1,6 +1,7 @@
 import jQuery from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
+import {smartDialogPosition} from './dderl';
 
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
@@ -33,8 +34,12 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
                            'textBox'  : {tip: '',       typ : 'txt',                  clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
 
         // slick context menus
-        _statsSlkHdrCnxtMnu  : {'Hide'      : '_hide',
-                                'UnHide'    : '_unhide'},
+        _statsSlkHdrCnxtMnu  : {'Hide'       : '_hide',
+                                'UnHide'     : '_unhide',
+                                'Sort...'    : '_sort',
+                                'Sort ASC'   : '_sortAsc',
+                                'Sort DESC'  : '_sortDesc',
+                                'Sort Clear' : '_sortClear'},
 
         // These options will be used as defaults
         options: {
@@ -391,6 +396,323 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
             }
         },
 
+        // sorts (This maybe can be moved to a plugin but somehow differs
+        // as it is local sort instead of fsm sorted  )
+        _sort: function(_ranges) {
+            var self = this;
+            if(!self._sorts) { self._sorts = {}; }
+            var cols = self._grid.getColumns();
+            for (var i = 0; i < _ranges.length; ++i) {
+                var fromCell = Math.max(_ranges[i].fromCell, 1);
+                for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                    if(!self._sorts.hasOwnProperty(cols[c].field)) {
+                        self._sorts[cols[c].field] = {name : cols[c].name, asc : true};
+                    }
+                }
+            }
+            self._showSortGui();
+        },
+
+        _sortAsc: function(_ranges) {
+            var self = this;
+            if(!self._sorts) { self._sorts = {}; }
+            var cols = self._grid.getColumns();
+            for (var i=0; i<_ranges.length; ++i) {
+                var fromCell = Math.max(_ranges[i].fromCell, 1);
+                for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                    self._sorts[cols[c].field] = {name : cols[c].name, asc : true};
+                }
+            }
+            self._sortApply();
+        },
+
+        _sortDesc: function(_ranges) {
+            var self = this;
+            if(!self._sorts) { self._sorts = {}; }
+            var cols = this._grid.getColumns();
+            for (var i = 0; i < _ranges.length; ++i) {
+                var fromCell = Math.max(_ranges[i].fromCell, 1);
+                for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                    self._sorts[cols[c].field] = {name : cols[c].name, asc : false};
+                }
+            }
+            self._sortApply();
+        },
+
+        _sortApply: function() {
+            var self = this;
+
+            var sortCols = Object.keys(self._sorts);
+            if(sortCols.length === 1) {
+                var colId = sortCols[0];
+                self._sortSingleCol(colId, self._sorts[colId].asc);
+            } else {
+                self._showSortGui();
+            }
+        },
+
+        _sortSingleCol: function(colId, asc) {
+            var self = this;
+            var dir = 1;
+            if(!asc) { dir = -1; }
+
+            self._gdata.sort(function(dataRow1, dataRow2) {
+                return dir * dataRow1[colId].localeCompare(dataRow2[colId], undefined, {numeric: true, sensitivity: 'base'});
+            });
+
+            self._grid.invalidate();
+            self._grid.render();
+        },
+
+        _sortClear: function(_ranges) {
+            // Sort by id as it ASC as it is the default given by the server.
+            var self = this;
+            if(self._sorts && !$.isEmptyObject(self._sorts)) {
+                var cols = this._grid.getColumns();
+                for (var i=0; i<_ranges.length; ++i) {
+                    var fromCell = Math.max(_ranges[i].fromCell, 1);
+                    for(var c = fromCell; c <= _ranges[i].toCell; ++c) {
+                        delete self._sorts[cols[c].field];
+                    }
+                }
+            }
+            if(self._sorts && !$.isEmptyObject(self._sorts)) {
+                self._showSortGui();
+            } else {
+                self._sorts = null;
+                self._gdata.sort(function(dataRow1, dataRow2) {
+                    if(dataRow1.id === dataRow2.id) { return 0; }
+                    if(dataRow1.id > dataRow2.id) { return 1; }
+                    else { return -1; }
+                });
+                self._grid.invalidate();
+                self._grid.render();
+            }
+        },
+
+        _showSortGui: function() {
+            var self = this;
+
+            // first check if we have a sort dialog open and close it.
+            if(self._sortDlg && self._sortDlg.hasClass('ui-dialog-content')) {
+                self._sortDlg.dialog("close");
+            }
+
+            var data = [];
+            for (var s in self._sorts) {
+                data.push({id: s, name: self._sorts[s].name, sort: (self._sorts[s].asc ? 'ASC' : 'DESC')});
+            }
+
+            self._sortDlg =
+                $('<div>')
+                .css('width', 500)
+                .appendTo(document.body);
+
+            var sortDiv = $('<div>')
+                .css('position', 'absolute')
+                .css('top', 0)
+                .css('left', 0)
+                .css('right', 0)
+                .css('bottom', 0)
+                .css('border-style', 'solid')
+                .css('border-width', '1px')
+                .css('border-color', 'lightblue')
+                .appendTo(self._sortDlg);
+
+            // building slickgrid
+            var sgrid = new Slick.Grid(sortDiv, data, [ // columns
+                {
+                    id: "#",
+                    name: "",
+                    width: 40,
+                    behavior: "selectAndMove",
+                    selectable: true,
+                    resizable: false,
+                    formatter: Slick.Formatters.DragArrows,
+                    cssClass: "center"
+                },
+                {
+                    id: "name",
+                    name: "Column",
+                    field: "name",
+                    width: 150,
+                    selectable: true,
+                    editor: Slick.Editors.Text
+                },
+                {
+                    id: "sort",
+                    name: "Sort",
+                    field: "sort",
+                    width: 100,
+                    selectable: true,
+                    cannotTriggerInsert: true,
+                    formatter: Slick.Formatters.Sort,
+                    cssClass: "center"
+                },
+                {
+                    id: "select",
+                    name: "",
+                    field: "select",
+                    width: 40,
+                    selectable: true,
+                    formatter: Slick.Formatters.Trashcan,
+                    cssClass: "center"
+                }
+            ], {
+                editable: true,
+                enableAddRow: false,
+                enableCellNavigation: true,
+                autoEdit: false
+            });
+
+            sgrid.setSelectionModel(new Slick.RowSelectionModel());
+            sgrid.onClick.subscribe(function(e, args) {
+                var col = sgrid.getColumns()[args.cell].id;
+                switch (col) {
+                    case "select": // delete the row
+                        sgrid.getData().splice(args.row, 1);
+                        sgrid.invalidateAllRows();
+                        sgrid.updateRowCount();
+                        sgrid.render();
+                        break;
+                    case "sort": // changing asc/desc
+                        var sgd = sgrid.getData();
+                        sgd[args.row][col] = (sgd[args.row][col] === 'ASC' ? 'DESC' : 'ASC');
+                        sgrid.invalidateRow(args.row);
+                        sgrid.render();
+                        break;
+                    default:
+                        console.log('nothing happnes in this column');
+                        break;
+                }
+            });
+
+            var moveRowsPlugin = new Slick.RowMoveManager({
+                cancelEditOnDrag: true
+            });
+
+            moveRowsPlugin.onBeforeMoveRows.subscribe(function (e, data) {
+                for (var i = 0; i < data.rows.length; i++) {
+                    // no point in moving before or after itself
+                    if (data.rows[i] == data.insertBefore || data.rows[i] == data.insertBefore - 1) {
+                        e.stopPropagation();
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            moveRowsPlugin.onMoveRows.subscribe(function (e, args) {
+                var extractedRows = [], left, right;
+                var rows = args.rows;
+                var insertBefore = args.insertBefore;
+                left = data.slice(0, insertBefore);
+                right = data.slice(insertBefore, data.length);
+
+                rows.sort(function (a, b) { return a - b; });
+
+                for (let i = 0; i < rows.length; i++) {
+                    extractedRows.push(data[rows[i]]);
+                }
+
+                rows.reverse();
+
+                for (let i = 0; i < rows.length; i++) {
+                    if (rows[i] < insertBefore) {
+                        left.splice(rows[i], 1);
+                    } else {
+                        right.splice(rows[i] - insertBefore, 1);
+                    }
+                }
+
+                data = left.concat(extractedRows.concat(right));
+
+                var selectedRows = [];
+                for (var i = 0; i < rows.length; i++) {
+                    selectedRows.push(left.length + i);
+                }
+
+                sgrid.resetActiveCell();
+                sgrid.setData(data);
+                sgrid.setSelectedRows(selectedRows);
+                sgrid.render();
+            });
+
+            sgrid.registerPlugin(moveRowsPlugin);
+
+            var saveChange = function() {
+                var sd = sgrid.getData();
+                self._sorts = {};
+                for (var i = 0; i < sd.length; ++i) {
+                    self._sorts[sd[i].id] = {name : sd[i].name,
+                                            asc : (sd[i].sort === 'ASC' ? true : false) };
+                }
+            };
+
+            self._sortDlg.dialog({
+                width : 336,
+                modal : false,
+                title : 'Sorts',
+                dialogClass: 'btnSortClass',
+                appendTo: "#main-body",
+                rowHeight : self.options.slickopts.rowHeight,
+                close : function() {
+                    $(this).dialog('close');
+                    $(this).remove();
+                },
+                buttons: [
+                    {
+                        text: 'Sort',
+                        click: function() {
+                            saveChange();
+                            self._sortMultipleCols(sgrid.getData());
+                            $(this).dialog('close');
+                            $(this).remove();
+                        }
+                    }
+                ]
+            });
+
+            self._sortDlg.dialog("widget").draggable("option", "containment", "#main-body");
+            //Set the height of the sort dialog depending on the number of rows...
+            var sortGridHeight = (data.length + 2) * self.options.slickopts.rowHeight;
+            self._sortDlg.height(sortGridHeight);
+            //Lets put it where we have space...
+            smartDialogPosition($("#main-body"), self._dlg, self._sortDlg, ['center']);
+            setTimeout(function() {
+                var theSortButton = self._sortDlg.dialog("widget").find('button:contains("Sort")');
+                theSortButton.focus();
+                console.log(theSortButton);
+            }, 50);
+        },
+
+        _sortMultipleCols: function(sd) {
+            var self = this;
+
+            self._gdata.sort(function(dataRow1, dataRow2) {
+
+                // No sort selected then sort using id asc.
+                if (sd.length === 0) {
+                    if(dataRow1.id === dataRow2.id) { return 0; }
+                    if(dataRow1.id > dataRow2.id) { return 1; }
+                    else { return -1; }
+                }
+
+                for (let i = 0; i < sd.length; ++i) {
+                    let colId = sd[i].id;
+                    let cmpResult = dataRow1[colId].localeCompare(dataRow2[colId], undefined, {numeric: true, sensitivity: 'base'});
+                    if(cmpResult !== 0) {
+                        let dir = (sd[i].sort === 'ASC')? 1 : -1;
+                        return cmpResult * dir;
+                    }
+                }
+                return 0;
+            });
+
+            self._grid.invalidate();
+            self._grid.render();
+        },
+
         load: function(type)
         {
             var self = this;
@@ -533,7 +855,7 @@ import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
             for (var i = 1; i < columns.length; ++i) {
                 columns[i].toolTip = self._getToolTip(columns[i].name);
                 columns[i].resizable = true;
-                columns[i].sortable = true;
+                columns[i].sortable = false;
                 columns[i].selectable = true;
                 if(columns[i].type == "numeric") {
                     columns[i].cssClass = "numeric";
