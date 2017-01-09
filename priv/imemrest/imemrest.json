@@ -39,7 +39,7 @@
                 "operationId": "listViews",
                 "description": "List all ddViews",
                 "parameters": [
-                    {"name": "connection",
+                    {"name": "x-irest-conn",
                      "in": "header",
                      "required": false,
                      "description": "IMEM connection identifier",
@@ -50,7 +50,7 @@
                     "200": {
                         "description": "Successful response",
                         "schema": {"$ref": "#/definitions/DDErlViews"},
-                        "headers": {"connection":{
+                        "headers": {"x-irest-conn":{
                               "description": "IMEM connection identifier",
                               "type": "string"}}
                     },
@@ -69,6 +69,11 @@
                 "operationId": "execSql",
                 "description": "Prepare and execute SQL statements",
                 "parameters": [
+                    {"name": "x-irest-conn",
+                     "in": "header",
+                     "required": false,
+                     "description": "IMEM connection identifier",
+                     "type": "string"},
                     {"name": "q",
                      "in": "query",
                      "required": false,
@@ -90,7 +95,7 @@
                     "200": {
                         "description": "Successful response",
                         "schema": {"$ref": "#/definitions/DDErlViews"},
-                        "headers": {"connection":{
+                        "headers": {"x-irest-conn":{
                               "description": "IMEM connection identifier",
                               "type": "string"}}
                     },

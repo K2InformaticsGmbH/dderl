@@ -86,7 +86,7 @@ handle_cast(#{cmd := views, params := #{viewid := all}} = Request, State) ->
 handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
               opts := #{session := Connection}},
             #state{stmts = Stmts} = State) ->
-    ok = Connection:fetch_recs_async([], StmtRef),
+    ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),    
     #{stmtResult := StmtRslt} = maps:get(StmtRef, Stmts),
     {noreply,
      State#state{
@@ -100,7 +100,7 @@ handle_cast(#{reply := RespPid, cmd := sql,
               opts := #{session := Connection}}, State) ->
     case Connection:exec(Sql, RowCount, []) of
         {error, Exception} ->
-            RespPid ! {reply, {400, [{<<"connection">>, Connection}],
+            RespPid ! {reply, {400, [{<<"x-irest-conn">>, Connection}],
                                list_to_binary(io_lib:format("~p", [Exception]))}},
             {noreply, State};
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef} = StmtRslt} ->
@@ -124,26 +124,41 @@ handle_cast(Request, State) ->
     ?Warn("Unsupported handle_cast ~p", [Request]),
     {noreply, State}.
 
-handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State) ->
+-define(E400(__E,__M,__D),
+        #{errorCode => (__E * 1000 + 400),
+          errorMessage => list_to_binary(__M),
+          errorDetails => list_to_binary(__D)}).
+
+handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State)
+  when is_list(Rows) ->
     case maps:get(StmtRef, Stmts) of
         #{respPid := {first, RespPid}, connection := Connection,
           stmtResult := #stmtResult{rowFun = RowFun, stmtCols = Clms}} ->
             RowsJson = [RowFun(R) || R <- Rows],
             RespPid ! {reply,
                        {200,
-                        [{<<"connection">>, Connection}],
+                        [{<<"x-irest-conn">>, Connection}],
                         #{rows => RowsJson,
                           clms => Clms,
-                          more => EOT,
+                          more => not EOT,
                           stmt => base64:encode(term_to_binary(StmtRef))}}};
         #{respPid := {more, RespPid}, connection := Connection,
           stmtResult := #stmtResult{rowFun = RowFun}} ->
             RowsJson = [RowFun(R) || R <- Rows],
             RespPid ! {reply,
                        {200,
-                        [{<<"connection">>, Connection}],
+                        [{<<"x-irest-conn">>, Connection}],
                         #{rows => RowsJson, more => EOT}}}
     end,
+    {noreply, State};
+handle_info({rows, StmtRef, {error, {Exception, Error}}},
+            #state{stmts = Stmts} = State) ->
+    #{respPid := {_, RespPid}, connection := Connection}
+    = maps:get(StmtRef, Stmts),
+    RespPid ! {reply,
+               {400,
+                [{<<"x-irest-conn">>, Connection}],
+                ?E400(3, atom_to_list(Exception), Error)}},
     {noreply, State};
 handle_info(Request, State) ->
     ?Warn("Unsupported handle_info ~p", [Request]),
@@ -241,11 +256,6 @@ stop_interface(Reason) ->
          | ?REPLY_HEADRS]).
 -define(REPLY_OPT_HEADERS, [{<<"connection">>, <<"close">>} | ?REPLY_HEADRS]).
 
--define(E1400(__M,__D),
-        #{errorCode => 1400,
-          errorMessage => list_to_binary(__M),
-          errorDetails => list_to_binary(__D)}).
-
 -define(E2400,
         #{errorCode => 2400,
           errorMessage => <<"Missing body">>,
@@ -307,7 +317,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
         true ->
             {Cmd, Req} = cowboy_req:binding(cmd, Req),
             {Op, Req} = cowboy_req:method(Req),
-            case cowboy_req:header("connection", Req, '$notfound') of
+            case cowboy_req:header(<<"x-irest-conn">>, Req, '$notfound') of
                 {'$notfound', Req} ->
                     case cowboy_req:parse_header(<<"authorization">>, Req) of
                         {ok, {<<"basic">>, {Username, Password}}, Req1} ->
@@ -321,9 +331,8 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                                     {ok, Req2} =
                                     cowboy_req:reply(
                                       400, ?REPLY_JSON_HEADRS,
-                                      ?JSON(?E1400(
-                                               "DB login error",
-                                               io_lib:format("~p", [Error]))),
+                                      ?JSON(?E400(1, "DB login error",
+                                                  io_lib:format("~p", [Error]))),
                                       Req1),
                                     {shutdown, Req2, undefined}
                             end;
