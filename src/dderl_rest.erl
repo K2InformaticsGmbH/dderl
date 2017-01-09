@@ -111,6 +111,8 @@ handle_cast(#{reply := RespPid, cmd := views,
                         ?E400(4, "Bad View", "View not found")}},
             {noreply, State}
     end;
+handle_cast(#{cmd := views, params := #{stmt := _}} = Req, State) ->
+    handle_cast(Req#{cmd => sql}, State);
 handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
               opts := #{session := Connection}},
             #state{stmts = Stmts} = State) ->
@@ -418,7 +420,8 @@ push_request(Cmd, Op, Req, Opts) ->
 get_params(sql, Req) ->
     {Params, Req1} = cowboy_req:qs_vals(Req),
     case maps:from_list(Params) of
-        #{<<"q">> := Sql, <<"r">> := RC} ->
+        #{<<"q">> := Sql} = P ->
+            RC = maps:get(<<"r">>, P, integer_to_binary(?DEFAULT_ROW_SIZE)),
             case catch binary_to_integer(RC) of
                 Rows when is_integer(Rows) ->
                     {#{sql => Sql, row_count => Rows}, Req1};
@@ -431,29 +434,35 @@ get_params(sql, Req) ->
 get_params(views, Req0) ->
     {Params, Req} = cowboy_req:qs_vals(Req0),
     case maps:from_list(Params) of
-        #{<<"r">> := RC} ->
+        #{<<"s">> := StmtRef} ->
+            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req};
+        P when is_map(P) ->
+            RC = maps:get(<<"r">>, P, integer_to_binary(?DEFAULT_ROW_SIZE)),
             case catch binary_to_integer(RC) of
                 Rows when is_integer(Rows) ->
                     {View, Req} = cowboy_req:binding(view, Req),
                     Prms = #{view => View, row_count => Rows},
                     case cowboy_req:has_body(Req) of
                         true ->
-                            case cowboy_req:body(Req) of
-                                {ok, Data, Req1} ->
-                                    Binds =
-                                    [{maps:get(<<"name">>, B),
-                                      binary_to_existing_atom(maps:get(<<"typ">>, B, <<>>),
-                                                              utf8),
-                                      0, [maps:get(<<"value">>, B, <<>>)]}
-                                     || B <- imem_json:decode(Data, [return_maps])],
-                                    {Prms#{binds => Binds}, Req1};
-                                {more, Data, Req1} ->
-                                    {{error, {to_many_params, Data}}, Req1};
-                                {error, Error} ->
-                                    {{error, Error}, Req}
+                            case cowboy_req:has_body(Req) of
+                                true ->
+                                    case cowboy_req:body(Req) of
+                                        {ok, Data, Req1} ->
+                                            Binds =
+                                            [{maps:get(<<"name">>, B),
+                                              binary_to_existing_atom(maps:get(<<"typ">>, B, <<>>), utf8),
+                                              0, [maps:get(<<"value">>, B, <<>>)]}
+                                             || B <- imem_json:decode(Data, [return_maps])],
+                                            {Prms#{binds => Binds}, Req1};
+                                        {more, Data, Req1} ->
+                                            {{error, {to_many_params, Data}}, Req1};
+                                        {error, Error} ->
+                                            {{error, Error}, Req}
+                                    end;
+                                false -> {Prms, Req}
                             end;
-                         false -> {Prms, Req}
-                     end;
+                        false -> {Prms, Req}
+                    end;
                 _ -> {{error, non_numeric_row_count}, Req}
             end;
         _ -> {{error, invalid_parameters}, Req}
