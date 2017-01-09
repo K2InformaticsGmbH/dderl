@@ -1,4 +1,4 @@
--module(imem_rest).
+-module(dderl_rest).
 
 -include("dderl.hrl").
 -include_lib("imem/include/imem_sql.hrl").
@@ -19,16 +19,16 @@
 -export([stop/0, start/0]).
 
 -define(API_VERSION, "0.0.1").
--define(VIEWS_SQL, "select ddView.id id, ddView.name name, command"
-                   " from ddView, ddCmd"
-                   " where adapters = to_list('[imem]')"
-                          " and ddView.cmd = ddCmd.id").
 
 -ifdef(TEST).
 f().
 {ok, S} = erlimem:open(local_sec, imem_meta:schema()).
-S:auth(imem_rest, undefined, {pwdmd5, {<<"system">>, erlang:md5("a")}}).
+S:auth(dderl_rest, undefined, {pwdmd5, {<<"system">>, erlang:md5("change_on_install")}}).
 S:run_cmd(login,[]).
+S:run_cmd(admin_exec, [imem_seco, account_id, []]).
+
+dderl_dal:get_view(S, "Remote Tables", imem, system).
+
 Sql = "select ddView.id id, ddView.name name, command from ddView, ddCmd where adapters = to_list('[imem]') and ddView.cmd = ddCmd.id".
 S:exec(Sql, 1000, []).
 
@@ -37,6 +37,13 @@ S:close().
 
 -endif.
 
+
+-define(E400(__E,__M,__D),
+        #{errorCode => (__E * 1000 + 400),
+          errorMessage => list_to_binary(__M),
+          errorDetails => list_to_binary(__D)}).
+
+% imem statement callbacks
 rows(Rows, {?MODULE, StmtRef, Pid}) -> Pid ! {rows, StmtRef, Rows}.
 delete(Rows, {?MODULE, StmtRef, Pid}) -> Pid ! {dels, StmtRef, Rows}.
 stop({?MODULE, StmtRef, Pid}) -> Pid ! {stop, StmtRef}.
@@ -69,7 +76,7 @@ handle_call({login, User, Password}, _From, State) ->
     {reply,
      try
          {ok, ErlimemSession} = erlimem:open(local_sec, imem_meta:schema()),
-         ErlimemSession:auth(imem_rest, undefined, {pwdmd5, {User, Password}}),
+         ErlimemSession:auth(?MODULE, undefined, {pwdmd5, {User, Password}}),
          ErlimemSession:run_cmd(login,[]),
          {ok, ErlimemSession}
      catch
@@ -79,10 +86,31 @@ handle_call(Request, _From, State) ->
     ?Warn("Unsupported handle_call ~p", [Request]),
     {reply, ok, State}.
 
-handle_cast(#{cmd := views, params := #{viewid := all}} = Request, State) ->
-    handle_cast(
-      Request#{params => #{sql => ?VIEWS_SQL, row_count => 1000}, cmd => sql},
-      State);
+handle_cast(#{reply := RespPid, cmd := views,
+              params := #{view := View} = Params,
+              opts := #{session := Connection}} = Req, State) ->
+    case if is_integer(View) ->
+                dderl_dal:get_view(Connection, View);
+            true ->
+                UserId = Connection:run_cmd(
+                           admin_exec, [imem_seco, account_id, []]),
+                dderl_dal:get_view(Connection, View, imem, UserId)
+         end of
+        ViewRec when is_record(ViewRec, ddView) ->
+            Binds = maps:get(binds, Params, []),
+            Cmd = dderl_dal:get_command(Connection, ViewRec#ddView.cmd),
+            ?Info("Binds ~p", [Binds]),
+            handle_cast(Req#{cmd => sql,
+                             params => Params#{sql => Cmd#ddCmd.command,
+                                               binds => Binds}},
+                        State);
+        _ ->
+            RespPid ! {reply,
+                       {400,
+                        [{<<"x-irest-conn">>, Connection}],
+                        ?E400(4, "Bad View", "View not found")}},
+            {noreply, State}
+    end;
 handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
               opts := #{session := Connection}},
             #state{stmts = Stmts} = State) ->
@@ -96,9 +124,9 @@ handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
                               connection => Connection}}
       }};
 handle_cast(#{reply := RespPid, cmd := sql,
-              params := #{sql := Sql, row_count := RowCount},
+              params := #{sql := Sql, row_count := RowCount} = Params,
               opts := #{session := Connection}}, State) ->
-    case Connection:exec(Sql, RowCount, []) of
+    case Connection:exec(Sql, RowCount, maps:get(binds, Params, [])) of
         {error, Exception} ->
             RespPid ! {reply, {400, [{<<"x-irest-conn">>, Connection}],
                                list_to_binary(io_lib:format("~p", [Exception]))}},
@@ -123,11 +151,6 @@ handle_cast(#{reply := RespPid}, State) ->
 handle_cast(Request, State) ->
     ?Warn("Unsupported handle_cast ~p", [Request]),
     {noreply, State}.
-
--define(E400(__E,__M,__D),
-        #{errorCode => (__E * 1000 + 400),
-          errorMessage => list_to_binary(__M),
-          errorDetails => list_to_binary(__D)}).
 
 handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State)
   when is_list(Rows) ->
@@ -189,13 +212,13 @@ init_interface() ->
     Dispatch =
     cowboy_router:compile(
       [{'_',
-        [{"/imemrest/swagger/", imem_rest, swagger},
-         {"/imemrest/swagger/[...]", cowboy_static,
-          {dir, filename:join([dderl:priv_dir(), "imemrest", "swagger"])}},
-         {"/imemrest/"?API_VERSION"/", imem_rest, spec},
-         {"/imemrest/"?API_VERSION"/:cmd/[:viewid]",
+        [{"/dderlrest/swagger/", ?MODULE, swagger},
+         {"/dderlrest/swagger/[...]", cowboy_static,
+          {dir, filename:join([dderl:priv_dir(), "dderlrest", "swagger"])}},
+         {"/dderlrest/"?API_VERSION"/", ?MODULE, spec},
+         {"/dderlrest/"?API_VERSION"/:cmd/[:view]",
           [{cmd, function, fun cmd_constraint/1},
-           {viewid, int}], ?MODULE, Opts}]
+           {view, function, fun view_constraint/1}], ?MODULE, Opts}]
        }]),
     ProtoOpts = [{compress,true}, {env,[{dispatch,Dispatch}]}],
     lists:foreach(
@@ -223,6 +246,13 @@ init_interface() ->
 cmd_constraint(<<"sql">>) -> {true, sql};
 cmd_constraint(<<"views">>) -> {true, views};
 cmd_constraint(_) -> false.
+
+view_constraint(View) ->
+    case catch binary_to_integer(View) of
+        ViewId when is_integer(ViewId) -> {true, ViewId};
+        _ when is_binary(View) -> {true, View};
+        _ -> false
+    end.
 
 stop_interface(Reason) ->
     lists:foreach(
@@ -252,7 +282,7 @@ stop_interface(Reason) ->
          {<<"content-type">>,
           <<"application/json; charset=UTF-8">>},
          {<<"content-disposition">>,
-          <<"attachment; filename=\"imemrest.json\"">>}
+          <<"attachment; filename=\"dderlrest.json\"">>}
          | ?REPLY_HEADRS]).
 -define(REPLY_OPT_HEADERS, [{<<"connection">>, <<"close">>} | ?REPLY_HEADRS]).
 
@@ -260,6 +290,10 @@ stop_interface(Reason) ->
         #{errorCode => 2400,
           errorMessage => <<"Missing body">>,
           errorDetails => <<"Missing request payload">>}).
+-define(E9400,
+        #{errorCode => 9400,
+          errorMessage => <<"Bad Request">>,
+          errorDetails => <<"Operation payload missmatch">>}).
 
 -define(E1401,
         #{errorCode => 1401,
@@ -298,7 +332,7 @@ init(_, Req, spec) ->
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
                               filename:join([dderl:priv_dir(),
-                                             "imemrest", "imemrest.json"])),
+                                             "dderlrest", "dderlrest.json"])),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
             {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
@@ -356,9 +390,11 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
 
 push_request(Cmd, Op, Req, Opts) ->
     case cowboy_req:has_body(Req) of
-        false when Op == <<"GET">> ->
+        HB when (HB == false andalso Op == <<"GET">>) orelse
+                (HB == true andalso Op == <<"POST">>) ->
             case get_params(Cmd, Req) of
-                {{error, _Error}, Req1} ->
+                {{error, Error}, Req1} ->
+                    ?Error("~p", [Error]),
                     {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS,
                                                   ?JSON(?E2400), Req1),
                     {shutdown, Req2, undefined};
@@ -368,8 +404,13 @@ push_request(Cmd, Op, Req, Opts) ->
                                       reply => self(), opts => Opts}),
                     {loop, Req1, Opts, 30000, hibernate}
             end;
-        _ ->            
+        false when Op == <<"POST">> ->
             {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E2400),
+                                          Req),
+            {shutdown, Req1, undefined};
+        HB ->
+            ?Error("~s has body = ~p", [Op, HB]),
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E9400),
                                           Req),
             {shutdown, Req1, undefined}
     end.
@@ -387,9 +428,36 @@ get_params(sql, Req) ->
             {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req1};
         _ -> {{error, invalid_parameters}, Req}
     end;
-get_params(views, Req) ->
-    {ViewId, Req} = cowboy_req:binding(viewid, Req, all),
-    {#{viewid => ViewId}, Req}.
+get_params(views, Req0) ->
+    {Params, Req} = cowboy_req:qs_vals(Req0),
+    case maps:from_list(Params) of
+        #{<<"r">> := RC} ->
+            case catch binary_to_integer(RC) of
+                Rows when is_integer(Rows) ->
+                    {View, Req} = cowboy_req:binding(view, Req),
+                    Prms = #{view => View, row_count => Rows},
+                    case cowboy_req:has_body(Req) of
+                        true ->
+                            case cowboy_req:body(Req) of
+                                {ok, Data, Req1} ->
+                                    Binds =
+                                    [{maps:get(<<"name">>, B),
+                                      binary_to_existing_atom(maps:get(<<"typ">>, B, <<>>),
+                                                              utf8),
+                                      0, [maps:get(<<"value">>, B, <<>>)]}
+                                     || B <- imem_json:decode(Data, [return_maps])],
+                                    {Prms#{binds => Binds}, Req1};
+                                {more, Data, Req1} ->
+                                    {{error, {to_many_params, Data}}, Req1};
+                                {error, Error} ->
+                                    {{error, Error}, Req}
+                            end;
+                         false -> {Prms, Req}
+                     end;
+                _ -> {{error, non_numeric_row_count}, Req}
+            end;
+        _ -> {{error, invalid_parameters}, Req}
+    end.
 
 info({reply, bad_req}, Req, State) ->
     {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADRS, "", Req),
