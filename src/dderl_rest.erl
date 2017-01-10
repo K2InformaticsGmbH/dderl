@@ -154,8 +154,7 @@ handle_cast(Request, State) ->
     ?Warn("Unsupported handle_cast ~p", [Request]),
     {noreply, State}.
 
-handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State)
-  when is_list(Rows) ->
+handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State) when is_list(Rows) ->
     case maps:get(StmtRef, Stmts) of
         #{respPid := {first, RespPid}, connection := Connection,
           stmtResult := #stmtResult{rowFun = RowFun, stmtCols = Clms}} ->
@@ -173,11 +172,10 @@ handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State)
             RespPid ! {reply,
                        {200,
                         [{<<"x-irest-conn">>, Connection}],
-                        #{rows => RowsJson, more => EOT}}}
+                        #{rows => RowsJson, more => not EOT}}}
     end,
     {noreply, State};
-handle_info({rows, StmtRef, {error, {Exception, Error}}},
-            #state{stmts = Stmts} = State) ->
+handle_info({rows, StmtRef, {error, {Exception, Error}}}, #state{stmts = Stmts} = State) ->
     #{respPid := {_, RespPid}, connection := Connection}
     = maps:get(StmtRef, Stmts),
     RespPid ! {reply,
