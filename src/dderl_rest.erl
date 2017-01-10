@@ -214,9 +214,9 @@ init_interface() ->
     Dispatch =
     cowboy_router:compile(
       [{'_',
-        [{"/dderlrest/swagger/", ?MODULE, swagger},
-         {"/dderlrest/swagger/[...]", cowboy_static,
-          {dir, filename:join([dderl:priv_dir(), "dderlrest", "swagger"])}},
+        [{"/swagger/", ?MODULE, swagger},
+         {"/swagger/[...]", cowboy_static,
+          {dir, filename:join(dderl:priv_dir(), "swagger")}},
          {"/dderlrest/"?API_VERSION"/", ?MODULE, spec},
          {"/dderlrest/"?API_VERSION"/:cmd/[:view]",
           [{cmd, function, fun cmd_constraint/1},
@@ -333,8 +333,7 @@ init(_, Req, spec) ->
     case cowboy_req:method(Req) of
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
-                              filename:join([dderl:priv_dir(),
-                                             "dderlrest", "dderlrest.json"])),
+                              filename:join([dderl:priv_dir(),"dderlrest","dderlrest.json"])),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
             {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
