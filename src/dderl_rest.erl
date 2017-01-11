@@ -167,11 +167,19 @@ handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State) when is
                           stmt => base64:encode(term_to_binary(StmtRef))}}};
         #{respPid := {more, RespPid}, connection := Connection,
           stmtResult := #stmtResult{rowFun = RowFun}} ->
-            RowsJson = [RowFun(R) || R <- Rows],
-            RespPid ! {reply,
-                       {200,
-                        [{<<"x-irest-conn">>, Connection}],
-                        #{rows => RowsJson, more => not EOT}}}
+            if length(Rows) == 0 andalso EOT == false ->
+                   gen_server:cast(
+                     ?MODULE,
+                     #{reply => RespPid, cmd => sql,
+                       params => #{stmt => StmtRef},
+                       opts => #{session => Connection}});
+               true ->
+                   RowsJson = [RowFun(R) || R <- Rows],
+                   RespPid ! {reply,
+                              {200,
+                               [{<<"x-irest-conn">>, Connection}],
+                               #{rows => RowsJson, more => not EOT}}}
+            end
     end,
     {noreply, State};
 handle_info({rows, StmtRef, {error, {Exception, Error}}}, #state{stmts = Stmts} = State) ->
