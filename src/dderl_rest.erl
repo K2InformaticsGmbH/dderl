@@ -99,7 +99,6 @@ handle_cast(#{reply := RespPid, cmd := views,
         ViewRec when is_record(ViewRec, ddView) ->
             Binds = maps:get(binds, Params, []),
             Cmd = dderl_dal:get_command(Connection, ViewRec#ddView.cmd),
-            ?Info("Binds ~p", [Binds]),
             handle_cast(Req#{cmd => sql,
                              params => Params#{sql => Cmd#ddCmd.command,
                                                binds => Binds}},
