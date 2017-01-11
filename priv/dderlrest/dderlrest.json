@@ -13,7 +13,7 @@
     }
   },
   "tags": [
-    {"name":"json", "description": "Downloads JSON specification of this API"},
+    {"name":"json", "description": "Swagger 2.0 JSON specification"},
     {"name":"views", "description": "Create, list or access DDErl views"},
     {"name":"sql", "description": "Execute SQL and fetch data"}
   ],
@@ -24,17 +24,11 @@
         "tags": ["json"],
         "summary": "download dderlrest.json",
         "produces": ["application/json"],
-        "description": "Downloads  API specification in Swagger 2.0 JSON format",
+        "description": "Downloads API specification in Swagger 2.0 JSON format",
         "responses": {
           "200": {
             "description": "OK",
-            "schema": {"type": "file"},
-            "headers": {
-              "content-disposition": {
-                "type": "string",
-                "default": "attachment; filename=\"dderlrest.json\""
-              }
-            }
+            "schema": {"type": "file"}
           }
         }
       }
