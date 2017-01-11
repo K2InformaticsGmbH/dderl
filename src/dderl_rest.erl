@@ -338,7 +338,8 @@ init(_, Req, spec) ->
     case cowboy_req:method(Req) of
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
-                              filename:join([dderl:priv_dir(),"dderlrest","dderlrest.json"])),
+                              filename:join(dderl:priv_dir(),
+                                            "dderlrest.json")),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
             {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
