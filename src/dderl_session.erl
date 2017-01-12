@@ -126,7 +126,8 @@ handle_cast({process, Adapter, Typ, WReq, From, RemoteEp}, #state{session_idle_t
     NewITref =
     if
         Typ == [<<"ping">>] orelse UserId == undefined -> ITref;
-        ScreenSaverTimeout /= 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout, self(), inactive);
+        is_integer(ScreenSaverTimeout) == false -> undefined;
+        ScreenSaverTimeout > 0 -> cancel_timer(ITref), erlang:send_after(ScreenSaverTimeout * 60 * 1000, self(), inactive);
         true -> undefined
     end,
     State0 = try process_call({Typ, WReq}, Adapter, From, RemoteEp, State)
