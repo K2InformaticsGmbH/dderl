@@ -141,6 +141,9 @@ expand_elements([Element | Rest] = Term, [LB, RB], Col) ->
 
 -spec add_commas(iolist(), integer()) -> iolist().
 add_commas([], _Col) -> [];
+add_commas(Element, Col) when not is_list(Element) ->
+    Result = lists:flatten(get_result(expand_auto(Element, Col+1))),
+    ["|", Result];
 add_commas([Element | Rest], Col) ->
     Result = lists:flatten(get_result(expand_auto(Element, Col+1))),
     [",", Result, add_commas(Rest, Col + length(Result) + 1)].
