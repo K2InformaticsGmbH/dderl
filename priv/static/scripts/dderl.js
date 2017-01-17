@@ -705,8 +705,17 @@ export function unescapeNewLines(str) {
     try {
         JSON.parse(str);
     } catch (e) {
-        str = str.replace(/\\t/gi, "\t");
-        str = str.replace(/\\n/gi, "\n");
+        str = str.replace(/^"|"$/g, '').replace(/""/g, '"');
     }
     return unescape(str);
+}
+
+export function escapeNewLines(str) {
+    var result = str;
+    if(typeof str == 'string' || str instanceof String) {
+        if(/[\n\t\r"]/.test(str) === true) {
+            result = "\""+str.replace(/"/g,"\"\"")+"\"";
+        }
+    }
+    return result;
 }

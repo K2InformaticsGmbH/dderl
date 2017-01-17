@@ -1,5 +1,5 @@
 import jQuery from "jquery";
-import {dderlState, unescapeNewLines} from '../../scripts/dderl';
+import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl';
 
 (function ($) {
   // register namespace
@@ -228,10 +228,33 @@ import {dderlState, unescapeNewLines} from '../../scripts/dderl';
     
     function _decodeTabularTextData(clipText) {
         setTimeout(function() {
-            var clipRows = [clipText];
-
             console.log(getTime()+" clipboard paste "+clipText.length+" bytes");
-            clipRows = clipText.replace(/\r\n/g, "\n").split("\n");
+
+            var clipRows = [];
+            var inQuote = false;
+            var rowStart = 0;
+            for (var i = 0; i < clipText.length; ++i) {
+                if (inQuote) {
+                    if (i + 1 < clipText.length &&
+                        clipText[i] == "\"" && clipText[i + 1] != "\"") {
+                        inQuote = false;
+                    } else if (i + 1 < clipText.length &&
+                               clipText[i] == "\"" && clipText[i + 1] == "\"") {
+                        ++i;
+                    }
+                } else {
+                    if (i + 1 < clipText.length &&
+                        clipText[i] == "\"" && clipText[i + 1] != "\"") {
+                        inQuote = true;
+                    } else if (i + 1 < clipText.length &&
+                               clipText[i] == "\r" && clipText[i + 1] == "\n") {
+                        if(i > 0)
+                            clipRows.push(clipText.substring(rowStart, i));
+                        rowStart = i + 2;
+                        ++i;
+                    }
+                }
+            }
             var last = clipRows.pop();
             if(last) {
                 clipRows.push(last);
@@ -650,25 +673,6 @@ import {dderlState, unescapeNewLines} from '../../scripts/dderl';
     });
   }
 })(jQuery);
-
-/* Escape new lines and tabs */
-function escapeNewLines(str) {
-    var result = "";
-    if(typeof str == 'string' || str instanceof String) {
-        for(var i = 0; i < str.length; ++i) {
-            if(str.charCodeAt(i) === 9) {
-                result += "\\t";
-            } else if(str.charCodeAt(i) === 10) {
-                result += "\\n";
-            } else if(str.charCodeAt(i) !== 13) {
-                result += str[i];
-            }
-        }
-    } else {
-        result = str;
-    }
-    return result;
-}
 
 export function createCopyTextBox(innerText) {
     var ta = document.createElement('textarea');
