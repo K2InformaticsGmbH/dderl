@@ -20,9 +20,8 @@
         , get_deps/0
         , opt_bind_json_obj/2
         , add_conn_info/2
+        , make_csv_rows/3
         ]).
-
--export([get_csv_col_sep_char/1, get_csv_row_sep_char/1]).
 
 init() -> ok.
 
@@ -877,8 +876,25 @@ escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].
 
--spec get_csv_col_sep_char(atom()) -> string().
-get_csv_col_sep_char(Adapter) -> ?COL_SEP_CHAR(Adapter).
-
--spec get_csv_row_sep_char(atom()) -> string().
-get_csv_row_sep_char(Adapter) -> ?ROW_SEP_CHAR(Adapter).
+-spec make_csv_rows(list(), fun(), atom()) -> binary().
+make_csv_rows(Rows, RowFun, Adapter)
+  when is_list(Rows), is_function(RowFun, 1), is_atom(Adapter) ->
+    make_csv_rows([RowFun(R) || R <- Rows],
+                  ?COL_SEP_CHAR(Adapter),
+                  ?ROW_SEP_CHAR(Adapter));
+make_csv_rows([], _ColSepChar, _RowSepChar) -> [];
+make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
+    list_to_binary(
+      [list_to_binary(
+         [string:join(
+            [binary_to_list(
+               case re:run(TR, "[\"\r\n]") of
+                   nomatch -> TR;
+                   _ ->
+                       <<$",
+                         (re:replace(
+                            TR, "\"", "\"\"",
+                            [global, {return, binary}]))/binary,
+                         $">>
+               end) || TR <- Row], ColSepChar), RowSepChar])
+       | make_csv_rows(Rows, ColSepChar, RowSepChar)]).
