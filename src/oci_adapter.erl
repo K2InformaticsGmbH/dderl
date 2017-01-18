@@ -590,16 +590,12 @@ produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(
 produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     dderloci:close(StmtRef);
-produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
-                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
-                             || Row <- [RowFun(R) || R <- Rows]]),
+produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
+    CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, oci),
     From ! {reply_csv, <<>>, CsvRows, continue},
     produce_csv_rows(From, StmtRef, RowFun);
-produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows) andalso is_function(RowFun) ->
-    CsvRows = list_to_binary([list_to_binary([string:join([binary_to_list(TR) || TR <- Row],
-                                                          gen_adapter:get_csv_col_sep_char(oci)), gen_adapter:get_csv_row_sep_char(oci)])
-                             || Row <- [RowFun(R) || R <- Rows]]),
+produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
+    CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, oci),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).
 
