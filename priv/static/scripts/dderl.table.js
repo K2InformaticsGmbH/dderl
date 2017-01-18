@@ -514,8 +514,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _saveViewAs: function() {
         var self = this;
-        var args = {label: "ddView name", content: '', value: self.options.title};
-        prompt_jq(args, function (viewName) {
+        promptSaveAs(self.options.title, self._toolbarButtons, self._startBtn, function (viewName, startBtn) {
+            console.log("saving view as", viewName, startBtn);
+            self._startBtn = startBtn;
             if (viewName) {
                 self._saveViewWithName(viewName, false);
             }
@@ -586,7 +587,8 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     y: y,
                     x: x,
                     plane_to_show: this._planeToShow,
-                    plane_specs: this._planeSpecs
+                    plane_specs: this._planeSpecs,
+                    start_btn: this._startBtn
                 },
                 conn_id: dderlState.connectionSelected.connection,
                 column_layout: colnamesizes,
@@ -2240,6 +2242,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             if(viewResult.hasOwnProperty('sort_spec') && !$.isEmptyObject(viewResult.sort_spec)) {
                 this._setSortSpecFromJson(this, viewResult.sort_spec);
             }
+            if(viewResult.hasOwnProperty('table_layout') && viewResult.table_layout.start_btn) {
+                this._startBtn = viewResult.table_layout.start_btn;
+            }
             this.buttonPress(this._startBtn);
         }
         // If this is a view we add it to the current views
@@ -2257,6 +2262,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
         if(_views.hasOwnProperty('table_layout')  && _views.table_layout.hasOwnProperty('x')) {
             self._tbllay = _views.table_layout;
+            if(self._tbllay.start_btn) {
+                self._startBtn = self._tbllay.start_btn;
+            }
             // Set the options.
             self.options.width = self._tbllay.width;
             self.options.height = self._tbllay.height;
@@ -2325,6 +2333,9 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         if(_table.hasOwnProperty('table_layout')) {
             if(_table.table_layout.hasOwnProperty('x')) {
                 this._tbllay = _table.table_layout;
+            }
+            if(this._tbllay.start_btn) {
+                this._startBtn = this._tbllay.start_btn;
             }
 
             this._initPlanes(_table.table_layout);
@@ -4053,6 +4064,11 @@ export function renderNewTable(table, position, force) {
         };
     }
 
+    var startBtn = '>';
+    if(table.hasOwnProperty('table_layout') && table.table_layout.start_btn) {
+        startBtn = table.table_layout.start_btn;
+    }
+
     var pos = {
         my: "left top",
         at: "left+" + position.left + " top+" + position.top,
@@ -4076,6 +4092,7 @@ export function renderNewTable(table, position, force) {
         dderlCmd: table.content,
         dderlClmlay: cl,
         dderlTbllay: tl,
+        dderlStartBtn: startBtn,
         dderlViewId: viewId,
         dderlSortSpec: ((table.hasOwnProperty('sort_spec') && table.sort_spec.length > 0
         ) ? table.sort_spec : null)
@@ -4094,5 +4111,97 @@ export function renderNewTable(table, position, force) {
         .table(baseOptions)
         .table('setColumns', table.columns)
         .table('callReorder')
-        .table('buttonPress', '>');
+        .table('buttonPress', startBtn);
+}
+
+function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
+    var form = $('<form id="prompt_form">').append('<fieldset>' +
+        '<label for="prompt_save_as_input">ddView name: </label>' +
+        '<input type="text" id="prompt_save_as_input" name="prompt_save_as_input" class="text ui-widget-content ui-corner-all" value="'+ viewName +'" autofocus/>' +
+        '</fieldset>'
+    );
+
+    var buttons = ['>', '->|', 'pt', '>|', '>|...', '...'];
+    var startBtnSelectionDiv = $('<div id="start-btn-selection-div">')
+        .text("Select view start button:");
+    var buttonsDiv = $('<div>');
+    var btnSelected = startBtn;
+
+    var domBtnSelected;
+
+    buttons.forEach(function(btnId) {
+        var btnObj = btnDefinitions[btnId];
+        var btn = $('<button>')
+            .text(btnObj.tip)
+            .button({icons: {primary: 'fa fa-' + btnObj.icn}, text: false})
+            .css('height', '20px')
+            .addClass('colorIcon')
+            .appendTo(buttonsDiv);
+
+        if(btnId === btnSelected) {
+            btn.addClass('ui-state-highlight');
+            btn.removeClass('colorIcon');
+            domBtnSelected = btn;
+        }
+
+        btn.click(function() {
+            btnSelected = btnId;
+            if(domBtnSelected) {
+                domBtnSelected.removeClass('ui-state-highlight');
+                domBtnSelected.addClass('colorIcon');
+            }
+            domBtnSelected = btn;
+            btn.addClass('ui-state-highlight');
+            btn.removeClass('colorIcon');
+        });
+
+
+    });
+    buttonsDiv.buttonset();
+    startBtnSelectionDiv.append(buttonsDiv);
+
+
+    var execute_callback = function(dlg) {
+        var inputValue = $("#prompt_save_as_input").val();
+        if (inputValue) {
+            dlg.dialog("close");
+            callback(inputValue, btnSelected);
+        }
+    };
+
+    var dlgDiv =
+        $('<div>')
+        .append(form)
+        .append(startBtnSelectionDiv)
+        .dialog({
+            modal:false,
+            width: 300,
+            height: 300,
+            title: "DDerl parameter input",
+            appendTo: "#main-body",
+            close: function() {
+                //We have to remove the added child
+                dlgDiv.dialog('destroy');
+                dlgDiv.remove();
+                dlgDiv.empty();
+            },
+            buttons: {
+                'Ok': function() {
+                    execute_callback($(this));
+                },
+                'Cancel': function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
+
+    $('#prompt_save_as_input').keypress(function(event) {
+        if(event.which == 13) {
+            event.preventDefault();
+            event.stopPropagation();
+            execute_callback(dlgDiv);
+        }
+    });
+    dlgDiv.dialog("widget").draggable("option","containment","#main-body");
+    return dlgDiv;
 }

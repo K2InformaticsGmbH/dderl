@@ -315,6 +315,7 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
     background-position: -176px -160px;
 }
 
+.ui-widget-content .ui-state-highlight .ui-icon.ellipsis,
 .ui-widget-content .ui-state-hover .ui-icon.ellipsis {
     background-image: url(../assets/jquery-ui-images/ui-icons_222222_256x240.png);
 }
@@ -868,4 +869,15 @@ ul.dropdown.floatNone ul li {
     right: 0;
     border: 1px solid lightblue;
     overflow: hidden
+}
+
+/* View save start button section */
+#start-btn-selection-div {
+    padding: 2px;
+    margin-top: 15px;
+}
+
+.ui-widget-content .ui-state-highlight {
+    border-color: #888888;
+    background: #d0d0d0 url(../assets/jquery-ui-images/ui-bg_glass_75_d0d0d0_1x400.png) 50% 50% repeat-x;
 }
