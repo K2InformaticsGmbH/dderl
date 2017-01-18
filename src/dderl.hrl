@@ -215,7 +215,8 @@
 
 % IMEM REST interface
 -define(IMEMREST,               ?GET_CONFIG(active,         [], true,                   "Enable disable IMEM REST service")).
--define(IMEMREST_IPS,           ?GET_CONFIG(listenIntfs,    [], [{{127,0,0,1}, 9443}],  "Listen IPs and TCP ports")).
+-define(IMEMREST_IPS,           ?GET_CONFIG(listenIntfs,    [], [{{127,0,0,1}, element(2, application:get_env(dderl, port)) + 1000}],
+                                            "Listen IPs and TCP ports")).
 -define(IMEMREST_SSLOPTS,       ?GET_CONFIG(ssl,            [], '$no_ssl_conf',         "SSL listen socket options")).
 -define(IMEMREST_IPWHITELIST,   ?GET_CONFIG(ipWhiteLists,   [], [{127,0,0,1}],          "White listed IP address")).
 
