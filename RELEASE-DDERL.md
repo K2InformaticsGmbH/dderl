@@ -3,6 +3,19 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.6.8 (Release Date 18.01.2017)
+======================================
+* Allowed x-frame-options SAMEORIGIN to fix file download
+* Fixed d3 graph template clip conflict adding random suffix to id
+* Expansion of sql query fixed for Oracle queries with alias
+* Imem rest interface with swagger client integrated
+* Added menu option to hide empty columns
+* Added padding to sql editors to make easier to copy
+* Added sort as context menu for columns on count and statistics
+* Ignoring atoms and negative values on screensaver timeout configuration
+* Improved escaping of special characters on copy/paste and export csv
+* Added option to select starting button for views when using "Save As"
+
 Version 1.6.7 (Release Date 16.11.2016)
 ======================================
 * Node sharded fun as unquoted string
