@@ -882,6 +882,8 @@ make_csv_rows(Rows, RowFun, Adapter)
     make_csv_rows([RowFun(R) || R <- Rows],
                   ?COL_SEP_CHAR(Adapter),
                   ?ROW_SEP_CHAR(Adapter));
+make_csv_rows(Rows, expanded, Adapter) when is_list(Rows), is_atom(Adapter) ->
+    make_csv_rows(Rows, ?COL_SEP_CHAR(Adapter), ?ROW_SEP_CHAR(Adapter));
 make_csv_rows([], _ColSepChar, _RowSepChar) -> [];
 make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
     list_to_binary(
