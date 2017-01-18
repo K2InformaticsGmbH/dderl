@@ -230,7 +230,7 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
         setTimeout(function() {
             console.log(getTime()+" clipboard paste "+clipText.length+" bytes");
 
-            var clipRows = [];
+            var clipRows = [clipText];
             var inQuote = false;
             var rowStart = 0;
             for (var i = 0; i < clipText.length; ++i) {
