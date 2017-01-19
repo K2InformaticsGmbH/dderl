@@ -537,7 +537,7 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid)
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
+process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessPid) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
@@ -548,10 +548,10 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
                                 end, 
     case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
-            Columns = gen_adapter:build_column_csv(oci,Clms),
+            Columns = gen_adapter:build_column_csv(UserId, oci, Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                produce_csv_rows(From, StmtRef, RowFun)
+                produce_csv_rows(UserId, From, StmtRef, RowFun)
             end),
             dderloci:add_fsm(StmtRef, {?MODULE, ProducerPid}),
             dderloci:fetch_recs_async(StmtRef, [{fetch_mode, push}], 0),
@@ -575,7 +575,7 @@ process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
 % dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
 rows_limit(_NRows, Rows, {?MODULE, Pid}) -> Pid ! {Rows, true}. %% Fake a completed to send the last cvs part.
-produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
+produce_csv_rows(UserId, From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
     receive
         Data ->
             case erlang:process_info(From) of
@@ -583,22 +583,21 @@ produce_csv_rows(From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(
                     ?Error("Request aborted (response pid ~p invalid)", [From]),
                     dderloci:close(StmtRef);
                 _ ->
-                    produce_csv_rows_result(Data, From, StmtRef, RowFun)
+                    produce_csv_rows_result(Data, UserId, From, StmtRef, RowFun)
             end
     end.
 
-produce_csv_rows_result({error, Error}, From, StmtRef, _RowFun) ->
+produce_csv_rows_result({error, Error}, _UserId, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     dderloci:close(StmtRef);
-produce_csv_rows_result({Rows, false}, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
-    CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, oci),
+produce_csv_rows_result({Rows, false}, UserId, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
+    CsvRows = gen_adapter:make_csv_rows(UserId, Rows, RowFun, oci),
     From ! {reply_csv, <<>>, CsvRows, continue},
-    produce_csv_rows(From, StmtRef, RowFun);
-produce_csv_rows_result({Rows, true}, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
-    CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, oci),
+    produce_csv_rows(UserId, From, StmtRef, RowFun);
+produce_csv_rows_result({Rows, true}, UserId, From, StmtRef, RowFun) when is_list(Rows), is_function(RowFun) ->
+    CsvRows = gen_adapter:make_csv_rows(UserId, Rows, RowFun, oci),
     From ! {reply_csv, <<>>, CsvRows, last},
     dderloci:close(StmtRef).
-
 
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->
