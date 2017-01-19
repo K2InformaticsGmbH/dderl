@@ -874,11 +874,15 @@ get_deps() -> [sqlparse].
 
 -spec build_column_csv(integer(), atom(),[#stmtCol{}]) -> binary().
 build_column_csv(UserId, Adapter, Cols) ->
-    unicode:characters_to_binary(
-      [?CSV_BOM(UserId, Adapter),
-       csv_row(Cols, ?COL_SEP_CHAR(UserId, Adapter)),
-       ?ROW_SEP_CHAR(UserId, Adapter)],
-      utf8, ?CSV_ENC(UserId, Adapter)).
+    <<(case catch unicode:encoding_to_bom(?CSV_BOM(UserId, Adapter)) of
+           {'EXIT', _} -> <<>>;
+           Bom when is_binary(Bom) -> Bom
+       end)/binary,
+      (unicode:characters_to_binary(
+         [csv_row([C#stmtCol.alias || C <- Cols],
+                  ?COL_SEP_CHAR(UserId, Adapter)),
+          ?ROW_SEP_CHAR(UserId, Adapter)],
+         utf8, ?CSV_ENC(UserId, Adapter)))/binary>>.
 
 -spec make_csv_rows(integer(), list(), fun(), atom()) -> binary().
 make_csv_rows(UserId, Rows, RowFun, Adapter)
@@ -899,8 +903,7 @@ make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
     [csv_row(Row, ColSepChar), RowSepChar
      | make_csv_rows(Rows, ColSepChar, RowSepChar)].
 
-csv_row([], _ColSepChar) -> [];
-csv_row([Cell|Row], ColSepChar) ->
+csv_row(Row, ColSepChar) ->
     string:join(
       [binary_to_list(
          case re:run(Cell, "[\"\r\n"++ColSepChar++"]") of
@@ -909,5 +912,4 @@ csv_row([Cell|Row], ColSepChar) ->
                     (re:replace(Cell, "\"", "\"\"",
                                 [global, {return, binary}]))/binary,
                     $">>
-         end) | csv_row(Row, ColSepChar)],
-      ColSepChar).
+         end) || Cell <- Row], ColSepChar).

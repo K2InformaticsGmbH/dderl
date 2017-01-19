@@ -191,8 +191,8 @@
                     "Character encoding for the content see unicode::encoding() for supported values")).
 
 -define(CSV_BOM(__UserId, __Adapter),
-        ?GET_CONFIG(csvExportBomPrefix, [__UserId, __Adapter], <<239, 187, 191>>,
-                    "Byte Order Mark (BOM) matching the encoding")).
+        ?GET_CONFIG(csvExportBomPrefix, [__UserId, __Adapter], utf8,
+                    "Byte Order Mark (BOM) matching the encoding, unicode::encoding() for valid values")).
 
 %% DDErl Activity Logging
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
