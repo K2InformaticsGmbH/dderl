@@ -56,6 +56,7 @@ function buildReq(statement, tableStmtReload) {
                 graphFocusCb();
                 if(!key) {
                     // We should not register with empty keys.
+                    tableStmtReload(result);
                     return;
                 }
 
