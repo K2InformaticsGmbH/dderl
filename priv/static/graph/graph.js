@@ -54,7 +54,6 @@ function buildReq(statement, tableStmtReload) {
             } else {
                 statement = result.statement;
                 graphFocusCb();
-                tableStmtReload(result);
                 if(!key) {
                     // We should not register with empty keys.
                     return;
@@ -74,6 +73,8 @@ function buildReq(statement, tableStmtReload) {
                             alert_jq("Error on subscription");
                         } else if(subsResult.message != "ok") {
                             alert_jq("Error on subscription: " + subsResult.message);
+                        } else {
+                            tableStmtReload(result);
                         }
                     });
                 }, 100);
