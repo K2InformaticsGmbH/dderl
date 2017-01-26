@@ -887,29 +887,27 @@ build_column_csv(UserId, Adapter, Cols) ->
 -spec make_csv_rows(integer(), list(), fun(), atom()) -> binary().
 make_csv_rows(UserId, Rows, RowFun, Adapter)
   when is_list(Rows), is_function(RowFun, 1), is_atom(Adapter) ->
-    unicode:characters_to_binary(
-      make_csv_rows([RowFun(R) || R <- Rows], ?COL_SEP_CHAR(UserId, Adapter),
-                    ?ROW_SEP_CHAR(UserId, Adapter)),
-      utf8, ?CSV_ENC(UserId, Adapter));
+    make_csv_rows(UserId, [RowFun(R) || R <- Rows], expanded, Adapter);
 make_csv_rows(UserId, Rows, expanded, Adapter) when is_list(Rows),
                                                     is_atom(Adapter) ->
     unicode:characters_to_binary(
       make_csv_rows(Rows, ?COL_SEP_CHAR(UserId, Adapter),
-                    ?ROW_SEP_CHAR(UserId, Adapter)),
-      utf8, ?CSV_ENC(UserId, Adapter)).
+                    ?ROW_SEP_CHAR(UserId, Adapter)), utf8,
+      ?CSV_ENC(UserId, Adapter)).
 
 make_csv_rows([], _ColSepChar, _RowSepChar) -> [];
 make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
     [csv_row(Row, ColSepChar), RowSepChar
      | make_csv_rows(Rows, ColSepChar, RowSepChar)].
 
-csv_row(Row, ColSepChar) ->
-    string:join(
-      [binary_to_list(
-         case re:run(Cell, "[\"\r\n"++ColSepChar++"]") of
-             nomatch -> Cell;
-             _ -> <<$",
-                    (re:replace(Cell, "\"", "\"\"",
-                                [global, {return, binary}]))/binary,
-                    $">>
-         end) || Cell <- Row], ColSepChar).
+csv_row([], _ColSepChar) -> [];
+csv_row([Cell | Row], ColSepChar) ->
+    [case re:run(Cell, "[\"\r\n"++ColSepChar++"]") of
+         nomatch -> Cell;
+         _ -> <<$",
+                (re:replace(Cell, "\"", "\"\"",
+                            [global, {return, binary}]))/binary,
+                $">>
+     end,
+     if length(Row) > 0 -> ColSepChar; true -> [] end
+     | csv_row(Row, ColSepChar)].
