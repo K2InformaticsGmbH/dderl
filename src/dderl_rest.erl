@@ -278,20 +278,9 @@ stop_interface(Reason) ->
 %% Cowboy REST resource
 %%
 
--define(REPLY_HEADRS,
-        [{<<"access-control-allow-origin">>,<<"*">>},
-         {<<"server">>, <<"DDErl IMEM-REST">>}]).
--define(REPLY_JSON_HEADRS, [{<<"content-encoding">>, <<"utf-8">>},
-                            {<<"content-type">>, <<"application/json">>}
-                            | ?REPLY_HEADRS]).
--define(REPLY_JSON_SPEC_HEADERS,
-        [{<<"connection">>, <<"close">>},
-         {<<"content-type">>,
-          <<"application/json; charset=UTF-8">>},
-         {<<"content-disposition">>,
-          <<"attachment; filename=\"dderlrest.json\"">>}
-         | ?REPLY_HEADRS]).
--define(REPLY_OPT_HEADERS, [{<<"connection">>, <<"close">>} | ?REPLY_HEADRS]).
+-define(SERVER,     "DDErl IMEM-REST").
+-define(SPEC_FILE,  "dderlrest.json").
+-include("dderl_rest.hrl").
 
 -define(E2400,
         #{errorCode => 2400,
@@ -339,7 +328,7 @@ init(_, Req, spec) ->
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
                               filename:join(dderl:priv_dir(),
-                                            "dderlrest.json")),
+                                            ?SPEC_FILE)),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
             {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
@@ -474,7 +463,7 @@ get_params(views, Req0) ->
     end.
 
 info({reply, bad_req}, Req, State) ->
-    {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADRS, "", Req),
+    {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADERS, "", Req),
     {ok, Req1, State};
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(Body) ->
     info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
