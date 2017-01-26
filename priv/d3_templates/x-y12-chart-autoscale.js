@@ -620,7 +620,7 @@ function init(container, width, height) {
                 .attrs(circleAttrs1)
                 .styles(circleStyles1)
                 .append("title")
-                .html(pointTitle)
+                .text(pointTitle)
                 ;
 
             if (yCount >= 2) {
@@ -634,7 +634,7 @@ function init(container, width, height) {
                     .attrs(squareAttrs2)
                     .styles(squareStyles2)
                     .append("title")
-                    .html(pointTitle)
+                    .text(pointTitle)
                     ;
             };
             if (yCount >= 3) {
@@ -648,7 +648,7 @@ function init(container, width, height) {
                     .attrs(circleAttrs3)
                     .styles(circleStyles3)
                     .append("title")
-                    .html(pointTitle)
+                    .text(pointTitle)
                     ;
             };
             if (yCount >= 4) {
@@ -662,7 +662,7 @@ function init(container, width, height) {
                     .attrs(squareAttrs4)
                     .styles(squareStyles4)
                     .append("title")
-                    .html(pointTitle)
+                    .text(pointTitle)
                     ;
             };
         },

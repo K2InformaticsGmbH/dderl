@@ -230,34 +230,42 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
         setTimeout(function() {
             console.log(getTime()+" clipboard paste "+clipText.length+" bytes");
 
-            var clipRows = [clipText];
+            var clipRows = [];
             var inQuote = false;
-            var rowStart = 0;
+            var row = "";
             for (var i = 0; i < clipText.length; ++i) {
                 if (inQuote) {
-                    if (i + 1 < clipText.length &&
-                        clipText[i] == "\"" && clipText[i + 1] != "\"") {
+                    if (i + 1 < clipText.length && clipText[i] === "\"" && clipText[i + 1] !== "\"") {
                         inQuote = false;
-                    } else if (i + 1 < clipText.length &&
-                               clipText[i] == "\"" && clipText[i + 1] == "\"") {
+                    } else if (i + 1 < clipText.length && clipText[i] === "\"" && clipText[i + 1] === "\"") {
+                        row += clipText[i];
                         ++i;
                     }
+                    row += clipText[i];
                 } else {
-                    if (i + 1 < clipText.length &&
-                        clipText[i] == "\"" && clipText[i + 1] != "\"") {
+                    if (clipText[i] === "\"") {
                         inQuote = true;
-                    } else if (i + 1 < clipText.length &&
-                               clipText[i] == "\r" && clipText[i + 1] == "\n") {
-                        if(i > 0)
-                            clipRows.push(clipText.substring(rowStart, i));
-                        rowStart = i + 2;
+                        row += clipText[i];
+                    } else if (i + 1 < clipText.length && clipText[i] === "\r" && clipText[i + 1] === "\n") {
+                        if(i > 0) {
+                            clipRows.push(row);
+                            row = "";
+                        }
                         ++i;
+                    } else if(clipText[i] === "\n") {
+                        if(i > 0) {
+                            clipRows.push(row);
+                            row = "";
+                        }
+                    } else {
+                        row += clipText[i];
                     }
                 }
             }
-            var last = clipRows.pop();
-            if(last) {
-                clipRows.push(last);
+
+            // Check for last row.
+            if(row) {
+                clipRows.push(row);
             }
             var clpdRange = [];
             console.log(getTime()+" processing "+clipRows.length+" rows");
