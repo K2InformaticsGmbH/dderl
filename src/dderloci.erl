@@ -386,29 +386,43 @@ create_rowfun(RowIdAdded, Clms, Stmt) ->
             end
     end.
 
-can_expand([<<"*">>], _, _) -> true;
-can_expand(SelectFields, [TableName], AllFields) when is_binary(TableName) ->
-    LowerSelectFields = normalize_pt_fields(SelectFields),
+expand_fields([<<"*">>], _, AllFields, Cols, Sections) ->
+    NewFields = [lists:nth(N, AllFields) || N <- Cols],
+    lists:keyreplace('fields', 1, Sections, {'fields', NewFields});
+expand_fields(QryFields, Tables, AllFields, Cols, Sections) ->
+    NormQryFlds = normalize_pt_fields(QryFields, #{}),
     LowerAllFields = [string:to_lower(binary_to_list(X)) || X <- AllFields],
+    case can_expand(maps:keys(NormQryFlds), Tables, LowerAllFields) of
+        true ->
+            Keys = [lists:nth(N,LowerAllFields) || N <- Cols],
+            NewFields = [maps:get(K, NormQryFlds) || K <- Keys],
+            lists:keyreplace('fields', 1, Sections, {'fields',NewFields});
+        false ->
+            Sections
+    end.
+
+can_expand(LowerSelectFields, [TableName], LowerAllFields) when is_binary(TableName) ->
     length(LowerSelectFields) =:= length(LowerAllFields) andalso [] =:= (LowerSelectFields -- LowerAllFields);
 can_expand(_, _, _) -> false.
 
-normalize_pt_fields([]) -> [];
-normalize_pt_fields([{as, _Field, Alias} | Rest]) when is_binary(Alias) -> 
-    [string:to_lower(binary_to_list(Alias)) | normalize_pt_fields(Rest)];
-normalize_pt_fields([TupleField | Rest]) when is_tuple(TupleField) ->
+normalize_pt_fields([], Result) -> Result;
+normalize_pt_fields([{as, _Field, Alias} = Fld | Rest], Result) when is_binary(Alias) ->
+    Normalized = string:to_lower(binary_to_list(Alias)),
+    normalize_pt_fields(Rest, Result#{Normalized => Fld});
+normalize_pt_fields([TupleField | Rest], Result) when is_tuple(TupleField) ->
     case element(1, TupleField) of
         'fun' ->
             BinField = sqlparse:pt_to_string(TupleField),
-            [string:to_lower(binary_to_list(BinField)) | normalize_pt_fields(Rest)];
+            Normalized = string:to_lower(binary_to_list(BinField)),
+            normalize_pt_fields(Rest, Result#{Normalized => TupleField});
         _ ->
-            normalize_pt_fields(Rest)
+            normalize_pt_fields(Rest, Result)
     end;
-normalize_pt_fields([Field | Rest]) when is_binary(Field) ->
-    [string:to_lower(binary_to_list(Field)) | normalize_pt_fields(Rest)];
-normalize_pt_fields([_Ignored | Rest]) ->
-    normalize_pt_fields(Rest).
-
+normalize_pt_fields([Field | Rest], Result) when is_binary(Field) ->
+    Normalized = string:to_lower(binary_to_list(Field)),
+    normalize_pt_fields(Rest, Result#{Normalized => Field});
+normalize_pt_fields([_Ignored | Rest], Result) ->
+    normalize_pt_fields(Rest, Result).
 
 build_sort_spec(SelectSections, StmtCols) ->
     FullMap = build_full_map(StmtCols),
@@ -470,13 +484,7 @@ filter_and_sort_internal(_Connection, FilterSpec, SortSpec, Cols, Query, StmtCol
             {fields, Flds} = lists:keyfind(fields, 1, SelectSections),
             {from, Tables} = lists:keyfind(from, 1, SelectSections),
             {where, WhereTree} = lists:keyfind(where, 1, SelectSections),
-            case can_expand(Flds, Tables, AllFields) of
-                true ->
-                    NewFields = [lists:nth(N,AllFields) || N <- Cols1],
-                    NewSections0 = lists:keyreplace('fields', 1, SelectSections, {'fields',NewFields});
-                false ->
-                    NewSections0 = SelectSections
-            end,
+            NewSections0 = expand_fields(Flds, Tables, AllFields, Cols1, SelectSections),
             Filter = imem_sql_expr:filter_spec_where(FilterSpec, FullMap, WhereTree),
             FilterEmptyAsNull = filter_replace_empty(Filter),
             NewSections1 = lists:keyreplace('where', 1, NewSections0, {'where',FilterEmptyAsNull}),
