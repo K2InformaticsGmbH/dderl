@@ -337,7 +337,7 @@ init(_, Req, spec) ->
                                    | ?REPLY_OPT_HEADERS], <<>>, Req);
         {Method, Req} ->
             ?Error("~p not supported", [Method]),
-            cowboy_req:reply(405, ?REPLY_JSON_HEADRS, ?JSON(?E1405), Req)
+            cowboy_req:reply(405, ?REPLY_JSON_HEADERS, ?JSON(?E1405), Req)
     end,
     {shutdown, Req1, #state{}};
 init(_, Req, #{whitelist := WhiteList} = Opts) ->
@@ -360,7 +360,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                                 {error, Error} ->
                                     {ok, Req2} =
                                     cowboy_req:reply(
-                                      400, ?REPLY_JSON_HEADRS,
+                                      400, ?REPLY_JSON_HEADERS,
                                       ?JSON(?E400(1, "DB login error",
                                                   io_lib:format("~p", [Error]))),
                                       Req1),
@@ -368,7 +368,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                             end;
                         _ ->
                             {ok, Req1} = cowboy_req:reply(
-                                           401, ?REPLY_JSON_HEADRS,
+                                           401, ?REPLY_JSON_HEADERS,
                                            ?JSON(?E1401), Req),
                             {shutdown, Req1, undefined}
                     end;
@@ -379,7 +379,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                                          base64:decode(SessionBin))})
             end;
         _ ->
-            {ok, Req1} = cowboy_req:reply(403, ?REPLY_JSON_HEADRS,
+            {ok, Req1} = cowboy_req:reply(403, ?REPLY_JSON_HEADERS,
                                           ?JSON(?E1403), Req),
             {shutdown, Req1, undefined}
     end.
@@ -391,7 +391,7 @@ push_request(Cmd, Op, Req, Opts) ->
             case get_params(Cmd, Req) of
                 {{error, Error}, Req1} ->
                     ?Error("~p", [Error]),
-                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS,
+                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS,
                                                   ?JSON(?E2400), Req1),
                     {shutdown, Req2, undefined};
                 {Params, Req1} when is_map(Params) ->
@@ -401,12 +401,12 @@ push_request(Cmd, Op, Req, Opts) ->
                     {loop, Req1, Opts, 30000, hibernate}
             end;
         false when Op == <<"POST">> ->
-            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E2400),
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E2400),
                                           Req),
             {shutdown, Req1, undefined};
         HB ->
             ?Error("~s has body = ~p", [Op, HB]),
-            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E9400),
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E9400),
                                           Req),
             {shutdown, Req1, undefined}
     end.
@@ -469,7 +469,7 @@ info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(B
     info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binary(Body) ->
     RespHeaders =
-    ?REPLY_JSON_HEADRS ++
+    ?REPLY_JSON_HEADERS ++
     lists:map(
       fun({H,V}) when is_binary(V) -> {H, base64:encode(V)};
          ({H,V}) -> {H, base64:encode(term_to_binary(V))}

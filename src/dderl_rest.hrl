@@ -5,7 +5,7 @@
         [{<<"access-control-allow-origin">>,<<"*">>},
          {<<"cache-control">>,<<"no-cache, no-store, must-revalidate">>},
          {<<"server">>, <<?SERVER>>}]).
--define(REPLY_JSON_HEADRS,
+-define(REPLY_JSON_HEADERS,
         [{<<"content-encoding">>, <<"utf-8">>},
          {<<"content-type">>, <<"application/json">>}
          | ?REPLY_HEADERS]).
