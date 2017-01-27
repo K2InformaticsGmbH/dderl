@@ -951,7 +951,9 @@ function insertAtCursor(myField, myValue) {
             } else {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
-                    connection: dderlState.connection, qstr: self._modCmd, conn_id: dderlState.connectionSelected.connection,
+                    connection: dderlState.connection,
+                    qstr: self._modCmd,
+                    conn_id: dderlState.connectionSelected.connection,
                     binds: params
                 }}, 'query', 'resultStmt');
                 self._modCmd = self._cmdFlat;
@@ -967,7 +969,7 @@ function insertAtCursor(myField, myValue) {
             dderlConn      : dderlState.connection,
             dderlAdapter   : dderlState.adapter,
             dderlStartBtn  : this._reloadBtn,
-            dderlCmdStrs   : this._history,
+            dderlCmdStrs   : this._history
         };
 
         if(resultQry.hasOwnProperty('result') && resultQry.result === 'ok') {
@@ -990,6 +992,8 @@ function insertAtCursor(myField, myValue) {
         } else {
             initOptions.dderlSqlEditor = this._dlg;
             initOptions.title = this._title;
+            initOptions.dderlViewId = this.options.viewId;
+
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>');
             }
