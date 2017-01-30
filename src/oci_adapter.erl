@@ -486,7 +486,7 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                                    {error, _Error} -> undefined;
                                    BindVals0 -> BindVals0
                                end,
-                    case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
+                    case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
                         {ok, #stmtResult{} = StmtRslt, TableName} ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
@@ -546,7 +546,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
                                    {error, _Error} -> undefined;
                                    BindVals0 -> BindVals0
                                 end, 
-    case dderloci:exec(Connection, Query, BindVals, ?GET_ROWNUM_LIMIT) of
+    case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(oci,Clms),
             From ! {reply_csv, FileName, Columns, first},
@@ -653,11 +653,11 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 -spec process_query(tuple()|binary(), tuple(), pid()) -> list().
 process_query({Query, BindVals}, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query, BindVals,
-                                           ?GET_ROWNUM_LIMIT)),
+                                           imem_sql_expr:rownum_limit())),
                   Query, BindVals, Connection, SessPid);
 process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
     process_query(check_funs(dderloci:exec(Connection, Query,
-                                           ?GET_ROWNUM_LIMIT)),
+                                           imem_sql_expr:rownum_limit())),
                   Query, [], Connection, SessPid).
 
 -spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
