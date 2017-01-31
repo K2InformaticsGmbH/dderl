@@ -671,7 +671,7 @@ find_deps_app_seq(App,Chain) ->
 
 login(ReqData, From, SrcIp, State) ->
     #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
-    Host =
+    HostApp =
     lists:foldl(
       fun({App,_,_}, <<>>) ->
               {ok, Apps} = application:get_key(App, applications),
@@ -682,7 +682,7 @@ login(ReqData, From, SrcIp, State) ->
          (_, App) -> App
       end, <<>>, application:which_applications()),
     {ok, Vsn} = application:get_key(dderl, vsn),
-    Reply0 = #{vsn => list_to_binary(Vsn), host => Host, port => application:get_env(dderl, port),
+    Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp, port => application:get_env(dderl, port),
                node => list_to_binary(imem_meta:node_shard())},
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
