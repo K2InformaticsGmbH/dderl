@@ -2334,7 +2334,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             if(_table.table_layout.hasOwnProperty('x')) {
                 this._tbllay = _table.table_layout;
             }
-            if(this._tbllay.start_btn) {
+            if(this._tbllay && this._tbllay.start_btn) {
                 this._startBtn = this._tbllay.start_btn;
             }
 
@@ -4065,7 +4065,7 @@ export function renderNewTable(table, position, force) {
     }
 
     var startBtn = '>';
-    if(table.hasOwnProperty('table_layout') && table.table_layout.start_btn) {
+    if(table.table_layout && table.table_layout.start_btn) {
         startBtn = table.table_layout.start_btn;
     }
 

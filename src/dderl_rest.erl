@@ -278,20 +278,9 @@ stop_interface(Reason) ->
 %% Cowboy REST resource
 %%
 
--define(REPLY_HEADRS,
-        [{<<"access-control-allow-origin">>,<<"*">>},
-         {<<"server">>, <<"DDErl IMEM-REST">>}]).
--define(REPLY_JSON_HEADRS, [{<<"content-encoding">>, <<"utf-8">>},
-                            {<<"content-type">>, <<"application/json">>}
-                            | ?REPLY_HEADRS]).
--define(REPLY_JSON_SPEC_HEADERS,
-        [{<<"connection">>, <<"close">>},
-         {<<"content-type">>,
-          <<"application/json; charset=UTF-8">>},
-         {<<"content-disposition">>,
-          <<"attachment; filename=\"dderlrest.json\"">>}
-         | ?REPLY_HEADRS]).
--define(REPLY_OPT_HEADERS, [{<<"connection">>, <<"close">>} | ?REPLY_HEADRS]).
+-define(SERVER,     "DDErl IMEM-REST").
+-define(SPEC_FILE,  "dderlrest.json").
+-include("dderl_rest.hrl").
 
 -define(E2400,
         #{errorCode => 2400,
@@ -339,7 +328,7 @@ init(_, Req, spec) ->
         {<<"GET">>, Req} ->
             {ok, Content} = file:read_file(
                               filename:join(dderl:priv_dir(),
-                                            "dderlrest.json")),
+                                            ?SPEC_FILE)),
             cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
         {<<"OPTIONS">>, Req} ->
             {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
@@ -348,7 +337,7 @@ init(_, Req, spec) ->
                                    | ?REPLY_OPT_HEADERS], <<>>, Req);
         {Method, Req} ->
             ?Error("~p not supported", [Method]),
-            cowboy_req:reply(405, ?REPLY_JSON_HEADRS, ?JSON(?E1405), Req)
+            cowboy_req:reply(405, ?REPLY_JSON_HEADERS, ?JSON(?E1405), Req)
     end,
     {shutdown, Req1, #state{}};
 init(_, Req, #{whitelist := WhiteList} = Opts) ->
@@ -371,7 +360,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                                 {error, Error} ->
                                     {ok, Req2} =
                                     cowboy_req:reply(
-                                      400, ?REPLY_JSON_HEADRS,
+                                      400, ?REPLY_JSON_HEADERS,
                                       ?JSON(?E400(1, "DB login error",
                                                   io_lib:format("~p", [Error]))),
                                       Req1),
@@ -379,7 +368,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                             end;
                         _ ->
                             {ok, Req1} = cowboy_req:reply(
-                                           401, ?REPLY_JSON_HEADRS,
+                                           401, ?REPLY_JSON_HEADERS,
                                            ?JSON(?E1401), Req),
                             {shutdown, Req1, undefined}
                     end;
@@ -390,7 +379,7 @@ init(_, Req, #{whitelist := WhiteList} = Opts) ->
                                          base64:decode(SessionBin))})
             end;
         _ ->
-            {ok, Req1} = cowboy_req:reply(403, ?REPLY_JSON_HEADRS,
+            {ok, Req1} = cowboy_req:reply(403, ?REPLY_JSON_HEADERS,
                                           ?JSON(?E1403), Req),
             {shutdown, Req1, undefined}
     end.
@@ -402,7 +391,7 @@ push_request(Cmd, Op, Req, Opts) ->
             case get_params(Cmd, Req) of
                 {{error, Error}, Req1} ->
                     ?Error("~p", [Error]),
-                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS,
+                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS,
                                                   ?JSON(?E2400), Req1),
                     {shutdown, Req2, undefined};
                 {Params, Req1} when is_map(Params) ->
@@ -412,12 +401,12 @@ push_request(Cmd, Op, Req, Opts) ->
                     {loop, Req1, Opts, 30000, hibernate}
             end;
         false when Op == <<"POST">> ->
-            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E2400),
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E2400),
                                           Req),
             {shutdown, Req1, undefined};
         HB ->
             ?Error("~s has body = ~p", [Op, HB]),
-            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADRS, ?JSON(?E9400),
+            {ok, Req1} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E9400),
                                           Req),
             {shutdown, Req1, undefined}
     end.
@@ -474,13 +463,13 @@ get_params(views, Req0) ->
     end.
 
 info({reply, bad_req}, Req, State) ->
-    {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADRS, "", Req),
+    {ok, Req1} = cowboy_req:reply(400, ?REPLY_HEADERS, "", Req),
     {ok, Req1, State};
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(Body) ->
     info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binary(Body) ->
     RespHeaders =
-    ?REPLY_JSON_HEADRS ++
+    ?REPLY_JSON_HEADERS ++
     lists:map(
       fun({H,V}) when is_binary(V) -> {H, base64:encode(V)};
          ({H,V}) -> {H, base64:encode(term_to_binary(V))}
