@@ -519,12 +519,12 @@ div#main_footer {
 }
 
 .sql_text_editor {
-    width: 100%;
+    width: calc(100% - 20px);
     height:100%;
     resize: none;
     border: none;
     font-size: 1.14em;
-    padding-left: 15px;
+    padding-left: 20px;
 }
 
 .sql_text_flat {
