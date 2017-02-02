@@ -700,12 +700,13 @@ export function password_change_dlg(title, loggedInUser, change_pass_fn) {
         .find("button:contains('Change Password')").button("disable");
 }
 
-
 export function unescapeNewLines(str) {
     try {
         JSON.parse(str);
     } catch (e) {
-        str = str.replace(/^"|"$/g, '').replace(/""/g, '"');
+        if(/[\n\t\r]/.test(str) === true) {
+            str = str.replace(/^"|"$/g, '').replace(/""/g, '"');
+        }
     }
     return unescape(str);
 }
@@ -713,7 +714,7 @@ export function unescapeNewLines(str) {
 export function escapeNewLines(str) {
     var result = str;
     if(typeof str == 'string' || str instanceof String) {
-        if(/[\n\t\r"]/.test(str) === true) {
+        if(/[\n\t\r]/.test(str) === true) {
             result = "\""+str.replace(/"/g,"\"\"")+"\"";
         }
     }

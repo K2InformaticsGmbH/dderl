@@ -180,8 +180,19 @@
                                             territory   => <<"SWITZERLAND">>,
                                             charset     => <<"AL32UTF8">>}, "OCI NSL Language connect option")).
 %% CSV Configs
--define(COL_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiter, [__Adapter], "\t", "Character to seperate each column of a CSV export")).
--define(ROW_SEP_CHAR(__Adapter), ?GET_CONFIG(csvExportDelimiterNewLine, [__Adapter], "\n", "Character to seperate each rows of a CSV export")).
+-define(COL_SEP_CHAR(__UserId, __Adapter),
+        ?GET_CONFIG(csvExportDelimiter, [__UserId, __Adapter], ";",
+                    "Character to seperate each column of a CSV export")).
+-define(ROW_SEP_CHAR(__UserId, __Adapter),
+        ?GET_CONFIG(csvExportDelimiterNewLine, [__UserId, __Adapter], "\r\n",
+                    "Character to seperate each rows of a CSV export")).
+-define(CSV_ENC(__UserId, __Adapter),
+        ?GET_CONFIG(csvExportEncoding, [__UserId, __Adapter], utf8,
+                    "Character encoding for the content see unicode::encoding() for supported values")).
+
+-define(CSV_BOM(__UserId, __Adapter),
+        ?GET_CONFIG(csvExportBomPrefix, [__UserId, __Adapter], utf8,
+                    "Byte Order Mark (BOM) matching the encoding, unicode::encoding() for valid values")).
 
 %% DDErl Activity Logging
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).

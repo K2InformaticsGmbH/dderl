@@ -13,14 +13,14 @@
         , build_resp_fun/3
         , process_query/4
         , build_column_json/1
-        , build_column_csv/2
+        , build_column_csv/3
         , extract_modified_rows/1
         , decrypt_to_term/1
         , encrypt_to_binary/1
         , get_deps/0
         , opt_bind_json_obj/2
         , add_conn_info/2
-        , make_csv_rows/3
+        , make_csv_rows/4
         ]).
 
 init() -> ok.
@@ -739,10 +739,6 @@ build_column_json([C|Cols], JCols, Counter) ->
     JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
 
--spec build_column_csv(atom(),[#stmtCol{}]) -> binary().
-build_column_csv(Adapter,Cols) ->
-    list_to_binary([string:join([binary_to_list(C#stmtCol.alias) || C <- Cols], ?COL_SEP_CHAR(Adapter)), ?ROW_SEP_CHAR(Adapter)]).
-
 -spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
 extract_modified_rows([]) -> [];
 extract_modified_rows([ReceivedRow | Rest]) ->
@@ -876,27 +872,42 @@ escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].
 
--spec make_csv_rows(list(), fun(), atom()) -> binary().
-make_csv_rows(Rows, RowFun, Adapter)
+-spec build_column_csv(integer(), atom(),[#stmtCol{}]) -> binary().
+build_column_csv(UserId, Adapter, Cols) ->
+    <<(case catch unicode:encoding_to_bom(?CSV_BOM(UserId, Adapter)) of
+           {'EXIT', _} -> <<>>;
+           Bom when is_binary(Bom) -> Bom
+       end)/binary,
+      (unicode:characters_to_binary(
+         [csv_row([C#stmtCol.alias || C <- Cols],
+                  ?COL_SEP_CHAR(UserId, Adapter)),
+          ?ROW_SEP_CHAR(UserId, Adapter)],
+         utf8, ?CSV_ENC(UserId, Adapter)))/binary>>.
+
+-spec make_csv_rows(integer(), list(), fun(), atom()) -> binary().
+make_csv_rows(UserId, Rows, RowFun, Adapter)
   when is_list(Rows), is_function(RowFun, 1), is_atom(Adapter) ->
-    make_csv_rows([RowFun(R) || R <- Rows],
-                  ?COL_SEP_CHAR(Adapter),
-                  ?ROW_SEP_CHAR(Adapter));
-make_csv_rows(Rows, expanded, Adapter) when is_list(Rows), is_atom(Adapter) ->
-    make_csv_rows(Rows, ?COL_SEP_CHAR(Adapter), ?ROW_SEP_CHAR(Adapter));
+    make_csv_rows(UserId, [RowFun(R) || R <- Rows], expanded, Adapter);
+make_csv_rows(UserId, Rows, expanded, Adapter) when is_list(Rows),
+                                                    is_atom(Adapter) ->
+    unicode:characters_to_binary(
+      make_csv_rows(Rows, ?COL_SEP_CHAR(UserId, Adapter),
+                    ?ROW_SEP_CHAR(UserId, Adapter)), utf8,
+      ?CSV_ENC(UserId, Adapter)).
+
 make_csv_rows([], _ColSepChar, _RowSepChar) -> [];
 make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
-    list_to_binary(
-      [list_to_binary(
-         [string:join(
-            [binary_to_list(
-               case re:run(TR, "[\"\r\n]") of
-                   nomatch -> TR;
-                   _ ->
-                       <<$",
-                         (re:replace(
-                            TR, "\"", "\"\"",
+    [csv_row(Row, ColSepChar), RowSepChar
+     | make_csv_rows(Rows, ColSepChar, RowSepChar)].
+
+csv_row([], _ColSepChar) -> [];
+csv_row([Cell | Row], ColSepChar) ->
+    [case re:run(Cell, "[\"\r\n"++ColSepChar++"]") of
+         nomatch -> Cell;
+         _ -> <<$",
+                (re:replace(Cell, "\"", "\"\"",
                             [global, {return, binary}]))/binary,
-                         $">>
-               end) || TR <- Row], ColSepChar), RowSepChar])
-       | make_csv_rows(Rows, ColSepChar, RowSepChar)]).
+                $">>
+     end,
+     if length(Row) > 0 -> ColSepChar; true -> [] end
+     | csv_row(Row, ColSepChar)].

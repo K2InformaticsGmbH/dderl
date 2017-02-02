@@ -643,7 +643,7 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid)
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
+process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessPid) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
@@ -653,10 +653,10 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, _UserId, From, Priv, _Sess
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
-            Columns = gen_adapter:build_column_csv(imem,Clms),
+            Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                produce_csv_rows(Connection, From, StmtRef, RowFun)
+                produce_csv_rows(UserId, Connection, From, StmtRef, RowFun)
             end),
             Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
             Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
@@ -706,29 +706,30 @@ sql_name(Name) ->
 
 % dderl_fsm like row receive interface for compatibility
 rows(Rows, {?MODULE, Pid}) -> Pid ! Rows.
-produce_csv_rows(Connection, From, StmtRef, RowFun) when is_function(RowFun) andalso is_pid(From) ->
+produce_csv_rows(UserId, Connection, From, StmtRef, RowFun)
+  when is_function(RowFun), is_pid(From) ->
     receive
         Data ->
             case erlang:process_info(From) of
                 undefined -> ?Error("Request aborted (response pid ~p invalid)", [From]);
                 _ ->
-                    produce_csv_rows_result(Data, Connection, From, StmtRef, RowFun)
+                    produce_csv_rows_result(Data, UserId, Connection, From, StmtRef, RowFun)
             end
     end.
 
-produce_csv_rows_result({error, Error}, Connection, From, StmtRef, _RowFun) ->
+produce_csv_rows_result({error, Error}, _UserId, Connection, From, StmtRef, _RowFun) ->
     From ! {reply_csv, <<>>, list_to_binary(io_lib:format("Error: ~p", [Error])), last},
     Connection:run_cmd(close, [StmtRef]);
-produce_csv_rows_result({Rows,false}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
+produce_csv_rows_result({Rows,false}, UserId, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
     if length(Rows) > 0 ->
-           CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, imem),
+           CsvRows = gen_adapter:make_csv_rows(UserId, Rows, RowFun, imem),
            ?Debug("Rows intermediate ~p", [CsvRows]),
            From ! {reply_csv, <<>>, CsvRows, continue};
        true -> ok
     end,
-    produce_csv_rows(Connection, From, StmtRef, RowFun);
-produce_csv_rows_result({Rows,true}, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
-    CsvRows = gen_adapter:make_csv_rows(Rows, RowFun, imem),
+    produce_csv_rows(UserId, Connection, From, StmtRef, RowFun);
+produce_csv_rows_result({Rows,true}, UserId, Connection, From, StmtRef, RowFun) when is_list(Rows) ->
+    CsvRows = gen_adapter:make_csv_rows(UserId, Rows, RowFun, imem),
     ?Debug("Rows last ~p", [CsvRows]),
     From ! {reply_csv, <<>>, CsvRows, last},
     Connection:run_cmd(close, [StmtRef]).

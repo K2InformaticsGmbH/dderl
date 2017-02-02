@@ -597,7 +597,8 @@ spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self
         Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid),
         SelfPid ! rearm_session_idle_timer
     catch Class:Error ->
-            ?Error("Problem processing command: ~p:~p~n~p~n", [Class, Error, BodyJson]),
+            ?Error("Problem processing command: ~p:~p~n~p~n~p~n",
+                   [Class, Error, BodyJson, erlang:get_stacktrace()]),
             reply(From, [{<<"error">>, <<"Unable to process the request">>}], SelfPid)
     end.
 
