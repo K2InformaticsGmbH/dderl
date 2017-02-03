@@ -54,29 +54,6 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
       _grid.onKeyDown.unsubscribe(handleKeyDown);
     }
     
-    function getDataItemValueForColumn(item, columnDef) {
-      if (_options.dataItemColumnValueExtractor) {
-        return _options.dataItemColumnValueExtractor(item, columnDef);
-      }
-
-      var retVal = '';
-
-      // if a custom getter is not defined, we call serializeValue of the editor to serialize
-      if (columnDef.editor){
-        var editorArgs = {
-          'container':$('body'),  // a dummy container
-          'column':columnDef,
-          'position':{'top':0, 'left':0}  // a dummy position required by some editors
-        };
-        var editor = new columnDef.editor(editorArgs);
-        editor.loadValue(item);
-        retVal = editor.serializeValue();
-        editor.destroy();
-      }
-
-      return retVal;
-    }
-    
     function setDataItemValueForColumn(item, columnDef, value) {
       if (_options.dataItemColumnValueSetter) {
         return _options.dataItemColumnValueSetter(item, columnDef, value);
@@ -160,7 +137,7 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
             //
             ev.preventDefault();
 
-            if (_ref != null && _ref.clipboardData != null) {
+            if (_ref && _ref.clipboardData) {
                 clipboardData = _ref.clipboardData;
                 if (clipboardData.items) {                    
                     var _ref1 = clipboardData.items;
@@ -172,20 +149,20 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
                             item = _ref1[_i];
                             break;
                         }
-                    for (_i = 0, _len = _ref1.length; _i < _len && item == null; _i++)
+                    for (_i = 0, _len = _ref1.length; _i < _len && (item === null || item === undefined); _i++)
                         if(_ref1[_i].type.match(/^image\//)) {
                             item = _ref1[_i];
                             break;
                         }
-                    if (item != null && item.type.match(/^image\//)) {
+                    if (item && item.type.match(/^image\//)) {
                         reader = new FileReader();
                         reader.onload = function(event) {
                             _processTabularData([[event.target.result]]);
                         };
                         reader.readAsDataURL(item.getAsFile());
-                    } else if(item != null && item.type === 'text/plain') {
-                        if(_grid.hasOwnProperty("gridowner")
-                                && typeof _grid.gridowner.startPaste === 'function')
+                    } else if(item && item.type === 'text/plain') {
+                        if(_grid.hasOwnProperty("gridowner") && 
+                                typeof _grid.gridowner.startPaste === 'function')
                             _grid.gridowner.startPaste();
                         item.getAsString(function(string) {
                             _decodeTabularTextData(string);
@@ -193,11 +170,11 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
                     }
                 } else {
                     if (clipboardData.types.length) {
-                        if(_grid.hasOwnProperty("gridowner")
-                                && typeof _grid.gridowner.startPaste === 'function')
+                        if(_grid.hasOwnProperty("gridowner") &&
+                                typeof _grid.gridowner.startPaste === 'function')
                             _grid.gridowner.startPaste();
                         text = clipboardData.getData('Text');
-                        if (text != null && text.length) {
+                        if (text && text.length) {
                             _decodeTabularTextData(text);
                         }
                     } else {
@@ -209,12 +186,12 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
             }
             clipboardData = window.clipboardData;
             if (clipboardData) {
-                if(_grid.hasOwnProperty("gridowner")
-                        && typeof _grid.gridowner.startPaste === 'function')
+                if(_grid.hasOwnProperty("gridowner") &&
+                        typeof _grid.gridowner.startPaste === 'function')
                     _grid.gridowner.startPaste();
                 text = clipboardData.getData('Text');
                 setTimeout(function() {
-                    if (text != null && text.length) {
+                    if (text && text.length) {
                         _decodeTabularTextData(text);
                     } else {
                         readImagesFromEditable(div, function(data) {
@@ -387,8 +364,8 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
                 _grid.getSelectionModel().setSelectedRanges([bRange]);
                 _grid.focus();
                 self.cellExternalCopyManager.onPasteCells.notify({ranges: [bRange]});
-                if(_grid.hasOwnProperty("gridowner")
-                    && typeof _grid.gridowner.endPaste === 'function')
+                if(_grid.hasOwnProperty("gridowner") &&
+                        typeof _grid.gridowner.endPaste === 'function')
                     _grid.gridowner.endPaste();
             });
         },
@@ -429,12 +406,10 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
                     var destx = activeCell + x;
 
                     if (desty < this.maxDestY && destx < this.maxDestX ) {
-                        if (dt != undefined) {
-                            if (!oneCellToMultiple) {
-                                parsedNewValue = unescapeNewLines(clippedRange[y][x]);
-                            }
-                            dat[columns[destx].field] = parsedNewValue;
+                        if (!oneCellToMultiple) {
+                            parsedNewValue = unescapeNewLines(clippedRange[y][x]);
                         }
+                        dat[columns[destx].field] = parsedNewValue;
                     }
                 }
                 dv.updateItem(dat.id, dat);
@@ -489,7 +464,7 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
     }
 
     function process_copy(e, args, ranges, copyMode) {
-        if (ranges.length != 0) {
+        if (ranges.length !== 0) {
             _copiedRanges = ranges;
             markCopySelection(ranges);
             _self.onCopyCells.notify({ranges: ranges});
@@ -674,7 +649,7 @@ import {dderlState, escapeNewLines, unescapeNewLines} from '../../scripts/dderl'
       "destroy": destroy,
       "clearCopySelection": clearCopySelection,
       "handleKeyDown":handleKeyDown,
-      
+
       "onCopyCells": new Slick.Event(),
       "onCopyCancelled": new Slick.Event(),
       "onPasteCells": new Slick.Event()

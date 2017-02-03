@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 /***
  * Contains basic SlickGrid editors.
  * @module Editors
@@ -20,10 +22,17 @@
     }
   });
 
+  function isValueChanged(value, defaultValue) {
+    if(defaultValue === null || defaultValue === undefined) {
+      return value !== "";
+    } else {
+      return value != defaultValue;
+    }
+  }
+
   function TextEditor(args) {
     var $input;
     var defaultValue;
-    var scope = this;
 
     this.init = function () {
       $input = $("<INPUT type=text class='editor-text' />")
@@ -69,7 +78,7 @@
     };
 
     this.isValueChanged = function () {
-      return (!($input.val() == "" && defaultValue == null)) && ($input.val() != defaultValue);
+      return isValueChanged($input.val(), defaultValue);
     };
 
     this.validate = function () {
@@ -92,7 +101,6 @@
   function IntegerEditor(args) {
     var $input;
     var defaultValue;
-    var scope = this;
 
     this.init = function () {
       $input = $("<INPUT type=text class='editor-text' />");
@@ -131,7 +139,7 @@
     };
 
     this.isValueChanged = function () {
-      return (!($input.val() == "" && defaultValue == null)) && ($input.val() != defaultValue);
+      return isValueChanged($input.val(), defaultValue);
     };
 
     this.validate = function () {
@@ -154,7 +162,6 @@
   function DateEditor(args) {
     var $input;
     var defaultValue;
-    var scope = this;
     var calendarOpen = false;
 
     this.init = function () {
@@ -166,10 +173,10 @@
         buttonImageOnly: true,
         buttonImage: "../images/calendar.gif",
         beforeShow: function () {
-          calendarOpen = true
+          calendarOpen = true;
         },
         onClose: function () {
-          calendarOpen = false
+          calendarOpen = false;
         }
       });
       $input.width($input.width() - 18);
@@ -223,7 +230,7 @@
     };
 
     this.isValueChanged = function () {
-      return (!($input.val() == "" && defaultValue == null)) && ($input.val() != defaultValue);
+      return isValueChanged($input.val(), defaultValue);
     };
 
     this.validate = function () {
@@ -239,7 +246,6 @@
   function YesNoSelectEditor(args) {
     var $select;
     var defaultValue;
-    var scope = this;
 
     this.init = function () {
       $select = $("<SELECT tabIndex='0' class='editor-yesno'><OPTION value='yes'>Yes</OPTION><OPTION value='no'>No</OPTION></SELECT>");
@@ -285,7 +291,6 @@
   function CheckboxEditor(args) {
     var $select;
     var defaultValue;
-    var scope = this;
 
     this.init = function () {
       $select = $("<INPUT type=checkbox value='true' class='editor-checkbox' hideFocus>");
@@ -335,7 +340,6 @@
   function PercentCompleteEditor(args) {
     var $input, $picker;
     var defaultValue;
-    var scope = this;
 
     this.init = function () {
       $input = $("<INPUT type=text class='editor-percentcomplete' />");
@@ -354,14 +358,14 @@
         range: "min",
         value: defaultValue,
         slide: function (event, ui) {
-          $input.val(ui.value)
+          $input.val(ui.value);
         }
       });
 
-      $picker.find(".editor-percentcomplete-buttons button").bind("click", function (e) {
+      $picker.find(".editor-percentcomplete-buttons button").bind("click", function () {
         $input.val($(this).attr("val"));
         $picker.find(".editor-percentcomplete-slider").slider("value", $(this).attr("val"));
-      })
+      });
     };
 
     this.destroy = function () {
@@ -387,7 +391,7 @@
     };
 
     this.isValueChanged = function () {
-      return (!($input.val() == "" && defaultValue == null)) && ((parseInt($input.val(), 10) || 0) != defaultValue);
+      return (!($input.val() === "" && (defaultValue === null || defaultValue === undefined) )) && ((parseInt($input.val(), 10) || 0) != defaultValue);
     };
 
     this.validate = function () {
@@ -445,10 +449,10 @@
         scope.cancel();
       } else if (e.which == $.ui.keyCode.TAB && e.shiftKey) {
         e.preventDefault();
-        grid.navigatePrev();
+        args.grid.navigatePrev();
       } else if (e.which == $.ui.keyCode.TAB) {
         e.preventDefault();
-        grid.navigateNext();
+        args.grid.navigateNext();
       }
     };
 
@@ -472,7 +476,7 @@
     this.position = function (position) {
       $wrapper
           .css("top", position.top - 5)
-          .css("left", position.left - 5)
+          .css("left", position.left - 5);
     };
 
     this.destroy = function () {
@@ -497,7 +501,7 @@
     };
 
     this.isValueChanged = function () {
-      return (!($input.val() == "" && defaultValue == null)) && ($input.val() != defaultValue);
+      return isValueChanged($input.val(), defaultValue);
     };
 
     this.validate = function () {

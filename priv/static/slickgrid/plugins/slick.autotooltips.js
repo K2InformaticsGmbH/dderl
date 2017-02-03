@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -9,7 +11,6 @@
 
   function AutoTooltips(options) {
     var _grid;
-    var _self = this;
     var _defaults = {
       maxToolTipLength: null
     };
@@ -24,7 +25,7 @@
       _grid.onMouseEnter.unsubscribe(handleMouseEnter);
     }
 
-    function handleMouseEnter(e, args) {
+    function handleMouseEnter(e) {
       var cell = _grid.getCellFromEvent(e);
       if (cell) {
         var node = _grid.getCellNode(cell.row, cell.cell);

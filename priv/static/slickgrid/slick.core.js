@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 /***
  * Contains core SlickGrid classes.
  * @module Core
@@ -69,7 +71,7 @@
      */
     this.isImmediatePropagationStopped = function () {
       return isImmediatePropagationStopped;
-    }
+    };
   }
 
   /***
@@ -165,7 +167,7 @@
       handlers = [];
 
       return this;  // allow chaining
-    }
+    };
   }
 
   /***
@@ -249,7 +251,7 @@
       else {
         return "(" + this.fromRow + ":" + this.fromCell + " - " + this.toRow + ":" + this.toCell + ")";
       }
-    }
+    };
   }
 
 

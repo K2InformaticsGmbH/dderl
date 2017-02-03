@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -175,7 +177,7 @@
           "grid": _grid,
           "column": columnDef,
           "menu": menu
-        }, e, _self) == false) {
+        }, e, _self) === false) {
         return;
       }
 
@@ -247,7 +249,7 @@
 
       hideMenu();
 
-      if (command != null && command != '') {
+      if (command) {
         _self.onCommand.notify({
             "grid": _grid,
             "column": columnDef,

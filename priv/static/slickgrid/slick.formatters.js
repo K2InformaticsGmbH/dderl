@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 /***
  * Contains basic SlickGrid formatters.
  * @module Formatters
@@ -17,8 +19,8 @@
     }
   });
 
-  function PercentCompleteFormatter(row, cell, value, columnDef, dataContext) {
-    if (value == null || value === "") {
+  function PercentCompleteFormatter(row, cell, value) {
+    if (value === null || value === undefined || value === "") {
       return "-";
     } else if (value < 50) {
       return "<span style='color:red;font-weight:bold;'>" + value + "%</span>";
@@ -27,8 +29,8 @@
     }
   }
 
-  function PercentCompleteBarFormatter(row, cell, value, columnDef, dataContext) {
-    if (value == null || value === "") {
+  function PercentCompleteBarFormatter(row, cell, value) {
+    if (value === null || value === undefined || value === "") {
       return "";
     }
 
@@ -45,11 +47,11 @@
     return "<span class='percent-complete-bar' style='background:" + color + ";width:" + value + "%'></span>";
   }
 
-  function YesNoFormatter(row, cell, value, columnDef, dataContext) {
+  function YesNoFormatter(row, cell, value) {
     return value ? "Yes" : "No";
   }
 
-  function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
+  function CheckmarkFormatter(row, cell, value) {
     return value ? "<img src='static/public/img/tick.png'>" : "";
   }
 })(jQuery);

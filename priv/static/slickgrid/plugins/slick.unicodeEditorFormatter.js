@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 // Helpers functions for the formatter & editor
 // Tested on http://jsfiddle.net/YP42G/2/
 /* Creates a uppercase hex number with at least length digits from a given number */
@@ -56,11 +58,11 @@ function fromUnicodeLiteral(str)
         }
     });
 
-    function CheckmarkFormatter(row, cell, value, columnDef, dataContext) {
+    function CheckmarkFormatter() {
         return "<img src='static/public/img/cross.png'>";
     }
 
-    function SortIconFormatter(row, cell, value, columnDef, dataContext) {
+    function SortIconFormatter(row, cell, value) {
 
         if (value == 'ASC') {
             return  "<span>ASC <i class='fa fa-sort-amount-asc  fa-customSize' aria-hidden='true'></i></span>";
@@ -70,22 +72,22 @@ function fromUnicodeLiteral(str)
         }
     }
 
-    function DragArrowsFormatter(row, cell, value, columnDef, dataContext) {
+    function DragArrowsFormatter() {
         return "<i class='fa fa-arrows-v  fa-customSize' aria-hidden='true'></i>";
     }
 
-    function TrashIconFormatter(row, cell, value, columnDef, dataContext) {
+    function TrashIconFormatter() {
         return "<i class='fa fa-trash  fa-customSize' aria-hidden='true'></i>";
     }
 
-    function AscDescSelectFormatter(row, cell, value, columnDef, dataContext) {
+    function AscDescSelectFormatter(row, cell, value) {
         return '<SELECT><OPTION value="true" '+ (value ? 'selected' : '') +'>ASC</OPTION>'+
             '<OPTION value="false" '+(!value ? 'selected' : '')+'>DESC</OPTION></SELECT>';
     }
 
-    function BinStringTextFormatter(row, cell, value, columnDef, dataContext) {
+    function BinStringTextFormatter(row, cell, value) {
         var newValue;
-        if (value == null) {
+        if (!value) {
             newValue = "";
         } else if(value.length > 203) {
             newValue = value.substring(0, 200) + "...";
@@ -96,12 +98,12 @@ function fromUnicodeLiteral(str)
         return newValue;
     }
 
-    function IdFormatter(row, cell, value, columnDef, dataContext) {
+    function IdFormatter(row, cell, value) {
         return '<div style="text-align:right; width: 100%;">'+value.toString()+'</div>';
     }
 
-    function PercentFormatter(row, cell, value, columnDef, dataContext) {
-        if (value == null || value === "") {
+    function PercentFormatter(row, cell, value) {
+        if (!value) {
             return "0.00%";
         } else {
             return Number(value).toFixed(2) + "%";
@@ -111,7 +113,7 @@ function fromUnicodeLiteral(str)
     function ControlCharsEditor(args) {
         var $input;
         var defaultValue;
-        var scope = this;
+        var self = this;
 
         this.init = function () {
             $input = $("<INPUT type=text class='editor-text' />")
@@ -141,7 +143,7 @@ function fromUnicodeLiteral(str)
         };
 
         this.isEmpty = function() {
-            return $input.val() == "";
+            return $input.val() === "";
         };
 
         this.isFocused = function() {
@@ -164,7 +166,8 @@ function fromUnicodeLiteral(str)
         };
 
         this.isValueChanged = function () {
-            return (!($input.val() == "" && defaultValue == null)) && (fromUnicodeLiteral($input.val()) != defaultValue);
+            var serialized = self.serializeValue();
+            return (!self.isEmpty() || defaultValue) && (serialized != defaultValue);
         };
 
         this.validate = function () {

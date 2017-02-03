@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
     // register namespace
     $.extend(true, window, {
@@ -77,25 +79,6 @@
             return ranges;
         }
 
-        function getRowsRange(from, to) {
-            var i, rows = [];
-            for (i = from; i <= to; i++) {
-                rows.push(i);
-            }
-            for (i = to; i < from; i++) {
-                rows.push(i);
-            }
-            return rows;
-        }
-
-        function getSelectedRows() {
-            return rangesToRows(_ranges);
-        }
-
-        function setSelectedRows(rows) {
-            setSelectedRanges(rowsToRanges(rows));
-        }
-
         function removeInvalidRanges(ranges) {
             var result = [];
             for (var i = 0; i < ranges.length; i++) {
@@ -126,7 +109,7 @@
             return _ranges;
         }
 
-        function handleBeforeCellRangeSelected(e, args) {
+        function handleBeforeCellRangeSelected(e) {
             if (_grid.getEditorLock().isActive()) {
                 e.stopPropagation();
                 return false;
@@ -139,7 +122,7 @@
         }
 
         function handleActiveCellChange(e, data) {
-            if (data.cell == 0) {
+            if (data.cell === 0) {
                 // we are in row select mode
                 if (_options.selectActiveRow) {
                     setSelectedRanges([new Slick.Range(data.row, 0, data.row, _grid.getColumns().length - 1)]);
@@ -324,7 +307,7 @@
                         _grid.setActiveCell(cell.row, cell.cell);
                         _ranges = rowsToRanges(selection);
                     } else if (idx !== -1 && (e.ctrlKey || e.metaKey)) {
-                        selection = $.grep(selection, function (o, i) {
+                        selection = $.grep(selection, function (o) {
                             return (o !== cell.row);
                         });
                         _ranges = rowsToRanges(selection);
@@ -344,9 +327,7 @@
                     } else if (matches.length !== 0 && (e.ctrlKey || e.metaKey)) {
                         // TODO: Split ranges if the cell is inside, test using contains.
                         _ranges = $.grep(_ranges, function (o, i) {
-                            return !((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell)
-                                     ||
-                                     (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
+                            return !((cell.row === _ranges[i].fromRow && cell.cell === _ranges[i].fromCell) || (cell.row === _ranges[i].toRow && cell.cell === _ranges[i].toCell));
                         });
                     } else if (e.shiftKey) {
                         var fromRow = Math.min(cell.row, activeCell.row);

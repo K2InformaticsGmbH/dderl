@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   function SlickColumnPicker(columns, grid, options) {
     var $menu;
@@ -13,14 +15,14 @@
 
       $menu = $("<span class='slick-columnpicker' style='display:none;position:absolute;z-index:20;' />").appendTo(document.body);
 
-      $menu.bind("mouseleave", function (e) {
-        $(this).fadeOut(options.fadeSpeed)
+      $menu.bind("mouseleave", function () {
+        $(this).fadeOut(options.fadeSpeed);
       });
       $menu.bind("click", updateColumn);
 
     }
 
-    function handleHeaderContextMenu(e, args) {
+    function handleHeaderContextMenu(e) {
       e.preventDefault();
       $menu.empty();
       columnCheckboxes = [];
@@ -31,7 +33,7 @@
         $input = $("<input type='checkbox' />").data("column-id", columns[i].id);
         columnCheckboxes.push($input);
 
-        if (grid.getColumnIndex(columns[i].id) != null) {
+        if (grid.getColumnIndex(columns[i].id) !== null && grid.getColumnIndex(columns[i].id) !== undefined) {
           $input.attr("checked", "checked");
         }
 
@@ -90,7 +92,7 @@
 
       if ($(e.target).is(":checkbox")) {
         var visibleColumns = [];
-        $.each(columnCheckboxes, function (i, e) {
+        $.each(columnCheckboxes, function (i) {
           if ($(this).is(":checked")) {
             visibleColumns.push(columns[i]);
           }

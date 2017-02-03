@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -100,7 +102,7 @@
       if (activeRow && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && (e.which == 38 || e.which == 40)) {
         var selectedRows = getSelectedRows();
         selectedRows.sort(function (x, y) {
-          return x - y
+          return x - y;
         });
 
         if (!selectedRows.length) {
@@ -145,7 +147,7 @@
           selection.push(cell.row);
           _grid.setActiveCell(cell.row, cell.cell);
         } else if (idx !== -1 && (e.ctrlKey || e.metaKey)) {
-          selection = $.grep(selection, function (o, i) {
+          selection = $.grep(selection, function (o) {
             return (o !== cell.row);
           });
           _grid.setActiveCell(cell.row, cell.cell);

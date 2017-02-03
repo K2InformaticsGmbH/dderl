@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   $.extend(true, window, {
     Slick: {
@@ -134,12 +136,12 @@
     }
 
     function setPagingOptions(args) {
-      if (args.pageSize != undefined) {
+      if (args.pageSize !== undefined && args.pagesize !== null) {
         pagesize = args.pageSize;
         pagenum = pagesize ? Math.min(pagenum, Math.max(0, Math.ceil(totalRows / pagesize) - 1)) : 0;
       }
 
-      if (args.pageNum != undefined) {
+      if (args.pageNum !== undefined && args.pagenum !== null) {
         pagenum = Math.min(args.pageNum, Math.max(0, Math.ceil(totalRows / pagesize) - 1));
       }
 
@@ -180,7 +182,7 @@
       sortComparer = null;
       var oldToString = Object.prototype.toString;
       Object.prototype.toString = (typeof field == "function") ? field : function () {
-        return this[field]
+        return this[field];
       };
       // an extra reversal for descending sort keeps the sort stable
       // (assuming a stable native sort implementation, which isn't true in some cases)
@@ -249,7 +251,7 @@
      * @deprecated Please use {@link setGrouping}.
      */
     function groupBy(valueGetter, valueFormatter, sortComparer) {
-      if (valueGetter == null) {
+      if (valueGetter === null || valueGetter === undefined) {
         setGrouping([]);
         return;
       }
@@ -306,7 +308,7 @@
       ensureRowsByIdCache();
       for (var i = 0; i < idArray.length; i++) {
         var row = rowsById[idArray[i]];
-        if (row != null) {
+        if (row !== null && row !== undefined) {
           rows[rows.length] = row;
         }
       }
@@ -386,7 +388,7 @@
     }
 
     function expandCollapseAllGroups(level, collapse) {
-      if (level == null) {
+      if (level === null || level === undefined) {
         for (var i = 0; i < groupingInfos.length; i++) {
           toggledGroupsByLevel[i] = {};
           groupingInfos[i].collapsed = collapse;
@@ -423,7 +425,7 @@
      *     example, calling collapseGroup('high', '10%') will collapse the '10%' subgroup of
      *     the 'high' setGrouping.
      */
-    function collapseGroup(varArgs) {
+    function collapseGroup() {
       var args = Array.prototype.slice.call(arguments);
       var arg0 = args[0];
       if (args.length == 1 && arg0.indexOf(groupingDelimiter) != -1) {
@@ -439,7 +441,7 @@
      *     example, calling expandGroup('high', '10%') will expand the '10%' subgroup of
      *     the 'high' setGrouping.
      */
-    function expandGroup(varArgs) {
+    function expandGroup() {
       var args = Array.prototype.slice.call(arguments);
       var arg0 = args[0];
       if (args.length == 1 && arg0.indexOf(groupingDelimiter) != -1) {
@@ -462,7 +464,7 @@
       var level = parentGroup ? parentGroup.level + 1 : 0;
       var gi = groupingInfos[level];
 
-      for (var i = 0, l = gi.predefinedValues.length; i < l; i++) {
+      for (let i = 0, l = gi.predefinedValues.length; i < l; i++) {
         val = gi.predefinedValues[i];
         group = groupsByVal[val];
         if (!group) {
@@ -475,7 +477,7 @@
         }
       }
 
-      for (var i = 0, l = rows.length; i < l; i++) {
+      for (let i = 0, l = rows.length; i < l; i++) {
         r = rows[i];
         val = gi.getterIsAFn ? gi.getter(r) : r[gi.getter];
         //if (val.length === 0)
@@ -494,7 +496,7 @@
       }
 
       if (level < groupingInfos.length - 1) {
-        for (var i = 0; i < groups.length; i++) {
+        for (let i = 0; i < groups.length; i++) {
           group = groups[i];
           group.groups = extractGroups(group.rows, group);
         }
@@ -600,6 +602,8 @@
 
     function compileAccumulatorLoop(aggregator) {
       var accumulatorInfo = getFunctionInfo(aggregator.accumulate);
+      // TODO: Understand and replace this eval with normal function creation.
+      /* jshint evil:true */
       var fn = new Function(
           "_items",
           "for (var " + accumulatorInfo.params[0] + ", _i=0, _il=_items.length; _i<_il; _i++) {" +
@@ -638,6 +642,8 @@
       tpl = tpl.replace(/\$item\$/gi, filterInfo.params[0]);
       tpl = tpl.replace(/\$args\$/gi, filterInfo.params[1]);
 
+      // TODO: Understand and replace this eval with normal function creation.
+      /* jshint evil:true */
       var fn = new Function("_items,_args", tpl);
       fn.displayName = fn.name = "compiledFilter";
       return fn;
@@ -674,6 +680,8 @@
       tpl = tpl.replace(/\$item\$/gi, filterInfo.params[0]);
       tpl = tpl.replace(/\$args\$/gi, filterInfo.params[1]);
 
+      // TODO: Understand and replace this eval with normal function creation.
+      /* jshint evil:true */
       var fn = new Function("_items,_args,_cache", tpl);
       fn.displayName = fn.name = "compiledFilterWithCaching";
       return fn;
@@ -763,14 +771,14 @@
 
           if ((groupingInfos.length && (eitherIsNonData = (item.__nonDataRow) || (r.__nonDataRow)) &&
               item.__group !== r.__group ||
-              item.__group && !item.equals(r))
-              || (eitherIsNonData &&
+              item.__group && !item.equals(r)) ||
+              (eitherIsNonData &&
               // no good way to compare totals since they are arbitrary DTOs
               // deep object comparison is pretty expensive
               // always considering them 'dirty' seems easier for the time being
-              (item.__groupTotals || r.__groupTotals))
-              || item[idProperty] != r[idProperty]
-              || (updated && updated[item[idProperty]])
+              (item.__groupTotals || r.__groupTotals)) ||
+              item[idProperty] != r[idProperty] ||
+              (updated && updated[item[idProperty]])
               ) {
             diff[diff.length] = i;
           }
@@ -842,7 +850,7 @@
 
     function syncGridSelection(grid, preserveHidden) {
       var self = this;
-      var selectedRowIds = self.mapRowsToIds(grid.getSelectedRows());;
+      var selectedRowIds = self.mapRowsToIds(grid.getSelectedRows());
       var inHandler;
 
       function update() {
@@ -857,7 +865,7 @@
         }
       }
 
-      grid.onSelectedRowsChanged.subscribe(function(e, args) {
+      grid.onSelectedRowsChanged.subscribe(function() {
         if (inHandler) { return; }
         selectedRowIds = self.mapRowsToIds(grid.getSelectedRows());
       });
@@ -890,7 +898,7 @@
           var newHash = {};
           for (var id in hashById) {
             var row = rowsById[id];
-            if (row != undefined) {
+            if (row !== undefined && row !== null) {
               newHash[row] = hashById[id];
             }
           }
@@ -973,7 +981,7 @@
     this.accumulate = function (item) {
       var val = item[this.field_];
       this.count_++;
-      if (val != null && val !== "" && val !== NaN) {
+      if (val && !isNaN(val)) {
         this.nonNullCount_++;
         this.sum_ += parseFloat(val);
       }
@@ -983,7 +991,7 @@
       if (!groupTotals.avg) {
         groupTotals.avg = {};
       }
-      if (this.nonNullCount_ != 0) {
+      if (this.nonNullCount_ !== 0) {
         groupTotals.avg[this.field_] = this.sum_ / this.nonNullCount_;
       }
     };
@@ -998,8 +1006,8 @@
 
     this.accumulate = function (item) {
       var val = item[this.field_];
-      if (val != null && val !== "" && val !== NaN) {
-        if (this.min_ == null || val < this.min_) {
+      if (val && !isNaN(val)) {
+        if (this.min_ === null || this.min_ === undefined || val < this.min_) {
           this.min_ = val;
         }
       }
@@ -1010,7 +1018,7 @@
         groupTotals.min = {};
       }
       groupTotals.min[this.field_] = this.min_;
-    }
+    };
   }
 
   function MaxAggregator(field) {
@@ -1022,8 +1030,8 @@
 
     this.accumulate = function (item) {
       var val = item[this.field_];
-      if (val != null && val !== "" && val !== NaN) {
-        if (this.max_ == null || val > this.max_) {
+      if (val && !isNaN(val)) {
+        if (this.max_ === null || this.max_ === undefined || val > this.max_) {
           this.max_ = val;
         }
       }
@@ -1034,7 +1042,7 @@
         groupTotals.max = {};
       }
       groupTotals.max[this.field_] = this.max_;
-    }
+    };
   }
 
   function SumAggregator(field) {
@@ -1046,7 +1054,7 @@
 
     this.accumulate = function (item) {
       var val = item[this.field_];
-      if (val != null && val !== "" && val !== NaN) {
+      if (val && !isNaN(val)) {
         this.sum_ += parseFloat(val);
       }
     };
@@ -1056,7 +1064,7 @@
         groupTotals.sum = {};
       }
       groupTotals.sum[this.field_] = this.sum_;
-    }
+    };
   }
 
   // TODO:  add more built-in aggregators
