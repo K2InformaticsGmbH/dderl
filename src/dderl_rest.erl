@@ -69,7 +69,8 @@ init([]) ->
         init_interface(),
         {ok, #state{}}
     catch
-        _:Error -> {stop, Error}
+        _:Error ->
+            {stop, {Error, erlang:get_stacktrace()}}
     end.
 
 handle_call({login, User, Password}, _From, State) ->
@@ -248,7 +249,24 @@ init_interface() ->
                                                   ProtoOpts),
                       ?Info("[~p] Activated http://~s:~p", [P, IpStr, Port])
               end
-      end, ?IMEMREST_IPS).
+      end, local_ips(?IMEMREST_IPS)).
+
+local_ips(Listeners) ->
+    {ok, PhyIntfs} = inet:getifaddrs(),
+    local_ips(
+      Listeners,
+      lists:usort(
+        [{127,0,0,1} |
+         [proplists:get_value(addr, P)
+          || {_Nm, P} <- PhyIntfs]]), []).
+local_ips([], _LocalIps, Acc) -> Acc;
+local_ips([{Ip, _} = Ep | Rest], LocalIps, Acc) ->
+    local_ips(
+      Rest, LocalIps,
+      case lists:member(Ip, LocalIps) of
+          true -> [Ep|Acc];
+          _ -> Acc
+      end).
 
 cmd_constraint(<<"sql">>) -> {true, sql};
 cmd_constraint(<<"views">>) -> {true, views};
@@ -270,9 +288,9 @@ stop_interface(Reason) ->
                       ?Info("De-Activated http(s)://~s:~p", [IpStr, Port]);
                   Error ->
                       ?Error("[~p] Deactivating http(s)://~s:~p : ~p",
-                             [Reason, IpStr, Error])
+                             [Reason, IpStr, Port, Error])
               end
-      end, ?IMEMREST_IPS).
+      end, local_ips(?IMEMREST_IPS)).
 
 %%
 %% Cowboy REST resource
