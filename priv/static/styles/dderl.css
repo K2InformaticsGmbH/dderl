@@ -871,6 +871,11 @@ ul.dropdown.floatNone ul li {
     overflow: hidden
 }
 
+.context_menu .menu-icon {
+    position: relative;
+    left: -5px;
+}
+
 /* View save start button section */
 #start-btn-selection-div {
     padding: 2px;

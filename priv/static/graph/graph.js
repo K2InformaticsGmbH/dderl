@@ -10,7 +10,8 @@ export function evalD3Script(script, statement, tableStmtReload) {
     var result = null;
     var helper = {
         browse: openGraphView,
-        req: buildReq(statement, tableStmtReload)
+        req: buildReq(statement, tableStmtReload),
+        contextMenu: openContextMenu
     };
     try {
         result = f(script, d3, helper);
@@ -84,4 +85,41 @@ function buildReq(statement, tableStmtReload) {
     }
 
     return req;
+}
+
+/**
+ * Creates a context menu based on the position and array of entries provided:
+ * 
+ * openContextMenu({x: 10, y: 20}, [
+ *     {label: "firefox", icon: "firefox", cb: function() { alert("browser!"); }},
+ *     {label: "chrome", icon: "chrome", cb: function() { alert("browser!"); }},
+ *     {label: "bitcoin", icon: "btc", cb: function() { alert("crypto!"); }}
+ * ]);
+ * 
+ */
+
+function openContextMenu({x, y}, entriesList) {
+    var body = document.body;
+    var menu = document.createElement('ul');
+    menu.className = 'context_menu';
+    entriesList.forEach(function({label, icon, cb: callback}) {
+        var li = document.createElement('li');
+        if(icon) {
+            var i = document.createElement("i");
+            i.className = "menu-icon fa-fw fa-lg fa fa-" + icon;
+            li.appendChild(i);
+        }
+        li.appendChild(document.createTextNode(label));
+        li.onclick = callback;
+        menu.appendChild(li);
+    });
+
+    menu.onmouseleave = function() {
+        body.removeChild(menu);
+    };
+
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    body.appendChild(menu);
 }
