@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -27,7 +29,7 @@
       _handler.unsubscribeAll();
     }
 
-    function handleDragInit(e, dd) {
+    function handleDragInit(e) {
       // prevent the grid from cancelling drag'n'drop by default
       e.stopImmediatePropagation();
     }
@@ -43,7 +45,7 @@
 
       var selectedRows = _grid.getSelectedRows();
 
-      if (selectedRows.length == 0 || $.inArray(cell.row, selectedRows) == -1) {
+      if (selectedRows.length === 0 || $.inArray(cell.row, selectedRows) == -1) {
         selectedRows = [cell.row];
         _grid.setSelectedRows(selectedRows);
       }

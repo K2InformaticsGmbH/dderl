@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -62,7 +64,7 @@
       return _ranges;
     }
 
-    function handleBeforeCellRangeSelected(e, args) {
+    function handleBeforeCellRangeSelected(e) {
       if (_grid.getEditorLock().isActive()) {
         e.stopPropagation();
         return false;

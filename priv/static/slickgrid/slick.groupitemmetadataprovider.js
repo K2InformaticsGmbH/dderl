@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   $.extend(true, window, {
     Slick: {
@@ -89,7 +91,7 @@
     }
 
     // TODO:  add -/+ handling
-    function handleGridKeyDown(e, args) {
+    function handleGridKeyDown(e) {
       if (options.enableExpandCollapse && (e.which == $.ui.keyCode.SPACE)) {
         var activeCell = this.getActiveCell();
         if (activeCell) {
@@ -108,7 +110,7 @@
       }
     }
 
-    function getGroupRowMetadata(item) {
+    function getGroupRowMetadata() {
       return {
         selectable: false,
         focusable: options.groupFocusable,
@@ -123,7 +125,7 @@
       };
     }
 
-    function getTotalsRowMetadata(item) {
+    function getTotalsRowMetadata() {
       return {
         selectable: false,
         focusable: options.totalsFocusable,

@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {

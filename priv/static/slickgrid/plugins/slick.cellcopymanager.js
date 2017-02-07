@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -21,7 +23,7 @@
       _grid.onKeyDown.unsubscribe(handleKeyDown);
     }
 
-    function handleKeyDown(e, args) {
+    function handleKeyDown(e) {
       var ranges;
       if (!_grid.getEditorLock().isActive()) {
         if (e.which == $.ui.keyCode.ESCAPE) {
@@ -33,9 +35,9 @@
           }
         }
 
-        if (e.which == 67 && (e.ctrlKey || e.metaKey)) {
+        if (e.which === 67 && (e.ctrlKey || e.metaKey)) {
           ranges = _grid.getSelectionModel().getSelectedRanges();
-          if (ranges.length != 0) {
+          if (ranges.length !== 0) {
             e.preventDefault();
             _copiedRanges = ranges;
             markCopySelection(ranges);

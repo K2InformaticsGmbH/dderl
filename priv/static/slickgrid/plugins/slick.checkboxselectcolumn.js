@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -9,7 +11,6 @@
 
   function CheckboxSelectColumn(options) {
     var _grid;
-    var _self = this;
     var _handler = new Slick.EventHandler();
     var _selectedRowsLookup = {};
     var _defaults = {
@@ -34,7 +35,7 @@
       _handler.unsubscribeAll();
     }
 
-    function handleSelectedRowsChanged(e, args) {
+    function handleSelectedRowsChanged() {
       var selectedRows = _grid.getSelectedRows();
       var lookup = {}, row, i;
       for (i = 0; i < selectedRows.length; i++) {
@@ -90,7 +91,7 @@
     function toggleRowSelection(row) {
       if (_selectedRowsLookup[row]) {
         _grid.setSelectedRows($.grep(_grid.getSelectedRows(), function (n) {
-          return n != row
+          return n != row;
         }));
       } else {
         _grid.setSelectedRows(_grid.getSelectedRows().concat(row));
@@ -136,9 +137,10 @@
 
     function checkboxSelectionFormatter(row, cell, value, columnDef, dataContext) {
       if (dataContext) {
-        return _selectedRowsLookup[row]
-            ? "<input type='checkbox' checked='checked'>"
-            : "<input type='checkbox'>";
+        if(_selectedRowsLookup[row]) {
+          return "<input type='checkbox' checked='checked'>";
+        }
+        return "<input type='checkbox'>";
       }
       return null;
     }

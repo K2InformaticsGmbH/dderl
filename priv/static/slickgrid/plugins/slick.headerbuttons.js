@@ -1,3 +1,5 @@
+import jQuery from "jquery";
+
 (function ($) {
   // register namespace
   $.extend(true, window, {
@@ -150,7 +152,7 @@
       var columnDef = $(this).data("column");
       var button = $(this).data("button");
 
-      if (command != null) {
+      if (command !== null && command !== undefined) {
         _self.onCommand.notify({
             "grid": _grid,
             "column": columnDef,
