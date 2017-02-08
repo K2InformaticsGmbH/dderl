@@ -249,6 +249,11 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{lock_state = locked, id = Id
     reply(From, [{<<"error">>, <<"Session is locked">>}], self()),
     State;
 
+process_call({[<<"check_session">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{id = Id, user_id = UserId} = State) ->
+    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "check_session", "", "", "", "", ""),
+    reply(From, #{check_session => <<"ok">>}, self()),
+    State;
+
 process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = ErlImemSess, id = Id, user_id = UserId} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "restart", "", "", "", "", ""),

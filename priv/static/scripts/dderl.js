@@ -130,6 +130,10 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                     if($.isFunction(_successevt)) {
                         _successevt({error: _data.error});
                     }
+                } else if(_url == 'app/check_session') {
+                    if($.isFunction(_errorevt)) {
+                        _errorevt(_data.error);
+                    }
                 } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
                     dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
                 }

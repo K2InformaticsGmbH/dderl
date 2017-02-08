@@ -273,16 +273,21 @@ function inputEnter(layout) {
 
 export function logout(isForceful) {
     if(dderlState.connection && isForceful !== true) {
-        confirm_jq({title: "Confirm logout", content:''}, function() {
+        ajaxCall(null, 'check_session', null, 'check_session', function() {
+            confirm_jq({title: "Confirm logout", content:''}, function() {
+                exec_logout();
+            });
+        }, function() {
             exec_logout();
         });
-    } else {
-        exec_logout();
     }
 
     function exec_logout() {
         ajaxCall(null, 'logout', '{}', 'logout', function(data) {
             console.log('Request logout Result ' + data);
+            process_logout();
+        }, function () {
+            // We have to cleanup even when the server is not recheable
             process_logout();
         });
     }
