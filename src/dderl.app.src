@@ -2,7 +2,6 @@
     [
         {applications, [
             kernel,
-            sasl,
             stdlib,
             erlimem,
             erloci,
@@ -11,11 +10,12 @@
             mimetypes
         ]},
         {description, "Web based tool for exploring databases"},
-        {env, [{interface, "0.0.0.0"}
-            , {port, 8443}
-            , {ssl_opts, []}
-            , {master_paths, []}
-        ]},
-        {mod, {dderl, []}},
-        {vsn, "1.7.0"}
-    ]}.
+        {env, [
+            {interface, "127.0.0.1"},
+            {port, 8443},
+            {ssl_opts, []}
+        ]}
+    ]},
+{mod, {dderl, []}},
+{vsn, "1.7.0"}
+]}.
