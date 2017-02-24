@@ -26,8 +26,6 @@
 %% Console Interface
 %%-----------------------------------------------------------------------------
 start() ->
-    application:load(sasl),
-    application:set_env(sasl, sasl_error_logger, false),
     {ok, _} = application:ensure_all_started(?MODULE).
 
 stop() ->
