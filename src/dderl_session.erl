@@ -688,7 +688,8 @@ login(ReqData, From, SrcIp, State) ->
          (_, App) -> App
       end, <<>>, application:which_applications()),
     {ok, Vsn} = application:get_key(dderl, vsn),
-    Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp, port => application:get_env(dderl, port),
+    {ok, Port} = application:get_env(port),
+    Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp, port => Port,
                node => list_to_binary(imem_meta:node_shard())},
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
