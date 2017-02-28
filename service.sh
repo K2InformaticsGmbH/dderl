@@ -48,5 +48,5 @@ else
     echo ---------------
     echo Generic usage :
     echo
-    ./dderl/service_generic.sh
+    ./service_generic.sh
 fi
