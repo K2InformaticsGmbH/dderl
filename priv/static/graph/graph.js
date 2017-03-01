@@ -1,5 +1,6 @@
 import * as d3 from 'd3/build/d3.node';
-import {alert_js_error, alert_jq} from '../dialogs/dialogs';
+import $ from 'jquery';
+import {alert_js_error, alert_jq, dlg_fit_to_window} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
 import {renderNewTable} from '../scripts/dderl.table';
 
@@ -11,7 +12,8 @@ export function evalD3Script(script, statement, tableStmtReload) {
     var helper = {
         browse: openGraphView,
         req: buildReq(statement, tableStmtReload),
-        contextMenu: openContextMenu
+        contextMenu: openContextMenu,
+        openDialog: openDialog
     };
     try {
         result = f(script, d3, helper);
@@ -98,7 +100,7 @@ function buildReq(statement, tableStmtReload) {
  * 
  */
 
-function openContextMenu({x, y}, entriesList) {
+function openContextMenu(entriesList, {x, y}) {
     var body = document.body;
     var menu = document.createElement('ul');
     menu.className = 'context_menu';
@@ -110,7 +112,10 @@ function openContextMenu({x, y}, entriesList) {
             li.appendChild(i);
         }
         li.appendChild(document.createTextNode(label));
-        li.onclick = callback;
+        li.onclick = function(evt) {
+            body.removeChild(menu);
+            callback(evt);
+        };
         menu.appendChild(li);
     });
 
@@ -122,4 +127,40 @@ function openContextMenu({x, y}, entriesList) {
     menu.style.top = y + 'px';
 
     body.appendChild(menu);
+}
+
+function openDialog(title, content, {x, y}) {
+    var dlg = $('<div class="selectable-alert-text">');
+
+    dlg.html(content);
+
+    dlg.dialog({
+        title: title,
+        autoOpen: false,
+        minHeight: 200,
+        height: 'auto',
+        width: 'auto',
+        position: {my: 'left top', at: 'left top', of: '#main-body', collision: 'none'},
+        appendTo: '#main-body',
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        }
+    });
+
+    dlg.dialog("open")
+        .dialog("widget")
+        .draggable("option", "containment", "#main-body");
+
+    // Move the dialog after it has been open, as position doesn't work
+    // properly otherwise since requires to calculate the offset.
+    var at = 'left+' + x + ' top+' + y;
+    dlg.dialog("option", "position", {
+        my: 'left top',
+        at: at,
+        of: '#main-body',
+        collision: 'none'
+    });
+
+    dlg_fit_to_window(dlg);
 }

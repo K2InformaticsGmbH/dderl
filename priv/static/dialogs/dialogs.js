@@ -134,3 +134,67 @@ export function alert_js_error(e) {
     }
     alert_jq(message);
 }
+
+export function dlg_fit_to_window(dlg) {
+    var widget = dlg.dialog('widget');
+    var dWidth = widget.width();
+    let dHeight = widget.height();
+
+    // available width for the window
+    var rWindowWidth = $(window).width() - widget.position().left - 25;
+    console.log("window space to the right", rWindowWidth);
+
+    // dialog is bigger than the remaining window
+    if (dWidth > rWindowWidth) {
+        var orig_top = widget.position().top;
+        var new_left = widget.position().left - dWidth + rWindowWidth;
+        if(new_left > 0) {
+            console.log("Dialog outside right edge, moving it to the left, target:", new_left);
+            dlg.dialog("option", "position", {
+                my: "left top",
+                at: "left+" + new_left + " top+" + orig_top,
+                of: "#main-body",
+                collision : 'none'
+            });
+        } else {
+            console.log("Dialog doesn't fit in the window reducing its width");
+            dlg.dialog("option", "position", {
+                my: "left top",
+                at: "left+3 top+" + orig_top,
+                of: "#main-body",
+                collision : 'none'
+            });
+            dlg.dialog("option", "width", $(window).width() - 25);
+            // We have to account for the newly created scrollbar...
+            dlg.dialog("option", "height", dHeight + 15);
+        }
+    }
+
+    // available height for the window
+    let rWindowHeight = $(window).height() - widget.position().top - 60;
+    console.log("the window height available space", rWindowHeight);
+    if (dHeight > rWindowHeight) {
+        var orig_left = widget.position().left;
+        var new_top = widget.position().top - dHeight + rWindowHeight;
+        if(new_top > 0) {
+            console.log("Dialog outside bottom, moving it up, target:", new_top);
+            dlg.dialog("option", "position", {
+                my: "left top",
+                at: "left+" + orig_left + " top+" + new_top,
+                of: "#main-body",
+                collision: 'none'
+            });
+        } else {
+            console.log("Dialog doesn't fit in the window reducing its height");
+            dlg.dialog("option", "position", {
+                my: "left top",
+                at: "left+" + orig_left + " top+5",
+                of: "#main-body",
+                collision: 'none'
+            });
+            dlg.dialog("option", "height", $(window).height() - 60);
+            // We have to account for the newly created scrollbar...
+            dlg.dialog("option", "width", dWidth + 15);
+        }
+    }
+}
