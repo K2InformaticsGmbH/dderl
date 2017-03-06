@@ -24,10 +24,16 @@ export function loginAjax(data = {}) {
 window.loginCb = loginCb;
 
 function loginCb(resp) {
-    if(window.opener && window.opener.isScreensaver && window.opener.loginCb && $.isFunction(window.opener.loginCb)) {
-        window.opener.loginCb(resp);
-        window.close();
-        return;
+    try {
+        if(window.opener && window.opener.isScreensaver && window.opener.loginCb && $.isFunction(window.opener.loginCb)) {
+            window.opener.loginCb(resp);
+            window.close();
+            return;
+        }
+    }
+    catch(e) {
+        //error due to accessing window from a different domain
+        console.log(e);
     }
 
     if(dderlState.screensaver && window.tab && !resp.saml) {
