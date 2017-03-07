@@ -13,7 +13,9 @@ export function evalD3Script(script, statement, tableStmtReload) {
         browse: openGraphView,
         req: buildReq(statement, tableStmtReload),
         contextMenu: openContextMenu,
-        openDialog: openDialog
+        openDialog: openDialog,
+        parseInt: ddParseInt,
+        parseFloat: ddParseFloat
     };
     try {
         result = f(script, d3, helper);
@@ -87,6 +89,14 @@ function buildReq(statement, tableStmtReload) {
     }
 
     return req;
+}
+
+function ddParseInt(string, radix = 10) {
+    return parseInt(string.split("'").join(""), radix);
+}
+
+function ddParseFloat(string) {
+    return parseFloat(string.split("'").join(""));
 }
 
 /**
