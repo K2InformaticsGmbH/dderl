@@ -4,14 +4,14 @@ cmd=$0
 argscount=$#
 
 function usage {
-    echo "usage: $1 add app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
+    echo "usage: $1 add app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
     echo "       $1 remove app_name"
     echo "       $1 start app_name"
     echo "       $1 stop app_name"
     echo "       $1 list app_name"
     echo "       $1 attach node_name node_host cookie"
-    echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
-    echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
+    echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
+    echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
     echo "       $1 check node_name node_host cookie"
     echo "       $1 escript script_file_path_name node_name node_host cookie"
 }
@@ -51,11 +51,13 @@ node_host=$4
 cluster_name=$5
 cluster_host=$6
 cookie=$7
-dderlport=$8
-imemport=$9
-imemtype=${10}
-imemschema=${11}
-commonparams="$erlpaths -emu_args -setcookie $cookie -dderl port $dderlport -imem tcp_port $imemport -imem mnesia_node_type $imemtype -imem mnesia_schema_name $imemschema -s $app_name"
+dderlip="\"$8\""
+dderlport=$9
+imemip="\"${10}\""
+imemport=${11}
+imemtype=${12}
+imemschema=${13}
+commonparams="$erlpaths -emu_args -setcookie $cookie -dderl interface $dderlip port $dderlport -imem tcp_ip $imemip tcp_port $imemport -imem mnesia_node_type $imemtype -imem mnesia_schema_name $imemschema -s $app_name"
 
 name="-name $node_name@$node_host"
 extra="-imem erl_cluster_mgrs ['$cluster_name@$cluster_host']"
