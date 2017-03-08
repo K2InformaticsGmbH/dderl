@@ -13,6 +13,7 @@
     fetch_close/1,
     filter_and_sort/6,
     close/1,
+    close_port/1,
     run_table_cmd/3,
     cols_to_rec/2,
     get_alias/1,
@@ -98,6 +99,10 @@ filter_and_sort(Pid, Connection, FilterSpec, SortSpec, Cols, Query) ->
 -spec close(pid()) -> term().
 close(Pid) ->
     gen_server:call(Pid, close).
+
+-spec close_port(tuple()) -> term().
+close_port({OciMod, PortPid, _Conn}) -> close_port({OciMod, PortPid});
+close_port({_OciMod, _PortPid} = Port) -> oci_port:close(Port).
 
 %% Gen server callbacks
 init([SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum]) ->
