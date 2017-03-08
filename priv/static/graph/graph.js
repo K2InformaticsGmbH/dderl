@@ -35,6 +35,12 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
         }
     };
     ajaxCall(null, 'open_graph_view', openViewData, 'open_graph_view', function(viewResult) {
+        if(viewResult.bind_types) {
+            viewResult.qparams = {
+                types: viewResult.bind_types,
+                pars: binds
+            };
+        }
         renderNewTable(viewResult, position, force);
     });
 }

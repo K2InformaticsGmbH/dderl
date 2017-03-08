@@ -394,7 +394,9 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             View = dderl_dal:get_view(Sess, ViewId),
             Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
             Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
-            From ! {reply, jsx:encode(#{<<"open_view">> => Res})};
+            %% We have to add the supported types so edit sql can be prefilled with the parameters.
+            Result = [{<<"bind_types">>, bind_arg_types()} | Res],
+            From ! {reply, jsx:encode(#{<<"open_view">> => Result})};
         false ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
