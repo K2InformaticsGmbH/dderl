@@ -3,6 +3,17 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.7.0 (Release Date 09.03.2017)
+======================================
+* Added bind values to sql editor of views opened via graph action
+* Added method to open dialogs from d3 graphs
+* Check if session is alive before asking the user for logout confirmation
+* Added support for context menu as helper function fro d3 graphs
+* Added new screensaver optimized for low CPU usage
+* Fixed scrollbars removed by padding on sql editors
+* Propagated viewid when trying to open views with invalid sql queries
+* Set JavaScript dependencies to fixed versions
+
 Version 1.6.8 (Release Date 18.01.2017)
 ======================================
 * Allowed x-frame-options SAMEORIGIN to fix file download
