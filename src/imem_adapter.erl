@@ -514,7 +514,9 @@ process_cmd({[<<"open_graph_view">>], ReqBody}, Sess, UserId, From,
             end,
             Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
             Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
-            From ! {reply, jsx:encode(#{<<"open_graph_view">> => Res})};
+            %% We have to add the supported types so edit sql can be prefilled with the parameters.
+            Result = [{<<"bind_types">>, bind_arg_types()} | Res],
+            From ! {reply, jsx:encode(#{<<"open_graph_view">> => Result})};
         false ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,

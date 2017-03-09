@@ -13,7 +13,9 @@ export function evalD3Script(script, statement, tableStmtReload) {
         browse: openGraphView,
         req: buildReq(statement, tableStmtReload),
         contextMenu: openContextMenu,
-        openDialog: openDialog
+        openDialog: openDialog,
+        parseInt: ddParseInt,
+        parseFloat: ddParseFloat
     };
     try {
         result = f(script, d3, helper);
@@ -33,6 +35,12 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
         }
     };
     ajaxCall(null, 'open_graph_view', openViewData, 'open_graph_view', function(viewResult) {
+        if(viewResult.bind_types) {
+            viewResult.qparams = {
+                types: viewResult.bind_types,
+                pars: binds
+            };
+        }
         renderNewTable(viewResult, position, force);
     });
 }
@@ -87,6 +95,14 @@ function buildReq(statement, tableStmtReload) {
     }
 
     return req;
+}
+
+function ddParseInt(string, radix = 10) {
+    return parseInt(string.split("'").join(""), radix);
+}
+
+function ddParseFloat(string) {
+    return parseFloat(string.split("'").join(""));
 }
 
 /**
