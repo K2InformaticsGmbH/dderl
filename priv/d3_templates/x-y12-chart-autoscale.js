@@ -44,6 +44,7 @@ function init(container, width, height) {
     var idleTimeout, idleDelay = 350;
     var tParseEuL = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse with msec
     var tParseEu = d3.utcParse("%d.%m.%Y %H:%M:%S");    // timeParse without msec
+    var tParseInt = d3.utcParse("%Y-%m-%d %H:%M:%S");    // timeParse international format
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
@@ -52,7 +53,7 @@ function init(container, width, height) {
         margin = { top: 20, right: 20, bottom: 50, left: 90 };  // physical margins in px
         switch (xDom) {
         case dom.lin:
-            xParse = parseFloat;
+            xParse = helper.parseFloat;
             xScaleTemplate = d3.scaleLinear();
             xMin = 1e100, xMax = -1e100;                // autoscale defaults
             xAutoscale = true;
@@ -61,7 +62,7 @@ function init(container, width, height) {
             xTickFormatSpecifier = null;      
         break;
         case dom.log:
-            xParse = parseFloat;
+            xParse = helper.parseFloat;
             xScaleTemplate = d3.scaleLog().nice();
             xMin = 1e100, xMax = 1e-100;                // autoscale defaults
             xAutoscale = true;
@@ -99,7 +100,7 @@ function init(container, width, height) {
         };
         switch (yDom) {
         case dom.lin:
-            yParse = parseFloat;
+            yParse = helper.parseFloat;
             yScaleTemplate = d3.scaleLinear();
             yMin = 1e100, yMax = -1e100;                // autoscale defaults
             yAutoscale = true;
@@ -120,7 +121,7 @@ function init(container, width, height) {
             */
         break;
         case dom.log:
-            yParse = parseFloat;
+            yParse = helper.parseFloat;
             yScaleTemplate = d3.scaleLog().nice();
             yMin = 1e100, yMax = 1e-100;                // autoscale defaults
             yAutoscale = true;

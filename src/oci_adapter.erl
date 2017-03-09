@@ -143,7 +143,7 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
                     ?Debug([{user, User}], "may save/replace new connection ~p", [Con]),
             case dderl_dal:add_connect(Sess, Con) of
                 {error, Msg} ->
-                    Connection:close(port_close),
+                    dderloci:close_port(Connection),
                     From ! {reply, jsx:encode([{<<"connect">>,[{<<"error">>, Msg}]}])};
                 #ddConn{owner = Owner} = NewConn ->
                     From ! {reply
@@ -194,7 +194,7 @@ process_cmd({[<<"disconnect">>], ReqBody, _SessionId}, _Sess, _UserId, From, #pr
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     case lists:member(Connection, Connections) of
         true ->
-            Connection:close(port_close),
+            dderloci:close_port(Connection),
             RestConnections = lists:delete(Connection, Connections),
             From ! {reply, jsx:encode([{<<"disconnect">>, <<"ok">>}])},
             Priv#priv{connections = RestConnections};
@@ -394,7 +394,9 @@ process_cmd({[<<"open_view">>], ReqBody}, Sess, _UserId, From, #priv{connections
             View = dderl_dal:get_view(Sess, ViewId),
             Binds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null)),
             Res = open_view(Sess, Connection, SessPid, ConnId, Binds, View),
-            From ! {reply, jsx:encode(#{<<"open_view">> => Res})};
+            %% We have to add the supported types so edit sql can be prefilled with the parameters.
+            Result = [{<<"bind_types">>, bind_arg_types()} | Res],
+            From ! {reply, jsx:encode(#{<<"open_view">> => Result})};
         false ->
             From ! {reply, error_invalid_conn(Connection, Connections)}
     end,
@@ -602,7 +604,7 @@ produce_csv_rows_result({Rows, true}, UserId, From, StmtRef, RowFun) when is_lis
 -spec disconnect(#priv{}) -> #priv{}.
 disconnect(#priv{connections = Connections} = Priv) ->
     ?Debug("closing the connections ~p", [Connections]),
-    [Connection:close(port_close) || Connection <- Connections],
+    [dderloci:close_port(Connection) || Connection <- Connections],
     Priv#priv{connections = []}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%

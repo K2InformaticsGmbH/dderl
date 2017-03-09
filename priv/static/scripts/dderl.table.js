@@ -214,6 +214,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         dderlStartBtn     : '>',
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
+        dderlOptBinds     : null,
     },
 
     // Set up the widget
@@ -238,6 +239,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         if(self.options.dderlViewId     !== self._viewId)   self._viewId    = self.options.dderlViewId;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
+        if(self.options.dderlOptBinds   !== self._optBinds) self._optBinds  = self.options.dderlOptBinds;
         if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
             self._divSqlEditor = self.options.dderlSqlEditor;
         }
@@ -4094,6 +4096,7 @@ export function renderNewTable(table, position, force) {
         dderlTbllay: tl,
         dderlStartBtn: startBtn,
         dderlViewId: viewId,
+        dderlOptBinds: table.qparams,
         dderlSortSpec: ((table.hasOwnProperty('sort_spec') && table.sort_spec.length > 0
         ) ? table.sort_spec : null)
     };

@@ -4,14 +4,14 @@ cmd=$0
 argscount=$#
 
 function usage {
-    echo "usage: $1 add app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
+    echo "usage: $1 add app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
     echo "       $1 remove app_name"
     echo "       $1 start app_name"
     echo "       $1 stop app_name"
     echo "       $1 list app_name"
     echo "       $1 attach node_name node_host cookie"
-    echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
-    echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlport imemport imemtype imemschema"
+    echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
+    echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
     echo "       $1 check node_name node_host cookie"
     echo "       $1 escript script_file_path_name node_name node_host cookie"
 }
@@ -51,14 +51,35 @@ node_host=$4
 cluster_name=$5
 cluster_host=$6
 cookie=$7
-dderlport=$8
-imemport=$9
-imemtype=${10}
-imemschema=${11}
-commonparams="$erlpaths -emu_args -setcookie $cookie -dderl port $dderlport -imem tcp_port $imemport -imem mnesia_node_type $imemtype -imem mnesia_schema_name $imemschema -s $app_name"
+dderlip=$8
+dderlport=$9
+imemip=${10}
+imemport=${11}
+imemtype=${12}
+imemschema=${13}
+
+# dderl opts
+dderl_opts="-dderl"
+dderl_srv_opts=$dderl_opts" interface \\\"$dderlip\\\" port $dderlport"
+dderl_opts=$dderl_opts" interface \"$dderlip\" port $dderlport"
+
+# imem opts
+imem_opts="-imem"
+imem_opts=$imem_opts" tcp_port $imemport"
+imem_opts=$imem_opts" mnesia_node_type $imemtype"
+imem_opts=$imem_opts" mnesia_schema_name $imemschema"
+imem_opts=$imem_opts" erl_cluster_mgrs ['$cluster_name@$cluster_host']"
+imem_srv_opts=$imem_opts" tcp_ip \\\"$imemip\\\""
+imem_opts=$imem_opts" tcp_ip \"$imemip\""
+
+# sasl opts
+sasl_opts="-sasl"
+sasl_opts=$sasl_opts"  sasl_error_logger false" 
+
+commonparams="$erlpaths -emu_args -setcookie $cookie $dderl_opts $imem_opts $sasl_opts -s $app_name"
+common_srv_params="$erlpaths -emu_args -setcookie $cookie $dderl_srv_opts $imem_srv_opts -s $app_name"
 
 name="-name $node_name@$node_host"
-extra="-imem erl_cluster_mgrs ['$cluster_name@$cluster_host']"
 
 case $1 in
     "gui" )
@@ -69,24 +90,24 @@ case $1 in
         else
             exename="start //MAX werl.exe"
         fi
-        echo "Starting $app_name local GUI with '$exename $name $kernelconfig $commonparams $extra'"
-        $exename $name $kernelconfig $commonparams $extra
+        echo "Starting $app_name local GUI with '$exename $name $kernelconfig $commonparams'"
+        $exename $name $kernelconfig $commonparams
         ;;
     "txt" )
         check_arg_count 6
-        echo "Starting $app_name local TEXT with 'erl.exe -name $name $kernelconfig $commonparams $extra'"
+        echo "Starting $app_name local TEXT with 'erl.exe -name $name $kernelconfig $commonparams'"
         unamestr=`uname`
         if [[ "$unamestr" == 'Linux' ]]; then
             exename=erl
         else
             exename=erl.exe
         fi
-        $exename $name $kernelconfig $commonparams $extra
+        $exename $name $kernelconfig $commonparams
         ;;
     "add" )
         check_arg_count 6
-        echo "Adding $app_name service erlsrv.exe add $app_name -c \"$app_name Service\" -stopaction \"init:stop().\" -debugtype new -w $PWD $name -args \"$kernelconfigsrv $commonparams $extra\""
-        erlsrv.exe add $app_name -c "$app_name Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $commonparams $extra"
+        echo "Adding $app_name service erlsrv.exe add $app_name -c \"$app_name Service\" -stopaction \"init:stop().\" -debugtype new -w $PWD $name -args \"$kernelconfigsrv $commonparams\""
+        erlsrv.exe add $app_name -c "$app_name Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $common_srv_params"
         ;;
     "remove" )
 	    check_arg_count 1
