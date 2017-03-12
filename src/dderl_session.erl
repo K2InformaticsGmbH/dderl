@@ -496,12 +496,12 @@ process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
         raw -> TableId;
         ind -> IndexId
     end,
-    Columns = gen_adapter:build_column_csv(imem, Clms),
+    Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
     From ! {reply_csv, Filename, Columns, first},
     FirstKey = ets:first(UsedTable),
     spawn(fun() ->
         FirstRows = dderl_dal:rows_from(UsedTable, FirstKey, 100),
-        produce_buffer_csv_rows(FirstRows, From, TableId, RowFun, ColumnPositions, adapter_name(Adapter))
+        produce_buffer_csv_rows(UserId, FirstRows, From, TableId, RowFun, ColumnPositions, adapter_name(Adapter))
     end),
     %% Timer needs to be rearmed as we are replying with in a no standard way
     self() ! rearm_session_idle_timer,
@@ -765,19 +765,19 @@ format_error(Error) when is_binary(Error) -> Error;
 format_error(Error) when is_list(Error) -> list_to_binary(Error);
 format_error(Error) -> list_to_binary(io_lib:format("~p", [Error])).
 
-produce_buffer_csv_rows('$end_of_table', From, _, _, _, _) ->
+produce_buffer_csv_rows(_UserId, '$end_of_table', From, _, _, _, _) ->
     From ! {reply_csv, <<>>, <<>>, last};
-produce_buffer_csv_rows({[], '$end_of_table'}, From, _, _, _, _) ->
+produce_buffer_csv_rows(_UserId, {[], '$end_of_table'}, From, _, _, _, _) ->
     From ! {reply_csv, <<>>, <<>>, last};
-produce_buffer_csv_rows({Rows, '$end_of_table'}, From, TableId, RowFun, ColumnPositions, Adapter) ->
+produce_buffer_csv_rows(UserId, {Rows, '$end_of_table'}, From, TableId, RowFun, ColumnPositions, Adapter) ->
     ExpandedRows = dderl_dal:expand_rows(Rows, TableId, RowFun, ColumnPositions),
-    CsvRows = gen_adapter:make_csv_rows(ExpandedRows, expanded, Adapter),
+    CsvRows = gen_adapter:make_csv_rows(UserId, ExpandedRows, expanded, Adapter),
     From ! {reply_csv, <<>>, CsvRows, last};
-produce_buffer_csv_rows({Rows, Continuation}, From, TableId, RowFun, ColumnPositions, Adapter) ->
+produce_buffer_csv_rows(UserId, {Rows, Continuation}, From, TableId, RowFun, ColumnPositions, Adapter) ->
     ExpandedRows = dderl_dal:expand_rows(Rows, TableId, RowFun, ColumnPositions),
-    CsvRows = gen_adapter:make_csv_rows(ExpandedRows, expanded, Adapter),
+    CsvRows = gen_adapter:make_csv_rows(UserId, ExpandedRows, expanded, Adapter),
     From ! {reply_csv, <<>>, CsvRows, continue},
-    produce_buffer_csv_rows(ets:select(Continuation), From, TableId, RowFun, ColumnPositions, Adapter).
+    produce_buffer_csv_rows(UserId, ets:select(Continuation), From, TableId, RowFun, ColumnPositions, Adapter).
 
 -spec cancel_timer(undefined | reference()) -> ok.
 cancel_timer(undefined) -> ok;

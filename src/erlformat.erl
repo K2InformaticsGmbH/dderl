@@ -177,9 +177,13 @@ expand_cons([Element | Rest], [LB, RB], Expand, Tab) ->
 
 -spec add_dot(list()) -> list().
 add_dot(Val) ->
-    case [lists:last(trim_whitespace(Val))] of
-        "." -> Val;
-        _ -> Val ++ "."
+    case trim_whitespace(Val) of
+        [] -> Val ++ ".";
+        Trimmed ->
+            case lists:last(Trimmed) of
+                $. -> Val;
+                _ -> Val ++ "."
+            end
     end.
 
 -spec escape_quotes(list()) -> list().
