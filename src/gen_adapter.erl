@@ -575,6 +575,12 @@ format_json_or_term(true, StringToFormat, From, _) ->
                                 [{<<"isJson">>, true},
                                  {<<"stringToFormat">>, StringToFormat}]
                                }])};
+format_json_or_term(_, <<>>, From, _BodyJson) ->
+    Result = #{<<"edit_term_or_view">> => #{
+        <<"error">> => <<"Invalid erlang term">>,
+        <<"string">> => <<>>
+    }},
+    From ! {reply, jsx:encode(Result)};
 format_json_or_term(_, StringToFormat, From, BodyJson) ->
     case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
         <<"auto">> -> ExpandLevel = auto;
