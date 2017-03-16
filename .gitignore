@@ -212,3 +212,6 @@ node_modules
 # SAML certs
 priv/certs/saml.crt
 priv/certs/saml.key
+
+# Visual studio code settings
+.vscode/
