@@ -54,7 +54,7 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
             {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql);
         {ok, [{{'begin procedure', _},_}]} ->
             TableName = <<"">>,
-            NewSql = <<Sql/binary, $;>>,
+            NewSql = append_semicolon(Sql, binary:last(Sql)),
             RowIdAdded = false,
             SelectSections = [];
         _ ->
@@ -80,6 +80,10 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
         NoSelect ->
             NoSelect
     end.
+
+-spec append_semicolon(binary(), integer()) -> binary().
+append_semicolon(Sql, $;) -> Sql;
+append_semicolon(Sql, _) -> <<Sql/binary, $;>>.
 
 -spec change_password(tuple(), binary(), binary(), binary()) -> ok | {error, term()}.
 change_password({oci_port, _, _} = Connection, User, OldPassword, NewPassword) ->
