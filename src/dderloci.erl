@@ -52,6 +52,11 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
     case sqlparse:parsetree(Sql) of
         {ok,[{{select, SelectSections},_}]} ->
             {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql);
+        {ok, [{{'begin procedure', _},_}]} ->
+            TableName = <<"">>,
+            NewSql = <<Sql/binary, $;>>,
+            RowIdAdded = false,
+            SelectSections = [];
         _ ->
             TableName = <<"">>,
             NewSql = Sql,
