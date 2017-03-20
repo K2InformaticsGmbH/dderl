@@ -1,5 +1,7 @@
 {application, dderl,
     [
+        {description, "Web based tool for exploring databases"},
+        {vsn, "1.8.0"},
         {applications, [
             kernel,
             stdlib,
@@ -9,12 +11,10 @@
             imem,
             mimetypes
         ]},
-        {description, "Web based tool for exploring databases"},
         {env, [
             {interface, "127.0.0.1"},
             {port, 8443},
             {ssl_opts, []}
         ]},
-        {mod, {dderl, []}},
-        {vsn, "1.8.0"}
+        {mod, {dderl, []}}
     ]}.
