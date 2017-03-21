@@ -194,6 +194,10 @@
         ?GET_CONFIG(csvExportBomPrefix, [__UserId, __Adapter], utf8,
                     "Byte Order Mark (BOM) matching the encoding, unicode::encoding() for valid values")).
 
+-define(CSV_ESCAPE(__UserId, __Adapter),
+        ?GET_CONFIG(csvExportEscape, [__UserId, __Adapter], normal,
+                    "Defines escape level for csv exports")).
+
 %% DDErl Activity Logging
 -define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
 -define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
