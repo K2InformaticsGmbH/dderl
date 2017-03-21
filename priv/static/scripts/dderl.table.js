@@ -2408,13 +2408,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
 
             // command back request
-            if(_rows.loop.length > 0 && !self._divDisable) {
+            if(_rows.loop.length > 0 && !self._divDisable && !self._blockRequests) {
                 if (self._grid.getCellEditor()) {
                     self._loop = _rows.loop;
                 } else {
                     self.buttonPress(_rows.loop);
                 }
-            } else if(self._scanToEnd) {
+            } else if(self._scanToEnd && !self._blockRequests) {
                 if(rowsCount === 0) {
                     self._scanToEnd = false;
                 } else {
@@ -2704,7 +2704,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
             var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt, (_result) => {
+                this._blockRequests = false;
                 this._replaceGraphStmt(_result);
+            },
+            () => {
+                this._blockRequests = true;
             });
             if(planeFunc) {
                 let d = document.createElement("div");

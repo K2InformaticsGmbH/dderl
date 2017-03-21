@@ -4,14 +4,14 @@ import {alert_js_error, alert_jq, dlg_fit_to_window} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
 import {renderNewTable} from '../scripts/dderl.table';
 
-export function evalD3Script(script, statement, tableStmtReload) {
+export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock) {
     /* jshint evil:true */
     // Here we can inject libraries we would like to make available to d3 scripts.
     var f = new Function('script', 'd3', 'helper', "return eval('(' + script + ')')");
     var result = null;
     var helper = {
         browse: openGraphView,
-        req: buildReq(statement, tableStmtReload),
+        req: buildReq(statement, tableStmtReload, tableLoopBlock),
         contextMenu: openContextMenu,
         openDialog: openDialog,
         parseInt: ddParseInt,
@@ -45,7 +45,7 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
     });
 }
 
-function buildReq(statement, tableStmtReload) {
+function buildReq(statement, tableStmtReload, tableLoopBlock) {
     function req(viewName, suffix, topic, key, binds, graphFocusCb) {
         var update_stmt_data = {
             view_name: viewName,
@@ -56,6 +56,8 @@ function buildReq(statement, tableStmtReload) {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection
         };
+        console.log("Blocking requests before replacing the fsm");
+        tableLoopBlock();
         ajaxCall(null, 'update_focus_stmt', update_stmt_data, 'update_focus_stmt', function(result) {
             console.log("Result subscription", result);
             if (!result) {

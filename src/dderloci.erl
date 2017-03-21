@@ -52,6 +52,11 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
     case sqlparse:parsetree(Sql) of
         {ok,[{{select, SelectSections},_}]} ->
             {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql);
+        {ok, [{{'begin procedure', _},_}]} ->
+            TableName = <<"">>,
+            NewSql = append_semicolon(Sql, binary:last(Sql)),
+            RowIdAdded = false,
+            SelectSections = [];
         _ ->
             TableName = <<"">>,
             NewSql = Sql,
@@ -75,6 +80,10 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
         NoSelect ->
             NoSelect
     end.
+
+-spec append_semicolon(binary(), integer()) -> binary().
+append_semicolon(Sql, $;) -> Sql;
+append_semicolon(Sql, _) -> <<Sql/binary, $;>>.
 
 -spec change_password(tuple(), binary(), binary(), binary()) -> ok | {error, term()}.
 change_password({oci_port, _, _} = Connection, User, OldPassword, NewPassword) ->
@@ -268,6 +277,13 @@ expand_star(Flds, _Forms) -> Flds.
 qualify_star([]) -> [];
 qualify_star([Table | Rest]) -> [qualify_field(Table, "*") | qualify_star(Rest)].
 
+bind_exec_stmt(Stmt, undefined) -> Stmt:exec_stmt();
+bind_exec_stmt(Stmt, {BindsMeta, BindVal}) ->
+    case Stmt:bind_vars(BindsMeta) of
+        ok -> Stmt:exec_stmt([list_to_tuple(BindVal)]);
+        Error -> error(Error)
+    end.
+
 run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
     %% For now only the first table is counted.
     case Connection:prep_sql(NewSql) of
@@ -276,26 +292,12 @@ run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
                 {error, {ErrorId,Msg}} ->
                     error({ErrorId,Msg});
                 Statement ->
-                    StmtExecResult = case Binds of
-                                         undefined -> Statement:exec_stmt();
-                                         {BindsMeta, BindVal} ->
-                                             case Statement:bind_vars(BindsMeta) of
-                                                 ok -> Statement:exec_stmt([list_to_tuple(BindVal)]);
-                                                 Error -> error(Error)
-                                             end
-                                     end,
+                    StmtExecResult = bind_exec_stmt(Statement, Binds),
                     result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,
                                      Connection,SelectSections)
             end;
         Statement ->
-            StmtExecResult = case Binds of
-                                 undefined -> Statement:exec_stmt();
-                                 {BindsMeta, BindVal} ->
-                                     case Statement:bind_vars(BindsMeta) of
-                                         ok -> Statement:exec_stmt([list_to_tuple(BindVal)]);
-                                         Error -> error(Error)
-                                     end
-                             end,
+            StmtExecResult = bind_exec_stmt(Statement, Binds),
             result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,Connection,
                              SelectSections)
     end.
@@ -333,8 +335,17 @@ result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Co
 result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     Statement:close(),
     ok;
-result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection,
-                 _SelectSections) ->
+result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
+    Stmt:close(),
+    case lists:keyfind(Var, 1, Binds) of
+        {Var,out,'SQLT_RSET'} ->
+            result_exec_stmt(Val:exec_stmt(), Val, Sql, undefined, NewSql, false, Conn, []);
+        {Var,out,'SQLT_VNU'} ->
+            {ok, [{Var, list_to_binary(oci_util:from_num(Val))}]};
+        _ ->
+            {ok, [{Var, Val}]}
+    end;
+result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     NewValues =
     lists:foldl(
       fun({Var, Val}, Acc) ->
@@ -355,15 +366,7 @@ result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connec
         {error, {ErrorId,Msg}} ->
             error({ErrorId,Msg});
         Statement1 ->
-            StmtExecResult = case Binds of
-                                 undefined -> Statement1:exec_stmt();
-                                 {BindsMeta, BindVal} ->
-                                     case Statement1:bind_vars(BindsMeta) of
-                                         ok -> Statement1:exec_stmt([list_to_tuple(BindVal)]);
-                                         Error1 -> error(Error1)
-                                     end
-                             end,
-            case StmtExecResult of
+            case bind_exec_stmt(Statement1, Binds) of
                 {cols, Clms} ->
                     Fields = proplists:get_value(fields, SelectSections, []),
                     NewClms = cols_to_rec(Clms, Fields),
