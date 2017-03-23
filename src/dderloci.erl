@@ -48,21 +48,9 @@ exec(Connection, Sql, MaxRowCount) ->
     exec(Connection, Sql, undefined, MaxRowCount).
 
 -spec exec(tuple(), binary(), tuple(), integer()) -> ok | {ok, pid()} | {error, term()}.
-exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
-    case sqlparse:parsetree(Sql) of
-        {ok,[{{select, SelectSections},_}]} ->
-            {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql);
-        {ok, [{{'begin procedure', _},_}]} ->
-            TableName = <<"">>,
-            NewSql = append_semicolon(Sql, binary:last(Sql)),
-            RowIdAdded = false,
-            SelectSections = [];
-        _ ->
-            TableName = <<"">>,
-            NewSql = Sql,
-            RowIdAdded = false,
-            SelectSections = []
-    end,
+exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
+    {Sql, NewSql, TableName, RowIdAdded, SelectSections} =
+        parse_sql(sqlparse:parsetree(OrigSql), OrigSql),
     case catch run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) of
         {'EXIT', {Error, ST}} ->
             ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
@@ -287,7 +275,7 @@ bind_exec_stmt(Stmt, {BindsMeta, BindVal}) ->
 run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
     %% For now only the first table is counted.
     case Connection:prep_sql(NewSql) of
-        {error, {ErrorId,Msg}} ->
+        {error, {ErrorId,Msg}} when Sql =/= NewSql ->
             case Connection:prep_sql(Sql) of
                 {error, {ErrorId,Msg}} ->
                     error({ErrorId,Msg});
@@ -296,6 +284,7 @@ run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
                     result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,
                                      Connection,SelectSections)
             end;
+        {error, {ErrorId,Msg}} -> error({ErrorId,Msg});
         Statement ->
             StmtExecResult = bind_exec_stmt(Statement, Binds),
             result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,Connection,
@@ -359,6 +348,9 @@ result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _Ne
     ?Debug("Binds ~p", [Binds]),
     Statement:close(),
     {ok, NewValues};
+result_exec_stmt(Error, Statement, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
+    Statement:close(),
+    error(Error);
 result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
     ?Info("RowIdError ~p", [RowIdError]),
     Statement:close(),
@@ -720,3 +712,14 @@ compare_alias(Alias, Field, Fields, OrigField, Result) ->
             {ResultName, ReadOnly, RestFields} = find_original_field(Alias, Fields),
             {ResultName, ReadOnly, [OrigField | RestFields]}
     end.
+
+-spec parse_sql(tuple(), binary()) -> {binary(), binary(), binary(), boolean(), list()}.
+parse_sql({ok, [{{select, SelectSections},_}]}, Sql) ->
+    {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql),
+    {Sql, NewSql, TableName, RowIdAdded, SelectSections};
+parse_sql({ok, [{{'begin procedure', _},_}]}, Sql) ->
+    %% Old sql is replaced by the one with the correctly added semicolon, issue #401
+    NewSql = append_semicolon(Sql, binary:last(Sql)),
+    {NewSql, NewSql, <<"">>, false, []};
+parse_sql(_UnsuportedSql, Sql) ->
+    {Sql, Sql, <<"">>, false, []}.
