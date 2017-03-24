@@ -1,17 +1,21 @@
 import * as d3 from 'd3/build/d3.node';
-import {alert_js_error, alert_jq} from '../dialogs/dialogs';
+import $ from 'jquery';
+import {alert_js_error, alert_jq, dlg_fit_to_window} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
 import {renderNewTable} from '../scripts/dderl.table';
 
-export function evalD3Script(script, statement, tableStmtReload) {
+export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock) {
     /* jshint evil:true */
     // Here we can inject libraries we would like to make available to d3 scripts.
     var f = new Function('script', 'd3', 'helper', "return eval('(' + script + ')')");
     var result = null;
     var helper = {
         browse: openGraphView,
-        req: buildReq(statement, tableStmtReload),
-        contextMenu: openContextMenu
+        req: buildReq(statement, tableStmtReload, tableLoopBlock),
+        contextMenu: openContextMenu,
+        openDialog: openDialog,
+        parseInt: ddParseInt,
+        parseFloat: ddParseFloat
     };
     try {
         result = f(script, d3, helper);
@@ -31,11 +35,17 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
         }
     };
     ajaxCall(null, 'open_graph_view', openViewData, 'open_graph_view', function(viewResult) {
+        if(viewResult.bind_types) {
+            viewResult.qparams = {
+                types: viewResult.bind_types,
+                pars: binds
+            };
+        }
         renderNewTable(viewResult, position, force);
     });
 }
 
-function buildReq(statement, tableStmtReload) {
+function buildReq(statement, tableStmtReload, tableLoopBlock) {
     function req(viewName, suffix, topic, key, binds, graphFocusCb) {
         var update_stmt_data = {
             view_name: viewName,
@@ -46,6 +56,8 @@ function buildReq(statement, tableStmtReload) {
             connection: dderlState.connection,
             conn_id: dderlState.connectionSelected.connection
         };
+        console.log("Blocking requests before replacing the fsm");
+        tableLoopBlock();
         ajaxCall(null, 'update_focus_stmt', update_stmt_data, 'update_focus_stmt', function(result) {
             console.log("Result subscription", result);
             if (!result) {
@@ -87,6 +99,14 @@ function buildReq(statement, tableStmtReload) {
     return req;
 }
 
+function ddParseInt(string, radix = 10) {
+    return parseInt(string.split("'").join(""), radix);
+}
+
+function ddParseFloat(string) {
+    return parseFloat(string.split("'").join(""));
+}
+
 /**
  * Creates a context menu based on the position and array of entries provided:
  * 
@@ -98,7 +118,7 @@ function buildReq(statement, tableStmtReload) {
  * 
  */
 
-function openContextMenu({x, y}, entriesList) {
+function openContextMenu(entriesList, {x, y}) {
     var body = document.body;
     var menu = document.createElement('ul');
     menu.className = 'context_menu';
@@ -110,7 +130,10 @@ function openContextMenu({x, y}, entriesList) {
             li.appendChild(i);
         }
         li.appendChild(document.createTextNode(label));
-        li.onclick = callback;
+        li.onclick = function(evt) {
+            body.removeChild(menu);
+            callback(evt);
+        };
         menu.appendChild(li);
     });
 
@@ -122,4 +145,40 @@ function openContextMenu({x, y}, entriesList) {
     menu.style.top = y + 'px';
 
     body.appendChild(menu);
+}
+
+function openDialog(title, content, {x, y}) {
+    var dlg = $('<div class="selectable-alert-text">');
+
+    dlg.html(content);
+
+    dlg.dialog({
+        title: title,
+        autoOpen: false,
+        minHeight: 200,
+        height: 'auto',
+        width: 'auto',
+        position: {my: 'left top', at: 'left top', of: '#main-body', collision: 'none'},
+        appendTo: '#main-body',
+        close: function() {
+            $(this).dialog('destroy');
+            $(this).remove();
+        }
+    });
+
+    dlg.dialog("open")
+        .dialog("widget")
+        .draggable("option", "containment", "#main-body");
+
+    // Move the dialog after it has been open, as position doesn't work
+    // properly otherwise since requires to calculate the offset.
+    var at = 'left+' + x + ' top+' + y;
+    dlg.dialog("option", "position", {
+        my: 'left top',
+        at: at,
+        of: '#main-body',
+        collision: 'none'
+    });
+
+    dlg_fit_to_window(dlg);
 }

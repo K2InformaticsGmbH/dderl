@@ -38,15 +38,15 @@ if [ "$1" == "gui" ] ||
    [ "$1" == "stop" ] ||
    [ "$1" == "list" ] ||
    [ "$1" == "attach" ]; then
-    ./deps/dderl/service_generic.sh $1 $app_name $node_name $node_host $cluster_name $cluster_host $cookie
+    ./service_generic.sh $1 $app_name $node_name $node_host $cluster_name $cluster_host $cookie
 elif [ "$1" == "escript" ]; then
-    ./deps/dderl/service_generic.sh $1 $2 $node_name $node_host $cookie
+    ./service_generic.sh $1 $2 $node_name $node_host $cookie
 elif [ "$1" == "check" ]; then
-    ./deps/dderl/service_generic.sh $1 $node_name $node_host $cookie
+    ./service_generic.sh $1 $node_name $node_host $cookie
 else
     usage $cmd
     echo ---------------
     echo Generic usage :
     echo
-    ./deps/dderl/service_generic.sh
+    ./service_generic.sh
 fi

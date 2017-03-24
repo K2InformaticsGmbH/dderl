@@ -37,8 +37,7 @@ cookie="-setcookie $ck"
 
 # PATHS
 paths="-pa"
-paths=$paths" ebin"
-paths=$paths" deps/*/ebin"
+paths=$paths" _build/default/lib/*/ebin"
 
 # Proto dist module
 dist_opts="-proto_dist"
@@ -60,7 +59,11 @@ imem_opts=$imem_opts" tcp_port $port"
 dderl_opts="-dderl"
 dderl_opts=$dderl_opts" port $dderlport" 
 
-start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts"
+# sasl opts
+sasl_opts="-sasl"
+sasl_opts=$sasl_opts"  sasl_error_logger false" 
+
+start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts $sasl_opts"
 
 # DDERL start options
 echo "------------------------------------------"
@@ -73,6 +76,7 @@ echo "Dist      : $dist_opts"
 echo "Kernel    : $kernel_opts"
 echo "IMEM      : $imem_opts"
 echo "DDERL     : $dderl_opts"
+echo "SASL      : $sasl_opts"
 echo "------------------------------------------"
 
 # Starting dderl

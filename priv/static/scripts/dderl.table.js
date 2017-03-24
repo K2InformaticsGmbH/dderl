@@ -214,6 +214,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         dderlStartBtn     : '>',
         dderlSortSpec     : null,
         dderlSqlEditor    : null,
+        dderlOptBinds     : null,
     },
 
     // Set up the widget
@@ -238,6 +239,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         if(self.options.dderlViewId     !== self._viewId)   self._viewId    = self.options.dderlViewId;
         if(self.options.dderlStartBtn   !== self._startBtn) self._startBtn  = self.options.dderlStartBtn;
         if(self.options.dderlSortSpec   !== self._sorts)    self._sorts     = self.options.dderlSortSpec;
+        if(self.options.dderlOptBinds   !== self._optBinds) self._optBinds  = self.options.dderlOptBinds;
         if(self.options.dderlSqlEditor  !== self._divSqlEditor) {
             self._divSqlEditor = self.options.dderlSqlEditor;
         }
@@ -2406,13 +2408,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
 
             // command back request
-            if(_rows.loop.length > 0 && !self._divDisable) {
+            if(_rows.loop.length > 0 && !self._divDisable && !self._blockRequests) {
                 if (self._grid.getCellEditor()) {
                     self._loop = _rows.loop;
                 } else {
                     self.buttonPress(_rows.loop);
                 }
-            } else if(self._scanToEnd) {
+            } else if(self._scanToEnd && !self._blockRequests) {
                 if(rowsCount === 0) {
                     self._scanToEnd = false;
                 } else {
@@ -2702,7 +2704,11 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         // We need to execute the script.
         if(!this._graphDivs[planeIdx]) {
             var planeFunc = evalD3Script(this._planeSpecs[planeIdx].script, this._stmt, (_result) => {
+                this._blockRequests = false;
                 this._replaceGraphStmt(_result);
+            },
+            () => {
+                this._blockRequests = true;
             });
             if(planeFunc) {
                 let d = document.createElement("div");
@@ -4094,6 +4100,7 @@ export function renderNewTable(table, position, force) {
         dderlTbllay: tl,
         dderlStartBtn: startBtn,
         dderlViewId: viewId,
+        dderlOptBinds: table.qparams,
         dderlSortSpec: ((table.hasOwnProperty('sort_spec') && table.sort_spec.length > 0
         ) ? table.sort_spec : null)
     };

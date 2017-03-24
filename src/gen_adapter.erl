@@ -575,6 +575,12 @@ format_json_or_term(true, StringToFormat, From, _) ->
                                 [{<<"isJson">>, true},
                                  {<<"stringToFormat">>, StringToFormat}]
                                }])};
+format_json_or_term(_, <<>>, From, _BodyJson) ->
+    Result = #{<<"edit_term_or_view">> => #{
+        <<"error">> => <<"Invalid erlang term">>,
+        <<"string">> => <<>>
+    }},
+    From ! {reply, jsx:encode(Result)};
 format_json_or_term(_, StringToFormat, From, BodyJson) ->
     case proplists:get_value(<<"expansion_level">>, BodyJson, 1) of
         <<"auto">> -> ExpandLevel = auto;
@@ -880,7 +886,8 @@ build_column_csv(UserId, Adapter, Cols) ->
        end)/binary,
       (unicode:characters_to_binary(
          [csv_row([C#stmtCol.alias || C <- Cols],
-                  ?COL_SEP_CHAR(UserId, Adapter)),
+                  ?COL_SEP_CHAR(UserId, Adapter),
+                  ?CSV_ESCAPE(UserId, Adapter)),
           ?ROW_SEP_CHAR(UserId, Adapter)],
          utf8, ?CSV_ENC(UserId, Adapter)))/binary>>.
 
@@ -891,23 +898,33 @@ make_csv_rows(UserId, Rows, RowFun, Adapter)
 make_csv_rows(UserId, Rows, expanded, Adapter) when is_list(Rows),
                                                     is_atom(Adapter) ->
     unicode:characters_to_binary(
-      make_csv_rows(Rows, ?COL_SEP_CHAR(UserId, Adapter),
-                    ?ROW_SEP_CHAR(UserId, Adapter)), utf8,
+      make_csv_rows_internal(Rows, ?COL_SEP_CHAR(UserId, Adapter),
+                    ?ROW_SEP_CHAR(UserId, Adapter), ?CSV_ESCAPE(UserId, Adapter)), utf8,
       ?CSV_ENC(UserId, Adapter)).
 
-make_csv_rows([], _ColSepChar, _RowSepChar) -> [];
-make_csv_rows([Row|Rows], ColSepChar, RowSepChar) ->
-    [csv_row(Row, ColSepChar), RowSepChar
-     | make_csv_rows(Rows, ColSepChar, RowSepChar)].
+make_csv_rows_internal([], _ColSepChar, _RowSepChar, _EscapeMode) -> [];
+make_csv_rows_internal([Row|Rows], ColSepChar, RowSepChar, EscapeMode) ->
+    [csv_row(Row, ColSepChar, EscapeMode), RowSepChar
+     | make_csv_rows_internal(Rows, ColSepChar, RowSepChar, EscapeMode)].
 
-csv_row([], _ColSepChar) -> [];
-csv_row([Cell | Row], ColSepChar) ->
-    [case re:run(Cell, "[\"\r\n"++ColSepChar++"]") of
-         nomatch -> Cell;
-         _ -> <<$",
+csv_row([], _ColSepChar, _EscapeMode) -> [];
+csv_row([Cell | Row], ColSepChar, EscapeMode) ->
+    [case should_escape(EscapeMode, ColSepChar, Cell) of
+         false -> Cell;
+         true -> <<$",
                 (re:replace(Cell, "\"", "\"\"",
                             [global, {return, binary}]))/binary,
                 $">>
      end,
      if length(Row) > 0 -> ColSepChar; true -> [] end
-     | csv_row(Row, ColSepChar)].
+     | csv_row(Row, ColSepChar, EscapeMode)].
+
+-spec should_escape(atom(), list(), binary()) -> boolean().
+should_escape(always, _ColSepChar, _Cell) -> true;
+should_escape(never, _ColSepChar, _Cell) -> false;
+should_escape(strict, ColSepChar, Cell) ->
+    re:run(Cell, "[\"\r\n"++ColSepChar++"]") =/= nomatch;
+should_escape(normal, ColSepChar, Cell) ->
+    re:run(Cell, "^\"|[\r\n"++ColSepChar++"]") =/= nomatch;
+should_escape(_Other, ColSepChar, Cell) ->
+    should_escape(normal, ColSepChar, Cell).

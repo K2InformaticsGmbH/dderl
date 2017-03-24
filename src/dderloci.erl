@@ -13,6 +13,7 @@
     fetch_close/1,
     filter_and_sort/6,
     close/1,
+    close_port/1,
     run_table_cmd/3,
     cols_to_rec/2,
     get_alias/1,
@@ -47,16 +48,9 @@ exec(Connection, Sql, MaxRowCount) ->
     exec(Connection, Sql, undefined, MaxRowCount).
 
 -spec exec(tuple(), binary(), tuple(), integer()) -> ok | {ok, pid()} | {error, term()}.
-exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
-    case sqlparse:parsetree(Sql) of
-        {ok,[{{select, SelectSections},_}]} ->
-            {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql);
-        _ ->
-            TableName = <<"">>,
-            NewSql = Sql,
-            RowIdAdded = false,
-            SelectSections = []
-    end,
+exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
+    {Sql, NewSql, TableName, RowIdAdded, SelectSections} =
+        parse_sql(sqlparse:parsetree(OrigSql), OrigSql),
     case catch run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) of
         {'EXIT', {Error, ST}} ->
             ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
@@ -74,6 +68,10 @@ exec({oci_port, _, _} = Connection, Sql, Binds, MaxRowCount) ->
         NoSelect ->
             NoSelect
     end.
+
+-spec append_semicolon(binary(), integer()) -> binary().
+append_semicolon(Sql, $;) -> Sql;
+append_semicolon(Sql, _) -> <<Sql/binary, $;>>.
 
 -spec change_password(tuple(), binary(), binary(), binary()) -> ok | {error, term()}.
 change_password({oci_port, _, _} = Connection, User, OldPassword, NewPassword) ->
@@ -98,6 +96,10 @@ filter_and_sort(Pid, Connection, FilterSpec, SortSpec, Cols, Query) ->
 -spec close(pid()) -> term().
 close(Pid) ->
     gen_server:call(Pid, close).
+
+-spec close_port(tuple()) -> term().
+close_port({OciMod, PortPid, _Conn}) -> close_port({OciMod, PortPid});
+close_port({_OciMod, _PortPid} = Port) -> oci_port:close(Port).
 
 %% Gen server callbacks
 init([SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum]) ->
@@ -263,34 +265,28 @@ expand_star(Flds, _Forms) -> Flds.
 qualify_star([]) -> [];
 qualify_star([Table | Rest]) -> [qualify_field(Table, "*") | qualify_star(Rest)].
 
+bind_exec_stmt(Stmt, undefined) -> Stmt:exec_stmt();
+bind_exec_stmt(Stmt, {BindsMeta, BindVal}) ->
+    case Stmt:bind_vars(BindsMeta) of
+        ok -> Stmt:exec_stmt([list_to_tuple(BindVal)]);
+        Error -> error(Error)
+    end.
+
 run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
     %% For now only the first table is counted.
     case Connection:prep_sql(NewSql) of
-        {error, {ErrorId,Msg}} ->
+        {error, {ErrorId,Msg}} when Sql =/= NewSql ->
             case Connection:prep_sql(Sql) of
                 {error, {ErrorId,Msg}} ->
                     error({ErrorId,Msg});
                 Statement ->
-                    StmtExecResult = case Binds of
-                                         undefined -> Statement:exec_stmt();
-                                         {BindsMeta, BindVal} ->
-                                             case Statement:bind_vars(BindsMeta) of
-                                                 ok -> Statement:exec_stmt([list_to_tuple(BindVal)]);
-                                                 Error -> error(Error)
-                                             end
-                                     end,
+                    StmtExecResult = bind_exec_stmt(Statement, Binds),
                     result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,
                                      Connection,SelectSections)
             end;
+        {error, {ErrorId,Msg}} -> error({ErrorId,Msg});
         Statement ->
-            StmtExecResult = case Binds of
-                                 undefined -> Statement:exec_stmt();
-                                 {BindsMeta, BindVal} ->
-                                     case Statement:bind_vars(BindsMeta) of
-                                         ok -> Statement:exec_stmt([list_to_tuple(BindVal)]);
-                                         Error -> error(Error)
-                                     end
-                             end,
+            StmtExecResult = bind_exec_stmt(Statement, Binds),
             result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,Connection,
                              SelectSections)
     end.
@@ -328,8 +324,17 @@ result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Co
 result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     Statement:close(),
     ok;
-result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection,
-                 _SelectSections) ->
+result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
+    Stmt:close(),
+    case lists:keyfind(Var, 1, Binds) of
+        {Var,out,'SQLT_RSET'} ->
+            result_exec_stmt(Val:exec_stmt(), Val, Sql, undefined, NewSql, false, Conn, []);
+        {Var,out,'SQLT_VNU'} ->
+            {ok, [{Var, list_to_binary(oci_util:from_num(Val))}]};
+        _ ->
+            {ok, [{Var, Val}]}
+    end;
+result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     NewValues =
     lists:foldl(
       fun({Var, Val}, Acc) ->
@@ -343,6 +348,9 @@ result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _Ne
     ?Debug("Binds ~p", [Binds]),
     Statement:close(),
     {ok, NewValues};
+result_exec_stmt(Error, Statement, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
+    Statement:close(),
+    error(Error);
 result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
     ?Info("RowIdError ~p", [RowIdError]),
     Statement:close(),
@@ -350,15 +358,7 @@ result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connec
         {error, {ErrorId,Msg}} ->
             error({ErrorId,Msg});
         Statement1 ->
-            StmtExecResult = case Binds of
-                                 undefined -> Statement1:exec_stmt();
-                                 {BindsMeta, BindVal} ->
-                                     case Statement1:bind_vars(BindsMeta) of
-                                         ok -> Statement1:exec_stmt([list_to_tuple(BindVal)]);
-                                         Error1 -> error(Error1)
-                                     end
-                             end,
-            case StmtExecResult of
+            case bind_exec_stmt(Statement1, Binds) of
                 {cols, Clms} ->
                     Fields = proplists:get_value(fields, SelectSections, []),
                     NewClms = cols_to_rec(Clms, Fields),
@@ -712,3 +712,14 @@ compare_alias(Alias, Field, Fields, OrigField, Result) ->
             {ResultName, ReadOnly, RestFields} = find_original_field(Alias, Fields),
             {ResultName, ReadOnly, [OrigField | RestFields]}
     end.
+
+-spec parse_sql(tuple(), binary()) -> {binary(), binary(), binary(), boolean(), list()}.
+parse_sql({ok, [{{select, SelectSections},_}]}, Sql) ->
+    {TableName, NewSql, RowIdAdded} = inject_rowid(select_type(SelectSections), SelectSections, Sql),
+    {Sql, NewSql, TableName, RowIdAdded, SelectSections};
+parse_sql({ok, [{{'begin procedure', _},_}]}, Sql) ->
+    %% Old sql is replaced by the one with the correctly added semicolon, issue #401
+    NewSql = append_semicolon(Sql, binary:last(Sql)),
+    {NewSql, NewSql, <<"">>, false, []};
+parse_sql(_UnsuportedSql, Sql) ->
+    {Sql, Sql, <<"">>, false, []}.

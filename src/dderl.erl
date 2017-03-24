@@ -26,24 +26,10 @@
 %% Console Interface
 %%-----------------------------------------------------------------------------
 start() ->
-    imem:start(),
-    ok = application:start(cowlib),
-    ok = application:start(cowboy),
-    application:start(xmerl),
-    ok = application:start(esaml),
-    erlimem:start(),
-    catch ok = application:start(erloci),
-    ok = application:start(?MODULE).
+    {ok, _} = application:ensure_all_started(?MODULE).
 
 stop() ->
-    ok = application:stop(?MODULE),
-    catch application:stop(erloci),
-    ok = application:stop(esaml),
-    ok = application:stop(xmerl),
-    erlimem:stop(),
-    ok = application:stop(cowboy),
-    ok = application:stop(cowlib),
-    imem:stop().
+    ok = application:stop(?MODULE).
 
 %%-----------------------------------------------------------------------------
 
