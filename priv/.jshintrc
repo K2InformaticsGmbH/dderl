@@ -1,0 +1,14 @@
+{
+    "browser": true,
+    "devel": true,    
+    "esversion": 6,
+    "globals": {
+        // Until we properly import slickgrid as a module.
+        "Slick": false,
+        // Until we refactor dashboard from widget to module
+        "DDerl": false
+    },
+    "nonstandard": true,
+    "undef": true,
+    "unused": true
+}
