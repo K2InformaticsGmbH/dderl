@@ -8,4 +8,4 @@ rebar.lock
 rebar3.crashdump
 snapshot
 test/*.beam
-tmp
+*.swp
