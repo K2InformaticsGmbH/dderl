@@ -1,17 +1,26 @@
 cd _build/default/rel/dderl/lib/dderl-*/priv/
-Write-Host "npm install"
-Remove-Item node_modules -Force -Recurse
+If (Test-Path node_modules) {
+    Remove-Item node_modules -Force -Recurse
+    Write-Host "===> node_modules dir deleted"
+}
+Write-Host "===> npm install"
 npm install
 
-Write-Host "npm run build"
-Remove-Item public -Force -Recurse
+If (Test-Path public) {
+    Remove-Item public -Force -Recurse
+    Write-Host "===> public dir deleted"
+}
+Write-Host "===> npm run build"
 npm run build
 
-Write-Host "clean up"
-Remove-Item d3_* -Force -Recurse
-Remove-Item node_modules -Force -Recurse
-Remove-Item static -Force -Recurse
-Remove-Item test -Force -Recurse
-Remove-Item karma.config.js -Force -Recurse
-Remove-Item .jshintrc -Force -Recurse
-Remove-Item package.config -Force -Recurse
+Write-Host "===> clean up" -foregroundcolor "green"
+$delFiles = "d3_*","node_modules","static","test",`
+            "karma.conf.js",".jshintrc*","package.json*"
+For($i = 0; $i -lt $delFiles.Length; $i++) {
+    If (Test-Path $delFiles[$i]) {
+        Remove-Item $delFiles[$i] -Force -Recurse
+        Write-Host "===> "$delFiles[$i]" deleted"
+    } Else {
+        Write-Host "===> "$delFiles[$i]" not found!"
+    }
+}
