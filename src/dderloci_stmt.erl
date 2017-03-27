@@ -242,8 +242,9 @@ process_one_update(PrepStmt, FilterRows, FilterColumns, Rows, Columns) ->
                     ChangedKeys = [{Row#row.pos, {{}, list_to_tuple(create_changedkey_vals(Row#row.values ++ [Row#row.id], Columns ++ [#stmtCol{type = 'SQLT_STR'}]))}} || Row <- Rows],
                     {ok, ChangedKeys};
                 false ->
-                    %% TODO: What is a good message here ?
-                    {error, <<"Error updating the rows.">>}
+                    {error, <<"Unknown error updating the rows.">>};
+                long_rowid ->
+                    {error, <<"Updating tables with universal rowids is not supported yet.">>}
             end;
         {error, {_ErrorCode, ErrorMsg}}->
             {error, ErrorMsg}
@@ -482,12 +483,21 @@ close_stmts([Stmt | RestStmts]) ->
     Stmt:close(),
     close_stmts(RestStmts).
 
--spec check_rowid([binary()], [#row{}]) -> boolean().
+-spec check_rowid([binary()], [#row{}]) -> true | false | long_rowid.
 check_rowid(RowIds, Rows) when length(RowIds) =:= length(Rows) ->
     check_member(RowIds, Rows);
-check_rowid(_, _) -> false.
+check_rowid(_RowIds, _Rows) ->
+    false.
 
--spec check_member([binary()], [#row{}]) -> boolean().
+-spec check_member([binary()], [#row{}]) -> true | false | long_rowid.
 check_member(_, []) -> true;
 check_member(RowIds, [Row | RestRows]) ->
-    lists:member(Row#row.id, RowIds) andalso check_member(RowIds, RestRows).
+    case lists:member(Row#row.id, RowIds) of
+        true ->
+            check_member(RowIds, RestRows);
+        false ->
+            case size(Row#row.id) > 19 of
+                true -> long_rowid;
+                false -> false
+            end
+    end.
