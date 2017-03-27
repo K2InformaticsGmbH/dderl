@@ -4,7 +4,7 @@ const webpack = require('webpack');
 const PATHS = {
     app: path.join(__dirname, 'static', 'index.js'),
     index: path.join(__dirname, 'static', 'index.html'),
-    public: path.join(__dirname, 'public'),
+    public: path.join(__dirname, '../public'),
     static: path.join(__dirname, 'static')
 }
 

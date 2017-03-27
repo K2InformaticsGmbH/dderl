@@ -33,17 +33,19 @@
     "karma-jasmine": "1.1.0",
     "karma-sourcemap-loader": "0.3.7",
     "karma-webpack": "1.8.0",
+    "rimraf": "2.6.1",
     "style-loader": "0.13.1",
     "webpack": "1.14.0",
     "webpack-validator": "2.2.12"
   },
   "scripts": {
-    "build": "npm run lint && webpack --progress",
+    "build": "npm run lint && npm run clean && webpack --progress",
+    "clean": "rimraf ../public",
     "env": "env",
     "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph static/slickgrid",
     "test": "karma start karma.conf.js",
     "validate": "webpack-validator webpack.config.js",
-    "watch": "webpack --progress --watch",
+    "watch": "npm run clean && webpack --progress --watch",
     "lint:d3_examples": "jshint --verbose d3_examples"
   }
 }
