@@ -1,4 +1,13 @@
-cd _build/default/rel/dderl/lib/dderl-*/priv/
+cd _build/default/rel/dderl/lib
+
+$source = Get-ChildItem -Filter imem-* |
+          Select-Object -First 1 -Expand FullName
+$target = Get-ChildItem -Filter stdlib-* |
+          Select-Object -First 1 -Expand FullName
+Move-Item $source\ebin\filename.beam -Destination $target\ebin -Force
+
+cd dderl-*/priv/dev
+
 If (Test-Path node_modules) {
     Remove-Item node_modules -Force -Recurse
     Write-Host "===> node_modules dir deleted"
