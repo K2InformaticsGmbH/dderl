@@ -1,3 +1,4 @@
+{{ dderl_log_dir }}
 *@*
 _build
 erl_crash.dump
