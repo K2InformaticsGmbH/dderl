@@ -32,7 +32,7 @@
       if (url && url.length > 1) {
         url = decodeURIComponent(url[1]);
       } else {
-        url = "/dderlrest/0.0.1";
+        url = g_brand.spec;
       }
 
       hljs.configure({
@@ -82,7 +82,6 @@
       }
 
       $("#logo").attr("href",g_brand.url);
-      $("#brand_logo").attr("src",g_brand.logo);
       $('#brand_title').text(g_brand.title);
   });
   </script>
@@ -92,19 +91,22 @@
 <div id='header'>
   <div class="swagger-ui-wrap">
     <a id="logo" href="http://www.k2informatics.ch/">
-        <img class="logo__img" id="brand_logo" alt="brand" height="30" width="30" src="images/logo_k2.png" />
-        <span class="logo__title" id="brand_title">rest@k2</span></a>
+        <img class="logo__img" alt="brand" height="30" width="30" src="images/logo.png" />
+        <span class="logo__title" id="brand_title">rest@k2</span>
+    </a>
+    <div style="display:block;float:right">
+        <a class="header__btn" style="text-decoration: none; color:white"
+            href="http://www.k2informatics.ch/">
+            <span style="vertical-align:super;padding-left:10px">powered by </span>
+            <img class="logo__img" alt="k2" height="30" width="30"
+            src="images/logo_k2.png"/>
+        </a>
+    </div>
     <form id='api_selector'>
       <div class='input'>
           <input placeholder="http://example.com/api" id="input_baseUrl" name="baseUrl" type="text"/></div>
       <div id='auth_container'></div>
       <div class='input'><a id="explore" class="header__btn" href="#" data-sw-translate>Explore</a></div>
-      <div class='input'>
-        <a class="header__btn" style="text-decoration: none; color:white" href="http://www.k2informatics.ch/">
-            <span>powered by </span>
-            <img class="logo__img" alt="swagger" height="30" width="30" src="images/logo_k2.png"/>
-        </a>
-      </div>
     </form>
   </div>
 </div>
