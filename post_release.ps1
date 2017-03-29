@@ -10,8 +10,9 @@ cd dderl-*/priv/dev
 
 If (Test-Path node_modules) {
     Remove-Item node_modules -Force -Recurse
-    Write-Host "===> node_modules dir deleted"
+    Write-Host "===> directory 'node_modules' deleted"
 }
+
 Write-Host "===> npm install"
 npm install
 
@@ -20,9 +21,18 @@ npm run build
 
 cd ..
 Write-Host "===> clean up"
-If (Test-Path "dev") {
-    Remove-Item "dev" -Force -Recurse
-    Write-Host "===> dir 'dev' deleted"
+$Path = "dev"
+If (Test-Path $Path) {
+    If (!(Get-ItemProperty $Path).Target) {
+        Remove-Item $Path -Force -Recurse
+        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' deleted"
+    } Else {
+        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' is a symbolic link - no cleanup"
+        If (Test-Path dev/node_modules) {
+            Remove-Item dev/node_modules -Force -Recurse
+            Write-Host "===> directory 'dev/node_modules' deleted"
+        }
+    }
 } Else {
-    Write-Host "===> dir 'dev' not found!"
+        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' not found"
 }
