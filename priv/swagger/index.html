@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>K2 REST UI</title>
-  <link rel="icon" type="image/png" href="images/logo_small.png">
+  <title>Swagger UI</title>
+  <link rel="icon" type="image/png" href="images/favicon.ico">
   <link href='css/typography.css' media='screen' rel='stylesheet' type='text/css'/>
   <link href='css/reset.css' media='screen' rel='stylesheet' type='text/css'/>
   <link href='css/screen.css' media='screen' rel='stylesheet' type='text/css'/>
@@ -25,6 +25,7 @@
   <script src='lib/marked.js' type='text/javascript'></script>
   <script src='lib/swagger-oauth.js' type='text/javascript'></script>
 
+  <script src='brand.js' type='text/javascript'></script>
   <script type="text/javascript">
     $(function () {
       var url = window.location.search.match(/url=([^&]+)/);
@@ -79,6 +80,10 @@
           console.log.apply(console, arguments);
         }
       }
+
+      $("#logo").attr("href",g_brand.url);
+      $("#brand_logo").attr("src",g_brand.logo);
+      $('#brand_title').text(g_brand.title);
   });
   </script>
 </head>
@@ -86,11 +91,20 @@
 <body class="swagger-section">
 <div id='header'>
   <div class="swagger-ui-wrap">
-    <a id="logo" href="http://www.k2informatics.ch/"><img class="logo__img" alt="swagger" height="30" width="30" src="images/logo_small.png" /><span class="logo__title">rest@k2</span></a>
+    <a id="logo" href="http://www.k2informatics.ch/">
+        <img class="logo__img" id="brand_logo" alt="brand" height="30" width="30" src="images/logo_k2.png" />
+        <span class="logo__title" id="brand_title">rest@k2</span></a>
     <form id='api_selector'>
-      <div class='input'><input placeholder="http://example.com/api" id="input_baseUrl" name="baseUrl" type="text"/></div>
+      <div class='input'>
+          <input placeholder="http://example.com/api" id="input_baseUrl" name="baseUrl" type="text"/></div>
       <div id='auth_container'></div>
       <div class='input'><a id="explore" class="header__btn" href="#" data-sw-translate>Explore</a></div>
+      <div class='input'>
+        <a class="header__btn" style="text-decoration: none; color:white" href="http://www.k2informatics.ch/">
+            <span>powered by </span>
+            <img class="logo__img" alt="swagger" height="30" width="30" src="images/logo_k2.png"/>
+        </a>
+      </div>
     </form>
   </div>
 </div>
