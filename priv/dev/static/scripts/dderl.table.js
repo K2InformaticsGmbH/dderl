@@ -896,9 +896,24 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 msg += ",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
                 msg += activationResult.sender_columns[i];
             }
-
+            this._receiverStatus();
             alert_jq(msg);
         }
+    },
+
+    _receiverStatus: function(ctx) {
+        var self = ctx ? ctx : this;
+        self._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
+            console.log("receiverStatus  #### ", receiverStatus);
+            if (receiverStatus.complete !== true) {
+                setTimeout(
+                    function() {
+                        self._receiverStatus(self);
+                    }, 1000);
+            } else {
+                console.log("$$$$$$$$$$$$$$$$$$$$$$$$Completed");
+            }
+        });
     },
 
     _cacheData: function() {

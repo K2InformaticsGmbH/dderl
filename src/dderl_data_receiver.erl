@@ -7,6 +7,7 @@
 -include_lib("imem/include/imem_meta.hrl"). %% Included for config access
 
 -export([start_link/4
+        ,get_status/1
         ,data_info/2
         ,data/2]).
 
@@ -27,6 +28,7 @@
         ,update_cursor_execute_fun :: fun()
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
+        ,received_rows = 0         :: integer()
         ,browser_pid               :: pid()}).
 
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
@@ -40,6 +42,10 @@ start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
             ?Error("~p failed to start ~p~n", [?MODULE, Error]),
             Error
     end.
+
+-spec get_status(pid()) -> ok.
+get_status(ReceiverPid) ->
+    gen_server:cast(ReceiverPid, status).
 
 -spec data_info(pid(), {[#stmtCol{}], non_neg_integer()}) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
@@ -67,6 +73,10 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
+handle_cast(status, #state{received_rows = RowCount, browser_pid = BrowserPid} = State) ->
+    Response = [{<<"received_rows">>, RowCount}],
+    BrowserPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
+    {noreply, State};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
@@ -86,11 +96,12 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
 handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender, terminating"),
     {stop, normal, State};
-handle_cast({data, Rows}, #state{sender_pid = SenderPid} = State) ->
-    ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
+handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows} = State) ->
+    ?Info("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
     add_rows_to_statement(Rows, State),
     dderl_data_sender:more_data(SenderPid), %% TODO: Maybe change this name
-    {noreply, State, ?RESPONSE_TIMEOUT};
+    ?Info("@@@@@@@@@@Received Rows : ~p", [ReceivedRows + length(Rows)]),
+    {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
     {noreply, State}.
