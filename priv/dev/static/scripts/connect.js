@@ -164,7 +164,11 @@ export function connect_dlg()
             }
             
             connectsArray.sort(function(a, b) {
-                return a.dom.text === b.dom.text ? 0: a.dom.text < b.dom.text ? -1 : 1;
+                if(a.data.method == b.data.method) {
+                    return a.dom.text === b.dom.text ? 0: a.dom.text < b.dom.text ? -1 : 1;
+                } else {
+                    return a.data.method > b.data.method;
+                }
             });
             
             for(var j = 0; j < connectsArray.length; ++j) {
