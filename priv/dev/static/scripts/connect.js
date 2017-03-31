@@ -62,7 +62,7 @@ export function connect_dlg()
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body", collision : 'none' },
         appendTo: "#main-body",
-        dialogClass: "no-close",
+        dialogClass: "no-close overflow-visible",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
