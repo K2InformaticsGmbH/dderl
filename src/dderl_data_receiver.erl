@@ -97,10 +97,9 @@ handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender, terminating"),
     {stop, normal, State};
 handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows} = State) ->
-    ?Info("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
+    ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
     add_rows_to_statement(Rows, State),
     dderl_data_sender:more_data(SenderPid), %% TODO: Maybe change this name
-    ?Info("@@@@@@@@@@Received Rows : ~p", [ReceivedRows + length(Rows)]),
     {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
