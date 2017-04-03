@@ -164,10 +164,10 @@ export function connect_dlg()
             }
             
             connectsArray.sort(function(a, b) {
-                if(a.data.method == b.data.method) {
-                    return a.dom.text === b.dom.text ? 0: a.dom.text < b.dom.text ? -1 : 1;
+                if(a.data.method === b.data.method) {
+                    return a.dom.text.localeCompare(b.dom.text);
                 } else {
-                    return a.data.method > b.data.method;
+                    return a.data.method === b.data.method ? 0 : a.data.method < b.data.method ? -1 : 1;
                 }
             });
             
