@@ -896,7 +896,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 msg += ",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
                 msg += activationResult.sender_columns[i];
             }
-            msg += "<br>Progress: <span id='receivedRows'>0</span><div id='progressbar'></div>";
+            msg += "<br>Progress: <span id='receivedRows'>0</span><div id='progressbar'></div><br><div id='receiverErrors'></div>";
             this._receiverStatus(activationResult.available_rows);
             alert_jq(msg);
             $( "#progressbar" ).progressbar({
@@ -908,7 +908,15 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _receiverStatus: function(maxRows) {
         this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
-            if (receiverStatus.received_rows) {
+            if (receiverStatus.received_rows == "all") {
+                $("#receivedRows").text("completed");
+                $( "#progressbar" ).progressbar({
+                    value: maxRows
+                });
+            } else if(receiverStatus.error) {
+                $("#receiverErrors").append(`<span>Error : ${receiverStatus.error}</span><br>`);
+                setTimeout(() => this._receiverStatus(maxRows), 1000);
+            } else {
                 if (receiverStatus.received_rows <= maxRows) {
                     $( "#progressbar" ).progressbar({
                         value: receiverStatus.received_rows
@@ -921,11 +929,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 }
                 $("#receivedRows").text("Rows " + receiverStatus.received_rows);
                 setTimeout(() => this._receiverStatus(maxRows), 1000);
-            } else {
-                $("#receivedRows").text("completed");
-                $( "#progressbar" ).progressbar({
-                    value: maxRows
-                });
             }
         });
     },

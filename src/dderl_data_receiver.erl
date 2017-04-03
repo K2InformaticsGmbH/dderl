@@ -7,7 +7,7 @@
 -include_lib("imem/include/imem_meta.hrl"). %% Included for config access
 
 -export([start_link/4
-        ,get_status/1
+        ,get_status/2
         ,data_info/2
         ,data/2]).
 
@@ -29,6 +29,7 @@
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
         ,received_rows = 0         :: integer()
+        ,status                    :: tuple()
         ,browser_pid               :: pid()}).
 
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
@@ -43,9 +44,9 @@ start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
             Error
     end.
 
--spec get_status(pid()) -> ok.
-get_status(ReceiverPid) ->
-    gen_server:cast(ReceiverPid, status).
+-spec get_status(pid(), pid()) -> ok.
+get_status(ReceiverPid, ReplyToPid) ->
+    gen_server:cast(ReceiverPid, {status, ReplyToPid}).
 
 -spec data_info(pid(), {[#stmtCol{}], non_neg_integer()}) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
@@ -73,10 +74,27 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast(status, #state{received_rows = RowCount, browser_pid = BrowserPid} = State) ->
+handle_cast({status, ReplyToPid}, #state{status = {complete, true}} = State) ->
+    Response = [{<<"received_rows">>, <<"all">>}],
+    ?Info("Sleeping 500"),
+    timer:sleep(500),
+    ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
+    ?Info("Terminating after respoding completed to receiver_status"),
+    {stop, normal, State};
+handle_cast({status, ReplyToPid}, #state{status = {error, Error}} = State) ->
+    Response = [{<<"error">>, Error}],
+    timer:sleep(500),
+    ?Info("Sleeping 500"),
+    ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
+    {noreply, State#state{status = undefinded}, ?RESPONSE_TIMEOUT};
+handle_cast({status, ReplyToPid}, #state{received_rows = RowCount} = State) ->
     Response = [{<<"received_rows">>, RowCount}],
-    BrowserPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    {noreply, State};
+    ?Info("Sleeping 500"),
+    timer:sleep(500),
+    ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
+    % {noreply, State};
+    gen_server:cast(self(), {status, ReplyToPid}),
+    {noreply, State#state{status = {error, <<"Test Error">>}}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
@@ -94,13 +112,19 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
             {stop, {shutdown, <<"Columns mismatch">>}, State}
     end;
 handle_cast({data, '$end_of_table'}, State) ->
-    ?Info("End of table reached in sender, terminating"),
-    {stop, normal, State};
+    ?Info("End of table reached in sender"),
+    {noreply, State#state{status = {complete, true}}, ?RESPONSE_TIMEOUT};
 handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows} = State) ->
     ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
-    add_rows_to_statement(Rows, State),
-    dderl_data_sender:more_data(SenderPid), %% TODO: Maybe change this name
-    {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
+    case add_rows_to_statement(Rows, State) of
+        ok -> 
+            dderl_data_sender:more_data(SenderPid), %% TODO: Maybe change this name
+            {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
+        {error, Error} ->
+            dderl_data_sender:more_data(SenderPid),
+            {noreply, State#state{received_rows = ReceivedRows + length(Rows),
+                                  status = {error, imem_datatype:term_to_io(Error)}}, ?RESPONSE_TIMEOUT}
+    end;
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
     {noreply, State}.

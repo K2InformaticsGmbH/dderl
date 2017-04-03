@@ -686,6 +686,7 @@ r2jsn([Row|Rows], JCols, NewRows) ->
 -spec build_resp_fun(binary(), [#stmtCol{}], pid()) -> fun().
 build_resp_fun(Cmd, Clms, From) ->
     fun(#gres{} = GuiResp) ->
+        ?Info("******** From Pid : ~p", [From]),
         GuiRespJson = gui_resp(GuiResp, Clms),
         try
             Resp = jsx:encode([{Cmd,GuiRespJson}]),
