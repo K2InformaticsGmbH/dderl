@@ -76,25 +76,17 @@ handle_call(Req, _From, State) ->
 
 handle_cast({status, ReplyToPid}, #state{status = {complete, true}} = State) ->
     Response = [{<<"received_rows">>, <<"all">>}],
-    ?Info("Sleeping 500"),
-    timer:sleep(500),
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     ?Info("Terminating after respoding completed to receiver_status"),
     {stop, normal, State};
-handle_cast({status, ReplyToPid}, #state{status = {error, Error}} = State) ->
-    Response = [{<<"error">>, Error}],
-    timer:sleep(500),
-    ?Info("Sleeping 500"),
+handle_cast({status, ReplyToPid}, #state{status = {error, Errors}} = State) ->
+    Response = [{<<"error">>, imem_datatype:term_to_io(Errors)}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     {noreply, State#state{status = undefinded}, ?RESPONSE_TIMEOUT};
 handle_cast({status, ReplyToPid}, #state{received_rows = RowCount} = State) ->
     Response = [{<<"received_rows">>, RowCount}],
-    ?Info("Sleeping 500"),
-    timer:sleep(500),
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    % {noreply, State};
-    gen_server:cast(self(), {status, ReplyToPid}),
-    {noreply, State#state{status = {error, <<"Test Error">>}}, ?RESPONSE_TIMEOUT};
+    {noreply, State, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
@@ -122,8 +114,11 @@ handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = Receive
             {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
         {error, Error} ->
             dderl_data_sender:more_data(SenderPid),
-            {noreply, State#state{received_rows = ReceivedRows + length(Rows),
-                                  status = {error, imem_datatype:term_to_io(Error)}}, ?RESPONSE_TIMEOUT}
+            NewErrors = case State#state.status of
+                            {error, Errors} -> [Error | Errors];
+                            _ -> [Error]
+                        end,
+            {noreply, State#state{status = {error, NewErrors}}, ?RESPONSE_TIMEOUT}
     end;
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),

@@ -908,27 +908,32 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _receiverStatus: function(maxRows) {
         this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
+            if(receiverStatus.error) {
+                $("#receiverErrors").append(`<span>Error : ${receiverStatus.error}</span><br>`);
+            }
             if (receiverStatus.received_rows == "all") {
                 $("#receivedRows").text("completed");
                 $( "#progressbar" ).progressbar({
                     value: maxRows
                 });
-            } else if(receiverStatus.error) {
-                $("#receiverErrors").append(`<span>Error : ${receiverStatus.error}</span><br>`);
-                setTimeout(() => this._receiverStatus(maxRows), 1000);
             } else {
-                if (receiverStatus.received_rows <= maxRows) {
-                    $( "#progressbar" ).progressbar({
-                        value: receiverStatus.received_rows
-                    });
-                } else {
-                    $( "#progressbar" ).progressbar({
-                        disable: true
-                    });
-                    $( "#progressbar" ).hide();
+                var receivedRows = receiverStatus.received_rows;
+                if (Number.isInteger(receivedRows)) {
+                    if (receivedRows <= maxRows) {
+                        $( "#progressbar" ).progressbar({
+                            value: receivedRows
+                        });
+                    } else {
+                        $( "#progressbar" ).progressbar({
+                            disable: true
+                        });
+                        $( "#progressbar" ).hide();
+                    }
+                    $("#receivedRows").text("Rows " + receivedRows);
                 }
-                $("#receivedRows").text("Rows " + receiverStatus.received_rows);
-                setTimeout(() => this._receiverStatus(maxRows), 1000);
+                if(receiverStatus.continue !== false) {
+                    setTimeout(() => this._receiverStatus(maxRows), 1000);
+                }
             }
         });
     },

@@ -232,7 +232,6 @@ gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"restart">>]),
     gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
 gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) ->
-    ?Info("#### >| pid : ~p", [ReplyTo]),
     ?NoDbLog(debug, [], "button ~p", [<<">|">>]),
     gen_fsm:send_event(Pid,{button, <<">|">>, ReplyTo});
 gui_req(button, <<"more">>, ReplyTo, {?MODULE,Pid}) ->
@@ -248,7 +247,6 @@ gui_req(button, <<"pt">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"pt">>]),
     gen_fsm:send_event(Pid,{button, <<"pt">>, ReplyTo});
 gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
-    ?Info("#### Tail pid : ~p", [ReplyTo]),
     ?NoDbLog(debug, [], "button ~p", [<<"tail">>]),
     gen_fsm:send_event(Pid,{button, <<"tail">>, ReplyTo});
 gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) ->
@@ -1131,7 +1129,6 @@ handle_event({error, Error}, SN, State) ->
     State2 = fetch_close(State1#state{tailMode=false}),
     {next_state, aborted, State2#state{tailLock=false}};
 handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
-    ?Info("Button close pressed"),
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = gui_close(#gres{state=SN},State2),

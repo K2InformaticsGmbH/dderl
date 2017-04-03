@@ -486,20 +486,15 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
             State#state{active_sender = undefined}
     end;
 process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
-             #state{active_receiver = undefined, user_id = UserId, id = Id} = State) ->
-    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "receive_status", ReqData, "", "", "", ""),
-    reply(From, [{<<"error">>, <<"Receiver terminated">>}], self()),
-    State;
-process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{active_receiver = PidReceiver, user_id = UserId, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "receive_status", ReqData, "", "", "", ""),
-    ?Info("$$$$$ receive_status pid : ~p", [From]),
-    case erlang:is_process_alive(PidReceiver) of
+    case PidReceiver /= undefined andalso erlang:is_process_alive(PidReceiver) of
         true ->
             dderl_data_receiver:get_status(PidReceiver, From),
             State;
         false ->
-            reply(From, [{<<"receiver_status">>, [{<<"complete">>, true}]}], self()),
+            reply(From, [{<<"receiver_status">>, [{<<"error">>, <<"Receiver terminated">>},
+                                                  {<<"continue">>, false}]}], self()),
             State#state{active_receiver = undefined}
     end;
 process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
