@@ -493,7 +493,7 @@ process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
             dderl_data_receiver:get_status(PidReceiver, From),
             State;
         false ->
-            reply(From, [{<<"receiver_status">>, [{<<"error">>, <<"Receiver terminated">>},
+            reply(From, [{<<"receiver_status">>, [{<<"errors">>, [<<"Receiver terminated">>]},
                                                   {<<"continue">>, false}]}], self()),
             State#state{active_receiver = undefined}
     end;

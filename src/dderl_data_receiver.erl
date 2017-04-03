@@ -29,7 +29,8 @@
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
         ,received_rows = 0         :: integer()
-        ,status                    :: tuple()
+        ,errors = []               :: list()
+        ,is_complete = false       :: boolean() 
         ,browser_pid               :: pid()}).
 
 -spec start_link({atom(), pid()}, [integer()], pid(), pid()) -> {ok, pid()} | {error, term()} | ignore.
@@ -74,19 +75,15 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast({status, ReplyToPid}, #state{status = {complete, true}} = State) ->
+handle_cast({status, ReplyToPid}, #state{is_complete = true} = State) ->
     Response = [{<<"received_rows">>, <<"all">>}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     ?Info("Terminating after respoding completed to receiver_status"),
     {stop, normal, State};
-handle_cast({status, ReplyToPid}, #state{status = {error, Errors}} = State) ->
-    Response = [{<<"error">>, imem_datatype:term_to_io(Errors)}],
+handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Errors} = State) ->
+    Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    {noreply, State#state{status = undefinded}, ?RESPONSE_TIMEOUT};
-handle_cast({status, ReplyToPid}, #state{received_rows = RowCount} = State) ->
-    Response = [{<<"received_rows">>, RowCount}],
-    ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    {noreply, State, ?RESPONSE_TIMEOUT};
+    {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
@@ -105,8 +102,8 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
     end;
 handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender"),
-    {noreply, State#state{status = {complete, true}}, ?RESPONSE_TIMEOUT};
-handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows} = State) ->
+    {noreply, State#state{is_complete = true}, ?RESPONSE_TIMEOUT};
+handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows, errors = Errors} = State) ->
     ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
     case add_rows_to_statement(Rows, State) of
         ok -> 
@@ -114,11 +111,7 @@ handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = Receive
             {noreply, State#state{received_rows = ReceivedRows + length(Rows)}, ?RESPONSE_TIMEOUT};
         {error, Error} ->
             dderl_data_sender:more_data(SenderPid),
-            NewErrors = case State#state.status of
-                            {error, Errors} -> [Error | Errors];
-                            _ -> [Error]
-                        end,
-            {noreply, State#state{status = {error, NewErrors}}, ?RESPONSE_TIMEOUT}
+            {noreply, State#state{errors = [imem_datatype:term_to_io(Error) | Errors]}, ?RESPONSE_TIMEOUT}
     end;
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
@@ -146,7 +139,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 -spec add_rows_to_statement([[binary()]], #state{}) -> ok | {error, term()}.
 add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns}) ->
     PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1),
-    case Ucpf(PreparedRows) of
+    case catch Ucpf(PreparedRows) of
         ok ->
             case Ucef(none) of
                 {_, Error} -> {error, Error};

@@ -908,8 +908,10 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
 
     _receiverStatus: function(maxRows) {
         this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
-            if(receiverStatus.error) {
-                $("#receiverErrors").append(`<span>Error : ${receiverStatus.error}</span><br>`);
+            if(receiverStatus.errors) {
+                for (let error of receiverStatus.errors) {
+                    $("#receiverErrors").append(`<span>Error : ${error}</span><br>`);
+                }
             }
             if (receiverStatus.received_rows == "all") {
                 $("#receivedRows").text("completed");
