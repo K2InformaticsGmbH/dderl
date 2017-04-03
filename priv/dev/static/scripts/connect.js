@@ -167,7 +167,7 @@ export function connect_dlg()
                 if(a.data.method === b.data.method) {
                     return a.dom.text.localeCompare(b.dom.text);
                 } else {
-                    return a.data.method === b.data.method ? 0 : a.data.method < b.data.method ? -1 : 1;
+                    return a.data.method.localeCompare(b.data.method);
                 }
             });
             
