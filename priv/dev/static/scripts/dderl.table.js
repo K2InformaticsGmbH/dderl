@@ -906,9 +906,8 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
     },
 
-    _receiverStatus: function(maxRows, ctx) {
-        var self = ctx ? ctx : this;
-        self._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
+    _receiverStatus: function(maxRows) {
+        this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
             if (receiverStatus.received_rows) {
                 if (receiverStatus.received_rows <= maxRows) {
                     $( "#progressbar" ).progressbar({
@@ -921,10 +920,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $( "#progressbar" ).hide();
                 }
                 $("#receivedRows").text("Rows " + receiverStatus.received_rows);
-                setTimeout(
-                    function() {
-                        self._receiverStatus(maxRows, self);
-                    }, 1000);
+                setTimeout(() => this._receiverStatus(maxRows), 1000);
             } else {
                 $("#receivedRows").text("completed");
                 $( "#progressbar" ).progressbar({
