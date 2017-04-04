@@ -75,8 +75,8 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
-handle_cast({status, ReplyToPid}, #state{is_complete = true} = State) ->
-    Response = [{<<"received_rows">>, <<"all">>}],
+handle_cast({status, ReplyToPid}, #state{is_complete = true, received_rows = RowCount} = State) ->
+    Response = [{<<"received_rows">>, RowCount}, {<<"is_complete">>, true}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     ?Info("Terminating after respoding completed to receiver_status"),
     {stop, normal, State};
@@ -139,7 +139,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 -spec add_rows_to_statement([[binary()]], #state{}) -> ok | {error, term()}.
 add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns}) ->
     PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1),
-    case catch Ucpf(PreparedRows) of
+    case Ucpf(PreparedRows) of
         ok ->
             case Ucef(none) of
                 {_, Error} -> {error, Error};

@@ -913,13 +913,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $("#receiverErrors").append(`<span>Error : ${error}</span><br>`);
                 }
             }
-            if (receiverStatus.received_rows == "all") {
-                $("#receivedRows").text("completed");
+            var receivedRows = receiverStatus.received_rows;
+            if (receiverStatus.is_complete) {
+                $("#receivedRows").text(`completed, Rows successfully inserted : ${receivedRows}`);
                 $( "#progressbar" ).progressbar({
-                    value: maxRows
+                    value: receivedRows
                 });
             } else {
-                var receivedRows = receiverStatus.received_rows;
                 if (Number.isInteger(receivedRows)) {
                     if (receivedRows <= maxRows) {
                         $( "#progressbar" ).progressbar({
@@ -931,7 +931,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         });
                         $( "#progressbar" ).hide();
                     }
-                    $("#receivedRows").text("Rows " + receivedRows);
+                    $("#receivedRows").text(`Rows ${receivedRows}`);
                 }
                 if(receiverStatus.continue !== false) {
                     setTimeout(() => this._receiverStatus(maxRows), 1000);
