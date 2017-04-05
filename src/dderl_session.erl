@@ -491,11 +491,12 @@ process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
     Filename = proplists:get_value(<<"filename">>, BodyJson, <<>>),
-    {TableId, IndexId, Nav, RowFun, Clms} = Statement:get_sender_params(),
+    {TableId, IndexId, Nav, RowFun, OrigClms} = Statement:get_sender_params(),
     UsedTable = case Nav of
         raw -> TableId;
         ind -> IndexId
     end,
+    Clms = [lists:nth(Pos, OrigClms) || Pos <- ColumnPositions],
     Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
     From ! {reply_csv, Filename, Columns, first},
     FirstKey = ets:first(UsedTable),
