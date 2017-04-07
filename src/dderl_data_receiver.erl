@@ -76,12 +76,12 @@ handle_call(Req, _From, State) ->
     {reply, {not_supported, Req}, State}.
 
 handle_cast({status, ReplyToPid}, #state{is_complete = true, received_rows = RowCount} = State) ->
-    Response = [{<<"received_rows">>, RowCount}, {<<"is_complete">>, true}],
+    Response = [{<<"received_rows">>, RowCount}, {<<"is_complete">>, true}, {<<"continue">>, false}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     ?Info("Terminating after respoding completed to receiver_status"),
     {stop, normal, State};
 handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Errors} = State) ->
-    Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}],
+    Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}, {<<"continue">>, true}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->

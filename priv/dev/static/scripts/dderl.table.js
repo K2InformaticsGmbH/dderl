@@ -933,9 +933,10 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     }
                     $("#receivedRows").text(`Rows ${receivedRows}`);
                 }
-                if(receiverStatus.continue !== false) {
-                    setTimeout(() => this._receiverStatus(maxRows), 1000);
-                }
+            }
+            
+            if(receiverStatus.continue) {
+                setTimeout(() => this._receiverStatus(maxRows), 1000);
             }
         });
     },
