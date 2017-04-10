@@ -896,9 +896,49 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 msg += ",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
                 msg += activationResult.sender_columns[i];
             }
-
+            msg += "<br>Progress: <span id='receivedRows'>0</span><div id='progressbar'></div><br><div id='receiverErrors'></div>";
+            this._receiverStatus(activationResult.available_rows);
             alert_jq(msg);
+            $( "#progressbar" ).progressbar({
+                max: activationResult.available_rows,
+                enable: true
+            });
         }
+    },
+
+    _receiverStatus: function(maxRows) {
+        this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
+            if(receiverStatus.errors) {
+                for (let error of receiverStatus.errors) {
+                    $("#receiverErrors").append(`<span>Error : ${error}</span><br>`);
+                }
+            }
+            var receivedRows = receiverStatus.received_rows;
+            if (receiverStatus.is_complete) {
+                $("#receivedRows").text(`completed, Rows successfully inserted : ${receivedRows}`);
+                $( "#progressbar" ).progressbar({
+                    value: receivedRows
+                });
+            } else {
+                if (Number.isInteger(receivedRows)) {
+                    if (receivedRows <= maxRows) {
+                        $( "#progressbar" ).progressbar({
+                            value: receivedRows
+                        });
+                    } else {
+                        $( "#progressbar" ).progressbar({
+                            disable: true
+                        });
+                        $( "#progressbar" ).hide();
+                    }
+                    $("#receivedRows").text(`Rows ${receivedRows}`);
+                }
+            }
+            
+            if(receiverStatus.continue) {
+                setTimeout(() => this._receiverStatus(maxRows), 1000);
+            }
+        });
     },
 
     _cacheData: function() {
