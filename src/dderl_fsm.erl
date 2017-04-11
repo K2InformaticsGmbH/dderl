@@ -1193,9 +1193,10 @@ handle_event({subscribe, {Topic, Key}, ReplyTo}, SN, State0) ->
     end,
     State2 = gui_nop(#gres{state=SN, beep=true, message=Result}, State1),
     {next_state, SN, State2};
-handle_event(close_stmt, _SN, State0) ->
-    State1 = fetch_close(State0),
-    {stop, normal, State1#state{tailLock=true}};
+handle_event(close_stmt, SN, State0) ->
+    State1 = reply_stack(SN, undefined, State0),
+    State2 = fetch_close(State1),
+    {stop, normal, State2#state{tailLock=true}};
 handle_event({filter, FilterSpec, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_filter(SN, FilterSpec, State1),
