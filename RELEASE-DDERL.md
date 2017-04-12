@@ -3,6 +3,18 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.7.1 (Release Date 12.04.2017)
+======================================
+* Updated imem to version 1.6.2
+* Updated erlimem to version 1.2.9
+* Data send/receive now includes progress bar information
+* Export csv from buffer now returns correct headers on hidden/reorder columns
+* Added vagran files to simplify contributions
+* Long list of connections properly handled in connection dialog
+* Proper error message for failed updates due to Oracle universal rowid
+* Made clean of javascript side platform independent using rimraf library
+* Added support to out ref cursors for oracle connections
+
 Version 1.7.0 (Release Date 09.03.2017)
 ======================================
 * Added bind values to sql editor of views opened via graph action
