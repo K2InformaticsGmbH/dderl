@@ -1461,7 +1461,7 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
     end,
-    ?Info("Getting the distinct count of the column(s) ~p, nav ~p", [ColumnId, Nav]),
+    ?Debug("Getting the distinct count of the column(s) ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
             {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
