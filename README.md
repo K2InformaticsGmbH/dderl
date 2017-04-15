@@ -17,7 +17,7 @@ WEB DataBase Browser Application.
 3. [Install Wix](http://wix.codeplex.com/downloads/get/762937)
 4. Create Environment variable `%WIXBIN%` pointing to  WIX installation binary path (e.g. `C:\Program Files (x86)\WiX Toolset v3.8\bin`)
 5. Append `%WIXBIN%` to `%PATH%` environment variable
-6. Execude `deps/erlpkg/windows/build_msi.escript -v`
+6. Execute `_build/default/lib/erlpkg/windows/build_msi.escript -v`
 7. Installer MSI will be generated in `dderl/rel/erlpkg_release/build/`
 
 ### Hacks
@@ -72,4 +72,3 @@ To convert a PEM crt/key files to DER (accepted by erlang SSL binary certificate
   ```
 for partitioning the table every minute.
 5. Also make the similar change in table ddConfig for the record with hkl value [{dderl,dderl,dderlLogTable}]. Edit the column val.
-

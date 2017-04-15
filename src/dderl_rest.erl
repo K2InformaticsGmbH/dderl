@@ -20,7 +20,7 @@
 
 -define(API_VERSION, "0.0.1").
 
--ifdef(TEST).
+-ifdef(TESTwwe).
 f().
 {ok, S} = erlimem:open(local_sec, imem_meta:schema()).
 S:auth(dderl_rest, undefined, {pwdmd5, {<<"system">>, erlang:md5("change_on_install")}}).

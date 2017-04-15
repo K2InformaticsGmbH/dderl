@@ -29,18 +29,18 @@ function check_arg_count {
 }
 
 deps=''
-for dir in $PWD/deps/*/
+for dir in $PWD/_build/default/lib/*/
 do
     dir=${dir%*/}
-    dr=$PWD/deps/${dir##*/}/ebin
+    dr=$PWD/_build/default/lib/${dir##*/}/ebin
     path2win dr
     deps="$deps $dr"
 done
 
 # augment pwd to the front of all paths
-appebin=$PWD/ebin
+appebin=$PWD/_build/default/lib/dderl/ebin
 path2win appebin
-erlpaths="-pa $appebin -pa $deps"
+erlpaths="-pa $deps"
 kernellogfile=$PWD/log/kernel.txt
 path2win kernellogfile
 kernelconfig="-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020 -proto_dist imem_inet_tcp"
@@ -140,8 +140,8 @@ case $1 in
 	    check_arg_count 3
         if [ -f "./check.escript" ]; then
             ./check.escript $2 $3 $4
-        elif [ -f "./deps/dderl/check.escript" ]; then
-            ./deps/dderl/check.escript $2 $3 $4
+        elif [ -f "./_build/default/lib/dderl/check.escript" ]; then
+            ./_build/default/lib/dderl/check.escript $2 $3 $4
         else
             echo file not found : check.escript
         fi
