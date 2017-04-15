@@ -37,6 +37,7 @@
           , user_id                     :: ddEntityId()
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
+          , active_receiver             :: pid()
           , conn_info                   :: map()
           , old_state                   :: tuple()
           , lock_state  = unlocked      :: unlocked | locked | screensaver
@@ -473,7 +474,7 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
             case dderl_data_receiver_sup:start_receiver(Statement, ColumnPositions, PidSender, From) of
                 {ok, PidReceiver} ->
                     ?Info("Data receiver ~p started and connected with ~p", [PidReceiver, PidSender]),
-                    State#state{active_sender = undefined};
+                    State#state{active_sender = undefined, active_receiver = PidReceiver};
                 {error, Reason} ->
                     Error = [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}],
                     reply(From, [{<<"activate_receiver">>, Error}], self()),
@@ -484,6 +485,18 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
             reply(From, [{<<"activate_receiver">>, [{<<"error">>, <<"No table sending data">>}]}], self()),
             State#state{active_sender = undefined}
     end;
+process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
+             #state{active_receiver = PidReceiver, user_id = UserId, id = Id} = State) ->
+    catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "receive_status", ReqData, "", "", "", ""),
+    case PidReceiver /= undefined andalso erlang:is_process_alive(PidReceiver) of
+        true ->
+            dderl_data_receiver:get_status(PidReceiver, From),
+            State;
+        false ->
+            reply(From, [{<<"receiver_status">>, [{<<"errors">>, [<<"Receiver terminated">>]},
+                                                  {<<"continue">>, false}]}], self()),
+            State#state{active_receiver = undefined}
+    end;
 process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
              #state{user_id = UserId, id = Id} = State) ->
     catch dderl:access(?CMD_WITHARGS, SrcIp, UserId, Id, "activate_receiver", ReqData, "", "", "", ""),
@@ -491,11 +504,12 @@ process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
     Filename = proplists:get_value(<<"filename">>, BodyJson, <<>>),
-    {TableId, IndexId, Nav, RowFun, Clms} = Statement:get_sender_params(),
+    {TableId, IndexId, Nav, RowFun, OrigClms} = Statement:get_sender_params(),
     UsedTable = case Nav of
         raw -> TableId;
         ind -> IndexId
     end,
+    Clms = [lists:nth(Pos, OrigClms) || Pos <- ColumnPositions],
     Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
     From ! {reply_csv, Filename, Columns, first},
     FirstKey = ets:first(UsedTable),

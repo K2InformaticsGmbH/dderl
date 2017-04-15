@@ -62,7 +62,7 @@ export function connect_dlg()
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body", collision : 'none' },
         appendTo: "#main-body",
-        dialogClass: "no-close",
+        dialogClass: "no-close overflow-visible",
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
@@ -164,7 +164,11 @@ export function connect_dlg()
             }
             
             connectsArray.sort(function(a, b) {
-                return a.dom.text === b.dom.text ? 0: a.dom.text < b.dom.text ? -1 : 1;
+                if(a.data.method === b.data.method) {
+                    return a.dom.text.localeCompare(b.dom.text);
+                } else {
+                    return a.data.method.localeCompare(b.data.method);
+                }
             });
             
             for(var j = 0; j < connectsArray.length; ++j) {

@@ -374,6 +374,10 @@ button.ui-button.ui-widget.ui-state-default.ui-corner-all,
 
 .no-close .ui-dialog-titlebar-close {display: none }
 
+.overflow-visible {overflow: visible;}
+
+#dialog-db-login {overflow: visible;}
+
 .ui-icon-txt-align-wrap { background-position: -100px -224px; }
 .ui-icon-txt-align-free { background-position: -116px -224px; }
 .ui-icon-sql-box { background-position: -138px -222px; }
@@ -885,4 +889,8 @@ ul.dropdown.floatNone ul li {
 .ui-widget-content .ui-state-highlight {
     border-color: #888888;
     background: #d0d0d0 url(../assets/jquery-ui-images/ui-bg_glass_75_d0d0d0_1x400.png) 50% 50% repeat-x;
+}
+
+#receiverErrors {
+    color: red;
 }

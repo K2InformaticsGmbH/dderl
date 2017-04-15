@@ -1,6 +1,5 @@
-{application, dderl,
-    [
-        {description, "Web based tool for exploring databases"},
+{application, dderl, [
+    {description, "Web based tool for exploring databases"},
         {vsn, "1.8.0"},
         {applications, [
             kernel,
@@ -17,4 +16,4 @@
             {ssl_opts, []}
         ]},
         {mod, {dderl, []}}
-    ]}.
+]}.

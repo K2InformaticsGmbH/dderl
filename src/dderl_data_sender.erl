@@ -103,7 +103,7 @@ handle_cast(fetch_first_block, #state{nav = Nav, table_id = TableId, index_id = 
     FirstKey = ets:first(UsedTable),
     case dderl_dal:rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
         '$end_of_table' ->
-            retry_more_data(),
+            retry_more_data(State),
             {noreply, State};
         {Rows, '$end_of_table'} ->
             NewState = send_rows(Rows, State),
@@ -116,7 +116,7 @@ handle_cast(more_data, #state{continuation = undefined} = State) -> handle_cast(
 handle_cast(more_data, #state{continuation = Continuation} = State) ->
     case ets:select(Continuation) of
         '$end_of_table' ->
-            retry_more_data(),
+            retry_more_data(State),
             {noreply, State};
         {Rows, '$end_of_table'} ->
             NewState = send_rows(Rows, State),
@@ -149,10 +149,13 @@ terminate(Reason, #state{}) ->
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %% Helper internal functions
+send_rows('$end_of_table', #state{receiver_pid = ReceiverPid} = State) ->
+    dderl_data_receiver:data(ReceiverPid, '$end_of_table'),
+    State;
 send_rows(Rows, #state{receiver_pid = ReceiverPid, skip = Skip} = State) ->
     case lists:nthtail(Skip, Rows) of
         [] ->
-            retry_more_data(),
+            retry_more_data(State),
             State;
         RowsToSend ->
             NewSkip = Skip + length(RowsToSend),
@@ -162,7 +165,9 @@ send_rows(Rows, #state{receiver_pid = ReceiverPid, skip = Skip} = State) ->
             State#state{skip = NewSkip}
     end.
 
--spec retry_more_data() -> ok.
-retry_more_data() ->
-    timer:sleep(500), %% retry after 0.5 seconds.
-    more_data(self()).
+retry_more_data(#state{statement = {_, StmtFsmPid}} = State) ->
+    case sys:get_state(StmtFsmPid) of
+        {completed, _} -> send_rows('$end_of_table', State);
+        _ -> timer:sleep(500), %% retry after 0.5 seconds.
+            more_data(self())
+    end.
