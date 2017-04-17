@@ -1,8 +1,11 @@
-erl_crash.dump
 log
 *.log
+*.dump
 priv/dev/node_modules
 priv/public
 snapshot
 test/*.beam
+deps/
+ebin/
 *.swp
+*.swo
