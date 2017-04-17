@@ -202,7 +202,7 @@ export function addDashboard(dashboard) {
 
 export function saveDashboardWithCounter() {
     if(dderlState.saveDashboardCounter === 1) {
-        DashboardMenu.saveDashboard();
+        DashboardMenu.save();
     } else if(dderlState.saveDashboardCounter > 0) {
         dderlState.saveDashboardCounter -= 1;
     }

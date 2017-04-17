@@ -1,7 +1,8 @@
 import $ from 'jquery';
 import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, initDashboards, show_qry_files,
-        password_change_dlg, loginAjax} from './dderl';
+        password_change_dlg} from './dderl';
+import {loginAjax} from './login';
 import {md5Arr} from './md5';
 
 // Jquery widgets are added to the global scope so including it 
