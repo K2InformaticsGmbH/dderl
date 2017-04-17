@@ -1,17 +1,8 @@
 import $ from "jquery";
-import 'jquery-ui/ui/dialog';
-import 'jquery-ui/ui/progressbar';
 
-// This is needed to make slickgrid available as it adds itself to $
-// and requires jquery.event.drag and sortable to be loaded.
-/* global require: false */
-import jquery_event_drag from 'jquery.event.drag/jquery.event.drag';
-jquery_event_drag($);
-import 'jquery-ui/ui/sortable';
-var req = require.context("./slickgrid", true, /\.js$/);
-req.keys().forEach(function(key){
-    req(key);
-});
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/dialog';
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/progressbar';
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/sortable';
 
 import {loginAjax} from "./scripts/login";
 import {alert_jq} from './dialogs/dialogs';
@@ -31,6 +22,12 @@ import './styles/dropdown.css';
 import './styles/dderl.sql.css';
 import './styles/dderl.connect.css';
 import './styles/dderl.css';
+
+var req = require.context("./slickgrid", true, /\.js$/);
+req.keys().forEach(function(key){
+    req(key);
+});
+
 
 function patch_jquery_ui() {
     // Since version 1.10 of jquery do not support html on title's dialog

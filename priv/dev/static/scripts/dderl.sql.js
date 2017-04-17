@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import 'jquery-ui/ui/tabs';
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/tabs';
 import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
 import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
 import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlparams';

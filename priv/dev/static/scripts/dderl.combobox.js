@@ -1,6 +1,6 @@
 import $ from 'jquery';
-import "jquery-ui/ui/autocomplete";
-import "jquery-ui/ui/tooltip";
+import "jquery-ui/ui/widgets/autocomplete";
+import "jquery-ui/ui/widgets/tooltip";
 
 //From http://jqueryui.com/autocomplete/#combobox
 $.widget( "custom.combobox", {
