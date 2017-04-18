@@ -829,7 +829,7 @@ function insertAtCursor(myField, myValue) {
         self._historySelect = sel;
 
         toolDiv
-            .buttonset()
+            .controlgroup()
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width

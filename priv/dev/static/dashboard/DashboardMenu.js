@@ -25,7 +25,7 @@ export function create(container) {
     });
     list.append(inputToSave);
     list.append(buttonSave);
-    list.buttonset();
+    list.controlgroup();
     container.appendChild(list[0]);
 }
 
@@ -89,12 +89,12 @@ export function add(index, dashboard) {
 
     list.append(buttonNames);
     list.append(buttonTrash, buttonEdit);
-    list.buttonset();
+    list.controlgroup();
     dashboardList.append(list);
 
     listEdit.append(inputTextToEdit);
     listEdit.append(buttonCancel, buttonCheck);
-    listEdit.buttonset();
+    listEdit.controlgroup();
     dashboardList.append(listEdit);
     listEdit.hide();
 

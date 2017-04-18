@@ -230,7 +230,7 @@ import {ajaxCall, unescapeNewLines} from './dderl';
             }
 
             self._footerDiv
-                .buttonset()
+                .controlgroup()
                 .css('height', (self.options.toolBarHeight)+'px');
 
             // footer total width

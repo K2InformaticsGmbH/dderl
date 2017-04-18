@@ -268,7 +268,7 @@ import {smartDialogPosition} from './dderl';
                     .appendTo(self._footerDiv);
             }
             self._footerDiv
-                .buttonset()
+                .controlgroup()
                 .css('height', (self.options.toolBarHeight)+'px');
 
             // footer total width

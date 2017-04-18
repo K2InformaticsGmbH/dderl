@@ -360,7 +360,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
     
     div
     .appendTo(connect_options)
-    .buttonset()
+    .controlgroup()
     .attr('id','buttonList')
     .change(function() {
         var connect = connection_list.find("option:selected").data('connect');
@@ -371,7 +371,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
         var emptyInputs = connect_options.find('input:text[value=""],input:password[value=""]');
         if (emptyInputs.length > 0) emptyInputs[0].focus();
     });
-    $('#'+defaultSelectedId).attr("checked", true).button("refresh");
+    $('#'+defaultSelectedId).attr("checked", true).checkboxradio("refresh");
 }
 
 function add_oci_options(connection_list, connect_options, connect) {

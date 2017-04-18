@@ -2021,7 +2021,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
         }
         self._footerDiv
-            .buttonset()
+            .controlgroup()
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width
@@ -2812,7 +2812,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     .click(self, self._toolBarClearG)
                     .appendTo(self._footerDiv);
 
-                self._footerDiv.buttonset('refresh');
+                self._footerDiv.controlgroup('refresh');
             }
 
             self._tbCommit.hide();
@@ -4204,7 +4204,7 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
 
 
     });
-    buttonsDiv.buttonset();
+    buttonsDiv.controlgroup();
     startBtnSelectionDiv.append(buttonsDiv);
 
 
