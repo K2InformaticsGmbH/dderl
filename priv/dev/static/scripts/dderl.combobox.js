@@ -66,10 +66,8 @@ $.widget( "custom.combobox", {
             .tooltip()
             .appendTo( this.wrapper )
             .button({
-                icons: {
-                    primary: "ui-icon-triangle-1-s"
-                },
-                text: false
+                icon: "ui-icon-triangle-1-s",
+                showLabel: false
             })
             .removeClass( "ui-corner-all" )
             .addClass( "custom-combobox-toggle ui-corner-right" )

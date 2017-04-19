@@ -3,6 +3,7 @@ import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/tabs'
 import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
 import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
 import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlparams';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 export function StartSqlEditor(title = null, cmd = undefined) {
     $('<div>')
@@ -133,20 +134,23 @@ function insertAtCursor(myField, myValue) {
         viewId          : null
     },
  
-    _getToobarSelectWidth: function() {
-        var self = this;
-         // footer total width
-        var childs = self._footerDiv.children();
-        var totWidth = 0;
-        for(var i = 0; i + 1 < childs.length; ++i) {
-            totWidth += $(childs[i]).width();
+    _getToolbarSelectWidth: function() {
+        // 10 pixels for resize handler
+        return this._footerDiv.width() - this._getToolbarButtonsWidth() - 10;
+    },
+
+    _getToolbarButtonsWidth: function() {
+        let childs = this._footerDiv.children();
+        let btnWidth = 0;
+        for(let i = 0; i < childs.length - 1; ++i) {
+            btnWidth += Math.max(childs[i].scrollWidth, childs[i].offsetWidth, childs[i].clientWidth);
         }
-        return (self._footerDiv.width() - totWidth);
+        return btnWidth;
     },
 
     _refreshHistoryBoxSize: function() {
         var self = this;
-        var w = self._getToobarSelectWidth();
+        var w = self._getToolbarSelectWidth();
         self._historySelect.css('width', w);
     },
 
@@ -414,7 +418,7 @@ function insertAtCursor(myField, myValue) {
         console.log("The templates found", templateList);
         var templates = document.createElement('select');
         templates.className = 'ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right';
-        templates.style.width = this._getToobarSelectWidth() + 'px';
+        templates.style.width = this._getToolbarSelectWidth() + 'px';
         templates.style.margin = 0;
         templates.style.height = this.options.toolBarHeight + 'px';
         templates.style.textAlign = 'left';
@@ -443,7 +447,7 @@ function insertAtCursor(myField, myValue) {
 
 
         this._dlg.on("dialogresizestop", () => {
-            templates.style.width = this._getToobarSelectWidth() + 'px';
+            templates.style.width = this._getToolbarSelectWidth() + 'px';
         });
 
         this._editDiv.on("tabsactivate", () => {
@@ -785,13 +789,12 @@ function insertAtCursor(myField, myValue) {
 
         var toolElmFn = function(e) {
             var self = e.data;
-            var _btnTxt = $(this).text();
-            var fName = self._toolsBtns[_btnTxt].clk;
+            var fName = $(this).data('fName');
             var f = $.proxy(self[fName], self);
             if($.isFunction(f)) {
                 f();
             } else {
-                throw ('[' + self.options.title + '] toolbar ' + _btnTxt + ' has unimplimented cb ' + fName);
+                throw ('[' + self.options.title + '] toolbar ' + $(this).text() + ' has unimplimented cb ' + fName);
             }
         };
 
@@ -800,7 +803,8 @@ function insertAtCursor(myField, myValue) {
             if (self._toolsBtns[btnTxt].typ === 'btn') {
                 $('<button>')
                     .text(btnTxt)
-                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
+                    .data('fName', self._toolsBtns[btnTxt].clk)
+                    .button({icon: 'fa fa-' + elm.icn, showLabel: false})
                     .css('height', this.options.toolBarHeight+'px')
                     .addClass('colorIcon')
                     .click(self, toolElmFn)
@@ -829,15 +833,11 @@ function insertAtCursor(myField, myValue) {
         self._historySelect = sel;
 
         toolDiv
-            .controlgroup()
+            .controlgroup(controlgroup_options())
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width
-        var childs = toolDiv.children();
-        var totWidth = 0;
-        for(let i = 0; i < childs.length; ++i) {
-            totWidth += $(childs[i]).width();
-        }
+        var totWidth = self._getToolbarButtonsWidth() + sel.width();
         return totWidth;
     },
   

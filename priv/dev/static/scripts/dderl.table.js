@@ -9,6 +9,7 @@ import {evalD3Script} from '../graph/graph';
 import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
@@ -1308,7 +1309,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             width : 336,
             modal : false,
             title : 'Sorts',
-            dialogClass: 'btnSortClass',
             appendTo: "#main-body",
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
@@ -1999,7 +1999,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
+                    .button({icon: 'fa fa-' + elm.icn, showLabel: false})
                     .css('height', inph+'px')
                     .addClass('colorIcon')
                     .click(self, toolElmFn)
@@ -2021,17 +2021,18 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
         }
         self._footerDiv
-            .controlgroup()
+            .controlgroup(controlgroup_options())
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width
         var childs = self._footerDiv.children();
         var totWidth = 0;
         for(var i=0; i<childs.length; ++i) {
-            totWidth += $(childs[i]).width();
+            totWidth += Math.max(childs[i].scrollWidth, childs[i].offsetWidth, childs[i].clientWidth);
         }
 
-        self._footerWidth = totWidth;
+        // 10 pixels for resize handler
+        self._footerWidth = totWidth + 10;
     },
 
     /*
@@ -2806,7 +2807,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $('<button>')
                     .text('Clear graph')
                     .data('tag', 'clear')
-                    .button({icons: {primary: 'fa fa-undo'}, text: false})
+                    .button({icon: 'fa fa-undo', showLabel: false})
                     .css('height', self.options.toolBarHeight + 'px')
                     .addClass('colorIcon')
                     .click(self, self._toolBarClearG)
@@ -4180,7 +4181,7 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
         var btnObj = btnDefinitions[btnId];
         var btn = $('<button>')
             .text(btnObj.tip)
-            .button({icons: {primary: 'fa fa-' + btnObj.icn}, text: false})
+            .button({icon: 'fa fa-' + btnObj.icn, showLabel: false})
             .css('height', '20px')
             .addClass('colorIcon')
             .appendTo(buttonsDiv);
@@ -4204,7 +4205,7 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
 
 
     });
-    buttonsDiv.controlgroup();
+    buttonsDiv.controlgroup(controlgroup_options());
     startBtnSelectionDiv.append(buttonsDiv);
 
 

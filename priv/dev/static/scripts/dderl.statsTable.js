@@ -2,6 +2,7 @@ import jQuery from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
 import {smartDialogPosition} from './dderl';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
@@ -248,7 +249,7 @@ import {smartDialogPosition} from './dderl';
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
+                    .button({icon: 'fa fa-' + elm.icn, showLabel: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
@@ -268,17 +269,18 @@ import {smartDialogPosition} from './dderl';
                     .appendTo(self._footerDiv);
             }
             self._footerDiv
-                .controlgroup()
+                .controlgroup(controlgroup_options())
                 .css('height', (self.options.toolBarHeight)+'px');
 
             // footer total width
             var childs = self._footerDiv.children();
             var totWidth = 0;
             for(var i = 0; i < childs.length; ++i) {
-                totWidth += $(childs[i]).width();
+                totWidth += Math.max(childs[i].scrollWidth, childs[i].offsetWidth, childs[i].clientWidth);
             }
 
-            self._footerWidth = totWidth;
+            // 10 pixels for resize handler
+            self._footerWidth = totWidth + 10;
         },
 
         _init: function() {
@@ -653,7 +655,6 @@ import {smartDialogPosition} from './dderl';
                 width : 336,
                 modal : false,
                 title : 'Sorts',
-                dialogClass: 'btnSortClass',
                 appendTo: "#main-body",
                 rowHeight : self.options.slickopts.rowHeight,
                 close : function() {
