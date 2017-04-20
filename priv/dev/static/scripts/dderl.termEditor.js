@@ -1,6 +1,7 @@
 import jQuery from 'jquery';
 import {alert_jq} from '../dialogs/dialogs';
 import {ajaxCall, unescapeNewLines} from './dderl';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 (function( $ ) {
     $.widget("dderl.termEditor", $.ui.dialog, {
@@ -201,7 +202,7 @@ import {ajaxCall, unescapeNewLines} from './dderl';
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
+                    .button({icon: 'fa fa-' + elm.icn, showLabel: false})
                     .css('height', inph+'px')
                     .click(self, toolElmFn)
                     .appendTo(self._footerDiv);
@@ -230,16 +231,18 @@ import {ajaxCall, unescapeNewLines} from './dderl';
             }
 
             self._footerDiv
-                .buttonset()
+                .controlgroup(controlgroup_options())
                 .css('height', (self.options.toolBarHeight)+'px');
 
             // footer total width
             var childs = self._footerDiv.children();
             var totWidth = 0;
-            for(var i=0; i < childs.length; ++i)
-                totWidth += $(childs[i]).width();
+            for(var i=0; i < childs.length; ++i) {
+                totWidth += Math.max(childs[i].scrollWidth, childs[i].offsetWidth, childs[i].clientWidth);
+            }
 
-            self._footerWidth = totWidth;
+            // 10 pixels for resize handler
+            self._footerWidth = totWidth + 10;
         },
 
         _updateTxtBox: function() {

@@ -4,6 +4,7 @@ import {dderlState, ajaxCall, resetPingTimer, initDashboards, show_qry_files,
         password_change_dlg} from './dderl';
 import {loginAjax} from './login';
 import {md5Arr} from './md5';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 // Jquery widgets are added to the global scope so including it 
 // in one module will expose it for the rest.
@@ -63,7 +64,9 @@ export function connect_dlg()
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body", collision : 'none' },
         appendTo: "#main-body",
-        dialogClass: "no-close overflow-visible",
+        classes: {
+            'ui-dialog': 'no-close overflow-visible'
+        },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
@@ -74,10 +77,9 @@ export function connect_dlg()
                 click: function() {
                     login_save($(this), connection_list, adapter_list, owners_list);
                 },
-                icons: {
-                    primary: "fa fa-sign-in"
-                },
-                showText: true
+                icon: "fa fa-sign-in button-dialog-connect",
+                iconPosition: "end",
+                showLabel: true
             },
             {   text:'Delete',
                 click:function() {
@@ -105,10 +107,8 @@ export function connect_dlg()
                             });
                         });
                 },
-                icons: {
-                    primary: "fa fa-trash buttonsDialogConnect"
-                },
-                showText: false
+                icon: "fa fa-trash button-dialog-connect",
+                showLabel: false
             },
             {   text:'Clear',
                 click: function() {
@@ -117,10 +117,8 @@ export function connect_dlg()
                     $("input:radio[name=method]:checked").val("local");
                     console.log($("input:radio[name=method]:checked").val());
                 },
-                icons: {
-                    primary: "fa fa-refresh buttonsDialogConnect"
-                },
-                showText: false
+                icon: "fa fa-refresh button-dialog-connect",
+                showLabel: false
             }
         ]
     })
@@ -360,7 +358,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
     
     div
     .appendTo(connect_options)
-    .buttonset()
+    .controlgroup(controlgroup_options())
     .attr('id','buttonList')
     .change(function() {
         var connect = connection_list.find("option:selected").data('connect');
@@ -371,7 +369,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
         var emptyInputs = connect_options.find('input:text[value=""],input:password[value=""]');
         if (emptyInputs.length > 0) emptyInputs[0].focus();
     });
-    $('#'+defaultSelectedId).attr("checked", true).button("refresh");
+    $('#'+defaultSelectedId).attr("checked", true).checkboxradio("refresh");
 }
 
 function add_oci_options(connection_list, connect_options, connect) {
@@ -679,7 +677,9 @@ function validateSmsToken(user, data, connectSuccessCb)
         modal: false,
         position: { my: "left top", at: "left+80 top+300", of: "#main-body", collision : 'none' },
         closeOnEscape: false,
-        dialogClass: 'no-close',
+        classes: {
+            'ui-dialog': 'no-close'
+        },
         appendTo: '#main-body',
         close: function() {
             $(this).dialog('destroy');
