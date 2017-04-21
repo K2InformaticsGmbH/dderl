@@ -846,18 +846,18 @@ ul.dropdown.floatNone ul li {
     background-position: -61px -220px;
 }
 .ui-dialog .ui-resizable-s {
-	height: 10px;
+	height: 8px;
 }
 .ui-dialog .ui-resizable-sw {
-	width: 10px;
-	height: 10px;
+	width: 8px;
+	height: 8px;
 }
 .ui-dialog .ui-resizable-w {
-	width: 15px;
+	width: 8px;
 }
 .ui-dialog .ui-resizable-nw {
-	width: 15px;
-	height: 15px;
+	width: 12px;
+	height: 12px;
 }
 
 .chk-export-csv {
