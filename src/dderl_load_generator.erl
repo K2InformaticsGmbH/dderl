@@ -97,7 +97,7 @@ create_names(Prefix, TotalNames, NCurrent) when NCurrent =< TotalNames ->
 
 -spec start_worker(atom(), pos_integer(), pos_integer(), pos_integer()) -> ok.
 start_worker(TableName, NRows, NColumns, InsDelay) ->
-    random:seed(os:timestamp()),
+    random:seed(imem_meta:time()),
     %% Only basic types for now...
     ColumnTypes = create_random_types(NColumns),
     Defaults = create_row(TableName, ColumnTypes, default_fun()),
