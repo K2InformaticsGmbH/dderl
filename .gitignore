@@ -1,6 +1,7 @@
 _build
 log
-priv/node_modules
+priv/certs/localhost*.*
+priv/dev/node_modules
 priv/public
 rebar.lock
 rebar3.crashdump
