@@ -1,6 +1,7 @@
 import $ from 'jquery';
 import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, addDashboard, ajaxCall} from '../scripts/dderl'; 
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 var dashboardList;
 
@@ -15,8 +16,8 @@ export function create(container) {
     inputToSave.val("default");
 
     $(buttonSave).button({
-        icons: { primary: "fa fa-floppy-o" },
-        text : false
+        icon: "fa fa-floppy-o",
+        showLabel: false
     });
 
     // Button creation
@@ -25,7 +26,7 @@ export function create(container) {
     });
     list.append(inputToSave);
     list.append(buttonSave);
-    list.buttonset();
+    list.controlgroup(controlgroup_options());
     container.appendChild(list[0]);
 }
 
@@ -43,20 +44,20 @@ export function add(index, dashboard) {
 
 
     buttonTrash.button({
-        icons: { primary: "fa fa-trash-o" },
-        text: false
+        icon: "fa fa-trash-o",
+        showLabel: false
     });
     buttonEdit.button({
-        icons: { primary: "fa fa-pencil" },
-        text: false
+        icon: "fa fa-pencil",
+        showLabel: false
     });
     buttonCheck.button({
-        icons: { primary: "fa fa-check" },
-        text: false
+        icon: "fa fa-check",
+        showLabel: false
     });
     buttonCancel.button({
-        icons: { primary: "fa fa-times" },
-        text: false
+        icon: "fa fa-times",
+        showLabel: false
     });
 
     var confirmParams = {
@@ -89,12 +90,12 @@ export function add(index, dashboard) {
 
     list.append(buttonNames);
     list.append(buttonTrash, buttonEdit);
-    list.buttonset();
+    list.controlgroup(controlgroup_options());
     dashboardList.append(list);
 
     listEdit.append(inputTextToEdit);
     listEdit.append(buttonCancel, buttonCheck);
-    listEdit.buttonset();
+    listEdit.controlgroup(controlgroup_options());
     dashboardList.append(listEdit);
     listEdit.hide();
 

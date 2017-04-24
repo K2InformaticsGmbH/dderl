@@ -1,6 +1,6 @@
 import $ from 'jquery';
-import "jquery-ui/ui/autocomplete";
-import "jquery-ui/ui/tooltip";
+import "jquery-ui/ui/widgets/autocomplete";
+import "jquery-ui/ui/widgets/tooltip";
 
 //From http://jqueryui.com/autocomplete/#combobox
 $.widget( "custom.combobox", {
@@ -66,10 +66,8 @@ $.widget( "custom.combobox", {
             .tooltip()
             .appendTo( this.wrapper )
             .button({
-                icons: {
-                    primary: "ui-icon-triangle-1-s"
-                },
-                text: false
+                icon: "ui-icon-triangle-1-s",
+                showLabel: false
             })
             .removeClass( "ui-corner-all" )
             .addClass( "custom-combobox-toggle ui-corner-right" )

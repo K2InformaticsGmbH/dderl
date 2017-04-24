@@ -1,17 +1,8 @@
 import $ from "jquery";
-import 'jquery-ui/ui/dialog';
-import 'jquery-ui/ui/progressbar';
 
-// This is needed to make slickgrid available as it adds itself to $
-// and requires jquery.event.drag and sortable to be loaded.
-/* global require: false */
-import jquery_event_drag from 'jquery.event.drag/jquery.event.drag';
-jquery_event_drag($);
-import 'jquery-ui/ui/sortable';
-var req = require.context("./slickgrid", true, /\.js$/);
-req.keys().forEach(function(key){
-    req(key);
-});
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/dialog';
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/progressbar';
+import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/sortable';
 
 import {loginAjax} from "./scripts/login";
 import {alert_jq} from './dialogs/dialogs';
@@ -20,6 +11,7 @@ import {dderlState, show_qry_files,
 import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab, close_tab} from "./scripts/connect";
 import {StartSqlEditor} from "./scripts/dderl.sql";
+import {patch_jquery_ui} from "./jquery-ui-helper/helper.js";
 
 import 'font-awesome/css/font-awesome.css';
 // Add our jquery-ui theme (smoothness) from http://jqueryui.com/download/
@@ -32,21 +24,16 @@ import './styles/dderl.sql.css';
 import './styles/dderl.connect.css';
 import './styles/dderl.css';
 
-function patch_jquery_ui() {
-    // Since version 1.10 of jquery do not support html on title's dialog
-    // http://stackoverflow.com/questions/14488774/using-html-in-a-dialogs-title-in-jquery-ui-1-10
-    // https://github.com/jquery/jquery-ui/commit/7e9060c109b928769a664dbcc2c17bd21231b6f3
-    $.widget("ui.dialog", $.extend({}, $.ui.dialog.prototype, {
-        _title: function (title) {
-            title.html(this.options.title || "&#160;");
-        }
-    }));
-}
+var req = require.context("./slickgrid", true, /\.js$/);
+req.keys().forEach(function(key){
+    req(key);
+});
 
 $(document).ready(function () {
     $('#main-body').css('top', $('#main-menu-bar').height());
     if (Object.hasOwnProperty('freeze')) {
-        patch_jquery_ui(); // Add support for html titles on dialogs.
+        // Add support for html titles on dialogs.
+        patch_jquery_ui();
         loginAjax();
     } else {
         $('#main-menu-bar').hide();

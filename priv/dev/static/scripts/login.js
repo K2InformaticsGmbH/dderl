@@ -179,7 +179,9 @@ function display(layout) {
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
-        dialogClass: 'no-close',
+        classes: {
+            'ui-dialog': 'dderl-dialog no-close'
+        },
         appendTo: "#login-bg",
         open: function() {
             $(this).dialog("widget").css('z-index', 99999);

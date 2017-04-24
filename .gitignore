@@ -1,7 +1,4 @@
-{{ dderl_log_dir }}
-*@*
 _build
-erl_crash.dump
 log
 priv/node_modules
 priv/public
@@ -9,4 +6,11 @@ rebar.lock
 rebar3.crashdump
 snapshot
 test/*.beam
+*.log
+*.dump
+snapshot
+deps/
+ebin/
 *.swp
+*.swo
+.rebar

@@ -6,7 +6,9 @@
         // Until we properly import slickgrid as a module.
         "Slick": false,
         // Until we refactor dashboard from widget to module
-        "DDerl": false
+        "DDerl": false,
+        // Dynamically loading slickgrid files on indes.js
+        "require": false
     },
     "nonstandard": true,
     "undef": true,
