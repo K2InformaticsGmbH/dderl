@@ -831,14 +831,14 @@ ul.dropdown.floatNone ul li {
 
 /* Increasing handlers for resize dialogs */
 .ui-dialog .ui-resizable-n {
-	height: 10px;
+	height: 6px;
 }
 .ui-dialog .ui-resizable-ne {
-	width: 10px;
-	height: 10px;
+	width: 6px;
+	height: 6px;
 }
 .ui-dialog .ui-resizable-e {
-	width: 10px;
+	width: 6px;
 }
 .ui-dialog .ui-resizable-se {
     width: 16px;
@@ -846,14 +846,14 @@ ul.dropdown.floatNone ul li {
     background-position: -61px -220px;
 }
 .ui-dialog .ui-resizable-s {
-	height: 8px;
+	height: 6px;
 }
 .ui-dialog .ui-resizable-sw {
-	width: 8px;
-	height: 8px;
+	width: 6px;
+	height: 6px;
 }
 .ui-dialog .ui-resizable-w {
-	width: 8px;
+	width: 6px;
 }
 .ui-dialog .ui-resizable-nw {
 	width: 12px;
