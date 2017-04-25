@@ -47,8 +47,8 @@
 %% Helper functions
 -spec get_session(binary() , binary(), boolean(), fun(() -> map())) -> {ok, {atom(), pid()}} | {error, term()}.
 get_session(<<>>, _, _, ConnInfoFun) when is_function(ConnInfoFun, 0) ->
-    SessionToken = base64:encode(crypto:rand_bytes(64)),
-    XSRFToken = base64:encode(crypto:rand_bytes(32)),
+    SessionToken = base64:encode(crypto:strong_rand_bytes(64)),
+    XSRFToken = base64:encode(crypto:strong_rand_bytes(32)),
     dderl_session_sup:start_session(SessionToken, XSRFToken, ConnInfoFun),
     ?Debug("new dderl session ~p from ~p", [SessionToken, self()]),
     {ok, SessionToken, XSRFToken};
@@ -195,7 +195,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port},
                 false -> {State, Id, true}
             end;
        true ->
-            SessionToken = base64:encode(crypto:rand_bytes(64)),
+            SessionToken = base64:encode(crypto:strong_rand_bytes(64)),
             global:unregister_name(Id),
             global:register_name(SessionToken, self()),
             From ! {newToken, SessionToken},
@@ -252,6 +252,12 @@ process_call(Req, _Adapter, From, {SrcIp,_}, #state{lock_state = locked, id = Id
 
 process_call({[<<"check_session">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{id = Id, user_id = UserId} = State) ->
     catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "check_session", "", "", "", "", ""),
+    reply(From, #{check_session => <<"ok">>}, self()),
+    State;
+
+process_call({[<<"check_connection">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{id = Id, user_id = UserId} = State) ->
+    BodyMap = jsx:decode(ReqData, [return_maps]),
+    catch dderl:access(?CMD_NOARGS, SrcIp, UserId, Id, "check_session", BodyMap, "", "", "", ""),
     reply(From, #{check_session => <<"ok">>}, self()),
     State;
 
