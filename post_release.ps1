@@ -25,14 +25,20 @@ $Path = "dev"
 If (Test-Path $Path) {
     If (!(Get-ItemProperty $Path).Target) {
         Remove-Item $Path -Force -Recurse
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' deleted"
+        Write-Host "===> directory '" -nonewline
+        Write-Host $Path -nonewline
+        Write-Host "' deleted"
     } Else {
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' is a symbolic link - no cleanup"
+        Write-Host "===> directory '" -nonewline
+        Write-Host $Path -nonewline
+        Write-Host "' is a symbolic link - no cleanup"
         If (Test-Path dev/node_modules) {
             Remove-Item dev/node_modules -Force -Recurse
             Write-Host "===> directory 'dev/node_modules' deleted"
         }
     }
 } Else {
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' not found"
+        Write-Host "===> directory '" -nonewline
+        Write-Host $Path -nonewline
+        Write-Host "' not found"
 }
