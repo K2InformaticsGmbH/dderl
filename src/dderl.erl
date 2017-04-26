@@ -87,6 +87,19 @@ stop(_State) ->
 %%-----------------------------------------------------------------------------
 %% Cowboy Interface
 %%-----------------------------------------------------------------------------
+
+-define(PROBE_RESP,
+        ?GET_CONFIG(probeResp,[],
+                    {200,
+                     <<"<html>"
+                       "<body>Service is alive</body>"
+                       "</html>">>},
+                    "Response given to the load balancer when the probeUrl is requested")).
+
+init(_Transport, Req, '$path_probe') ->
+    {Code, Resp} = ?PROBE_RESP,
+    {ok, Req1} = cowboy_req:reply(Code, [], Resp, Req),
+    {shutdown, Req1, undefined};
 init(_Transport, Req, _Opts) -> {ok, Req, undefined}.
 
 handle(Req, State) ->
@@ -165,10 +178,15 @@ reset_routes(Intf) ->
 %%-----------------------------------------------------------------------------
 %% Local Functions
 %%-----------------------------------------------------------------------------
+-define(PROBE_URL,
+        ?GET_CONFIG(probeUrl,[], "/probe.html",
+                    "Defines the url of the probe for the load balancer")).
+
 get_routes() ->
     PrivDir = priv_dir(),
     UrlPathPrefix = get_url_suffix(),
-    [{UrlPathPrefix++"/", dderl, []},
+    [{?PROBE_URL, dderl, '$path_probe'},
+     {UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
