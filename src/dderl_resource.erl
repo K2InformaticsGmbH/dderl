@@ -223,8 +223,9 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
                _ -> Req
            end,
     Size1 = Size + byte_size(Chunk),
-    ok = cowboy_req:chunk(Chunk, cowboy_req:set_meta(respSize, Size1, Req2)),
-    {ok, Req2}.
+    Req3 = cowboy_req:set_meta(respSize, Size1, Req2),
+    ok = cowboy_req:chunk(Chunk, Req3),
+    {ok, Req3}.
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->
