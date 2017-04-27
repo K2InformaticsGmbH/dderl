@@ -35,7 +35,10 @@
         check_interval = ?DEFAULT_CHECK_INTERVAL,
         sync_interval = ?DEFAULT_SYNC_INTERVAL,
         sync_size = ?DEFAULT_SYNC_SIZE,
-        last_check = os:timestamp()
+        last_check = os:timestamp(),
+        application :: atom(),
+        modules  = [] :: [atom()],
+        props = [] ::[atom()|{atom(),fun()}]
     }).
 
 -type option() :: {file, string()} | {level, lager:log_level()} |
@@ -71,12 +74,21 @@ init(LogFileConfig) when is_list(LogFileConfig) ->
             {error, {fatal, bad_config}};
         Config ->
             %% probabably a better way to do this, but whatever
-            [Name, Level, Date, Size, Count, SyncInterval, SyncSize, SyncOn, CheckInterval, Formatter, FormatterConfig, Period] =
-              [proplists:get_value(Key, Config) || Key <- [file, level, date, size, count, sync_interval, sync_size, sync_on, check_interval, formatter, formatter_config, period]],
+            [Name, Level, Date, Size, Count, SyncInterval, SyncSize, SyncOn,
+             CheckInterval, Formatter, FormatterConfig, Period, Application,
+             Props] = [proplists:get_value(Key, Config)
+                       || Key <- [file, level, date, size, count,
+                                  sync_interval, sync_size, sync_on,
+                                  check_interval, formatter, formatter_config,
+                                  period, application, props]],
             schedule_rotation(Name, Date, Period),
+            Modules = case application:get_key(Application, modules) of
+                          undefined -> [];
+                          {ok, Mods} -> Mods
+                      end,
             State0 = #state{name=Name, level=Level, size=Size, date=Date, period=Period, count=Count, formatter=Formatter,
                 formatter_config=FormatterConfig, sync_on=SyncOn, sync_interval=SyncInterval, sync_size=SyncSize,
-                check_interval=CheckInterval},
+                check_interval=CheckInterval, application = Application, modules = Modules, props = Props},
             State = case lager_util:open_logfile(Name, {SyncSize, SyncInterval}) of
                 {ok, {FD, Inode, _}} ->
                     State0#state{fd=FD, inode=Inode};
@@ -102,55 +114,44 @@ handle_call(_Request, State) ->
     {ok, ok, State}.
 
 %% @private
-handle_event({log, Message},
-    #state{name=Name, level=L} = State) ->
+handle_event({log, Message}, #state{name=Name, level=L, modules = Modules,
+                                    props = Props} = State) ->
     case lager_util:is_loggable(Message,L,{?MODULE, Name}) andalso
-         proplists:get_value(type, lager_msg:metadata(Message)) == dderl_access of
+         proplists:get_value(type, lager_msg:metadata(Message)) == dderl_access andalso
+         lists:member(proplists:get_value(module, lager_msg:metadata(Message)), Modules) of
         true ->
-            Msg = lager_msg:message(Message),
-            {D, T} = lager_msg:datetime(Message),
-            CmdArgs = maps:get(dderlCmdArgs, Msg, ""),
-            {NewCmdArgs, SQL} = case CmdArgs of
-                "" -> {"", ""};
-                #{<<"Password">> := _} -> {jsx:encode(CmdArgs#{<<"Password">> => <<"****">>}), ""};
-                #{<<"password">> := _, <<"new_password">> := _} -> 
-                    {jsx:encode(CmdArgs#{<<"password">> => <<"****">>, <<"new_password">> => <<"****">>}), ""};
-                #{<<"password">> := _} -> {jsx:encode(CmdArgs#{<<"password">> => <<"****">>}), ""};
-                #{<<"qstr">> := QStr} -> 
-                    FQstr = re:replace(QStr, <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>, "\\1****\\5",
-                                    [{return,binary}]),
-                    {jsx:encode(maps:remove(<<"qstr">>, CmdArgs)), FQstr};
-                CmdArgs when is_map(CmdArgs) -> {jsx:encode(CmdArgs), ""};
-                CmdArgs -> {CmdArgs, ""}
-            end,
-            FUser = case maps:get(dderlUser, Msg) of
-                User when is_integer(User) -> integer_to_list(User);
-                User when is_atom(User) -> atom_to_list(User);
-                User -> io_lib:format("~p", [User])
-            end,
-            SessId = base64:encode_to_string(integer_to_list(erlang:phash2(maps:get(dderlSessId, Msg)))),
-            Log = [
-                   D," ",T,";",
-                   atom_to_list(node()),";",
-                   maps:get(src, Msg),";",
-                   maps:get(proxy, Msg),";",
-                   FUser,";",
-                   SessId, ";",
-                   maps:get(version, Msg),";",
-                   maps:get(loglevel, Msg),";",
-                   maps:get(dderlCmd, Msg),";",
-                   NewCmdArgs,";",
-                   maps:get(connUser, Msg),";",
-                   maps:get(connTarget, Msg),";",
-                   maps:get(connDbType, Msg),";",
-                   maps:get(connStr, Msg),";",
-                   SQL,"\r\n"],
-            {ok, write(State, lager_msg:timestamp(Message), lager_msg:severity_as_int(Message), Log)};
+            {ok, write(State, lager_msg:timestamp(Message),
+                       lager_msg:severity_as_int(Message),
+                       msg_str(Message, Props))};
         false ->
-            {ok, State}
+            case State#state.modules of
+                [] ->
+                    case application:get_key(State#state.application,modules) of
+                        undefined ->    {ok, State};
+                        {ok, Ms} ->     {ok, State#state{modules = Ms}}
+                    end;
+                _ -> {ok, State}
+            end
     end;
 handle_event(_Event, State) ->
     {ok, State}.
+
+msg_str(Message, Props) ->
+    Msg = lager_msg:message(Message),
+    {D, T} = lager_msg:datetime(Message),
+    LogParts =
+    lists:reverse(
+      lists:foldl(
+        fun({Prop, Fun}, Acc) when is_function(Fun) ->
+                case catch Fun(Msg) of
+                    {'EXIT', Error} ->
+                        io:format("ERROR ~p(~p) -> ~p~n", [Prop,Msg,Error]),
+                        Acc;
+                    V -> [V, ";" | Acc]
+                end;
+           (Prop, Acc) -> [maps:get(Prop, Msg, ""), ";" | Acc]
+        end, [], Props)),
+    [D, " ",T, ";", atom_to_list(node()), LogParts, "\r\n"].
 
 %% @private
 handle_info({rotate, File}, #state{name=File,count=Count,date=Date,period=Period} = State) ->
@@ -367,6 +368,20 @@ validate_logfile_proplist([{formatter_config, FmtCfg}|Tail], Acc) ->
             validate_logfile_proplist(Tail, [{formatter_config, FmtCfg}|Acc]);
         false ->
             throw({bad_config, "Invalid formatter config", FmtCfg})
+    end;
+validate_logfile_proplist([{application, Application}|Tail], Acc) ->
+    case is_atom(Application) of
+        true ->
+            validate_logfile_proplist(Tail, [{application, Application}|Acc]);
+        false ->
+            throw({bad_config, "Invalid application config", Application})
+    end;
+validate_logfile_proplist([{props, Props}|Tail], Acc) ->
+    case is_list(Props) of
+        true ->
+            validate_logfile_proplist(Tail, [{props, Props}|Acc]);
+        false ->
+            throw({bad_config, "Invalid props config", Props})
     end;
 validate_logfile_proplist([Other|_Tail], _Acc) ->
     throw({bad_config, "Invalid option", Other}).

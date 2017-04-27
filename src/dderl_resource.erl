@@ -14,6 +14,8 @@
 
 %-define(DISP_REQ, 1).
 
+-record(state, {sessionToken, reqTime, accessLog = #{}}).
+
 init({ssl, http}, Req, []) ->
     display_req(Req),
     case cowboy_req:has_body(Req) of
@@ -26,7 +28,7 @@ init({ssl, http}, Req, []) ->
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req, Else]),
             self() ! {reply, <<"{}">>},
-            {loop, Req, <<>>, 5000, hibernate}
+            {loop, Req, #state{}, 5000, hibernate}
     end.
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
@@ -64,6 +66,13 @@ process_request(SessionToken, XSRFToken, Adapter, Req, Typ) ->
     {ok, Body, Req1} = cowboy_req:body(Req),
     process_request_low(SessionToken, XSRFToken, Adapter, Req1, Body, Typ).
 
+samlRelayStateHandle(Req, SamlAttrs) ->
+    {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
+    {SessionToken, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
+    {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
+    AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
+    process_request_low(SessionToken, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
+
 process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
     AdaptMod = if
         is_binary(Adapter) -> list_to_existing_atom(binary_to_list(Adapter) ++ "_adapter");
@@ -81,32 +90,29 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
     case dderl_session:get_session(SessionToken, XSRFToken, CheckXSRF, fun() -> conn_info(Req) end) of
         {ok, SessionToken1, XSRFToken1} ->
             dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, SessionToken1),
-            {loop, set_xsrf_cookie(Req, XSRFToken, XSRFToken1), SessionToken1, 3600000, hibernate};
+            {loop, set_xsrf_cookie(Req, XSRFToken, XSRFToken1),
+             #state{sessionToken = SessionToken1, reqTime = os:timestamp()}, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
-                    {ok, NewToken, NewXSRFToken} = dderl_session:get_session(<<>>, <<>>, CheckXSRF, fun() -> conn_info(Req) end),
+                    {ok, NewToken, NewXSRFToken} =
+                        dderl_session:get_session(<<>>, <<>>, CheckXSRF, fun() -> conn_info(Req) end),
                     dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, NewToken),
-                    {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken), NewToken, 3600000, hibernate};
+                    {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
+                     #state{sessionToken = NewToken, reqTime = os:timestamp()}, 3600000, hibernate};
                 [<<"logout">>] ->
                     self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
-                    {loop, Req, SessionToken, 5000, hibernate};
+                    {loop, Req, #state{sessionToken = SessionToken, reqTime = os:timestamp()},
+                     5000, hibernate};
                 _ ->
                     ?Info("session ~p doesn't exist (~p), from ~s:~p",
                           [SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     ?Info("Typ : ~p", [Typ]),
                     Node = atom_to_binary(node(), utf8),
                     self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {loop, Req, SessionToken, 5000, hibernate}
+                    {loop, Req, #state{sessionToken = SessionToken, reqTime = os:timestamp()}, 5000, hibernate}
             end
     end.
-
-samlRelayStateHandle(Req, SamlAttrs) ->
-    {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {SessionToken, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
-    {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
-    AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
-    process_request_low(SessionToken, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
 conn_info(Req) ->
     {{PeerIp, PeerPort}, Req} = cowboy_req:peer(Req),
@@ -128,35 +134,51 @@ conn_info(Req) ->
     {Headers, Req} = cowboy_req:headers(Req),
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
-
-info({spawn, SpawnFun}, Req, SessionToken) when is_function(SpawnFun) ->
-    ?Debug("spawn fun~n to ~p", [SessionToken]),
+info({access, Log}, Req, #state{accessLog = OldLog} = State) ->
+    {loop, Req, State#state{accessLog = maps:merge(OldLog, Log)}, hibernate};
+info({spawn, SpawnFun}, Req, State) when is_function(SpawnFun) ->
+    ?Debug("spawn fun~n to ~p", [State#state.sessionToken]),
     spawn(SpawnFun),
-    {loop, Req, SessionToken, hibernate};
-info({reply, Body}, Req, SessionToken) ->
+    {loop, Req, State, hibernate};
+info({reply, Body}, Req, #state{sessionToken = SessionToken} = State) ->
     ?Debug("reply ~n~p to ~p", [Body, SessionToken]),
     BodyEnc = if is_binary(Body) -> Body;
                  true -> imem_json:encode(Body)
               end,
     {ok, Req2} = reply_200_json(BodyEnc, SessionToken, Req),
-    {ok, Req2, SessionToken};
-info({reply_csv, FileName, Chunk, ChunkIdx}, Req, SessionToken) ->
+    {ok, Req2, State};
+info({reply_csv, FileName, Chunk, ChunkIdx}, Req, State) ->
     ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     {ok, Req1} = reply_csv(FileName, Chunk, ChunkIdx, Req),
     case ChunkIdx of
-        last -> {ok, Req1, SessionToken};
-        single -> {ok, Req1, SessionToken};
-        _ -> {loop, Req1, SessionToken, hibernate}
+        last -> {ok, Req1, State};
+        single -> {ok, Req1, State};
+        _ -> {loop, Req1, State, hibernate}
     end;
-info({newToken, SessionToken}, Req, _) ->
-    ?Debug("cookie chnaged to ~p", [SessionToken]),
-    {loop, Req, SessionToken, hibernate};
+info({newToken, NewSessionToken}, Req, #state{sessionToken = SessionToken} = State) ->
+    ?Debug("cookie chnaged ~p -> ~p", [SessionToken, NewSessionToken]),
+    {loop, Req, State#state{sessionToken = NewSessionToken}, hibernate};
 info(Message, Req, State) ->
     ?Error("~p unknown message in loop ~p", [self(), Message]),
     {loop, Req, State, hibernate}.
 
-terminate(_Reason, _Req, _State) ->
-    ok.
+terminate(_Reason, Req0, #state{accessLog = Log, reqTime = ReqTime}) ->
+    {RespSize, Req0} = cowboy_req:meta(respSize, Req0, 0),
+    {ReqSize, _Req} = cowboy_req:body_length(Req0),
+    Size = ReqSize + RespSize,
+    ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
+    case Log of
+        #{logLevel := LogLevel} ->
+            catch dderl_access_logger:log(
+                    LogLevel,
+                    maps:without(
+                      [logLevel],
+                      Log#{bytes => Size,
+                           time => ProcessingTimeMicroS,
+                           app => dderl})
+                   );
+        _ -> ok
+    end.
 
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
@@ -177,32 +199,32 @@ reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
     cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
         , {<<"content-type">>, <<"application/json">>}
-        ], Body, Req2).
+        ], Body, cowboy_req:set_meta(respSize, byte_size(Body), Req2)).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
-    case ChunkIdx of
-        first ->
-            {ok, Req1} = cowboy_req:chunked_reply(200, [
-                  {<<"content-encoding">>, <<"utf-8">>}
-                , {<<"content-type">>, <<"text/csv">>}
-                , {<<"Content-disposition">>
-                   , list_to_binary(["attachment;filename=", FileName])}
-                ], Req),
-            ok = cowboy_req:chunk(Chunk, Req1),
-            {ok, Req1};
-        single ->
-            {ok, Req1} = cowboy_req:chunked_reply(200, [
-                  {<<"content-encoding">>, <<"utf-8">>}
-                , {<<"content-type">>, <<"text/csv">>}
-                , {<<"Content-disposition">>
-                   , list_to_binary(["attachment;filename=", FileName])}
-                ], Req),
-            ok = cowboy_req:chunk(Chunk, Req1),
-            {ok, Req1};
-        _ ->
-            ok = cowboy_req:chunk(Chunk, Req),
-            {ok, Req}
-    end.
+    {Size, Req} = cowboy_req:meta(respSize, Req, 0),
+    Req2 = case ChunkIdx of
+               first ->
+                   {ok, Req1} = cowboy_req:chunked_reply(
+                                  200, [{<<"content-encoding">>, <<"utf-8">>},
+                                        {<<"content-type">>, <<"text/csv">>},
+                                        {<<"Content-disposition">>,
+                                         list_to_binary(["attachment;filename=",
+                                                         FileName])}], Req),
+                   Req1;
+               single ->
+                   {ok, Req1} = cowboy_req:chunked_reply(
+                                  200, [{<<"content-encoding">>, <<"utf-8">>},
+                                        {<<"content-type">>, <<"text/csv">>},
+                                        {<<"Content-disposition">>,
+                                         list_to_binary(["attachment;filename=",
+                                                         FileName])}], Req),
+                   Req1;
+               _ -> Req
+           end,
+    Size1 = Size + byte_size(Chunk),
+    ok = cowboy_req:chunk(Chunk, cowboy_req:set_meta(respSize, Size1, Req2)),
+    {ok, Req2}.
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->

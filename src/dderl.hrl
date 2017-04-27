@@ -104,8 +104,6 @@
 -define(LOG_TAG, "_DDRL_").
 -endif.
 
--define(Access(__Access), lager:debug([{type,dderl_access}], __Access)).
-
 -define(NoDbLog(__L,__M,__F,__A),
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -define(Log(__L,__M,__F,__A,__S),
@@ -199,7 +197,9 @@
                     "Defines escape level for csv exports")).
 
 %% DDErl Activity Logging
--define(ACTLOGLEVEL,  ?GET_CONFIG(activityLogLevel, [], 0, "Loglevel parameter, all activity log with loglevel >= must be logged")).
+-define(ACTLOGLEVEL(__App),
+        ?GET_CONFIG(activityLogLevel, [__App], 0,
+                    "Loglevel parameter, all activity log with loglevel >= must be logged")).
 -define(PROXY,        ?GET_CONFIG(proxyAddress, [], {0,0,0,0}, "Proxy Address")).
 
 %% SAML configs
