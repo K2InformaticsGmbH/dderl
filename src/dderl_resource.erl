@@ -16,21 +16,21 @@
 
 -record(state, {sessionToken}).
 
-init({ssl, http}, Req2, []) ->
-    Req1 = cowboy_req:set_meta(reqTime, os:timestamp(), Req2),
-    Req = cowboy_req:set_meta(accessLog, #{}, Req1),
-    display_req(Req),
-    case cowboy_req:has_body(Req) of
+init({ssl, http}, Req0, []) ->
+    Req1 = cowboy_req:set_meta(reqTime, os:timestamp(), Req0),
+    Req2 = cowboy_req:set_meta(accessLog, #{}, Req1),
+    display_req(Req2),
+    case cowboy_req:has_body(Req2) of
         true ->
-            {Typ, Req1} = cowboy_req:path_info(Req),
-            {SessionToken, Req2} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
-            {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
-            {Adapter, Req3} = cowboy_req:header(<<"dderl-adapter">>,Req2),
-            process_request(SessionToken, XSRFToken, Adapter, Req3, Typ);
+            {Typ, Req3} = cowboy_req:path_info(Req2),
+            {SessionToken, Req4} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req1), Req3, <<>>),
+            {XSRFToken, Req4} = cowboy_req:header(?XSRF_HEADER, Req4, <<>>),
+            {Adapter, Req4} = cowboy_req:header(<<"dderl-adapter">>,Req4),
+            process_request(SessionToken, XSRFToken, Adapter, Req4, Typ);
         Else ->
-            ?Error("DDerl request ~p, error ~p", [Req, Else]),
+            ?Error("DDerl request ~p, error ~p", [Req2, Else]),
             self() ! {reply, <<"{}">>},
-            {loop, Req, #state{}, 5000, hibernate}
+            {loop, Req2, #state{}, 5000, hibernate}
     end.
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
@@ -93,7 +93,7 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
         {ok, SessionToken1, XSRFToken1} ->
             dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, SessionToken1),
             {loop, set_xsrf_cookie(Req, XSRFToken, XSRFToken1),
-             #state{sessionToken = SessionToken1, reqTime = os:timestamp()}, 3600000, hibernate};
+             #state{sessionToken = SessionToken1}, 3600000, hibernate};
         {error, Reason} ->
             case Typ of
                 [<<"login">>] -> 
@@ -101,18 +101,17 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                         dderl_session:get_session(<<>>, <<>>, CheckXSRF, fun() -> conn_info(Req) end),
                     dderl_session:process_request(AdaptMod, Typ, NewBody, self(), {Ip, Port}, NewToken),
                     {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
-                     #state{sessionToken = NewToken, reqTime = os:timestamp()}, 3600000, hibernate};
+                     #state{sessionToken = NewToken}, 3600000, hibernate};
                 [<<"logout">>] ->
                     self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
-                    {loop, Req, #state{sessionToken = SessionToken, reqTime = os:timestamp()},
+                    {loop, Req, #state{sessionToken = SessionToken},
                      5000, hibernate};
                 _ ->
-                    ?Info("session ~p doesn't exist (~p), from ~s:~p",
-                          [SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
-                    ?Info("Typ : ~p", [Typ]),
+                    ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
+                          [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
                     self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {loop, Req, #state{sessionToken = SessionToken, reqTime = os:timestamp()}, 5000, hibernate}
+                    {loop, Req, #state{sessionToken = SessionToken}, 5000, hibernate}
             end
     end.
 
