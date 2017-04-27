@@ -1,7 +1,10 @@
 -module(dderl_access_logger).
 -include("dderl.hrl").
 
--export([install/1, install/2, uninstall/1, log/3]).
+-export([install/0, install/2, uninstall/0, uninstall/1, log/2, log/4]).
+
+% library APIs
+-export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1]).
 
 -define(AccessSchema,
         [{src,       fun src/1},
@@ -21,15 +24,18 @@
          connStr,
          {sql,       fun sql/1}]).
 
-install(App) -> install(App, ?AccessSchema).
+install() -> install(dderl, ?AccessSchema).
 install(App, AccessSchema) ->
+    LogFile = lists:concat(["log/",App,"_access.log"]),
     ok = gen_event:add_handler(
            lager_event, {dderl_access_lager_file_backend, App},
-           [{file, "log/dderl_access.log"}, {level, debug}, {size, 10485760},
-            {date, "$D0"}, {count, 5}, {application, App}, {props, AccessSchema}]),
+           [{file, LogFile}, {level, debug}, {size, 10485760},
+            {date, "$D0"}, {count, 5}, {application, App},
+            {props, AccessSchema}]),
     ok = lager:set_loglevel({dderl_access_lager_file_backend, App}, debug),
     ?Info("~p activity logger started", [App]).
 
+uninstall() -> uninstall(dderl).
 uninstall(App) ->
     ok = gen_event:delete_handler(
            lager_event, {dderl_access_lager_file_backend, App}, []).
@@ -69,7 +75,7 @@ sessionid(Access) ->
           maps:get(sessId, Access, "")))).
 
 version(Access) ->
-    case application:get_key(maps:get(app,Access,undefined)) of
+    case application:get_key(maps:get(app,Access,undefined), vsn) of
         {ok, Vsn} -> Vsn;
         _ -> ""
     end.
@@ -117,11 +123,14 @@ sql(Access) ->
         _ -> ""
     end.
 
-log(App, LogLevel, Log) ->
+log(LogLevel, Log) -> log(dderl, LogLevel, Log, fun log_low/1).
+log(App, LogLevel, Log, LogFun) ->
     case ?ACTLOGLEVEL(App) >= LogLevel of
        true ->
-            lager:debug(
-              [{type,dderl_access}],
-              Log#{proxy => ?PROXY, loglevel => integer_to_list(LogLevel)});
+            LogFun(Log#{proxy => ?PROXY,
+                        loglevel => integer_to_list(LogLevel)});
         _ -> ok
     end.
+% MUST log through local function, module/app filter in access logger for routing
+log_low(Log) -> lager:debug([{type,dderl_access}], Log).
+

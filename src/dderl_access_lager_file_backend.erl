@@ -116,9 +116,11 @@ handle_call(_Request, State) ->
 %% @private
 handle_event({log, Message}, #state{name=Name, level=L, modules = Modules,
                                     props = Props} = State) ->
-    case lager_util:is_loggable(Message,L,{?MODULE, Name}) andalso
-         proplists:get_value(type, lager_msg:metadata(Message)) == dderl_access andalso
-         lists:member(proplists:get_value(module, lager_msg:metadata(Message)), Modules) of
+    IsLoggable = lager_util:is_loggable(Message,L,{?MODULE, Name}),
+    Type = proplists:get_value(type, lager_msg:metadata(Message)),
+    Module = proplists:get_value(module, lager_msg:metadata(Message)),
+    case IsLoggable andalso Type == dderl_access andalso
+         lists:member(Module, Modules) of
         true ->
             {ok, write(State, lager_msg:timestamp(Message),
                        lager_msg:severity_as_int(Message),

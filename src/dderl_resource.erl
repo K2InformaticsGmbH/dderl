@@ -174,7 +174,6 @@ terminate(_Reason, Req, _State) ->
     case Log of
         #{logLevel := LogLevel} ->
             catch dderl_access_logger:log(
-                    dderl,
                     LogLevel,
                     maps:without([logLevel],
                                  Log#{bytes => Size,
