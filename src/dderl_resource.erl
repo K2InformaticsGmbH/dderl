@@ -14,9 +14,11 @@
 
 %-define(DISP_REQ, 1).
 
--record(state, {sessionToken, reqTime, accessLog = #{}}).
+-record(state, {sessionToken}).
 
-init({ssl, http}, Req, []) ->
+init({ssl, http}, Req2, []) ->
+    Req1 = cowboy_req:set_meta(reqTime, os:timestamp(), Req2),
+    Req = cowboy_req:set_meta(accessLog, #{}, Req1),
     display_req(Req),
     case cowboy_req:has_body(Req) of
         true ->
@@ -134,8 +136,9 @@ conn_info(Req) ->
     {Headers, Req} = cowboy_req:headers(Req),
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
-info({access, Log}, Req, #state{accessLog = OldLog} = State) ->
-    {loop, Req, State#state{accessLog = maps:merge(OldLog, Log)}, hibernate};
+info({access, Log}, Req, State) ->
+    {OldLog, Req} = cowboy_req:meta(accessLog, Req, 0),
+    {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
 info({spawn, SpawnFun}, Req, State) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [State#state.sessionToken]),
     spawn(SpawnFun),
@@ -162,20 +165,21 @@ info(Message, Req, State) ->
     ?Error("~p unknown message in loop ~p", [self(), Message]),
     {loop, Req, State, hibernate}.
 
-terminate(_Reason, Req0, #state{accessLog = Log, reqTime = ReqTime}) ->
-    {RespSize, Req0} = cowboy_req:meta(respSize, Req0, 0),
-    {ReqSize, _Req} = cowboy_req:body_length(Req0),
+terminate(_Reason, Req, _State) ->
+    {Log, Req} = cowboy_req:meta(accessLog, Req, 0),
+    {ReqTime, Req} = cowboy_req:meta(reqTime, Req, 0),
+    {RespSize, Req} = cowboy_req:meta(respSize, Req, 0),
+    {ReqSize, _Req} = cowboy_req:body_length(Req),
     Size = ReqSize + RespSize,
     ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
     case Log of
         #{logLevel := LogLevel} ->
             catch dderl_access_logger:log(
+                    dderl,
                     LogLevel,
-                    maps:without(
-                      [logLevel],
-                      Log#{bytes => Size,
-                           time => ProcessingTimeMicroS,
-                           app => dderl})
+                    maps:without([logLevel],
+                                 Log#{bytes => Size,
+                                      time => ProcessingTimeMicroS})
                    );
         _ -> ok
     end.

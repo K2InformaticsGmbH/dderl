@@ -1,7 +1,7 @@
 -module(dderl_access_logger).
 -include("dderl.hrl").
 
--export([install/1, install/2, uninstall/1, log/2]).
+-export([install/1, install/2, uninstall/1, log/3]).
 
 -define(AccessSchema,
         [{src,       fun src/1},
@@ -28,7 +28,7 @@ install(App, AccessSchema) ->
            [{file, "log/dderl_access.log"}, {level, debug}, {size, 10485760},
             {date, "$D0"}, {count, 5}, {application, App}, {props, AccessSchema}]),
     ok = lager:set_loglevel({dderl_access_lager_file_backend, App}, debug),
-    ?Info("activity logger started").
+    ?Info("~p activity logger started", [App]).
 
 uninstall(App) ->
     ok = gen_event:delete_handler(
@@ -117,7 +117,7 @@ sql(Access) ->
         _ -> ""
     end.
 
-log(LogLevel, #{app := App} = Log) ->
+log(App, LogLevel, Log) ->
     case ?ACTLOGLEVEL(App) >= LogLevel of
        true ->
             lager:debug(
