@@ -218,7 +218,6 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
 
 process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"query">>,BodyJson}] = ReqBody,
-    ?Info("####### Doing query in oci_adapter"),
     case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
         {error, Error} -> From ! {reply, jsx:encode([{<<"error">>, Error}])};
         BindVals ->
@@ -240,7 +239,6 @@ process_cmd({[<<"query">>], ReqBody}, Sess, _UserId, From, #priv{connections = C
 
 process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connections = Connections} = Priv, SessPid) ->
     [{<<"browse_data">>,BodyJson}] = ReqBody,
-    ?Info("####### Doing browse_data in oci_adapter"),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     ConnId = proplists:get_value(<<"conn_id">>, BodyJson, <<>>), %% This should be change to params...

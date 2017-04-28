@@ -3,6 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.7.2 (Release Date 28.04.2017)
+======================================
+* [imem-1.6.3](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.6.3)
+* [esaml-2.0.0](https://github.com/K2InformaticsGmbH/esaml/releases/tag/2.0.0)
+* jQuery-3.2.1
+* d3-4.7.4
+* OTP19 support
+* [Bugfixes](https://github.com/K2InformaticsGmbH/dderl/issues?q=is%3Aclosed+milestone%3A1.7.2)
+
 Version 1.7.1 (Release Date 12.04.2017)
 ======================================
 * Updated imem to version 1.6.2
