@@ -97,7 +97,7 @@ create_names(Prefix, TotalNames, NCurrent) when NCurrent =< TotalNames ->
 
 -spec start_worker(atom(), pos_integer(), pos_integer(), pos_integer()) -> ok.
 start_worker(TableName, NRows, NColumns, InsDelay) ->
-    random:seed(imem_meta:time()),
+    rand:seed(exsplus, os:timestamp()),
     %% Only basic types for now...
     ColumnTypes = create_random_types(NColumns),
     Defaults = create_row(TableName, ColumnTypes, default_fun()),
@@ -117,7 +117,7 @@ add_data(_TableName, _NRows, _ColumnTypes, _InsDelay, _NCurrent) ->
 -spec create_random_types(pos_integer()) -> [atom()].
 create_random_types(NTypes) ->
     AllowedTypes = [integer, float, tuple, binary, list],
-    [lists:nth(random:uniform(length(AllowedTypes)), AllowedTypes) ||
+    [lists:nth(rand:uniform(length(AllowedTypes)), AllowedTypes) ||
         _ <- lists:seq(1, NTypes)].
 
 -spec create_row(atom(), [atom()], fun()) -> tuple().
@@ -145,22 +145,22 @@ random_fun() ->
 
 -spec random(atom()) -> term().
 random(integer) ->
-    <<Value:8/unit:8>> = crypto:rand_bytes(8),
+    <<Value:8/unit:8>> = crypto:strong_rand_bytes(8),
     Value;
 random(float) ->
-    random:uniform();
+    rand:uniform();
 random(tuple) ->
     list_to_tuple(random(list));
 random(binary) ->
     Size = crypto:rand_uniform(8, 60),
     if
         Size < 54 ->
-            crypto:rand_bytes(Size);
+            crypto:strong_rand_bytes(Size);
         Size < 58 ->
-            crypto:rand_bytes(1024);
+            crypto:strong_rand_bytes(1024);
         true ->
-            crypto:rand_bytes(4096)
+            crypto:strong_rand_bytes(4096)
     end;
 random(list) ->
-    Size = random:uniform(10),
+    Size = rand:uniform(10),
     [random(integer) || _ <- lists:seq(1, Size)].

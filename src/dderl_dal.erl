@@ -580,7 +580,7 @@ add_connect_internal(UserSess, DalSess, #ddConn{id = null, owner = Owner} = Conn
                 UserSess:run_cmd(have_permission, [[manage_system, ?MANAGE_CONNS, ?CREATE_CONNS]]),
             case HavePermission of
                 true ->
-                    Id = erlang:phash2(crypto:rand_bytes(16)),
+                    Id = erlang:phash2(crypto:strong_rand_bytes(16)),
                     NewCon = Conn#ddConn{id=Id},
                     ?Info("adding new connection ~p", [NewCon]),
                     check_save_conn(UserSess, DalSess, insert, NewCon);
