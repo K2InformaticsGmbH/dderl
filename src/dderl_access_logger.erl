@@ -4,25 +4,26 @@
 -export([install/0, install/2, uninstall/0, uninstall/1, log/2, log/4]).
 
 % library APIs
--export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1]).
+-export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1,
+         args/1, sql/1, version/1]).
 
 -define(AccessSchema,
-        [{src,       fun src/1},
-         {proxy,     fun proxy/1},
-         {userId,    fun userid/1},
-         {userName,  fun username/1},
-         {sessId,    fun sessionid/1},
-         {version,   fun version/1},
+        [{src,       fun ?MODULE:src/1},
+         {proxy,     fun ?MODULE:proxy/1},
+         {userId,    fun ?MODULE:userid/1},
+         {userName,  fun ?MODULE:username/1},
+         {sessId,    fun ?MODULE:sessionid/1},
+         {version,   fun ?MODULE:version/1},
          loglevel,
          cmd,
-         {args,      fun args/1},
-         {bytes,     fun bytes/1},
-         {time,      fun time/1},
+         {args,      fun ?MODULE:args/1},
+         {bytes,     fun ?MODULE:bytes/1},
+         {time,      fun ?MODULE:time/1},
          connUser,
          connTarget,
          connDbType,
          connStr,
-         {sql,       fun sql/1}]).
+         {sql,       fun ?MODULE:sql/1}]).
 
 install() -> install(dderl, ?AccessSchema).
 install(App, AccessSchema) ->
@@ -75,8 +76,13 @@ sessionid(Access) ->
           maps:get(sessId, Access, "")))).
 
 version(Access) ->
-    case application:get_key(maps:get(app,Access,undefined), vsn) of
-        {ok, Vsn} -> Vsn;
+    case Access of
+        #{version := Vsn} -> Vsn;
+        #{app := App} ->
+            case application:get_key(App, vsn) of
+                {ok, Vsn} -> Vsn;
+                _ -> ""
+            end;
         _ -> ""
     end.
 
@@ -112,7 +118,6 @@ time(Access) ->
         Time when is_integer(Time) -> integer_to_list(Time);
         Time -> io_lib:format("~p", [Time])
     end.
-
 
 sql(Access) ->
     case maps:get(args, Access, "") of

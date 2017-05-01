@@ -814,5 +814,6 @@ act_log(ReplyPid, LogLevel, Args, State) ->
                                       _ -> State#state.user
                                   end,
                       sessId => State#state.id,
+                      app => dderl,
                       logLevel => LogLevel}
                }.
