@@ -75,16 +75,12 @@ sessionid(Access) ->
         erlang:phash2(
           maps:get(sessId, Access, "")))).
 
-version(Access) ->
-    case Access of
-        #{version := Vsn} -> Vsn;
-        #{app := App} ->
-            case application:get_key(App, vsn) of
-                {ok, Vsn} -> Vsn;
-                _ -> ""
-            end;
+version(#{app := App}) ->
+    case application:get_key(App, vsn) of
+        {ok, Vsn} -> Vsn;
         _ -> ""
-    end.
+    end;
+version(_Access) -> "".
 
 args(Access) ->
     CmdArgs = maps:get(args, Access, ""),

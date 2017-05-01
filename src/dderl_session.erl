@@ -771,7 +771,7 @@ login(ReqData, From, SrcIp, State) ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
                                            id='$1',_='_'}, [], ['$1']}]),
             act_log(From, ?LOGIN_CONNECT,
-                    #{src => SrcIp, userId => UserId, cmd => "login unsuccessful"}, State),
+                    #{src => SrcIp, userId => UserId, cmd => "login successful"}, State),
             if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
                true ->
                     reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
