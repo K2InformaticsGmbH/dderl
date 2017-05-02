@@ -66,13 +66,11 @@ start(_Type, _Args) ->
                                             ||NRP<-DDerlRoutes], "\n")]),
     SupRef = dderl_sup:start_link(),
     ?Info("restartable apps ~p", [dderl_dal:get_restartable_apps()]),
-    dderl_access_logger:install(),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),
     SupRef.
 
 stop(_State) ->
-    dderl_access_logger:uninstall(),
     ok = cowboy:stop_listener(https),
     ?Info("SHUTDOWN DDERL"),
     ?Info("---------------------------------------------------"),

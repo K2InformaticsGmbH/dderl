@@ -59,6 +59,7 @@ imem_opts=$imem_opts" tcp_port $port"
 # dderl opts
 dderl_opts="-dderl"
 dderl_opts=$dderl_opts" port $dderlport" 
+dderl_opts=$dderl_opts" -config dderl.config" 
 
 # sasl opts
 sasl_opts="-sasl"

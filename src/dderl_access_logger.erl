@@ -1,45 +1,29 @@
 -module(dderl_access_logger).
 -include("dderl.hrl").
 
--export([install/0, install/2, uninstall/0, uninstall/1, log/2, log/4]).
+-export([log/2, log/5]).
 
 % library APIs
 -export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1,
          args/1, sql/1, version/1]).
 
 -define(AccessSchema,
-        [{src,       fun ?MODULE:src/1},
-         {proxy,     fun ?MODULE:proxy/1},
-         {userId,    fun ?MODULE:userid/1},
-         {userName,  fun ?MODULE:username/1},
-         {sessId,    fun ?MODULE:sessionid/1},
-         {version,   fun ?MODULE:version/1},
+        [{src,       fun dderl_access_logger:src/1},
+         {proxy,     fun dderl_access_logger:proxy/1},
+         {userId,    fun dderl_access_logger:userid/1},
+         {userName,  fun dderl_access_logger:username/1},
+         {sessId,    fun dderl_access_logger:sessionid/1},
+         {version,   fun dderl_access_logger:version/1},
          loglevel,
          cmd,
-         {args,      fun ?MODULE:args/1},
-         {bytes,     fun ?MODULE:bytes/1},
-         {time,      fun ?MODULE:time/1},
+         {args,      fun dderl_access_logger:args/1},
+         {bytes,     fun dderl_access_logger:bytes/1},
+         {time,      fun dderl_access_logger:time/1},
          connUser,
          connTarget,
          connDbType,
          connStr,
-         {sql,       fun ?MODULE:sql/1}]).
-
-install() -> install(dderl, ?AccessSchema).
-install(App, AccessSchema) ->
-    LogFile = lists:concat(["log/",App,"_access.log"]),
-    ok = gen_event:add_handler(
-           lager_event, {dderl_access_lager_file_backend, App},
-           [{file, LogFile}, {level, debug}, {size, 10485760},
-            {date, "$D0"}, {count, 5}, {application, App},
-            {props, AccessSchema}]),
-    ok = lager:set_loglevel({dderl_access_lager_file_backend, App}, debug),
-    ?Info("~p activity logger started", [App]).
-
-uninstall() -> uninstall(dderl).
-uninstall(App) ->
-    ok = gen_event:delete_handler(
-           lager_event, {dderl_access_lager_file_backend, App}, []).
+         {sql,       fun dderl_access_logger:sql/1}]).
 
 src(Access) ->
     case maps:get(src, Access, "") of
@@ -124,14 +108,27 @@ sql(Access) ->
         _ -> ""
     end.
 
-log(LogLevel, Log) -> log(dderl, LogLevel, Log, fun log_low/1).
-log(App, LogLevel, Log, LogFun) ->
+log(LogLevel, Log) -> log(dderl, LogLevel, Log, ?AccessSchema, fun log_fun/1).
+
+log(App, LogLevel, Log, Props, LogFun) ->
     case ?ACTLOGLEVEL(App) >= LogLevel of
-       true ->
-            LogFun(Log#{proxy => ?PROXY,
-                        loglevel => integer_to_list(LogLevel)});
+        true -> 
+            LogMsg = msg_str(Log, Props),
+            LogFun(LogMsg);
         _ -> ok
     end.
-% MUST log through local function, module/app filter in access logger for routing
-log_low(Log) -> lager:debug([{type,dderl_access}], Log).
 
+log_fun(Log) -> access:info("~s", [Log]).
+
+msg_str(Msg, Props) ->
+    LogParts =
+    lists:reverse(
+      lists:foldl(
+        fun({_Prop, Fun}, Acc) when is_function(Fun) ->
+                case catch Fun(Msg) of
+                    {'EXIT', _Error} -> Acc;
+                    V -> [V, ";" | Acc]
+                end;
+           (Prop, Acc) -> [maps:get(Prop, Msg, ""), ";" | Acc]
+        end, [], Props)),
+    lists:flatten([atom_to_list(node()) ++ LogParts]).
