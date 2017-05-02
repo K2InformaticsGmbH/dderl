@@ -238,13 +238,13 @@ process_call({[<<"logout">>], _ReqData}, _Adapter, From, {SrcIp,_}, State) ->
     self() ! logout,
     NewState;
 process_call(Req, _Adapter, From, {SrcIp,_}, #state{user = <<>>} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "invalid", args => io_lib:format("~p", [Req])}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "invalid", args => io_lib:format("~p", [Req])}, State),
     ?Debug("Request from a not logged in user: ~n~p", [Req]),
     reply(From, [{<<"error">>, <<"user not logged in">>}], self()),
     State;
 
 process_call(Req, _Adapter, From, {SrcIp,_}, #state{lock_state = locked} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "screensaver is enabled",
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "screensaver is enabled",
                              args => io_lib:format("~p", [Req])}, State),
     ?Debug("Request when screensaver is active from user: ~n~p", [Req]),
     reply(From, [{<<"error">>, <<"Session is locked">>}], self()),
@@ -257,7 +257,7 @@ process_call({[<<"check_session">>], _ReqData}, _Adapter, From, {SrcIp,_}, State
 
 process_call({[<<"check_connection">>], ReqData}, _Adapter, From, {SrcIp,_}, State) ->
     BodyMap = jsx:decode(ReqData, [return_maps]),
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "check_connection", args => BodyMap}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "check_connection", args => BodyMap}, State),
     reply(From, #{check_session => <<"ok">>}, self()),
     State;
 
@@ -282,7 +282,7 @@ process_call({[<<"restart">>], _ReqData}, _Adapter, From, {SrcIp,_}, #state{sess
     State;
 process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{sess = ErlImemSess} = State) ->
     #{<<"change_pswd">> := BodyMap} = jsx:decode(ReqData, [return_maps]),
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "login_change_pswd", args => BodyMap}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "login_change_pswd", args => BodyMap}, State),
     User        = maps:get(<<"user">>, BodyMap, <<>>),
     OldPassword = list_to_binary(maps:get(<<"password">>, BodyMap, [])),
     NewPassword = maps:get(<<"new_password">>, BodyMap, []),
@@ -311,7 +311,7 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_}, #s
     State;
 
 process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, {SrcIp,_}, State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "format_erlang_term", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "format_erlang_term", args => ReqData}, State),
     [{<<"format_erlang_term">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"erlang_term">>, BodyJson, <<>>),
     ?Debug("The string to format: ~p", [StringToFormat]),
@@ -334,7 +334,7 @@ process_call({[<<"format_erlang_term">>], ReqData}, _Adapter, From, {SrcIp,_}, S
     State;
 
 process_call({[<<"format_json_to_save">>], ReqData}, _Adapter, From, {SrcIp,_}, State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "format_json_to_save", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "format_json_to_save", args => ReqData}, State),
     [{<<"format_json_to_save">>, BodyJson}] = jsx:decode(ReqData),
     StringToFormat = proplists:get_value(<<"json_string">>, BodyJson, <<>>),
     case jsx:is_json(StringToFormat, [{strict, [escapes]}]) of
@@ -417,7 +417,7 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
 
 process_call({[<<"del_con">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess = Sess, user_id = UserId} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "del_con", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "del_con", args => ReqData}, State),
     [{<<"del_con">>, BodyJson}] = jsx:decode(ReqData),
     ConId = proplists:get_value(<<"conid">>, BodyJson, 0),
     ?Info([{user, State#state.user}], "connection to delete ~p", [ConId]),
@@ -430,7 +430,7 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, {SrcIp,_},
 
 process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{active_sender = undefined} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
     [{<<"activate_sender">>, BodyJson}] = jsx:decode(ReqData),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
@@ -446,7 +446,7 @@ process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_},
     end;
 process_call({[<<"activate_sender">>], ReqData}, Adapter, From, {SrcIp,_} = RemoteEp,
              #state{active_sender = PidSender} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
     case erlang:is_process_alive(PidSender) of
         true ->
             ?Error("Sender ~p already waiting for connection", [PidSender]), %% Log more details user, active sender etc...
@@ -465,7 +465,7 @@ process_call({[<<"activate_receiver">>], _ReqData}, _Adapter, From, {SrcIp,_},
     State;
 process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{active_sender = PidSender} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "activate_receiver", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "activate_receiver", args => ReqData}, State),
     case erlang:is_process_alive(PidSender) of
         true ->
             [{<<"activate_receiver">>, BodyJson}] = jsx:decode(ReqData),
@@ -488,7 +488,7 @@ process_call({[<<"activate_receiver">>], ReqData}, _Adapter, From, {SrcIp,_},
     end;
 process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{active_receiver = PidReceiver} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "receive_status", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "receive_status", args => ReqData}, State),
     case PidReceiver /= undefined andalso erlang:is_process_alive(PidReceiver) of
         true ->
             dderl_data_receiver:get_status(PidReceiver, From),
@@ -500,7 +500,7 @@ process_call({[<<"receiver_status">>], ReqData}, _Adapter, From, {SrcIp,_},
     end;
 process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
              #state{user_id = UserId} = State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "download_buffer_csv", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "download_buffer_csv", args => ReqData}, State),
     [{<<"download_buffer_csv">>, BodyJson}] = jsx:decode(ReqData),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
@@ -522,7 +522,7 @@ process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
     self() ! rearm_session_idle_timer,
     State;
 process_call({[<<"password_strength">>], ReqData}, _Adapter, From, {SrcIp,_}, State) ->
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => "password_strength", args => ReqData}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "password_strength", args => ReqData}, State),
     #{<<"password">> := Password} = imem_json:decode(ReqData, [return_maps]),
     reply(
       From,
@@ -556,7 +556,7 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"list_d3_templates">>;
       C =:= <<"get_d3_template">> ->
     BodyJson = jsx:decode(ReqData),
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => binary_to_list(C), args => maps:from_list(proplists:get_value(C, BodyJson, []))}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => binary_to_list(C), args => maps:from_list(proplists:get_value(C, BodyJson, []))}, State),
     Self = self(),
     spawn_link(fun() -> spawn_gen_process_call(Adapter, From, C, BodyJson, Sess, UserId, Self) end),
     State;
@@ -579,7 +579,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                 end;
                 H -> {H, proplists:get_value(<<"tns">>, BodyJson, "")}
     end,
-    act_log(From, ?CMD_WITHARGS,
+    act_log(From, ?CMD_NOARGS,
             #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson),
               connUser => proplists:get_value(<<"user">>, BodyJson, ""), connTarget => Host,
               connDbType => proplists:get_value(<<"adapter">>, BodyJson, ""), connStr => ConnStr},
@@ -605,7 +605,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
 process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_id = UserId,
                                                               adapt_priv = AdaptPriv} = State) ->
     BodyJson = jsx:decode(ReqData),
-    act_log(From, ?CMD_WITHARGS, #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson)}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson)}, State),
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     Self = self(),
     spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self) end),

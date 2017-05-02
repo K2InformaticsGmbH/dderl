@@ -66,24 +66,25 @@ version(#{app := App}) ->
     end;
 version(_Access) -> "".
 
-args(Access) ->
-    CmdArgs = maps:get(args, Access, ""),
+args(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CMD_WITHARGS ->
+    Args = maps:get(args, Access, ""),
     binary_to_list(
-      case CmdArgs of
+      case Args of
           "" -> <<>>;
-          CmdArgs when is_binary(CmdArgs)  -> CmdArgs;
+          Args when is_binary(Args)  -> Args;
           #{<<"Password">> := _} ->
-              jsx:encode(CmdArgs#{<<"Password">> => <<"****">>});
+              jsx:encode(Args#{<<"Password">> => <<"****">>});
           #{<<"password">> := _} ->
-              jsx:encode(CmdArgs#{<<"password">> => <<"****">>});
+              jsx:encode(Args#{<<"password">> => <<"****">>});
           #{<<"password">> := _, <<"new_password">> := _} ->
-              jsx:encode(CmdArgs#{<<"password">> => <<"****">>,
+              jsx:encode(Args#{<<"password">> => <<"****">>,
                                   <<"new_password">> => <<"****">>});
           #{<<"qstr">> := _} ->
-              jsx:encode(maps:remove(<<"qstr">>, CmdArgs));
-          CmdArgs when is_map(CmdArgs) -> jsx:encode(CmdArgs);
-          CmdArgs -> list_to_binary(io_lib:format("~p", [CmdArgs]))
-      end).
+              jsx:encode(maps:remove(<<"qstr">>, Args));
+          Args when is_map(Args) -> jsx:encode(Args);
+          Args -> list_to_binary(io_lib:format("~p", [Args]))
+      end);
+args(_Access) -> "".
 
 bytes(Access) ->
     case maps:get(bytes, Access, "") of
@@ -99,21 +100,23 @@ time(Access) ->
         Time -> io_lib:format("~p", [Time])
     end.
 
-sql(Access) ->
+sql(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CUST_SQL ->
     case maps:get(args, Access, "") of
         #{<<"qstr">> := QStr} ->
             re:replace(
               QStr, <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
               "\\1****\\5", [{return,binary}]);
         _ -> ""
-    end.
+    end;
+sql(_Access) -> "".
 
 log(LogLevel, Log) -> log(dderl, LogLevel, Log, ?AccessSchema, fun log_fun/1).
 
 log(App, LogLevel, Log, Props, LogFun) ->
-    case ?ACTLOGLEVEL(App) >= LogLevel of
+    AppLogLevel = ?ACTLOGLEVEL(App),
+    case AppLogLevel >= LogLevel of
         true -> 
-            LogMsg = msg_str(Log, Props),
+            LogMsg = msg_str(Log#{appLogLevel => AppLogLevel}, Props),
             LogFun(LogMsg);
         _ -> ok
     end.
