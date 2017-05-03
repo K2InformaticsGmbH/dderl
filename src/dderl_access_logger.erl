@@ -104,8 +104,8 @@ time(Access) ->
 sql(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CUST_SQL ->
     case maps:get(args, Access, "") of
         #{<<"qstr">> := QStr} ->
-            re:replace(
-              QStr, <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
+            re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
+              <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
               "\\1****\\5", [{return,binary}]);
         _ -> ""
     end;
