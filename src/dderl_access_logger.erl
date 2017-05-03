@@ -16,6 +16,7 @@
          {version,   fun ?MODULE:version/1},
          {logLevel,  fun ?MODULE:logLevel/1},
          cmd,
+         cmd_resp,
          {args,      fun ?MODULE:args/1},
          {bytes,     fun ?MODULE:bytes/1},
          {time,      fun ?MODULE:time/1},

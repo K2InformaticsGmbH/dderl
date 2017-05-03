@@ -579,10 +579,10 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
                 end;
                 H -> {H, proplists:get_value(<<"tns">>, BodyJson, "")}
     end,
-    act_log(From, ?CMD_NOARGS,
-            #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson),
-              connUser => proplists:get_value(<<"user">>, BodyJson, ""), connTarget => Host,
-              connDbType => proplists:get_value(<<"adapter">>, BodyJson, ""), connStr => ConnStr},
+    act_log(From, ?CMD_NOARGS, 
+            #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson), 
+              connUser => proplists:get_value(<<"user">>, BodyJson, ""), connTarget => Host, 
+              connDbType => proplists:get_value(<<"adapter">>, BodyJson, ""), connStr => ConnStr}, 
             State),
     ?NoDbLog(debug, [{user, UserId}], "~p processing ~p~n~s", [Adapter, Cmd, jsx:prettify(ReqData)]),
     CurrentPriv = Adapter:add_conn_info(proplists:get_value(Adapter, AdaptPriv), ConnInfo),
@@ -734,7 +734,8 @@ login(ReqData, From, SrcIp, State) ->
                     ?Error("Error(~p) ~p~n~p", [E,M,St]),
                     reply(From, #{login=> #{error=> format_error(M)}}, self()),
                     act_log(From, ?LOGIN_CONNECT,
-                            #{src => SrcIp, userName => maps:get(<<"User">>, ReqDataMap, ""), cmd => "login unsuccessful"},
+                            #{src => SrcIp, userName => maps:get(<<"User">>, ReqDataMap, ""),
+                              cmd => "login", cmd_resp => "login failed : invalid credentials"},
                             State),
                     self() ! invalid_credentials,
                     State;
@@ -762,7 +763,7 @@ login(ReqData, From, SrcIp, State) ->
                     end,
                     act_log(From, ?LOGIN_CONNECT,
                             #{src => SrcIp, userName => maps:get(<<"User">>, ReqDataMap, ""),
-                              cmd => "login unsuccessful"},
+                              cmd => "login", cmd_resp => "login failed : invalid credentials"},
                             State),
                     reply(From, #{login => #{error => format_error(ErrMsg)}}, self()),
                     State
@@ -771,7 +772,8 @@ login(ReqData, From, SrcIp, State) ->
             {[UserId],true} = imem_meta:select(ddAccount, [{#ddAccount{name=State#state.user,
                                            id='$1',_='_'}, [], ['$1']}]),
             act_log(From, ?LOGIN_CONNECT,
-                    #{src => SrcIp, userId => UserId, cmd => "login successful"}, State),
+                    #{src => SrcIp, userId => UserId, cmd_resp => "login success",
+                      cmd => "login"}, State),
             if is_map(ReqData) -> {#{accountName=>State#state.user}, State#state{user_id = UserId}};
                true ->
                     reply(From, #{login => maps:merge(Reply0, #{accountName=>State#state.user})}, self()),
