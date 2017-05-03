@@ -58,14 +58,15 @@ imem_opts=$imem_opts" tcp_port $port"
 
 # dderl opts
 dderl_opts="-dderl"
-dderl_opts=$dderl_opts" port $dderlport" 
-dderl_opts=$dderl_opts" -config dderl.config" 
+dderl_opts=$dderl_opts" port $dderlport"
+
+lager_config="dderl.config" 
 
 # sasl opts
 sasl_opts="-sasl"
 sasl_opts=$sasl_opts"  sasl_error_logger false" 
 
-start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts $sasl_opts"
+start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts $sasl_opts -config $lager_config"
 
 # DDERL start options
 echo "------------------------------------------"

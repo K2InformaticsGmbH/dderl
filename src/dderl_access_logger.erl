@@ -1,11 +1,16 @@
 -module(dderl_access_logger).
--include("dderl.hrl").
 
--export([log/2, log/5]).
+-include("dderl.hrl").
+-include_lib("lager/include/lager.hrl").        
+
+-export([log/1, log/4]).
 
 % library APIs
 -export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1,
          args/1, sql/1, version/1, logLevel/1]).
+
+% lager formatter custom interface
+-export([format/2, format/3]).
 
 -define(AccessSchema,
         [{src,       fun ?MODULE:src/1},
@@ -67,7 +72,7 @@ version(#{app := App}) ->
     end;
 version(_Access) -> "".
 
-args(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CMD_WITHARGS ->
+args(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CMD_WITHARGS ->
     Args = maps:get(args, Access, ""),
     binary_to_list(
       case Args of
@@ -101,7 +106,7 @@ time(Access) ->
         Time -> io_lib:format("~p", [Time])
     end.
 
-sql(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CUST_SQL ->
+sql(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CUST_SQL ->
     case maps:get(args, Access, "") of
         #{<<"qstr">> := QStr} ->
             re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
@@ -115,28 +120,38 @@ logLevel(#{logLevel := LogLevel}) when is_integer(LogLevel) ->
     integer_to_list(LogLevel);
 logLevel(_) -> "".
 
-log(LogLevel, Log) -> log(dderl, LogLevel, Log, ?AccessSchema, fun log_fun/1).
+log(Log) -> log(dderl, Log, ?AccessSchema, fun log_fun/1).
 
-log(App, LogLevel, Log, Props, LogFun) ->
-    AppLogLevel = ?ACTLOGLEVEL(App),
-    case AppLogLevel >= LogLevel of
-        true -> 
-            LogMsg = msg_str(Log#{appLogLevel => AppLogLevel}, Props),
-            LogFun(LogMsg);
+log(App, #{logLevel := LogLevel} = Log, Props, LogFun) ->
+    ActLogLevel = ?ACTLOGLEVEL(App),
+    case ActLogLevel >= LogLevel of
+        true ->
+            LogFun(Log#{actLogLevel => ActLogLevel, props => Props});
         _ -> ok
+    end;
+log(_, _, _, _) -> ok.
+
+log_fun(Log) -> access:info(Log).
+
+-spec format(lager_msg:lager_msg(), list(), list()) -> any().
+format(Msg, _Config, _Colors) ->
+    {Date, Time} = lager_msg:datetime(Msg),
+    case lager_msg:message(Msg) of
+        #{props := Props} = M ->
+            LogParts =
+            lists:reverse(
+              lists:foldl(
+                fun({_Prop, Fun}, Acc) when is_function(Fun) ->
+                        case catch Fun(M) of
+                            {'EXIT', _Error} -> Acc;
+                            V -> [V, ";" | Acc]
+                        end;
+                   (Prop, Acc) -> [maps:get(Prop, M, ""), ";" | Acc]
+                end, [], Props)),
+            [Date, " ", Time, ";", atom_to_list(node()), ";", LogParts, "\r\n"];
+        M -> [Date, " ", Time, ";", io_lib:format("~p", [M]), "\r\n"]
     end.
 
-log_fun(Log) -> access:info("~s", [Log]).
-
-msg_str(Msg, Props) ->
-    LogParts =
-    lists:reverse(
-      lists:foldl(
-        fun({_Prop, Fun}, Acc) when is_function(Fun) ->
-                case catch Fun(Msg) of
-                    {'EXIT', _Error} -> Acc;
-                    V -> [V, ";" | Acc]
-                end;
-           (Prop, Acc) -> [maps:get(Prop, Msg, ""), ";" | Acc]
-        end, [], Props)),
-    lists:flatten([atom_to_list(node()) ++ LogParts]).
+-spec format(lager_msg:lager_msg(), list()) -> any().
+format(Msg, Config) ->
+    format(Msg, Config, []).

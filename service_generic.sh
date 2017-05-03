@@ -57,7 +57,7 @@ imemip=${10}
 imemport=${11}
 imemtype=${12}
 imemschema=${13}
-sbsconfig=${14}
+lagerconfig=${14}
 
 # dderl opts
 dderl_opts="-dderl"
@@ -77,11 +77,13 @@ imem_opts=$imem_opts" tcp_ip \"$imemip\""
 sasl_opts="-sasl"
 sasl_opts=$sasl_opts"  sasl_error_logger false" 
 
-# SBSGui opts
-sbsgui_opts="-sbsgui"
-sbsgui_opts=$sbsgui_opts" -config ${14}"
+# lager config
+config=""
+if [ -n "$lagerconfig" ]; then
+    config="-config $lagerconfig"
+fi
 
-commonparams="$erlpaths -emu_args -setcookie $cookie $dderl_opts $imem_opts $sbsgui_opts $sasl_opts -s $app_name"
+commonparams="$erlpaths -emu_args -setcookie $cookie $dderl_opts $imem_opts $sasl_opts $config $app_name"
 common_srv_params="$erlpaths -emu_args -setcookie $cookie $dderl_srv_opts $imem_srv_opts -s $app_name"
 
 name="-name $node_name@$node_host"

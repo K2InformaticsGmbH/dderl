@@ -171,13 +171,8 @@ terminate(_Reason, Req, _State) ->
     {ReqSize, _Req} = cowboy_req:body_length(Req),
     Size = ReqSize + RespSize,
     ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
-    case Log of
-        #{logLevel := LogLevel} ->
-            catch dderl_access_logger:log(
-                    LogLevel, Log#{bytes => Size,
-                                   time => ProcessingTimeMicroS});
-        _ -> ok
-    end.
+    catch dderl_access_logger:log(Log#{bytes => Size,
+                                       time => ProcessingTimeMicroS}).
 
 % Reply templates
 % cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
