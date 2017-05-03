@@ -5,25 +5,25 @@
 
 % library APIs
 -export([src/1, proxy/1, userid/1, username/1, sessionid/1, bytes/1, time/1,
-         args/1, sql/1, version/1]).
+         args/1, sql/1, version/1, logLevel/1]).
 
 -define(AccessSchema,
-        [{src,       fun dderl_access_logger:src/1},
-         {proxy,     fun dderl_access_logger:proxy/1},
-         {userId,    fun dderl_access_logger:userid/1},
-         {userName,  fun dderl_access_logger:username/1},
-         {sessId,    fun dderl_access_logger:sessionid/1},
-         {version,   fun dderl_access_logger:version/1},
-         loglevel,
+        [{src,       fun ?MODULE:src/1},
+         {proxy,     fun ?MODULE:proxy/1},
+         {userId,    fun ?MODULE:userid/1},
+         {userName,  fun ?MODULE:username/1},
+         {sessId,    fun ?MODULE:sessionid/1},
+         {version,   fun ?MODULE:version/1},
+         {logLevel,  fun ?MODULE:logLevel/1},
          cmd,
-         {args,      fun dderl_access_logger:args/1},
-         {bytes,     fun dderl_access_logger:bytes/1},
-         {time,      fun dderl_access_logger:time/1},
+         {args,      fun ?MODULE:args/1},
+         {bytes,     fun ?MODULE:bytes/1},
+         {time,      fun ?MODULE:time/1},
          connUser,
          connTarget,
          connDbType,
          connStr,
-         {sql,       fun dderl_access_logger:sql/1}]).
+         {sql,       fun ?MODULE:sql/1}]).
 
 src(Access) ->
     case maps:get(src, Access, "") of
@@ -109,6 +109,10 @@ sql(#{appLogLevel := AppLogLevel} = Access) when AppLogLevel >= ?CUST_SQL ->
         _ -> ""
     end;
 sql(_Access) -> "".
+
+logLevel(#{logLevel := LogLevel}) when is_integer(LogLevel) ->
+    integer_to_list(LogLevel);
+logLevel(_) -> "".
 
 log(LogLevel, Log) -> log(dderl, LogLevel, Log, ?AccessSchema, fun log_fun/1).
 
