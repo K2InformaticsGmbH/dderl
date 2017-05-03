@@ -665,11 +665,12 @@ r2jsn([], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([[]], _, NewRows) -> lists:reverse(NewRows);
 r2jsn([Row|Rows], JCols, NewRows) ->
     r2jsn(Rows, JCols, [
-        [{C, case R of
-                R when is_integer(R)    -> R;
-                R when is_float(R)      -> float_to_binary(R,[{decimals,20},compact]);
-                R when is_atom(R)       -> atom_to_binary(R, utf8);
-                R when is_binary(R)     ->
+        [{C, case {C, R} of
+                {<<"id">>, R}             -> R; % Id is the only value sent as integer.
+                {_, R} when is_integer(R) -> integer_to_binary(R);
+                {_, R} when is_float(R)   -> float_to_binary(R,[{decimals,20},compact]);
+                {_, R} when is_atom(R)    -> atom_to_binary(R, utf8);
+                {_, R} when is_binary(R)  ->
                      %% check if it is a valid utf8
                      %% else we convert it from latin1
                      case unicode:characters_to_binary(R) of

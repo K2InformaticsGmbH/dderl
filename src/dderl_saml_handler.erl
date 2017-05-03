@@ -113,7 +113,7 @@ fetch_cert_key('$no_cert_key') ->
                   io_lib:format(
                     "Installed at ~p on ~s",
                     [node(), imem_datatype:timestamp_to_io(
-                               os:timestamp())]))),
+                               imem_meta:time())]))),
     imem_cache:write({?MODULE, ?CERTKEYCACHE}, SamlSslCache),
     SamlSslCache;
 fetch_cert_key(#{cert := CertBin, key := KeyBin}) ->

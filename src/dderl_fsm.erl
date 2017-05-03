@@ -1504,7 +1504,7 @@ handle_sync_event({distinct_statistics, ColumnId}, _From, SN, #state{nav = Nav, 
         raw -> TableUsed = TableId;
         _ -> TableUsed = IndexId
     end,
-    ?Info("Getting the distinct statistics of the column(s) ~p, nav ~p", [ColumnId, Nav]),
+    ?Debug("Getting the distinct statistics of the column(s) ~p, nav ~p", [ColumnId, Nav]),
     {Total, Result} = ets:foldl(fun(Row, {Total, CountList}) ->
         RealRow = case Row of
                       {_, Id} -> lists:nth(1, ets:lookup(TableId, Id));
@@ -1518,7 +1518,7 @@ handle_sync_event({distinct_statistics, ColumnId}, _From, SN, #state{nav = Nav, 
                 Value = [element(3 + Column, RealRow) || Column <- ColumnId]
         end,
         {Total + 1, [Value | CountList]}
-                                end, {0, []}, TableUsed),
+    end, {0, []}, TableUsed),
     SColumn = length(ColumnId),
     GColumns = SColumn - 1,
     ResultsGrouped = group_distinct_statistics(Result, GColumns, SColumn, maps:new()),
