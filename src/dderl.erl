@@ -229,7 +229,7 @@ get_ssl_options({ok, []}) ->
                           io_lib:format(
                             "Installed at ~p on ~s",
                             [node(), imem_datatype:timestamp_to_io(
-                                       os:timestamp())]))),
+                                       imem_meta:time())]))),
             DDErlSslDefault;
         #{cert := CertBin, key := KeyBin} ->
             CertFile = filename:join([priv_dir(), "certs/server.crt"]),
