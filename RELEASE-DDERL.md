@@ -10,6 +10,8 @@ Version 1.8.0 (Release Date 03.05.2017)
 * Using new imem_meta:time as replacement for deprecated erlang:now
 * [imem-1.7.0](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.7.0)
 * Consolidated Activity/Access logging using new lagger sink method
+* [`erloci-0.0.3pre-4`](https://github.com/K2InformaticsGmbH/erloci/tree/0.0.3pre-4)
+
 
 Version 1.7.2 (Release Date 28.04.2017)
 ======================================
