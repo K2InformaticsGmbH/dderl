@@ -3,6 +3,14 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.8.0 (Release Date 03.05.2017)
+======================================
+* Fixed sort issue on statistic table by sending only id column as integer
+* Owner dropdown on connect dialog updated on adapter combobox change
+* Using new imem_meta:time as replacement for deprecated erlang:now
+* [imem-1.7.0](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.7.0)
+* Consolidated Activity/Access logging using new lagger sink method
+
 Version 1.7.2 (Release Date 28.04.2017)
 ======================================
 * [imem-1.6.3](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.6.3)
