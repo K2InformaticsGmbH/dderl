@@ -83,6 +83,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                         openView        : function(e, _result) { e.data._openView               (_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable         (_result); },
                         queryResult     : function(e, _result) { e.data._renderTable            (_result); },
+                        cmdReloadResult : function(e, _result) { e.data._cmdReloadResult        (_result); },
                         updateData      : function(e, _result) { e.data._checkUpdateResult      (_result); },
                         insertData      : function(e, _result) { e.data._insertResult           (_result); },
                         deleteData      : function(e, _result) { e.data._deleteResult           (_result); },
@@ -563,9 +564,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         });
     },
 
-    _getTableLayout: function(_viewName) {
-        // Column names and width.
-        // Index starting at 1 to skip the id column.
+    _getColumnsLayout: function() {
         var colnamesizes = [];
         var cols = this._grid.getColumns();
         for(var idx = 1; idx < cols.length; ++idx) {
@@ -576,6 +575,13 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 hidden: false
             });
         }
+        return colnamesizes;
+    },
+
+    _getTableLayout: function(_viewName) {
+        // Column names and width.
+        // Index starting at 1 to skip the id column.
+        var colnamesizes = this._getColumnsLayout();
 
         // Table width/height/position
         var w = this._dlg.dialog('widget').width();
@@ -976,7 +982,6 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         console.log('command reloading ['+cmd+']');
         // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
         this.close_stmt();
-        this._clmlay = null;
         this._cmd = cmd;
         this._optBinds = optBinds;
         this.options.dderlStartBtn = this._startBtn = button;
@@ -988,7 +993,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             conn_id: dderlState.connectionSelected.connection,
             qstr : this._cmd,
             binds: (this._optBinds && this._optBinds.hasOwnProperty('pars')? this._optBinds.pars : null)
-        }}, 'query', 'queryResult');
+        }}, 'query', 'cmdReloadResult');
         this._dlg.dialog("moveToTop");
     },
 
@@ -2348,6 +2353,27 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         this._renderTable(_table);
     },
 
+    _cmdReloadResult: function(_table) {
+        this._clmlay = this._getColumnsLayout();
+        if(_table.hasOwnProperty('columns') && this._clmlay) {
+            let columns = _table.columns;
+            for(let i = 1; i < columns.length; ++i) {
+                let found = false;
+                for(let j = 0; j < this._clmlay.length; ++j) {
+                    if(areColumnsEqual(columns[i].field, this._clmlay[j].name)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) {
+                    this._clmlay = null;
+                    break;
+                }
+            }
+        }
+        this._renderTable(_table);
+    },
+
     _renderTable: function(_table) {
         if(_table.hasOwnProperty('result') && _table.result === 'ok') {
             console.log('[_renderTable] no row query, closing dialog');
@@ -3206,27 +3232,12 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         }
 
         self._dlg.dialog("moveToTop");
-        //TODO: Why is this duplicated ?... find a replacement.
-        /*if($.browser.msie) {
-            //Ie steals the focus to the scrollbar even after preventDefaults.
-            //Added the timer to get the focus back.
-            setTimeout(function() {
-                self._grid.focus();
-                var cellEditor = self._grid.getCellEditor();
-                if(cellEditor && !cellEditor.isFocused()) {
-                    cellEditor.focus();
-                }
-                console.log("Focus set");
-            }, 50);
-        } else {
-        */
         self._grid.focus();
         var cellEditor = self._grid.getCellEditor();
         if(cellEditor && !cellEditor.isFocused()) {
             cellEditor.focus();
         }
         console.log("Focus set");
-        //}
     },
 
     _handleDragInit: function(e) {
@@ -3623,7 +3634,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         if(self._clmlay !== null) {
             for(let i = 1; i < columns.length; ++i) {
                 for(let j = 0; j < self._clmlay.length; ++j) {
-                    if(columns[i].field === self._clmlay[j].name) {
+                    if(areColumnsEqual(columns[i].field, self._clmlay[j].name)) {
                         columns[i].width = self._clmlay[j].width;
                         break;
                     }
@@ -4160,6 +4171,16 @@ export function renderNewTable(table, position, force) {
         .table('setColumns', table.columns)
         .table('callReorder')
         .table('buttonPress', startBtn);
+}
+
+function areColumnsEqual(columnA, columnB) {
+    // Comparing column names removing the suffix index.
+    // for example if column_name is on first position will have name
+    // appended by _1 it should result equal to any position.
+    // Ex: areColumnEquals("column_name_3", "column_name_15") -> true
+    let BaseColumnA = columnA.split('_').slice(0, -1).join("_");
+    let BaseColumnB = columnB.split('_').slice(0, -1).join("_");
+    return BaseColumnA === BaseColumnB;
 }
 
 function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
