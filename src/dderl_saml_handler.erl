@@ -41,7 +41,13 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
     {ok, Req2, State};
 info({reply, _Body}, Req, State) ->
     {ok, Req1} = unauthorized(Req),
-    {ok, Req1, State}.
+    {ok, Req1, State};
+info({access, Log}, Req, State) ->
+    {OldLog, Req} = cowboy_req:meta(accessLog, Req, #{}),
+    {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
+info(Message, Req, State) ->
+    ?Error("~p unknown message in loop ~p", [self(), Message]),
+    {loop, Req, State, hibernate}.
 
 terminate(_Reason, _Req, _State) -> ok.
 
