@@ -130,6 +130,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                        'Rename ddView'  : '_renameView',
                        'Delete ddView'  : '_deleteView',
                        'Export Csv'     : '_exportCsv',
+                       'Run Updated SQL': '_runUpdatedCmd',
                        'Send Data'      : '_activateSender',
                        'Receive Data'   : '_activateReceiver',
                        'Cache Data'     : '_cacheData'},
@@ -975,6 +976,25 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 initialQuery : this._cmd,
             })
             .plotTable('open');
+    },
+
+    _runUpdatedCmd: function() {
+        var self = this;
+        var columnsPos = self._getColumnPositions();
+        var reorderData = {reorder: {statement   : self._stmt,
+                                     column_order: columnsPos}};
+        self._ajax('reorder', reorderData, 'reorder', function(result) {
+            if(result.hasOwnProperty('error')) {
+                alert_jq('Unable to get updated query\n' + result.error);
+            } else if(!result.sql) {
+                alert_jq('Unable to get updated query\n');
+            } else {
+                let planeData = {};
+                planeData.plane_specs = self._planeSpecs;
+                planeData.plane_to_show = self._planeToShow;
+                self.cmdReload(result.sql, self._optBinds, self._startBtn, planeData);
+            }
+        });
     },
 
     // Reload table: called from the sql editor to refresh this table.
