@@ -48,7 +48,7 @@ info({access, Log}, Req, State) ->
     {OldLog, Req} = cowboy_req:meta(accessLog, Req, #{}),
     {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
 info({terminateFun, {Mod, Fun}}, Req, State) ->
-    {ok, Req, State#state{terminateFun = {Mod, Fun}}}.
+    {loop, Req, State#state{terminateFun = {Mod, Fun}}, hibernate}.
 
 terminate(Reason, Req, #state{terminateFun = {Mod, Fun}} = State) ->
     Mod:Fun(Reason, Req, State).
