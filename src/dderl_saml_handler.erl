@@ -7,16 +7,18 @@
 
 -export([fwdUrl/3]).
 
--record(state, {sp, idp}).
+-record(state, {sp, idp, terminateFun}).
 
 -define(CERTKEYCACHE, samlCertKey).
 
 init(_Transport, Req, _Args) ->
-    {HostUrl, Req} = cowboy_req:host_url(Req),
-    {Url, Req} = cowboy_req:url(Req),
+    Req1 = cowboy_req:set_meta(reqTime, os:timestamp(), Req),
+    Req2 = cowboy_req:set_meta(accessLog, #{}, Req1),
+    {HostUrl, Req2} = cowboy_req:host_url(Req2),
+    {Url, Req2} = cowboy_req:url(Req2),
     {SP, IdpMeta} = initialize(HostUrl, Url),
-    {Method, Req1} = cowboy_req:method(Req),
-    process_req(Method, Req1, #state{sp = SP, idp = IdpMeta}).
+    {Method, Req3} = cowboy_req:method(Req2),
+    process_req(Method, Req3, #state{sp = SP, idp = IdpMeta}).
 
 process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
@@ -45,11 +47,11 @@ info({reply, _Body}, Req, State) ->
 info({access, Log}, Req, State) ->
     {OldLog, Req} = cowboy_req:meta(accessLog, Req, #{}),
     {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
-info(Message, Req, State) ->
-    ?Error("~p unknown message in loop ~p", [self(), Message]),
-    {loop, Req, State, hibernate}.
+info({terminateFun, {Mod, Fun}}, Req, State) ->
+    {ok, Req, State#state{terminateFun = {Mod, Fun}}}.
 
-terminate(_Reason, _Req, _State) -> ok.
+terminate(Reason, Req, #state{terminateFun = {Mod, Fun}} = State) ->
+    Mod:Fun(Reason, Req, State).
 
 initialize(HostUrl, ConsumeUrl) ->
     % Load the certificate and private key for the SP
