@@ -73,6 +73,7 @@ samlRelayStateHandle(Req, SamlAttrs) ->
     {SessionToken, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
     {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
+    self() ! {terminateCallback, fun ?MODULE:terminate/3},
     process_request_low(SessionToken, XSRFToken, Adapter, Req1, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
 process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
