@@ -7,7 +7,7 @@
 
 -export([fwdUrl/3]).
 
--record(state, {sp, idp, terminateFun}).
+-record(state, {sp, idp, terminateCallback}).
 
 -define(CERTKEYCACHE, samlCertKey).
 
@@ -47,11 +47,12 @@ info({reply, _Body}, Req, State) ->
 info({access, Log}, Req, State) ->
     {OldLog, Req} = cowboy_req:meta(accessLog, Req, #{}),
     {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
-info({terminateFun, {Mod, Fun}}, Req, State) ->
-    {loop, Req, State#state{terminateFun = {Mod, Fun}}, hibernate}.
+info({terminateCallback, Fun}, Req, State) ->
+    {loop, Req, State#state{terminateCallback = Fun}, hibernate}.
 
-terminate(Reason, Req, #state{terminateFun = {Mod, Fun}} = State) ->
-    Mod:Fun(Reason, Req, State).
+terminate(Reason, Req, #state{terminateCallback = Fun} = State) when is_function(Fun, 3) ->
+    Fun(Reason, Req, State);
+terminate(_Reason, _Req, _State) -> ok.
 
 initialize(HostUrl, ConsumeUrl) ->
     % Load the certificate and private key for the SP
