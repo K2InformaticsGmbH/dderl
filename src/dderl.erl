@@ -18,8 +18,6 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
--export([access/10]).
-
 -export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
 
 %%-----------------------------------------------------------------------------
@@ -37,6 +35,13 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
+    % adding lager imem handler (after IMEM start)
+    ok = gen_event:add_handler(
+           lager_event, {imem_lager_backend, ?MODULE},
+           [{level,info},{tablefun, fun() -> ?LOGTABLE end},
+            {application, ?MODULE},
+            {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
+          ),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
     {ok, Ip}   = application:get_env(dderl, interface),
@@ -52,17 +57,6 @@ start(_Type, _Args) ->
                 [{compress, true},
                  {env, [{dispatch, Dispatch}]},
                  {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
-    % adding lager imem handler (after IMEM start)
-    ok = gen_event:add_handler(
-           lager_event, {imem_lager_backend, dderl},
-           [{level,info},{tablefun, fun() -> ?LOGTABLE end},{application,dderl},
-            {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
-          ),
-    ok = gen_event:add_handler(
-           lager_event, dderl_access_lager_file_backend,
-           [{file, "log/dderl_access.log"}, {level, debug}, {size, 10485760},
-            {date, "$D0"}, {count, 5}]),
-    ok = lager:set_loglevel(dderl_access_lager_file_backend, debug),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
@@ -77,16 +71,29 @@ start(_Type, _Args) ->
     SupRef.
 
 stop(_State) ->
-    ok = gen_event:delete_handler(lager_event, {imem_lager_backend, dderl}, []),
-    ok = gen_event:delete_handler(lager_event, dderl_access_lager_file_backend, []),
     ok = cowboy:stop_listener(https),
     ?Info("SHUTDOWN DDERL"),
-    ?Info("---------------------------------------------------").
+    ?Info("---------------------------------------------------"),
+        ok = gen_event:delete_handler(
+           lager_event, {imem_lager_backend, ?MODULE}, []).
 %%-----------------------------------------------------------------------------
 
 %%-----------------------------------------------------------------------------
 %% Cowboy Interface
 %%-----------------------------------------------------------------------------
+
+-define(PROBE_RESP,
+        ?GET_CONFIG(probeResp,[],
+                    {200,
+                     <<"<html>"
+                       "<body>Service is alive</body>"
+                       "</html>">>},
+                    "Response given to the load balancer when the probeUrl is requested")).
+
+init(_Transport, Req, '$path_probe') ->
+    {Code, Resp} = ?PROBE_RESP,
+    {ok, Req1} = cowboy_req:reply(Code, [], Resp, Req),
+    {shutdown, Req1, undefined};
 init(_Transport, Req, _Opts) -> {ok, Req, undefined}.
 
 handle(Req, State) ->
@@ -165,10 +172,15 @@ reset_routes(Intf) ->
 %%-----------------------------------------------------------------------------
 %% Local Functions
 %%-----------------------------------------------------------------------------
+-define(PROBE_URL,
+        ?GET_CONFIG(probeUrl,[], "/probe.html",
+                    "Defines the url of the probe for the load balancer")).
+
 get_routes() ->
     PrivDir = priv_dir(),
     UrlPathPrefix = get_url_suffix(),
-    [{UrlPathPrefix++"/", dderl, []},
+    [{?PROBE_URL, dderl, '$path_probe'},
+     {UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
@@ -211,7 +223,7 @@ get_ssl_options({ok, []}) ->
                           io_lib:format(
                             "Installed at ~p on ~s",
                             [node(), imem_datatype:timestamp_to_io(
-                                       os:timestamp())]))),
+                                       imem_meta:time())]))),
             DDErlSslDefault;
         #{cert := CertBin, key := KeyBin} ->
             CertFile = filename:join([priv_dir(), "certs/server.crt"]),
@@ -238,38 +250,4 @@ get_sp_url_suffix() -> ?SPURLPREFIX.
 format_path([]) -> <<"/">>;
 format_path(Path) when is_list(Path) -> list_to_binary(Path).
 
-% dderl:access(1, "", "", "", "", "", "", "", "", "").
-access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, 
-       ConnDBType, ConnStr) when is_binary(CmdArgs) ->
-    access(LogLevel, SrcIp, User, SessId, Cmd, binary_to_list(CmdArgs), ConnUser,
-           ConnTarget, ConnDBType, ConnStr);
-access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-       ConnStr) when is_tuple(SrcIp) ->
-    access(LogLevel, inet:ntoa(SrcIp), User, SessId, Cmd, CmdArgs, ConnUser,
-           ConnTarget, ConnDBType, ConnStr);
-access(LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr) ->
-    log(?ACTLOGLEVEL, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser,
-        ConnTarget, ConnDBType, ConnStr).
-
-log(MinLogLevel, LogLevel, _, _, _, _, _, _, _, _, _)
-  when MinLogLevel < LogLevel -> ok;
-log(_, LogLevel, SrcIp, User, SessId, Cmd, CmdArgs, ConnUser, ConnTarget, ConnDBType,
-    ConnStr) ->
-    Proxy = case ?PROXY of
-                SrcIp -> "yes";
-                _ -> "no"
-            end,
-    Version = case proplists:get_value(
-                     vsn, element(2, application:get_all_key(?MODULE))) of
-                  undefined -> "";
-                  Vsn -> Vsn
-              end,
-    LL = if is_integer(LogLevel) -> integer_to_list(LogLevel);
-                  true -> LogLevel end,
-    ?Access(#{proxy => Proxy, version => Version, loglevel => LL,
-              src => SrcIp, dderlUser => User, dderlSessId => SessId,
-              dderlCmd => Cmd, dderlCmdArgs => CmdArgs, connUser => ConnUser,
-              connTarget => ConnTarget, connDbType => ConnDBType,
-              connStr => ConnStr}).
 %%-----------------------------------------------------------------------------

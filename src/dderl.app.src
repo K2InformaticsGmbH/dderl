@@ -1,18 +1,19 @@
-{application, dderl, [
-    {description, "Web based tool for exploring databases"},
-        {vsn, "1.8.0"},
-        {applications, [
-            kernel,
-            stdlib,
-            erlimem,
-            erloci,
-            esaml,
-            imem
-        ]},
-        {env, [
-            {interface, "127.0.0.1"},
-            {port, 8443},
-            {ssl_opts, []}
-        ]},
-        {mod, {dderl, []}}
-]}.
+%%-*- erlang -*-
+%% ex: ft=erlang
+{application, dderl,
+ [
+  {description, "Web based tool for exploring databases"},
+  {vsn, "1.9.0"},
+  {registered, []},
+  {applications, [kernel,
+                  stdlib,
+                  imem,
+                  cowlib,
+                  cowboy,
+                  erlimem,
+                  erloci,
+                  esaml,
+                  mimetypes]},
+  {mod, {dderl, []}},
+  {env, [{interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []}]}
+ ]}.

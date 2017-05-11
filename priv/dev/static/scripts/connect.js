@@ -133,13 +133,44 @@ export function connect_dlg()
                     text : adapters[i].fullName 
                 }));
                 adapter_list.combobox();
-        } else {
-            connection_list.trigger("adapter_change");
         }
+        owners_list.trigger("adapter_change");
+    });
+
+    owners_list
+    .on('adapter_change', function() {
+        console.log("empty the owners_list");
+        owners_list.empty();
+        owners_list.change();        
+    })
+    .change(function() {
+        if(owners_list.children().length < 1) {
+            var adapter = adapter_list.val();
+            owners_list.parent().find('input').val('');
+            for(var idx = 0; idx < owners[adapter].length; ++idx) {
+                var optionAttrs = {
+                    value: owners[adapter][idx],
+                    text: owners[adapter][idx]
+                };
+                if(owners[adapter][idx] === dderlState.username) {
+                    console.log("selecting...", owners[adapter][idx]);
+                    optionAttrs.selected = "selected";
+                }
+                owners_list.append($('<option>', optionAttrs));
+            }
+            owners_list.combobox();
+            owners_list.parent().find('input')
+                .val(owners_list.find('option:selected').text());
+
+            // FIXIT: Bad bad hack to remove scrollbar
+            owners_list.parent().width(owners_list.next().width() +
+                                       owners_list.next().children().last().width());
+        } 
+        connection_list.trigger("owner_change");
     });
 
     connection_list
-    .on('owner_change adapter_change', function() {
+    .on('owner_change', function() {
         connection_list.empty();
         connection_list.change();        
     })
@@ -189,48 +220,26 @@ export function connect_dlg()
                 }
             });
     });
-
-    owners_list.change(function() {
-        if(owners_list.children().length < 1) {
-            owners_list.parent().find('input').val('');
-            for(var idx = 0; idx < owners.length; ++idx) {
-                var optionAttrs = {
-                    value: owners[idx],
-                    text: owners[idx]
-                };
-                if(owners[idx] === dderlState.username) {
-                    optionAttrs.selected = "selected";
-                }
-                owners_list.append($('<option>', optionAttrs));
-            }
-            owners_list.combobox();
-
-            // FIXIT: Bad bad hack to remove scrollbar
-            owners_list.parent().width(owners_list.next().width() +
-                                       owners_list.next().children().last().width());
-        } else {
-            connection_list.trigger("owner_change");
-        }
-    });
     
     ajaxCall(null, 'connect_info', {}, 'connect_info', function(connect_info) {
         adapters = connect_info.adapters;
         connects = connect_info.connections;
-        owners = [];
+        owners = {};
         var ownersUnique = {};
-        for(var id in connects)
-            if(!ownersUnique.hasOwnProperty(connects[id].owner)) {
-                ownersUnique[connects[id].owner] = true;
-                owners.push(connects[id].owner);
+        for(var id in connects) {
+            if(!ownersUnique.hasOwnProperty(connects[id].adapter)) {
+                ownersUnique[connects[id].adapter] = {};
+                owners[connects[id].adapter] = [];
             }
+            if(!ownersUnique[connects[id].adapter].hasOwnProperty(connects[id].owner)) {
+                ownersUnique[connects[id].adapter][connects[id].owner] = true;
+                owners[connects[id].adapter].push(connects[id].owner);
+            }
+        }
 
-        adapter_list.empty();
-        owners_list.empty();
-        connection_list.empty();
-        
+        adapter_list.empty();        
         adapter_list.change();
-        owners_list.change();
-        connection_list.change();
+
     });
 }
 
