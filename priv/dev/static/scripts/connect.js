@@ -22,12 +22,31 @@ export function connect_dlg()
     var connect_common = $('<table>')
     .attr({border: 0, width: '100%', height: '85%', cellpadding: 0, cellspacing: 2})
     .appendTo(dlg);
-    
+
     dlg.append($('<hr>'));
+
+    var hideDiv = document.createElement('div');
+    hideDiv.className = 'connect-hide-details';
+    var hideIcon = document.createElement('span');
+    hideIcon.className = 'fa fa-minus-square';
+    hideDiv.appendChild(hideIcon);
+    dlg.append(hideDiv);
 
     var connect_options = $('<div>')
     .css({width: '100%', height: '100%'})
     .appendTo(dlg);
+
+    hideIcon.onclick = () => {
+        if(connect_options[0].style.display === 'none') {
+            hideIcon.className = 'fa fa-minus-square';
+            connect_options[0].style.display = 'block';
+            dlg[0].style.marginBottom = '0px';
+        } else {
+            hideIcon.className = 'fa fa-plus-square';
+            connect_options[0].style.display = 'none';
+            dlg[0].style.marginBottom = '20px';
+        }
+    };
     
     var adapter_list = $('<select class="ui-widget-content ui-corner-all">');
     var owners_list = $('<select class="ui-widget-content ui-corner-all">');
