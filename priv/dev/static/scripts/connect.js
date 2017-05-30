@@ -312,14 +312,14 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
             dderlState.connection = resp.conn;
             dderlState.connected_user = conn.owner;
 
-            var newTitle = 'DDErl';
+            var newTitle = '';
             if(dderlState.app) {
-                newTitle += ' - ' + dderlState.app;
+                newTitle += dderlState.app + ' ';
             }
             if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
-                newTitle += ' ('+resp.extra.node+')';
+                newTitle += resp.extra.node;
             } else {
-                newTitle += ' (' + conn.name + ')';
+                newTitle += conn.name;
             }
             document.title = newTitle;
 
