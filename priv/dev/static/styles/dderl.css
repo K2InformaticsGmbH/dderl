@@ -56,6 +56,15 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
     margin-top: -0.75em;
 }
 
+.connect-hide-details {
+    float: right;
+    width: 16px;
+    top: 1px;
+    position: relative;
+    color: #77777F;
+    cursor: pointer;
+}
+
 .ui-widget { font-family: 'Droid Sans Mono', sans-serif; }
 
 .ui-widget input,

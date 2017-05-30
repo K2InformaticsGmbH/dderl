@@ -105,7 +105,7 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
               Tns = proplists:get_value(<<"tns">>, BodyJson, <<>>),
               ?Info("user ~p, TNS ~p", [User, Tns]),
               OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-              OciPort:get_session(Tns, User, Password);
+              OciPort:get_session(Tns, User, Password, dderl_dal:user_name(UserId));
           ServiceOrSid when ServiceOrSid == <<"service">>; ServiceOrSid == <<"sid">> ->
               IpAddr   = proplists:get_value(<<"host">>, BodyJson, <<>>),
               Port     = binary_to_integer(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -132,7 +132,7 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
                      end])),
               ?Info("user ~p, TNS ~p", [User, NewTnsstr]),
               OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-              OciPort:get_session(NewTnsstr, User, Password)
+              OciPort:get_session(NewTnsstr, User, Password, dderl_dal:user_name(UserId))
       end,
     case ErlOciSession of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
