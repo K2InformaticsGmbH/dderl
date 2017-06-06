@@ -155,7 +155,7 @@ connect_erlimem(local, Sess, SessionId, Params, ConnInfo) ->
             case dderl_dal:can_connect_locally(Sess) of
                 true ->
                     {ok, ErlImemSess} = erlimem:open(local, imem_meta:schema()),
-                    {ok, ErlImemSess, '$no_extra'};
+                    {ok, ErlImemSess, #{node => list_to_binary(imem_meta:node_shard())}};
                 _ -> error(<<"Local connection unauthorized">>)
             end
     end;
