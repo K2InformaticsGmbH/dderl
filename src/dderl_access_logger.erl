@@ -94,6 +94,8 @@ args(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CMD_WITHARGS -
               imem_json:encode(Args#{<<"password">> => <<"****">>});
           #{<<"qstr">> := _} ->
               imem_json:encode(maps:remove(<<"qstr">>, Args));
+          #{<<"query">> := #{<<"qstr">> := _} = Query} ->
+              imem_json:encode(Args#{<<"query">> => maps:remove(<<"qstr">>, Query)});
           Args when is_map(Args) -> imem_json:encode(Args);
           Args -> list_to_binary(io_lib:format("~p", [Args]))
       end);
@@ -115,13 +117,16 @@ time(Access) ->
 
 sql(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CUST_SQL ->
     case maps:get(args, Access, "") of
-        #{<<"qstr">> := QStr} ->
-            re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
-              <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
-              "\\1****\\5", [{return,binary}]);
+        #{<<"qstr">> := QStr} -> replace_password(QStr);
+        #{<<"query">> := #{<<"qstr">> := QStr}} -> replace_password(QStr);
         _ -> ""
     end;
 sql(_Access) -> "".
+
+replace_password(QStr) ->
+    re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
+      <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
+      "\\1****\\5", [{return,binary}]).
 
 logLevel(#{logLevel := LogLevel}) when is_integer(LogLevel) ->
     integer_to_list(LogLevel);
