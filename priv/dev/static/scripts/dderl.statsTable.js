@@ -459,7 +459,12 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             if(!asc) { dir = -1; }
 
             self._gdata.sort(function(dataRow1, dataRow2) {
-                return dir * dataRow1[colId].localeCompare(dataRow2[colId], undefined, {numeric: true, sensitivity: 'base'});
+                var result = dataRow1[colId] - dataRow2[colId];
+                if(Number.isNaN(result)) {
+                    return dir * dataRow1[colId].localeCompare(dataRow2[colId], undefined, {sensitivity: 'base'});
+                } else {
+                    return dir * Math.sign(result);
+                }
             });
 
             self._grid.invalidate();
