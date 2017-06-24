@@ -1,6 +1,6 @@
 {
   "name": "dderl",
-  "version": "1.7.0",
+  "version": "1.8.1",
   "description": "Web based tool for exploring databases",
   "license": "Apache-2.0",
   "repository": {
@@ -8,24 +8,23 @@
     "url": "https://github.com/K2InformaticsGmbH/dderl.git"
   },
   "dependencies": {
-    "d3": "4.4.1",
+    "d3": "4.7.4",
     "d3-selection-multi": "1.0.0",
     "font-awesome": "4.7.0",
-    "jquery": "2.2.4",
-    "jquery-dialogextend": "git+https://github.com/ROMB/jquery-dialogextend.git#ae24ecb32d24334ce241c66dd3e593e4484db7e6",
-    "jquery-ui": "https://github.com/jquery/jquery-ui.git#1.11.4",
-    "jquery.event.drag": "2.2.2"
+    "jquery": "3.2.1",
+    "jquery-dialogextend": "git+https://github.com/K2InformaticsGmbH/jquery-dialogextend.git#585a7e2d59925481b32f4e7800d49aeced3a3d35",
+    "jquery-ui": "1.12.1"
   },
   "devDependencies": {
     "babel-core": "6.20.0",
     "babel-loader": "6.2.9",
     "babel-polyfill": "6.20.0",
     "babel-preset-es2015": "6.18.0",
-    "css-loader": "0.23.1",
-    "expose-loader": "0.7.1",
+    "css-loader": "0.28.0",
     "extract-loader": "0.0.2",
     "file-loader": "0.9.0",
-    "html-loader": "0.4.4",
+    "html-loader": "0.4.5",
+    "imports-loader": "0.7.1",
     "jasmine-core": "2.5.2",
     "jshint": "2.9.4",
     "karma": "1.3.0",
@@ -34,9 +33,8 @@
     "karma-sourcemap-loader": "0.3.7",
     "karma-webpack": "1.8.0",
     "rimraf": "2.6.1",
-    "style-loader": "0.13.1",
-    "webpack": "1.14.0",
-    "webpack-validator": "2.2.12"
+    "style-loader": "0.16.1",
+    "webpack": "2.3.3"
   },
   "scripts": {
     "build": "npm run lint && npm run clean && webpack --progress",
@@ -44,7 +42,6 @@
     "env": "env",
     "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph static/slickgrid",
     "test": "karma start karma.conf.js",
-    "validate": "webpack-validator webpack.config.js",
     "watch": "npm run clean && webpack --progress --watch",
     "lint:d3_examples": "jshint --verbose d3_examples"
   }

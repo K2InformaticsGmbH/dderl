@@ -9,6 +9,7 @@ import {evalD3Script} from '../graph/graph';
 import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
@@ -82,6 +83,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                         openView        : function(e, _result) { e.data._openView               (_result); },
                         browseData      : function(e, _result) { e.data._renderNewTable         (_result); },
                         queryResult     : function(e, _result) { e.data._renderTable            (_result); },
+                        cmdReloadResult : function(e, _result) { e.data._cmdReloadResult        (_result); },
                         updateData      : function(e, _result) { e.data._checkUpdateResult      (_result); },
                         insertData      : function(e, _result) { e.data._insertResult           (_result); },
                         deleteData      : function(e, _result) { e.data._deleteResult           (_result); },
@@ -128,6 +130,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                        'Rename ddView'  : '_renameView',
                        'Delete ddView'  : '_deleteView',
                        'Export Csv'     : '_exportCsv',
+                       'Run Updated SQL': '_runUpdatedCmd',
                        'Send Data'      : '_activateSender',
                        'Receive Data'   : '_activateReceiver',
                        'Cache Data'     : '_cacheData'},
@@ -562,9 +565,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         });
     },
 
-    _getTableLayout: function(_viewName) {
-        // Column names and width.
-        // Index starting at 1 to skip the id column.
+    _getColumnsLayout: function() {
         var colnamesizes = [];
         var cols = this._grid.getColumns();
         for(var idx = 1; idx < cols.length; ++idx) {
@@ -575,6 +576,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                 hidden: false
             });
         }
+        return colnamesizes;
+    },
+
+    _getTableLayout: function(_viewName) {
+        // Column names and width.
+        // Index starting at 1 to skip the id column.
+        var colnamesizes = this._getColumnsLayout();
 
         // Table width/height/position
         var w = this._dlg.dialog('widget').width();
@@ -970,12 +978,30 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             .plotTable('open');
     },
 
+    _runUpdatedCmd: function() {
+        var self = this;
+        var columnsPos = self._getColumnPositions();
+        var reorderData = {reorder: {statement   : self._stmt,
+                                     column_order: columnsPos}};
+        self._ajax('reorder', reorderData, 'reorder', function(result) {
+            if(result.hasOwnProperty('error')) {
+                alert_jq('Unable to get updated query\n' + result.error);
+            } else if(!result.sql) {
+                alert_jq('Unable to get updated query\n');
+            } else {
+                let planeData = {};
+                planeData.plane_specs = self._planeSpecs;
+                planeData.plane_to_show = self._planeToShow;
+                self.cmdReload(result.sql, self._optBinds, self._startBtn, planeData);
+            }
+        });
+    },
+
     // Reload table: called from the sql editor to refresh this table.
     cmdReload: function(cmd, optBinds, button, planeData) {
         console.log('command reloading ['+cmd+']');
         // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
         this.close_stmt();
-        this._clmlay = null;
         this._cmd = cmd;
         this._optBinds = optBinds;
         this.options.dderlStartBtn = this._startBtn = button;
@@ -987,7 +1013,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             conn_id: dderlState.connectionSelected.connection,
             qstr : this._cmd,
             binds: (this._optBinds && this._optBinds.hasOwnProperty('pars')? this._optBinds.pars : null)
-        }}, 'query', 'queryResult');
+        }}, 'query', 'cmdReloadResult');
         this._dlg.dialog("moveToTop");
     },
 
@@ -1308,7 +1334,6 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             width : 336,
             modal : false,
             title : 'Sorts',
-            dialogClass: 'btnSortClass',
             appendTo: "#main-body",
             rowHeight : self.options.slickopts.rowHeight,
             close : function() {
@@ -1999,7 +2024,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $('<button>')
                     .text(btnTxt)
                     .data('tag', btn)
-                    .button({icons: {primary: 'fa fa-' + elm.icn}, text: false})
+                    .button({icon: 'fa fa-' + elm.icn, showLabel: false})
                     .css('height', inph+'px')
                     .addClass('colorIcon')
                     .click(self, toolElmFn)
@@ -2021,17 +2046,18 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
             }
         }
         self._footerDiv
-            .buttonset()
+            .controlgroup(controlgroup_options())
             .css('height', (self.options.toolBarHeight)+'px');
 
         // footer total width
         var childs = self._footerDiv.children();
         var totWidth = 0;
         for(var i=0; i<childs.length; ++i) {
-            totWidth += $(childs[i]).width();
+            totWidth += Math.max(childs[i].scrollWidth, childs[i].offsetWidth, childs[i].clientWidth);
         }
 
-        self._footerWidth = totWidth;
+        // 10 pixels for resize handler
+        self._footerWidth = totWidth + 10;
     },
 
     /*
@@ -2344,6 +2370,27 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         this._dlg.dialog("moveToTop");
         this._cmd = _table.qstr;
         this._optBinds = _table.qparams;
+        this._renderTable(_table);
+    },
+
+    _cmdReloadResult: function(_table) {
+        this._clmlay = this._getColumnsLayout();
+        if(_table.hasOwnProperty('columns') && this._clmlay) {
+            let columns = _table.columns;
+            for(let i = 1; i < columns.length; ++i) {
+                let found = false;
+                for(let j = 0; j < this._clmlay.length; ++j) {
+                    if(areColumnsEqual(columns[i].field, this._clmlay[j].name)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) {
+                    this._clmlay = null;
+                    break;
+                }
+            }
+        }
         this._renderTable(_table);
     },
 
@@ -2806,13 +2853,13 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
                     $('<button>')
                     .text('Clear graph')
                     .data('tag', 'clear')
-                    .button({icons: {primary: 'fa fa-undo'}, text: false})
+                    .button({icon: 'fa fa-undo', showLabel: false})
                     .css('height', self.options.toolBarHeight + 'px')
                     .addClass('colorIcon')
                     .click(self, self._toolBarClearG)
                     .appendTo(self._footerDiv);
 
-                self._footerDiv.buttonset('refresh');
+                self._footerDiv.controlgroup('refresh');
             }
 
             self._tbCommit.hide();
@@ -3205,27 +3252,12 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         }
 
         self._dlg.dialog("moveToTop");
-        //TODO: Why is this duplicated ?... find a replacement.
-        /*if($.browser.msie) {
-            //Ie steals the focus to the scrollbar even after preventDefaults.
-            //Added the timer to get the focus back.
-            setTimeout(function() {
-                self._grid.focus();
-                var cellEditor = self._grid.getCellEditor();
-                if(cellEditor && !cellEditor.isFocused()) {
-                    cellEditor.focus();
-                }
-                console.log("Focus set");
-            }, 50);
-        } else {
-        */
         self._grid.focus();
         var cellEditor = self._grid.getCellEditor();
         if(cellEditor && !cellEditor.isFocused()) {
             cellEditor.focus();
         }
         console.log("Focus set");
-        //}
     },
 
     _handleDragInit: function(e) {
@@ -3622,7 +3654,7 @@ import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymana
         if(self._clmlay !== null) {
             for(let i = 1; i < columns.length; ++i) {
                 for(let j = 0; j < self._clmlay.length; ++j) {
-                    if(columns[i].field === self._clmlay[j].name) {
+                    if(areColumnsEqual(columns[i].field, self._clmlay[j].name)) {
                         columns[i].width = self._clmlay[j].width;
                         break;
                     }
@@ -4161,6 +4193,16 @@ export function renderNewTable(table, position, force) {
         .table('buttonPress', startBtn);
 }
 
+function areColumnsEqual(columnA, columnB) {
+    // Comparing column names removing the suffix index.
+    // for example if column_name is on first position will have name
+    // appended by _1 it should result equal to any position.
+    // Ex: areColumnEquals("column_name_3", "column_name_15") -> true
+    let BaseColumnA = columnA.split('_').slice(0, -1).join("_");
+    let BaseColumnB = columnB.split('_').slice(0, -1).join("_");
+    return BaseColumnA === BaseColumnB;
+}
+
 function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
     var form = $('<form id="prompt_form">').append('<fieldset>' +
         '<label for="prompt_save_as_input">ddView name: </label>' +
@@ -4180,7 +4222,7 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
         var btnObj = btnDefinitions[btnId];
         var btn = $('<button>')
             .text(btnObj.tip)
-            .button({icons: {primary: 'fa fa-' + btnObj.icn}, text: false})
+            .button({icon: 'fa fa-' + btnObj.icn, showLabel: false})
             .css('height', '20px')
             .addClass('colorIcon')
             .appendTo(buttonsDiv);
@@ -4204,7 +4246,7 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
 
 
     });
-    buttonsDiv.buttonset();
+    buttonsDiv.controlgroup(controlgroup_options());
     startBtnSelectionDiv.append(buttonsDiv);
 
 

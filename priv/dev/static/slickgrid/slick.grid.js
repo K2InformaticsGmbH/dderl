@@ -1,4 +1,5 @@
 import jQuery from "jquery";
+import './lib/jquery.event.drag';
 
 /**
  * @license
@@ -19,12 +20,6 @@ import jQuery from "jquery";
  */
 
 // make sure required JavaScript modules are loaded
-if (typeof jQuery === "undefined") {
-  throw "SlickGrid requires jquery module to be loaded";
-}
-if (!jQuery.fn.drag) {
-  throw "SlickGrid requires jquery.event.drag module to be loaded";
-}
 if (typeof Slick === "undefined") {
   throw "slick.core.js not loaded";
 }
@@ -335,13 +330,12 @@ if (typeof Slick === "undefined") {
     }
 
     function measureScrollbar() {
-      var $c = $("<div style='position:absolute; top:-10000px; left:-10000px; width:100px; height:100px; overflow:scroll;'></div>").appendTo("body");
-      var dim = {
-        width: $c.width() - $c[0].clientWidth,
-        height: $c.height() - $c[0].clientHeight
+      // It doesn't seems to be a simple & reliable way to get
+      // scroll bar dimensions accross all browsers, so setting to fixed 25px
+      return {
+          width: 25,
+          height: 25
       };
-      $c.remove();
-      return dim;
     }
 
     function getCanvasWidth() {
@@ -1474,6 +1468,7 @@ if (typeof Slick === "undefined") {
       var oldViewportHasVScroll = viewportHasVScroll;
       // with autoHeight, we do not need to accommodate the vertical scroll bar
       viewportHasVScroll = !options.autoHeight && (numberOfRows * options.rowHeight > viewportH);
+      viewportHasHScroll = (canvasWidth > viewportW - scrollbarDimensions.width);
 
       // remove the rows that are now outside of the data range
       // this helps avoid redundant calls to .removeRow() when the size of the data decreased by thousands of rows
@@ -1504,7 +1499,7 @@ if (typeof Slick === "undefined") {
         scrollTop = $viewport[0].scrollTop;
       }
 
-      var oldScrollTopInRange = (scrollTop + offset <= th - viewportH);
+      var oldScrollTopInRange = (scrollTop + offset <= th - viewportH + scrollbarDimensions.height);
 
       if (th === 0 || scrollTop === 0) {
         page = offset = 0;
@@ -1513,7 +1508,7 @@ if (typeof Slick === "undefined") {
         scrollTo(scrollTop + offset);
       } else {
         // scroll to bottom
-        scrollTo(th - viewportH);
+        scrollTo(th - viewportH + scrollbarDimensions.height);
       }
 
       if (h != oldH && options.autoHeight) {

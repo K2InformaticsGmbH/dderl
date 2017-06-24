@@ -1,8 +1,10 @@
 import $ from 'jquery';
 import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, initDashboards, show_qry_files,
-        password_change_dlg, loginAjax} from './dderl';
+        password_change_dlg} from './dderl';
+import {loginAjax} from './login';
 import {md5Arr} from './md5';
+import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
 // Jquery widgets are added to the global scope so including it 
 // in one module will expose it for the rest.
@@ -20,12 +22,31 @@ export function connect_dlg()
     var connect_common = $('<table>')
     .attr({border: 0, width: '100%', height: '85%', cellpadding: 0, cellspacing: 2})
     .appendTo(dlg);
-    
+
     dlg.append($('<hr>'));
+
+    var hideDiv = document.createElement('div');
+    hideDiv.className = 'connect-hide-details';
+    var hideIcon = document.createElement('span');
+    hideIcon.className = 'fa fa-minus-square';
+    hideDiv.appendChild(hideIcon);
+    dlg.append(hideDiv);
 
     var connect_options = $('<div>')
     .css({width: '100%', height: '100%'})
     .appendTo(dlg);
+
+    hideIcon.onclick = () => {
+        if(connect_options[0].style.display === 'none') {
+            hideIcon.className = 'fa fa-minus-square';
+            connect_options[0].style.display = 'block';
+            dlg[0].style.marginBottom = '0px';
+        } else {
+            hideIcon.className = 'fa fa-plus-square';
+            connect_options[0].style.display = 'none';
+            dlg[0].style.marginBottom = '20px';
+        }
+    };
     
     var adapter_list = $('<select class="ui-widget-content ui-corner-all">');
     var owners_list = $('<select class="ui-widget-content ui-corner-all">');
@@ -62,7 +83,9 @@ export function connect_dlg()
         modal: true,
         position: { my: "left top", at: "left+50 top+20", of: "#main-body", collision : 'none' },
         appendTo: "#main-body",
-        dialogClass: "no-close overflow-visible",
+        classes: {
+            'ui-dialog': 'no-close overflow-visible'
+        },
         close: function() {
             $(this).dialog('destroy');
             $(this).remove();
@@ -73,10 +96,9 @@ export function connect_dlg()
                 click: function() {
                     login_save($(this), connection_list, adapter_list, owners_list);
                 },
-                icons: {
-                    primary: "fa fa-sign-in"
-                },
-                showText: true
+                icon: "fa fa-sign-in button-dialog-connect",
+                iconPosition: "end",
+                showLabel: true
             },
             {   text:'Delete',
                 click:function() {
@@ -104,10 +126,8 @@ export function connect_dlg()
                             });
                         });
                 },
-                icons: {
-                    primary: "fa fa-trash buttonsDialogConnect"
-                },
-                showText: false
+                icon: "fa fa-trash button-dialog-connect",
+                showLabel: false
             },
             {   text:'Clear',
                 click: function() {
@@ -116,10 +136,8 @@ export function connect_dlg()
                     $("input:radio[name=method]:checked").val("local");
                     console.log($("input:radio[name=method]:checked").val());
                 },
-                icons: {
-                    primary: "fa fa-refresh buttonsDialogConnect"
-                },
-                showText: false
+                icon: "fa fa-refresh button-dialog-connect",
+                showLabel: false
             }
         ]
     })
@@ -134,13 +152,44 @@ export function connect_dlg()
                     text : adapters[i].fullName 
                 }));
                 adapter_list.combobox();
-        } else {
-            connection_list.trigger("adapter_change");
         }
+        owners_list.trigger("adapter_change");
+    });
+
+    owners_list
+    .on('adapter_change', function() {
+        console.log("empty the owners_list");
+        owners_list.empty();
+        owners_list.change();        
+    })
+    .change(function() {
+        if(owners_list.children().length < 1) {
+            var adapter = adapter_list.val();
+            owners_list.parent().find('input').val('');
+            for(var idx = 0; idx < owners[adapter].length; ++idx) {
+                var optionAttrs = {
+                    value: owners[adapter][idx],
+                    text: owners[adapter][idx]
+                };
+                if(owners[adapter][idx] === dderlState.username) {
+                    console.log("selecting...", owners[adapter][idx]);
+                    optionAttrs.selected = "selected";
+                }
+                owners_list.append($('<option>', optionAttrs));
+            }
+            owners_list.combobox();
+            owners_list.parent().find('input')
+                .val(owners_list.find('option:selected').text());
+
+            // FIXIT: Bad bad hack to remove scrollbar
+            owners_list.parent().width(owners_list.next().width() +
+                                       owners_list.next().children().last().width());
+        } 
+        connection_list.trigger("owner_change");
     });
 
     connection_list
-    .on('owner_change adapter_change', function() {
+    .on('owner_change', function() {
         connection_list.empty();
         connection_list.change();        
     })
@@ -190,48 +239,26 @@ export function connect_dlg()
                 }
             });
     });
-
-    owners_list.change(function() {
-        if(owners_list.children().length < 1) {
-            owners_list.parent().find('input').val('');
-            for(var idx = 0; idx < owners.length; ++idx) {
-                var optionAttrs = {
-                    value: owners[idx],
-                    text: owners[idx]
-                };
-                if(owners[idx] === dderlState.username) {
-                    optionAttrs.selected = "selected";
-                }
-                owners_list.append($('<option>', optionAttrs));
-            }
-            owners_list.combobox();
-
-            // FIXIT: Bad bad hack to remove scrollbar
-            owners_list.parent().width(owners_list.next().width() +
-                                       owners_list.next().children().last().width());
-        } else {
-            connection_list.trigger("owner_change");
-        }
-    });
     
     ajaxCall(null, 'connect_info', {}, 'connect_info', function(connect_info) {
         adapters = connect_info.adapters;
         connects = connect_info.connections;
-        owners = [];
+        owners = {};
         var ownersUnique = {};
-        for(var id in connects)
-            if(!ownersUnique.hasOwnProperty(connects[id].owner)) {
-                ownersUnique[connects[id].owner] = true;
-                owners.push(connects[id].owner);
+        for(var id in connects) {
+            if(!ownersUnique.hasOwnProperty(connects[id].adapter)) {
+                ownersUnique[connects[id].adapter] = {};
+                owners[connects[id].adapter] = [];
             }
+            if(!ownersUnique[connects[id].adapter].hasOwnProperty(connects[id].owner)) {
+                ownersUnique[connects[id].adapter][connects[id].owner] = true;
+                owners[connects[id].adapter].push(connects[id].owner);
+            }
+        }
 
-        adapter_list.empty();
-        owners_list.empty();
-        connection_list.empty();
-        
+        adapter_list.empty();        
         adapter_list.change();
-        owners_list.change();
-        connection_list.change();
+
     });
 }
 
@@ -304,14 +331,14 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
             dderlState.connection = resp.conn;
             dderlState.connected_user = conn.owner;
 
-            var newTitle = 'DDErl';
+            var newTitle = '';
             if(dderlState.app) {
-                newTitle += ' - ' + dderlState.app;
+                newTitle += dderlState.app + ' ';
             }
             if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
-                newTitle += ' ('+resp.extra.node+')';
+                newTitle += resp.extra.node;
             } else {
-                newTitle += ' (' + conn.name + ')';
+                newTitle += conn.name;
             }
             document.title = newTitle;
 
@@ -359,7 +386,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
     
     div
     .appendTo(connect_options)
-    .buttonset()
+    .controlgroup(controlgroup_options())
     .attr('id','buttonList')
     .change(function() {
         var connect = connection_list.find("option:selected").data('connect');
@@ -370,7 +397,7 @@ function add_methods(connection_list, connect_options, keyVals, defaultSelectedI
         var emptyInputs = connect_options.find('input:text[value=""],input:password[value=""]');
         if (emptyInputs.length > 0) emptyInputs[0].focus();
     });
-    $('#'+defaultSelectedId).attr("checked", true).button("refresh");
+    $('#'+defaultSelectedId).attr("checked", true).checkboxradio("refresh");
 }
 
 function add_oci_options(connection_list, connect_options, connect) {
@@ -678,7 +705,9 @@ function validateSmsToken(user, data, connectSuccessCb)
         modal: false,
         position: { my: "left top", at: "left+80 top+300", of: "#main-body", collision : 'none' },
         closeOnEscape: false,
-        dialogClass: 'no-close',
+        classes: {
+            'ui-dialog': 'no-close'
+        },
         appendTo: '#main-body',
         close: function() {
             $(this).dialog('destroy');

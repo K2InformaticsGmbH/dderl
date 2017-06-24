@@ -22,27 +22,48 @@ module.exports = {
     },
     devtool: 'source-map',
     module: {
-        loaders: [
+        rules: [
             {
                 test: /\.(png|jpe?g|gif|svg|woff|woff2|ttf|eot|ico|mp3|ogg)$/,
-                loader: 'file?name=[path][name].[hash:6].[ext]'
+                loader: 'file-loader',
+                options: {
+                    name: '[path][name].[hash:6].[ext]'
+                }
             },
             {
                 // For font awesome the version is required.
                 test: /\.(svg|woff|woff2|ttf|eot)(\?v=[0-9]\.[0-9]\.[0-9])$/,
-                loader: 'file?name=font-awesome/fonts/[name].[hash:6].ext'
+                loader: 'file-loader',
+                options: {
+                    name: 'font-awesome/fonts/[name].[hash:6].ext'
+                }
             },
             {
                 test: /\.css$/,
-                loader: 'style!css'
+                use: [
+                    'style-loader',
+                    'css-loader'
+                ]
             },
             {
                 // Remove this loader when the html is generated.
                 test: PATHS.index,
-                loaders: [
-                    'file?name=[name].[ext]',
-                    'extract',
-                    'html?attrs=img:src link:href source:src'
+                use: [
+                    {
+                        loader: 'file-loader',
+                        options: {
+                            name: '[name].[ext]'
+                        }
+                    },
+                    {
+                        loader: 'extract-loader'
+                    },
+                    {
+                        loader: 'html-loader',
+                        options: {
+                            attrs: 'img:src link:href source:src'
+                        }
+                    }
                 ]
             },
             {
@@ -55,14 +76,6 @@ module.exports = {
                 }
             }
         ]
-    },
-    plugins: [
-        new webpack.ProvidePlugin({
-            $: 'jquery',
-            jQuery: "jquery"
-        })
-
-    ],
-    debug: true
+    }
 };
 

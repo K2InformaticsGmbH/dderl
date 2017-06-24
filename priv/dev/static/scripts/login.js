@@ -12,7 +12,7 @@ function update_user_information(user) {
 }
 
 function refresh_header_information() {
-    document.title = 'DDErl - ' + dderlState.app;
+    document.title = dderlState.app;
     $('#version').text(' | ' + dderlState.vsn);
     $('#node').text(dderlState.node);
 }
@@ -179,7 +179,9 @@ function display(layout) {
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
         closeOnEscape: false,
-        dialogClass: 'no-close',
+        classes: {
+            'ui-dialog': 'dderl-dialog no-close'
+        },
         appendTo: "#login-bg",
         open: function() {
             $(this).dialog("widget").css('z-index', 99999);
