@@ -1,38 +1,26 @@
-cd _build/default/rel/dderl/lib
-
-$source = Get-ChildItem -Filter imem-* |
-          Select-Object -First 1 -Expand FullName
-$target = Get-ChildItem -Filter stdlib-* |
-          Select-Object -First 1 -Expand FullName
-Move-Item $source\ebin\filename.beam -Destination $target\ebin -Force
-
-cd dderl-*/priv/dev
-
+cd _build/default/rel/dderl/lib/dderl-*/priv/
 If (Test-Path node_modules) {
     Remove-Item node_modules -Force -Recurse
-    Write-Host "===> directory 'node_modules' deleted"
+    Write-Host "===> node_modules dir deleted"
 }
-
 Write-Host "===> npm install"
 npm install
 
+If (Test-Path public) {
+    Remove-Item public -Force -Recurse
+    Write-Host "===> public dir deleted"
+}
 Write-Host "===> npm run build"
 npm run build
 
-cd ..
-Write-Host "===> clean up"
-$Path = "dev"
-If (Test-Path $Path) {
-    If (!(Get-ItemProperty $Path).Target) {
-        Remove-Item $Path -Force -Recurse
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' deleted"
+Write-Host "===> clean up" -foregroundcolor "green"
+$delFiles = "d3_*","node_modules","static","test",`
+            "karma.conf.js",".jshintrc*","package.json*"
+For($i = 0; $i -lt $delFiles.Length; $i++) {
+    If (Test-Path $delFiles[$i]) {
+        Remove-Item $delFiles[$i] -Force -Recurse
+        Write-Host "===> "$delFiles[$i]" deleted"
     } Else {
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' is a symbolic link - no cleanup"
-        If (Test-Path dev/node_modules) {
-            Remove-Item dev/node_modules -Force -Recurse
-            Write-Host "===> directory 'dev/node_modules' deleted"
-        }
+        Write-Host "===> "$delFiles[$i]" not found!"
     }
-} Else {
-        Write-Host "===> directory '" -nonewline; Write-Host $Path -nonewline; Write-Host "' not found"
 }
