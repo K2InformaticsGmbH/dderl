@@ -1,5 +1,5 @@
 -module(dderl_fsm).
--behaviour(gen_fsm).
+-behaviour(gen_statem).
 
 %% --------------------------------------------------------------------
 %% Include files
@@ -145,21 +145,19 @@
 
 %% gen_fsm callbacks
 
--export([ empty/2
-        , filling/2
-        , autofilling/2
-        , completed/2
-        , tailing/2
-        , aborted/2
-        , passthrough/2
+-export([ empty/3
+        , filling/3
+        , autofilling/3
+        , completed/3
+        , tailing/3
+        , aborted/3
+        , passthrough/3
         ]).
 
 -export([ init/1
-        , handle_event/3
-        , handle_sync_event/4
-        , handle_info/3
         , terminate/3
         , code_change/4
+        , callback_mode/0
         ]).
 
 -export([ filter_fun/1
@@ -174,13 +172,13 @@
 -spec start(#fsmctx{}, pid()) -> {atom(), pid()}.
 start(#fsmctx{} = FsmCtx, SessPid) ->
     Ctx = fsm_ctx(FsmCtx),
-	{ok,Pid} = gen_fsm:start(?MODULE, {Ctx, SessPid}, []),
+	{ok,Pid} = gen_statem:start(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
 -spec start_link(#fsmctx{}, pid()) -> {atom(), pid()}.
 start_link(#fsmctx{} = FsmCtx, SessPid) ->
     Ctx = fsm_ctx(FsmCtx),
-	{ok, Pid} = gen_fsm:start_link(?MODULE, {Ctx, SessPid}, []),
+	{ok, Pid} = gen_statem:start_link(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
 -spec fsm_ctx(#fsmctx{}) -> #ctx{}.
@@ -219,109 +217,108 @@ fsm_ctx(#fsmctx{ id                         = Id
 
 -spec stop({atom(), pid()}) -> ok.
 stop({?MODULE,Pid}) ->
-	gen_fsm:send_all_state_event(Pid,stop).
+	gen_statem:cast(Pid,stop).
 
 -spec refresh_session_ctx(#fsmctx{}, {atom(), pid()}) -> ok.
 refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
     Ctx = fsm_ctx(FsmCtx),
     ?Debug("Refreshing the session ctx"),
-    gen_fsm:sync_send_all_state_event(Pid, {refresh_ctx, Ctx}).
+    gen_statem:call(Pid, {refresh_ctx, Ctx}).
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"restart">>]),
-    gen_fsm:send_event(Pid,{button, <<"restart">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<"restart">>, ReplyTo});
 gui_req(button, <<">|">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<">|">>]),
-    gen_fsm:send_event(Pid,{button, <<">|">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<">|">>, ReplyTo});
 gui_req(button, <<"more">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"more">>]),
-    gen_fsm:send_event(Pid,{button, <<"more">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<"more">>, ReplyTo});
 gui_req(button, <<">|...">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<">|...">>]),
-    gen_fsm:send_event(Pid,{button, <<">|...">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<">|...">>, ReplyTo});
 gui_req(button, <<"...">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"...">>]),
-    gen_fsm:send_event(Pid,{button, <<"...">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<"...">>, ReplyTo});
 gui_req(button, <<"pt">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"pt">>]),
-    gen_fsm:send_event(Pid,{button, <<"pt">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<"pt">>, ReplyTo});
 gui_req(button, <<"tail">>, ReplyTo, {?MODULE,Pid}) ->
     ?NoDbLog(debug, [], "button ~p", [<<"tail">>]),
-    gen_fsm:send_event(Pid,{button, <<"tail">>, ReplyTo});
+    gen_statem:cast(Pid,{button, <<"tail">>, ReplyTo});
 gui_req(CommandStr, Parameter, ReplyTo, {?MODULE,Pid}) when is_atom(CommandStr) ->
     ?NoDbLog(debug, [], "~p ~p", [CommandStr,Parameter]),
-    gen_fsm:send_all_state_event(Pid,{CommandStr, Parameter, ReplyTo}).
+    gen_statem:cast(Pid,{CommandStr, Parameter, ReplyTo}).
 
 -spec close({atom(), pid()}) -> ok.
 close({?MODULE, Pid}) ->
-    gen_fsm:send_all_state_event(Pid, close_stmt).
+    gen_statem:cast(Pid, close_stmt).
 
 -spec row_with_key(integer(), {atom(), pid()}) -> tuple().
 row_with_key(RowId, {?MODULE,Pid}) when is_integer(RowId) ->
     % ?Debug("row_with_key ~p", [RowId]),
-    gen_fsm:sync_send_all_state_event(Pid,{"row_with_key", RowId}).
+    gen_statem:call(Pid,{"row_with_key", RowId}).
 
 -spec get_count({atom(), pid()}) -> integer().
 get_count({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, get_count).
+    gen_statem:call(Pid, get_count).
 
 %% the return tuple type #stmtcol{}. but is not imported
 -spec get_columns({atom(), pid()}) -> [tuple()].
 get_columns({?MODULE, Pid}) ->
-    % ?Debug("get_columns...", []),
-    gen_fsm:sync_send_all_state_event(Pid,{"get_columns"}).
+    gen_statem:call(Pid,{"get_columns"}).
 
 -spec get_query({atom(), pid()}) -> binary().
 get_query({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, get_query).
+    gen_statem:call(Pid, get_query).
 
 -spec get_table_name({atom(), pid()}) -> term().
 get_table_name({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, get_table_name).
+    gen_statem:call(Pid, get_table_name).
 
 -spec get_distinct_count(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_distinct_count(ColumnId, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {distinct_count, ColumnId}, 60000).
+    gen_statem:call(Pid, {distinct_count, ColumnId}, 60000).
 
 -spec get_distinct_statistics(pos_integer(), {atom(), pid()}) -> [tuple()].
 get_distinct_statistics(ColumnId, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {distinct_statistics, ColumnId}, 60000).
+    gen_statem:call(Pid, {distinct_statistics, ColumnId}, 60000).
 
 -spec get_statistics([pos_integer()], {atom(), pid()}) -> {integer(), list(), list(), atom()}.
 get_statistics(ColumnIds, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds}).
+    gen_statem:call(Pid, {statistics, ColumnIds}).
 
 %-spec get_statistics([pos_integer()], [integer()], tuple()) -> [tuple(), tuple()] | {error, binary()}.
 get_statistics(ColumnIds, RowIds, {?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, {statistics, ColumnIds, RowIds}).
+    gen_statem:call(Pid, {statistics, ColumnIds, RowIds}).
 
 -spec get_sender_params({atom(), pid()}) -> {}.
 get_sender_params({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, get_sender_params).
+    gen_statem:call(Pid, get_sender_params).
 
 -spec get_receiver_params({atom(), pid()}) -> {}.
 get_receiver_params({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, get_receiver_params).
+    gen_statem:call(Pid, get_receiver_params).
 
 -spec cache_data({atom(), pid()}) -> ok.
 cache_data({?MODULE, Pid}) ->
-    gen_fsm:sync_send_all_state_event(Pid, cache_data).
+    gen_statem:call(Pid, cache_data).
 
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
-    gen_fsm:send_all_state_event(Pid, Error);
+    gen_statem:cast(Pid, Error);
 rows({Rows,Completed},{?MODULE,Pid}) ->
     % ?Debug("rows ~p ~p", [length(Rows), Completed]),
-    gen_fsm:send_event(Pid,{rows, {Rows,Completed}}).
+    gen_statem:cast(Pid,{rows, {Rows,Completed}}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
-    gen_fsm:send_event(Pid, {rows_limit, {NRows, Recs}}).
+    gen_statem:cast(Pid, {rows_limit, {NRows, Recs}}).
 
 -spec delete({list(), _}, {atom(), pid()}) -> ok.
 delete({Rows,Completed},{?MODULE,Pid}) ->
-    gen_fsm:send_event(Pid,{delete, {Rows,Completed}}).
+    gen_statem:cast(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
@@ -632,52 +629,55 @@ init({#ctx{} = Ctx, SessPid}) ->
 %% Only data input from DB and button events for <<">|">>, <<">|...">> and <<"...">> handled here
 %% Other buttons and commands are handled through all_state_event in handle_event/3
 
-empty({button, <<">|">>, ReplyTo}, State0) ->
+empty(cast, {button, <<">|">>, ReplyTo}, State0) ->
     % start fetch
     State1 = fetch(push,none, State0#state{tailMode=false}),
     {next_state, autofilling, State1#state{stack={button,<<">|">>,ReplyTo}}};
-empty({button, <<">|...">>, ReplyTo}, State0) ->
+empty(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     % start fetch, schedule tail
     State1 = fetch(push,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, autofilling, State1#state{stack={button,<<">|...">>,ReplyTo}}};
-empty({button, <<"...">>, ReplyTo}, State0) ->
+empty(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % skip fetch, schedule tail
     State1 = fetch(skip,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, tailing, State1#state{stack={button,<<"...">>,ReplyTo}}};
-empty({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+empty(cast, {button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=empty,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
     {next_state, empty, State1};
-empty({button, <<"pt">>, ReplyTo}, State0) ->
+empty(cast, {button, <<"pt">>, ReplyTo}, State0) ->
     % passthrough, schedule tail
     State1 = fetch(push,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, passthrough, State1#state{stack={button,<<"pt">>,ReplyTo}}};
-empty(Other, State) ->
-    ?Info("empty -- unexpected erlimem_fsm event ~p in empty state", [Other]),
-    {next_state, empty, State}.
+empty({call, From}, Msg, State) ->
+    handle_call(Msg, From, empty, State);
+empty(cast, Msg, State) ->
+    handle_event(Msg, empty, State);
+empty(info, Msg, State) ->
+    handle_info(Msg, empty, State).
 
-filling({button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
+filling(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = gui_replace_from(GuiTop,BL,#gres{state=filling,focus=1},State1),
     {next_state, filling, State2#state{tailMode=false}};
-filling({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+filling(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(none,none,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-filling({button, <<"restart">>, ReplyTo}, State0) ->
+filling(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-filling({button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
+filling(cast, {button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
     % too quick, defer request .. when we have the first block of data
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = prefetch(filling,State1),
     ?NoDbLog(debug, [], "filling stack ~p", [Button]),
     {next_state, filling, State2#state{stack=Cmd}};
-filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+filling(cast, {button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % close fetch and clear buffers, schedule tail mode
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -685,42 +685,42 @@ filling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State4 = fetch(skip,true,State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>}, State4),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
-filling({button, <<"...">>, ReplyTo}, State0) ->
+filling(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-filling({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+filling(cast, {button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-filling({button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+filling(cast, {button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % passthrough, schedule tail
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,true,State1#state{tailMode=true,tailLock=false}),
     {next_state, passthrough, State2#state{stack={button,<<"pt">>,ReplyTo}}};
-filling({button, <<"pt">>, ReplyTo}, State0) ->
+filling(cast, {button, <<"pt">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-filling({button, <<">|...">>, ReplyTo}=Cmd, State0) ->
+filling(cast, {button, <<">|...">>, ReplyTo}=Cmd, State0) ->
     % switch fetch .. push mode and schedule tail mode, defer answer .. bulk fetch completed
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,true,State1),
     State3 = gui_clear(State2),
     ?NoDbLog(debug, [], "filling stack '>|...'", []),
     {next_state, autofilling, State3#state{tailMode=true,tailLock=false,stack=Cmd}};
-filling({button, <<">|">>, ReplyTo}=Cmd, State0) ->
+filling(cast, {button, <<">|">>, ReplyTo}=Cmd, State0) ->
     % switch fetch .. push mode, defer answer .. bulk fetch completed
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = fetch(push,none,State1),
     ?NoDbLog(debug, [], "filling stack '>|'", []),
     {next_state, autofilling, State2#state{stack=Cmd}};
-filling({button, <<"more">>, ReplyTo}, State0) ->
+filling(cast, {button, <<"more">>, ReplyTo}, State0) ->
     % switch fetch .. push mode, defer answer .. bulk fetch completed
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = serve_bot(filling, <<"">>, State1#state{stack = undefined, replyToFun = ReplyTo}),
     {next_state, filling, State2};
-filling({rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
+filling(cast, {rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
     State1 = data_append(filling, {Recs,false},State0),
     % ?Debug("Target ~p", [Target]),
@@ -734,7 +734,7 @@ filling({rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=Stat
             State1
     end,
     {next_state, filling, State2};
-filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
+filling(cast, {rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
     % receive and store data, prefetch if a 'button sprint' is ongoing (only necessary for Nav=ind)
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
@@ -749,7 +749,7 @@ filling({rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
         true ->                     State1
     end,
     {next_state, filling, State2};
-filling({rows, {Recs,false}}, State0) ->
+filling(cast, {rows, {Recs,false}}, State0) ->
     % receive and store data, no prefetch needed here
     State1 = data_append(filling, {Recs,false},State0),
     %TODO: This needs to be analyzed
@@ -761,31 +761,34 @@ filling({rows, {Recs,false}}, State0) ->
     %    true ->                     State1
     %end,
     {next_state, filling, State1};
-filling({rows, {Recs,true}}, State0) ->
+filling(cast, {rows, {Recs,true}}, State0) ->
     % receive and store data, close the fetch and switch state, no prefetch needed here
     State1 = fetch_close(State0),
     State2 = data_append(completed, {Recs,true},State1),
     {next_state, completed, State2};
-filling(Other, State) ->
-    ?Info("filling -- unexpected event ~p", [Other]),
-    {next_state, filling, State}.
+filling({call, From}, Msg, State) ->
+    handle_call(Msg, From, filling, State);
+filling(cast, Msg, State) ->
+    handle_event(Msg, filling, State);
+filling(info, Msg, State) ->
+    handle_info(Msg, filling, State).
 
-autofilling({button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
+autofilling(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
     State1 = reply_stack(autofilling, ReplyTo, State0),
     State2 = gui_replace_from(GuiTop,BL,#gres{state=autofilling,focus=1},State1),
     {next_state, filling, State2#state{tailMode=false}};
-autofilling({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC,tailMode=TailMode}=State0) when DC==0 ->
+autofilling(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC,tailMode=TailMode}=State0) when DC==0 ->
     State1 = reply_stack(autofilling, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(push,TailMode,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-autofilling({button, <<"restart">>, ReplyTo}, State0) ->
+autofilling(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=autofilling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-autofilling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0->
+autofilling(cast, {button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0->
     % stop fetch, clear buffer and start tailing
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -793,11 +796,11 @@ autofilling({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0
     State4 = fetch(skip,true, State3),
     State5 = gui_clear(#gres{state=tailing, loop= <<"tail">>},State4),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
-autofilling({button, <<"...">>, ReplyTo}, State0) ->
+autofilling(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
     State1 = gui_nop(#gres{state=autofilling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, autofilling, State1};
-autofilling({button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
+autofilling(cast, {button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
     if
         (TailMode == false) ->
             % too late .. change .. seamless tail mode now
@@ -810,7 +813,7 @@ autofilling({button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0
             ?Debug("autofilling stack '>|...'"),
             {next_state, autofilling, State2#state{tailLock=false,stack=Cmd}}
     end;
-autofilling({button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
+autofilling(cast, {button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
     if
         (TailMode == true) ->
             % too late .. revoke tail mode now
@@ -822,7 +825,7 @@ autofilling({button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) -
             ?Debug("autofilling stack '>|'"),
             {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
     end;
-autofilling({button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
+autofilling(cast, {button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
     % ?Info("autofilling more",[]),
     if
         (TailMode == true) ->
@@ -834,84 +837,87 @@ autofilling({button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0)
             State1 = reply_stack(autofilling, ReplyTo, State0),
             {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
     end;
-autofilling({rows, {Recs,false}}, State0) ->
+autofilling(cast, {rows, {Recs,false}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(autofilling,{Recs,false},State0),
     {next_state, autofilling, State1#state{pfc=0}};
-autofilling({rows, {Recs,true}}, #state{tailMode=false}=State0) ->
+autofilling(cast, {rows, {Recs,true}}, #state{tailMode=false}=State0) ->
     % revceive and store last input from DB, close fetch, switch state
     State1 = fetch_close(State0),
     State2 = data_append(completed,{Recs,true},State1),
     {next_state, completed, State2#state{pfc=0}};
-autofilling({rows, {Recs,true}}, State0) ->
+autofilling(cast, {rows, {Recs,true}}, State0) ->
     % revceive and store last input from DB, switch state .. tail mode
     % ?Debug("Rows received complete and tailing:~nState: ~p", [State0]),
     State1= data_append(tailing,{Recs,true},State0),
     {next_state, tailing, State1#state{pfc=0}};
-autofilling({rows_limit, {_NRows, Recs}}, State0) ->
+autofilling(cast, {rows_limit, {_NRows, Recs}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(filling,{Recs,false},State0),
     {next_state, filling, State1#state{pfc=0}};
-autofilling(Other, State) ->
-    ?Info("autofilling -- unexpected event ~p", [Other]),
-    {next_state, autofilling, State}.
+autofilling({call, From}, Msg, State) ->
+    handle_call(Msg, From, autofilling, State);
+autofilling(cast, Msg, State) ->
+    handle_event(Msg, autofilling, State);
+autofilling(info, Msg, State) ->
+    handle_info(Msg, autofilling, State).
 
-tailing({button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
+tailing(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = gui_replace_from(GuiTop,BL,#gres{state=tailing,focus=1},State1),
     {next_state, tailing, State2#state{tailMode=false}};
-tailing({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+tailing(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(none,true,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-tailing({button, <<"restart">>, ReplyTo}, State0) ->
+tailing(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=tailing,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-tailing({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0->
+tailing(cast, {button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0->
     % clear buffer and resume tailing
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = data_clear(State1),
     State3 = gui_clear(#gres{state=tailing, loop= <<"tail">>},State2),
     {next_state, tailing, State3#state{tailLock=false}};
-tailing({button, <<"...">>, ReplyTo}, State0) ->
+tailing(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
     State1 = gui_nop(#gres{state=tailing,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, tailing, State1};
-tailing({button, <<">|...">>, ReplyTo}, State0) ->
+tailing(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     % resume tailing
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"tail">>, State1),
     {next_state, tailing, State2#state{tailLock=false}};
-tailing({button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
+tailing(cast, {button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     ?NoDbLog(debug, [], "tailing stack 'tail'", []),
     {ok, NewTRef} = timer:send_after(?TAIL_TIMEOUT, cmd_stack_timeout),
     {next_state, tailing, State1#state{stack=Cmd, tRef=NewTRef}};
-tailing({button, <<"tail">>, ReplyTo}, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) ->
+tailing(cast, {button, <<"tail">>, ReplyTo}, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     % continue tailing
     ?NoDbLog(debug, [], "tailing button in state ~n~p guibot: ~p bufbot: ~p", [tailing, GuiBot, BufBot]),
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"tail">>, State1),
     {next_state, tailing, State2};
-tailing({button, <<"tail">>, ReplyTo}, State0) ->
+tailing(cast, {button, <<"tail">>, ReplyTo}, State0) ->
     % ignore loop command, stop tailing
     % ?Debug("tailing stopped~n", []),
     State1 = gui_nop(#gres{state=tailing},State0#state{replyToFun=ReplyTo}),
     {next_state, tailing, State1};
-tailing({button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
+tailing(cast, {button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
     % no data, must ignore
     State1 = gui_nop(#gres{state=tailing},State0#state{replyToFun=ReplyTo}),
     {next_state, tailing, State1#state{tailLock=true}};
-tailing({button, <<">|">>, ReplyTo}, State0) ->
+tailing(cast, {button, <<">|">>, ReplyTo}, State0) ->
     % show bottom
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"">>, State1),
     {next_state, tailing, State2#state{tailLock=true}};
-% tailing({rows, {[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
+% tailing(cast, {rows, {[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
 %     % ?Info("tracking -- row~n", []),
 %     PKey = guard_wrap(element(2,element(1,Rec))),
 %     case ets:select(TableId,[{'$1',[{'==',{element,2,{element,1,{element,3,'$1'}}},PKey}],['$_']}]) of
@@ -924,32 +930,35 @@ tailing({button, <<">|">>, ReplyTo}, State0) ->
 %             State1 = data_append(tailing,{[Rec],tail},State0),
 %             {next_state, tailing, State1#state{pfc=0}}
 %     end;
-tailing({delete, {Recs,Complete}}, State0) ->
+tailing(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete,del},State0),
     {next_state, tailing, State1#state{pfc=0}};
-tailing({rows, {Recs,Complete}}, State0) ->
+tailing(cast, {rows, {Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete},State0),
     {next_state, tailing, State1#state{pfc=0}};
-tailing(Other, State) ->
-    ?Info("tailing -- unexpected event ~p in state~n~p", [Other,State]),
-    {next_state, tailing, State}.
+tailing({call, From}, Msg, State) ->
+    handle_call(Msg, From, tailing, State);
+tailing(cast, Msg, State) ->
+    handle_event(Msg, tailing, State);
+tailing(info, Msg, State) ->
+    handle_info(Msg, tailing, State).
 
-completed({button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
+completed(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = gui_replace_from(GuiTop,BL,#gres{state=completed,focus=1},State1),
     {next_state, completed, State2#state{tailMode=false}};
-completed({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+completed(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(none,false,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-completed({button, <<"restart">>, ReplyTo}, State0) ->
+completed(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=completed,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, completed, State1};
-completed({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+completed(cast, {button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % clear buffers, close and reopen fetch with skip and tail options
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -957,66 +966,69 @@ completed({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 -
     State4 = data_clear(State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>},State4),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
-completed({button, <<"...">>, ReplyTo}, State0) ->
+completed(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
     State1 = gui_nop(#gres{state=completed,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, completed, State1};
-completed({button, <<">|...">>, ReplyTo}, State0) ->
+completed(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     % keep data (if any) and switch .. tail mode
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = fetch(skip,true,State1),
     State3 = gui_clear(State2),
     State4 = gui_nop(#gres{state=tailing,loop= <<"tail">>},State3),
     {next_state, tailing, State4#state{tailMode=true,tailLock=false}};
-completed({button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
+completed(cast, {button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=completed,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
     {next_state, completed, State1};
-completed({button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+completed(cast, {button, <<"pt">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % passthrough, schedule tail
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = data_clear(State1),
     State3 = gui_clear(#gres{state=passthrough,loop= <<"tail">>}, State2),
     State4 = fetch(push,true,State3#state{tailMode=true,tailLock=false}),
     {next_state, passthrough, State4};
-completed({button, <<"pt">>, ReplyTo}, State0) ->
+completed(cast, {button, <<"pt">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=completed,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, completed, State1};
-completed({button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
+completed(cast, {button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
     % reject command because we have no data
     State1 = reply_stack(completed, ReplyTo, State0),
     State1 = gui_nop(#gres{state=completed,beep=true},State1),
     {next_state, completed, State1};
-completed({button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
+completed(cast, {button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
     % jump .. buffer bottom
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,BL,#gres{state=completed},State1),
     {next_state, completed, State2};
-completed({button, <<"more">>, ReplyTo}, #state{gl=GL,bufBot=BufBot}=State0) ->
+completed(cast, {button, <<"more">>, ReplyTo}, #state{gl=GL,bufBot=BufBot}=State0) ->
     % jump .. buffer bottom
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,GL,#gres{state=completed},State1), % was BL
     {next_state, completed, State2};
-completed({rows, _}, State) ->
+completed(cast, {rows, _}, State) ->
     % ignore unsolicited rows
     {next_state, completed, State};
-completed(Other, State) ->
-    ?Info("completed -- unexpected event ~p", [Other]),
-    {next_state, completed, State}.
+completed({call, From}, Msg, State) ->
+    handle_call(Msg, From, completed, State);
+completed(cast, Msg, State) ->
+    handle_event(Msg, completed, State);
+completed(info, Msg, State) ->
+    handle_info(Msg, completed, State).
 
-aborted({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+aborted(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(aborted, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(none,false,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-aborted({button, <<"restart">>, ReplyTo}, State0) ->
+aborted(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=aborted,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, aborted, State1};
-aborted({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+aborted(cast, {button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     % clear buffers, close and reopen fetch with skip and tail options
     State1 = reply_stack(aborted, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -1024,83 +1036,89 @@ aborted({button, <<"...">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State4 = data_clear(State3),
     State5 = gui_clear(#gres{state=tailing,loop= <<"tail">>},State4),
     {next_state, tailing, State5#state{tailMode=true,tailLock=false}};
-aborted({button, <<"...">>, ReplyTo}, State0) ->
+aborted(cast, {button, <<"...">>, ReplyTo}, State0) ->
     % reject because of uncommitted changes
     State1 = gui_nop(#gres{state=aborted,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, aborted, State1};
-aborted({button, <<">|...">>, ReplyTo}, State0) ->
+aborted(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     % keep data (if any) and switch .. tail mode
     State1 = reply_stack(aborted, ReplyTo, State0),
     State2 = fetch(skip,true,State1),
     State3 = gui_clear(State2),
     State4 = gui_nop(#gres{state=tailing,loop= <<"tail">>},State3),
     {next_state, tailing, State4#state{tailMode=true,tailLock=false}};
-aborted({button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
+aborted(cast, {button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
     % reject command because we have no data
     State1 = reply_stack(aborted, ReplyTo, State0),
     State1 = gui_nop(#gres{state=aborted,beep=true},State1),
     {next_state, aborted, State1};
-aborted({button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
+aborted(cast, {button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) ->
     % jump .. buffer bottom
     State1 = reply_stack(aborted, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,BL,#gres{state=aborted},State1),
     {next_state, aborted, State2};
-aborted({rows, _}, State) ->
+aborted(cast, {rows, _}, State) ->
     % ignore unsolicited rows
     {next_state, aborted, State};
-aborted(Other, State) ->
-    ?Info("aborted -- unexpected event ~p", [Other]),
-    {next_state, aborted, State}.
+aborted({call, From}, Msg, State) ->
+    handle_call(Msg, From, aborted, State);
+aborted(cast, Msg, State) ->
+    handle_event(Msg, aborted, State);
+aborted(info, Msg, State) ->
+    handle_info(Msg, aborted, State).
 
-passthrough({button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
+passthrough(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
     State4 = fetch(none,true,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
-passthrough({button, <<"restart">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=passthrough,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, passthrough, State1};
-passthrough({button, <<"...">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<"...">>, ReplyTo}, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = gui_nop(#gres{state=passthrough,beep=true,message= ?PassThroughOnlyRestart},State1),
     {next_state, passthrough, State2};
-passthrough({button, <<">|...">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = gui_nop(#gres{state=passthrough,beep=true,message= ?PassThroughOnlyRestart},State1),
     {next_state, passthrough, State2};
-passthrough({button, <<">|">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<">|">>, ReplyTo}, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = gui_nop(#gres{state=passthrough,beep=true,message= ?PassThroughOnlyRestart},State1),
     {next_state, passthrough, State2};
-passthrough({button, <<"pt">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<"pt">>, ReplyTo}, State0) ->
     % passthrough, schedule tail
     State1 = reply_stack(passthrough, ReplyTo, State0),
     {next_state, passthrough, State1#state{stack={button,<<"pt">>,ReplyTo}}};
-passthrough({button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
+passthrough(cast, {button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     {ok, NewTRef} = timer:send_after(?TAIL_TIMEOUT, cmd_stack_timeout),
     {next_state, passthrough, State1#state{stack=Cmd, tRef=NewTRef}};
-passthrough({button, <<"tail">>, ReplyTo}, #state{tailLock=false}=State0) ->
+passthrough(cast, {button, <<"tail">>, ReplyTo}, #state{tailLock=false}=State0) ->
     % continue passthrough
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = serve_bot(passthrough, <<"tail">>, State1),
     {next_state, passthrough, State2};
-passthrough({button, <<"tail">>, ReplyTo}, State0) ->
+passthrough(cast, {button, <<"tail">>, ReplyTo}, State0) ->
     % ignore loop command, stop passthrough
     State1 = gui_nop(#gres{state=passthrough},State0#state{replyToFun=ReplyTo}),
     {next_state, passthrough, State1};
-passthrough({delete, {Recs,Complete}}, State0) ->
+passthrough(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete,del},State0),
     {next_state, passthrough, State1#state{pfc=0}};
-passthrough({rows, {Recs,Complete}}, State0) ->
+passthrough(cast, {rows, {Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete},State0),
     {next_state, passthrough, State1#state{pfc=0}};
-passthrough(Other, State) ->
-    ?Info("passthrough -- unexpected event ~p", [Other]),
-    {next_state, passthrough, State}.
+passthrough({call, From}, Msg, State) ->
+    handle_call(Msg, From, passthrough, State);
+passthrough(cast, Msg, State) ->
+    handle_event(Msg, passthrough, State);
+passthrough(info, Msg, State) ->
+    handle_info(Msg, passthrough, State).
 
 
 %% --------------------------------------------------------------------
@@ -1328,43 +1346,44 @@ calculate_median(MedianList) ->
             (CRN - RN) * lists:nth(FRN, MedianListSorted) + (RN - FRN) * lists:nth(CRN, MedianListSorted)
     end.
 
+callback_mode() ->
+    state_functions.
+
 %% --------------------------------------------------------------------
-%% Func: handle_sync_event/4 handling sync "send_all_state_event""
+%% Func: handle_call/4 handling sync "send_all_state_event""
 %% Returns: {next_state, NextSN, NextStateData}            |
-%%          {next_state, NextSN, NextStateData, Timeout}   |
-%%          {reply, ReplyTo, NextSN, NextStateData}          |
-%%          {reply, ReplyTo, NextSN, NextStateData, Timeout} |
+%%          {next_state, NextSN, NextStateData, Reply}   |
 %%          {stop, Reason, NewStateData}                          |
-%%          {stop, Reason, ReplyTo, NewStateData}
+%%          {stop, Reason, NewStateData, Reply}
 %% --------------------------------------------------------------------
-handle_sync_event({"get_columns"}, _From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
+handle_call({"get_columns"}, From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
     ?NoDbLog(debug, [], "get_columns ~p", [Columns]),
-    {reply, Columns, SN, State, infinity};
-handle_sync_event(get_count, _From, SN, #state{bufCnt = Count} = State) ->
+    {next_state, SN, State, [{reply, From, Columns}]};
+handle_call(get_count, From, SN, #state{bufCnt = Count} = State) ->
     ?NoDbLog(debug, [], "get_count ~p", [Count]),
-    {reply, Count, SN, State, infinity};
-handle_sync_event(get_query, _From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
+    {next_state, SN, State, [{reply, From, Count}]};
+handle_call(get_query, From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
-    {reply, Qry, SN, State, infinity};
-handle_sync_event(get_table_name, _From, SN, #state{ctx=#ctx{table_name=TableName}}=State) ->
+    {next_state, SN, State, [{reply, From, Qry}]};
+handle_call(get_table_name, From, SN, #state{ctx=#ctx{table_name=TableName}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
-    {reply, TableName, SN, State, infinity};
-handle_sync_event(get_sender_params, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = Columns}} = State) ->
+    {next_state, SN, State, [{reply, From, TableName}]};
+handle_call(get_sender_params, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = Columns}} = State) ->
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
-    {reply, SenderParams, SN, State, infinity};
-handle_sync_event(get_receiver_params, _From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}} = State) ->
+    {next_state, SN, State, [{reply, From, SenderParams}]};
+handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}} = State) ->
     ReceiverParams = {Ucpf, Ucef, Columns},
     ?Debug("get_receiver_params ~p", [ReceiverParams]),
-    {reply, ReceiverParams, SN, State, infinity};
-handle_sync_event({"row_with_key", RowId}, _From, SN, #state{tableId=TableId}=State) ->
+    {next_state, SN, State, [{reply, From, ReceiverParams}]};
+handle_call({"row_with_key", RowId}, From, SN, #state{tableId=TableId}=State) ->
     [Row] = ets:lookup(TableId, RowId),
     % ?Debug("row_with_key ~p ~p", [RowId, Row]),
-    {reply, Row, SN, State, infinity};
-handle_sync_event(_Evt, _From, passthrough, State) ->
-    {reply, {error, ?PassThroughOnlyRestart, []}, passthrough, State, infinity};
+    {next_state, SN, State, [{reply, From, Row}]};
+handle_call(_Evt, From, passthrough, State) ->
+    {next_state, passthrough, State, [{reply, From, {error, ?PassThroughOnlyRestart, []}}]};
 % Full column(s)
-handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({statistics, ColumnIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
@@ -1393,9 +1412,9 @@ handle_sync_event({statistics, ColumnIds}, _From, SN, #state{nav = Nav, tableId 
     MaxCount = element(1, lists:max(StatsResult)),
     StatsRows = format_stat_rows(ColNames, StatsResult, 1),
     StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"median">>, <<"std_dev">>, <<"variance">>, <<"hash">>],
-    {reply, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity};
+    {next_state, SN, State, [{reply, From, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}}]};
 % Selected rows(s) of one column
-handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({statistics, ColumnIds, RowIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
@@ -1450,13 +1469,12 @@ handle_sync_event({statistics, ColumnIds, RowIds}, _From, SN, #state{nav = Nav, 
         StatsRows = [[Idx, nop | tuple_to_list(lists:nth(Idx, StatsRowsZipped))] || Idx <- lists:seq(1, length(Avgs))],
         ?Debug("Stat Rows ~p", [StatsRows]),
         StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"median">>, <<"std_dev">>, <<"variance">>,<<"hash">>],
-        {reply, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}, SN, State, infinity}
+        {next_state, SN, State, [{reply, From, {lists:max(Counts), StatColumns, StatsRows, atom_to_binary(SN, utf8)}}]}
     catch
         _:Error ->
-            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
-                  , SN, State, infinity}
+            {next_state, SN, State, [{reply, From, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}}]}
     end;
-handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({distinct_count, ColumnId}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
@@ -1498,8 +1516,8 @@ handle_sync_event({distinct_count, ColumnId}, _From, SN, #state{nav = Nav, table
     DistinctCountColumns = ColInfo ++
         [#stmtCol{alias = <<"count">>, type = float, readonly = true}
         ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
-    {reply, {Total, DistinctCountColumns, DistinctCountRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity};
-handle_sync_event({distinct_statistics, ColumnId}, _From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = StmtCols}} = State) ->
+    {next_state, SN, State, [{reply, From, {Total, DistinctCountColumns, DistinctCountRowsWithId, atom_to_binary(SN, utf8)}}]};
+handle_call({distinct_statistics, ColumnId}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = StmtCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ -> TableUsed = IndexId
@@ -1536,13 +1554,12 @@ handle_sync_event({distinct_statistics, ColumnId}, _From, SN, #state{nav = Nav, 
             , #stmtCol{alias = <<"variance">>, type = float, readonly = true}
             , #stmtCol{alias = <<"hash">>, type = float, readonly = true}],
     try
-        {reply, {Total, ResultColumns, ResultRowsWithId, atom_to_binary(SN, utf8)}, SN, State, infinity}
+        {next_state, SN, State, [{reply, From, {Total, ResultColumns, ResultRowsWithId, atom_to_binary(SN, utf8)}}]}
     catch
         _:Error ->
-            {reply, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}
-                , SN, State, infinity}
+            {next_state, SN, State, [{reply, From, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}}]}
     end;
-handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _From, SN, #state{ctx = OldCtx} = State) ->
+handle_call({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, From, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
     F = OldCtx#ctx.stmt_close_fun,
     F(),
@@ -1558,8 +1575,8 @@ handle_sync_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, _Fro
                    , replyToFun    = ReplyTo
                    },
     State2 = fetch(none,none,State1#state{pfc=0}),
-    {reply, ok, SN, State2, infinity};
-handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=StmtCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
+    {next_state, SN, State2, [{reply, From, ok}]};
+handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=StmtCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
     FoldFun =
     fun(Row, Acc) ->
         RowKey = element(3, Row),
@@ -1573,9 +1590,9 @@ handle_sync_event(cache_data, _From, SN, #state{tableId = TableId, ctx=#ctx{stmt
     end,
     Key = {dbTest, NormQry, BindVals},
     imem_cache:write(Key, {StmtCols, QueryResult}),
-    {reply, ok, SN, State, infinity};
-handle_sync_event(_Event, _From, empty, StateData) ->
-    {no_reply, empty, StateData, infinity}.
+    {next_state, SN, State, [{reply, From, ok}]};
+handle_call(_Event, _From, empty, State) ->
+    {next_state, empty, State}.
 
 calculate_base_values([], {CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList}) ->
     {CountTotal, Count, Min, Max, Sum, Squares, HashList, MedianList};
@@ -1686,19 +1703,19 @@ sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT)
 handle_info({_Pid,{Rows,Completed}}, SN, State) ->
     Fsm = {?MODULE,self()},
     Fsm:rows({Rows,Completed}),
-    {next_state, SN, State, infinity};
+    {next_state, SN, State};
 handle_info(cmd_stack_timeout, SN, #state{stack={button, <<"tail">>, RT}}=State)
     when SN =:= tailing; SN =:= passthrough ->
     % we didn't get any new data to send, so we reply with nop.
     ?NoDbLog(debug, [], "Tail timeout, replying with nop", []),
     State1 = gui_nop(#gres{state=SN, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
-    {next_state, SN, State1, infinity};
+    {next_state, SN, State1};
 handle_info({'EXIT', _Pid, Reason} = ExitMsg, _SN, State) ->
     ?Debug("~p received exit message ~p", [self(), ExitMsg]),
     {stop, Reason, State};
 handle_info(Unknown, SN, State) ->
     ?Info("unknown handle info ~p", [Unknown]),
-    {next_state, SN, State, infinity}.
+    {next_state, SN, State}.
 
 %% --------------------------------------------------------------------
 %% Func: terminate/3
