@@ -73,21 +73,30 @@ version(#{app := App}) ->
 version(_Access) -> "".
 
 args(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CMD_WITHARGS ->
-    Args = maps:get(args, Access, ""),
+    Args = case maps:get(args, Access, "") of
+        ArgsBin when is_binary(ArgsBin) ->
+            case catch imem_json:decode(ArgsBin, [return_maps]) of
+                ArgsMap when is_map(ArgsMap) -> ArgsMap;
+                _Error -> ArgsBin
+            end;
+        AccessArgs -> AccessArgs
+    end,
     binary_to_list(
       case Args of
           "" -> <<>>;
           Args when is_binary(Args)  -> Args;
           #{<<"Password">> := _} ->
-              jsx:encode(Args#{<<"Password">> => <<"****">>});
-          #{<<"password">> := _} ->
-              jsx:encode(Args#{<<"password">> => <<"****">>});
+              imem_json:encode(Args#{<<"Password">> => <<"****">>});
           #{<<"password">> := _, <<"new_password">> := _} ->
-              jsx:encode(Args#{<<"password">> => <<"****">>,
-                                  <<"new_password">> => <<"****">>});
+              imem_json:encode(Args#{<<"password">> => <<"****">>,
+                               <<"new_password">> => <<"****">>});
+          #{<<"password">> := _} ->
+              imem_json:encode(Args#{<<"password">> => <<"****">>});
           #{<<"qstr">> := _} ->
-              jsx:encode(maps:remove(<<"qstr">>, Args));
-          Args when is_map(Args) -> jsx:encode(Args);
+              imem_json:encode(maps:remove(<<"qstr">>, Args));
+          #{<<"query">> := #{<<"qstr">> := _} = Query} ->
+              imem_json:encode(Args#{<<"query">> => maps:remove(<<"qstr">>, Query)});
+          Args when is_map(Args) -> imem_json:encode(Args);
           Args -> list_to_binary(io_lib:format("~p", [Args]))
       end);
 args(_Access) -> "".
@@ -108,13 +117,16 @@ time(Access) ->
 
 sql(#{actLogLevel := ActLogLevel} = Access) when ActLogLevel >= ?CUST_SQL ->
     case maps:get(args, Access, "") of
-        #{<<"qstr">> := QStr} ->
-            re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
-              <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
-              "\\1****\\5", [{return,binary}]);
+        #{<<"qstr">> := QStr} -> replace_password(QStr);
+        #{<<"query">> := #{<<"qstr">> := QStr}} -> replace_password(QStr);
         _ -> ""
     end;
 sql(_Access) -> "".
+
+replace_password(QStr) ->
+    re:replace(re:replace(QStr, "\n", "\\\\n", [{return, binary}, global]),
+      <<"((?i)IDENTIFIED[\\s]+BY[\\s]+)(([^\" ]+)|(\"[^\"]+\"))(.*)">>,
+      "\\1****\\5", [{return,binary}]).
 
 logLevel(#{logLevel := LogLevel}) when is_integer(LogLevel) ->
     integer_to_list(LogLevel);

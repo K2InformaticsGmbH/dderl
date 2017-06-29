@@ -3,14 +3,19 @@ import $ from 'jquery';
 import {alert_js_error, alert_jq, dlg_fit_to_window} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
 import {renderNewTable} from '../scripts/dderl.table';
+import {newStmt} from './hiddenStmt';
 
 export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock) {
     /* jshint evil:true */
     // Here we can inject libraries we would like to make available to d3 scripts.
     var f = new Function('script', 'd3', 'helper', "return eval('(' + script + ')')");
     var result = null;
+    var closeFuns = [];
     var helper = {
         browse: openGraphView,
+        runView: function(name, callback, binds = {}, mode = "normal") {
+            openHiddenStmt(name, callback, binds, mode, closeFuns);
+        },
         req: buildReq(statement, tableStmtReload, tableLoopBlock),
         contextMenu: openContextMenu,
         openDialog: openDialog,
@@ -18,7 +23,19 @@ export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock)
         parseFloat: ddParseFloat
     };
     try {
-        result = f(script, d3, helper);
+        var init = f(script, d3, helper);
+        result = function(container, width, height) {
+            var d3obj = init(container, width, height);
+            var onCloseCb = d3obj.on_close;
+            d3obj.on_close = function() {
+                console.log("on_close called... funs count", closeFuns.length);
+                closeFuns.forEach(function(closeStmt) {
+                    closeStmt();
+                });
+                onCloseCb();
+            };
+            return d3obj;
+        };
     } catch(e) {
         alert_js_error(e);
     }
@@ -42,6 +59,27 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
             };
         }
         renderNewTable(viewResult, position, force);
+    });
+}
+
+function openHiddenStmt(name, callback, binds, mode, closeFuns) {
+    var openViewData = {
+        open_graph_view: {
+            connection: dderlState.connection,
+            view_name: name,
+            conn_id: dderlState.connectionSelected.connection,
+            binds: binds
+        }
+    };
+    ajaxCall(null, 'open_graph_view', openViewData, 'open_graph_view', function(viewResult) {
+        // This maybe is not required, but pass it on just in case.
+        if(viewResult.bind_types) {
+            viewResult.qparams = {
+                types: viewResult.bind_types,
+                pars: binds
+            };
+        }
+        newStmt(viewResult, callback, mode, closeFuns);
     });
 }
 

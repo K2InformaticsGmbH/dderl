@@ -605,7 +605,7 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_},
 process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_id = UserId,
                                                               adapt_priv = AdaptPriv} = State) ->
     BodyJson = jsx:decode(ReqData),
-    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => maps:from_list(BodyJson)}, State),
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => binary_to_list(hd(Cmd)), args => jsx:decode(ReqData, [return_maps])}, State),
     CurrentPriv = proplists:get_value(Adapter, AdaptPriv),
     Self = self(),
     spawn_link(fun() -> spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, Self) end),
