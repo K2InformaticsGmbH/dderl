@@ -12,7 +12,7 @@ function update_user_information(user) {
 }
 
 function refresh_header_information() {
-    document.title = 'DDErl - ' + dderlState.app;
+    document.title = dderlState.app;
     $('#version').text(' | ' + dderlState.vsn);
     $('#node').text(dderlState.node);
 }
