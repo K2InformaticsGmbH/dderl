@@ -3,9 +3,8 @@
 %%! -smp enable -sname build_msi -mnesia debug verbose
 -include_lib("kernel/include/file.hrl").
 
-
 % Sample Parameters
-% ../dderl/bin/editconfs.escript dderl@127.0.0.1 dderlc 127.0.0.1:8443 ram dderlstag ['dderl@127.0.0.1'] 127.0.0.1:1234 \"fun(N) -> end.\" ../dderl/releases/1.0.7 ../dderl/log
+% ../dderl/bin/editconfs.escript RegPath ConfigFolder AppDataFolder
 
 -define(T, "").
 %-define(T, dtfstr()).
@@ -19,7 +18,7 @@
 
 -define(L(__F),     io:format(FileHandle, ?T++"[~p] "__F"~n", [?LINE])).
 -define(L(__F,__A), io:format(FileHandle, ?T++"[~p] "__F"~n", [?LINE|__A])).
-main(Options) ->
+main([RegPath, ConfigFolder, AppDataFolder]) ->
     ScriptFile = escript:script_name(),
     ScriptPath = filename:dirname(ScriptFile),
     FileName = filename:join([ScriptPath
@@ -30,23 +29,33 @@ main(Options) ->
                                  ) ++".log"]),
     {ok, FileHandle} = file:open(FileName, [write]),
     try
-        ?L("ScriptPath   : ~s", [ScriptPath]),
-        ?L("FileName     : ~s", [FileName]),
-        unsafe(FileHandle, Options)
+        ?L("ScriptPath      : ~s", [ScriptPath]),
+        ?L("FileName        : ~s", [FileName]),
+        ?L("RegPath         : ~s", [RegPath]),
+        ?L("ConfigFolder    : ~s", [ConfigFolder]),
+        ?L("AppDataFolder   : ~s", [AppDataFolder]),
+        {ok, Reg} = win32reg:open([read]),
+        ok = win32reg:change_key(Reg, string:to_lower(RegPath)),
+        {ok, RegValuesList} = win32reg:values(Reg),
+        RegValues = (maps:from_list(RegValuesList))
+                    #{"ConfigFolder" => ConfigFolder,
+                      "AppDataFolder" => AppDataFolder},
+        ?L("RegValues    : ~p", [RegValues]),
+        unsafe(FileHandle, RegValues)
     catch
         Class:Error ->
             ?L("Execution error~n"
-               "    Class  : ~p~n"
-               "    Error  : ~p~n"
-               "    Args   : ~p~n"
-               "    Stack  : ~p"
-               , [Class,Error,Options,erlang:get_stacktrace()])
+               "    Class   : ~p~n"
+               "    Error   : ~p~n"
+               "    RegPath : ~p~n"
+               "    Stack   : ~p"
+               , [Class,Error,RegPath,erlang:get_stacktrace()])
     after
         ok = file:close(FileHandle)
     end.
 
-unsafe(FileHandle, Options) ->
-    if length(Options) < 10 ->
+unsafe(FileHandle, RegValues) ->
+    if maps_size(RegValues) < 10 ->
            ?L("Invalid parameters~n~p~n"
               "Args  dderl_node~n"
               "      dderl_cookie~n"
@@ -58,11 +67,18 @@ unsafe(FileHandle, Options) ->
               "      imem_node_shard_fun~n"
               "      config_folder~n"
               "      app_data_folder"
-              , [Options]);
+              , [RegValues]);
        true ->
-           [DDerlNode, DDerlCookie, DDerlIpPort, ImemNodeType, ImemSchemaName,
-            ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, ConfigFolder,
-            AppDataFolder] = Options,
+           #{"NodeName"             := DDerlNode,
+             "NodeCookie"           := DDerlCookie,
+             "WebSrvIntf"           := DDerlIpPort,
+             "DbNodeType"           := ImemNodeType,
+             "DbNodeSchemaName"     := ImemSchemaName,
+             "DbClusterManagers"    := ImemClusterMgrs,
+             "DbInterface"          := ImemIpPort,
+             "DbNodeShardFunction"  := ImemNodeShardFun,
+             "ConfigFolder"         := ConfigFolder,
+             "AppDataFolder"        := AppDataFolder} = RegValues,
            ?L("starting configure..."),
            update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie),
            update_sys_config(
