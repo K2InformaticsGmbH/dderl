@@ -13,7 +13,7 @@
 
 %% Private interfaces
 -export([encrypt/1, decrypt/1, insert_mw/2, insert_routes/2, remove_mw/2,
-         reset_routes/1]).
+         reset_routes/1, get_ssl_options/0]).
 
 %% OTP Application API
 -export([start/2, stop/1]).
