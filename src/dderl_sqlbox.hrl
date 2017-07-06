@@ -168,7 +168,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 					DECODE
 						(
 							bc_status
-							, 
+							,
 							4
 							,
 							'Y'
@@ -180,7 +180,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 							16
 							,
 							'R'
-							, 
+							,
 							'N'
 						)
 			) as isdeliv
@@ -232,7 +232,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 										,
 										'00000'
 									)
-							|| 
+							||
 								TO_CHAR
 									(
 											DECODE
@@ -281,8 +281,8 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 				BC_MESSAGEREF
 			) as msgref
 	,
-		max 
-			( 
+		max
+			(
 				BC_MESSAGEREF
 			) as msgref1
 	FROM
@@ -292,7 +292,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 	WHERE
 			BDCUC.ROWID
 		=
-			BCI_ROWID 
+			BCI_ROWID
 	AND
 			ROWNUM
 		<=
@@ -323,7 +323,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 					9
 				)
 		OR
-				bc_status 
+				bc_status
 			IN
 				(
 					4
@@ -334,7 +334,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 				)
 		)
 	AND
-			bci_msisdn 
+			bci_msisdn
 		=
 			:SQLT_STR_SENDER
 	AND
@@ -363,7 +363,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 						,
 						0
 					)
-			LIKE 
+			LIKE
 				:SQLT_STR_GENERATED
 		)
 	GROUP BY
@@ -375,7 +375,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 					,
 					bc_submitdate
 				)
-		, 
+		,
 		bc_submitdate
 		,
 		bc_msisdn_b
@@ -902,7 +902,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 	from
 		abc
 		,
-		def as d
+		def d
 	where
 			a
 			=
@@ -969,7 +969,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 	from
 		abc
 		,
-		def as d
+		def d
 ">>
 ,
 <<"select
@@ -1058,9 +1058,9 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 		,
 		m.\"'$_'\"
 	from
-		def as d
+		def d
 		,
-		member_test as m
+		member_test m
 ">>
 ,
 <<"select
@@ -1070,9 +1070,9 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 		,
 		\"'$_'\".m
 	from
-		def as d
+		def d
 		,
-		member_test as m
+		member_test m
 ">>
 ,
 <<"select
@@ -1080,9 +1080,9 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 		,
 		m.col1
 	from
-		def as d
+		def d
 		,
-		member_test as m
+		member_test m
 	where
 		is_member
 			(
@@ -1134,11 +1134,11 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 	from
 		t1
 		,
-		t3 as a
+		t3 a
 		,
 		schma.t1
 		,
-		schma.t2 as b
+		schma.t2 b
 	where
 				upper
 					(
@@ -1548,7 +1548,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 			g
 			=
 			h
-">> 
+">>
 ,
 <<"select
 	/*+021*/
@@ -1775,7 +1775,7 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 					h
 			)
 	order by
-		c 
+		c
 		,
 		d desc
 		,
@@ -1959,9 +1959,9 @@ select ckey, cvalue:WHITELIST[1]#key, cvalue:WHITELIST[1]#value:ETID, to_datetim
 		,
 		t2.col1
 	from
-		def as t1
+		def t1
 		,
-		def as t2
+		def t2
 	where
 				abs
 					(
