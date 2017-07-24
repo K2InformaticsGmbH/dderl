@@ -55,7 +55,7 @@ main([RegPath, ConfigFolder, AppDataFolder]) ->
     end.
 
 unsafe(FileHandle, RegValues) ->
-    if maps_size(RegValues) < 10 ->
+    if map_size(RegValues) < 10 ->
            ?L("Invalid parameters~n~p~n"
               "Args  dderl_node~n"
               "      dderl_cookie~n"
