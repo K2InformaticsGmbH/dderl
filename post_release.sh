@@ -1,5 +1,5 @@
 #!/bin/sh
-cd _build/default/rel/dderl/lib
+cd _build/prod/rel/dderl/lib
 mv imem-*/ebin/filename.beam stdlib-*/ebin/
 
 cd dderl-*/priv/dev
