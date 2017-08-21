@@ -288,6 +288,8 @@ export function logout(isForceful) {
         }, function() {
             exec_logout();
         });
+    } else {
+        exec_logout();
     }
 
     function exec_logout() {
