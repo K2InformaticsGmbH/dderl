@@ -169,7 +169,7 @@ connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
           Error ->
               error(list_to_binary(io_lib:format("~p", [Error])))
       end,
-    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
+    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo#{type => internal}}) of
         {ok, [{pwdmd5,_}|_]} ->
             User = proplists:get_value(<<"user">>, Params, <<>>),
             Password = proplists:get_value(<<"password">>, Params, []),
