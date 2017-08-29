@@ -47,8 +47,8 @@ init() ->
                 c.owner,
                 v.name
             from
-                ddView as v,
-                ddCmd as c
+                ddView v,
+                ddCmd c
             where
                 c.id = v.cmd
                 and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
