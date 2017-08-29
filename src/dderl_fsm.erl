@@ -620,14 +620,14 @@ init({#ctx{} = Ctx, SessPid}) ->
     {ok, empty, reset_buf_counters(State1)}.
 
 %% --------------------------------------------------------------------
-%% Func: SN/2	 non-synchronized event handling
+%% Func: SN/3	 event handling
 %% Returns: {next_state, NextSN, NextStateData}          |
 %%          {next_state, NextSN, NextStateData, Timeout} |
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 
 %% Only data input from DB and button events for <<">|">>, <<">|...">> and <<"...">> handled here
-%% Other buttons and commands are handled through all_state_event in handle_event/3
+%% Other buttons and commands are handled through handle_event/3
 
 empty(cast, {button, <<">|">>, ReplyTo}, State0) ->
     % start fetch
@@ -1120,25 +1120,12 @@ passthrough(cast, Msg, State) ->
 passthrough(info, Msg, State) ->
     handle_info(Msg, passthrough, State).
 
-
 %% --------------------------------------------------------------------
-%% Func: SN/3	 synchronized event handling
-%% Returns: {next_state, NextSN, NextStateData}            |
-%%          {next_state, NextSN, NextStateData, Timeout}   |
-%%          {reply, ReplyTo, NextSN, NextStateData}          |
-%%          {reply, ReplyTo, NextSN, NextStateData, Timeout} |
-%%          {stop, Reason, NewStateData}                          |
-%%          {stop, Reason, ReplyTo, NewStateData}
-%% --------------------------------------------------------------------
-
-
-%% --------------------------------------------------------------------
-%% Func: handle_event/3  handling async "send_all_state_event""
+%% Func: handle_event/3  handling async cast that are same for all statenames
 %% Returns: {next_state, NextSN, NextStateData}          |
 %%          {next_state, NextSN, NextStateData, Timeout} |
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
-
 
 handle_event({error, Error}, SN, State) ->
     ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
@@ -1350,7 +1337,7 @@ callback_mode() ->
     state_functions.
 
 %% --------------------------------------------------------------------
-%% Func: handle_call/4 handling sync "send_all_state_event""
+%% Func: handle_call/4 handling sync call events for all statenames
 %% Returns: {next_state, NextSN, NextStateData}            |
 %%          {next_state, NextSN, NextStateData, Reply}   |
 %%          {stop, Reason, NewStateData}                          |
@@ -2409,7 +2396,7 @@ ids_after(Id, Limit, #state{nav=raw,tableId=TableId}) ->
 -spec delete_until(ets:tid(), integer()) -> ok.
 delete_until(TableId, LimitId) ->
     Ids = ets:select_reverse(TableId,[{'$1',[{'=<',{element,1,'$1'},LimitId}],[{element,1,'$1'}]}]),
-    [ets:delete(TableId, Id) || Id <- Ids],
+    [ets:delete(TableId, Id) || Id <- Ids],
     ok.
 
 -spec key_times_2(integer() | tuple(), #state{}) -> integer() | tuple() | undefined.
@@ -2885,7 +2872,7 @@ change_tuples(TableId, _DirtyCnt, DirtyTop, DirtyBot) ->
 change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)].
 
--spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
+-spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
 write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}}) ->
     %% TODO: Read and update maybe is needed for multiple topic subscription.
     SubsKey = imem_json:encode([<<"register">>, <<"focus">>, [atom_to_binary(node(), utf8), list_to_binary(pid_to_list(self()))]]),
