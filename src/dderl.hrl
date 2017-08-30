@@ -5,36 +5,38 @@
 -include_lib("imem/include/imem_exports.hrl").
 
 -define(DEFAULT_ROW_SIZE, 100).
--record(viewstate, { table_layout = []
-                   , column_layout = []
-       }).
+-record(viewstate,
+                  { table_layout = []
+                  , column_layout = []
+                  }).
 
--record(ddAdapter,                          %% DDerl adapter (connect to databases)              
+%% DDerl adapter (connect to databases)
+-record(ddAdapter,
                   { id                      :: atom()             %% oci | imem | ets | os_text | dfs_text | hdfs_text
                   , fullName                :: binary()           %% displayed in drop down box
-                  }
-       ). 
+                  }).
 -define(ddAdapter, [atom, binstr]).
 
--record(ddInterface,                        %% DDerl client interface (connect to ui / applications)               
+%% DDerl client interface (connect to ui / applications)
+-record(ddInterface,
                   { id                      :: atom()             %% ddjson
                   , fullName                :: binary()           %% displayed in drop down box
-                  }
-       ).
+                  }).
 -define(ddInterface, [atom, binstr]).
 
--record(ddConn,                             %% DB connection    
+%% DB connection
+-record(ddConn,
                   { id                      ::ddEntityId()       
                   , name                    ::binary()          %% connection name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapter                 ::atom()            %% oci | imem | ets | os_text | dfs_text | hdfs_text
                   , access                  ::any()             %% erlang term depending on adapter (e.g. ip+service or tns)
                   , schm                    ::any()             %% erlang term depending on adapter (e.g. name or uri or data root path)
-                  }
-       ).
+                  }).
 -define(ddConn, [integer, binstr, userid, atom, term, term]).
-      
--record(ddCmd,                              %% DB command     
+
+%% DB command
+-record(ddCmd,
                   { id                      ::ddEntityId()       
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
@@ -42,29 +44,28 @@
                   , conns = local           ::list() | local    %% can be local or a list with remote connections, empty list for all remote connections.
                   , command                 ::binary()          %% erlang term depending on adapter (e.g. SQL text)
                   , opts                    ::any()             %% command options ()
-                  }
-       ).
+                  }).
 -define(ddCmd, [integer, binstr, userid, list, list, binstr, term]).
 
--record(ddView,                             %% user representation of a db command including rendering parameters
+%% user representation of a db command including rendering parameters
+-record(ddView,
                   { id                      ::ddEntityId()
                   , interface               ::atom()            %% interface plugin (ddjson for now)  
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , cmd                     ::ddEntityId()      %% db command id
                   , state                   ::#viewstate{}      %% transparent viewstate (managed by client application)
-                  }
-       ).
+                  }).
 -define(ddView, [integer, atom, userid, binstr, integer, term]).
 
--record(ddDash,                             %% user representation of a dashboard (collection of views)
+%% user representation of a dashboard (collection of views)
+-record(ddDash,
                   { id                      ::ddEntityId()
                   , interface               ::atom()            %% interface plugin (ddjson for now)  
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , views                   ::list()            %% array of proplists with view layout
-                  }
-       ).
+                  }).
 
 -define(ddDash, [integer, atom, userid, binstr, list]).
 
@@ -75,7 +76,8 @@
 -type ddPermission() :: atom() | tuple().   %% e.g. manage_accounts, {table,ddDash,select}
 -type ddQuota()      :: {atom(),any()}.     %% e.g. {max_memory, 1000000000}
 
--record(ddAccount,                          %% imem cluster account (shared by application)
+%% imem cluster account (shared by application)
+-record(ddAccount,
                   { id                      ::ddEntityId()
                   , name                    ::ddIdentity()        %% unique login id (mutable)
                   , type='user'             ::atom()              %% user | driver | deamon | application
@@ -85,18 +87,17 @@
                   , lastFailureTime         ::ddDatetime()        %% erlang time of last login failure (for existing account name)
                   , lastPasswordChangeTime  ::ddDatetime()        %% change time (undefined or too old  => must change it now and reconnect)
                   , locked='false'          ::'true' | 'false'
-                  }
-       ).
+                  }).
 
 -define(ddAccount, [userid,binstr,atom,list,binstr,datetime,datetime,datetime,boolean]).
 
--record(ddRole,                             %% hierarchy of roles with permissions and access privileges to connections and commands  
+%% hierarchy of roles with permissions and access privileges to connections and commands
+-record(ddRole,
                   { id                      ::ddEntityId()            %% lookup starts with ddAccount.id, other roles are atoms
                   , roles=[]                ::[atom()]                %% granted roles
                   , permissions=[]          ::[ddPermission()]        %% granted permissions
                   , quotas=[]               ::[ddQuota()]             %% granted quotas
-                  }
-       ).
+                  }).
 
 -define(ddRole, [userid,list,list,list]).
 
