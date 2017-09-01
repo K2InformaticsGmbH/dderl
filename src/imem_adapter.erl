@@ -174,6 +174,8 @@ connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
                         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
                             ?Warn("Password expired ~s~n~p", [User, ST]),
                             {ok, ErlImemSess, #{changePass=>User}};
+                        {error, LoginError} ->
+                            error(LoginError);
                         _ ->
                             {ok, ErlImemSess, '$no_extra'}
                     end;
