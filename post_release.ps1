@@ -1,12 +1,34 @@
-cd _build/prod/rel/dderl/lib
+Param([string]$app="dderl")
+
+cd _build/prod/rel/$app/lib
 
 $source = Get-ChildItem -Filter imem-* |
           Select-Object -First 1 -Expand FullName
 $target = Get-ChildItem -Filter stdlib-* |
           Select-Object -First 1 -Expand FullName
-Move-Item $source\ebin\filename.beam -Destination $target\ebin -Force
 
-cd dderl-*/priv/dev
+$sourceFilenameBeamFile = "$source\ebin\filename.beam"
+$targetFilenameBeamFile = "$target\ebin\filename.beam"
+If (Test-Path $sourceFilenameBeamFile) {
+    Move-Item $sourceFilenameBeamFile -Destination $target\ebin -Force
+    Write-Host "===> moved to $targetFilenameBeamFile" -foregroundcolor "magenta"
+}
+ElseIf (Test-Path $targetFilenameBeamFile) {
+    Write-Host "===> already moved to $targetFilenameBeamFile" -foregroundcolor "magenta"
+}
+Else {
+    Write-Host "===> not found $targetFilenameBeamFile" -foregroundcolor "red"
+}
+
+$dderlDev = "dderl-*/priv/dev"
+
+If (Test-Path $dderlDev) {
+    cd $dderlDev
+    Write-Host "===> building dderl-npm..." -foregroundcolor "magenta"
+} Else {
+    Write-Host "===> dderl-npm already built!" -foregroundcolor "magenta"
+    exit
+}
 
 If (Test-Path node_modules) {
     Remove-Item node_modules -Force -Recurse
