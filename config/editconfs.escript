@@ -78,13 +78,14 @@ unsafe(FileHandle, RegValues) ->
              "DbInterface"          := ImemIpPort,
              "DbNodeShardFunction"  := ImemNodeShardFun,
              "ConfigFolder"         := ConfigFolder,
-             "AppDataFolder"        := AppDataFolder} = RegValues,
+             "AppDataFolder"        := AppDataFolder,
+			 "InstallPath"          := InstallPath} = RegValues,
            ?L("starting configure..."),
            update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie),
            update_sys_config(
              FileHandle, ConfigFolder, DDerlIpPort, ImemNodeType,
              ImemSchemaName, ImemClusterMgrs, ImemIpPort, ImemNodeShardFun,
-             AppDataFolder),
+             AppDataFolder, InstallPath),
            ?L("configuring success!")
     end.
 
@@ -114,7 +115,7 @@ update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie) ->
 
 update_sys_config(FileHandle, ConfigFolder,
                   DDerlIpPort, ImemNodeType, ImemSchemaName, ImemClusterMgrs,
-                  ImemIpPort, ImemNodeShardFun, AppDataFolder) ->
+                  ImemIpPort, ImemNodeShardFun, AppDataFolder, InstallPath) ->
     ?L("editing sys.config"),
     ?L("Args (Input) -~n"
        "    Path             : ~p~n"
@@ -124,9 +125,10 @@ update_sys_config(FileHandle, ConfigFolder,
        "    ImemClusterMgrs  : ~p~n"
        "    ImemIpPort       : ~p~n"
        "    ImemNodeShardFun : ~p~n"
-       "    AppDataFolder    : ~p",
+       "    AppDataFolder    : ~p~n"
+	   "    InstallPath      : ~p",
        [ConfigFolder, DDerlIpPort, ImemNodeType, ImemSchemaName,
-        ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, AppDataFolder]),
+        ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, AppDataFolder, InstallPath]),
     {DDerlHost, DDerlPort} = case re:run(DDerlIpPort
                 , "([^:]*):([0-9]*)"
                 , [{capture, [1,2], list}]) of
@@ -159,10 +161,10 @@ update_sys_config(FileHandle, ConfigFolder,
        [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom,
         ImemSchemaNameAtom, ImemClusterMgrsTerm, ImemHost, ImemPort,
         ImemNodeShardFun, AppDataFolder]),
-    SnapDir = "./snapshot",
-    ErrorLog = "./log/error.log",
-    ConsoleLog = "./log/console.log",
-    CrashLog = "./log/crash.log",
+    SnapDir = filename:join(InstallPath, "snapshot"),
+    ErrorLog = filename:join([InstallPath, "log", "error.log"]),
+    ConsoleLog = filename:join([InstallPath, "log", "console.log"]),
+    CrashLog = filename:join([InstallPath, "log", "crash.log"]),
     update_file_term(
       FileHandle, ConfigFolder, "sys.config",
       [{[dderl, interface], [], DDerlHost},
