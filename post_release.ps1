@@ -11,10 +11,10 @@ $sourceFilenameBeamFile = "$source\ebin\filename.beam"
 $targetFilenameBeamFile = "$target\ebin\filename.beam"
 If (Test-Path $sourceFilenameBeamFile) {
     Move-Item $sourceFilenameBeamFile -Destination $target\ebin -Force
-    Write-Host "===> moved to $targetFilenameBeamFile" -foregroundcolor "magenta"
+    Write-Host "===> replaced $targetFilenameBeamFile" -foregroundcolor "magenta"
 }
 ElseIf (Test-Path $targetFilenameBeamFile) {
-    Write-Host "===> already moved to $targetFilenameBeamFile" -foregroundcolor "magenta"
+    Write-Host "===> already replaced $targetFilenameBeamFile" -foregroundcolor "magenta"
 }
 Else {
     Write-Host "===> not found $targetFilenameBeamFile" -foregroundcolor "red"
