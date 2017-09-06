@@ -4,7 +4,7 @@
 -include_lib("kernel/include/file.hrl").
 
 % Sample Parameters
-% ../dderl/bin/editconfs.escript RegPath ConfigFolder AppDataFolder
+% ../dderl/bin/editconfs.escript RegPath Version
 
 -define(T, "").
 %-define(T, dtfstr()).
@@ -18,7 +18,7 @@
 
 -define(L(__F),     io:format(FileHandle, ?T++"[~p] "__F"~n", [?LINE])).
 -define(L(__F,__A), io:format(FileHandle, ?T++"[~p] "__F"~n", [?LINE|__A])).
-main([RegPath, ConfigFolder, AppDataFolder]) ->
+main([RegPath, Version]) ->
     ScriptFile = escript:script_name(),
     ScriptPath = filename:dirname(ScriptFile),
     FileName = filename:join([ScriptPath
@@ -32,14 +32,14 @@ main([RegPath, ConfigFolder, AppDataFolder]) ->
         ?L("ScriptPath      : ~s", [ScriptPath]),
         ?L("FileName        : ~s", [FileName]),
         ?L("RegPath         : ~s", [RegPath]),
-        ?L("ConfigFolder    : ~s", [ConfigFolder]),
-        ?L("AppDataFolder   : ~s", [AppDataFolder]),
+        ?L("Version         : ~s", [Version]),
         {ok, Reg} = win32reg:open([read]),
         ok = win32reg:change_key(Reg, string:to_lower(RegPath)),
         {ok, RegValuesList} = win32reg:values(Reg),
-        RegValues = (maps:from_list(RegValuesList))
-                    #{"ConfigFolder" => ConfigFolder,
-                      "AppDataFolder" => AppDataFolder},
+        #{"InstallPath" := InstallPath} = RegValuesMap
+        = maps:from_list(RegValuesList),
+        ConfigFolder = filename:join([InstallPath,"releases", Version]),
+        RegValues = RegValuesMap#{"ConfigFolder" => ConfigFolder},
         ?L("RegValues    : ~p", [RegValues]),
         unsafe(FileHandle, RegValues)
     catch
@@ -57,39 +57,20 @@ main([RegPath, ConfigFolder, AppDataFolder]) ->
 unsafe(FileHandle, RegValues) ->
     if map_size(RegValues) < 10 ->
            ?L("Invalid parameters~n~p~n"
-              "Args  dderl_node~n"
-              "      dderl_cookie~n"
-              "      dderl_ip_port~n"
-              "      imem_mnesia_node_type~n"
-              "      imem_mnesia_schema_name~n"
-              "      imem_erl_cluster_mgrs~n"
-              "      imem_ip_port~n"
-              "      imem_node_shard_fun~n"
-              "      config_folder~n"
-              "      app_data_folder"
-              , [RegValues]);
+              "Required properties : NodeName, NodeCookie, ConfigFolder,"
+              " WebSrvIntf, DbNodeType, DbNodeSchemaName, DbClusterManagers,"
+              " DbInterface, DbNodeShardFunction, ConfigFolder, InstallPath",
+              [RegValues]);
        true ->
-           #{"NodeName"             := DDerlNode,
-             "NodeCookie"           := DDerlCookie,
-             "WebSrvIntf"           := DDerlIpPort,
-             "DbNodeType"           := ImemNodeType,
-             "DbNodeSchemaName"     := ImemSchemaName,
-             "DbClusterManagers"    := ImemClusterMgrs,
-             "DbInterface"          := ImemIpPort,
-             "DbNodeShardFunction"  := ImemNodeShardFun,
-             "ConfigFolder"         := ConfigFolder,
-             "AppDataFolder"        := AppDataFolder,
-			 "InstallPath"          := InstallPath} = RegValues,
            ?L("starting configure..."),
-           update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie),
-           update_sys_config(
-             FileHandle, ConfigFolder, DDerlIpPort, ImemNodeType,
-             ImemSchemaName, ImemClusterMgrs, ImemIpPort, ImemNodeShardFun,
-             AppDataFolder, InstallPath),
-           ?L("configuring success!")
+           update_vm_args(FileHandle, RegValues),
+           update_sys_config(FileHandle, RegValues),
+           ?L("configuration successfully changed!")
     end.
 
-update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie) ->
+update_vm_args(FileHandle, #{"NodeName"     := DDerlNode,
+                             "NodeCookie"   := DDerlCookie,
+                             "ConfigFolder" := ConfigFolder}) ->
     ?L("editing vm.args"),
     ?L("Args -~n"
        "    Path        : ~s~n"
@@ -105,17 +86,16 @@ update_vm_args(FileHandle, ConfigFolder, DDerlNode, DDerlCookie) ->
                       % TODO: Update REGEX for all valid erlang atoms
                       , "(.*)(-setcookie )([\.A-Za-z0-9@_\-]*)(.*)$"
                       , DDerlCookie}
-                  ]),
-    update_file(FileHandle, ConfigFolder, "vm_t.args"
-                , [{"-setcookie"
-                    % TODO: Update REGEX for all valid erlang atoms
-                    , "(.*)(-setcookie )([\.A-Za-z0-9@_\-]*)(.*)$"
-                    , DDerlCookie}
                   ]).
 
-update_sys_config(FileHandle, ConfigFolder,
-                  DDerlIpPort, ImemNodeType, ImemSchemaName, ImemClusterMgrs,
-                  ImemIpPort, ImemNodeShardFun, AppDataFolder, InstallPath) ->
+update_sys_config(FileHandle, #{"WebSrvIntf"          := DDerlIpPort,
+                                "DbNodeType"          := ImemNodeType,
+                                "DbNodeSchemaName"    := ImemSchemaName,
+                                "DbClusterManagers"   := ImemClusterMgrs,
+                                "DbInterface"         := ImemIpPort,
+                                "DbNodeShardFunction" := ImemNodeShardFun,
+                                "ConfigFolder"        := ConfigFolder,
+                                "InstallPath"         := InstallPath}) ->
     ?L("editing sys.config"),
     ?L("Args (Input) -~n"
        "    Path             : ~p~n"
@@ -125,10 +105,9 @@ update_sys_config(FileHandle, ConfigFolder,
        "    ImemClusterMgrs  : ~p~n"
        "    ImemIpPort       : ~p~n"
        "    ImemNodeShardFun : ~p~n"
-       "    AppDataFolder    : ~p~n"
 	   "    InstallPath      : ~p",
        [ConfigFolder, DDerlIpPort, ImemNodeType, ImemSchemaName,
-        ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, AppDataFolder, InstallPath]),
+        ImemClusterMgrs, ImemIpPort, ImemNodeShardFun, InstallPath]),
     {DDerlHost, DDerlPort} = case re:run(DDerlIpPort
                 , "([^:]*):([0-9]*)"
                 , [{capture, [1,2], list}]) of
@@ -148,23 +127,15 @@ update_sys_config(FileHandle, ConfigFolder,
     {ok, ImemClusterMgrsToks, _} = erl_scan:string(ImemClusterMgrs++".",0,[]),
     {ok, ImemClusterMgrsTerm} = erl_parse:parse_term(ImemClusterMgrsToks),
     ?L("Args (Processed) -~n"
-       "    Path                : ~p~n"
        "    DDerlHost           : ~p~n"
        "    DDerlPort           : ~p~n"
        "    ImemNodeTypeAtom    : ~p~n"
        "    ImemSchemaNameAtom  : ~p~n"
        "    ImemClusterMgrsTerm : ~p~n"
        "    ImemHost            : ~p~n"
-       "    ImemPort            : ~p~n"
-       "    ImemNodeShardFun    : ~p~n"
-       "    AppDataFolder       : ~p",
-       [ConfigFolder, DDerlHost, DDerlPort, ImemNodeTypeAtom,
-        ImemSchemaNameAtom, ImemClusterMgrsTerm, ImemHost, ImemPort,
-        ImemNodeShardFun, AppDataFolder]),
-    SnapDir = filename:join(InstallPath, "snapshot"),
-    ErrorLog = filename:join([InstallPath, "log", "error.log"]),
-    ConsoleLog = filename:join([InstallPath, "log", "console.log"]),
-    CrashLog = filename:join([InstallPath, "log", "crash.log"]),
+       "    ImemPort            : ~p",
+       [DDerlHost, DDerlPort, ImemNodeTypeAtom,
+        ImemSchemaNameAtom, ImemClusterMgrsTerm, ImemHost, ImemPort]),
     update_file_term(
       FileHandle, ConfigFolder, "sys.config",
       [{[dderl, interface], [], DDerlHost},
@@ -174,13 +145,16 @@ update_sys_config(FileHandle, ConfigFolder,
        {[imem, erl_cluster_mgrs], [], ImemClusterMgrsTerm},
        {[imem, tcp_ip], [], ImemHost},
        {[imem, tcp_port], [], ImemPort},
-       {[imem, imem_snapshot_dir], [], SnapDir},
+       {[imem, imem_snapshot_dir], [], {path, InstallPath}},
        {[imem, node_shard_fun], [], ImemNodeShardFun},
        {[lager, handlers, lager_file_backend, file],
-        [{level, error}], ErrorLog},
+        [{level, error}], {path, InstallPath}},
        {[lager, handlers, lager_file_backend, file],
-        [{level, info}], ConsoleLog},
-       {[lager, crash_log], [], CrashLog}]).
+        [{level, info}], {path, InstallPath}},
+       {[lager, crash_log], [], {path, InstallPath}},
+       {[lager, extra_sinks, access_lager_event, handlers, lager_file_backend,
+         file], [], {path, InstallPath}}
+      ]).
 
 update_file_term(FileHandle, ConfigFolder, File, Configs) ->
     FilePath = filename:join(ConfigFolder, File),
@@ -233,9 +207,17 @@ modify_nested_proplist(FileHandle, File, Term, {[P], Match, Change}) ->
             {P,SubTerm} ->
                 case lists:foldl(MatchFun, true, Match) of
                     true ->
-                        ?L("{~s} changing ~p ~p -> ~p"
-                           , [File, P, SubTerm, Change]),
-                        [{P, Change} | Acc];
+                        case Change of
+                            {path, Path} ->
+                                AbsPath = filename:join(Path, SubTerm),
+                                ?L("{~s} changing ~p ~p -> ~p",
+                                   [File, P, SubTerm, AbsPath]),
+                                [{P, AbsPath} | Acc];
+                            Change ->
+                                ?L("{~s} changing ~p ~p -> ~p",
+                                   [File, P, SubTerm, Change]),
+                                [{P, Change} | Acc]
+                        end;
                     false -> [OldTerm | Acc]
                 end;
             OldTerm ->
@@ -360,8 +342,5 @@ bin_replace(FileHandle, File, TargetBin, [{Name,Re,NewVal}|Rest]) ->
 dtstr() ->
     {Y,M,D} = erlang:date(),
     {H,Min,S} = erlang:time(),
-    lists:flatten(
-      io_lib:format("~4..0B~2..0B~2..0B"
-                    "~2..0B~2..0B~2..0B"
-                    , [Y,M,D,H,Min,S])).
-
+    lists:flatten(io_lib:format("~4..0B~2..0B~2..0B~2..0B~2..0B~2..0B",
+                                [Y,M,D,H,Min,S])).
