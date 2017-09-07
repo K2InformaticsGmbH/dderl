@@ -261,57 +261,8 @@ function insertAtCursor(myField, myValue) {
                 }
             });
 
-        var graphScriptHelp =
-`function initGraph(container, width, height) {
-    // This code is executed once and it should initialize the graph, the
-    // available parameters are (container, width, height)
-
-    // container: d3 selection of the contaner div for the graph
-    // width: width of the container
-    // height: height of the container
-
-    // The function must then return an object with the following callbacks:
-
-    var svg = container
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .style('background-color', 'antiquewhite');
-
-    return {
-        on_data: function(data) {
-            // Process data and add draw here.
-            console.log("the new data arrived", data);
-            var points = svg
-                .selectAll('circle')
-                .data(data, function(d) { return d.id; })
-                .enter()
-                .append('circle');
-
-            points
-                .attr('r', function(d) { return 3; })
-                .attr('cx', function(d) { return d.id * 5; })
-                .attr('cy', 60);
-        },
-        on_resize: function(w, h) {
-            // Apply transformations and scale if when the dialog is resized.
-            svg.attr('width', w)
-                .attr('height', h);
-        },
-        on_reset: function() {
-            // Called when the button clear the graph is clicked.
-            svg.selectAll('svg > *').remove();
-        },
-        on_close: function() {
-            // This should cleanup event listeners and element added
-            // outside the container, the container itself will be removed
-            // after this function call.
-        }
-    };
-}`;
-
         if(!self._script) {
-            graphTextArea.val(graphScriptHelp);
+            graphTextArea.val(getDefaultScript());
         } else {
             graphTextArea.val(self._script);
         }
@@ -1028,6 +979,9 @@ function insertAtCursor(myField, myValue) {
             script = self._graphEdits[planeToShow-1].val();
             // TODO: Remove this as the plane_spec has to contain all definitions...
             planeToShow = 1;
+        } else if(self._graphEdits[0].val() != getDefaultScript()) {
+            console.log("saving script as it is different than template");
+            script = self._graphEdits[0].val();
         }
         return {
             plane_specs: [{
@@ -1341,6 +1295,59 @@ function insertAtCursor(myField, myValue) {
 
   });
 }());
+
+function getDefaultScript() {
+    var graphScriptHelp =
+    `function initGraph(container, width, height) {
+        // This code is executed once and it should initialize the graph, the
+        // available parameters are (container, width, height)
+    
+        // container: d3 selection of the contaner div for the graph
+        // width: width of the container
+        // height: height of the container
+    
+        // The function must then return an object with the following callbacks:
+    
+        var svg = container
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('background-color', 'antiquewhite');
+    
+        return {
+            on_data: function(data) {
+                // Process data and add draw here.
+                console.log("the new data arrived", data);
+                var points = svg
+                    .selectAll('circle')
+                    .data(data, function(d) { return d.id; })
+                    .enter()
+                    .append('circle');
+    
+                points
+                    .attr('r', function(d) { return 3; })
+                    .attr('cx', function(d) { return d.id * 5; })
+                    .attr('cy', 60);
+            },
+            on_resize: function(w, h) {
+                // Apply transformations and scale if when the dialog is resized.
+                svg.attr('width', w)
+                    .attr('height', h);
+            },
+            on_reset: function() {
+                // Called when the button clear the graph is clicked.
+                svg.selectAll('svg > *').remove();
+            },
+            on_close: function() {
+                // This should cleanup event listeners and element added
+                // outside the container, the container itself will be removed
+                // after this function call.
+            }
+        };
+    }`;
+
+    return graphScriptHelp;
+}
 
 // $(document).ready(function() {
 //     var BOX =
