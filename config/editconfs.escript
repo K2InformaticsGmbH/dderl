@@ -153,6 +153,8 @@ update_sys_config(FileHandle, #{"WebSrvIntf"          := DDerlIpPort,
         [{level, info}], {path, InstallPath}},
        {[lager, crash_log], [], {path, InstallPath}},
        {[lager, extra_sinks, access_lager_event, handlers, lager_file_backend,
+         file], [], {path, InstallPath}},
+       {[lager, extra_sinks, activity_lager_event, handlers, lager_file_backend,
          file], [], {path, InstallPath}}
       ]).
 
@@ -232,15 +234,13 @@ modify_nested_proplist(FileHandle, File, Term, {[P|Path], Match, Change}) ->
                 case OldTerm of
                     {P,SubTerm} ->
                         NewSubTerm =
-                        modify_nested_proplist(
-                          FileHandle, File, SubTerm
-                          , {Path, Match, Change}),
+                        modify_nested_proplist(FileHandle, File, SubTerm,
+                                               {Path, Match, Change}),
                         [{P, NewSubTerm} | A];
                     OldTerm ->
                         [OldTerm | A]
                 end
-        end
-        , [], Term));
+        end, [], Term));
 modify_nested_proplist(FileHandle, File, Term, [{Path, Match, Change}|Config]) ->
     ?L("{~s} at ~s", [File, string:join([atom_to_list(P) || P <- Path], "/")]),
     NewTerm = modify_nested_proplist(FileHandle, File, Term, {Path, Match, Change}),
