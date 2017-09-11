@@ -45,7 +45,7 @@ function insertAtCursor(myField, myValue) {
   }
 }
 
-(function() {    
+(function() {
   var DEFAULT_COUNTER = 0;
   $.widget( "dderl.sql", $.ui.dialog, {
 
@@ -68,7 +68,7 @@ function insertAtCursor(myField, myValue) {
     _cmdFlat        : "",
     _cmdPretty      : "",
     _boxJson        : {},
-    _script         : "",  
+    _script         : "",
     _history        : null,
     _historySelect  : null,
     _cmdChanged     : false,
@@ -133,7 +133,7 @@ function insertAtCursor(myField, myValue) {
         history         : [],
         viewId          : null
     },
- 
+
     _getToolbarSelectWidth: function() {
         // 10 pixels for resize handler
         return this._footerDiv.width() - this._getToolbarButtonsWidth() - 10;
@@ -227,7 +227,7 @@ function insertAtCursor(myField, myValue) {
 
         self._flatTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .addClass('sql_text_editor')        
+            .addClass('sql_text_editor')
             .addClass('sql_text_flat')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdFlat);
@@ -237,7 +237,7 @@ function insertAtCursor(myField, myValue) {
         self._prettyTb =
             $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .attr('wrap', 'off')
-            .addClass('sql_text_editor')        
+            .addClass('sql_text_editor')
             .addClass('sql_text_pretty')
             .on('keydown keyup click blur focus change paste', this, function(e) {
                 sqlKeyHandle(e, this, e.data._cmdPretty);
@@ -250,7 +250,7 @@ function insertAtCursor(myField, myValue) {
             .css('font-family', self._fnt);
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
-        
+
         // TODO: This should be ace probably instead of just text area / snippets is good idea...
         var graphTextArea = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
             .addClass('sql_text_editor')
@@ -261,61 +261,12 @@ function insertAtCursor(myField, myValue) {
                 }
             });
 
-        var graphScriptHelp =
-`function initGraph(container, width, height) {
-    // This code is executed once and it should initialize the graph, the
-    // available parameters are (container, width, height)
-
-    // container: d3 selection of the contaner div for the graph
-    // width: width of the container
-    // height: height of the container
-
-    // The function must then return an object with the following callbacks:
-
-    var svg = container
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .style('background-color', 'antiquewhite');
-
-    return {
-        on_data: function(data) {
-            // Process data and add draw here.
-            console.log("the new data arrived", data);
-            var points = svg
-                .selectAll('circle')
-                .data(data, function(d) { return d.id; })
-                .enter()
-                .append('circle');
-
-            points
-                .attr('r', function(d) { return 3; })
-                .attr('cx', function(d) { return d.id * 5; })
-                .attr('cy', 60);
-        },
-        on_resize: function(w, h) {
-            // Apply transformations and scale if when the dialog is resized.
-            svg.attr('width', w)
-                .attr('height', h);
-        },
-        on_reset: function() {
-            // Called when the button clear the graph is clicked.
-            svg.selectAll('svg > *').remove();
-        },
-        on_close: function() {
-            // This should cleanup event listeners and element added
-            // outside the container, the container itself will be removed
-            // after this function call.
-        }
-    };
-}`;
-
         if(!self._script) {
-            graphTextArea.val(graphScriptHelp);
+            graphTextArea.val(getDefaultScript());
         } else {
             graphTextArea.val(self._script);
         }
-        
+
         self._graphEdits = [graphTextArea];
 
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
@@ -357,7 +308,7 @@ function insertAtCursor(myField, myValue) {
             .append(
                 $('<div>')
                 .attr('id','tabgraph')
-                .append(graphTextArea)    
+                .append(graphTextArea)
             )
             .css('position', 'absolute')
             .css('overflow', 'hidden')
@@ -370,7 +321,7 @@ function insertAtCursor(myField, myValue) {
                 var selected = self._editDiv.tabs("option", "active");
 
                 if(selected === 3) {
-                    
+
                 } else {
                     self._setTabFocus();
                     if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
@@ -601,7 +552,7 @@ function insertAtCursor(myField, myValue) {
         if(!viewId) {
             viewId = this.options.viewId;
         }
-        
+
         if(viewId) {
             this._updateView(viewId, this._title);
         } else {
@@ -840,7 +791,7 @@ function insertAtCursor(myField, myValue) {
         var totWidth = self._getToolbarButtonsWidth() + sel.width();
         return totWidth;
     },
-  
+
     /*
      * Toolbar callbak functions
      */
@@ -960,10 +911,10 @@ function insertAtCursor(myField, myValue) {
             }
         }
     },
-    
+
     _processResultStmt: function(resultQry, isMultiple) {
         var self = this;
-        
+
         var initOptions = {
             autoOpen       : false,
             dderlConn      : dderlState.connection,
@@ -1003,7 +954,7 @@ function insertAtCursor(myField, myValue) {
                 resultQry.table_layout = {};
             }
             $.extend(resultQry.table_layout, this._getPlaneData());
-            
+
             this._cmdOwner
                 .table(initOptions)
                 .table('renderTable', resultQry);
@@ -1028,15 +979,18 @@ function insertAtCursor(myField, myValue) {
             script = self._graphEdits[planeToShow-1].val();
             // TODO: Remove this as the plane_spec has to contain all definitions...
             planeToShow = 1;
+        } else if(self._graphEdits[0].val() != getDefaultScript()) {
+            console.log("saving script as it is different than template");
+            script = self._graphEdits[0].val();
         }
         return {
             plane_specs: [{
                 script: script
             }],
             plane_to_show: planeToShow
-        };        
+        };
     },
-      
+
     _resultStmt: function(resultQry) {
         this._processResultStmt(resultQry, false);
     },
@@ -1161,7 +1115,7 @@ function insertAtCursor(myField, myValue) {
         var name = $('<span>')
             .addClass('boxName')
             .text(nametxt);
-    
+
         bx.append(edit);
         bx.append(name);
         bx.data("oldText", alltxt);
@@ -1173,11 +1127,11 @@ function insertAtCursor(myField, myValue) {
                 .addClass('boxChildren');
             bx.append(childrendiv);
         }
-    
+
         for(var i = 0; i < children.length; ++i) {
             childrendiv.append(children[i]);
         }
-    
+
         edit.dblclick(function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1200,7 +1154,7 @@ function insertAtCursor(myField, myValue) {
             name.css('display','inline');
             if(childrendiv) childrendiv.css('display','inline');
         });
-    
+
         var dblClkFn = function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1208,7 +1162,7 @@ function insertAtCursor(myField, myValue) {
             name.css('display','none');
             if(childrendiv) childrendiv.css('display','none');
         };
-    
+
         if (collapsed) {
             edit.css('display','inline');
             name.css('display','none');
@@ -1245,7 +1199,7 @@ function insertAtCursor(myField, myValue) {
 
         return bx;
     },
-    
+
     _boxing: function(box, maxwidth, parent, oldBox) {
         var children = [];
         var alltext = box.name;
@@ -1268,7 +1222,7 @@ function insertAtCursor(myField, myValue) {
     },
 
     _createDlg: function() {
-        var self = this;                    
+        var self = this;
 
         // dlg width can't be less than footer width
         self.options.minWidth = self._footerWidth;
@@ -1281,7 +1235,7 @@ function insertAtCursor(myField, myValue) {
         // Update title to add context menu handlers.
         self._setTitle(self.options.title);
     },
- 
+
     // translations to default dialog behavior
     open: function() {
         this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'none'});
@@ -1342,7 +1296,60 @@ function insertAtCursor(myField, myValue) {
   });
 }());
 
-// $(document).ready(function() {    
+function getDefaultScript() {
+    var graphScriptHelp =
+    `function initGraph(container, width, height) {
+        // This code is executed once and it should initialize the graph, the
+        // available parameters are (container, width, height)
+    
+        // container: d3 selection of the contaner div for the graph
+        // width: width of the container
+        // height: height of the container
+    
+        // The function must then return an object with the following callbacks:
+    
+        var svg = container
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('background-color', 'antiquewhite');
+    
+        return {
+            on_data: function(data) {
+                // Process data and add draw here.
+                console.log("the new data arrived", data);
+                var points = svg
+                    .selectAll('circle')
+                    .data(data, function(d) { return d.id; })
+                    .enter()
+                    .append('circle');
+    
+                points
+                    .attr('r', function(d) { return 3; })
+                    .attr('cx', function(d) { return d.id * 5; })
+                    .attr('cy', 60);
+            },
+            on_resize: function(w, h) {
+                // Apply transformations and scale if when the dialog is resized.
+                svg.attr('width', w)
+                    .attr('height', h);
+            },
+            on_reset: function() {
+                // Called when the button clear the graph is clicked.
+                svg.selectAll('svg > *').remove();
+            },
+            on_close: function() {
+                // This should cleanup event listeners and element added
+                // outside the container, the container itself will be removed
+                // after this function call.
+            }
+        };
+    }`;
+
+    return graphScriptHelp;
+}
+
+// $(document).ready(function() {
 //     var BOX =
 //     {"ind":0,"name":"select","children":[
 //         {"ind":1,"name":"","children":[
@@ -1351,9 +1358,9 @@ function insertAtCursor(myField, myValue) {
 //             {"ind":2,"name":"v.name","children":[],"collapsed":false,"error":"","color":"black","pick":""}
 //             ],"collapsed":false,"error":"","color":"black","pick":""},
 //         {"ind":1,"name":"from","children":[
-//             {"ind":2,"name":"ddView as v","children":[],"collapsed":false,"error":"","color":"black","pick":""},
+//             {"ind":2,"name":"ddView v","children":[],"collapsed":false,"error":"","color":"black","pick":""},
 //             {"ind":2,"name":",","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"ddCmd as c","children":[],"collapsed":false,"error":"","color":"black","pick":""}
+//             {"ind":2,"name":"ddCmd c","children":[],"collapsed":false,"error":"","color":"black","pick":""}
 //             ],"collapsed":false,"error":"","color":"black","pick":""},
 //         {"ind":1,"name":"where","children":[
 //             {"ind":2,"name":"","children":[

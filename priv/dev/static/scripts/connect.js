@@ -499,6 +499,7 @@ function add_imem_options(connection_list, connect_options, connect) {
             )
     );
     if(connect.method == 'local') {
+        $('#schema').attr("readonly", true);
         options.append(
             $('<tr>').append(
                 $('<td>Secure</td>'),

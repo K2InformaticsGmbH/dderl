@@ -9,6 +9,16 @@ Version 1.9.0 (Release Date 11.09.2017)
 * Improved application start / stop.
 * imem-1.8.0
 
+Version 1.8.2 (Release Date 27.07.2017)
+======================================
+* [imem-1.7.1](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.7.1)
+* [`erloci-0.0.3pre-4`](https://github.com/K2InformaticsGmbH/erloci/tree/0.0.3pre-5)
+* Added option to hide connection details, useful for limited space browser. [issue 432](https://github.com/K2InformaticsGmbH/dderl/issues/432)
+* Added optional client identifier support (Oracle).
+* Passwords masked on access log files.
+* Fixed sor order for distinct count stats table negative and decimal values. [issue 439](https://github.com/K2InformaticsGmbH/dderl/issues/439)
+* Implemented support for hidden statements from d3 graphs. [issue 440](https://github.com/K2InformaticsGmbH/dderl/issues/440)
+
 Version 1.8.1 (Release Date 09.05.2017)
 ======================================
 * Fixed saml login issue caused be access logs not handled in saml_handler

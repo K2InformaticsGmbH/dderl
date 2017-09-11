@@ -539,11 +539,11 @@ div#main_footer {
 
 .sql_text_editor {
     width: calc(100% - 20px);
-    height:100%;
+    height: calc(100% - 10px);
     resize: none;
     border: none;
     font-size: 1.14em;
-    padding-left: 20px;
+    padding: 5px 0px 5px 20px;
 }
 
 .sql_text_flat {

@@ -32,7 +32,9 @@ export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock)
                 closeFuns.forEach(function(closeStmt) {
                     closeStmt();
                 });
-                onCloseCb();
+                if ($.isFunction(onCloseCb)) {
+                    onCloseCb();
+                }
             };
             return d3obj;
         };

@@ -561,7 +561,7 @@ conn_permission(Sess, _UserId, #ddConn{id=ConnId}) ->
 -spec add_connect_internal({atom(), pid()}, {atom(), pid()}, #ddConn{}) -> #ddConn{} | {error, binary()}.
 add_connect_internal(UserSess, DalSess, #ddConn{schm = undefined} = Conn) ->
     {ok, SchemaName} = application:get_env(imem, mnesia_schema_name),
-    add_connect_internal(UserSess, DalSess, Conn#ddConn{schm = SchemaName});
+    add_connect_internal(UserSess, DalSess, Conn#ddConn{schm = atom_to_binary(SchemaName, utf8)});
 add_connect_internal(UserSess, DalSess, #ddConn{id = null, owner = Owner} = Conn) ->
     case UserSess:run_cmd(select, [ddConn, [{#ddConn{name='$1', owner='$2', id='$3', _='_'}
                                          , [{'=:=','$1',Conn#ddConn.name},{'=:=','$2',Owner}]

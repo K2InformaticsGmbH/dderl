@@ -4096,10 +4096,10 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
 
     if(tbllay && tbllay.hasOwnProperty('plane_specs')) {
         if($.isArray(tbllay.plane_specs) &&
-            tbllay.hasOwnProperty('plane_to_show') &&
-            tbllay.plane_to_show > 0 &&
-            tbllay.plane_to_show <= tbllay.plane_specs.length) {
-            script = tbllay.plane_specs[tbllay.plane_to_show - 1].script;
+            tbllay.plane_specs.length > 0) {
+            // TODO: We only support one script at the moment.
+            //script = tbllay.plane_specs[tbllay.plane_to_show - 1].script;
+            script = tbllay.plane_specs[0].script;
         }
     }
     $('<div>')

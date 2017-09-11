@@ -29,7 +29,7 @@ process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
         {error, Reason, Req2} ->
             {ok, Req3} = unauthorized(Req2),
             ?Error("SAML - Auth error : ~p", [Reason]),
-            {ok, Req3, S}
+            {shutdown, Req3, S}
     end.
 
 info({reply, {saml, UrlSuffix}}, Req, State) ->

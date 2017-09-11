@@ -47,8 +47,8 @@ init() ->
                 c.owner,
                 v.name
             from
-                ddView as v,
-                ddCmd as c
+                ddView v,
+                ddCmd c
             where
                 c.id = v.cmd
                 and (c.conns = to_list('[]') or is_member(:ddConn.id, c.conns))
@@ -83,7 +83,7 @@ connect_map(#ddConn{adapter = imem} = C) ->
                         name => C#ddConn.name,
                         adapter => <<"imem">>,
                         owner => dderl_dal:user_name(C#ddConn.owner),
-                        schema => atom_to_binary(C#ddConn.schm, utf8)}).
+                        schema => C#ddConn.schm}).
 
 add_conn_extra(#ddConn{access = Access}, Conn)
   when is_map(Access), is_map(Conn) ->
@@ -126,12 +126,7 @@ connect_erlimem(tcp, _Sess, SessionId, Params, ConnInfo) ->
            end,
     IpAddr = binary_to_list(proplists:get_value(<<"host">>, Params)),
     Port = binary_to_integer(proplists:get_value(<<"port">>, Params)),
-    Schema = try binary_to_existing_atom(
-                 proplists:get_value(<<"schema">>, Params, '$bad_schema'),
-                 utf8) of
-               AtomSchema -> AtomSchema
-           catch _:_ -> error("Invalid schema for tcp")
-           end,
+    Schema = proplists:get_value(<<"schema">>, Params),
     connect_erlimem_password({tcp, IpAddr, Port, Opts}, Schema, SessionId, ConnInfo, Params);
 connect_erlimem(rpc, _Sess, SessionId, Params, ConnInfo) ->
     Node = try binary_to_existing_atom(
@@ -169,7 +164,7 @@ connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
           Error ->
               error(list_to_binary(io_lib:format("~p", [Error])))
       end,
-    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo}) of
+    case ErlImemSess:auth(dderl,SessionId,{access,ConnInfo#{type => internal}}) of
         {ok, [{pwdmd5,_}|_]} ->
             User = proplists:get_value(<<"user">>, Params, <<>>),
             Password = proplists:get_value(<<"password">>, Params, []),
@@ -179,6 +174,8 @@ connect_erlimem_password(Connect, Schema, SessionId, ConnInfo, Params) ->
                         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->
                             ?Warn("Password expired ~s~n~p", [User, ST]),
                             {ok, ErlImemSess, #{changePass=>User}};
+                        {error, LoginError} ->
+                            error(LoginError);
                         _ ->
                             {ok, ErlImemSess, '$no_extra'}
                     end;
@@ -199,12 +196,11 @@ process_cmd({[<<"connect">>], BodyJson, SessionId}, Sess, UserId, From,
                     false -> BodyJson4
                 end,
     {value, {<<"owner">>, _Owner}, BodyJson6} = lists:keytake(<<"owner">>, 1, BodyJson5),
-    SchemaAtom = binary_to_existing_atom(Schema, utf8),
     case catch connect_erlimem(conn_method(BodyJson), Sess, SessionId, BodyJson, ConnInfo) of
         {ok, ErlImemSess, Extra} ->
             %% Id undefined if we are creating a new connection.
             case dderl_dal:add_connect(Sess, #ddConn{adapter = imem, id = Id, name = Name,
-                          owner = UserId, schm = SchemaAtom,
+                          owner = UserId, schm = Schema,
                           access = jsx:decode(jsx:encode(BodyJson6), [return_maps])}) of
                 {error, Msg} ->
                     ErlImemSess:close(),
