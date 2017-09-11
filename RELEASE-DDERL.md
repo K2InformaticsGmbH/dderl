@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.9.0 (Release Date 11.09.2017)
+======================================
+* Migration to rebar3.
+* Improved application start / stop.
+* imem-1.8.0
+
 Version 1.8.2 (Release Date 27.07.2017)
 ======================================
 * [imem-1.7.1](https://github.com/K2InformaticsGmbH/imem/releases/tag/1.7.1)
