@@ -38,8 +38,6 @@ do
 done
 
 # augment pwd to the front of all paths
-appebin=$PWD/_build/default/lib/dderl/ebin
-path2win appebin
 erlpaths="-pa $deps"
 kernellogfile=$PWD/log/kernel.txt
 path2win kernellogfile
