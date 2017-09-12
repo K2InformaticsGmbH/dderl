@@ -1,7 +1,18 @@
 Param([string]$app="dderl")
 
-cd _build/prod/rel/$app/lib
+cd _build/prod/rel/$app/
+$erts = Get-ChildItem -Filter erts-* |
+        Select-Object -First 1 -Expand FullName
+$ertsIni = "$erts\bin\erl.ini"
+If (Test-Path $ertsIni) {
+    Remove-Item $ertsIni
+    Write-Host "===> deleted $ertsIni" -foregroundcolor "magenta"
+}
+Else {
+    Write-Host "===> not found $ertsIni" -foregroundcolor "red"
+}
 
+cd lib
 $source = Get-ChildItem -Filter imem-* |
           Select-Object -First 1 -Expand FullName
 $target = Get-ChildItem -Filter stdlib-* |
