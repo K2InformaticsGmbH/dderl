@@ -182,6 +182,7 @@ get_routes() ->
     [{?PROBE_URL, dderl, '$path_probe'},
      {UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
+     {UrlPathPrefix++"/ws/[...]", dderl_ws_handler, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
 

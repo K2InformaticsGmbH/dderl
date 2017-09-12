@@ -3,6 +3,7 @@ import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, initDashboards, show_qry_files,
         password_change_dlg} from './dderl';
 import {loginAjax} from './login';
+import {disconnect_websocket} from './dderl.ws';
 import {md5Arr} from './md5';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
@@ -615,6 +616,8 @@ export function close_tab() {
         headers['DDERL-Adapter'] = dderlState.adapter;
         headers['DDERL-Connection'] = dderlState.connection;
     }
+
+    disconnect_websocket();
 
     headers["X-XSRF-TOKEN"] = dderlState.xsrfToken;
 

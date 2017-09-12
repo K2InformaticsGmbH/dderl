@@ -3,6 +3,7 @@ import {alert_jq} from '../dialogs/dialogs';
 import './dderl.table';
 import {change_login_password, showScreeSaver} from './login';
 import {change_connect_password} from './connect';
+import {websocket_send} from './dderl.ws';
 
 import '../dashboard/dderl.dashView';
 import '../dashboard/dderl.dashboard';
@@ -228,22 +229,28 @@ export function resetPingTimer() {
         return;
     }
 
+    var pingSuccessFun = function(response) {
+        if(response.error == "show_screen_saver" && !dderlState.screensaver) {
+            console.log("showing screen saver");
+            dderlState.screensaver = true;
+            showScreeSaver();
+        }
+        console.log("pingsuccessfun called with ", response);
+    };
+
+    var pingErrorFun = function(error) {
+        console.log("Error on ping : ", error);
+        alert_jq("Failed to reach the server, the connection might be lost.");
+        clearTimeout(dderlState.pingTimer);
+    };
+
     dderlState.pingTimer = setTimeout(
         function() {
-            ajaxCall(null, 'ping', null, 'ping', 
-                function(response) {
-                    if(response.error == "show_screen_saver" && !dderlState.screensaver) {
-                        console.log("showing screen saver");
-                        dderlState.screensaver = true;
-                        showScreeSaver();
-                    }
-                },
-                function(error) {
-                    console.log("Error on ping : ", error);
-                    alert_jq("Failed to reach the server, the connection might be lost.");
-                    clearTimeout(dderlState.pingTimer);
-                }
-            );
+            if(dderlState.isWSSupported) {
+                websocket_send('ping', pingSuccessFun, pingErrorFun);
+            } else {
+                ajaxCall(null, 'ping', null, 'ping', pingSuccessFun, pingErrorFun);
+            }
         },
     30000); // Ping time 30 secs.
 }

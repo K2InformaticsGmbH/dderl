@@ -3,6 +3,7 @@ import {alert_jq, confirm_jq} from '../dialogs/dialogs';
 import {dderlState, ajaxCall, resetPingTimer, password_change_dlg} from './dderl';
 import {md5Arr} from './md5';
 import {connect_dlg} from './connect';
+import {open_websocket, disconnect_websocket} from './dderl.ws';
 import {stopScreensaver, startScreensaver} from './screensaver';
 
 function update_user_information(user) {
@@ -133,6 +134,7 @@ function loginCb(resp) {
     } else if (resp.hasOwnProperty('accountName')) {
         update_user_information(resp.accountName);
         dderlState.isLoggedIn = true;
+        open_websocket();
         resetPingTimer();
         removeScreenSaver();
     } else if (resp.hasOwnProperty('changePass')) {
@@ -336,6 +338,7 @@ function process_logout() {
     dderlState.adapter = null;
     dderlState.username = '';
     dderlState.screensaver = false;
+    disconnect_websocket();
     $(".ui-dialog-content").dialog('close');
     $('#dashboard-menu').empty();
     resetPingTimer();
