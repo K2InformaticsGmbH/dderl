@@ -300,8 +300,8 @@ process_call({[<<"login_change_pswd">>], ReqData}, _Adapter, From, {SrcIp,_}, #s
                     Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                              lists:flatten(io_lib:format("~p", [M]))),
                     reply(From, [{<<"login_change_pswd">>, Err}], self());
-                {error, {{Exception, M}, Stacktrace} = Error} ->
-                    ?Error("change password failed for ~p, result ~n~p", [User, Error], Stacktrace),
+                {error, {{Exception, M}, _Stacktrace} = Error} ->
+                    ?Error("change password failed for ~p, result ~n~p", [User, Error]),
                     Err = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                              lists:flatten(io_lib:format("~p", [M]))),
                     reply(From, [{<<"login_change_pswd">>, Err}], self())

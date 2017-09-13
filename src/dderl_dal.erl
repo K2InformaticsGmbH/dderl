@@ -653,8 +653,8 @@ pl2m([{_,_}|_] = PL) -> maps:from_list(PL).
 -spec check_cmd_select({atom(), pid()}, list()) -> {error, binary()} | list().
 check_cmd_select(UserSess, Args) ->
     case UserSess:run_cmd(select, Args) of
-        {error, {{Exception, M}, Stacktrace} = Error} ->
-            ?Error("select failed : ~n~p", [Error], Stacktrace),
+        {error, {{Exception, M}, _Stacktrace} = Error} ->
+            ?Error("select failed : ~n~p", [Error]),
             Msg = list_to_binary(atom_to_list(Exception) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             {error, Msg};

@@ -109,10 +109,8 @@
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -ifndef(TEST). % LAGER Enabled
 -define(Log(__L,__M,__F,__A,__S),
-(fun(_S) ->
-         lager:__L([{stacktrace,__S}|__M], "["++?LOG_TAG++"] ~p "++__F,
-                   [{?MODULE,?LINE}|__A])
- end)(__S)).
+        lager:__L([{stacktrace,__S}|__M], "["++?LOG_TAG++"] ~p "++__F,
+                   [{?MODULE,?LINE}|__A])).
 -else. % TEST
         -define(__T,
                 (fun() ->
