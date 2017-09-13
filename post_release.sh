@@ -1,19 +1,7 @@
 #!/bin/sh
 echo "===> dderl post_release"
 
-libDir=_build/prod/rel/$1/lib
-filename=$libDir/imem-*/ebin/filename.beam
-imemApp=`echo $libDir/imem-*/ebin/imem.app`
-
-if [ -f $filename ]; then
-    rm -rf $filename
-    sed -i 's/filename,//g' $imemApp
-    echo "===> deleted $filename"
-else
-    echo "===> not found $src"
-fi
-
-dderlDev=$libDir/dderl-*/priv/dev
+dderlDev=_build/prod/rel/$1/lib/dderl-*/priv/dev
 if [ -d $dderlDev ]; then
     cd $dderlDev
     rm -rf node_modules
