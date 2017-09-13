@@ -152,7 +152,7 @@ random(float) ->
 random(tuple) ->
     list_to_tuple(random(list));
 random(binary) ->
-    Size = crypto:rand_uniform(8, 60),
+    Size = 7 + rand:uniform(57),  % replacement for crypto:rand_uniform(8, 60)
     if
         Size < 54 ->
             crypto:strong_rand_bytes(Size);
