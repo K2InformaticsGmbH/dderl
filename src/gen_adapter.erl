@@ -704,7 +704,7 @@ build_resp_fun(Cmd, Clms, From) ->
         catch
             _:Error ->
                 ?Error("Encoding problem ~p ~p~n~p~n~p",
-                       [Cmd, Error, GuiResp, GuiRespJson])
+                       [Cmd, Error, GuiResp, GuiRespJson], erlang:get_stacktrace())
         end
     end.
 
