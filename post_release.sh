@@ -1,21 +1,19 @@
 #!/bin/sh
 echo "===> dderl post_release"
 
-prefix=_build/prod/rel/$1/lib
-src=$prefix/imem-*/ebin/filename.beam
-dst=$prefix/stdlib-*/ebin
-dstfile=$dst/filename.beam
+libDir=_build/prod/rel/$1/lib
+filename=$libDir/imem-*/ebin/filename.beam
+imemApp=`echo $libDir/imem-*/ebin/imem.app`
 
-if [ -f $src ]; then
-    mv $src $dst
-    echo "===> replaced $dstfile"
-elif [ -f $dstfile ]; then
-    echo "===> already replaced $dstfile"
+if [ -f $filename ]; then
+    rm -rf $filename
+    sed -i 's/filename,//g' $imemApp
+    echo "===> deleted $filename"
 else
     echo "===> not found $src"
 fi
 
-dderlDev=$prefix/dderl-*/priv/dev
+dderlDev=$libDir/dderl-*/priv/dev
 if [ -d $dderlDev ]; then
     cd $dderlDev
     rm -rf node_modules
