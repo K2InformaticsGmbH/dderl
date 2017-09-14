@@ -109,18 +109,8 @@
         lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
 -ifndef(TEST). % LAGER Enabled
 -define(Log(__L,__M,__F,__A,__S),
-(fun(_S) ->
-         __Ln = lager_util:level_to_num(__L),
-         __LM = __Ln band element(1,lager_config:get(loglevel)),
-         _LEn = lager_util:level_to_num(error),
-         __ST = if __LM /= 0 andalso length(_S) == 0 andalso __Ln =< _LEn ->
-                       erlang:get_stacktrace();
-                   true ->
-                       _S
-                end,
-         lager:__L([{stacktrace,__ST}|__M], "["++?LOG_TAG++"] ~p "++__F,
-                   [{?MODULE,?LINE}|__A])
- end)(__S)).
+        lager:__L([{stacktrace,__S}|__M], "["++?LOG_TAG++"] ~p "++__F,
+                   [{?MODULE,?LINE}|__A])).
 -else. % TEST
         -define(__T,
                 (fun() ->
