@@ -275,11 +275,6 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
         if(conn.method == 'local') {
             conn.schema = $('#schema').val();
             conn.secure = $('#secure').is(':checked');
-        } else if(conn.method == 'rpc') {
-            conn.schema = $('#schema').val();
-            conn.node = $('#rpc-node').val();
-            conn.user = $('#user').val();
-            conn.password = $('#password').val();
         } else if(conn.method == 'tcp') {
             conn.schema = $('#schema').val();
             conn.host = $('#host').val();
@@ -288,7 +283,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
             conn.password = $('#password').val();
             conn.secure = $('#secure').is(':checked');
         }
-        // imem (rpc/tcp) expects passwords are md5
+        // imem (tcp) expects passwords are md5
         if (conn.hasOwnProperty('password'))
             conn.password = md5Arr(conn.password);
     } else if(conn.adapter == 'oci') {
@@ -484,7 +479,7 @@ function add_oci_options(connection_list, connect_options, connect) {
 function add_imem_options(connection_list, connect_options, connect) {
     connect_options.empty();
     add_methods(connection_list, connect_options,
-                {local: 'Local', rpc : 'RPC', tcp : 'TCP'},
+                {local: 'Local', tcp : 'TCP'},
                 connect.method, add_imem_options);
     
     var options = $('<table>')
@@ -507,27 +502,6 @@ function add_imem_options(connection_list, connect_options, connect) {
                     $('<input type="checkbox" id="secure">')
                     .css('margin-left',0)
                     .attr('checked', connect.secure)
-                )
-            )
-        );
-    } else if (connect.method == 'rpc') {
-        options.append(
-            $('<tr>').append(
-                $('<td>Node</td>'),
-                $('<td>').append(
-                    $('<input type="text" id="rpc-node">').val(connect.node)
-                )
-            ),
-            $('<tr>').append(
-                $('<td>User</td>'),
-                $('<td>').append(
-                    $('<input type="text" id="user">').val(connect.user)
-                )
-            ),
-            $('<tr>').append(
-                $('<td>Password</td>'),
-                $('<td>').append(
-                    $('<input type="password" id="password">')
                 )
             )
         );

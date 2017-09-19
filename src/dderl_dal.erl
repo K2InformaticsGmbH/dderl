@@ -14,7 +14,6 @@
         ]).
 
 -export([get_adapters/1
-        ,login/3
         ,add_adapter/2
         ,add_command/7
         ,update_command/6
@@ -55,18 +54,6 @@
 
 %% Validate this permission.
 -define(USE_ADAPTER, {dderl, adapter, {id, __AdaptId}, use}).
-
--spec login(binary(), binary(), binary()) -> {error, term()} | {ok, {atom(), pid()}, ddEntityId()}.
-login(User, Password, SessionId) ->
-    case erlimem:open(rpc, {node(), imem_meta:schema()}, {User, erlang:md5(Password), SessionId}) of
-        {error, Error} ->
-            ?Debug("login exception ~n~p~n", [Error]),
-            {error, Error};
-        {ok, UserSess} ->
-            UserId = get_id(UserSess, User),
-            ?Debug("login accepted user ~p with id = ~p", [User, UserId]),
-            {ok, UserSess, UserId}
-    end.
 
 -spec add_adapter(atom(), binary()) -> ok.
 add_adapter(Id, FullName) -> gen_server:cast(?MODULE, {add_adapter, Id, FullName}).
@@ -327,13 +314,6 @@ delete_dashboard(Sess, Id) ->
 -spec get_dashboards({atom(), pid()}, ddEntityId()) -> {error, binary()} | [#ddDash{}].
 get_dashboards(Sess, Owner) ->
     check_cmd_select(Sess, [ddDash, [{#ddDash{owner = Owner, _='_'}, [], ['$_']}]]).
-
--spec get_id({atom(), pid()}, ddIdentity()) -> ddEntityId().
-get_id(Sess, Username) ->
-    case Sess:run_cmd(select, [ddAccount, [{#ddAccount{id='$1', name=Username, _='_'}, [], ['$1']}]]) of
-        {[UserId], true} -> UserId;
-        _ -> undefined
-    end.
 
 -spec get_name({atom(), pid()}, ddEntityId()) -> ddIdentity().
 get_name(Sess, UserId) ->
