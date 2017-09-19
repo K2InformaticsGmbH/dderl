@@ -102,7 +102,7 @@ process_request(Adapter, Type, Body, ReplyPid, RemoteEp, SessionToken) ->
 init([XSRFToken, ConnInfo]) ->
     process_flag(trap_exit, true),
     TRef = erlang:send_after(?SESSION_IDLE_TIMEOUT, self(), die),
-    case erlimem:open({rpc, node()}, imem_meta:schema()) of
+    case erlimem:open(local_sec, imem_meta:schema()) of
         {error, Error} ->
             ?Error("erlimem open error : ~p", [Error]),
             {stop, Error};
@@ -164,7 +164,7 @@ handle_info(invalid_credentials, #state{old_state = undefined} = State) -> %% TO
     {stop, normal, State};
 handle_info(invalid_credentials, #state{sess = OldSess} = State) ->
     OldSess:close(),
-    {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+    {ok, Sess} = erlimem:open(local_sec, imem_meta:schema()),
     {noreply, State#state{sess = Sess}};
 handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     %?Debug("Received normal exit from ~p for ~p", [Pid, User]),
@@ -199,7 +199,7 @@ process_call({[<<"login">>], ReqData}, _Adapter, From, {SrcIp, _Port},
             global:unregister_name(Id),
             global:register_name(SessionToken, self()),
             From ! {newToken, SessionToken},
-            {ok, Sess} = erlimem:open({rpc, node()}, imem_meta:schema()),
+            {ok, Sess} = erlimem:open(local_sec, imem_meta:schema()),
             {#state{sess = Sess, id = Id, conn_info = ConnInfo,
                     lock_state = locked, old_state = State,
                     xsrf_token = XSRFToken}, SessionToken, false}
