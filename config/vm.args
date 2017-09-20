@@ -4,10 +4,6 @@
 ## Cookie for distributed erlang
 -setcookie {{ cookie }}
 
-## distributed erlang TCP port range
--kernel inet_dist_listen_min {{ epmd_min }}
--kernel inet_dist_listen_max {{ epmd_max }}
-
 ## Distribution protocol
 -proto_dist {{ proto_dist }}
 
@@ -16,7 +12,7 @@
 ##-heart
 
 ## Enable kernel poll and a few async threads
-##+K true
++K true
 ##+A 5
 
 ## Increase number of concurrent ports/sockets

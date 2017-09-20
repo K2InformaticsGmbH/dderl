@@ -1,6 +1,5 @@
 <?xml version='1.0' encoding='windows-1252'?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-
 <Fragment>
     <UI>
       <TextStyle Id="ServiceSetupDlg_Font_SubHeading" FaceName="Tahoma" Size="8" Bold="yes" />
@@ -30,12 +29,14 @@
 
         <Control X="20" Y="110" Width="90" Height="15" Type="Text"
                  Id="NodeTypeLabel" TabSkip="no" Text="Node &amp;Type" />
-        <Control X="110" Y="110" Width="150" Height="15" Type="ComboBox"
+        <Control X="110" Y="110" Width="150" Height="15" Type="RadioButtonGroup"
                  Id="NodeTypeCombo" Property="DBNODETYPE">
-            <ComboBox Property="DBNODETYPE">
-                <ListItem Value="disc" />
-                <ListItem Value="ram" />
-            </ComboBox>
+            <RadioButtonGroup Property="DBNODETYPE">
+                <RadioButton X="0" Y="0" Width="40" Height="15"
+                             Text="Disc" Value="disc" />
+                <RadioButton X="40" Y="0" Width="40" Height="15"
+                             Text="RAM" Value="ram" />
+            </RadioButtonGroup>
         </Control>
 
         <Control X="20" Y="125" Width="90" Height="15" Type="Text"
@@ -46,17 +47,17 @@
         <Control X="20" Y="140" Width="90" Height="15" Type="Text"
                  Id="ClusterMgrsLabel" TabSkip="no" Text="Cluster &amp;Managers" />
         <Control X="110" Y="140" Width="150" Height="15" Type="Edit" Multiline="yes"
-                 Id="ClusterMgrsEdit" Property="DBCLUSTERMGRS" />
+                 Id="ClusterMgrsEdit" Property="DBCLUSTERMANAGERS" />
 
         <Control X="20" Y="155" Width="90" Height="15" Type="Text"
                  Id="DbIntfLabel" TabSkip="no" Text="DB &amp;Interface" />
         <Control X="110" Y="155" Width="150" Height="15" Type="Edit"
-                 Id="DbIntfEdit" Property="DBINTF" Text="{80}" />
+                 Id="DbIntfEdit" Property="DBINTERFACE" Text="{80}" />
 
         <Control X="20" Y="170" Width="90" Height="15" Type="Text"
                  Id="NodeShardFunLabel" TabSkip="no" Text="Node &amp;Shard Function" />
         <Control X="110" Y="170" Width="150" Height="60" Type="Edit" Multiline="yes"
-                 Id="NodeShardFunEdit" Property="DBNODESHARDFUN" />
+                 Id="NodeShardFunEdit" Property="DBNODESHARDFUNCTION" />
 
         <Control X="180" Y="243" Width="56" Height="17" Type="PushButton"
                  Id="Back" Text="&amp;Back">

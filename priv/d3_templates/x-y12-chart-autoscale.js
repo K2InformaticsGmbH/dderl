@@ -1,47 +1,6 @@
 function init(container, width, height) {
-    // This code is executed once and it should initialize the graph, the
-    // container: d3 selection of the contaner div for the graph
-    // width: width of the container
-    // height: height of the container
-    // The function must then return an object with the following callbacks:
-    /*
-    select 0.01 * item as x
-        , 0.01 * item + 0.1 * sin(0.1 * item) as sinXscaled
-        , 1.0 + 0.01 * item * cos(0.1 * item) as cosXscaled
-        , sin(0.2 * item) / (0.2 * item + 1) as sinDamped
-        , cos(0.3 * item) / (0.01 * item + 1) as cosDamped 
-    from integer 
-    where item >= 0 and item <= 270   
 
-    select time, memory, process_count, port_count from ddMonitor_86400@ 
-    */
-
-    var margin;
-    var cWidth, cHeight;        // main physical content size in px
-    var xVar, y1Var, y2Var, y3Var, y4Var;   // sql column aliases
-    var dom = {lin:'linear',log:'log',time:'time'}; // domain types     
-    var xDom, xParse, xScaleTemplate, xScale, xAutoscale, xAllowance;
-    var yDom, yParse, yScaleTemplate, yScale, yAutoscale, yAllowance;
-    var xMin, xMax, yMin, yMax;   // current zoom domain extent with Allowance
-    var xMinFull, xMaxFull, yMinFull, yMaxFull; // raw full domain extent
-    var gxAxis, xAxis, xText, gyAxis, yAxis, yTexts;
-    var xTickCount, xTickFormatSpecifier, yTickCount, yTickFormatSpecifier;      
-    var radius;     // circle point default radius
-    var a;          // square point default radius
-    var yCount;     // number of y-values data item (x)
-    var noData;     // false before receiving any new data after reset
-    var svg = container.append('svg');
-    // Added random id suffix to avoid clip id conflict with multiple graphs
-    var clipId = "clip_" + Math.random().toString(36).substr(2, 14);
-    var clipPath = svg.append("defs").append("clipPath").attr("id", clipId).append("rect");
-    var g1, g2, g3, g4;                 // data point groups
-    var xLeg, yLeg, dxLeg, dyLeg, xLegStart, yLegStart, fsLeg;  // legend position and font size
-    var zoom = svg.append("g").attr("class", "brush_zoom");
-    var brush_zoom = d3.brush().on("end", brush_zoom_ended);    // zoom brush
-    var g = svg.append("g");                    // main svg item group (axes, point groups)
-    var gxTitle = svg.append("g");              // x axis title group
-    var gLeg = svg.append("g");                 // legend group
-    var idleTimeout, idleDelay = 350;
+    var dom = {lin:'linear',log:'log',time:'time'}; // domain types
     var tParseEuL = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse with msec
     var tParseEu = d3.utcParse("%d.%m.%Y %H:%M:%S");    // timeParse without msec
     var tParseInt = d3.utcParse("%Y-%m-%d %H:%M:%S");    // timeParse international format
@@ -165,6 +124,29 @@ function init(container, width, height) {
         dxLeg = 13;     // Legend horizontal spacer
         dyLeg = 18;     // Legend vertical spacer
     }
+
+    var margin;
+    var cWidth, cHeight;        // main physical content size in px
+    var xVar, y1Var, y2Var, y3Var, y4Var;   // sql column aliases
+    var xDom, xParse, xScaleTemplate, xScale, xAutoscale, xAllowance;
+    var yDom, yParse, yScaleTemplate, yScale, yAutoscale, yAllowance;
+    var xMin, xMax, yMin, yMax;   // current zoom domain extent with Allowance
+    var xMinFull, xMaxFull, yMinFull, yMaxFull; // raw full domain extent
+    var gxAxis, xAxis, xText, gyAxis, yAxis, yTexts;
+    var xTickCount, xTickFormatSpecifier, yTickCount, yTickFormatSpecifier;
+
+    var svg = container.append('svg');
+    // Added random id suffix to avoid clip id conflict with multiple graphs
+    var clipId = "clip_" + Math.random().toString(36).substr(2, 14);
+    var clipPath = svg.append("defs").append("clipPath").attr("id", clipId).append("rect");
+    var g1, g2, g3, g4;                 // data point groups
+    var xLeg, yLeg, dxLeg, dyLeg, xLegStart, yLegStart, fsLeg;  // legend position and font size
+    var zoom = svg.append("g").attr("class", "brush_zoom");
+    var brush_zoom = d3.brush().on("end", brush_zoom_ended);    // zoom brush
+    var g = svg.append("g");                    // main svg item group (axes, point groups)
+    var gxTitle = svg.append("g");              // x axis title group
+    var gLeg = svg.append("g");                 // legend group
+    var idleTimeout, idleDelay = 350;
 
     function init() {
         g.selectAll('svg > g > *').remove();
@@ -675,6 +657,10 @@ function init(container, width, height) {
         on_reset: function() {
             setup();
             init(); 
+        },
+
+        on_close: function() {
+            
         }
     };
 }

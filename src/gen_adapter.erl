@@ -416,15 +416,25 @@ process_cmd({[<<"edit_term_or_view">>], ReqBody}, _Adapter, Sess, _UserId, From,
     IsView = lists:any(fun(E) -> E =:= ddCmd end, Tables),
     case {IsView, element(3, R)} of
         {true, {_, #ddView{}=OldV, #ddCmd{}=OldC}} ->
-            C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
-            From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
-                                        [{<<"isView">>, true}
-                                        ,{<<"view_id">>, OldV#ddView.id}
-                                        ,{<<"title">>, StringToFormat}
-                                        ,{<<"cmd">>, C#ddCmd.command}
-                                        ,{<<"table_layout">>, (OldV#ddView.state)#viewstate.table_layout}
-                                        ,{<<"column_layout">>, (OldV#ddView.state)#viewstate.column_layout}]
-                                       }])};
+            case dderl_dal:get_view(Sess, OldV#ddView.id) of
+                undefined ->
+                    NotFound = jsx:encode(#{edit_term_or_view => #{error => <<"ddView not found">>}}),
+                    From ! {reply, NotFound};
+                {error, Error} ->
+                    ?Error("error ~p reading view ~p", [Error, OldV#ddView.id]),
+                    Error = jsx:encode(#{edit_term_or_view => #{error => Error}}),
+                    From ! {reply, Error};
+                View ->
+                    C = dderl_dal:get_command(Sess, OldC#ddCmd.id),
+                    From ! {reply, jsx:encode([{<<"edit_term_or_view">>,
+                                                [{<<"isView">>, true}
+                                                ,{<<"view_id">>, View#ddView.id}
+                                                ,{<<"title">>, StringToFormat}
+                                                ,{<<"cmd">>, C#ddCmd.command}
+                                                ,{<<"table_layout">>, (View#ddView.state)#viewstate.table_layout}
+                                                ,{<<"column_layout">>, (View#ddView.state)#viewstate.column_layout}]
+                                            }])}
+            end;
         _ ->
             ?Debug("The string to format: ~p", [StringToFormat]),
             format_json_or_term(jsx:is_json(StringToFormat, [strict]), StringToFormat, From, BodyJson)
@@ -694,7 +704,7 @@ build_resp_fun(Cmd, Clms, From) ->
         catch
             _:Error ->
                 ?Error("Encoding problem ~p ~p~n~p~n~p",
-                       [Cmd, Error, GuiResp, GuiRespJson])
+                       [Cmd, Error, GuiResp, GuiRespJson], erlang:get_stacktrace())
         end
     end.
 
