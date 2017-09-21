@@ -28,7 +28,7 @@ table.params input.param {
     bottom:21px;
 }
 
-#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph {
+#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph, .extra-tab {
     position: absolute;
     top:0;
     left:0;

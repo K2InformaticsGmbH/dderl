@@ -271,6 +271,7 @@ function insertAtCursor(myField, myValue) {
 
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
         var titleHeight = 26; // Default height it is recalculated later...
+        var extraTabsCount = 0;
         var ulTabs = $('<ul>' +
               '  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>' +
               '  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>' +
@@ -320,13 +321,36 @@ function insertAtCursor(myField, myValue) {
             .on("tabsactivate", function(event, ui) {
                 var selected = self._editDiv.tabs("option", "active");
 
-                if(selected === 3) {
-
-                } else {
+                if(selected < 3) {
                     self._setTabFocus();
                     if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                         self.addWheel();
                         ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._modCmd } }, 'parse_stmt', 'parsedCmd');
+                    }
+                } else if(selected > 3) { // Parameters tab ignored.
+                    if(selected === extraTabsCount + 4) {
+                        extraTabsCount += 1;                    
+                        ulTabs.append('<li><a href="#tabgraph_' + extraTabsCount + '">D3 Graph ' + extraTabsCount + '</a></li>');
+                        // TODO: This should be node clone...
+                        var content =
+                            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+                            .addClass('sql_text_editor')
+                            .on('keydown', this, function(e) {
+                                if((e.keyCode || e.which) == 9) {
+                                    e.preventDefault();
+                                    insertAtCursor(this, "  ");
+                                }
+                            });
+                        content.val(getDefaultScript());
+                        self._graphEdits.push(content);
+                        self._editDiv.append(
+                            $('<div>')
+                            .attr('id', 'tabgraph_' + extraTabsCount)
+                            .addClass('extra-tab')
+                            .css('top', titleHeight+'px')
+                            .append(content)
+                        );
+                        self._editDiv.tabs("refresh");
                     }
                 }
             })
