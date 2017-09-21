@@ -374,7 +374,8 @@ function insertAtCursor(myField, myValue) {
         templates.style.height = this.options.toolBarHeight + 'px';
         templates.style.textAlign = 'left';
         templateList.forEach(function(t) {
-            templates.appendChild(new Option(t, t));
+            let text = t.application + " - " + t.name;
+            templates.appendChild(new Option(text, JSON.stringify(t)));
         });
         templates.selectedIndex = -1;
 
@@ -382,16 +383,17 @@ function insertAtCursor(myField, myValue) {
         var templatesContent = {};
 
         templates.onchange = (evt) => {
-            var name = evt.target.value;
+            var value = JSON.parse(evt.target.value);
+            var text = value.application + " - " + value.name;
             var selectedEditIdx = this._editDiv.tabs("option", "active") - 4;
-            if(templatesContent.hasOwnProperty(name)) {
-                console.log("content cached found for", name);
-                this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+            if(templatesContent.hasOwnProperty(text)) {
+                console.log("content cached found for", text);
+                this._graphEdits[selectedEditIdx].val(templatesContent[text]);
             } else {
-                ajaxCall(null, "get_d3_template", {get_d3_template: {name: name}}, 'get_d3_template', (content) => {
-                    console.log("Content requested from server for", name);
-                    templatesContent[name] = content;
-                    this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+                ajaxCall(null, "get_d3_template", {get_d3_template: value}, 'get_d3_template', (content) => {
+                    console.log("Content requested from server for", text);
+                    templatesContent[text] = content;
+                    this._graphEdits[selectedEditIdx].val(templatesContent[text]);
                 });
             }
         };
