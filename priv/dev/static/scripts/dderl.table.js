@@ -942,7 +942,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     $("#receivedRows").text(`Rows ${receivedRows}`);
                 }
             }
-            
+
             if(receiverStatus.continue) {
                 setTimeout(() => this._receiverStatus(maxRows), 1000);
             }
@@ -1729,9 +1729,9 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 }
             }
         }
-
         return rangeValues;
     },
+
     _truncateTable: function(ranges) {
         var self = this;
         var truncateTables = self._get_range_values(ranges);
@@ -3758,7 +3758,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         if(self._graphSpec && $.isFunction(self._graphSpec.on_data)) {
             if(_rows.op != "nop") {
                 try {
-                    self._graphSpec.on_data(_rows.rows);
+                    let rowsCopy = JSON.parse(JSON.stringify(_rows.rows));
+                    self._graphSpec.on_data(rowsCopy);
                 } catch(e) {
                     alert_js_error(e);
                 }
