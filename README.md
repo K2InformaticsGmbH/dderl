@@ -19,7 +19,7 @@ WEB DataBase Browser Application.
 1. Append `%WIXBIN%` to `%PATH%` environment variable
 1. Execute `rebar3 as prod release`
 1. Execute `rebar3 as prod erlpkg`
-1. Installer MSI will be generated in `_build/rel/prod/erlpkg`
+1. Installer MSI will be generated in `_build/prod/rel/erlpkg`
 
 ### Hacks
 Unlock account
