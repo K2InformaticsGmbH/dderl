@@ -13,12 +13,13 @@ WEB DataBase Browser Application.
 
 ### Building with WIX
 1. Create environment variable `WINSDKBIN` pointing to latest version of Microsoft Windows SDK bin path (for example `C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\Bin\x64`) ensure `Uuidgen.Exe` exists in the path
-2. Append `%WINSDKBIN%` to `%PATH%` environment variable
-3. [Install Wix](http://wix.codeplex.com/downloads/get/762937)
-4. Create Environment variable `%WIXBIN%` pointing to  WIX installation binary path (e.g. `C:\Program Files (x86)\WiX Toolset v3.8\bin`)
-5. Append `%WIXBIN%` to `%PATH%` environment variable
-6. Execute `_build/default/lib/erlpkg/windows/build_msi.escript -v`
-7. Installer MSI will be generated in `dderl/rel/erlpkg_release/build/`
+1. Append `%WINSDKBIN%` to `%PATH%` environment variable
+1. [Install Wix](http://wix.codeplex.com/downloads/get/762937)
+1. Create Environment variable `%WIXBIN%` pointing to  WIX installation binary path (e.g. `C:\Program Files (x86)\WiX Toolset v3.8\bin`)
+1. Append `%WIXBIN%` to `%PATH%` environment variable
+1. Execute `rebar3 as prod release`
+1. Execute `rebar3 as prod erlpkg`
+1. Installer MSI will be generated in `_build/rel/prod/erlpkg`
 
 ### Hacks
 Unlock account
