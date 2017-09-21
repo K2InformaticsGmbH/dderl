@@ -2,7 +2,7 @@
 -module(dderl_resource).
 -author('Bikram Chatterjee <bikram.chatterjee@k2informatics.ch>').
 
--behaviour(cowboy_loop_handler).
+-behaviour(cowboy_loop).
  
 -include("dderl.hrl").
 
