@@ -77,6 +77,7 @@ function insertAtCursor(myField, myValue) {
     _pendingQueries : null,
     _optBinds       : null,
     _outParamInputs : null,
+    _viewLayout     : null,
 
     // private event handlers
     _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
@@ -131,7 +132,8 @@ function insertAtCursor(myField, myValue) {
         cmdOwner        : null,
         optBinds        : null,
         history         : [],
-        viewId          : null
+        viewId          : null,
+        viewLayout      : null
     },
 
     _getToolbarSelectWidth: function() {
@@ -171,6 +173,7 @@ function insertAtCursor(myField, myValue) {
         if(self.options.script      !== self._script)       self._script    = self.options.script;
         if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
+        if(self.options.viewLayout  !== self._viewLayout)   self._viewLayout= self.options.viewLayout;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
                 self.options.title = 'Query'+DEFAULT_COUNTER+'.sql';
@@ -953,9 +956,10 @@ function insertAtCursor(myField, myValue) {
             resultQry.qparams = self._optBinds;
 
             if(!resultQry.hasOwnProperty('table_layout')) {
-                resultQry.table_layout = {};
+                resultQry.table_layout = this._getLayout();
+            } else {
+                $.extend(resultQry.table_layout, this._getPlaneData());
             }
-            $.extend(resultQry.table_layout, this._getPlaneData());
 
             this._cmdOwner
                 .table(initOptions)
@@ -967,7 +971,10 @@ function insertAtCursor(myField, myValue) {
         if(this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
             return $.extend(this._cmdOwner.table('getTableLayout'), this._getPlaneData());
         } else {
-            return this._getPlaneData();
+            if(!this._viewLayout) {
+                return this._getPlaneData();
+            }
+            return $.extend(this._viewLayout, this._getPlaneData());
         }
     },
 
