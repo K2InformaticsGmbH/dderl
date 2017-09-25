@@ -1,4 +1,5 @@
 -module(dderl_rest).
+-behaviour(cowboy_loop).
 
 -include("dderl.hrl").
 -include_lib("imem/include/imem_sql.hrl").
@@ -213,7 +214,6 @@ format_status(Opt, [PDict, State]) ->
     State.
 
 init_interface() ->
-    MaxAcceptors = ?MAXACCEPTORS,
     MaxConnections = ?MAXCONNS,
     IpWhitelist = ?IMEMREST_IPWHITELIST,
     Opts = #{resource => self(), whitelist => IpWhitelist},
@@ -225,11 +225,10 @@ init_interface() ->
           {dir, filename:join(dderl:priv_dir(), "swagger")}},
          {"/dderlrest/"?API_VERSION"/", ?MODULE, spec},
          {"/dderlrest/"?API_VERSION"/:cmd/[:view]",
-          [{cmd, function, fun cmd_constraint/1},
-           {view, function, fun view_constraint/1}], ?MODULE, Opts}]
+          [{cmd, [fun cmd_constraint/2]},
+           {view, [fun view_constraint/2]}], ?MODULE, Opts}]
        }]),
-    ProtoOpts = #{stream_handlers => [cowboy_compress_h],
-                  env => #{dispatch => Dispatch}},
+    ProtoOpts = #{env => #{dispatch => Dispatch}},
     lists:foreach(
       fun({Ip, Port}) ->
               IpStr = inet:ntoa(Ip),
@@ -240,9 +239,6 @@ init_interface() ->
                         ++ [{versions, ['tlsv1.2','tlsv1.1',tlsv1]}
                             | imem_server:get_cert_key(Cert)]
                         ++ imem_server:get_cert_key(Key),
-                    %   {ok, P} = cowboy:start_https({?MODULE, Ip, Port},
-                    %                                MaxAcceptors, SslTransOpts,
-                    %                                ProtoOpts),
                       {ok, P} = cowboy:start_tls({?MODULE, Ip, Port},
                                                    SslTransOpts, ProtoOpts),
                       ?Info("[~p] Activated https://~s:~p", [P, IpStr, Port]);
@@ -270,15 +266,17 @@ local_ips([{Ip, _} = Ep | Rest], LocalIps, Acc) ->
           _ -> Acc
       end).
 
-cmd_constraint(<<"sql">>) -> {true, sql};
-cmd_constraint(<<"views">>) -> {true, views};
-cmd_constraint(_) -> false.
+cmd_constraint(format_error, Value) -> io_lib:format("The value ~p is not an correct.", [Value]);
+cmd_constraint(_Type, <<"sql">>) -> {ok, sql};
+cmd_constraint(_Type, <<"views">>) -> {ok, views};
+cmd_constraint(_, _) -> {error, not_valid}.
 
-view_constraint(View) ->
+view_constraint(format_error, Value) -> io_lib:format("The value ~p is not an correct.", [Value]);
+view_constraint(_Type, View) ->
     case catch binary_to_integer(View) of
-        ViewId when is_integer(ViewId) -> {true, ViewId};
-        _ when is_binary(View) -> {true, View};
-        _ -> false
+        ViewId when is_integer(ViewId) -> {ok, ViewId};
+        _ when is_binary(View) -> {ok, View};
+        _ -> {error, not_valid}
     end.
 
 stop_interface(Reason) ->
@@ -329,17 +327,17 @@ stop_interface(Reason) ->
 -define(JSON(__BODY), imem_json:encode(__BODY)).
 
 init(Req, swagger) ->
-    Url = cowboy_req:url(Req),
+    Url = iolist_to_binary(cowboy_req:uri(Req)),
     LastAt = byte_size(Url) - 1,
     Req1 =
     cowboy_req:reply(
-      302, [{<<"cache-control">>, <<"no-cache">>},
-            {<<"pragma">>, <<"no-cache">>},
-            {<<"location">>,
+      302, #{<<"cache-control">> => <<"no-cache">>,
+             <<"pragma">> => <<"no-cache">>,
+             <<"location">> =>
              list_to_binary([Url, case Url of
                                       <<_:LastAt/binary, "/">> -> "";
                                       _ -> "/"
-                                  end, "index.html"])}],
+                                  end, "index.html"])},
       <<"Redirecting...">>, Req),
     {shutdown, Req1, #state{}};
 init(Req, spec) ->
@@ -349,15 +347,15 @@ init(Req, spec) ->
             {ok, Content} = file:read_file(
                               filename:join(dderl:priv_dir(),
                                             ?SPEC_FILE)),
-            cowboy_req:reply(200, ?REPLY_JSON_SPEC_HEADERS, Content, Req);
+            cowboy_req:reply(200, maps:from_list(?REPLY_JSON_SPEC_HEADERS), Content, Req);
         <<"OPTIONS">> ->
-            {ACRHS, Req} = cowboy_req:header(<<"access-control-request-headers">>, Req),
-            cowboy_req:reply(200, [{<<"allow">>, <<"GET,OPTIONS">>},
+            ACRHS = cowboy_req:header(<<"access-control-request-headers">>, Req),
+            cowboy_req:reply(200, maps:from_list([{<<"allow">>, <<"GET,OPTIONS">>},
                                    {<<"access-control-allow-headers">>, ACRHS}
-                                   | ?REPLY_OPT_HEADERS], <<>>, Req);
+                                   | ?REPLY_OPT_HEADERS]), <<>>, Req);
         Method ->
             ?Error("~p not supported", [Method]),
-            cowboy_req:reply(405, ?REPLY_JSON_HEADERS, ?JSON(?E1405), Req)
+            cowboy_req:reply(405, maps:from_list(?REPLY_JSON_HEADERS), ?JSON(?E1405), Req)
     end,
     {shutdown, Req1, #state{}};
 init(Req, #{whitelist := WhiteList} = Opts) ->
@@ -370,7 +368,7 @@ init(Req, #{whitelist := WhiteList} = Opts) ->
             case cowboy_req:header(<<"x-irest-conn">>, Req, '$notfound') of
                 '$notfound' ->
                     case cowboy_req:parse_header(<<"authorization">>, Req) of
-                        {<<"basic">>, {Username, Password}} ->
+                        {basic, Username, Password} ->
                             case gen_server:call(
                                    ?MODULE, {login, Username,
                                              erlang:md5(Password)}) of
@@ -380,15 +378,15 @@ init(Req, #{whitelist := WhiteList} = Opts) ->
                                 {error, Error} ->
                                     Req1 =
                                     cowboy_req:reply(
-                                      400, ?REPLY_JSON_HEADERS,
+                                      400, maps:from_list(?REPLY_JSON_HEADERS),
                                       ?JSON(?E400(1, "DB login error",
                                                   io_lib:format("~p", [Error]))),
                                       Req),
                                     {shutdown, Req1, undefined}
                             end;
                         _ ->
-                            {ok, Req1} = cowboy_req:reply(
-                                           401, ?REPLY_JSON_HEADERS,
+                            Req1 = cowboy_req:reply(
+                                           401, maps:from_list(?REPLY_JSON_HEADERS),
                                            ?JSON(?E1401), Req),
                             {shutdown, Req1, undefined}
                     end;
@@ -399,7 +397,7 @@ init(Req, #{whitelist := WhiteList} = Opts) ->
                                          base64:decode(SessionBin))})
             end;
         _ ->
-            Req1 = cowboy_req:reply(403, ?REPLY_JSON_HEADERS,
+            Req1 = cowboy_req:reply(403, maps:from_list(?REPLY_JSON_HEADERS),
                                           ?JSON(?E1403), Req),
             {shutdown, Req1, undefined}
     end.
@@ -411,75 +409,75 @@ push_request(Cmd, Op, Req, Opts) ->
             case get_params(Cmd, Req) of
                 {{error, Error}, Req1} ->
                     ?Error("~p", [Error]),
-                    {ok, Req2} = cowboy_req:reply(400, ?REPLY_JSON_HEADERS,
+                    Req2 = cowboy_req:reply(400, maps:from_list(?REPLY_JSON_HEADERS),
                                                   ?JSON(?E2400), Req1),
                     {shutdown, Req2, undefined};
                 {Params, Req1} when is_map(Params) ->
                     ok = gen_server:cast(
                            ?MODULE, #{cmd => Cmd, params => Params,
                                       reply => self(), opts => Opts}),
-                    {loop, Req1, Opts, 30000, hibernate}
+                    {cowboy_loop, Req1, Opts, hibernate}
             end;
         false when Op == <<"POST">> ->
-            Req1 = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E2400),
+            Req1 = cowboy_req:reply(400, maps:from_list(?REPLY_JSON_HEADERS), ?JSON(?E2400),
                                           Req),
             {shutdown, Req1, undefined};
         HB ->
             ?Error("~s has body = ~p", [Op, HB]),
-            Req1 = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E9400),
+            Req1 = cowboy_req:reply(400, maps:from_list(?REPLY_JSON_HEADERS), ?JSON(?E9400),
                                           Req),
             {shutdown, Req1, undefined}
     end.
 
 get_params(sql, Req) ->
-    Params = cowboy_req:qs_vals(Req),
+    {ok, Params, Req1} = cowboy_req:read_urlencoded_body(Req),
     case maps:from_list(Params) of
         #{<<"q">> := Sql} = P ->
             RC = maps:get(<<"r">>, P, integer_to_binary(?DEFAULT_ROW_SIZE)),
             case catch binary_to_integer(RC) of
                 Rows when is_integer(Rows) ->
-                    {#{sql => Sql, row_count => Rows}, Req};
-                _ -> {{error, non_numeric_row_count}, Req}
+                    {#{sql => Sql, row_count => Rows}, Req1};
+                _ -> {{error, non_numeric_row_count}, Req1}
             end;
         #{<<"s">> := StmtRef} ->
-            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req};
-        _ -> {{error, invalid_parameters}, Req}
+            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req1};
+        _ -> {{error, invalid_parameters}, Req1}
     end;
 get_params(views, Req) ->
-    Params = cowboy_req:qs_vals(Req),
+    {ok, Params, Req1} = cowboy_req:read_urlencoded_body(Req),
     case maps:from_list(Params) of
         #{<<"s">> := StmtRef} ->
-            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req};
+            {#{stmt => binary_to_term(base64:decode(StmtRef))}, Req1};
         P when is_map(P) ->
             RC = maps:get(<<"r">>, P, integer_to_binary(?DEFAULT_ROW_SIZE)),
             case catch binary_to_integer(RC) of
                 Rows when is_integer(Rows) ->
-                    View = cowboy_req:binding(view, Req),
+                    View = cowboy_req:binding(view, Req1),
                     Prms = #{view => View, row_count => Rows},
-                    case cowboy_req:has_body(Req) of
+                    case cowboy_req:has_body(Req1) of
                         true ->
-                            case cowboy_req:has_body(Req) of
+                            case cowboy_req:has_body(Req1) of
                                 true ->
-                                    case cowboy_req:body(Req) of
-                                        {ok, Data, Req1} ->
+                                    case cowboy_req:body(Req1) of
+                                        {ok, Data, Req2} ->
                                             Binds =
                                             [{maps:get(<<"name">>, B),
                                               binary_to_existing_atom(maps:get(<<"typ">>, B, <<>>), utf8),
                                               0, [maps:get(<<"value">>, B, <<>>)]}
                                              || B <- imem_json:decode(Data, [return_maps])],
-                                            {Prms#{binds => Binds}, Req1};
-                                        {more, Data, Req1} ->
-                                            {{error, {to_many_params, Data}}, Req1};
+                                            {Prms#{binds => Binds}, Req2};
+                                        {more, Data, Req2} ->
+                                            {{error, {to_many_params, Data}}, Req2};
                                         {error, Error} ->
-                                            {{error, Error}, Req}
+                                            {{error, Error}, Req1}
                                     end;
-                                false -> {Prms, Req}
+                                false -> {Prms, Req1}
                             end;
-                        false -> {Prms, Req}
+                        false -> {Prms, Req1}
                     end;
-                _ -> {{error, non_numeric_row_count}, Req}
+                _ -> {{error, non_numeric_row_count}, Req1}
             end;
-        _ -> {{error, invalid_parameters}, Req}
+        _ -> {{error, invalid_parameters}, Req1}
     end.
 
 info({reply, bad_req}, Req, State) ->
@@ -489,11 +487,11 @@ info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(B
     info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binary(Body) ->
     RespHeaders =
-    ?REPLY_JSON_HEADERS ++
+    maps:from_list(?REPLY_JSON_HEADERS ++
     lists:map(
       fun({H,V}) when is_binary(V) -> {H, base64:encode(V)};
          ({H,V}) -> {H, base64:encode(term_to_binary(V))}
-      end, Headers),
+      end, Headers)),
     Req1 = cowboy_req:reply(Code, RespHeaders, Body, Req),
     {ok, Req1, State}.
 
