@@ -1,3 +1,3 @@
 @ECHO OFF
 
-_build\default\rel\dderl\bin\dderl.cmd console
+_build\prod\rel\dderl\bin\dderl.cmd console
