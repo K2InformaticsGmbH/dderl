@@ -52,11 +52,10 @@ start(_Type, _Args) ->
     SslOptions = get_ssl_options(),
     %% max acceptors ?
     {ok, _} = cowboy:start_tls(
-                https, 
+                https,
                 [{ip, Interface}, {port, Port},
                  {max_connections, ?MAXCONNS} | SslOptions],
-                #{stream_handlers => [cowboy_compress_h],
-                  env => #{dispatch => Dispatch},
+                #{env => #{dispatch => Dispatch},
                   middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
@@ -93,8 +92,7 @@ stop(_State) ->
 
 init(Req, '$path_probe') ->
     {Code, Resp} = ?PROBE_RESP,
-    {ok, Req1} = cowboy_req:reply(Code, [], Resp, Req),
-    {shutdown, Req1, undefined};
+    {ok, cowboy_req:reply(Code, #{}, Resp, Req), undefined};
 init(Req, State) -> 
     Url = iolist_to_binary(cowboy_req:uri(Req)),
     Req1 = 

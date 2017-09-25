@@ -14,6 +14,6 @@ execute(Req, Env) ->
         nomatch ->
             {ok, Req1, Env};
         _ ->
-            Req2 = cowboy_req:set_resp_header(<<"server">>, <<"dderl">>, Req1),
+            Req2 = cowboy_req:set_resp_headers(#{<<"server">> => <<"dderl">>}, Req1),
             {ok, Req2#{'_dderl' => true}, Env}
     end.
