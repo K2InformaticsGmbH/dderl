@@ -22,7 +22,7 @@ node ('master') {
     sh 'rebar3 as prod erlpkg'
   }
   stage('Archive') {
-    archiveArtifacts artifacts: '_build/prod/rel/erlpkg/**\/*.rpm', onlyIfSuccessful: true
+    archiveArtifacts artifacts: '_build/prod/rel/erlpkg/**/*.rpm', onlyIfSuccessful: true
   }
 }
 node ('windows7_vm') {
