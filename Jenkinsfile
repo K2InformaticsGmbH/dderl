@@ -42,10 +42,10 @@ node ('windows7_vm') {
   stage('Build') {
     env.INSTANT_CLIENT_LIB_PATH = "C:\\oracle\\instantclient\\instantclient_12_1"
     env.ERL_INTERFACE_DIR = "C:\\Program Files\\erlang\\erl7.0\\lib\\erl_interface-3.8"
-    sh 'rebar3 as prod release'
+    bat 'rebar3 as prod release'
   }
   stage('Package') {
-    sh 'rebar3 as prod erlpkg'
+    bat 'rebar3 as prod erlpkg'
   }  
   stage('Archive') {
     archiveArtifacts artifacts: 'rel/erlpkg_release/build/**/*.msi', onlyIfSuccessful: true
