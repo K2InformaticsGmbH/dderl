@@ -127,39 +127,29 @@ decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
 
 -spec insert_mw(atom(), atom()) -> atom().
 insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     [LastMod|RestMods] = lists:reverse(Middlewares),    
     ok = ranch:set_protocol_options(
-           https, [{middlewares, lists:reverse([LastMod, MwMod | RestMods])}
-                   | Opts1]).
+           https, Opts#{middlewares => lists:reverse([LastMod, MwMod | RestMods])}).
 
 -spec remove_mw(atom(), atom()) -> atom().
 remove_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{middlewares, Middlewares -- [MwMod]} | Opts1]).
+           https, Opts#{middlewares => Middlewares -- [MwMod]}).
 
 -spec insert_routes(atom(), list()) -> ok.
 insert_routes(Intf, [{'_',[],Dispatch}]) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,[{'_',[],OldDispatches}]}]}, Opts1}
-    = lists:keytake(env, 1, Opts),
+    #{env := #{dispatch := [{'_',[],OldDispatches}]}} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],OldDispatches++Dispatch}]}}).
 
 -spec reset_routes(atom()) -> ok.
 reset_routes(Intf) ->
     Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,_}]}, Opts1} = lists:keytake(env, 1, Opts),
     [{'_',[],DefaultDispatches}] = cowboy_router:compile([{'_', get_routes()}]),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],DefaultDispatches}]}}).
 
 %%-----------------------------------------------------------------------------
 
