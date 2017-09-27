@@ -23,7 +23,7 @@ init(Req0, []) ->
     case cowboy_req:has_body(Req1) of
         true ->
             Typ = cowboy_req:path_info(Req1),
-            SessionToken = get_cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
+            SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
             XSRFToken = cowboy_req:header(?XSRF_HEADER, Req1, <<>>),
             Adapter = cowboy_req:header(<<"dderl-adapter">>,Req1),
             process_request(SessionToken, XSRFToken, Adapter, Req1, Typ);
@@ -35,14 +35,14 @@ init(Req0, []) ->
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:read_urlencoded_body(Req),
-    Adapter = keyfetch(<<"dderl-adapter">>, <<>>, ReqDataList),
-    FileToDownload = keyfetch(<<"fileToDownload">>, <<>>, ReqDataList),
-    XSRFToken = keyfetch(<<"xsrfToken">>, <<>>, ReqDataList),
-    case keyfetch(<<"exportAll">>, <<"false">>, ReqDataList) of
+    Adapter = dderl:keyfetch(<<"dderl-adapter">>, <<>>, ReqDataList),
+    FileToDownload = dderl:keyfetch(<<"fileToDownload">>, <<>>, ReqDataList),
+    XSRFToken = dderl:keyfetch(<<"xsrfToken">>, <<>>, ReqDataList),
+    case dderl:keyfetch(<<"exportAll">>, <<"false">>, ReqDataList) of
         <<"true">> ->
-            QueryToDownload = keyfetch(<<"queryToDownload">>, <<>>, ReqDataList),
-            BindVals = imem_json:decode(keyfetch(<<"binds">>, <<>>, ReqDataList)),
-            Connection = keyfetch(<<"connection">>, <<>>, ReqDataList),
+            QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, <<>>, ReqDataList),
+            BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, <<>>, ReqDataList)),
+            Connection = dderl:keyfetch(<<"connection">>, <<>>, ReqDataList),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_query">>,
                                 [{<<"connection">>, Connection},
@@ -51,8 +51,8 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
                                 {<<"binds">>,BindVals}]
                             }]), Typ);
         _ ->
-            FsmStmt = keyfetch(<<"statement">>, <<>>, ReqDataList),
-            ColumnPositions = jsx:decode( keyfetch(<<"column_positions">>, <<"[]">>, ReqDataList)),
+            FsmStmt = dderl:keyfetch(<<"statement">>, <<>>, ReqDataList),
+            ColumnPositions = jsx:decode( dderl:keyfetch(<<"column_positions">>, <<"[]">>, ReqDataList)),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_buffer_csv">>,
                                 [{<<"statement">>, FsmStmt},
@@ -70,9 +70,9 @@ process_request(SessionToken, XSRFToken, Adapter, Req, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     Adapter = cowboy_req:header(<<"dderl-adapter">>,Req),
-    SessionToken = get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
+    SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
     XSRFToken = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
-    AccName = list_to_binary(keyfetch(windowsaccountname, "", SamlAttrs)),
+    AccName = list_to_binary(dderl:keyfetch(windowsaccountname, "", SamlAttrs)),
     self() ! {terminateCallback, fun ?MODULE:terminate/3},
     process_request_low(SessionToken, XSRFToken, Adapter, Req, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
@@ -186,7 +186,7 @@ terminate(_Reason, Req, _State) ->
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
     CookieName = cookie_name(?SESSION_COOKIE, Req),
-    Req1 = case get_cookie(CookieName, Req, <<>>) of
+    Req1 = case dderl:get_cookie(CookieName, Req, <<>>) of
         SessionToken -> Req;
         _ ->
             Host = cowboy_req:host(Req),
@@ -228,19 +228,6 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
 cookie_name(Name, Req) ->
     Port = cowboy_req:port(Req),
     list_to_binary([Name, integer_to_list(Port)]).
-
-get_cookie(CookieName, Req, Default) ->
-    Cookies = cowboy_req:parse_cookies(Req),
-    keyfetch(CookieName, Default, Cookies).
-
-keyfetch(Key, Default, List) ->
-    keyfetch(Key, 1, Default, List).
-
-keyfetch(Key, Pos, Default, List) ->
-    case lists:keyfind(Key, Pos, List) of
-        false -> Default;
-        {Key, Val} -> Val
-    end.
 
 % -define(DISP_REQ, true).
 -ifdef(DISP_REQ).

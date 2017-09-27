@@ -20,6 +20,9 @@
 
 -export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
 
+%% Helper functions
+-export([get_cookie/3, keyfetch/3]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -150,6 +153,22 @@ reset_routes(Intf) ->
     [{'_',[],DefaultDispatches}] = cowboy_router:compile([{'_', get_routes()}]),
     ok = ranch:set_protocol_options(
            https, Opts#{env => #{dispatch => [{'_',[],DefaultDispatches}]}}).
+
+-spec get_cookie(binary(), map(), term()) -> term().
+get_cookie(CookieName, Req, Default) ->
+    Cookies = cowboy_req:parse_cookies(Req),
+    keyfetch(CookieName, Default, Cookies).
+
+-spec keyfetch(term(), term(), list()) -> term().
+keyfetch(Key, Default, List) ->
+    keyfetch(Key, 1, Default, List).
+
+-spec keyfetch(term(), integer(), term(), list()) -> term().
+keyfetch(Key, Pos, Default, List) ->
+    case lists:keyfind(Key, Pos, List) of
+        false -> Default;
+        {Key, Val} -> Val
+    end.
 
 %%-----------------------------------------------------------------------------
 
