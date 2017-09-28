@@ -19,7 +19,7 @@
 init(Req0, []) ->
     Req1 = Req0#{reqTime => os:timestamp(),
                  accessLog => #{}},
-    display_req(Req1),
+    ?Debug("Request : ~p", [Req1]),
     case cowboy_req:has_body(Req1) of
         true ->
             Typ = cowboy_req:path_info(Req1),
@@ -117,20 +117,6 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
 
 conn_info(Req) ->
     {PeerIp, PeerPort} = cowboy_req:peer(Req),
-    % Sock = maps:get(socket, Req),
-    % ConnInfo = case Sock of
-    %             {sslsocket, _, _} ->
-    %                    {ok, {LocalIp, LocalPort}} = ssl:sockname(Sock),
-    %                    Info = #{tcp => #{localip => LocalIp, localport => LocalPort}},
-    %                    case ssl:peercert(Sock) of
-    %                        {ok, Cert} ->
-    %                            Info#{ssl => #{cert => public_key:pkix_decode_cert(Cert, otp)}};
-    %                        _ -> Info#{ssl => #{}}
-    %                    end;
-    %                _ ->
-    %                    {ok, {LocalIp, LocalPort}} = inet:sockname(Sock),
-    %                    #{tcp => #{localip => LocalIp, localport => LocalPort}}
-    %            end,
     {ok, LocalIp}   = application:get_env(dderl, interface),
     {ok, LocalPort} = application:get_env(dderl, port),
     ConnTcpInfo = #{localip => LocalIp, localport => LocalPort},
@@ -158,8 +144,7 @@ info({reply_csv, FileName, Chunk, ChunkIdx}, Req, State) ->
     case ChunkIdx of
         last -> {ok, Req1, State};
         single -> {ok, Req1, State};
-        first -> {ok, Req1, State, hibernate};
-        continue -> {ok, Req1, State, hibernate}
+        _ -> {ok, Req1, State, hibernate}  %% first/continue
     end;
 info({newToken, NewSessionToken}, Req, #state{sessionToken = SessionToken} = State) ->
     ?Debug("cookie chnaged ~p -> ~p", [SessionToken, NewSessionToken]),
@@ -178,12 +163,6 @@ terminate(_Reason, Req, _State) ->
     catch dderl_access_logger:log(Log#{bytes => Size,
                                        time => ProcessingTimeMicroS}).
 
-% Reply templates
-% cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
-% cowboy_req:reply(200, [{<<"content-encoding">>, <<"utf-8">>}], Echo, Req),
-% {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
-% Echo = proplists:get_value(<<"echo">>, PostVals),
-% cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
     CookieName = cookie_name(?SESSION_COOKIE, Req),
     Req1 = case dderl:get_cookie(CookieName, Req, <<>>) of
@@ -200,7 +179,7 @@ reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
     Size = maps:get(respSize, Req, 0),
-    %% Statusus is fin or nofin
+    %% Status is fin or nofin
     {Req1, Status} =
     case ChunkIdx of
         Type when Type == first; Type == single ->
@@ -228,14 +207,3 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
 cookie_name(Name, Req) ->
     Port = cowboy_req:port(Req),
     list_to_binary([Name, integer_to_list(Port)]).
-
-% -define(DISP_REQ, true).
--ifdef(DISP_REQ).
-display_req(Req) ->
-    ?Info("-------------------------------------------------------"),
-    ?Info("~p~n", [Req]),
-    ?Info("-------------------------------------------------------").
-
--else.
-display_req(_) -> ok.
--endif.

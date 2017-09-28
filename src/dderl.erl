@@ -158,14 +158,14 @@ reset_routes(Intf) ->
 -spec get_cookie(binary(), map(), term()) -> term().
 get_cookie(CookieName, Req, Default) ->
     Cookies = cowboy_req:parse_cookies(Req),
-    keyfetch(CookieName, Default, Cookies).
+    keyfetch(CookieName, Cookies, Default).
 
 -spec keyfetch(term(), term(), list()) -> term().
-keyfetch(Key, Default, List) ->
-    keyfetch(Key, 1, Default, List).
+keyfetch(Key, List, Default) ->
+    keyfetch(Key, 1, List, Default).
 
 -spec keyfetch(term(), integer(), term(), list()) -> term().
-keyfetch(Key, Pos, Default, List) ->
+keyfetch(Key, Pos, List, Default) ->
     case lists:keyfind(Key, Pos, List) of
         false -> Default;
         {Key, Val} -> Val
