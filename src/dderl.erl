@@ -59,6 +59,7 @@ start(_Type, _Args) ->
                 [{ip, Interface}, {port, Port},
                  {max_connections, ?MAXCONNS} | SslOptions],
                 #{env => #{dispatch => Dispatch},
+                  stream_handlers => [cowboy_compress_h, cowboy_stream_h],
                   middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
