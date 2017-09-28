@@ -471,23 +471,16 @@ process_cmd({[<<"cache_data">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     From ! {reply, RespJson};
 
 process_cmd({[<<"list_d3_templates">>], _ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
-    %% TODO: This should be path join so we have the correct separators...
-    TemplateList = case file:list_dir(dderl:priv_dir() ++ "/d3_templates") of
-        {ok, AllFiles} ->
-            TemplateNames = [list_to_binary(filename:rootname(F)) || F <- AllFiles, filename:extension(F) =:= ".js"],
-            TemplateNames;
-        {error, Reason} ->
-            ?Error("Error reading the d3 templates: ~p", [Reason]),
-            []
-    end,
+    TemplateList = list_d3_templates(dderl_dal:get_d3_templates()),
     RespJson = jsx:encode([{<<"list_d3_templates">>, TemplateList}]),
     From ! {reply, RespJson};
 
 process_cmd({[<<"get_d3_template">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv) ->
     [{<<"get_d3_template">>, BodyJson}] = ReqBody,
     TemplateName = binary_to_list(proplists:get_value(<<"name">>, BodyJson, <<>>)),
-    %% TODO: This should be path join so we have the correct directory separators.
-    Filename = dderl:priv_dir() ++ "/d3_templates/" ++ TemplateName ++ ".js",
+    Application = binary_to_existing_atom(proplists:get_value(<<"application">>, BodyJson), utf8),
+    Path = dderl_dal:get_d3_templates_path(Application),
+    Filename = filename:join(Path, TemplateName ++ ".js"),
     TemplateJs = case file:read_file(Filename) of
         {ok, Content} -> Content;
         {error, Reason} ->
@@ -885,6 +878,23 @@ add_function_type(_, Value, _) ->
 escape_quotes([]) -> [];
 escape_quotes([$' | Rest]) -> [$', $' | escape_quotes(Rest)];
 escape_quotes([Char | Rest]) -> [Char | escape_quotes(Rest)].
+
+-spec list_d3_templates([{atom(), string()}]) -> [map()].
+list_d3_templates([]) -> [];
+list_d3_templates([{Application, Path} | Rest]) ->
+    case file:list_dir(Path) of
+        {ok, AllFiles} ->
+            Templates = [
+                #{
+                    application => Application,
+                    name => list_to_binary(filename:rootname(F))
+                } || F <- AllFiles, filename:extension(F) =:= ".js"],
+            Templates ++ list_d3_templates(Rest);
+        {error, Reason} ->
+            ?Error("Error reading the ~p d3 templates on: ~p", [Application, Path]),
+            ?Error("list_dir failed with reason ~p", [Reason]),
+            list_d3_templates(Rest)
+    end.
 
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].

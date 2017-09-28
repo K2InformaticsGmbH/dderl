@@ -13,7 +13,7 @@
 
 %% Private interfaces
 -export([encrypt/1, decrypt/1, insert_mw/2, insert_routes/2, remove_mw/2,
-         reset_routes/1, get_ssl_options/0]).
+         reset_routes/1, get_ssl_options/0, add_d3_templates_path/2]).
 
 %% OTP Application API
 -export([start/2, stop/1]).
@@ -170,6 +170,10 @@ keyfetch(Key, Pos, Default, List) ->
         false -> Default;
         {Key, Val} -> Val
     end.
+
+-spec add_d3_templates_path(atom(), string()) -> ok.
+add_d3_templates_path(Application, Path) ->
+    dderl_dal:add_d3_templates_path(Application, Path).
 
 %%-----------------------------------------------------------------------------
 
