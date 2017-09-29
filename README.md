@@ -29,6 +29,23 @@ rr(imem_seco).
 imem_meta:write(ddAccount, A#ddAccount{locked = false}).
 ```
 
+### Windows Bash for Jenkins (Visual studio 2017 comunity)
+```
+call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+echo "--------------------------------------------------------"
+echo "	PULL DEPENDENCIES"
+echo "--------------------------------------------------------"
+call rebar3 as prod get-deps
+echo "--------------------------------------------------------"
+echo "	BUILD RELEASE"
+echo "--------------------------------------------------------" 
+call rebar3 as prod release
+echo "--------------------------------------------------------"
+echo "	BUILD PACKAGE (MSI)"
+echo "--------------------------------------------------------" 
+call rebar3 as prod erlpkg
+```
+
 ### Certificates
 DDErl runs on SSL. A default certificate/key pair is [supplied](https://github.com/k2informatics/dderl/tree/master/priv/certs). This, however can be changed either by replacing these files atinstallation or modifying configuration in `ddConfig` table (`[{dderl,dderl,dderlSslOpts}]`). A sample configuration is given below:
 ```erlang
