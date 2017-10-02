@@ -35,15 +35,14 @@ init(Req0, []) ->
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:read_urlencoded_body(Req),
-    Adapter = dderl:keyfetch(<<"dderl-adapter">>, <<>>, ReqDataList),
-    FileToDownload = dderl:keyfetch(<<"fileToDownload">>, <<>>, ReqDataList),
-    XSRFToken = dderl:keyfetch(<<"xsrfToken">>, <<>>, ReqDataList),
-    ?Info("download_query : ~p file : ~p XSRF: ~p ReqData : ~p", [Adapter, FileToDownload, XSRFToken, ReqDataList]),
-    case dderl:keyfetch(<<"exportAll">>, <<"false">>, ReqDataList) of
+    Adapter = dderl:keyfetch(<<"dderl-adapter">>, ReqDataList, <<>>),
+    FileToDownload = dderl:keyfetch(<<"fileToDownload">>, ReqDataList, <<>>),
+    XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
+    case dderl:keyfetch(<<"exportAll">>, ReqDataList, <<"false">>) of
         <<"true">> ->
-            QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, <<>>, ReqDataList),
-            BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, <<>>, ReqDataList)),
-            Connection = dderl:keyfetch(<<"connection">>, <<>>, ReqDataList),
+            QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
+            BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, ReqDataList, <<>>)),
+            Connection = dderl:keyfetch(<<"connection">>, ReqDataList, <<>>),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_query">>,
                                 [{<<"connection">>, Connection},
@@ -52,8 +51,8 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
                                 {<<"binds">>,BindVals}]
                             }]), Typ);
         _ ->
-            FsmStmt = dderl:keyfetch(<<"statement">>, <<>>, ReqDataList),
-            ColumnPositions = jsx:decode( dderl:keyfetch(<<"column_positions">>, <<"[]">>, ReqDataList)),
+            FsmStmt = dderl:keyfetch(<<"statement">>, ReqDataList, <<>>),
+            ColumnPositions = jsx:decode( dderl:keyfetch(<<"column_positions">>, ReqDataList, <<"[]">>)),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_buffer_csv">>,
                                 [{<<"statement">>, FsmStmt},
@@ -73,7 +72,7 @@ samlRelayStateHandle(Req, SamlAttrs) ->
     Adapter = cowboy_req:header(<<"dderl-adapter">>,Req),
     SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
     XSRFToken = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
-    AccName = list_to_binary(dderl:keyfetch(windowsaccountname, "", SamlAttrs)),
+    AccName = list_to_binary(dderl:keyfetch(windowsaccountname, SamlAttrs, "")),
     self() ! {terminateCallback, fun ?MODULE:terminate/3},
     process_request_low(SessionToken, XSRFToken, Adapter, Req, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
