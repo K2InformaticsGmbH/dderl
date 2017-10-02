@@ -342,7 +342,7 @@ init(Req, swagger) ->
                                       _ -> "/"
                                   end, "index.html"])},
       <<"Redirecting...">>, Req),
-    {cowboy_loop, Req1, #state{}};
+    {ok, Req1, #state{}};
 init(Req, spec) ->
     Req1 =
     case cowboy_req:method(Req) of
@@ -360,7 +360,7 @@ init(Req, spec) ->
             ?Error("~p not supported", [Method]),
             cowboy_req:reply(405, ?REPLY_JSON_HEADERS, ?JSON(?E1405), Req)
     end,
-    {cowboy_loop, Req1, #state{}};
+    {ok, Req1, #state{}};
 init(Req, #{whitelist := WhiteList} = Opts) ->
     % whitelist check
     {Ip, _Port} = cowboy_req:peer(Req),
@@ -385,13 +385,13 @@ init(Req, #{whitelist := WhiteList} = Opts) ->
                                       ?JSON(?E400(1, "DB login error",
                                                   io_lib:format("~p", [Error]))),
                                       Req),
-                                    {cowboy_loop, Req1, undefined}
+                                    {ok, Req1, undefined}
                             end;
                         _ ->
                             Req1 = cowboy_req:reply(
                                            401, ?REPLY_JSON_HEADERS,
                                            ?JSON(?E1401), Req),
-                            {cowboy_loop, Req1, undefined}
+                            {ok, Req1, undefined}
                     end;
                 SessionBin when is_binary(SessionBin) ->
                     push_request(
@@ -402,7 +402,7 @@ init(Req, #{whitelist := WhiteList} = Opts) ->
         _ ->
             Req1 = cowboy_req:reply(403, ?REPLY_JSON_HEADERS,
                                           ?JSON(?E1403), Req),
-            {cowboy_loop, Req1, undefined}
+            {ok, Req1, undefined}
     end.
 
 push_request(Cmd, Op, Req, Opts) ->
@@ -414,7 +414,7 @@ push_request(Cmd, Op, Req, Opts) ->
                     ?Error("~p", [Error]),
                     Req2 = cowboy_req:reply(400, ?REPLY_JSON_HEADERS,
                                                   ?JSON(?E2400), Req1),
-                    {cowboy_loop, Req2, undefined};
+                    {ok, Req2, undefined};
                 {Params, Req1} when is_map(Params) ->
                     ok = gen_server:cast(
                            ?MODULE, #{cmd => Cmd, params => Params,
@@ -424,12 +424,12 @@ push_request(Cmd, Op, Req, Opts) ->
         false when Op == <<"POST">> ->
             Req1 = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E2400),
                                           Req),
-            {cowboy_loop, Req1, undefined};
+            {ok, Req1, undefined};
         HB ->
             ?Error("~s has body = ~p", [Op, HB]),
             Req1 = cowboy_req:reply(400, ?REPLY_JSON_HEADERS, ?JSON(?E9400),
                                           Req),
-            {cowboy_loop, Req1, undefined}
+            {ok, Req1, undefined}
     end.
 
 get_params(sql, Req) ->
@@ -488,7 +488,7 @@ get_params(views, Req) ->
 
 info({reply, bad_req}, Req, State) ->
     Req1 = cowboy_req:reply(400, ?REPLY_HEADERS, "", Req),
-    {ok, Req1, State};
+    {stop, Req1, State};
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_map(Body) ->
     info({reply, {Code, Headers, imem_json:encode(Body)}}, Req, State);
 info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binary(Body) ->
@@ -499,6 +499,6 @@ info({reply, {Code, Headers, Body}}, Req, State) when is_integer(Code), is_binar
          (_H, V) -> base64:encode(term_to_binary(V))
       end, Headers)),
     Req1 = cowboy_req:reply(Code, RespHeaders, Body, Req),
-    {ok, Req1, State}.
+    {stop, Req1, State}.
 
 terminate(_Reason, _Req, _State) -> ok.

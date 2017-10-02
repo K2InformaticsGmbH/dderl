@@ -30,7 +30,7 @@ init(Req0, []) ->
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req1, Else]),
             self() ! {reply, <<"{}">>},
-            {cowboy_loop, Req1, #state{}, hibernate}
+            {cowboy_loop, Req1, #state{}}
     end.
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
@@ -38,6 +38,7 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     Adapter = dderl:keyfetch(<<"dderl-adapter">>, <<>>, ReqDataList),
     FileToDownload = dderl:keyfetch(<<"fileToDownload">>, <<>>, ReqDataList),
     XSRFToken = dderl:keyfetch(<<"xsrfToken">>, <<>>, ReqDataList),
+    ?Info("download_query : ~p file : ~p XSRF: ~p ReqData : ~p", [Adapter, FileToDownload, XSRFToken, ReqDataList]),
     case dderl:keyfetch(<<"exportAll">>, <<"false">>, ReqDataList) of
         <<"true">> ->
             QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, <<>>, ReqDataList),
@@ -105,13 +106,13 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                      #state{sessionToken = NewToken}, hibernate};
                 [<<"logout">>] ->
                     self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibernate};
+                    {cowboy_loop, Req, #state{sessionToken = SessionToken}};
                 _ ->
                     ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
                           [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
                     self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibernate}
+                    {cowboy_loop, Req, #state{sessionToken = SessionToken}}
             end
     end.
 
@@ -137,7 +138,7 @@ info({reply, Body}, Req, #state{sessionToken = SessionToken} = State) ->
                  true -> imem_json:encode(Body)
               end,
     Req2 = reply_200_json(BodyEnc, SessionToken, Req),
-    {ok, Req2, State};
+    {stop, Req2, State};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, State) ->
     ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     Req1 = reply_csv(FileName, Chunk, ChunkIdx, Req),
