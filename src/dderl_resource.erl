@@ -29,8 +29,8 @@ init(Req0, []) ->
             process_request(SessionToken, XSRFToken, Adapter, Req1, Typ);
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req1, Else]),
-            self() ! {reply, <<"{}">>},
-            {cowboy_loop, Req1, #state{}}
+            Req2 = reply_200_json(<<"{}">>, <<>>, Req1),
+            {ok, Req2, #state{}}
     end.
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
@@ -104,14 +104,14 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                     {cowboy_loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
                      #state{sessionToken = NewToken}, hibernate};
                 [<<"logout">>] ->
-                    self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}};
+                    reply_200_json(imem_json:ecode([{<<"logout">>, <<"ok">>}]), SessionToken, Req),
+                    {ok, Req, #state{sessionToken = SessionToken}};
                 _ ->
                     ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
                           [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
-                    self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}}
+                    reply_200_json(imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}]), <<>>, Req),
+                    {ok, Req, #state{sessionToken = SessionToken}}
             end
     end.
 
