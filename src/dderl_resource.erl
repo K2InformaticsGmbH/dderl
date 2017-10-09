@@ -19,30 +19,30 @@
 init(Req0, []) ->
     Req1 = Req0#{reqTime => os:timestamp(),
                  accessLog => #{}},
-    display_req(Req1),
+    ?Debug("Request : ~p", [Req1]),
     case cowboy_req:has_body(Req1) of
         true ->
             Typ = cowboy_req:path_info(Req1),
-            SessionToken = get_cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
+            SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
             XSRFToken = cowboy_req:header(?XSRF_HEADER, Req1, <<>>),
             Adapter = cowboy_req:header(<<"dderl-adapter">>,Req1),
             process_request(SessionToken, XSRFToken, Adapter, Req1, Typ);
         Else ->
             ?Error("DDerl request ~p, error ~p", [Req1, Else]),
-            self() ! {reply, <<"{}">>},
-            {cowboy_loop, Req1, #state{}, hibernate}
+            Req2 = reply_200_json(<<"{}">>, <<>>, Req1),
+            {ok, Req2, #state{}}
     end.
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:read_urlencoded_body(Req),
-    Adapter = keyfetch(<<"dderl-adapter">>, <<>>, ReqDataList),
-    FileToDownload = keyfetch(<<"fileToDownload">>, <<>>, ReqDataList),
-    XSRFToken = keyfetch(<<"xsrfToken">>, <<>>, ReqDataList),
-    case keyfetch(<<"exportAll">>, <<"false">>, ReqDataList) of
+    Adapter = dderl:keyfetch(<<"dderl-adapter">>, ReqDataList, <<>>),
+    FileToDownload = dderl:keyfetch(<<"fileToDownload">>, ReqDataList, <<>>),
+    XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
+    case dderl:keyfetch(<<"exportAll">>, ReqDataList, <<"false">>) of
         <<"true">> ->
-            QueryToDownload = keyfetch(<<"queryToDownload">>, <<>>, ReqDataList),
-            BindVals = imem_json:decode(keyfetch(<<"binds">>, <<>>, ReqDataList)),
-            Connection = keyfetch(<<"connection">>, <<>>, ReqDataList),
+            QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
+            BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, ReqDataList, <<>>)),
+            Connection = dderl:keyfetch(<<"connection">>, ReqDataList, <<>>),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_query">>,
                                 [{<<"connection">>, Connection},
@@ -51,8 +51,8 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
                                 {<<"binds">>,BindVals}]
                             }]), Typ);
         _ ->
-            FsmStmt = keyfetch(<<"statement">>, <<>>, ReqDataList),
-            ColumnPositions = jsx:decode( keyfetch(<<"column_positions">>, <<"[]">>, ReqDataList)),
+            FsmStmt = dderl:keyfetch(<<"statement">>, ReqDataList, <<>>),
+            ColumnPositions = jsx:decode( dderl:keyfetch(<<"column_positions">>, ReqDataList, <<"[]">>)),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_buffer_csv">>,
                                 [{<<"statement">>, FsmStmt},
@@ -70,9 +70,9 @@ process_request(SessionToken, XSRFToken, Adapter, Req, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     Adapter = cowboy_req:header(<<"dderl-adapter">>,Req),
-    SessionToken = get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
+    SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
     XSRFToken = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
-    AccName = list_to_binary(keyfetch(windowsaccountname, "", SamlAttrs)),
+    AccName = list_to_binary(dderl:keyfetch(windowsaccountname, SamlAttrs, "")),
     self() ! {terminateCallback, fun ?MODULE:terminate/3},
     process_request_low(SessionToken, XSRFToken, Adapter, Req, imem_json:encode(#{samluser => AccName}), [<<"login">>]).
 
@@ -104,33 +104,19 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                     {cowboy_loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
                      #state{sessionToken = NewToken}, hibernate};
                 [<<"logout">>] ->
-                    self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibernate};
+                    reply_200_json(imem_json:ecode([{<<"logout">>, <<"ok">>}]), SessionToken, Req),
+                    {ok, Req, #state{sessionToken = SessionToken}};
                 _ ->
                     ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
                           [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
                     Node = atom_to_binary(node(), utf8),
-                    self() ! {reply, imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}])},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibernate}
+                    reply_200_json(imem_json:encode([{<<"error">>, <<"Session is not valid ", Node/binary>>}]), <<>>, Req),
+                    {ok, Req, #state{sessionToken = SessionToken}}
             end
     end.
 
 conn_info(Req) ->
     {PeerIp, PeerPort} = cowboy_req:peer(Req),
-    % Sock = maps:get(socket, Req),
-    % ConnInfo = case Sock of
-    %             {sslsocket, _, _} ->
-    %                    {ok, {LocalIp, LocalPort}} = ssl:sockname(Sock),
-    %                    Info = #{tcp => #{localip => LocalIp, localport => LocalPort}},
-    %                    case ssl:peercert(Sock) of
-    %                        {ok, Cert} ->
-    %                            Info#{ssl => #{cert => public_key:pkix_decode_cert(Cert, otp)}};
-    %                        _ -> Info#{ssl => #{}}
-    %                    end;
-    %                _ ->
-    %                    {ok, {LocalIp, LocalPort}} = inet:sockname(Sock),
-    %                    #{tcp => #{localip => LocalIp, localport => LocalPort}}
-    %            end,
     {ok, LocalIp}   = application:get_env(dderl, interface),
     {ok, LocalPort} = application:get_env(dderl, port),
     ConnTcpInfo = #{localip => LocalIp, localport => LocalPort},
@@ -151,15 +137,14 @@ info({reply, Body}, Req, #state{sessionToken = SessionToken} = State) ->
                  true -> imem_json:encode(Body)
               end,
     Req2 = reply_200_json(BodyEnc, SessionToken, Req),
-    {ok, Req2, State};
+    {stop, Req2, State};
 info({reply_csv, FileName, Chunk, ChunkIdx}, Req, State) ->
     ?Debug("reply csv FileName ~p, Chunk ~p, ChunkIdx ~p", [FileName, Chunk, ChunkIdx]),
     Req1 = reply_csv(FileName, Chunk, ChunkIdx, Req),
     case ChunkIdx of
         last -> {ok, Req1, State};
         single -> {ok, Req1, State};
-        first -> {ok, Req1, State, hibernate};
-        continue -> {ok, Req1, State, hibernate}
+        _ -> {ok, Req1, State, hibernate}  %% first/continue
     end;
 info({newToken, NewSessionToken}, Req, #state{sessionToken = SessionToken} = State) ->
     ?Debug("cookie chnaged ~p -> ~p", [SessionToken, NewSessionToken]),
@@ -178,15 +163,9 @@ terminate(_Reason, Req, _State) ->
     catch dderl_access_logger:log(Log#{bytes => Size,
                                        time => ProcessingTimeMicroS}).
 
-% Reply templates
-% cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
-% cowboy_req:reply(200, [{<<"content-encoding">>, <<"utf-8">>}], Echo, Req),
-% {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
-% Echo = proplists:get_value(<<"echo">>, PostVals),
-% cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
     CookieName = cookie_name(?SESSION_COOKIE, Req),
-    Req1 = case get_cookie(CookieName, Req, <<>>) of
+    Req1 = case dderl:get_cookie(CookieName, Req, <<>>) of
         SessionToken -> Req;
         _ ->
             Host = cowboy_req:host(Req),
@@ -200,7 +179,7 @@ reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
     Size = maps:get(respSize, Req, 0),
-    %% Statusus is fin or nofin
+    %% Status is fin or nofin
     {Req1, Status} =
     case ChunkIdx of
         Type when Type == first; Type == single ->
@@ -228,27 +207,3 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
 cookie_name(Name, Req) ->
     Port = cowboy_req:port(Req),
     list_to_binary([Name, integer_to_list(Port)]).
-
-get_cookie(CookieName, Req, Default) ->
-    Cookies = cowboy_req:parse_cookies(Req),
-    keyfetch(CookieName, Default, Cookies).
-
-keyfetch(Key, Default, List) ->
-    keyfetch(Key, 1, Default, List).
-
-keyfetch(Key, Pos, Default, List) ->
-    case lists:keyfind(Key, Pos, List) of
-        false -> Default;
-        {Key, Val} -> Val
-    end.
-
-% -define(DISP_REQ, true).
--ifdef(DISP_REQ).
-display_req(Req) ->
-    ?Info("-------------------------------------------------------"),
-    ?Info("~p~n", [Req]),
-    ?Info("-------------------------------------------------------").
-
--else.
-display_req(_) -> ok.
--endif.

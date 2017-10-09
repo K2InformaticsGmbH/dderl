@@ -39,8 +39,8 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
     Req1 = cowboy_req:reply(302, 
             #{<<"cache-control">> => <<"no-cache">>,
               <<"pragma">> => <<"no-cache">>,
-              <<"location">> => TargetUrl}
-        , <<"Redirecting...">>, Req),
+              <<"location">> => TargetUrl},
+        <<"Redirecting...">>, Req),
     {ok, Req1, State};
 info({reply, _Body}, Req, State) ->
     {ok, unauthorized(Req), State};
