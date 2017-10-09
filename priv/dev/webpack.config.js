@@ -71,7 +71,7 @@ module.exports = {
                 loader: 'babel-loader',
                 include: PATHS.static,
                 query: {
-                    presets: ["es2015"],
+                    presets: ["env"],
                     compact: false
                 }
             }

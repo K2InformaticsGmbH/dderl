@@ -942,7 +942,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     $("#receivedRows").text(`Rows ${receivedRows}`);
                 }
             }
-            
+
             if(receiverStatus.continue) {
                 setTimeout(() => this._receiverStatus(maxRows), 1000);
             }
@@ -1729,9 +1729,9 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 }
             }
         }
-
         return rangeValues;
     },
+
     _truncateTable: function(ranges) {
         var self = this;
         var truncateTables = self._get_range_values(ranges);
@@ -2422,6 +2422,21 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         if(_table.hasOwnProperty('table_layout')) {
             if(_table.table_layout.hasOwnProperty('x')) {
                 this._tbllay = _table.table_layout;
+
+                // Set the options.
+                this.options.width = this._tbllay.width;
+                this.options.height = this._tbllay.height;
+                this.options.position = {
+                    my: "left top",
+                    at: "left+" + this._tbllay.x + " top+" + this._tbllay.y,
+                    of: "#main-body",
+                    collision : 'none'
+                };
+
+                // Override default dialog options.
+                this._dlg.dialog("option", "position", this.options.position);
+                this._dlg.dialog("option", "width", this.options.width);
+                this._dlg.dialog("option", "height", this.options.height);
             }
             if(this._tbllay && this._tbllay.start_btn) {
                 this._startBtn = this._tbllay.start_btn;
@@ -3758,7 +3773,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         if(self._graphSpec && $.isFunction(self._graphSpec.on_data)) {
             if(_rows.op != "nop") {
                 try {
-                    self._graphSpec.on_data(_rows.rows);
+                    let rowsCopy = JSON.parse(JSON.stringify(_rows.rows));
+                    self._graphSpec.on_data(rowsCopy);
                 } catch(e) {
                     alert_js_error(e);
                 }
@@ -4093,14 +4109,18 @@ function exportCsvPrompt(filename, callback) {
 
 function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
     var script = "";
+    var viewLayout = {};
 
-    if(tbllay && tbllay.hasOwnProperty('plane_specs')) {
-        if($.isArray(tbllay.plane_specs) &&
-            tbllay.plane_specs.length > 0) {
-            // TODO: We only support one script at the moment.
-            //script = tbllay.plane_specs[tbllay.plane_to_show - 1].script;
-            script = tbllay.plane_specs[0].script;
+    if(tbllay) {
+        if(tbllay.hasOwnProperty('plane_specs')) {
+            if($.isArray(tbllay.plane_specs) &&
+                tbllay.plane_specs.length > 0) {
+                // TODO: We only support one script at the moment.
+                //script = tbllay.plane_specs[tbllay.plane_to_show - 1].script;
+                script = tbllay.plane_specs[0].script;
+            }
         }
+        viewLayout = tbllay;
     }
     $('<div>')
         .appendTo(document.body)
@@ -4112,6 +4132,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
             cmdFlat: cmd,
             optBinds: optBinds,
             viewId: viewId,
+            viewLayout: viewLayout,
             script: script // TODO: This should be multiple specs...
         })
         .sql('open');

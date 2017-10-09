@@ -9,7 +9,7 @@ webpackConfig.module.loaders.push({
     loader: 'babel-loader',
     include: path.join(__dirname, 'test'),
     query: {
-        presets: ['es2015']
+        presets: ['env']
     }
 });
 

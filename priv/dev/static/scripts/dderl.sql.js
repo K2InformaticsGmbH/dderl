@@ -77,6 +77,7 @@ function insertAtCursor(myField, myValue) {
     _pendingQueries : null,
     _optBinds       : null,
     _outParamInputs : null,
+    _viewLayout     : null,
 
     // private event handlers
     _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
@@ -131,7 +132,8 @@ function insertAtCursor(myField, myValue) {
         cmdOwner        : null,
         optBinds        : null,
         history         : [],
-        viewId          : null
+        viewId          : null,
+        viewLayout      : null
     },
 
     _getToolbarSelectWidth: function() {
@@ -171,6 +173,7 @@ function insertAtCursor(myField, myValue) {
         if(self.options.script      !== self._script)       self._script    = self.options.script;
         if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
+        if(self.options.viewLayout  !== self._viewLayout)   self._viewLayout= self.options.viewLayout;
         if(self.options.title       !== self._title) {
             if(self.options.title === null) {
                 self.options.title = 'Query'+DEFAULT_COUNTER+'.sql';
@@ -374,7 +377,8 @@ function insertAtCursor(myField, myValue) {
         templates.style.height = this.options.toolBarHeight + 'px';
         templates.style.textAlign = 'left';
         templateList.forEach(function(t) {
-            templates.appendChild(new Option(t, t));
+            let text = t.application + " - " + t.name;
+            templates.appendChild(new Option(text, JSON.stringify(t)));
         });
         templates.selectedIndex = -1;
 
@@ -382,16 +386,17 @@ function insertAtCursor(myField, myValue) {
         var templatesContent = {};
 
         templates.onchange = (evt) => {
-            var name = evt.target.value;
+            var value = JSON.parse(evt.target.value);
+            var text = value.application + " - " + value.name;
             var selectedEditIdx = this._editDiv.tabs("option", "active") - 4;
-            if(templatesContent.hasOwnProperty(name)) {
-                console.log("content cached found for", name);
-                this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+            if(templatesContent.hasOwnProperty(text)) {
+                console.log("content cached found for", text);
+                this._graphEdits[selectedEditIdx].val(templatesContent[text]);
             } else {
-                ajaxCall(null, "get_d3_template", {get_d3_template: {name: name}}, 'get_d3_template', (content) => {
-                    console.log("Content requested from server for", name);
-                    templatesContent[name] = content;
-                    this._graphEdits[selectedEditIdx].val(templatesContent[name]);
+                ajaxCall(null, "get_d3_template", {get_d3_template: value}, 'get_d3_template', (content) => {
+                    console.log("Content requested from server for", text);
+                    templatesContent[text] = content;
+                    this._graphEdits[selectedEditIdx].val(templatesContent[text]);
                 });
             }
         };
@@ -951,9 +956,10 @@ function insertAtCursor(myField, myValue) {
             resultQry.qparams = self._optBinds;
 
             if(!resultQry.hasOwnProperty('table_layout')) {
-                resultQry.table_layout = {};
+                resultQry.table_layout = this._getLayout();
+            } else {
+                $.extend(resultQry.table_layout, this._getPlaneData());
             }
-            $.extend(resultQry.table_layout, this._getPlaneData());
 
             this._cmdOwner
                 .table(initOptions)
@@ -965,7 +971,10 @@ function insertAtCursor(myField, myValue) {
         if(this._cmdOwner && this._cmdOwner.hasClass('ui-dialog-content')) {
             return $.extend(this._cmdOwner.table('getTableLayout'), this._getPlaneData());
         } else {
-            return this._getPlaneData();
+            if(!this._viewLayout) {
+                return this._getPlaneData();
+            }
+            return $.extend(this._viewLayout, this._getPlaneData());
         }
     },
 
