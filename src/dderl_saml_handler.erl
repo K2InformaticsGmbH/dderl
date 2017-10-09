@@ -1,9 +1,10 @@
 -module(dderl_saml_handler).
+-behaviour(cowboy_loop).
 
 -include_lib("esaml/include/esaml.hrl").
 -include("dderl.hrl").
 
--export([init/3, info/3, terminate/3]).
+-export([init/2, info/3, terminate/3]).
 
 -export([fwdUrl/3]).
 
@@ -11,44 +12,43 @@
 
 -define(CERTKEYCACHE, samlCertKey).
 
-init(_Transport, Req, _Args) ->
-    Req1 = cowboy_req:set_meta(reqTime, os:timestamp(), Req),
-    Req2 = cowboy_req:set_meta(accessLog, #{}, Req1),
-    {HostUrl, Req2} = cowboy_req:host_url(Req2),
-    {Url, Req2} = cowboy_req:url(Req2),
+init(Req, _Args) ->
+    Req1 = Req#{reqTime => os:timestamp(),
+                accessLog => #{}},
+    HostUrl = iolist_to_binary(cowboy_req:uri(Req1, #{path => undefined, qs => undefined})),
+    Url = iolist_to_binary(cowboy_req:uri(Req1)),
     {SP, IdpMeta} = initialize(HostUrl, Url),
-    {Method, Req3} = cowboy_req:method(Req2),
-    process_req(Method, Req3, #state{sp = SP, idp = IdpMeta}).
+    Method = cowboy_req:method(Req1),
+    process_req(Method, Req1, #state{sp = SP, idp = IdpMeta}).
 
 process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
         {ok, Assertion, RelayState, Req1} ->
             Fun = binary_to_term(base64:decode(http_uri:decode(binary_to_list(RelayState)))),
             Fun(Req1, Assertion#esaml_assertion.attributes),
-            {loop, Req1, S, 50000, hibernate};
+            {cowboy_loop, Req1, S, hibernate};
         {error, Reason, Req2} ->
-            {ok, Req3} = unauthorized(Req2),
+            Req3 = unauthorized(Req2),
             ?Error("SAML - Auth error : ~p", [Reason]),
-            {shutdown, Req3, S}
+            {ok, Req3, S}
     end.
 
 info({reply, {saml, UrlSuffix}}, Req, State) ->
-    {Url, Req1} = cowboy_req:host_url(Req),
+    Url = iolist_to_binary(cowboy_req:uri(Req, #{path => undefined, qs => undefined})),
     TargetUrl = list_to_binary([Url, UrlSuffix, "/"]),
-    {ok, Req2} = cowboy_req:reply(302, [
-            {<<"Cache-Control">>, <<"no-cache">>},
-            {<<"Pragma">>, <<"no-cache">>},
-            {<<"Location">>, TargetUrl}
-        ], <<"Redirecting...">>, Req1),
-    {ok, Req2, State};
-info({reply, _Body}, Req, State) ->
-    {ok, Req1} = unauthorized(Req),
+    Req1 = cowboy_req:reply(302, 
+            #{<<"cache-control">> => <<"no-cache">>,
+              <<"pragma">> => <<"no-cache">>,
+              <<"location">> => TargetUrl}
+        , <<"Redirecting...">>, Req),
     {ok, Req1, State};
+info({reply, _Body}, Req, State) ->
+    {ok, unauthorized(Req), State};
 info({access, Log}, Req, State) ->
-    {OldLog, Req} = cowboy_req:meta(accessLog, Req, #{}),
-    {loop, cowboy_req:set_meta(accessLog, maps:merge(OldLog, Log), Req), State, hibernate};
+    OldLog = maps:get(accessLog, Req, #{}),
+    {ok, Req#{accessLog => maps:merge(OldLog, Log)}, State, hibernate};
 info({terminateCallback, Fun}, Req, State) ->
-    {loop, Req, State#state{terminateCallback = Fun}, hibernate}.
+    {ok, Req, State#state{terminateCallback = Fun}, hibernate}.
 
 terminate(Reason, Req, #state{terminateCallback = Fun} = State) when is_function(Fun, 3) ->
     Fun(Reason, Req, State);
@@ -156,8 +156,8 @@ get_priv_key(KeyBin) ->
     end.
 
 unauthorized(Req) ->
-    cowboy_req:reply(200, [
-            {<<"Cache-Control">>, <<"no-cache">>},
-            {<<"Pragma">>, <<"no-cache">>},
-            {<<"content-type">>, <<"text/html">>}
-        ], ?UNAUTHORIZEDPAGE, Req).
+    cowboy_req:reply(200, 
+            #{<<"Cache-Control">> => <<"no-cache">>,
+              <<"Pragma">> => <<"no-cache">>,
+              <<"content-type">> => <<"text/html">>}
+        , ?UNAUTHORIZEDPAGE, Req).

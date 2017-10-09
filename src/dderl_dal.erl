@@ -39,10 +39,14 @@
         ,process_login/3
         ,rows_from/3
         ,expand_rows/4
+        ,add_d3_templates_path/2
+        ,get_d3_templates/0
+        ,get_d3_templates_path/1
         ]).
 
 -record(state, { schema :: term()
                , sess :: {atom(), pid()}
+               , d3_templates :: list()
     }).
 
 %% Privileges
@@ -336,6 +340,18 @@ add_adapter_to_cmd(Sess, CmdId, Adapter) ->
     Sess:run_cmd(write, [ddCmd, Cmd#ddCmd{adapters = NewAdapters}]),
     CmdId.
 
+-spec add_d3_templates_path(atom(), string()) -> ok.
+add_d3_templates_path(Application, Path) ->
+    gen_server:call(?MODULE, {add_d3_templates_path, {Application, Path}}).
+
+-spec get_d3_templates() -> [{atom(), string()}].
+get_d3_templates() ->
+    gen_server:call(?MODULE, get_d3_templates).
+
+-spec get_d3_templates_path(atom()) -> string().
+get_d3_templates_path(Application) ->
+    gen_server:call(?MODULE, {get_d3_templates_path, Application}).
+
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     ?Info("~p starting...~n", [?MODULE]),
@@ -382,7 +398,9 @@ init([]) ->
             Adapters = [A || A <- AdaptMods, re:run(erlang:atom_to_binary(A, utf8), ".*_adapter$") =/= nomatch],
             [gen_server:cast(?MODULE, {init_adapter, Adapter}) || Adapter <- Adapters],
             ?Info("Available adapters ~p", [Adapters]),
-            {ok, #state{sess=Sess, schema=SchemaName}};
+            D3Templates = [{dderl, filename:join(dderl:priv_dir(), "d3_templates")}],
+            ?Info("Default d3 templates directory ~p", [D3Templates]),
+            {ok, #state{sess=Sess, schema=SchemaName, d3_templates=D3Templates}};
         {error, Reason} ->
              ?Error("Failed to start : ~p", [Reason]),
             {stop, Reason};
@@ -433,6 +451,16 @@ handle_call({get_view, ViewId}, _From, #state{sess = Sess} = State) ->
 
 handle_call({get_view, Name, Adapter, Owner}, _From, #state{sess=Sess} = State) ->
     {reply, get_view(Sess, Name, Adapter, Owner), State};
+
+handle_call({add_d3_templates_path, Entry}, _From, #state{d3_templates=D3Templates} = State) ->
+    {reply, ok, State#state{d3_templates=[Entry | D3Templates]}};
+
+handle_call(get_d3_templates, _From, #state{d3_templates=D3Templates} = State) ->
+    {reply, D3Templates, State};
+
+handle_call({get_d3_templates_path, Application}, _From, #state{d3_templates=D3Templates} = State) ->
+    Entry = proplists:get_value(Application, D3Templates),
+    {reply, Entry, State};
 
 handle_call(Req,From,State) ->
     ?Info("unknown call req ~p from ~p~n", [Req, From]),

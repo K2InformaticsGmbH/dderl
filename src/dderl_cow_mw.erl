@@ -3,16 +3,17 @@
 
 -export([execute/2]).
 
-execute(Req0, Env) ->
-    {Path, Req0} = cowboy_req:path(Req0),
+execute(Req, Env) ->
+    Path = cowboy_req:path(Req),
     %% WARNING: changing x-frame-options from SAMEORIGIN to DENY will break the all file downloads through browsers (IE, Chrome).
-    Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "SAMEORIGIN", Req0),
-    Req2 = cowboy_req:set_resp_header(<<"x-xss-protection">>, "1", Req1),
-    Req3 = cowboy_req:set_resp_header(<<"x-content-type-options">>, "nosniff", Req2),
+    Req1 = cowboy_req:set_resp_headers(#{<<"x-frame-options">> => <<"SAMEORIGIN">>,
+                                        <<"x-xss-protection">> => <<"1">>,
+                                        <<"x-content-type-options">> => <<"nosniff">>
+                                       }, Req),
     case re:run(Path, [$^ | dderl:get_url_suffix()]) of
         nomatch ->
-            {ok, Req3, Env};
+            {ok, Req1, Env};
         _ ->
-            Req = cowboy_req:set_resp_header(<<"server">>, "dderl", Req3),
-            {ok, cowboy_req:set_meta(dderl, true, Req), Env}
+            Req2 = cowboy_req:set_resp_headers(#{<<"server">> => <<"dderl">>}, Req1),
+            {ok, Req2#{'_dderl' => true}, Env}
     end.

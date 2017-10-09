@@ -9,11 +9,11 @@
 -export([start/0, stop/0]).
 
 %% Cowboy callbacks
--export([init/3, handle/2, terminate/3]).
+-export([init/2, terminate/3]).
 
 %% Private interfaces
 -export([encrypt/1, decrypt/1, insert_mw/2, insert_routes/2, remove_mw/2,
-         reset_routes/1, get_ssl_options/0]).
+         reset_routes/1, get_ssl_options/0, add_d3_templates_path/2]).
 
 %% OTP Application API
 -export([start/2, stop/1]).
@@ -50,13 +50,13 @@ start(_Type, _Args) ->
     DDerlRoutes = get_routes(),
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     SslOptions = get_ssl_options(),
-    {ok, _} = cowboy:start_https(
-                https, ?MAXACCEPTORS,
+    %% max acceptors ?
+    {ok, _} = cowboy:start_tls(
+                https,
                 [{ip, Interface}, {port, Port},
                  {max_connections, ?MAXCONNS} | SslOptions],
-                [{compress, true},
-                 {env, [{dispatch, Dispatch}]},
-                 {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
+                #{env => #{dispatch => Dispatch},
+                  middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
@@ -90,28 +90,22 @@ stop(_State) ->
                        "</html>">>},
                     "Response given to the load balancer when the probeUrl is requested")).
 
-init(_Transport, Req, '$path_probe') ->
+init(Req, '$path_probe') ->
     {Code, Resp} = ?PROBE_RESP,
-    {ok, Req1} = cowboy_req:reply(Code, [], Resp, Req),
-    {shutdown, Req1, undefined};
-init(_Transport, Req, _Opts) -> {ok, Req, undefined}.
-
-handle(Req, State) ->
-    {Url, Req} = cowboy_req:url(Req),
-    {ok, Req1} = case binary:last(Url) of
-                     $/ ->
-                         Filename = filename:join([priv_dir(),
-                                                   "public",
-                                                   "index.html"]),
-                         {ok, Html} = file:read_file(Filename),
-                         cowboy_req:reply(
-                           200, [{<<"content-type">>, <<"text/html">>}],
-                           Html, Req);
-                     _ ->
-                         cowboy_req:reply(
-                           301, [{<<"Location">>, <<Url/binary,"/">>}],
-                           <<>>, Req)
-                 end,
+    {ok, cowboy_req:reply(Code, #{}, Resp, Req), undefined};
+init(Req, State) -> 
+    Url = iolist_to_binary(cowboy_req:uri(Req)),
+    Req1 = 
+    case binary:last(Url) of
+        $/ ->
+            Filename = filename:join([priv_dir(),
+                                    "public",
+                                    "index.html"]),
+            {ok, Html} = file:read_file(Filename),
+            cowboy_req:reply(200, #{<<"content-type">> => <<"text/html">>}, Html, Req);
+        _ ->
+            cowboy_req:reply(301, #{<<"location">> => <<Url/binary,"/">>}, Req)
+    end,
     {ok, Req1, State}.
 
 terminate(_Reason, _Req, _State) -> ok.
@@ -166,6 +160,10 @@ reset_routes(Intf) ->
     ok = ranch:set_protocol_options(
            https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
                    | Opts1]).
+
+-spec add_d3_templates_path(atom(), string()) -> ok.
+add_d3_templates_path(Application, Path) ->
+    dderl_dal:add_d3_templates_path(Application, Path).
 
 %%-----------------------------------------------------------------------------
 
