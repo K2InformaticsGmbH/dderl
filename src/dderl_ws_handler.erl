@@ -2,37 +2,33 @@
 
 -include("dderl.hrl").
 
--export([init/3, websocket_init/3, websocket_info/3, websocket_handle/3]).
+-export([init/2, websocket_init/1, websocket_info/2, websocket_handle/2]).
 
 -record(state, {dderl_session}).
 
-init({ssl, http}, Req, Opts) ->
+init(Req, Opts) ->
     ?Info("got init req"),
-    {SessionToken, Req4} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req1), Req3, <<>>),
-    {XSRFToken, Req4} = cowboy_req:header(?XSRF_HEADER, Req4, <<>>),
-    {upgrade, protocol, cowboy_websocket, Req, Opts}.
+    Port = cowboy_req:port(Req),
+    SessCookie = list_to_binary([?SESSION_COOKIE, integer_to_list(Port)]),
+    SessionToken = dderl:get_cookie(SessCookie, Req, <<>>),
+    case global:whereis_name(SessionToken) of
+        undefined -> {ok, Req, Opts};
+        _Pid -> {cowboy_websocket, Req, #state{dderl_session = SessionToken}}
+    end.
 
-websocket_init(_Type, Req, _Opts) ->
-    ?Info("Webscoket opened"),
-    {ok, Req, #state{}}.
+websocket_init(State) -> {ok, State}.
 
-websocket_handle(Frame = {text, <<"ping">>}, Req, State) ->
+websocket_handle(Frame = {text, <<"ping">>}, State) ->
     ?Info("Handled Frame : ~p", [Frame]),
-    {reply, {text, imem_json:encode(#{ping => pong})}, Req, State};
-websocket_handle(Frame = {text, _}, Req, State) ->
+    {reply, {text, imem_json:encode(#{ping => pong})}, State};
+websocket_handle(Frame = {text, _}, State) ->
     ?Info("Handled Frame : ~p", [Frame]),
-    {reply, Frame, Req, State};
-websocket_handle(_Frame, Req, State) ->
+    {reply, Frame, State};
+websocket_handle(_Frame, State) ->
     ?Info("Unhandled Frame : ~p", [_Frame]),
-    {ok, Req, State}.
+    {ok, State}.
 
-websocket_info(hello_world, Req, State) ->
-    {reply, [
-        {text, "Hello"},
-        {text, <<"world!">>},
-        {binary, <<0:8000>>}
-    ], Req, State};
-websocket_info({log, Text}, Req, State) ->
-    {reply, {text, Text}, Req, State};
-websocket_info(_Info, Req, State) ->
-    {ok, Req, State}.
+websocket_info({log, Text}, State) ->
+    {reply, {text, Text}, State};
+websocket_info(_Info, State) ->
+    {ok, State}.
