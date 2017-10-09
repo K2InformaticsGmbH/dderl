@@ -20,6 +20,9 @@
 
 -export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
 
+%% Helper functions
+-export([get_cookie/3, keyfetch/3]).
+
 %%-----------------------------------------------------------------------------
 %% Console Interface
 %%-----------------------------------------------------------------------------
@@ -56,6 +59,7 @@ start(_Type, _Args) ->
                 [{ip, Interface}, {port, Port},
                  {max_connections, ?MAXCONNS} | SslOptions],
                 #{env => #{dispatch => Dispatch},
+                  stream_handlers => [cowboy_compress_h, cowboy_stream_h],
                   middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
@@ -127,39 +131,45 @@ decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
 
 -spec insert_mw(atom(), atom()) -> atom().
 insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     [LastMod|RestMods] = lists:reverse(Middlewares),    
     ok = ranch:set_protocol_options(
-           https, [{middlewares, lists:reverse([LastMod, MwMod | RestMods])}
-                   | Opts1]).
+           https, Opts#{middlewares => lists:reverse([LastMod, MwMod | RestMods])}).
 
 -spec remove_mw(atom(), atom()) -> atom().
 remove_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{middlewares, Middlewares -- [MwMod]} | Opts1]).
+           https, Opts#{middlewares => Middlewares -- [MwMod]}).
 
 -spec insert_routes(atom(), list()) -> ok.
 insert_routes(Intf, [{'_',[],Dispatch}]) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,[{'_',[],OldDispatches}]}]}, Opts1}
-    = lists:keytake(env, 1, Opts),
+    #{env := #{dispatch := [{'_',[],OldDispatches}]}} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],OldDispatches++Dispatch}]}}).
 
 -spec reset_routes(atom()) -> ok.
 reset_routes(Intf) ->
     Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,_}]}, Opts1} = lists:keytake(env, 1, Opts),
     [{'_',[],DefaultDispatches}] = cowboy_router:compile([{'_', get_routes()}]),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],DefaultDispatches}]}}).
+
+-spec get_cookie(binary(), map(), term()) -> term().
+get_cookie(CookieName, Req, Default) ->
+    Cookies = cowboy_req:parse_cookies(Req),
+    keyfetch(CookieName, Cookies, Default).
+
+-spec keyfetch(term(), term(), list()) -> term().
+keyfetch(Key, List, Default) ->
+    keyfetch(Key, 1, List, Default).
+
+-spec keyfetch(term(), integer(), term(), list()) -> term().
+keyfetch(Key, Pos, List, Default) ->
+    case lists:keyfind(Key, Pos, List) of
+        false -> Default;
+        {Key, Val} -> Val
+    end.
 
 -spec add_d3_templates_path(atom(), string()) -> ok.
 add_d3_templates_path(Application, Path) ->
