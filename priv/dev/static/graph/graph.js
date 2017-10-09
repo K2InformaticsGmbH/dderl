@@ -188,7 +188,7 @@ function openContextMenu(entriesList, {x, y}) {
 }
 
 function openDialog(title, content, {x, y}) {
-    var dlg = $('<div class="selectable-alert-text">');
+    var dlg = $('<div class="selectable-alert-text graph-details-text">');
 
     dlg.html(content);
 
