@@ -406,18 +406,7 @@ init([]) ->
             ?Info("Available adapters ~p", [Adapters]),
             D3Templates = [{dderl, filename:join(dderl:priv_dir(), "d3_templates")}],
             ?Info("Default d3 templates directory ~p", [D3Templates]),
-            HostApp =
-                lists:foldl(
-                fun({App,_,_}, <<>>) ->
-                        {ok, Apps} = application:get_key(App, applications),
-                        case lists:member(dderl, Apps) of
-                            true -> atom_to_binary(App, utf8);
-                            _ -> <<>>
-                        end;
-                    (_, App) -> App
-                end, <<>>, application:which_applications()),
-            {ok, #state{sess=Sess, schema=SchemaName, d3_templates=D3Templates,
-                        host_app = HostApp}};
+            {ok, #state{sess=Sess, schema=SchemaName, d3_templates=D3Templates}};
         {error, Reason} ->
              ?Error("Failed to start : ~p", [Reason]),
             {stop, Reason};
@@ -479,6 +468,18 @@ handle_call({get_d3_templates_path, Application}, _From, #state{d3_templates=D3T
     Entry = proplists:get_value(Application, D3Templates),
     {reply, Entry, State};
 
+handle_call(get_host_app, _From, #state{host_app = undefined} = State) ->
+    HostApp =
+        lists:foldl(
+            fun({App,_,_}, <<>>) ->
+                    {ok, Apps} = application:get_key(App, applications),
+                    case lists:member(dderl, Apps) of
+                        true -> atom_to_binary(App, utf8);
+                        _ -> <<>>
+                    end;
+                (_, App) -> App
+            end, <<>>, application:which_applications()),
+    {reply, HostApp, State#state{host_app = HostApp}};
 handle_call(get_host_app, _From, #state{host_app = HostApp} = State) ->
     {reply, HostApp, State};
 
