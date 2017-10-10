@@ -61,7 +61,7 @@ function loginCb(resp) {
     if(cookies) {
         var cs = cookies.split("; ");
         for(var i = 0; i < cs.length; i++) { 
-            if(cs[i].indexOf("DDERL-XSRF-TOKEN" + dderlState.port) !== -1) {
+            if(cs[i].indexOf(dderlState.app + "DDERL-XSRF-TOKEN") !== -1) {
                 dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
                 break;
             }

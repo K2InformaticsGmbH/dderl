@@ -42,11 +42,13 @@
         ,add_d3_templates_path/2
         ,get_d3_templates/0
         ,get_d3_templates_path/1
+        ,get_host_app/0
         ]).
 
 -record(state, { schema :: term()
                , sess :: {atom(), pid()}
                , d3_templates :: list()
+               , host_app :: binary()
     }).
 
 %% Privileges
@@ -352,6 +354,10 @@ get_d3_templates() ->
 get_d3_templates_path(Application) ->
     gen_server:call(?MODULE, {get_d3_templates_path, Application}).
 
+-spec get_host_app() -> binary().
+get_host_app() ->
+    gen_server:call(?MODULE, get_host_app).
+
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     ?Info("~p starting...~n", [?MODULE]),
@@ -461,6 +467,21 @@ handle_call(get_d3_templates, _From, #state{d3_templates=D3Templates} = State) -
 handle_call({get_d3_templates_path, Application}, _From, #state{d3_templates=D3Templates} = State) ->
     Entry = proplists:get_value(Application, D3Templates),
     {reply, Entry, State};
+
+handle_call(get_host_app, _From, #state{host_app = undefined} = State) ->
+    HostApp =
+        lists:foldl(
+            fun({App,_,_}, <<>>) ->
+                    {ok, Apps} = application:get_key(App, applications),
+                    case lists:member(dderl, Apps) of
+                        true -> atom_to_binary(App, utf8);
+                        _ -> <<>>
+                    end;
+                (_, App) -> App
+            end, <<>>, application:which_applications()),
+    {reply, HostApp, State#state{host_app = HostApp}};
+handle_call(get_host_app, _From, #state{host_app = HostApp} = State) ->
+    {reply, HostApp, State};
 
 handle_call(Req,From,State) ->
     ?Info("unknown call req ~p from ~p~n", [Req, From]),
