@@ -23,7 +23,7 @@ init(Req0, []) ->
     case cowboy_req:has_body(Req1) of
         true ->
             Typ = cowboy_req:path_info(Req1),
-            SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req1), Req1, <<>>),
+            SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE), Req1, <<>>),
             XSRFToken = cowboy_req:header(?XSRF_HEADER, Req1, <<>>),
             Adapter = cowboy_req:header(<<"dderl-adapter">>,Req1),
             process_request(SessionToken, XSRFToken, Adapter, Req1, Typ);
@@ -70,7 +70,7 @@ process_request(SessionToken, XSRFToken, Adapter, Req, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     Adapter = cowboy_req:header(<<"dderl-adapter">>,Req),
-    SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
+    SessionToken = dderl:get_cookie(cookie_name(?SESSION_COOKIE), Req, <<>>),
     XSRFToken = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(dderl:keyfetch(windowsaccountname, SamlAttrs, "")),
     self() ! {terminateCallback, fun ?MODULE:terminate/3},
@@ -164,7 +164,7 @@ terminate(_Reason, Req, _State) ->
                                        time => ProcessingTimeMicroS}).
 
 reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
-    CookieName = cookie_name(?SESSION_COOKIE, Req),
+    CookieName = cookie_name(?SESSION_COOKIE),
     Req1 = case dderl:get_cookie(CookieName, Req, <<>>) of
         SessionToken -> Req;
         _ ->
@@ -199,11 +199,11 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->
-    XSRFCookie = cookie_name(?XSRF_COOKIE, Req),
+    XSRFCookie = cookie_name(?XSRF_COOKIE),
     Host = cowboy_req:host(Req),
     Path = dderl:format_path(dderl:get_url_suffix()),
     cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, Req, ?COOKIE_OPTS(Host, Path)).
 
-cookie_name(Name, Req) ->
-    Port = cowboy_req:port(Req),
-    list_to_binary([Name, integer_to_list(Port)]).
+cookie_name(Name) ->
+    HostApp = dderl_dal:get_host_app(),
+    list_to_binary([HostApp, Name]).

@@ -691,16 +691,7 @@ find_deps_app_seq(App,Chain) ->
 
 login(ReqData, From, SrcIp, State) ->
     #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
-    HostApp =
-    lists:foldl(
-      fun({App,_,_}, <<>>) ->
-              {ok, Apps} = application:get_key(App, applications),
-              case lists:member(dderl, Apps) of
-                  true -> atom_to_binary(App, utf8);
-                  _ -> <<>>
-              end;
-         (_, App) -> App
-      end, <<>>, application:which_applications()),
+    HostApp = dderl_dal:get_host_app(),
     {ok, Vsn} = application:get_key(dderl, vsn),
     {ok, Port} = application:get_env(port),
     Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp, port => Port,
