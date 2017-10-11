@@ -62,7 +62,7 @@ function loginCb(resp) {
     if(cookies) {
         var cs = cookies.split("; ");
         for(var i = 0; i < cs.length; i++) { 
-            if(cs[i].indexOf(dderlState.app + "DDERL-XSRF-TOKEN") !== -1) {
+            if(cs[i].startsWith(dderlState.app + "DDERL-XSRF-TOKEN")) {
                 dderlState.xsrfToken = cs[i].substring(cs[i].indexOf("=")+1);
                 break;
             }
