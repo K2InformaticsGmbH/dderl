@@ -4,26 +4,20 @@
 
 -export([init/2, websocket_init/1, websocket_info/2, websocket_handle/2]).
 
--record(state, {dderl_session}).
+-record(state, {session_pid}).
 
 init(Req, Opts) ->
-    ?Info("got init req"),
-    Port = cowboy_req:port(Req),
-    SessCookie = list_to_binary([?SESSION_COOKIE, integer_to_list(Port)]),
-    SessionToken = dderl:get_cookie(SessCookie, Req, <<>>),
+    SessionToken = dderl:get_cookie(dderl_resource:cookie_name(?SESSION_COOKIE), Req, <<>>),
     case global:whereis_name(SessionToken) of
         undefined -> {ok, Req, Opts};
-        _Pid -> {cowboy_websocket, Req, #state{dderl_session = SessionToken}}
+        Pid -> {cowboy_websocket, Req, #state{session_pid = Pid}}
     end.
 
 websocket_init(State) -> {ok, State}.
 
-websocket_handle(Frame = {text, <<"ping">>}, State) ->
-    ?Info("Handled Frame : ~p", [Frame]),
-    {reply, {text, imem_json:encode(#{ping => pong})}, State};
-websocket_handle(Frame = {text, _}, State) ->
-    ?Info("Handled Frame : ~p", [Frame]),
-    {reply, Frame, State};
+websocket_handle({text, <<"ping">>}, #state{session_pid = Pid} = State) ->
+    Pid ! rearm_session_idle_timer,
+    {reply, {text, imem_json:encode(#{ping => node()})}, State};
 websocket_handle(_Frame, State) ->
     ?Info("Unhandled Frame : ~p", [_Frame]),
     {ok, State}.

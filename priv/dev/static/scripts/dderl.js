@@ -15,7 +15,7 @@ export var dderlState = {
     connection: null,
     connected_user: null,
     service: null,
-    ws: null,
+    websocket: false,
     pingTimer: null,
     currentErrorAlert: null,
     dashboards: null,
@@ -117,17 +117,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                 }
             }
             else if(_data.hasOwnProperty('error')) {
-                if(_url == 'app/ping') {
-                    dderlState.isLoggedIn = false;
-                    dderlState.connection = null;
-                    dderlState.adapter = null;
-                    resetPingTimer();
-                }
-
-                if(_data.error == 'screensaver') {
-                    dderlState.screensaver = true;
-                    showScreeSaver();
-                } else if(_url == 'app/logout') {
+                if(_url == 'app/logout') {
                     if($.isFunction(_successevt)) {
                         _successevt({error: _data.error});
                     }
@@ -246,7 +236,8 @@ export function resetPingTimer() {
 
     dderlState.pingTimer = setTimeout(
         function() {
-            if(dderlState.isWSSupported) {
+            if(dderlState.websocket) {
+                resetPingTimer();
                 websocket_send('ping', pingSuccessFun, pingErrorFun);
             } else {
                 ajaxCall(null, 'ping', null, 'ping', pingSuccessFun, pingErrorFun);

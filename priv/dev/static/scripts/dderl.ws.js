@@ -5,9 +5,8 @@ var receivers = {};
 
 export function open_websocket() {
     if(!("WebSocket" in window)){
-        dderlState.isWSSupported = false;
+        dderlState.websocket = false;
     } else {
-        dderlState.isWSSupported = true;
         var WSUrl = "wss://" + window.location.host + window.location.pathname + "ws";
         console.info("Opening websocket");
         var websocket = new WebSocket(WSUrl);
@@ -20,9 +19,17 @@ export function open_websocket() {
 }
 
 export function websocket_send(Msg, SuccessCallback, ErrorCallback) {
-    console.info("WS sending messgege : ", Msg);
-    dderlState.websocket.send(Msg);
-    receivers[Msg] = {success : SuccessCallback, error : ErrorCallback};
+    if(dderlState.websocket.readyState === 1) { // ws is ready to send messages
+        console.info("WS sending messgege : ", Msg);
+        dderlState.websocket.send(Msg);
+        receivers[Msg] = {success : SuccessCallback, error : ErrorCallback};
+    } else if (dderlState.websocket.readyState === 0){ // ws is in connecting phase
+        setTimeout(function() {
+            websocket_send(Msg, SuccessCallback, ErrorCallback);
+        }, 500);
+    } else { // ready state is CLOSED or CLOSING
+        dderlState.websocket = false;
+    }
 }
 
 export function disconnect_websocket() {
@@ -34,7 +41,8 @@ export function disconnect_websocket() {
 function onOpen(evt) { 
     console.log("WS opened" , evt);
 }  
-function onClose(evt) { 
+function onClose(evt) {
+    dderlState.websocket = false;
     console.log("WS closed", evt);
 }  
 function onMessage(evt) { 
@@ -51,6 +59,4 @@ function process_message(MsgJSON) {
     if (callbacks.success) {
         callbacks.success(Object.values(Msg)[0]);
     }
-    console.log("REceivers : ", receivers);
-    console.log("Msg : ", Msg);
 }
