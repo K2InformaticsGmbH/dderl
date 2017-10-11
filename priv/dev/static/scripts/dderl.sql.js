@@ -103,8 +103,7 @@ function insertAtCursor(myField, myValue) {
                        'Execute fetch to end'       : { typ : 'btn', icn : 'step-forward',          clk : '_toolBarTblFetch2End'    },
                        'Execute fetch tail mode'    : { typ : 'btn', icn : 'step-forward ellipsis', clk : '_toolBarTblFetchNTail'   },
                        'Execute tail mode only'     : { typ : 'btn', icn : 'fetch-only ellipsis',   clk : '_toolBarTblTailOnly'     },
-                       ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},
-    
+                       ''                           : { typ : 'sel',                                clk : '_toolBarChangeSql'       }},    
     // These options will be used as defaults
     options: {
         // dialog options default override
@@ -702,7 +701,6 @@ function insertAtCursor(myField, myValue) {
                 self._toolBarTblReload();
             }
         });
-              
     },
 
     _setTitle: function(newTitle) {
