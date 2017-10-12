@@ -49,9 +49,6 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
-    if (resp.hasOwnProperty('port')) {
-        dderlState.port = resp.port;
-    }
 
     if(!dderlState.screensaver) {
         refresh_header_information();
