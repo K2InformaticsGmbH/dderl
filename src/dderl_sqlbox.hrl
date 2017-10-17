@@ -11,59 +11,59 @@
 -ifdef(TEST).
 -define (TEST_SELECT_QUERIES,[
 <<"
-select col1, col2.|:a1| from sbsgui.bintermtest where col1 = 3
+select col1, col2|:a1| from sbsgui.bintermtest where col1 = 3
 ">>
 ,
 <<"
-select col1, col2.|:a1:a2| from sbsgui.bintermtest where col1 = 3
+select col1, col2|:a1:a2| from sbsgui.bintermtest where col1 = 3
 ">>
 ,
 <<"
-select col1, col2.|{a1}| from sbsgui.bintermtest where col1 = 3
+select col1, col2|{a1}| from sbsgui.bintermtest where col1 = 3
 ">>
 ,
 <<"
-select col1, col2.|{a1,a2}| from sbsgui.bintermtest where col1 = 3
+select col1, col2|{a1,a2}| from sbsgui.bintermtest where col1 = 3
 ">>
 ,
 <<"
-select col1, col2.|{a1,a2,a3,a4}| from sbsgui.bintermtest where col1 = 3
+select col1, col2|{a1,a2,a3,a4}| from sbsgui.bintermtest where col1 = 3
 ">>
 ,
 <<"
-select col1, length(col2.|[]|) from sbsgui.bintermtest where col1 = 4
+select col1, length(col2|[]|) from sbsgui.bintermtest where col1 = 4
 ">>
 ,
 <<"
-select col1, col2.|[1]| from sbsgui.bintermtest where col1 = 5
+select col1, col2|[1]| from sbsgui.bintermtest where col1 = 5
 ">>
 ,
 <<"
-select col1, col2.|[1,3,5]| from sbsgui.bintermtest where col1 = 5
+select col1, col2|[1,3,5]| from sbsgui.bintermtest where col1 = 5
 ">>
 ,
 <<"
-select col1, l.item from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2.|[]|)
+select col1, l.item from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2|[]|)
 ">>
 ,
 <<"
-select col1, l.item.|#key| from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2.|[]|)
+select col1, l.item|#key| from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2|[]|)
 ">>
 ,
 <<"
-select col1, l.item.|#value#keys| from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2.|[]|)
+select col1, l.item|#value#keys| from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2|[]|)
 ">>
 ,
 <<"
-select col1, length(l.item.|#value#keys|) from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2.|[]|)
+select col1, length(l.item|#value#keys|) from sbsgui.bintermtest, json l where col1 = 8 and is_member(item, col2|[]|)
 ">>
 ,
 <<"
-select ckey, cvalue.|:WHITELIST[1]#key|, cvalue.|:WHITELIST[1]#value:ETID| from tpac where last(ckey) = to_string('access')
+select ckey, cvalue|:WHITELIST[1]#key|, cvalue|:WHITELIST[1]#value:ETID| from tpac where last(ckey) = to_string('access')
 ">>
 ,
 <<"
-select ckey, cvalue.|:WHITELIST[1]#key|, cvalue.|:WHITELIST[1]#value:ETID|, to_datetime(cvalue.|:WHITELIST[1]#value:EXPIRE_DATE|) from tpac where last(ckey) = to_string('access')
+select ckey, cvalue|:WHITELIST[1]#key|, cvalue|:WHITELIST[1]#value:ETID|, to_datetime(cvalue|:WHITELIST[1]#value:EXPIRE_DATE|) from tpac where last(ckey) = to_string('access')
 ">>
 ,
 <<"select
