@@ -39,10 +39,9 @@ src(Access) ->
     end.
 
 proxy(Access) ->
-    SrcIp = maps:get(src, Access, ""),
-    case maps:get(proxy, Access, "") of
-        SrcIp -> "yes";
-        _ -> "no"
+    case maps:get(isProxy, Access, false) of
+        false -> "no";
+        true -> "yes"
     end.
 
 userid(Access) ->
