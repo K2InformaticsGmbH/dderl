@@ -53,10 +53,10 @@ start(_Type, _Args) ->
     DDerlRoutes = get_routes(),
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     SslOptions = get_ssl_options(),
-    %% max acceptors ?
     {ok, _} = cowboy:start_tls(
                 https,
                 [{ip, Interface}, {port, Port},
+                 {num_acceptors, ?MAXACCEPTORS},
                  {max_connections, ?MAXCONNS} | SslOptions],
                 #{env => #{dispatch => Dispatch},
                   stream_handlers => [cowboy_compress_h, cowboy_stream_h],
