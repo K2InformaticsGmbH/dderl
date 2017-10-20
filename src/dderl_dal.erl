@@ -43,6 +43,7 @@
         ,get_d3_templates/0
         ,get_d3_templates_path/1
         ,get_host_app/0
+        ,is_proxy/2
         ]).
 
 -record(state, { schema :: term()
@@ -811,3 +812,31 @@ expand_rows([{_I,_Op, RK} | RestRows], TableId, RowFun, ColumnPos) ->
 expand_rows([FullRowTuple | RestRows], TableId, RowFun, ColumnPos) ->
     SelectedColumns = [element(3+Col, FullRowTuple) || Col <- ColumnPos],
     [SelectedColumns | expand_rows(RestRows, TableId, RowFun, ColumnPos)].
+
+-spec is_proxy(list(), map()) -> boolean().
+is_proxy(AppId, NetCtx) ->
+    ProxyCheckFun = ?GET_CONFIG(isProxyCheckFun, AppId, <<"fun(NetCtx) -> false end">>, "Function checks if user is coming through a proxy or not"),
+    CacheKey = {?MODULE, isProxyCheckFun, ProxyCheckFun},
+    case imem_cache:read(CacheKey) of 
+        [] ->
+            case imem_datatype:io_to_fun(ProxyCheckFun) of
+                PF when is_function(PF, 1) ->
+                    imem_cache:write(CacheKey, PF),
+                    exec_is_proxy_fun(PF, NetCtx);
+                _ ->
+                    ?Error("Not a valid is proxy fun configured"),
+                    false
+            end;    
+        [PF] when is_function(PF, 1) -> exec_is_proxy_fun(PF, NetCtx);
+        _ -> false
+    end.
+
+-spec exec_is_proxy_fun(reference(), map()) -> boolean().
+exec_is_proxy_fun(Fun, NetCtx) ->
+    case catch Fun(NetCtx) of
+        false -> false;
+        true -> true;
+        Error ->
+            ?Error("proxy check fail : ~p", [Error]),
+            false
+    end.
