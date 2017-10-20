@@ -217,6 +217,7 @@ format_status(Opt, [PDict, State]) ->
     State.
 
 init_interface() ->
+    MaxAcceptors = ?MAXACCEPTORS,
     MaxConnections = ?MAXCONNS,
     IpWhitelist = ?IMEMREST_IPWHITELIST,
     Opts = #{resource => self(), whitelist => IpWhitelist},
@@ -235,7 +236,9 @@ init_interface() ->
     lists:foreach(
       fun({Ip, Port}) ->
               IpStr = inet:ntoa(Ip),
-              TransOpts = [{ip, Ip}, {port, Port}, {max_connections, MaxConnections}],
+              TransOpts = [{ip, Ip}, {port, Port},
+                           {num_acceptors, MaxAcceptors},
+                           {max_connections, MaxConnections}],
               case ?IMEMREST_SSLOPTS of
                   #{cert := Cert, key := Key} ->
                       SslTransOpts = TransOpts
