@@ -3,6 +3,18 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.9.1 (Release Data 16.10.2017)
+======================================
+* Sql Editor allows query execution via Ctrl + Enter
+* Changed Cookie/XSRF token name to be based on application
+* Fixed position and size of d3 parameterized views
+* D3 templates directories now can be injected
+* Fixed bug showing empty data when switching back from d3 graphs
+* Removed rpc connections as it was not used
+* Updated erlimem to 1.3.1
+* Updated erloci to 0.1.1
+* Updated imem to 1.8.1
+
 Version 1.9.0 (Release Date 11.09.2017)
 ======================================
 * Migration to rebar3.

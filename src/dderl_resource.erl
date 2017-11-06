@@ -23,7 +23,7 @@ init({ssl, http}, Req0, []) ->
     case cowboy_req:has_body(Req2) of
         true ->
             {Typ, Req3} = cowboy_req:path_info(Req2),
-            {SessionToken, Req4} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req1), Req3, <<>>),
+            {SessionToken, Req4} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE), Req3, <<>>),
             {XSRFToken, Req4} = cowboy_req:header(?XSRF_HEADER, Req4, <<>>),
             {Adapter, Req4} = cowboy_req:header(<<"dderl-adapter">>,Req4),
             process_request(SessionToken, XSRFToken, Adapter, Req4, Typ);
@@ -70,7 +70,7 @@ process_request(SessionToken, XSRFToken, Adapter, Req, Typ) ->
 
 samlRelayStateHandle(Req, SamlAttrs) ->
     {Adapter, Req} = cowboy_req:header(<<"dderl-adapter">>,Req),
-    {SessionToken, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE, Req), Req, <<>>),
+    {SessionToken, Req1} = cowboy_req:cookie(cookie_name(?SESSION_COOKIE), Req, <<>>),
     {XSRFToken, Req} = cowboy_req:header(?XSRF_HEADER, Req, <<>>),
     AccName = list_to_binary(proplists:get_value(windowsaccountname, SamlAttrs)),
     self() ! {terminateCallback, fun ?MODULE:terminate/3},
@@ -182,7 +182,7 @@ terminate(_Reason, Req, _State) ->
 % Echo = proplists:get_value(<<"echo">>, PostVals),
 % cowboy_req:reply(400, [], <<"Missing body.">>, Req)
 reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
-    CookieName = cookie_name(?SESSION_COOKIE, Req),
+    CookieName = cookie_name(?SESSION_COOKIE),
     Req2 = case cowboy_req:cookie(CookieName, Req, <<>>) of
         {SessionToken, Req1} -> Req1;
         {_, Req1} ->
@@ -224,14 +224,14 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->
-    XSRFCookie = cookie_name(?XSRF_COOKIE, Req),
+    XSRFCookie = cookie_name(?XSRF_COOKIE),
     {Host, Req} = cowboy_req:host(Req),
     Path = dderl:format_path(dderl:get_url_suffix()),
     cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, ?COOKIE_OPTS(Host, Path), Req).
 
-cookie_name(Name, Req) ->
-    {Port, Req} = cowboy_req:port(Req),
-    list_to_binary([Name, integer_to_list(Port)]).
+cookie_name(Name) ->
+    HostApp = dderl_dal:get_host_app(),
+    list_to_binary([HostApp, Name]).
 
 %-define(DISP_REQ, true).
 -ifdef(DISP_REQ).

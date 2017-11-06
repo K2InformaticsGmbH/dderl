@@ -42,11 +42,14 @@
         ,add_d3_templates_path/2
         ,get_d3_templates/0
         ,get_d3_templates_path/1
+        ,get_host_app/0
+        ,is_proxy/2
         ]).
 
 -record(state, { schema :: term()
                , sess :: {atom(), pid()}
                , d3_templates :: list()
+               , host_app :: binary()
     }).
 
 %% Privileges
@@ -352,6 +355,10 @@ get_d3_templates() ->
 get_d3_templates_path(Application) ->
     gen_server:call(?MODULE, {get_d3_templates_path, Application}).
 
+-spec get_host_app() -> binary().
+get_host_app() ->
+    gen_server:call(?MODULE, get_host_app).
+
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     ?Info("~p starting...~n", [?MODULE]),
@@ -461,6 +468,21 @@ handle_call(get_d3_templates, _From, #state{d3_templates=D3Templates} = State) -
 handle_call({get_d3_templates_path, Application}, _From, #state{d3_templates=D3Templates} = State) ->
     Entry = proplists:get_value(Application, D3Templates),
     {reply, Entry, State};
+
+handle_call(get_host_app, _From, #state{host_app = undefined} = State) ->
+    HostApp =
+        lists:foldl(
+            fun({App,_,_}, <<>>) ->
+                    {ok, Apps} = application:get_key(App, applications),
+                    case lists:member(dderl, Apps) of
+                        true -> atom_to_binary(App, utf8);
+                        _ -> <<>>
+                    end;
+                (_, App) -> App
+            end, <<>>, application:which_applications()),
+    {reply, HostApp, State#state{host_app = HostApp}};
+handle_call(get_host_app, _From, #state{host_app = HostApp} = State) ->
+    {reply, HostApp, State};
 
 handle_call(Req,From,State) ->
     ?Info("unknown call req ~p from ~p~n", [Req, From]),
@@ -790,3 +812,31 @@ expand_rows([{_I,_Op, RK} | RestRows], TableId, RowFun, ColumnPos) ->
 expand_rows([FullRowTuple | RestRows], TableId, RowFun, ColumnPos) ->
     SelectedColumns = [element(3+Col, FullRowTuple) || Col <- ColumnPos],
     [SelectedColumns | expand_rows(RestRows, TableId, RowFun, ColumnPos)].
+
+-spec is_proxy(list(), map()) -> boolean().
+is_proxy(AppId, NetCtx) ->
+    ProxyCheckFun = ?GET_CONFIG(isProxyCheckFun, AppId, <<"fun(NetCtx) -> false end">>, "Function checks if user is coming through a proxy or not"),
+    CacheKey = {?MODULE, isProxyCheckFun, ProxyCheckFun},
+    case imem_cache:read(CacheKey) of 
+        [] ->
+            case imem_datatype:io_to_fun(ProxyCheckFun) of
+                PF when is_function(PF, 1) ->
+                    imem_cache:write(CacheKey, PF),
+                    exec_is_proxy_fun(PF, NetCtx);
+                _ ->
+                    ?Error("Not a valid is proxy fun configured"),
+                    false
+            end;    
+        [PF] when is_function(PF, 1) -> exec_is_proxy_fun(PF, NetCtx);
+        _ -> false
+    end.
+
+-spec exec_is_proxy_fun(reference(), map()) -> boolean().
+exec_is_proxy_fun(Fun, NetCtx) ->
+    case catch Fun(NetCtx) of
+        false -> false;
+        true -> true;
+        Error ->
+            ?Error("proxy check fail : ~p", [Error]),
+            false
+    end.

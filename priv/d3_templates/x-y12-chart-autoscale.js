@@ -1,9 +1,10 @@
 function init(container, width, height) {
 
     var dom = {lin:'linear',log:'log',time:'time'}; // domain types
-    var tParseEuL = d3.utcParse("%d.%m.%Y %H:%M:%S.%L"); // timeParse with msec
-    var tParseEu = d3.utcParse("%d.%m.%Y %H:%M:%S");    // timeParse without msec
-    var tParseInt = d3.utcParse("%Y-%m-%d %H:%M:%S");    // timeParse international format
+    var tParseEuL = helper.tParseEuL; // timeParse with msec
+    var tParseEu = helper.tParseEu;    // timeParse without msec
+    var tParseInt = helper.tParseInt;    // timeParse international format without msec
+    var tParseIntL = helper.tParseIntL; // timeParse international format
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
@@ -27,17 +28,10 @@ function init(container, width, height) {
             xAutoscale = true;
             xAllowance = 0.33;
             xTickCount = 10;
-            xTickFormatSpecifier = ".0s";      
+            xTickFormatSpecifier = ".0s";
         break;
         case dom.time:
-            xParse = function(tStr) {
-                var s =  tStr.substr(0,23);
-                if (s.length === 23) {
-                    return  tParseEuL(s);
-                } else {
-                    return  tParseEu(s);
-                }
-            };
+            xParse = helper.parseTime;
             xScaleTemplate = d3.scaleUtc();    // scaleTime
             xMin = 1e100;   // xParse("01.01.2300 00:00:00.000");   // autoscale defaults
             xMax = 0;       // xParse("01.01.1900 00:00:00.000");   // autoscale defaults
@@ -86,17 +80,10 @@ function init(container, width, height) {
             yAutoscale = true;
             yAllowance = 0.33;  // cannot be <= 0
             yTickCount = 10;
-            yTickFormatSpecifier = ".0s";      
+            yTickFormatSpecifier = ".0s";
         break;
         case dom.time:
-            yParse = function(tStr) {
-                var s =  tStr.substr(0,23);
-                if (s.length === 23) {
-                    return  tParseEuL(s);
-                } else {
-                    return  tParseEu(s);
-                }
-            };            
+            yParse = helper.parseTime;
             yScaleTemplate = d3.scaleUtc();     // scaleTime
             yMin = 1e100;   // yParse("01.01.2300 00:00:00.000");   // autoscale defaults
             yMax = 0;       // yParse("01.01.1900 00:00:00.000");   // autoscale defaults
@@ -154,7 +141,7 @@ function init(container, width, height) {
         g1 = g.append("g");
         g2 = g.append("g");
         g3 = g.append("g");
-        g4 = g.append("g");        
+        g4 = g.append("g");
         xMinFull = xMin;
         xMaxFull = xMax;
         yMinFull = yMin;
