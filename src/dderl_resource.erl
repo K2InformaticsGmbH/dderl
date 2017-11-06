@@ -104,7 +104,7 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                     {loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
                      #state{sessionToken = NewToken}, 3600000, hibernate};
                 [<<"logout">>] ->
-                    self() ! {reply, imem_json:encode([{<<"logout">>, <<"ok">>}])},
+                    self() ! {reply, [{<<"logout">>, <<"ok">>}]},
                     {loop, Req, #state{sessionToken = SessionToken},
                      5000, hibernate};
                 _ ->
@@ -143,6 +143,10 @@ info({spawn, SpawnFun}, Req, State) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [State#state.sessionToken]),
     spawn(SpawnFun),
     {loop, Req, State, hibernate};
+info({reply, [{<<"logout">>, _} | _] = Body}, Req, State) ->
+    %% delete session cookie
+    Req1 = set_xsrf_cookie(Req, none, <<>>),
+    info({reply, imem_json:encode(Body)}, Req1, State#state{sessionToken = <<>>});
 info({reply, Body}, Req, #state{sessionToken = SessionToken} = State) ->
     ?Debug("reply ~n~p to ~p", [Body, SessionToken]),
     BodyEnc = if is_binary(Body) -> Body;
@@ -188,8 +192,8 @@ reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
         {_, Req1} ->
             {Host, Req} = cowboy_req:host(Req),
             Path = dderl:format_path(dderl:get_url_suffix()),
-            cowboy_req:set_resp_cookie(CookieName, SessionToken,
-                                        ?HTTP_ONLY_COOKIE_OPTS(Host, Path), Req1)
+            Opts = get_cookie_opts(SessionToken, ?HTTP_ONLY_COOKIE_OPTS(Host, Path)),
+            cowboy_req:set_resp_cookie(CookieName, SessionToken, Opts, Req1)
     end,
     cowboy_req:reply(200, [
           {<<"content-encoding">>, <<"utf-8">>}
@@ -227,11 +231,15 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
     XSRFCookie = cookie_name(?XSRF_COOKIE),
     {Host, Req} = cowboy_req:host(Req),
     Path = dderl:format_path(dderl:get_url_suffix()),
-    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, ?COOKIE_OPTS(Host, Path), Req).
+    Opts = get_cookie_opts(XSRFToken, ?COOKIE_OPTS(Host, Path)),
+    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, Opts, Req).
 
 cookie_name(Name) ->
     HostApp = dderl_dal:get_host_app(),
     list_to_binary([HostApp, Name]).
+
+get_cookie_opts(<<>>, Opts) -> [{max_age, 0} | Opts];
+get_cookie_opts(_Cookie, Opts) -> Opts.
 
 %-define(DISP_REQ, true).
 -ifdef(DISP_REQ).
