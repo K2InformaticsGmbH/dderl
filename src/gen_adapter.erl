@@ -286,8 +286,8 @@ process_cmd({[<<"distinct_count">>], ReqBody}, _Adapter, _Sess, _UserId, From, _
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
     RespJson = case Statement:get_distinct_count(ColumnId) of
-        {error, Error, St} ->
-            ?Error("Distinct count error ~p", [Error], St),
+        {error, Error, _St} ->
+            ?Error("Distinct count error ~p", [Error], _St),
             jsx:encode([{<<"distinct_count">>, [{error, Error}]}]);
         {Total, ColRecs, DistinctCountRows, SN} ->
             DistinctCountJson = gui_resp(#gres{operation = <<"rpl">>
@@ -315,8 +315,8 @@ process_cmd({[<<"distinct_statistics">>], ReqBody}, _Adapter, _Sess, _UserId, Fr
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     [ColumnId|_] = proplists:get_all_values(<<"column_ids">>, BodyJson),
     RespJson = case Statement:get_distinct_statistics(ColumnId) of
-                   {error, Error, St} ->
-                       ?Error("Distinct statistics error ~p", [Error], St),
+                   {error, Error, _St} ->
+                       ?Error("Distinct statistics error ~p", [Error], _St),
                        jsx:encode([{<<"distinct_statistics">>, [{error, Error}]}]);
                    {Total, ColRecs, DistinctStatisticsRows, SN} ->
                        DistinctStatisticsJson = gui_resp(#gres{operation = <<"rpl">>
@@ -345,8 +345,8 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
     RowIds = proplists:get_value(<<"row_ids">>, BodyJson, 0),
     RespJson = case Statement:get_statistics(ColumnIds, RowIds) of
-        {error, Error, St} ->
-            ?Error("Stats error ~p", [Error], St),
+        {error, Error, _St} ->
+            ?Error("Stats error ~p", [Error], _St),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
             ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _ -> float end, readonly = true}
@@ -378,8 +378,8 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     ColumnIds = proplists:get_value(<<"column_ids">>, BodyJson, []),
     RespJson = case Statement:get_statistics(ColumnIds) of
-        {error, Error, St} ->
-            ?Error("Stats error ~p", [Error], St),
+        {error, Error, _St} ->
+            ?Error("Stats error ~p", [Error], _St),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
             ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _  -> float end, readonly = true}
@@ -463,8 +463,8 @@ process_cmd({[<<"cache_data">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
     [{<<"cache_data">>, BodyJson}] = ReqBody,
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     RespJson = case Statement:cache_data() of
-        {error, ErrorMsg, St} ->
-            ?Error("cache_data error ~p", [ErrorMsg], St),
+        {error, ErrorMsg, _St} ->
+            ?Error("cache_data error ~p", [ErrorMsg], _St),
             jsx:encode([{<<"cache_data">>, [{error, ErrorMsg}]}]);
         ok -> jsx:encode([{<<"cache_data">>, <<"ok">>}])
     end,

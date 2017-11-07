@@ -663,8 +663,8 @@ process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
                   Query, [], Connection, SessPid).
 
 -spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
-process_query(ok, Query, _BindVals, Connection, _SessPid) ->
-    ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
+process_query(ok, Query, _BindVals, _Connection, _SessPid) ->
+    ?Debug([{session, _Connection}], "query ~p -> ok", [Query]),
     [{<<"result">>, <<"ok">>}];
 process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName},
               Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->

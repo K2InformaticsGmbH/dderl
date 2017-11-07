@@ -640,8 +640,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
             Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
             Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
             ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("query error ~p", [Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("query error ~p", [Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
@@ -804,8 +804,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("Error on query ~p: ~p", [Query, Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("Error on query ~p: ~p", [Query, Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
@@ -857,11 +857,11 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
                     ok;
-                {error, {{_Ex, {_M, E}}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, {_M, E}}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, {TableName, E}};
-                {error, {{_Ex, _M}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, TableName};
                 {error, {Ex, M}} ->
                     ?Error("query error ~p", [{Ex,M}]),
