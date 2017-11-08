@@ -10,11 +10,8 @@ test/*.beam
 *.log
 *.dump
 snapshot
-deps/
-ebin/
 *.swp
 *.swo
-.rebar3/
 package-lock.json
 dderl.dderl@*
 dderl.wiki/
