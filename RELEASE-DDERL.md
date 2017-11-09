@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.9.2 (Release Data 10.11.2017)
+======================================
+* imem 1.8.2
+* access log fixes [#450](https://github.com/K2InformaticsGmbH/dderl/issues/450)
+* erloci orphan process fixes [#473](https://github.com/K2InformaticsGmbH/dderl/issues/473)
+
 Version 1.9.1 (Release Data 16.10.2017)
 ======================================
 * Sql Editor allows query execution via Ctrl + Enter
