@@ -20,7 +20,12 @@ export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock)
         contextMenu: openContextMenu,
         openDialog: openDialog,
         parseInt: ddParseInt,
-        parseFloat: ddParseFloat
+        parseFloat: ddParseFloat,
+        tParseEu: ddParseTimeEu(),
+        tParseEuL: ddParseTimeEuL(),
+        tParseInt: ddParseTimeInt(),
+        tParseIntL: ddParseTimeIntL(),
+        parseTime: ddParseTime
     };
     try {
         var init = f(script, d3, helper);
@@ -145,6 +150,48 @@ function ddParseInt(string, radix = 10) {
 
 function ddParseFloat(string) {
     return parseFloat(string.split("'").join(""));
+}
+
+function ddParseTimeEu() {
+    // timeParse without msec
+    return d3.utcParse("%d.%m.%Y %H:%M:%S");
+}
+
+function ddParseTimeEuL() {
+    // timeParse with msec
+    return d3.utcParse("%d.%m.%Y %H:%M:%S.%L");
+}
+
+function ddParseTimeInt() {
+    // timeParse international format without msec
+    return d3.utcParse("%Y-%m-%d %H:%M:%S");
+}
+
+function ddParseTimeIntL() {
+    // timeParse international format
+    return d3.utcParse("%Y-%m-%d %H:%M:%S.%L");
+}
+
+var tParseEu = ddParseTimeEu();
+var tParseEuL = ddParseTimeEuL();
+var tParseInt = ddParseTimeInt();
+var tParseIntL = ddParseTimeIntL();
+
+function ddParseTime(tStr) {
+    var s = tStr.substr(0,23);
+    if (!s.includes("-")) {
+        if (s.length === 23) {
+            return tParseEuL(s);
+        } else {
+            return tParseEu(s);
+        }
+    } else {
+        if (s.length === 23) {
+            return tParseIntL(s);
+        } else {
+            return tParseInt(s);
+        }
+    }
 }
 
 /**

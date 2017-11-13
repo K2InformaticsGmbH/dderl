@@ -99,13 +99,12 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
     Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
     NLS_LANG  = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
 
-    ErlOciSession
+    TNS
     = case Method of
           <<"tns">> ->
               Tns = proplists:get_value(<<"tns">>, BodyJson, <<>>),
               ?Info("user ~p, TNS ~p", [User, Tns]),
-              OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-              OciPort:get_session(Tns, User, Password, dderl_dal:user_name(UserId));
+              Tns;
           ServiceOrSid when ServiceOrSid == <<"service">>; ServiceOrSid == <<"sid">> ->
               IpAddr   = proplists:get_value(<<"host">>, BodyJson, <<>>),
               Port     = binary_to_integer(proplists:get_value(<<"port">>, BodyJson, <<>>)),
@@ -131,12 +130,12 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
                          <<"sid">> -> proplists:get_value(<<"sid">>, BodyJson, <<>>)
                      end])),
               ?Info("user ~p, TNS ~p", [User, NewTnsstr]),
-              OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
-              OciPort:get_session(NewTnsstr, User, Password, dderl_dal:user_name(UserId))
+              NewTnsstr
       end,
-    case ErlOciSession of
+    OciPort = erloci:new([{logging, true}, {env, [{"NLS_LANG", NLS_LANG}]}], fun oci_adapter:logfun/1),
+    case OciPort:get_session(TNS, User, Password, dderl_dal:user_name(UserId)) of
         {_, ErlOciSessionPid, _} = Connection when is_pid(ErlOciSessionPid) ->
-            ?Debug("ErlOciSession ~p", [ErlOciSession]),
+            ?Debug("ErlOciSession ~p", [Connection]),
             Con = #ddConn {id = Id, name = Name, owner = UserId, adapter = oci,
                            access  = jsx:decode(jsx:encode(BodyJson),
                                                 [return_maps])},
@@ -155,13 +154,15 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
                                         , ?E2B(Connection)}
                                     ]}])}
             end,
-            Priv#priv{connections = [ErlOciSession|Connections]};
+            Priv#priv{connections = [Connection|Connections]};
         {error, {_Code, Msg}} = Error when is_list(Msg) ->
             ?Error("DB connect error ~p", [Error]),
+            OciPort:close(),
             From ! {reply, jsx:encode(#{connect=>#{error=>list_to_binary(Msg)}})},
             Priv;
         Error ->
             ?Error("DB connect error ~p", [Error]),
+            OciPort:close(),
             From ! {reply, jsx:encode(#{connect=>#{error=>list_to_binary(io_lib:format("~p",[Error]))}})},
             Priv
     end;
