@@ -1,4 +1,5 @@
 _build
+ebin
 log
 priv/certs/localhost*.*
 priv/dev/node_modules
