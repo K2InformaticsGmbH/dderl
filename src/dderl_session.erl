@@ -42,6 +42,7 @@
           , old_state                   :: tuple()
           , lock_state  = unlocked      :: unlocked | locked | screensaver
           , xsrf_token  = <<>>          :: binary()
+          , is_proxy    = false         :: boolean()
          }).
 
 %% Helper functions
@@ -108,7 +109,7 @@ init([XSRFToken, ConnInfo]) ->
             {stop, Error};
         {ok, ErlImemSess} ->
             {ok, #state{session_idle_tref=TRef, conn_info = ConnInfo, sess=ErlImemSess,
-                        xsrf_token = XSRFToken}}
+                        xsrf_token = XSRFToken, is_proxy = dderl_dal:is_proxy(dderl, ConnInfo)}}
     end.
 
 handle_call(get_state, _From, State) ->
@@ -807,5 +808,6 @@ act_log(ReplyPid, LogLevel, Args, State) ->
                                   end,
                       sessId => State#state.id,
                       app => dderl,
-                      logLevel => LogLevel}
+                      logLevel => LogLevel,
+                      isProxy => State#state.is_proxy}
                }.
