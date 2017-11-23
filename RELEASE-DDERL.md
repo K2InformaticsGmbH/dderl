@@ -3,6 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 1.10.1 (Release Date 23.11.2017)
+======================================
+* Imem 1.9.1
+
 Version 1.10.0 (Release Date 20.11.2017)
 ======================================
 * Imem 1.9.0 (Including new sqlparse improving sqls handling json)
