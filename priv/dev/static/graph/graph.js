@@ -49,7 +49,7 @@ export function evalD3Script(script, statement, tableStmtReload, tableLoopBlock)
     return result;
 }
 
-function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = false) {
+function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = false, cb = null) {
     var openViewData = {
         open_graph_view: {
             connection: dderlState.connection,
@@ -65,7 +65,9 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
                 pars: binds
             };
         }
-        renderNewTable(viewResult, position, force);
+        if(cb) {
+            cb(renderNewTable(viewResult, position, force));
+        }
     });
 }
 
