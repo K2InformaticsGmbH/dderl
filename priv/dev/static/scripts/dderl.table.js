@@ -1017,6 +1017,21 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         this._dlg.dialog("moveToTop");
     },
 
+    // Reload view only change parameters.
+    cmdReloadParameters: function(qparams) {
+        // Close the stmt if we had one to avoid fsm leak independent of the result of the query.
+        this.close_stmt();
+        this._optBinds.pars = qparams;
+        this._filters = null;
+        this._ajax('query', {query: {
+            connection: dderlState.connection,
+            conn_id: dderlState.connectionSelected.connection,
+            qstr : this._cmd,
+            binds: (this._optBinds && this._optBinds.hasOwnProperty('pars')? this._optBinds.pars : null)
+        }}, 'query', 'cmdReloadResult');
+        this._dlg.dialog("moveToTop");
+    },
+
     // columns hide/unhide
     _hide: function(_ranges) {
         if ((1 === _ranges.length) && (_ranges[0].fromCell === 0) &&
@@ -2713,6 +2728,9 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 self._grid.resetHeaderScroll();
                 return true;
             })
+            .bind("dialogdragstop", function() {
+                self._dlgResized = true;
+            })
             .dialogExtend({
                 "minimizable" : true,
                 "icons" : {
@@ -4207,7 +4225,7 @@ export function renderNewTable(table, position, force) {
         }
     }
 
-    $('<div>')
+    return $('<div>')
         .table(baseOptions)
         .table('setColumns', table.columns)
         .table('callReorder')

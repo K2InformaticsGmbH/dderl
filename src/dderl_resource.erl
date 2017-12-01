@@ -104,8 +104,8 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                     {cowboy_loop, set_xsrf_cookie(Req, XSRFToken, NewXSRFToken),
                      #state{sessionToken = NewToken}, hibernate};
                 [<<"logout">>] ->
-                    reply_200_json(imem_json:ecode([{<<"logout">>, <<"ok">>}]), SessionToken, Req),
-                    {ok, Req, #state{sessionToken = SessionToken}};
+                    self() ! {reply, [{<<"logout">>, <<"ok">>}]},
+                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibern};
                 _ ->
                     ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
                           [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
@@ -131,6 +131,10 @@ info({spawn, SpawnFun}, Req, State) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [State#state.sessionToken]),
     spawn(SpawnFun),
     {ok, Req, State, hibernate};
+info({reply, [{<<"logout">>, _} | _] = Body}, Req, State) ->
+    %% delete session cookie
+    Req1 = set_xsrf_cookie(Req, none, delete_cookie),
+    info({reply, imem_json:encode(Body)}, Req1, State#state{sessionToken = delete_cookie});
 info({reply, Body}, Req, #state{sessionToken = SessionToken} = State) ->
     ?Debug("reply ~n~p to ~p", [Body, SessionToken]),
     BodyEnc = if is_binary(Body) -> Body;
@@ -163,14 +167,21 @@ terminate(_Reason, Req, _State) ->
     catch dderl_access_logger:log(Log#{bytes => Size,
                                        time => ProcessingTimeMicroS}).
 
-reply_200_json(Body, SessionToken, Req) when is_binary(SessionToken) ->
+% Reply templates
+% cowboy_req:reply(400, [], <<"Missing echo parameter.">>, Req),
+% cowboy_req:reply(200, [{<<"content-encoding">>, <<"utf-8">>}], Echo, Req),
+% {ok, PostVals, Req2} = cowboy_req:body_qs(Req),
+% Echo = proplists:get_value(<<"echo">>, PostVals),
+% cowboy_req:reply(400, [], <<"Missing body.">>, Req)
+reply_200_json(Body, SessionToken, Req) ->
     CookieName = cookie_name(?SESSION_COOKIE),
     Req1 = case dderl:get_cookie(CookieName, Req, <<>>) of
         SessionToken -> Req;
         _ ->
             Host = cowboy_req:host(Req),
             Path = dderl:format_path(dderl:get_url_suffix()),
-            cowboy_req:set_resp_cookie(CookieName, SessionToken, Req, ?HTTP_ONLY_COOKIE_OPTS(Host, Path))
+            {SessToken, Opts} = get_cookie_opts(SessionToken, ?HTTP_ONLY_COOKIE_OPTS(Host, Path)),
+            cowboy_req:set_resp_cookie(CookieName, SessToken, Req, Opts)
     end,
     cowboy_req:reply(200, 
           #{<<"content-encoding">> => <<"utf-8">>,
@@ -202,8 +213,12 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
     XSRFCookie = cookie_name(?XSRF_COOKIE),
     Host = cowboy_req:host(Req),
     Path = dderl:format_path(dderl:get_url_suffix()),
-    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken, Req, ?COOKIE_OPTS(Host, Path)).
+    {XSRFToken1, Opts} = get_cookie_opts(XSRFToken, ?COOKIE_OPTS(Host, Path)),
+    cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken1, Req, Opts).
 
 cookie_name(Name) ->
     HostApp = dderl_dal:get_host_app(),
     list_to_binary([HostApp, Name]).
+
+get_cookie_opts(delete_cookie, Opts) -> {<<>>, [{max_age, 0} | Opts]};
+get_cookie_opts(Cookie, Opts) -> {Cookie, Opts}.
