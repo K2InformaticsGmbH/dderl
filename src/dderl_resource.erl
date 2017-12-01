@@ -220,5 +220,5 @@ cookie_name(Name) ->
     HostApp = dderl_dal:get_host_app(),
     list_to_binary([HostApp, Name]).
 
-get_cookie_opts(delete_cookie, Opts) -> {<<>>, [{max_age, 0} | Opts]};
+get_cookie_opts(delete_cookie, Opts) -> {<<>>, Opts#{max_age => 0}};
 get_cookie_opts(Cookie, Opts) -> {Cookie, Opts}.
