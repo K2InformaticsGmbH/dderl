@@ -105,7 +105,7 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
                      #state{sessionToken = NewToken}, hibernate};
                 [<<"logout">>] ->
                     self() ! {reply, [{<<"logout">>, <<"ok">>}]},
-                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibern};
+                    {cowboy_loop, Req, #state{sessionToken = SessionToken}, hibernate};
                 _ ->
                     ?Info("[~p] session ~p doesn't exist (~p), from ~s:~p",
                           [Typ, SessionToken, Reason, imem_datatype:ipaddr_to_io(Ip), Port]),
