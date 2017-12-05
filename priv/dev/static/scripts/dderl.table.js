@@ -2906,7 +2906,6 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         e.preventDefault();
 
         var g           = args.grid;
-        g.getData().syncGridSelection(g, true);
         var cell        = g.getCellFromEvent(e);
 
         //Check if we are in a new row.
