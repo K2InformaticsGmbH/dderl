@@ -529,23 +529,25 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
 
     _exportCsv: function() {
-        var filename = this.options.title;
+        var self = this;
+        var filename = self.options.title;
         var csv_ext = /\.csv$/g;
         if(!csv_ext.test(filename))
             filename += '.csv';
-        var cmd_str = this._cmd;
+        var cmd_str = self._cmd;
 
-        var adapter = this._adapter;
+        var adapter = self._adapter;
         var connection = dderlState.connection;
-        var binds = JSON.stringify(this._optBinds && this._optBinds.hasOwnProperty('pars') ?
-            this._optBinds.pars : null);
+        var binds = JSON.stringify(self._optBinds && self._optBinds.hasOwnProperty('pars') ?
+            self._optBinds.pars : null);
 
-        var statement = this._stmt;
-        var columnPos = this._getColumnPositions();
+        var statement = self._stmt;
+        var columnPos = self._getColumnPositions();
 
         exportCsvPrompt(filename, function(fileNewName, exportAll) {
             $('<iframe>')
             .on('load', function() {
+                var downloadId = randomId();
                 var iframe = $(this);
                 var form = $('<form method="post" action="app/download_query">')
                     .append($('<input type="hidden" name="connection">').val(connection))
@@ -556,10 +558,24 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     .append($('<input type="hidden" name="xsrfToken">').val(dderlState.xsrfToken))
                     .append($('<input type="hidden" name="exportAll">').val(exportAll))
                     .append($('<input type="hidden" name="statement">').val(statement))
+                    .append($('<input type="hidden" name="id">').val(downloadId))
                     .append($('<input type="hidden" name="column_positions">').val(JSON.stringify(columnPos)));
-                $(this).contents().find('body').append(form);
+                iframe.contents().find('body').append(form);
                 form.submit();
-                setTimeout(function() {iframe.remove();}, 500);
+                function checkRemoveIframe() {
+                    self._ajax('download_status', { id: downloadId }, 'download_status', function(result) {
+                        if(result.done === true) {
+                            iframe.remove();
+                        } else {
+                            setTimeout(checkRemoveIframe, 500);
+                        }
+                    });
+                }
+                if(exportAll) {
+                    setTimeout(checkRemoveIframe, 500);
+                } else {
+                    setTimeout(function() {iframe.remove();}, 1000);
+                }
             })
             .appendTo(document.body);
         });
@@ -4331,4 +4347,8 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
     });
     dlgDiv.dialog("widget").draggable("option","containment","#main-body");
     return dlgDiv;
+}
+
+function randomId() {
+    return Math.random().toString(36).substr(2, 10);
 }

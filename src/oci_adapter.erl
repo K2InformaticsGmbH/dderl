@@ -540,7 +540,7 @@ process_cmd({[<<"paste_data">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid)
     Rows = gen_adapter:extract_modified_rows(ReceivedRows),
     Statement:gui_req(update, Rows, gui_resp_cb_fun(<<"paste_data">>, Statement, From)),
     Priv;
-process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessPid) ->
+process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, SessPid) ->
     [{<<"download_query">>, BodyJson}] = ReqBody,
     FileName = proplists:get_value(<<"fileToDownload">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"queryToDownload">>, BodyJson, <<>>),
@@ -548,7 +548,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
     BindVals = case make_binds(proplists:get_value(<<"binds">>, BodyJson, null)) of
                                    {error, _Error} -> undefined;
                                    BindVals0 -> BindVals0
-                                end, 
+                                end,
+    Id = proplists:get_value(<<"id">>, BodyJson, <<>>),
     case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
         {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
             Columns = gen_adapter:build_column_csv(UserId, oci, Clms),
@@ -566,6 +567,7 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
             end,
             From ! {reply_csv, FileName, Error, single}
     end,
+    SessPid ! {download_done, Id},
     Priv;
 
 % unsupported gui actions
