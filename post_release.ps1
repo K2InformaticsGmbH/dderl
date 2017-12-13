@@ -12,25 +12,6 @@ Else {
     Write-Host "===> not found $ertsIni" -foregroundcolor "red"
 }
 
-cd lib
-$source = Get-ChildItem -Filter imem-* |
-          Select-Object -First 1 -Expand FullName
-$target = Get-ChildItem -Filter stdlib-* |
-          Select-Object -First 1 -Expand FullName
-
-$sourceFilenameBeamFile = "$source\ebin\filename.beam"
-$targetFilenameBeamFile = "$target\ebin\filename.beam"
-If (Test-Path $sourceFilenameBeamFile) {
-    Move-Item $sourceFilenameBeamFile -Destination $target\ebin -Force
-    Write-Host "===> replaced $targetFilenameBeamFile" -foregroundcolor "magenta"
-}
-ElseIf (Test-Path $targetFilenameBeamFile) {
-    Write-Host "===> already replaced $targetFilenameBeamFile" -foregroundcolor "magenta"
-}
-Else {
-    Write-Host "===> not found $targetFilenameBeamFile" -foregroundcolor "red"
-}
-
 $dderlDev = "dderl-*/priv/dev"
 
 If (Test-Path $dderlDev) {
