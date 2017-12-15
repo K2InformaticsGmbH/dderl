@@ -40,15 +40,17 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
     case dderl:keyfetch(<<"exportAll">>, ReqDataList, <<"false">>) of
         <<"true">> ->
-            QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
-            BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, ReqDataList, <<>>)),
-            Connection = dderl:keyfetch(<<"connection">>, ReqDataList, <<>>),
+            QueryToDownload = proplists:get_value(<<"queryToDownload">>, ReqDataList, <<>>),
+            BindVals = imem_json:decode(proplists:get_value(<<"binds">>, ReqDataList, <<>>)),
+            Connection = proplists:get_value(<<"connection">>, ReqDataList, <<>>),
+            Id = proplists:get_value(<<"id">>, ReqDataList, <<>>),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_query">>,
                                 [{<<"connection">>, Connection},
                                 {<<"fileToDownload">>, FileToDownload},
                                 {<<"queryToDownload">>, QueryToDownload},
-                                {<<"binds">>,BindVals}]
+                                {<<"binds">>, BindVals},
+                                {<<"id">>, Id}]
                             }]), Typ);
         _ ->
             FsmStmt = dderl:keyfetch(<<"statement">>, ReqDataList, <<>>),

@@ -38,6 +38,7 @@
           , sess                        :: {atom, pid()}
           , active_sender               :: pid()
           , active_receiver             :: pid()
+          , downloads   = []            :: integer()
           , conn_info                   :: map()
           , old_state                   :: tuple()
           , lock_state  = unlocked      :: unlocked | locked | screensaver
@@ -172,6 +173,8 @@ handle_info({'EXIT', _Pid, normal}, #state{user = _User} = State) ->
     {noreply, State};
 handle_info({set_id, SessionToken}, State) ->
     {noreply, State#state{id = SessionToken}};
+handle_info({download_done, Id}, #state{downloads = Downloads} = State) ->
+    {noreply, State#state{downloads = [Id | Downloads]}};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.
@@ -522,6 +525,17 @@ process_call({[<<"download_buffer_csv">>], ReqData}, Adapter, From, {SrcIp, _},
     %% Timer needs to be rearmed as we are replying with in a no standard way
     self() ! rearm_session_idle_timer,
     State;
+process_call({[<<"download_status">>], ReqData}, _Adapter, From, {SrcIp, _}, #state{ downloads = DownloadIds} = State) ->
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "download_status", args => ReqData}, State),
+    #{<<"id">> := Id} = imem_json:decode(ReqData, [return_maps]),
+    case lists:member(Id, DownloadIds) of
+        true ->
+            reply(From,#{<<"download_status">> => #{done => true}}, self()),
+            State#state{downloads = lists:delete(Id, DownloadIds)};
+        false ->
+            reply(From,#{<<"download_status">> => #{done => false}}, self()),
+            State
+    end;
 process_call({[<<"password_strength">>], ReqData}, _Adapter, From, {SrcIp,_}, State) ->
     act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "password_strength", args => ReqData}, State),
     #{<<"password">> := Password} = imem_json:decode(ReqData, [return_maps]),
