@@ -12,7 +12,7 @@ Else {
     Write-Host "===> not found $ertsIni" -foregroundcolor "red"
 }
 
-$dderlDev = "dderl-*/priv/dev"
+$dderlDev = "lib/dderl-*/priv/dev"
 
 If (Test-Path $dderlDev) {
     cd $dderlDev
