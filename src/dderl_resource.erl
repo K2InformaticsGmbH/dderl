@@ -43,12 +43,14 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
             QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
             BindVals = imem_json:decode(dderl:keyfetch(<<"binds">>, ReqDataList, <<>>)),
             Connection = dderl:keyfetch(<<"connection">>, ReqDataList, <<>>),
+            Id = dderl:keyfetch(<<"id">>, ReqDataList, <<>>),
             process_request_low(SessionToken, XSRFToken, Adapter, Req1,
                 jsx:encode([{<<"download_query">>,
                                 [{<<"connection">>, Connection},
                                 {<<"fileToDownload">>, FileToDownload},
                                 {<<"queryToDownload">>, QueryToDownload},
-                                {<<"binds">>,BindVals}]
+                                {<<"binds">>, BindVals},
+                                {<<"id">>, Id}]
                             }]), Typ);
         _ ->
             FsmStmt = dderl:keyfetch(<<"statement">>, ReqDataList, <<>>),
