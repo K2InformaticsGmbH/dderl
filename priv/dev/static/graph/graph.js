@@ -65,8 +65,9 @@ function openGraphView(name, binds = {}, position = {top: 0, left: 0}, force = f
                 pars: binds
             };
         }
+        var viewRef = renderNewTable(viewResult, position, force);
         if(cb) {
-            cb(renderNewTable(viewResult, position, force));
+            cb(viewRef);
         }
     });
 }
