@@ -2143,6 +2143,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
     _toolBarScnEnd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarScnEnd');
+        self._scanLimit = parseInt(self._tbTxtBox.val()) + dderlState.rowNumLimit;
+        console.log("the scanlimit", self._scanLimit);
         self._scanToEnd = true;
         self.buttonPress(">");
     },
@@ -2548,7 +2550,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     self.buttonPress(_rows.loop);
                 }
             } else if(self._scanToEnd && !self._blockRequests) {
-                if(rowsCount === 0) {
+                if(rowsCount === 0 || _rows.cnt > self._scanLimit) {
                     self._scanToEnd = false;
                 } else {
                     self.buttonPress('>');

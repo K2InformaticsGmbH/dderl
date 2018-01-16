@@ -29,7 +29,8 @@ export var dderlState = {
     username: "",
     app: "",
     vsn: "",
-    node: ""
+    node: "",
+    rowNumLimit: 10000
 };
 
 // generic dderlserver call interface

@@ -49,6 +49,9 @@ function loginCb(resp) {
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
     }
+    if (resp.hasOwnProperty('rowNumLimit')) {
+        dderlState.rowNumLimit = resp.rowNumLimit;
+    }
 
     if(!dderlState.screensaver) {
         refresh_header_information();
