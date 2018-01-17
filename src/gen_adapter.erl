@@ -2,7 +2,6 @@
 
 -include("dderl.hrl").
 -include("gres.hrl").
--include("dderl_sqlbox.hrl").
 
 -include_lib("imem/include/imem_sql.hrl").
 
@@ -118,13 +117,13 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             SqlTitle = get_sql_title(FirstPt),
                             FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
                             FlatListTuple = {<<"flat_list">>, FlatList},
-                            BoxTuple = get_box_tuple_multiple(PtList),
                             PrettyTuple = get_pretty_tuple_multiple(PtList),
                             ParseStmt = jsx:encode([{<<"parse_stmt">>,
                                 case SqlTitle of
-                                    <<>> -> [BoxTuple, PrettyTuple, FlatTuple, FlatListTuple
-                                             | opt_bind_json_obj(Sql, Adapter)];
-                                _ -> [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple, FlatListTuple
+                                    <<>> ->
+                                        [PrettyTuple, FlatTuple, FlatListTuple | opt_bind_json_obj(Sql, Adapter)];
+                                _ ->
+                                    [{<<"sqlTitle">>, SqlTitle}, PrettyTuple, FlatTuple, FlatListTuple
                                       | opt_bind_json_obj(Sql, Adapter)]
                             end}]),
                             From ! {reply, ParseStmt};
@@ -132,16 +131,16 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             [{ParseTree, _}] = ParseTrees,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
-                            BoxTuple = get_box_tuple(ParseTree),
                             PrettyTuple = get_pretty_tuple(ParseTree),
                             ParseStmt = jsx:encode([{<<"parse_stmt">>,
                                 case SqlTitle of
-                                    <<>> -> [BoxTuple, PrettyTuple, FlatTuple
-                                             | opt_bind_json_obj(Sql, Adapter)];
-                                    _ -> [{<<"sqlTitle">>, SqlTitle}, BoxTuple, PrettyTuple, FlatTuple
-                                          | opt_bind_json_obj(Sql, Adapter)]
-                            end}]),
-                            %% ?Debug("Json -- ~s", [jsx:prettify(ParseStmt)]),
+                                    <<>> ->
+                                        [PrettyTuple, FlatTuple | opt_bind_json_obj(Sql, Adapter)];
+                                    _ ->
+                                        [{<<"sqlTitle">>, SqlTitle}, PrettyTuple,
+                                            FlatTuple | opt_bind_json_obj(Sql, Adapter)]
+                                end
+                            }]),
                             From ! {reply, ParseStmt}
                     end;
                 {parse_error, {PError, Tokens}} ->
@@ -504,47 +503,9 @@ process_query(Query, Connection, Params, SessPid) ->
 
 %%%%%%%%%%%%%%%
 
--spec get_box_tuple(term()) -> {binary(), binary()}.
-get_box_tuple(ParseTree) ->
-    try dderl_sqlbox:boxed_from_pt(ParseTree) of
-        {error, BoxReason} ->
-            ?Debug("Error ~p trying to get the box of the parse tree ~p", [BoxReason, ParseTree]),
-            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p", [BoxReason]))};
-        {ok, Box} ->
-            %% ?Debug("The box ~p", [Box]),
-            try dderl_sqlbox:box_to_json(Box) of
-                JsonBox ->
-                    {<<"sqlbox">>, JsonBox}
-            catch
-                Class:Error ->
-                    ?Debug("Error ~p:~p converting the box ~p to json",
-                           [Class, Error, Box]),
-                    {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
-            end
-    catch
-        Class:Error ->
-            ?Debug("Error ~p:~p trying to get the box of the parse tree ~p~n",
-                   [Class, Error, ParseTree]),
-            {<<"boxerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class, Error]))}
-    end.
-
--spec get_box_tuple_multiple(list()) -> {binary(), term()}.
-get_box_tuple_multiple(ParseTrees) ->
-    get_box_tuple_multiple(ParseTrees, []).
-
--spec get_box_tuple_multiple(list(), list()) -> {binary, term()}.
-get_box_tuple_multiple([], ResultR) ->
-    Result = lists:reverse(ResultR),
-    {<<"sqlbox">>, dderl_sqlbox:wrap_multiple_json(Result)};
-get_box_tuple_multiple([ParseTree | Rest], Result) ->
-    case get_box_tuple(ParseTree) of
-        {<<"boxerror">> , _} = Error -> Error;
-        {<<"sqlbox">>, JsonBox} -> get_box_tuple_multiple(Rest, [JsonBox | Result])
-    end.
-
 -spec get_pretty_tuple(term()) -> {binary(), binary()}.
 get_pretty_tuple(ParseTree) ->
-    try dderl_sqlbox:pretty_from_pt(ParseTree) of
+    try sqlparse:pt_to_string_format(ParseTree) of
         {error, PrettyReason} ->
             ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
                    [PrettyReason, ParseTree]),

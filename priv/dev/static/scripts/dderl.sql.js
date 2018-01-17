@@ -17,6 +17,13 @@ export function StartSqlEditor(title = null, cmd = undefined) {
         .sql('open');
 }
 
+const tabPositions = Object.freeze({
+    FLAT: 0,
+    PRETTY: 1,
+    PARAMS: 2,
+    GRAPH: 3
+});
+
 function insertAtCursor(myField, myValue) {
   //IE support
   if (document.selection) {
@@ -60,7 +67,6 @@ function insertAtCursor(myField, myValue) {
 
     _flatTb         : null,
     _prettyTb       : null,
-    _boxDiv         : null,
     _paramsDiv      : null,
     _graphEdits     : null,
 
@@ -211,7 +217,6 @@ function insertAtCursor(myField, myValue) {
 
         var flatBg      = 'rgb(240,240,255)';
         var prettyBg    = 'rgb(255,240,240)';
-        var boxBg       = 'rgb(240,255,240)';
         var paramsBg    = '#FFFFD1';
 
         var sqlKeyHandle = function(e, self, _cmd) {
@@ -246,11 +251,6 @@ function insertAtCursor(myField, myValue) {
             })
             .val(self._cmdPretty);
 
-        self._boxDiv =
-            $('<div>')
-            .addClass('sql_text_box')
-            .css('font-family', self._fnt);
-
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
         // TODO: This should be ace probably instead of just text area / snippets is good idea...
@@ -276,7 +276,6 @@ function insertAtCursor(myField, myValue) {
         var ulTabs = $('<ul>' +
               '  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>' +
               '  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>' +
-              '  <li style="background:'+boxBg+'"><a href="#tabbox">Box</a></li>' +
               '  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>' +
               '  <li><a href="#tabgraph">D3 Graph</a></li>' +
               '</ul>');
@@ -292,12 +291,6 @@ function insertAtCursor(myField, myValue) {
               $('<div>')
               .attr('id','tabpretty')
               .append(self._prettyTb)
-            )
-            .append(
-              $('<div>')
-              .css('background-color', boxBg)
-              .attr('id','tabbox')
-              .append(self._boxDiv)
             )
             .append(
               $('<div>')
@@ -322,8 +315,7 @@ function insertAtCursor(myField, myValue) {
             .on("tabsactivate", function(event, ui) {
                 var selected = self._editDiv.tabs("option", "active");
 
-                if(selected === 3) {
-
+                if(selected === tabPositions.PARAMS) {
                 } else {
                     self._setTabFocus();
                     if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
@@ -387,7 +379,7 @@ function insertAtCursor(myField, myValue) {
         templates.onchange = (evt) => {
             var value = JSON.parse(evt.target.value);
             var text = value.application + " - " + value.name;
-            var selectedEditIdx = this._editDiv.tabs("option", "active") - 4;
+            var selectedEditIdx = this._editDiv.tabs("option", "active") - tabPositions.GRAPH;
             if(templatesContent.hasOwnProperty(text)) {
                 console.log("content cached found for", text);
                 this._graphEdits[selectedEditIdx].val(templatesContent[text]);
@@ -408,7 +400,7 @@ function insertAtCursor(myField, myValue) {
         this._editDiv.on("tabsactivate", () => {
             var selected = this._editDiv.tabs("option", "active");
             console.log("Selected tab", selected);
-            if(selected <= 3) {
+            if(selected <= tabPositions.PARAMS) {
                 if(historySelect.parentNode) { return; }
                 footerDiv.removeChild(templates);
                 footerDiv.appendChild(historySelect);
@@ -419,11 +411,6 @@ function insertAtCursor(myField, myValue) {
                 templates.selectedIndex = -1;
             }
         });
-    },
-
-    getEditor: function() {
-        var self = this;
-        self._editDiv.find('#tabbox').append(self._boxDiv);
     },
 
     _init: function() {
@@ -822,7 +809,7 @@ function insertAtCursor(myField, myValue) {
                     if (parse_stmt.hasOwnProperty("binds")) {
                         self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                         sql_params_dlg(self._paramsDiv, self._optBinds, self._outParamInputs);
-                        self._editDiv.tabs("option", "active", 3);
+                        self._editDiv.tabs("option", "active", tabPositions.PARAMS);
                         self._setTabFocus();
                     } else {
                         self._optBinds = null;
@@ -884,7 +871,7 @@ function insertAtCursor(myField, myValue) {
                         if (parse_stmt.hasOwnProperty("binds")) {
                             self._optBinds = self._mergeBinds(parse_stmt.binds, self._optBinds);
                             sql_params_dlg(self._paramsDiv, self._optBinds,  self._outParamInputs);
-                            self._editDiv.tabs("option", "active", 3);
+                            self._editDiv.tabs("option", "active", tabPositions.PARAMS);
                             self._cmdChanged = true;
                             self._setTabFocus();
                         } else {
@@ -995,8 +982,8 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         var planeToShow = 0;
         var script = "";
-        if(self._editDiv.tabs("option", "active") > 3) {
-            planeToShow = self._editDiv.tabs("option", "active") - 3;
+        if(self._editDiv.tabs("option", "active") > tabPositions.PARAMS) {
+            planeToShow = self._editDiv.tabs("option", "active") - tabPositions.PARAMS;
             script = self._graphEdits[planeToShow-1].val();
             // TODO: Remove this as the plane_spec has to contain all definitions...
             planeToShow = 1;
@@ -1059,9 +1046,6 @@ function insertAtCursor(myField, myValue) {
                 textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 2:
-                self._boxDiv.focus();
-                break;
-            case 3:
                 self._paramsDiv.focus();
                 break;
             default:
@@ -1075,17 +1059,10 @@ function insertAtCursor(myField, myValue) {
      * ajaxCall success handlers
      */
     _renderParsed: function(_parsed, skipFocus) {
-        var boxResult, self = this;
+        var self = this;
 
         if(!skipFocus) {
             self._setTabFocus();
-        }
-        if(_parsed.hasOwnProperty('sqlbox')) {
-            console.log(self._boxJson);
-            self._boxJson = _parsed.sqlbox;
-            boxResult = self._boxing(self._boxJson, self._boxDiv.width(), null, self._boxDiv[0]);
-            self._boxDiv.html('');
-            boxResult.div.appendTo(self._boxDiv);
         }
         if(_parsed.hasOwnProperty('flat')) {
             self._flatTb.val(_parsed.flat);
@@ -1096,7 +1073,7 @@ function insertAtCursor(myField, myValue) {
             self._cmdPretty = self._prettyTb.val();
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
-                self._editDiv.tabs("option", "active", 1);
+                self._editDiv.tabs("option", "active", tabPositions.PRETTY);
                 if(!skipFocus) {
                     self._setTabFocus();
                 }
@@ -1126,122 +1103,6 @@ function insertAtCursor(myField, myValue) {
         }
     },
 
-    _leaf_box: function (bx, collapsed, nametxt, alltxt, children, maxwidth, parent) {
-        var self = this;
-        var edit = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .addClass('boxEdit')
-            .width(maxwidth)
-            .attr('rows', 2)
-            .val(alltxt);
-        var name = $('<span>')
-            .addClass('boxName')
-            .text(nametxt);
-
-        bx.append(edit);
-        bx.append(name);
-        bx.data("oldText", alltxt);
-
-        var childrendiv = null;
-        if(children.length > 0) {
-            childrendiv = $('<div>')
-                .width(maxwidth)
-                .addClass('boxChildren');
-            bx.append(childrendiv);
-        }
-
-        for(var i = 0; i < children.length; ++i) {
-            childrendiv.append(children[i]);
-        }
-
-        edit.dblclick(function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            edit.css('display','none');
-            if(bx.data("oldText") != edit.val()) {
-                bx.data("oldText", edit.val());
-                name.text(edit.val());
-                nametxt = edit.val();
-                alltxt = edit.val();
-                // delete all the children.
-                if(childrendiv) {
-                    console.log(childrendiv);
-                    childrendiv.remove();
-                }
-                if(parent) {
-                    var updateFunc = parent.data("updateFunc");
-                    updateFunc();
-                }
-            }
-            name.css('display','inline');
-            if(childrendiv) childrendiv.css('display','inline');
-        });
-
-        var dblClkFn = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            edit.css('display','inline');
-            name.css('display','none');
-            if(childrendiv) childrendiv.css('display','none');
-        };
-
-        if (collapsed) {
-            edit.css('display','inline');
-            name.css('display','none');
-            if(childrendiv) childrendiv.css('display','none');
-        }
-
-        if (nametxt.length === 0) {
-            bx.dblclick(dblClkFn);
-        } else {
-            name.dblclick(dblClkFn);
-        }
-
-        bx.data("updateFunc", function() {
-            var childText;
-            alltxt = nametxt;
-            for(var i = 0; i < children.length; ++i) {
-                childText = children[i].data("oldText");
-                alltxt += (' ' + childText);
-            }
-            bx.data("oldText", alltxt);
-            edit.val(alltxt);
-
-            if(parent) {
-                var updateFunc = parent.data("updateFunc");
-                updateFunc();
-            } else {
-                // This is the root, update the cmd
-                console.log("this is the root " + nametxt);
-                console.log("the new text " + alltxt);
-                console.log(self);
-                self._modCmd = alltxt;
-            }
-        });
-
-        return bx;
-    },
-
-    _boxing: function(box, maxwidth, parent, oldBox) {
-        var children = [];
-        var alltext = box.name;
-        var allChildCollapsed = true;
-        var res;
-        var bx = $('<div>')
-            .addClass('boxParent')
-            .width(maxwidth);
-        for (var i = 0; i < box.children.length; ++i) {
-            res = this._boxing(box.children[i], maxwidth-20, bx, oldBox ? oldBox.children[i] : oldBox);
-            children.push(res.div);
-            alltext += (' ' + res.text);
-            if (!box.children[i].collapsed) {
-                allChildCollapsed = false;
-            }
-        }
-        var collapsed = box.collapsed || (allChildCollapsed && box.name.length === 0);
-        var myRes = {div : this._leaf_box(bx, collapsed, box.name, alltext, children, maxwidth-20, parent), text: alltext};
-        return myRes;
-    },
-
     _createDlg: function() {
         var self = this;
 
@@ -1269,7 +1130,7 @@ function insertAtCursor(myField, myValue) {
         this._refreshHistoryBoxSize();
         if (this._optBinds !== null) {
             sql_params_dlg(this._paramsDiv, this._optBinds, this._outParamInputs);
-            this._editDiv.tabs("option", "active", 3);
+            this._editDiv.tabs("option", "active", tabPositions.PARAMS);
             this._cmdChanged = true;
         }
         this._setTabFocus();
