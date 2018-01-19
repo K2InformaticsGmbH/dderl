@@ -155,6 +155,8 @@ update_sys_config(FileHandle, #{"WebSrvIntf"          := DDerlIpPort,
        {[lager, extra_sinks, access_lager_event, handlers, lager_file_backend,
          file], [], {path, InstallPath}},
        {[lager, extra_sinks, activity_lager_event, handlers, lager_file_backend,
+         file], [], {path, InstallPath}},
+       {[lager, extra_sinks, kpi_lager_event, handlers, lager_file_backend,
          file], [], {path, InstallPath}}
       ]).
 
