@@ -17,7 +17,8 @@ div#login-bg {
 }
 
 body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
-input.text { width:95%; padding: .4em; }
+input.text, textarea.text { width: 95%; padding: .4em; }
+textarea.d3labeledit { height: 120px }
 fieldset { padding:0; border:0; margin-top:25px; }
 h1 { font-size: 1.2em; margin: .6em 0; }
 div#users-contain { width: 350px; margin: 20px 0; }

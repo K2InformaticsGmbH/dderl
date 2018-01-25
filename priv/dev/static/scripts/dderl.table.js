@@ -3331,6 +3331,10 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         var cell = g.getCellFromEvent(e);
         var row = g.getData().getItem(cell.row);
 
+        // Set the grid focus so we can capture copy events.
+        self._grid.focus();
+        console.log("Focus set");
+
         //Check if we are in a new row.
         if(!row) {
             return;
