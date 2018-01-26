@@ -228,6 +228,22 @@ function init(container, width, height) {
         return yParse(d[y4Var]);
     }
 
+    function contextMenu(d) {
+        d3.event.preventDefault();
+        var menuSpec = [
+            {
+                label: "Add label",
+                icon: "file-text-o",
+                cb: function(evt) {
+                    var pos = d3.clientPoint(svg.node(), evt);
+                    helper.createLabel(svg, pointTitle(d), pos[0], pos[1]);
+                }
+            }
+        ];
+        var pos = {x: d3.event.pageX - 15, y: d3.event.pageY - 20};
+        helper.contextMenu(menuSpec, pos);
+    }
+
     var pointTitle = function(d) { 
         var res = '';
         for (prop in d) {
@@ -284,7 +300,7 @@ function init(container, width, height) {
 
     var circleAttrs3 = function(d) { 
         return {
-            'clip-path': 'url(#' + clipId + ')',            
+            'clip-path': 'url(#' + clipId + ')',
             cx: xScale(xVal(d)),
             cy: yScale(y3Val(d)),
             r: radius
@@ -589,6 +605,7 @@ function init(container, width, height) {
                 .append("svg:circle")
                 .attrs(circleAttrs1)
                 .styles(circleStyles1)
+                .on('contextmenu', contextMenu)
                 .append("title")
                 .text(pointTitle)
                 ;
@@ -603,6 +620,7 @@ function init(container, width, height) {
                     .append("svg:rect")
                     .attrs(squareAttrs2)
                     .styles(squareStyles2)
+                    .on('contextmenu', contextMenu)
                     .append("title")
                     .text(pointTitle)
                     ;
@@ -617,6 +635,7 @@ function init(container, width, height) {
                     .append("svg:circle")
                     .attrs(circleAttrs3)
                     .styles(circleStyles3)
+                    .on('contextmenu', contextMenu)
                     .append("title")
                     .text(pointTitle)
                     ;
@@ -631,6 +650,7 @@ function init(container, width, height) {
                     .append("svg:rect")
                     .attrs(squareAttrs4)
                     .styles(squareStyles4)
+                    .on('contextmenu', contextMenu)
                     .append("title")
                     .text(pointTitle)
                     ;

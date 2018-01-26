@@ -471,7 +471,7 @@ function dragFunc() {
         var menuSpec = [
             {
                 label: "Add label",
-                icon: "external-link",
+                icon: "file-text-o",
                 cb: function(evt) {
                     var pos = d3.clientPoint(svg.node(), evt);
                     helper.createLabel(svg, "Label text", pos[0], pos[1]);
