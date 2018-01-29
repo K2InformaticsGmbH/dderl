@@ -2694,7 +2694,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             .bind("dialogresize", function() {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
-                if(self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
+                if((self._planeToShow > 0) && self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
                     var planeIdx = self._planeToShow - 1;
                     var divElement = self._graphDivs[planeIdx].node();
                     // We need to execute the script.
@@ -2728,9 +2728,14 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     return;
                 }
                 var cellEditor = self._grid.getCellEditor();
-                self._grid.focus();
                 if(cellEditor && !cellEditor.isFocused()) {
+                    self._grid.focus();
                     cellEditor.focus();
+                } else {
+                    setTimeout(() => {
+                        console.log("Set grid focus from dlg click");
+                        self._grid.focus();
+                    }, 100);
                 }
             })
             .bind("dialogbeforeclose", function() {
@@ -2748,6 +2753,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             })
             .bind("dialogdragstop", function() {
                 self._dlgResized = true;
+                self._grid.focus();
+                console.log("Focus set via dlg");
             })
             .dialogExtend({
                 "minimizable" : true,
@@ -2764,6 +2771,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     self._dlgMinimized = false;
                     self._dlg.dialog("moveToTop");
                     console.log("restored called");
+                    self._grid.focus();
+                    console.log("Focus set via dlg");
                 }
             });
 
@@ -3330,10 +3339,6 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         var g = args.grid;
         var cell = g.getCellFromEvent(e);
         var row = g.getData().getItem(cell.row);
-
-        // Set the grid focus so we can capture copy events.
-        self._grid.focus();
-        console.log("Focus set");
 
         //Check if we are in a new row.
         if(!row) {
