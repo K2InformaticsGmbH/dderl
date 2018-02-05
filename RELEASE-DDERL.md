@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.0.0 (Release Date 19.01.2018)
+======================================
+* Imem 2.0.0
+* CSV "Export-All" with long execution time [#485](https://github.com/K2InformaticsGmbH/dderl/issues/485)
+* 008727 API extension for parameterized views [#482](https://github.com/K2InformaticsGmbH/dderl/issues/482)
+* DDerl picture pasting [#481](https://github.com/K2InformaticsGmbH/dderl/issues/481)
+
 Version 1.10.1 (Release Date 23.11.2017)
 ======================================
 * Imem 1.9.1

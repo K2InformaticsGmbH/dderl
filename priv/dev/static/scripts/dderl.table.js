@@ -2143,6 +2143,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
     _toolBarScnEnd: function(self) {
         console.log('['+self.options.title+'] cb _toolBarScnEnd');
+        self._scanLimit = parseInt(self._tbTxtBox.val()) + dderlState.rowNumLimit;
+        console.log("the scanlimit", self._scanLimit);
         self._scanToEnd = true;
         self.buttonPress(">");
     },
@@ -2548,7 +2550,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     self.buttonPress(_rows.loop);
                 }
             } else if(self._scanToEnd && !self._blockRequests) {
-                if(rowsCount === 0) {
+                if(rowsCount === 0 || _rows.cnt > self._scanLimit) {
                     self._scanToEnd = false;
                 } else {
                     self.buttonPress('>');
@@ -2692,7 +2694,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             .bind("dialogresize", function() {
                 self._grid.resizeCanvas();
                 self._dlgResized = true;
-                if(self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
+                if((self._planeToShow > 0) && self._graphSpec && $.isFunction(self._graphSpec.on_resize)) {
                     var planeIdx = self._planeToShow - 1;
                     var divElement = self._graphDivs[planeIdx].node();
                     // We need to execute the script.
@@ -2726,9 +2728,14 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     return;
                 }
                 var cellEditor = self._grid.getCellEditor();
-                self._grid.focus();
                 if(cellEditor && !cellEditor.isFocused()) {
+                    self._grid.focus();
                     cellEditor.focus();
+                } else {
+                    setTimeout(() => {
+                        console.log("Set grid focus from dlg click");
+                        self._grid.focus();
+                    }, 100);
                 }
             })
             .bind("dialogbeforeclose", function() {
@@ -2746,6 +2753,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             })
             .bind("dialogdragstop", function() {
                 self._dlgResized = true;
+                self._grid.focus();
+                console.log("Focus set via dlg");
             })
             .dialogExtend({
                 "minimizable" : true,
@@ -2762,6 +2771,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     self._dlgMinimized = false;
                     self._dlg.dialog("moveToTop");
                     console.log("restored called");
+                    self._grid.focus();
+                    console.log("Focus set via dlg");
                 }
             });
 
