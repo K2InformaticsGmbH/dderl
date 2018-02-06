@@ -362,6 +362,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     $('<li>')
                         .attr("action", m)
                         .click(executeMenuAction)
+                        .contextmenu(function(e) { e.preventDefault(); }) 
                         .text(m)
                         .appendTo(mnu);
                 }
