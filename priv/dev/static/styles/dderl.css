@@ -913,3 +913,7 @@ ul.dropdown.floatNone ul li {
 #receiverErrors {
     color: red;
 }
+
+.ui-tabs li.sql-tab-highlight {
+    font-weight: bold;
+}
