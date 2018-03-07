@@ -505,7 +505,7 @@ process_query(Query, Connection, Params, SessPid) ->
 
 -spec get_pretty_tuple(term()) -> {binary(), binary()}.
 get_pretty_tuple(ParseTree) ->
-    try sqlparse:pt_to_string_format(ParseTree) of
+    try sqlparse_layout:pretty(ParseTree, []) of
         {error, PrettyReason} ->
             ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
                    [PrettyReason, ParseTree]),
@@ -727,16 +727,16 @@ extract_modified_rows([ReceivedRow | Rest]) ->
 -spec get_sql_title(tuple()) -> binary().
 get_sql_title({select, Args}) ->
     From = lists:keyfind(from, 1, Args),
-    <<"from ", Result/binary>> = sqlparse:pt_to_string(From),
+    <<"from ", Result/binary>> = sqlparse_layout:flat(From),
     Result;
 get_sql_title(_) -> <<>>.
 
 %% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
 ptlist_to_string([{ParseTree,_}]) ->
-    sqlparse:pt_to_string(ParseTree);
+    sqlparse_layout:flat(ParseTree);
 ptlist_to_string(Input) when is_list(Input) ->
     PtList = [Pt || {Pt, _Extra} <- Input],
-    FlatList = [sqlparse:pt_to_string(Pt) || Pt <- PtList],
+    FlatList = [sqlparse_layout:flat(Pt) || Pt <- PtList],
     {multiple, FlatList, PtList}.
 
 -spec decrypt_to_term(binary()) -> any().
