@@ -2090,6 +2090,9 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
         // 10 pixels for resize handler
         self._footerWidth = totWidth + 10;
+
+        // make last button round.
+        self._tbDiscrd.addClass('ui-corner-right');
     },
 
     /*
