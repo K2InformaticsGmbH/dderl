@@ -183,9 +183,13 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         focus             : function() {},
         open              : function() {
             console.log("the parent of this", this.parentNode);
-            var titleNode = $(this).parent().children(".ui-dialog-titlebar");
+            var self = this;
+            var titleNode = $(self).parent().children(".ui-dialog-titlebar");
             console.log("the title node", titleNode);
-            $(this).table('showPlane');
+            titleNode.click(function() {
+                $(self).table('setGridFocus');
+            });
+            $(self).table('showPlane');
         },
         close             : function() {
                               $(this).table('close_stmt');
@@ -2828,6 +2832,11 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         } else {
             this._planeToShow = 0;
         }
+    },
+
+    setGridFocus: function() {
+        console.log("Focus set via titlebar click");
+        this._grid.focus();
     },
 
     // plane to show 1 based, 0 represents the grid
