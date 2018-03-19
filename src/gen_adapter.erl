@@ -79,15 +79,19 @@ sql_params(Sql, Types) ->
     try
         {ok, PTree} = sqlparse:parsetree(Sql),
         Params = sqlparse:foldtd(
-                   fun({param, P}, A) ->
+                   fun(_LOPts, _FunState, {param, P}, A, FoldState) ->
+                           Step = case FoldState of
+                                      {_R, S} -> S;
+                                      {_R, S, _P} -> S
+                                  end,
                            case re:run(
                                   P, RegEx,
                                   [global,{capture, [0,1,2], binary}]) of
-                               {match, Prms} -> Prms ++ A;
+                               {match, Prms} when Step == start -> Prms ++ A;
                                _ -> A
                            end;
-                      (_, A) -> A
-                   end, [], PTree),
+                      (_, _, _, A, _) -> A
+                   end, [], PTree, []),
         {match, Params}
     catch C:R ->
               ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
@@ -511,7 +515,7 @@ get_pretty_tuple(ParseTree) ->
                    [PrettyReason, ParseTree]),
             {<<"prettyerror">>, PrettyReason};
         Pretty ->
-            {<<"pretty">>, Pretty}
+            {<<"pretty">>, list_to_binary(Pretty)}
     catch
         Class1:Error1 ->
             ?Debug("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
