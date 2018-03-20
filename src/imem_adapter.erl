@@ -964,17 +964,7 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 get_params(Sql) ->
     case sqlparse:parsetree(Sql) of
         {ok,[{ParseTree,_}]} ->
-            Pred = fun(_LOpts,_FunState,Ctx,P,FoldState) ->
-                           Step = case FoldState of
-                                      {_R, S} -> S;
-                                      {_R, S, _P} -> S
-                                  end,
-                           case P of
-                               {param, Param} when Step == start -> [Param|Ctx];
-                               _ -> Ctx
-                           end
-                   end,
-            sqlparse:foldtd(Pred,[],ParseTree,[]);
+            sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, []);
         _ ->
             []
     end.

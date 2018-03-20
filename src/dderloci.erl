@@ -230,7 +230,7 @@ inject_rowid(select, Args, Sql) ->
     NewFields = expand_star(Flds, Forms) ++ [add_rowid_field(FirstTable)],
     NewArgs = lists:keyreplace(fields, 1, Args, {fields, NewFields}),
     NPT = {select, NewArgs},
-    case sqlparse_layout:flat(NPT) of
+    case sqlparse_fold:top_down(sqlparse_format_flat, NPT, []) of
         {error, _Reason} ->
             {FirstTable, Sql, false};
         NewSql ->
@@ -412,7 +412,7 @@ normalize_pt_fields([{as, _Field, Alias} = Fld | Rest], Result) when is_binary(A
 normalize_pt_fields([TupleField | Rest], Result) when is_tuple(TupleField) ->
     case element(1, TupleField) of
         'fun' ->
-            BinField = sqlparse_layout:flat(TupleField),
+            BinField = sqlparse_fold:top_down(sqlparse_format_flat, TupleField, []),
             Normalized = string:to_lower(binary_to_list(BinField)),
             normalize_pt_fields(Rest, Result#{Normalized => TupleField});
         _ ->
@@ -442,7 +442,7 @@ process_sort_order({Name, Dir}, [#bind{alias = Alias, cind = Pos} | Rest]) when 
         false -> process_sort_order({Name, Dir}, Rest)
     end;
 process_sort_order({Fun, Dir}, Map) ->
-    process_sort_order({sqlparse_layout:flat(Fun), Dir}, Map).
+    process_sort_order({sqlparse_fold:top_down(sqlparse_format_flat, Fun, []), Dir}, Map).
 
 
 %%% Model how imem gets the new filter and sort results %%%%
@@ -465,7 +465,7 @@ process_sort_order({Fun, Dir}, Map) ->
 %       %?Debug("NewSections1 ~p~n", [NewSections1]),
 %       NewSections2 = lists:keyreplace('order by', 1, NewSections1, {'order by',OrderBy}),
 %       %?Debug("NewSections2 ~p~n", [NewSections2]),
-%       NewSql = sqlparse_layout:flat({select,NewSections2}),     % sql_box:flat_from_pt({select,NewSections2}),
+%       NewSql = sqlparse_fold:top_down(sqlparse_format_flat, {select,NewSections2}, []),     % sql_box:flat_from_pt({select,NewSections2}),
 %       %?Debug("NewSql ~p~n", [NewSql]),
 %       {ok, NewSql, NewSortFun}
 
@@ -490,7 +490,7 @@ filter_and_sort_internal(_Connection, FilterSpec, SortSpec, Cols, Query, StmtCol
             NewSections1 = lists:keyreplace('where', 1, NewSections0, {'where',FilterEmptyAsNull}),
             OrderBy = imem_sql_expr:sort_spec_order(SortSpec, FullMap, FullMap),
             NewSections2 = lists:keyreplace('order by', 1, NewSections1, {'order by',OrderBy}),
-            NewSql = sqlparse_layout:flat({select, NewSections2});
+            NewSql = sqlparse_fold:top_down(sqlparse_format_flat, {select, NewSections2}, []);
         _->
             NewSql = Query
     end,

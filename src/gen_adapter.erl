@@ -74,28 +74,14 @@ opt_bind_json_obj(Sql, Adapter) ->
     end.
 
 sql_params(Sql, Types) ->
-    RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
-            ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
         {ok, PTree} = sqlparse:parsetree(Sql),
-        Params = sqlparse:foldtd(
-                   fun(_LOPts, _FunState, {param, P}, A, FoldState) ->
-                           Step = case FoldState of
-                                      {_R, S} -> S;
-                                      {_R, S, _P} -> S
-                                  end,
-                           case re:run(
-                                  P, RegEx,
-                                  [global,{capture, [0,1,2], binary}]) of
-                               {match, Prms} when Step == start -> Prms ++ A;
-                               _ -> A
-                           end;
-                      (_, _, _, A, _) -> A
-                   end, [], PTree, []),
-        {match, Params}
+        sqlparse_fold:top_down(sqlparse_params_filter, PTree, [])
     catch C:R ->
-              ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
-              re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
+        RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
+            ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
+        ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
+        re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
     end.
 
 -spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
@@ -509,13 +495,13 @@ process_query(Query, Connection, Params, SessPid) ->
 
 -spec get_pretty_tuple(term()) -> {binary(), binary()}.
 get_pretty_tuple(ParseTree) ->
-    try sqlparse_layout:pretty(ParseTree, []) of
+    try sqlparse_fold:top_down(sqlparse_format_pretty, ParseTree, []) of
         {error, PrettyReason} ->
             ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
                    [PrettyReason, ParseTree]),
             {<<"prettyerror">>, PrettyReason};
         Pretty ->
-            {<<"pretty">>, list_to_binary(Pretty)}
+            {<<"pretty">>, Pretty}
     catch
         Class1:Error1 ->
             ?Debug("Error ~p:~p trying to get the pretty from the parse tree ~p~n",
@@ -731,16 +717,16 @@ extract_modified_rows([ReceivedRow | Rest]) ->
 -spec get_sql_title(tuple()) -> binary().
 get_sql_title({select, Args}) ->
     From = lists:keyfind(from, 1, Args),
-    <<"from ", Result/binary>> = sqlparse_layout:flat(From),
+    <<"from ", Result/binary>> = sqlparse_fold:top_down(sqlparse_format_flat, From, []),
     Result;
 get_sql_title(_) -> <<>>.
 
 %% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
 ptlist_to_string([{ParseTree,_}]) ->
-    sqlparse_layout:flat(ParseTree);
+    sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, []);
 ptlist_to_string(Input) when is_list(Input) ->
     PtList = [Pt || {Pt, _Extra} <- Input],
-    FlatList = [sqlparse_layout:flat(Pt) || Pt <- PtList],
+    FlatList = [sqlparse_fold:top_down(sqlparse_format_flat, Pt, []) || Pt <- PtList],
     {multiple, FlatList, PtList}.
 
 -spec decrypt_to_term(binary()) -> any().

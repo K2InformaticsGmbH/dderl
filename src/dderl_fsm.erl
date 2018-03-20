@@ -1572,7 +1572,7 @@ handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=St
     QueryResult = ets:foldr(FoldFun, [], TableId),
     %% Normalize the query using the parsetree.
     NormQry = case sqlparse:parsetree(Qry) of
-        {ok, Pt} -> sqlparse_layout:flat(Pt);
+        {ok, Pt} -> sqlparse_fold:top_down(sqlparse_format_flat, Pt, []);
         _ -> Qry
     end,
     Key = {dbTest, NormQry, BindVals},
