@@ -7,3 +7,5 @@ otp_release:
 script:
   - ./rebar3 compile
   - ./rebar3 eunit
+  - ./rebar3 as prod release
+  - ./rebar3 as prod erlpkg
