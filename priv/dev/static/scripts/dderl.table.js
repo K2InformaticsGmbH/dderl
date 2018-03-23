@@ -10,6 +10,7 @@ import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import * as tableSelection from './table-selection';
 
 (function() {
   $.widget( "dderl.table", $.ui.dialog, {
@@ -357,6 +358,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     if($(this).is(':visible')) {
                         $(this).hide();
                         self._grid.focus();
+                        tableSelection.select(self);
                     }
                 })
                 .appendTo(document.body);
@@ -2032,6 +2034,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             if ($.isFunction(f)) {
                 f(self);
                 self._grid.focus();
+                tableSelection.select(self);
             } else {
                 throw ('[' + self.options.title + '] toolbar ' + _btn + ' has unimplimented cb ' + fName);
             }
@@ -2739,10 +2742,12 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 if(cellEditor && !cellEditor.isFocused()) {
                     self._grid.focus();
                     cellEditor.focus();
+                    tableSelection.select(self);
                 } else {
                     setTimeout(() => {
                         console.log("Set grid focus from dlg click");
                         self._grid.focus();
+                        tableSelection.select(self);
                     }, 100);
                 }
             })
@@ -2763,6 +2768,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 self._dlgResized = true;
                 self._grid.focus();
                 console.log("Focus set via dlg");
+                tableSelection.select(self);
             })
             .dialogExtend({
                 "minimizable" : true,
@@ -2781,6 +2787,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                     console.log("restored called");
                     self._grid.focus();
                     console.log("Focus set via dlg");
+                    tableSelection.select(self);
                 }
             });
 
@@ -2835,8 +2842,10 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
 
     setGridFocus: function() {
+        var self = this;
         console.log("Focus set via titlebar click");
-        this._grid.focus();
+        self._grid.focus();
+        tableSelection.select(self);
     },
 
     // plane to show 1 based, 0 represents the grid
@@ -2945,6 +2954,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     _gridContextMenu: function(e, args) {
         e.preventDefault();
 
+        tableSelection.select(this);
+
         var g           = args.grid;
         var cell        = g.getCellFromEvent(e);
 
@@ -2997,6 +3008,8 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
     _gridHeaderContextMenu: function(e, args) {
         e.preventDefault();
+
+        tableSelection.select(this);
 
         // right click on non-column zone
         if(args.column === undefined) return;
@@ -3330,6 +3343,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             cellEditor.focus();
         }
         console.log("Focus set");
+        tableSelection.select(self);
     },
 
     _handleDragInit: function(e) {
@@ -3338,6 +3352,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         self._dlg.dialog("moveToTop");
         self._grid.focus();
         console.log("Focus set");
+        tableSelection.select(self);
     },
 
     _handleHeaderClick: function() {
@@ -3345,6 +3360,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         self._dlg.dialog("moveToTop");
         self._grid.focus();
         console.log("Focus set");
+        tableSelection.select(self);
     },
 
     _handleMouseEnter: function(e, args) {
@@ -3522,6 +3538,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
         self._divDisable.remove();
         self._divDisable = null;
         self._grid.focus();
+        tableSelection.select(self);
     },
 
     moveAllToTop: function() {
@@ -3744,8 +3761,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
 
     endPaste : function() { this.removeWheel(); },
-    removeWheel : function()
-    {
+    removeWheel : function() {
         this._spinCounter--;
         var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
         if(this._spinCounter <= 0 && this._dlg.hasClass('ui-dialog-content') &&
@@ -3756,8 +3772,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
     },
 
     startPaste : function() { this.addWheel(); },
-    addWheel : function()
-    {
+    addWheel : function() {
         if(this._spinCounter < 0)
             this._spinCounter = 0;
         this._spinCounter++;
@@ -4095,6 +4110,19 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 
         //console.timeEnd('appendRows');
         //console.profileEnd();
+    },
+
+    hideSelection: function() {
+        var self = this;
+        console.log("Hiding selection for", self.options.title);
+        console.log("the table div :D", self._tableDiv);
+        self._tableDiv.addClass(tableSelection.hiddenSelectionClass);
+    },
+
+    enableSelection: function() {
+        var self = this;
+        console.log("Enabling selection for", self.options.title);
+        self._tableDiv.removeClass(tableSelection.hiddenSelectionClass);
     }
   });
 }());

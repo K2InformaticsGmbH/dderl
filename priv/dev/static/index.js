@@ -12,6 +12,7 @@ import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab, close_tab} from "./scripts/connect";
 import {StartSqlEditor} from "./scripts/dderl.sql";
 import {patch_jquery_ui} from "./jquery-ui-helper/helper.js";
+import * as tableSelection from './scripts/table-selection';
 
 import 'font-awesome/css/font-awesome.css';
 // Add our jquery-ui theme (smoothness) from http://jqueryui.com/download/
@@ -30,13 +31,16 @@ req.keys().forEach(function(key){
 });
 
 $(document).ready(function () {
-    $('#main-body').css('top', $('#main-menu-bar').height());
+    let mainBody = $('#main-body');
+    let menuBar = $('#main-menu-bar');
+
+    mainBody.css('top', menuBar.height());
     if (Object.hasOwnProperty('freeze')) {
         // Add support for html titles on dialogs.
         patch_jquery_ui();
         loginAjax();
     } else {
-        $('#main-menu-bar').hide();
+        menuBar.hide();
         alert_jq("We are really sorry, but we don't support your current browser version.");
     }
 
@@ -49,6 +53,13 @@ $(document).ready(function () {
     $(window).on('unload', function() {
         close_tab();
     });
+
+    mainBody.click(function(e) {
+        if(e.target === this) {
+            tableSelection.select(null);
+        }
+    });
+
 });
 
 // Set up main-menu handlers from index.html
