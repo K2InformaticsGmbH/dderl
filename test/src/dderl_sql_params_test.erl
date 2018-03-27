@@ -1,6 +1,6 @@
 %% -----------------------------------------------------------------------------
 %%
-%% dderl_params_filter_test.erl: SQL - test driver.
+%% dderl_sql_params_test.erl: SQL - test driver.
 %%
 %% Copyright (c) 2012-18 K2 Informatics GmbH.  All Rights Reserved.
 %%
@@ -20,9 +20,9 @@
 %%
 %% -----------------------------------------------------------------------------
 
--module(dderl_params_filter_test).
+-module(dderl_sql_params_test).
 
--include("dderl_params_filter_test.hrl").
+-include("dderl_sql_params_test.hrl").
 
 %%------------------------------------------------------------------------------
 %% Testing.
@@ -62,7 +62,7 @@ params_2_test_() ->
 %%------------------------------------------------------------------------------
 
 params_filter(Title, Source, Result, RegEx) ->
-    case dderl_params_filter:get_params(Source, RegEx) of
+    case dderl_sql_params:get_params(Source, RegEx) of
         Params when is_list(Params) -> ?assertEqual(Result, Params, Title);
         ErrorResult ->
             io:format(user, "~n" ++ ?MODULE_STRING ++

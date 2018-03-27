@@ -1,7 +1,7 @@
 %% -----------------------------------------------------------------------------
 %%
-%% sqlparse_params_filter.erl: SQL - filtering the parameters
-%%                                   of a SQL statement.
+%% dderl_sql_params.erl: SQL - filtering the parameters
+%%                             of a SQL statement.
 %%
 %% Copyright (c) 2012-18 K2 Informatics GmbH.  All Rights Reserved.
 %%
@@ -21,7 +21,7 @@
 %%
 %% -----------------------------------------------------------------------------
 
--module(dderl_params_filter).
+-module(dderl_sql_params).
 
 -export([
     finalize/2,
@@ -31,7 +31,7 @@
 ]).
 
 get_params(Sql, RegEx) ->
-    sqlparse_fold:top_down(dderl_params_filter, Sql, RegEx).
+    sqlparse_fold:top_down(dderl_sql_params, Sql, RegEx).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Setting up parameters.

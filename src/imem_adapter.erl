@@ -962,7 +962,7 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 
 -spec get_params(binary()) -> [binary()].
 get_params(Sql) ->
-    dderl_params_filter:get_params(Sql, []).
+    dderl_sql_params:get_params(Sql, []).
 
 -spec get_deps() -> [atom()].
 get_deps() -> [erlimem, imem].

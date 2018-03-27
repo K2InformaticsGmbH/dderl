@@ -77,7 +77,7 @@ sql_params(Sql, Types) ->
     RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
-        {match, dderl_params_filter:get_params(Sql, RegEx)}
+        {match, dderl_sql_params:get_params(Sql, RegEx)}
     catch C:R ->
         ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
         re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
