@@ -21,7 +21,7 @@
 %%
 %% -----------------------------------------------------------------------------
 
--module(sqlparse_params_filter).
+-module(dderl_params_filter).
 
 -export([
     finalize/2,
@@ -35,8 +35,7 @@
 
 -spec init(RegEx :: iodata() | unicode:charlist()) ->
     {re_pattern, term(), term(), term(), term()} | list().
-init(RegEx)
-    when is_list(RegEx) ->
+init(RegEx) when is_list(RegEx) ->
     case length(RegEx) > 0 of
         true -> {ok, MP_I} = re:compile(RegEx),
             MP_I;
@@ -49,8 +48,7 @@ init(RegEx)
 
 -spec finalize(Params :: any(), Ctx :: [binary()]|tuple()) ->
     Ctx :: [binary()]|tuple().
-finalize(_MP, CtxIn)
-    when is_list(CtxIn) ->
+finalize(_MP, CtxIn) when is_list(CtxIn) ->
     lists:usort(CtxIn).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

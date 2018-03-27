@@ -1,6 +1,6 @@
 %% -----------------------------------------------------------------------------
 %%
-%% sqlparse_params_filter_test.hrl: SQL - test driver.
+%% dderl_params_filter_test.hrl: SQL - test driver.
 %%
 %% Copyright (c) 2012-18 K2 Informatics GmbH.  All Rights Reserved.
 %%
@@ -20,8 +20,8 @@
 %%
 %% -----------------------------------------------------------------------------
 
--ifndef(SQLPARSE_IDENTIFIERS_MATCH_HRL).
--define(SQLPARSE_IDENTIFIERS_MATCH_HRL, true).
+-ifndef(DDERL_IDENTIFIERS_MATCH_HRL).
+-define(DDERL_IDENTIFIERS_MATCH_HRL, true).
 
 -include_lib("eunit/include/eunit.hrl").
 

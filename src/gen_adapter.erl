@@ -77,8 +77,7 @@ sql_params(Sql, Types) ->
     RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
-        {ok, PTree} = sqlparse:parsetree(Sql),
-        {match, sqlparse_fold:top_down(sqlparse_params_filter, PTree, RegEx)}
+        {match, sqlparse_fold:top_down(dderl_params_filter, Sql, RegEx)}
     catch C:R ->
         ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
         re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])

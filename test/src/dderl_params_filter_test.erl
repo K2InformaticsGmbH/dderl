@@ -1,6 +1,6 @@
 %% -----------------------------------------------------------------------------
 %%
-%% sqlparse_params_filter_test.erl: SQL - test driver.
+%% dderl_params_filter_test.erl: SQL - test driver.
 %%
 %% Copyright (c) 2012-18 K2 Informatics GmbH.  All Rights Reserved.
 %%
@@ -20,9 +20,9 @@
 %%
 %% -----------------------------------------------------------------------------
 
--module(sqlparse_params_filter_test).
+-module(dderl_params_filter_test).
 
--include("sqlparse_params_filter_test.hrl").
+-include("dderl_params_filter_test.hrl").
 
 %%------------------------------------------------------------------------------
 %% Testing.
@@ -62,10 +62,8 @@ params_2_test_() ->
 %%------------------------------------------------------------------------------
 
 params_filter(Title, Source, Result, RegEx) ->
-    {ok, ParseTree} = sqlparse:parsetree(Source),
-    case sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, RegEx) of
-        Params when is_list(Params) ->
-            ?assertEqual(Result, Params, Title);
+    case sqlparse_fold:top_down(dderl_params_filter, Source, RegEx) of
+        Params when is_list(Params) -> ?assertEqual(Result, Params, Title);
         ErrorResult ->
             io:format(user, "~n" ++ ?MODULE_STRING ++
                 " : Error in eunit_test : Title      ~n > ~p~n", [Title]),

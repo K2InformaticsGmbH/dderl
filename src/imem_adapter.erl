@@ -964,7 +964,7 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 get_params(Sql) ->
     case sqlparse:parsetree(Sql) of
         {ok,[{ParseTree,_}]} ->
-            sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, []);
+            sqlparse_fold:top_down(dderl_params_filter, ParseTree, []);
         _ ->
             []
     end.
