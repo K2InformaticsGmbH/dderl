@@ -26,8 +26,12 @@
 -export([
     finalize/2,
     fold/5,
+    get_params/2,
     init/1
 ]).
+
+get_params(Sql, RegEx) ->
+    sqlparse_fold:top_down(dderl_params_filter, Sql, RegEx).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Setting up parameters.

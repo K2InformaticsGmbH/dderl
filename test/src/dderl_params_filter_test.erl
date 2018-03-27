@@ -62,7 +62,7 @@ params_2_test_() ->
 %%------------------------------------------------------------------------------
 
 params_filter(Title, Source, Result, RegEx) ->
-    case sqlparse_fold:top_down(dderl_params_filter, Source, RegEx) of
+    case dderl_params_filter:get_params(Source, RegEx) of
         Params when is_list(Params) -> ?assertEqual(Result, Params, Title);
         ErrorResult ->
             io:format(user, "~n" ++ ?MODULE_STRING ++
