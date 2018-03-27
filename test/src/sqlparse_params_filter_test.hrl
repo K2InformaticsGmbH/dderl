@@ -24,7 +24,6 @@
 -define(SQLPARSE_IDENTIFIERS_MATCH_HRL, true).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("sqlparse/include/sqlparse.hrl").
 
 -define(TYPES, [
     <<"atom">>,

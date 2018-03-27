@@ -22,8 +22,6 @@
 
 -module(sqlparse_params_filter_test).
 
--define(NODEBUG, true).
-
 -include("sqlparse_params_filter_test.hrl").
 
 %%------------------------------------------------------------------------------
@@ -47,7 +45,6 @@ params_2_test_() ->
     RegEx = "[^a-zA-Z0-9() =><]*:("
         ++ string:join([binary_to_list(T) || T <- ?TYPES], "|")
         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
-    ?D("~n RegEx: ~p~n", [RegEx]),
     {
         setup,
         fun setup/0,
@@ -65,26 +62,20 @@ params_2_test_() ->
 %%------------------------------------------------------------------------------
 
 params_filter(Title, Source, Result, RegEx) ->
-    ?D("Start ~n Title: ~p~n Source: ~p~n Result: ~p~n RegEx: ~p~n",
-        [Title, Source, Result, RegEx]),
     {ok, ParseTree} = sqlparse:parsetree(Source),
-    ?D("~n ParseTree: ~p~n", [ParseTree]),
     case sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, RegEx) of
         Params when is_list(Params) ->
-            ?D("~n Params: ~p~n", [Params]),
             ?assertEqual(Result, Params, Title);
         ErrorResult ->
             io:format(user, "~n" ++ ?MODULE_STRING ++
                 " : Error in eunit_test : Title      ~n > ~p~n", [Title]),
             io:format(user, "~n" ++ ?MODULE_STRING ++
                 " : Error in eunit_test : ErrorResult~n > ~p~n", [ErrorResult])
-    end,
-    ?D("End ~n", []).
+    end.
 
 %%------------------------------------------------------------------------------
 %% Setup functions.
 %%------------------------------------------------------------------------------
 
 setup() ->
-    ?D("Start ~n"),
     ok.

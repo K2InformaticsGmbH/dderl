@@ -29,10 +29,6 @@
     init/1
 ]).
 
--define(NODEBUG, true).
-
--include_lib("sqlparse/include/sqlparse_fold.hrl").
-
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Setting up parameters.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -41,14 +37,11 @@
     {re_pattern, term(), term(), term(), term()} | list().
 init(RegEx)
     when is_list(RegEx) ->
-    ?D("Start~n RegEx: ~p~n", [RegEx]),
-    MP = case length(RegEx) > 0 of
-             true -> {ok, MP_I} = re:compile(RegEx),
-                 MP_I;
-             _ -> []
-         end,
-    ?D("end~n MP: ~p~n", [MP]),
-    MP.
+    case length(RegEx) > 0 of
+        true -> {ok, MP_I} = re:compile(RegEx),
+            MP_I;
+        _ -> []
+    end.
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Postprocessing of the result.
@@ -58,10 +51,7 @@ init(RegEx)
     Ctx :: [binary()]|tuple().
 finalize(_MP, CtxIn)
     when is_list(CtxIn) ->
-    ?D("Start~n MP: ~p~n CtxIn: ~p~n", [_MP, CtxIn]),
-    CtxOut = lists:usort(CtxIn),
-    ?D("~n CtxOut: ~p~n", [CtxOut]),
-    CtxOut.
+    lists:usort(CtxIn).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Layout method for processing the various parser subtrees
@@ -76,9 +66,7 @@ finalize(_MP, CtxIn)
 
 fold(MP, _FunState, Ctx, {param, Param} = _PTree, FoldState)
     when element(2, FoldState) == start ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, FoldState),
-    RT = add_param(MP, Param, Ctx),
-    ?CUSTOM_RESULT(RT);
+    add_param(MP, Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {param, _}
@@ -86,9 +74,7 @@ fold(MP, _FunState, Ctx, {param, Param} = _PTree, FoldState)
 
 fold(MP, _FunState, Ctx, {{param, Param}, _} = _PTree, FoldState)
     when element(2, FoldState) == start ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, FoldState),
-    RT = add_param(MP, Param, Ctx),
-    ?CUSTOM_RESULT(RT);
+    add_param(MP, Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, param, param}
@@ -97,10 +83,7 @@ fold(MP, _FunState, Ctx, {{param, Param}, _} = _PTree, FoldState)
 fold(MP, _FunState, Ctx, {Op, {param, Param1}, {param, Param2}} =
     _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, FoldState),
-    NewCtx = add_param(MP, Param1, Ctx),
-    RT = add_param(MP, Param2, NewCtx),
-    ?CUSTOM_RESULT(RT);
+    add_param(MP, Param2, add_param(MP, Param1, Ctx));
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, param, _}
@@ -108,9 +91,7 @@ fold(MP, _FunState, Ctx, {Op, {param, Param1}, {param, Param2}} =
 
 fold(MP, _FunState, Ctx, {Op, {param, Param}, _} = _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, FoldState),
-    RT = add_param(MP, Param, Ctx),
-    ?CUSTOM_RESULT(RT);
+    add_param(MP, Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, _, param}
@@ -118,16 +99,13 @@ fold(MP, _FunState, Ctx, {Op, {param, Param}, _} = _PTree, FoldState)
 
 fold(MP, _FunState, Ctx, {Op, _, {param, Param}} = _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, FoldState),
-    RT = add_param(MP, Param, Ctx),
-    ?CUSTOM_RESULT(RT);
+    add_param(MP, Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % NO ACTION.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 fold(_MP, _FunState, Ctx, _PTree, _FoldState) ->
-    ?CUSTOM_INIT(_FunState, Ctx, _PTree, _FoldState),
     Ctx.
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
