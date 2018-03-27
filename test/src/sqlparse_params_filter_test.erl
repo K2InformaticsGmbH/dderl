@@ -31,10 +31,9 @@
 %%------------------------------------------------------------------------------
 
 params_1_test_() ->
-    ?D("Start ~n"),
     {
         setup,
-        fun setup_1/0,
+        fun setup/0,
         fun() ->
             [
                 {params_filter("TEST_01", ?TEST_01, ?TEST_01_RESULT, [])},
@@ -45,11 +44,14 @@ params_1_test_() ->
     }.
 
 params_2_test_() ->
-    ?D("Start ~n"),
+    RegEx = "[^a-zA-Z0-9() =><]*:("
+        ++ string:join([binary_to_list(T) || T <- ?TYPES], "|")
+        ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
+    ?D("~n RegEx: ~p~n", [RegEx]),
     {
         setup,
-        fun setup_2/0,
-        fun(RegEx) ->
+        fun setup/0,
+        fun() ->
             [
                 {params_filter("TEST_51", ?TEST_51, ?TEST_51_RESULT, RegEx)},
                 {params_filter("TEST_52", ?TEST_52, ?TEST_52_RESULT, RegEx)},
@@ -62,29 +64,27 @@ params_2_test_() ->
 %% Helper functions.
 %%------------------------------------------------------------------------------
 
-params_filter(Title, Source, Result, Types) ->
-    ?D("Start ~n Title: ~p~n Source: ~p~n Result: ~p~n Types: ~p~n",
-        [Title, Source, Result, Types]),
+params_filter(Title, Source, Result, RegEx) ->
+    ?D("Start ~n Title: ~p~n Source: ~p~n Result: ~p~n RegEx: ~p~n",
+        [Title, Source, Result, RegEx]),
     {ok, ParseTree} = sqlparse:parsetree(Source),
     ?D("~n ParseTree: ~p~n", [ParseTree]),
-    case sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, Types) of
-        Params when is_list(Params) -> ?assertEqual(Result, Params, Title);
+    case sqlparse_fold:top_down(sqlparse_params_filter, ParseTree, RegEx) of
+        Params when is_list(Params) ->
+            ?D("~n Params: ~p~n", [Params]),
+            ?assertEqual(Result, Params, Title);
         ErrorResult ->
             io:format(user, "~n" ++ ?MODULE_STRING ++
                 " : Error in eunit_test : Title      ~n > ~p~n", [Title]),
             io:format(user, "~n" ++ ?MODULE_STRING ++
                 " : Error in eunit_test : ErrorResult~n > ~p~n", [ErrorResult])
-    end.
+    end,
+    ?D("End ~n", []).
 
 %%------------------------------------------------------------------------------
 %% Setup functions.
 %%------------------------------------------------------------------------------
 
-setup_1() ->
+setup() ->
     ?D("Start ~n"),
     ok.
-
-setup_2() ->
-    ?D("Start ~n"),
-    "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- ?TYPES], "|")
-        ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+".

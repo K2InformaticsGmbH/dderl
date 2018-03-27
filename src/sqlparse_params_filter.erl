@@ -37,7 +37,8 @@
 % Setting up parameters.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(RegEx :: iodata() | unicode:charlist()) -> {re_pattern, term(), term(), term(), term()} | list().
+-spec init(RegEx :: iodata() | unicode:charlist()) ->
+    {re_pattern, term(), term(), term(), term()} | list().
 init(RegEx)
     when is_list(RegEx) ->
     ?D("Start~n RegEx: ~p~n", [RegEx]),
@@ -53,7 +54,8 @@ init(RegEx)
 % Postprocessing of the result.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec finalize(Params :: any(), Ctx :: [binary()]|tuple()) -> Ctx :: [binary()]|tuple().
+-spec finalize(Params :: any(), Ctx :: [binary()]|tuple()) ->
+    Ctx :: [binary()]|tuple().
 finalize(_MP, CtxIn)
     when is_list(CtxIn) ->
     ?D("Start~n MP: ~p~n CtxIn: ~p~n", [_MP, CtxIn]),
