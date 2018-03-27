@@ -34,7 +34,7 @@ params_1_test_() ->
     ?D("Start ~n"),
     {
         setup,
-        fun setup_default/0,
+        fun setup_1/0,
         fun() ->
             [
                 {params_filter("TEST_01", ?TEST_01, ?TEST_01_RESULT, [])},
@@ -48,12 +48,12 @@ params_2_test_() ->
     ?D("Start ~n"),
     {
         setup,
-        fun setup_default/0,
-        fun() ->
+        fun setup_2/0,
+        fun(RegEx) ->
             [
-                {params_filter("TEST_51", ?TEST_51, ?TEST_51_RESULT, ?TYPES)},
-                {params_filter("TEST_52", ?TEST_52, ?TEST_52_RESULT, ?TYPES)},
-                {params_filter("TEST_53", ?TEST_53, ?TEST_53_RESULT, ?TYPES)}
+                {params_filter("TEST_51", ?TEST_51, ?TEST_51_RESULT, RegEx)},
+                {params_filter("TEST_52", ?TEST_52, ?TEST_52_RESULT, RegEx)},
+                {params_filter("TEST_53", ?TEST_53, ?TEST_53_RESULT, RegEx)}
             ]
         end
     }.
@@ -80,6 +80,11 @@ params_filter(Title, Source, Result, Types) ->
 %% Setup functions.
 %%------------------------------------------------------------------------------
 
-setup_default() ->
+setup_1() ->
     ?D("Start ~n"),
     ok.
+
+setup_2() ->
+    ?D("Start ~n"),
+    "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- ?TYPES], "|")
+        ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+".

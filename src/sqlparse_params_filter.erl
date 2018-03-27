@@ -37,15 +37,14 @@
 % Setting up parameters.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(Types :: [binary()]) -> [].
-init(Types) ->
-    ?D("Start~n Types: ~p~n", [Types]),
-    MP = case Types of
-             [] -> [];
-             _ -> {ok, MP_I} = re:compile("[^a-zA-Z0-9() =><]*:(" ++
-                 string:join([binary_to_list(T) || T <- Types], "|") ++
-                 ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+"),
-                 MP_I
+-spec init(RegEx :: iodata() | unicode:charlist()) -> {re_pattern, term(), term(), term(), term()} | list().
+init(RegEx)
+    when is_list(RegEx) ->
+    ?D("Start~n RegEx: ~p~n", [RegEx]),
+    MP = case length(RegEx) > 0 of
+             true -> {ok, MP_I} = re:compile(RegEx),
+                 MP_I;
+             _ -> []
          end,
     ?D("end~n MP: ~p~n", [MP]),
     MP.
