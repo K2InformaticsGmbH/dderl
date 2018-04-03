@@ -870,7 +870,7 @@ tailing(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
-    State4 = fetch(none,true,State3),
+    State4 = fetch(none,false,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
 tailing(cast, {button, <<"restart">>, ReplyTo}, State0) ->
@@ -1572,7 +1572,7 @@ handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=St
     QueryResult = ets:foldr(FoldFun, [], TableId),
     %% Normalize the query using the parsetree.
     NormQry = case sqlparse:parsetree(Qry) of
-        {ok, Pt} -> sqlparse:pt_to_string(Pt);
+        {ok, Pt} -> sqlparse_fold:top_down(sqlparse_format_flat, Pt, []);
         _ -> Qry
     end,
     Key = {dbTest, NormQry, BindVals},

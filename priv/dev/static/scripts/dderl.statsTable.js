@@ -3,6 +3,7 @@ import {alert_jq} from '../dialogs/dialogs';
 import {addWindowFinder, ajaxCall, beep, dderlState} from './dderl';
 import {smartDialogPosition} from './dderl';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import * as tableSelection from './table-selection';
 
 (function( $ ) {
     $.widget("dderl.statsTable", $.ui.dialog, {
@@ -66,6 +67,14 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             columns         : [],
             dderlStatement  : null,
             parent          : null,
+            open            : function() {
+                var self = this;
+                var titleNode = $(self).parent().children(".ui-dialog-titlebar");
+                console.log("the title node", titleNode);
+                titleNode.click(function() {
+                    $(self).statsTable('setGridFocus');
+                });
+            },
             close           : function() {
                 $(this).dialog('destroy');
                 $(this).remove();
@@ -131,6 +140,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 })
                 .bind("dialogfocus", function() {
                     self._grid.focus();
+                    tableSelection.select(self);
                 })
                 .bind("dialogbeforeclose", function() {
                     self._grid.resetHeaderScroll();
@@ -155,6 +165,13 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             for(var fun in self._handlers) {
                 self.element.on(fun, null, self, self._handlers[fun]);
             }
+        },
+
+        setGridFocus: function() {
+            var self = this;
+            console.log("Focus set via titlebar click");
+            self._grid.focus();
+            tableSelection.select(self);
         },
 
         _gridHeaderContextMenu: function(e, args) {
@@ -302,6 +319,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 e.preventDefault();
                 $(this).hide();
                 self._grid.focus();
+                tableSelection.select(self);
             }
 
             function clickMenuHandler() {
@@ -1236,7 +1254,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
                 cellEditor.focus();
             }
             console.log("Focus set");
-            //}
+            tableSelection.select(self);
         },
 
         _handleDragInit: function(e) {
@@ -1245,6 +1263,7 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             self._dlg.dialog("moveToTop");
             self._grid.focus();
             console.log("Focus set");
+            tableSelection.select(self);
         },
 
         _handleKeyDown: function(e) {
@@ -1319,6 +1338,18 @@ import {controlgroup_options} from '../jquery-ui-helper/helper.js';
             if(self.hasOwnProperty('_toolBarTxtBoxVal')) {
                 self.buttonPress(self._toolBarTxtBoxVal);
             }
+        },
+
+        hideSelection: function() {
+            var self = this;
+            console.log("Hiding selection for", self.options.title);
+            self._tableDiv.addClass(tableSelection.hiddenSelectionClass);
+        },
+    
+        enableSelection: function() {
+            var self = this;
+            console.log("Enabling selection for", self.options.title);
+            self._tableDiv.removeClass(tableSelection.hiddenSelectionClass);
         }
     });
 }( jQuery ) );

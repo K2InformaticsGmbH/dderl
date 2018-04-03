@@ -962,18 +962,7 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 
 -spec get_params(binary()) -> [binary()].
 get_params(Sql) ->
-    case sqlparse:parsetree(Sql) of
-        {ok,[{ParseTree,_}]} ->
-            Pred = fun(P,Ctx) ->
-                           case P of
-                               {param, Param} -> [Param|Ctx];
-                               _ -> Ctx
-                           end
-                   end,
-            sqlparse:foldtd(Pred,[],ParseTree);
-        _ ->
-            []
-    end.
+    dderl_sql_params:get_params(Sql, []).
 
 -spec get_deps() -> [atom()].
 get_deps() -> [erlimem, imem].

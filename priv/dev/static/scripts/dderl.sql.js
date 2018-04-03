@@ -84,6 +84,7 @@ function insertAtCursor(myField, myValue) {
     _optBinds       : null,
     _outParamInputs : null,
     _viewLayout     : null,
+    _runGraph       : false,
 
     // private event handlers
     _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
@@ -273,12 +274,18 @@ function insertAtCursor(myField, myValue) {
 
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
         var titleHeight = 26; // Default height it is recalculated later...
-        var ulTabs = $('<ul>' +
-              '  <li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>' +
-              '  <li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>' +
-              '  <li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>' +
-              '  <li><a href="#tabgraph">D3 Graph</a></li>' +
-              '</ul>');
+        var ulTabs = $('<ul>');
+        var flatTabTitle = $('<li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>');
+        var pretttyTabTitle = $('<li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>');
+        var paramsTabTitle = $('<li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>');
+        var graphTabTitle = $('<li><a href="#tabgraph">D3 Graph</a></li>');
+
+        ulTabs
+            .append(flatTabTitle)
+            .append(pretttyTabTitle)
+            .append(paramsTabTitle)
+            .append(graphTabTitle);
+
         self._editDiv =
             $('<div>')
             .append(ulTabs)
@@ -317,6 +324,14 @@ function insertAtCursor(myField, myValue) {
 
                 if(selected === tabPositions.PARAMS) {
                 } else {
+                    self._runGraph = (selected > tabPositions.PARAMS);
+                    if(self._runGraph) {
+                        graphTabTitle.addClass("sql-tab-highlight");
+                        pretttyTabTitle.removeClass("sql-tab-highlight");
+                    } else {
+                        pretttyTabTitle.addClass("sql-tab-highlight");
+                        graphTabTitle.removeClass("sql-tab-highlight");
+                    }
                     self._setTabFocus();
                     if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
                         self.addWheel();
@@ -982,11 +997,11 @@ function insertAtCursor(myField, myValue) {
         var self = this;
         var planeToShow = 0;
         var script = "";
-        if(self._editDiv.tabs("option", "active") > tabPositions.PARAMS) {
-            planeToShow = self._editDiv.tabs("option", "active") - tabPositions.PARAMS;
+        if(self._runGraph) {
+            planeToShow = 1;
             script = self._graphEdits[planeToShow-1].val();
             // TODO: Remove this as the plane_spec has to contain all definitions...
-            planeToShow = 1;
+            // planeToShow = self._editDiv.tabs("option", "active") - tabPositions.PARAMS;
         } else if(self._graphEdits[0].val() != getDefaultScript()) {
             console.log("saving script as it is different than template");
             script = self._graphEdits[0].val();
