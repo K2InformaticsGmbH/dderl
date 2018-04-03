@@ -1,5 +1,6 @@
 dderl
 =====
+[![Build Status](https://travis-ci.org/K2InformaticsGmbH/dderl.svg?branch=master)](https://travis-ci.org/K2InformaticsGmbH/dderl)
 
 WEB DataBase Browser Application.
 
