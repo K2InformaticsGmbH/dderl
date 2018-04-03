@@ -870,7 +870,7 @@ tailing(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = fetch_close(State1),
     State3 = data_clear(State2),
-    State4 = fetch(none,true,State3),
+    State4 = fetch(none,false,State3),
     State5 = gui_clear(#gres{state=filling,loop= <<">">>}, State4),
     {next_state, filling, State5#state{tailMode=false}};
 tailing(cast, {button, <<"restart">>, ReplyTo}, State0) ->
