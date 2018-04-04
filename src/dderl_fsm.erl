@@ -649,6 +649,12 @@ empty(cast, {button, <<"pt">>, ReplyTo}, State0) ->
     % passthrough, schedule tail
     State1 = fetch(push,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, passthrough, State1#state{stack={button,<<"pt">>,ReplyTo}}};
+empty(cast, {button, <<"">>, ReplyTo}, State0) ->
+    State1 = reply_stack(empty, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=empty}, State1),
+    % make sure tailing is not active
+    {next_state, empty, State2#state{tailMode=false}};
 empty({call, From}, Msg, State) ->
     handle_call(Msg, From, empty, State);
 empty(cast, Msg, State) ->
@@ -720,6 +726,12 @@ filling(cast, {button, <<"more">>, ReplyTo}, State0) ->
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = serve_bot(filling, <<"">>, State1#state{stack = undefined, replyToFun = ReplyTo}),
     {next_state, filling, State2};
+filling(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(filling, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=filling}, State1),
+    % make sure tailing is not active
+    {next_state, filling, State2#state{tailMode=false}};
 filling(cast, {rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
     State1 = data_append(filling, {Recs,false},State0),
@@ -837,6 +849,12 @@ autofilling(cast, {button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=S
             State1 = reply_stack(autofilling, ReplyTo, State0),
             {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
     end;
+autofilling(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(autofilling, ReplyTo, State0),
+    State2 = fetch_close(State1),
+    State3 = gui_nop(#gres{state=aborted}, State2),
+    % make sure tailing is not active
+    {next_state, aborted, State3#state{tailMode=false}};
 autofilling(cast, {rows, {Recs,false}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(autofilling,{Recs,false},State0),
@@ -930,6 +948,12 @@ tailing(cast, {button, <<">|">>, ReplyTo}, State0) ->
 %             State1 = data_append(tailing,{[Rec],tail},State0),
 %             {next_state, tailing, State1#state{pfc=0}}
 %     end;
+tailing(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(tailing, ReplyTo, State0),
+    State2 = fetch_close(State1),
+    State3 = gui_nop(#gres{state=aborted}, State2),
+    % make sure tailing is not active
+    {next_state, aborted, State3#state{tailMode=false}};
 tailing(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete,del},State0),
     {next_state, tailing, State1#state{pfc=0}};
@@ -1007,6 +1031,12 @@ completed(cast, {button, <<"more">>, ReplyTo}, #state{gl=GL,bufBot=BufBot}=State
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,GL,#gres{state=completed},State1), % was BL
     {next_state, completed, State2};
+completed(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(completed, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=completed}, State1),
+    % make sure tailing is not active
+    {next_state, completed, State2#state{tailMode=false}};
 completed(cast, {rows, _}, State) ->
     % ignore unsolicited rows
     {next_state, completed, State};
@@ -1057,6 +1087,24 @@ aborted(cast, {button, <<">|">>, ReplyTo}, #state{bl=BL,bufBot=BufBot}=State0) -
     State1 = reply_stack(aborted, ReplyTo, State0),
     State2 = gui_replace_until(BufBot,BL,#gres{state=aborted},State1),
     {next_state, aborted, State2};
+aborted(cast, {button, <<"tail">>, ReplyTo}, State0) ->
+    State1 = reply_stack(aborted, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=aborted}, State1),
+    % make sure tailing is not active
+    {next_state, aborted, State2#state{tailMode=false}};
+aborted(cast, {button, <<"more">>, ReplyTo}, State0) ->
+    State1 = reply_stack(aborted, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=aborted}, State1),
+    % make sure tailing is not active
+    {next_state, aborted, State2#state{tailMode=false}};
+aborted(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(aborted, ReplyTo, State0),
+    % Reply with a nop
+    State2 = gui_nop(#gres{state=aborted}, State1),
+    % make sure tailing is not active
+    {next_state, aborted, State2#state{tailMode=false}};
 aborted(cast, {rows, _}, State) ->
     % ignore unsolicited rows
     {next_state, aborted, State};
@@ -1107,6 +1155,12 @@ passthrough(cast, {button, <<"tail">>, ReplyTo}, State0) ->
     % ignore loop command, stop passthrough
     State1 = gui_nop(#gres{state=passthrough},State0#state{replyToFun=ReplyTo}),
     {next_state, passthrough, State1};
+passthrough(cast, {button, <<"stop">>, ReplyTo}, State0) ->
+    State1 = reply_stack(passthrough, ReplyTo, State0),
+    State2 = fetch_close(State1),
+    State3 = gui_nop(#gres{state=aborted}, State2),
+    % make sure tailing is not active
+    {next_state, aborted, State3#state{tailMode=false}};
 passthrough(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete,del},State0),
     {next_state, passthrough, State1#state{pfc=0}};

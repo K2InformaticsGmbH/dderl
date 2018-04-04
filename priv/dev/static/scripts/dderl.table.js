@@ -110,6 +110,7 @@ import * as tableSelection from './table-selection';
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',               clk : '_toolBarReload',   dom: '_tbReload' },
+                       'stop'     : {tip: 'Stop current action',   typ:  'btn', icn:  'stop-circle',           clk : '_toolBarStop',     dom: '_tbStop'   },
                        '|<'       : {tip: 'Jump to first',         typ : 'btn', icn : 'step-backward',         clk : '_toolBarSkFrst',   dom: '_tbSkFrst' },
                        '<<'       : {tip: 'Jump to previous page', typ : 'btn', icn : 'backward',              clk : '_toolBarJmPrev',   dom: '_tbJmPrev' },
                        '<'        : {tip: 'Previous page',         typ : 'btn', icn : 'play previousPage',     clk : '_toolBarGo2Prv',   dom: '_tbGoPrev' },
@@ -2116,6 +2117,12 @@ import * as tableSelection from './table-selection';
         }
         self._gridDataView.setGrouping([]);
         self.buttonPress("restart");
+    },
+    
+    _toolBarStop: function(self) {
+        console.log('['+self.options.title+']'+' stop action ');
+        self._scanToEnd = false;
+        self.buttonPress("stop");
     },
 
     _toolBarSkFrst: function(self) {
