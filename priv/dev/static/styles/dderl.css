@@ -823,7 +823,8 @@ input.inputText.ui-button.ui-widget.ui-state-default {
 .colorIcon .fa-step-forward,
 .colorIcon .fa-refresh,
 .colorIcon .fa-check,
-.colorIcon .fa-times {
+.colorIcon .fa-times,
+.colorIcon .fa-stop-circle {
     color:  #888888;
 }
 
@@ -836,9 +837,11 @@ input.inputText.ui-button.ui-widget.ui-state-default {
 .colorIcon:hover .fa-step-forward,
 .colorIcon:hover .fa-refresh,
 .colorIcon:hover .fa-check,
-.colorIcon:hover .fa-times {
+.colorIcon:hover .fa-times,
+.colorIcon:hover .fa-stop-circle {
     color: #212121;
 }
+
 ul.dropdown.floatNone ul li {
     float: none;
 }
