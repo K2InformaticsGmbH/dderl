@@ -21,6 +21,7 @@ export var dderlState = {
     currentViews: null,
     currentWindows: [],
     saveDashboardCounter: 0,
+    connections: [],  // List of available connections for the current adapter
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
     operationLogs: "",
