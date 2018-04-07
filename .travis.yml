@@ -43,11 +43,11 @@ script:
   - export INSTANT_CLIENT_INCLUDE_PATH="/usr/include/oracle/12.1/client64/"
 
   - ./rebar3 compile
-  - ./rebar3 as prod release
-  - ./rebar3 as prod erlpkg
   - ./rebar3 ct
   - ./rebar3 eunit
   - ./rebar3 cover
   - ./rebar3 as test coveralls send
 # - ./rebar3 dialyzer                     % TBD, currently ===> Warnings occurred running dialyzer: 352.
   - ./rebar3 as test geas
+  - ./rebar3 as prod release
+  - ./rebar3 as prod erlpkg
