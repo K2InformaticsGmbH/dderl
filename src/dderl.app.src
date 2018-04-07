@@ -1,5 +1,3 @@
-%%-*- erlang -*-
-%% ex: ft=erlang
 {application, dderl,
  [
   {description, "Web based tool for exploring databases"},

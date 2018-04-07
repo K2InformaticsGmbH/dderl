@@ -46,5 +46,5 @@ script:
   - ./rebar3 eunit
   - ./rebar3 cover
   - ./rebar3 as test coveralls send
-# - ./rebar3 dialyzer                     % TBD
+# - ./rebar3 dialyzer                     % TBD, currently ===> Warnings occurred running dialyzer: 352.
   - ./rebar3 as test geas
