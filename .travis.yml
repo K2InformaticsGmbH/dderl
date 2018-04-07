@@ -50,4 +50,4 @@ script:
   - ./rebar3 cover
   - ./rebar3 as test coveralls send
 # - ./rebar3 dialyzer                     % TBD, currently ===> Warnings occurred running dialyzer: 352.
-# - ./rebar3 as test geas                 % TBD, problem caused by dderl.app.src.script ???
+  - ./rebar3 as test geas
