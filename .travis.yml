@@ -1,4 +1,4 @@
-udo: true
+sudo: true
 
 language: erlang
 otp_release:
