@@ -1,3 +1,13 @@
+case os:getenv("NO_OCI") of
+    "true" ->
+        %% removing erloci dependency
+        ConfigMap = maps:from_list(CONFIG),
+        #{deps := Deps} = ConfigMap,
+        DepsWithoutOci = lists:keydelete(erloci, 1, Deps),
+        maps:to_list(ConfigMap#{deps => DepsWithoutOci});
+    _ -> CONFIG
+end.
+
 case os:getenv("TRAVIS") of
     "true" ->
         JobId = os:getenv("TRAVIS_JOB_ID"),
