@@ -21,3 +21,4 @@ case {os:getenv("NO_OCI"), os:getenv("TRAVIS")} of
         {coveralls_service_job_id, JobId});
     _ -> CONFIG
 end.
+
