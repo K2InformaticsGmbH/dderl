@@ -12,6 +12,6 @@ case os:getenv("TRAVIS") of
     "true" ->
         JobId = os:getenv("TRAVIS_JOB_ID"),
         lists:keystore(coveralls_service_job_id, 1, OCIConfig,
-        {coveralls_service_job_id, JobId});
+                      {coveralls_service_job_id, JobId});
     _ -> OCIConfig
 end.
