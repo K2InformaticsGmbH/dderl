@@ -30,7 +30,7 @@ If (Test-Path node_modules) {
 Write-Host "===> npm install" -foregroundcolor "magenta"
 npm install
 
-Write-Host "===> npm run build" -foregroundcolor "magenta"
+Write-Host "===> npm run build-prod" -foregroundcolor "magenta"
 npm run build
 
 cd ..

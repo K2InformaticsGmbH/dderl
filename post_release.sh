@@ -14,7 +14,7 @@ fi
 echo "===> npm install"
 npm install
 
-echo "===> npm run build"
+echo "===> npm run build-prod"
 npm run build
 
 cd ..
