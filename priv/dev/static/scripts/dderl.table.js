@@ -10,6 +10,7 @@ import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import {newSqlEditor} from "./dderl.sql";
 import * as tableSelection from './table-selection';
 
 (function() {
@@ -425,17 +426,14 @@ import * as tableSelection from './table-selection';
                 script = self._planeSpecs[0].script;
             }
 
-            self._divSqlEditor = $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : this.options.title,
-                      cmdOwner  : this._dlg,
-                      history   : this._cmdStrs,
-                      cmdFlat   : this._cmd,
-                      optBinds  : this._optBinds,
-                      script    : script // TODO: This should be multiple specs...
-                     })
-                .sql('open');
+            self._divSqlEditor = newSqlEditor(
+                this.options.title,
+                this._cmd,
+                this._dlg,
+                this._cmdStrs,
+                this._optBinds,
+                script
+            );
         }
     },
 

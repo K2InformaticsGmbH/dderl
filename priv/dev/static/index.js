@@ -10,7 +10,7 @@ import {dderlState, show_qry_files,
         change_password, show_about_dlg} from "./scripts/dderl";
 import {new_connection_tab, logout, restart} from "./scripts/login";
 import {disconnect_tab, close_tab} from "./scripts/connect";
-import {StartSqlEditor} from "./scripts/dderl.sql";
+import {newSqlEditor} from "./scripts/dderl.sql";
 import {patch_jquery_ui} from "./jquery-ui-helper/helper.js";
 import * as tableSelection from './scripts/table-selection';
 
@@ -91,5 +91,5 @@ addClick('btn-about',           () => { show_about_dlg();       });
 addClick('btn-disconnect',      () => { disconnect_tab();       });
 addClick('btn-restart',         () => { restart();              });
 addClick('connect-button',      () => { new_connection_tab();   });
-addClick('newsql-button',       () => { StartSqlEditor();       });
+addClick('newsql-button',       () => { newSqlEditor();         });
 addClick('btn-logout',          () => { logout();               });

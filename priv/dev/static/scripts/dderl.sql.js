@@ -6,52 +6,26 @@ import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlpa
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 import * as monaco from 'monaco-editor';
 
-export function StartSqlEditor(title = null, cmd = undefined) {
-    $('<div>')
+export function newSqlEditor(title = null, query = "", owner = null, history = [], optBinds = null, script = "") {
+    return $('<div>')
         .appendTo(document.body)
         .sql({
             autoOpen: false,
             title: title,
-            cmdOwner: null,
-            cmdFlat: cmd,
+            cmdOwner: owner,
+            query: query,
+            history: history,
+            optBinds: optBinds,
+            script: script
         })
         .sql('open');
 }
 
 const tabPositions = Object.freeze({
-    FLAT: 0,
-    PRETTY: 1,
-    PARAMS: 2,
-    GRAPH: 3
+    QUERY: 0,
+    PARAMS: 1,
+    GRAPH: 2
 });
-
-function insertAtCursor(myField, myValue) {
-  //IE support
-  if (document.selection) {
-    var temp;
-    myField.focus();
-    var sel = document.selection.createRange();
-    temp = sel.text.length;
-    sel.text = myValue;
-    if (myValue.length === 0) {
-      sel.moveStart('character', myValue.length);
-      sel.moveEnd('character', myValue.length);
-    } else {
-      sel.moveStart('character', -myValue.length + temp);
-    }
-    sel.select();
-  }
-  //MOZILLA/NETSCAPE support
-  else if (myField.selectionStart || myField.selectionStart == '0') {
-    var startPos = myField.selectionStart;
-    var endPos = myField.selectionEnd;
-    myField.value = myField.value.substring(0, startPos) + myValue + myField.value.substring(endPos, myField.value.length);
-    myField.selectionStart = startPos + myValue.length;
-    myField.selectionEnd = startPos + myValue.length;
-  } else {
-    myField.value += myValue;
-  }
-}
 
 (function() {
   var DEFAULT_COUNTER = 0;
@@ -66,15 +40,10 @@ function insertAtCursor(myField, myValue) {
     _fnt            : null,
     _fntSz          : null,
 
-    _flatTb         : null,
-    _prettyTb       : null,
+    _queryTb        : null,
     _paramsDiv      : null,
-    _monacoEditor   : null,
+    _graphTb        : null,
 
-    _modCmd         : "",
-    _cmdFlat        : "",
-    _cmdPretty      : "",
-    _boxJson        : {},
     _script         : "",
     _history        : null,
     _historySelect  : null,
@@ -134,7 +103,7 @@ function insertAtCursor(myField, myValue) {
                             $(this).dialog('destroy');
                             $(this).remove();
                           },
-        cmdFlat         : "",
+        query           : "",
         script          : "",
         cmdOwner        : null,
         optBinds        : null,
@@ -176,7 +145,6 @@ function insertAtCursor(myField, myValue) {
 
         // preserve some options
         if(self.options.cmdOwner    !== self._cmdOwner)     self._cmdOwner  = self.options.cmdOwner;
-        if(self.options.cmdFlat     !== self._cmdFlat)      self._cmdFlat   = self.options.cmdFlat;
         if(self.options.script      !== self._script)       self._script    = self.options.script;
         if(self.options.optBinds    !== self._optBinds)     self._optBinds  = self.options.optBinds;
         if(self.options.history     !== self._history)      self._history   = self.options.history;
@@ -192,107 +160,52 @@ function insertAtCursor(myField, myValue) {
 
         // dialog elements
 
-        // Set the sql to 40% of the parent window
+        // Set the size to 40% of the parent window
         self.options.width = $(window).width() * 0.4;
         self.options.height = $(window).height() * 0.4;
 
-        // field for text width measurement in pixels
-        // added to document.body once
-        if($('#txtlen').length === 0) {
-            self._txtlen =
-                $('<span>')
-                .attr('id', 'txtlen')
-                .css('visibility', 'hidden')
-                .css('font-family', self._fnt)
-                .css('font-size', self._fntSz)
-                .appendTo(document.body);
-        } else {
-            self._txtlen =
-                $('#txtlen')
-                .css('font-family', self._fnt)
-                .css('font-size', self._fntSz);
-        }
-
-        //
-        // editor container
-        //
-
-        var flatBg      = 'rgb(240,240,255)';
-        var prettyBg    = 'rgb(255,240,240)';
-        var paramsBg    = '#FFFFD1';
-
-        var sqlKeyHandle = function(e, self, _cmd) {
-            if(e.type == "keydown") {
-                if((e.keyCode || e.which) == 9) {
-                    e.preventDefault();
-                    insertAtCursor(self, "  ");
-                }
-            } else if(e.type == "keyup" || e.type == "paste" || e.type == "blur") {
-                var that = e.data;
-                _cmd = $(self).val();
-                console.log("mod set");
-                that._modCmd = _cmd;
-            }
-        };
-
-        self._flatTb =
-            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .addClass('sql_text_editor')
-            .addClass('sql_text_flat')
-            .on('keydown keyup click blur focus change paste', this, function(e) {
-                sqlKeyHandle(e, this, e.data._cmdFlat);
-            })
-            .val(self._cmdFlat);
-
-        var prettyContainer = document.createElement('div');
-        prettyContainer.id = 'tabpretty';
-
-        self._prettyTb = monaco.editor.create(prettyContainer, {
-            value: self._cmdPretty,
+        // Create container
+        var queryContainer = document.createElement('div');
+        queryContainer.id = 'tabquery';
+        // Creating a monaco editor
+        self._queryTb = monaco.editor.create(queryContainer, {
+            value: self.options.query,
             language: 'sql'
-        });
-        // This is the equivalent to sqlkeyhandle...
-        self._prettyTb.onDidChangeModelContent((e) => {
-            console.log("the change event", e);
-            console.log("the value", self._prettyTb.getValue());
-            self._modCmd = self._prettyTb.getValue();
         });
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
-        // TODO: Rename this to graphcontainer graphtb ...
-        // Creating a monaco editor
-        var monacoContainer = document.createElement('div');
-        monacoContainer.id = 'tabgraph';
+        var graphContainer = document.createElement('div');
+        graphContainer.id = 'tabgraph';
 
-        self._monacoEditor = monaco.editor.create(monacoContainer, {
+        self._graphTb = monaco.editor.create(graphContainer, {
             value: getDefaultScript(self._script),
             language: 'javascript'
         });
 
-        // TODO: This should be dynamic as we need to create new script tabs on the fly.
+        var queryBg    = 'rgb(255,240,240)';
+        var paramsBg    = '#FFFFD1';
+
+        // TODO: to set the auto height when first parsing :
+        // self.queryTb.getScrollHeight
+        // Or maybe with:
+        // const contentHeight = editor.getModel().getLineCount() * 19 ; // 19 is the line height of default theme.
+
         var titleHeight = 26; // Default height it is recalculated later...
         var ulTabs = $('<ul>');
-        var flatTabTitle = $('<li style="background:'+flatBg+'"><a href="#tabflat">Flat</a></li>');
-        var pretttyTabTitle = $('<li style="background:'+prettyBg+'"><a href="#tabpretty">Pretty</a></li>');
+        var queryTabTitle = $('<li style="background:'+queryBg+'"><a href="#tabquery">Sql</a></li>');
         var paramsTabTitle = $('<li style="background:'+paramsBg+'"><a href="#tabparams">Params</a></li>');
         var graphTabTitle = $('<li><a href="#tabgraph">D3 Graph</a></li>');
 
         ulTabs
-            .append(flatTabTitle)
-            .append(pretttyTabTitle)
+            .append(queryTabTitle)
             .append(paramsTabTitle)
             .append(graphTabTitle);
 
         self._editDiv =
             $('<div>')
             .append(ulTabs)
-            .append(
-              $('<div>')
-              .attr('id','tabflat')
-              .append(self._flatTb)
-            )
-            .append(prettyContainer)
+            .append(queryContainer)
             .append(
               $('<div>')
               .css('background-color', paramsBg)
@@ -301,7 +214,7 @@ function insertAtCursor(myField, myValue) {
               .attr('id','tabparams')
               .append(self._paramsDiv)
             )
-            .append(monacoContainer)
+            .append(graphContainer)
             .css('position', 'absolute')
             .css('overflow', 'hidden')
             .css('top', '0')
@@ -309,7 +222,7 @@ function insertAtCursor(myField, myValue) {
             .css('right', '0')
             .css('bottom', self.options.toolBarHeight+'px')
             .tabs()
-            .on("tabsactivate", function(event, ui) {
+            .on("tabsactivate", function() { // function(event, ui)
                 var selected = self._editDiv.tabs("option", "active");
 
                 if(selected === tabPositions.PARAMS) {
@@ -317,18 +230,14 @@ function insertAtCursor(myField, myValue) {
                     self._runGraph = (selected > tabPositions.PARAMS);
                     if(self._runGraph) {
                         graphTabTitle.addClass("sql-tab-highlight");
-                        pretttyTabTitle.removeClass("sql-tab-highlight");
-                        self._monacoEditor.layout();
+                        queryTabTitle.removeClass("sql-tab-highlight");
+                        self._graphTb.layout();
                     } else {
-                        self._prettyTb.layout();
-                        pretttyTabTitle.addClass("sql-tab-highlight");
+                        queryTabTitle.addClass("sql-tab-highlight");
                         graphTabTitle.removeClass("sql-tab-highlight");
+                        self._queryTb.layout();
                     }
                     self._setTabFocus();
-                    if(ui.oldPanel.attr('id') !== ui.newPanel.attr('id') && self._modCmd) {
-                        self.addWheel();
-                        ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._modCmd } }, 'parse_stmt', 'parsedCmd');
-                    }
                 }
             })
             .removeClass('ui-corner-all')
@@ -344,7 +253,7 @@ function insertAtCursor(myField, myValue) {
         self._editDiv.find('li').removeClass('ui-corner-top');
 
         titleHeight = tabTitles.height();
-        $('#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph').css('top', titleHeight+'px');
+        $('#tabquery, #tabparams, #tabgraph').css('top', titleHeight+'px');
 
         // toolbar container
         self._footerDiv = $('<div>').appendTo(self.element);
@@ -388,16 +297,15 @@ function insertAtCursor(myField, myValue) {
             var text = value.application + " - " + value.name;
             if(templatesContent.hasOwnProperty(text)) {
                 console.log("content cached found for", text);
-                this._monacoEditor.setValue(templatesContent[text]);
+                this._graphTb.setValue(templatesContent[text]);
             } else {
                 ajaxCall(null, "get_d3_template", {get_d3_template: value}, 'get_d3_template', (content) => {
                     console.log("Content requested from server for", text);
                     templatesContent[text] = content;
-                    this._monacoEditor.setValue(templatesContent[text]);
+                    this._graphTb.setValue(templatesContent[text]);
                 });
             }
         };
-
 
         this._dlg.on("dialogresizestop", () => {
             templates.style.width = this._getToolbarSelectWidth() + 'px';
@@ -423,7 +331,7 @@ function insertAtCursor(myField, myValue) {
         var self = this;
 
         // default dialog open behavior
-    	if (self.options.autoOpen) {
+        if (self.options.autoOpen) {
             self._dlg.dialog("open");
         }
 
@@ -987,7 +895,7 @@ function insertAtCursor(myField, myValue) {
     _getPlaneData: function() {
         var self = this;
         var planeToShow = 0;
-        var script = self._monacoEditor.getValue();
+        var script = self._graphTb.getValue();
         if(self._runGraph) {
             // TODO: Fix this as the plane_spec has to contain all definitions...
             planeToShow = 1;
@@ -1036,21 +944,16 @@ function insertAtCursor(myField, myValue) {
     _setTabFocus: function() {
         var self = this;
         var selected = self._editDiv.tabs("option", "active");
-        var textBox;
 
         switch(selected) {
-            case 0:
-                self._flatTb.focus();
-                textBox = self._flatTb[0];
-                textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
+            case tabPositions.QUERY:
+                self._queryTb.focus();
                 break;
-            case 1:
-                self._prettyTb.focus();
-                break;
-            case 2:
+            case tabPositions.PARAMS:
                 self._paramsDiv.focus();
                 break;
-            default:
+            case tabPositions.GRAPH:
+                self._graphTb.focus();
                 break;
         }
     },
@@ -1071,11 +974,11 @@ function insertAtCursor(myField, myValue) {
             self._cmdFlat = self._flatTb.val();
         }
         if(_parsed.hasOwnProperty('pretty')) {
-            self._prettyTb.setValue(_parsed.pretty);
+            self._queryTb.setValue(_parsed.pretty);
             self._cmdPretty = _parsed.pretty;
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
-                self._editDiv.tabs("option", "active", tabPositions.PRETTY);
+                self._editDiv.tabs("option", "active", tabPositions.SQL);
                 if(!skipFocus) {
                     self._setTabFocus();
                 }
@@ -1097,7 +1000,7 @@ function insertAtCursor(myField, myValue) {
                     self._dlg.dialog("option", "position", newPos);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
-                self._prettyTb.layout();
+                self._queryTb.layout();
             }
         }
         if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
@@ -1115,8 +1018,9 @@ function insertAtCursor(myField, myValue) {
             .dialog(self.options)
             .bind("dialogresizestop", function() {
                 self._refreshHistoryBoxSize();
-                self._monacoEditor.layout();
-                self._prettyTb.layout();
+                console.log("calling the layout...");
+                self._graphTb.layout();
+                self._queryTb.layout();
             });
 
         // Update title to add context menu handlers.
@@ -1139,8 +1043,9 @@ function insertAtCursor(myField, myValue) {
             this._cmdChanged = true;
         }
         // TODO: Maybe layout refresh call should go to tabfocus ?
-        this._monacoEditor.layout();
-        this._prettyTb.layout();
+        console.log("calling the layout...");
+        this._graphTb.layout();
+        this._queryTb.layout();
         this._setTabFocus();
     },
 
@@ -1182,7 +1087,7 @@ function insertAtCursor(myField, myValue) {
         this._footerDiv.remove();
         this.element.removeAttr('style class scrolltop scrollleft');
         this.element.off("keydown");
-    },
+    }
 
   });
 }());
@@ -1190,103 +1095,53 @@ function insertAtCursor(myField, myValue) {
 function getDefaultScript(currentScript) {
     if(currentScript) { return currentScript; }
 
-    var graphScriptHelp =
-    `function initGraph(container, width, height) {
-        // This code is executed once and it should initialize the graph, the
-        // available parameters are (container, width, height)
-    
-        // container: d3 selection of the contaner div for the graph
-        // width: width of the container
-        // height: height of the container
-    
-        // The function must then return an object with the following callbacks:
-    
-        var svg = container
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height)
-            .style('background-color', 'antiquewhite');
-    
-        return {
-            on_data: function(data) {
-                // Process data and add draw here.
-                console.log("the new data arrived", data);
-                var points = svg
-                    .selectAll('circle')
-                    .data(data, function(d) { return d.id; })
-                    .enter()
-                    .append('circle');
-    
-                points
-                    .attr('r', function(d) { return 3; })
-                    .attr('cx', function(d) { return d.id * 5; })
-                    .attr('cy', 60);
-            },
-            on_resize: function(w, h) {
-                // Apply transformations and scale if when the dialog is resized.
-                svg.attr('width', w)
-                    .attr('height', h);
-            },
-            on_reset: function() {
-                // Called when the button clear the graph is clicked.
-                svg.selectAll('svg > *').remove();
-            },
-            on_close: function() {
-                // This should cleanup event listeners and element added
-                // outside the container, the container itself will be removed
-                // after this function call.
-            }
-        };
-    }`;
+    var graphScriptHelp = `function initGraph(container, width, height) {
+    // This code is executed once and it should initialize the graph, the
+    // available parameters are (container, width, height)
+
+    // container: d3 selection of the contaner div for the graph
+    // width: width of the container
+    // height: height of the container
+
+    // The function must then return an object with the following callbacks:
+
+    var svg = container
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .style('background-color', 'antiquewhite');
+
+    return {
+        on_data: function(data) {
+            // Process data and add draw here.
+            console.log("the new data arrived", data);
+            var points = svg
+                .selectAll('circle')
+                .data(data, function(d) { return d.id; })
+                .enter()
+                .append('circle');
+
+            points
+                .attr('r', function(d) { return 3; })
+                .attr('cx', function(d) { return d.id * 5; })
+                .attr('cy', 60);
+        },
+        on_resize: function(w, h) {
+            // Apply transformations and scale if when the dialog is resized.
+            svg.attr('width', w)
+                .attr('height', h);
+        },
+        on_reset: function() {
+            // Called when the button clear the graph is clicked.
+            svg.selectAll('svg > *').remove();
+        },
+        on_close: function() {
+            // This should cleanup event listeners and element added
+            // outside the container, the container itself will be removed
+            // after this function call.
+        }
+    };
+}`;
 
     return graphScriptHelp;
 }
-
-// $(document).ready(function() {
-//     var BOX =
-//     {"ind":0,"name":"select","children":[
-//         {"ind":1,"name":"","children":[
-//             {"ind":2,"name":"c.owner","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":",","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"v.name","children":[],"collapsed":false,"error":"","color":"black","pick":""}
-//             ],"collapsed":false,"error":"","color":"black","pick":""},
-//         {"ind":1,"name":"from","children":[
-//             {"ind":2,"name":"ddView v","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":",","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"ddCmd c","children":[],"collapsed":false,"error":"","color":"black","pick":""}
-//             ],"collapsed":false,"error":"","color":"black","pick":""},
-//         {"ind":1,"name":"where","children":[
-//             {"ind":2,"name":"","children":[
-//                 {"ind":3,"name":"c.id","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":"v.cmd","children":[],"collapsed":true,"error":"","color":"black","pick":""}
-//                 ],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"and","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"","children":[
-//                 {"ind":3,"name":"c.adapters","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":"\"[imem]\"","children":[],"collapsed":true,"error":"","color":"black","pick":""}
-//                 ],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"and","children":[],"collapsed":false,"error":"","color":"black","pick":""},
-//             {"ind":2,"name":"","children":[
-//                 {"ind":3,"name":"(","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":"","children":[
-//                     {"ind":4,"name":"","children":[
-//                         {"ind":5,"name":"c.owner","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                         {"ind":5,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                         {"ind":5,"name":"user","children":[],"collapsed":true,"error":"","color":"black","pick":""}
-//                         ],"collapsed":true,"error":"","color":"black","pick":""},
-//                     {"ind":4,"name":"or","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                     {"ind":4,"name":"","children":[
-//                         {"ind":5,"name":"c.owner","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                         {"ind":5,"name":"=","children":[],"collapsed":true,"error":"","color":"black","pick":""},
-//                         {"ind":5,"name":"system","children":[],"collapsed":true,"error":"","color":"black","pick":""}
-//                         ],"collapsed":true,"error":"","color":"black","pick":""}
-//                     ],"collapsed":true,"error":"","color":"black","pick":""},
-//                 {"ind":3,"name":")","children":[],"collapsed":true,"error":"","color":"black","pick":""}
-//                 ],"collapsed":false,"error":"","color":"black","pick":""}
-//             ],"collapsed":false,"error":"","color":"black","pick":""}
-//         ],"collapsed":false,"error":"","color":"black","pick":""};
-//     boxing(BOX).div.appendTo(document.body);
-// });
-

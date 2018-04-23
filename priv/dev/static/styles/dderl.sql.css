@@ -28,7 +28,7 @@ table.params input.param {
     bottom:21px;
 }
 
-#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph {
+#tabquery, #tabparams, #tabgraph {
     position: absolute;
     top:0;
     left:0;
@@ -36,8 +36,6 @@ table.params input.param {
     bottom:0;
     border:none;
 }
-
-#tabbox { overflow:auto; }
 
 .ui-tabs .ui-tabs-nav li {
     margin: 0 0 0 0;
