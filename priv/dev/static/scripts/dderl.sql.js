@@ -4,6 +4,7 @@ import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
 import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
 import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlparams';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import * as monaco from 'monaco-editor';
 
 export function StartSqlEditor(title = null, cmd = undefined) {
     $('<div>')
@@ -68,7 +69,7 @@ function insertAtCursor(myField, myValue) {
     _flatTb         : null,
     _prettyTb       : null,
     _paramsDiv      : null,
-    _graphEdits     : null,
+    _monacoEditor   : null,
 
     _modCmd         : "",
     _cmdFlat        : "",
@@ -229,6 +230,7 @@ function insertAtCursor(myField, myValue) {
             } else if(e.type == "keyup" || e.type == "paste" || e.type == "blur") {
                 var that = e.data;
                 _cmd = $(self).val();
+                console.log("mod set");
                 that._modCmd = _cmd;
             }
         };
@@ -242,35 +244,31 @@ function insertAtCursor(myField, myValue) {
             })
             .val(self._cmdFlat);
 
-        self._prettyTb =
-            $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .attr('wrap', 'off')
-            .addClass('sql_text_editor')
-            .addClass('sql_text_pretty')
-            .on('keydown keyup click blur focus change paste', this, function(e) {
-                sqlKeyHandle(e, this, e.data._cmdPretty);
-            })
-            .val(self._cmdPretty);
+        var prettyContainer = document.createElement('div');
+        prettyContainer.id = 'tabpretty';
+
+        self._prettyTb = monaco.editor.create(prettyContainer, {
+            value: self._cmdPretty,
+            language: 'sql'
+        });
+        // This is the equivalent to sqlkeyhandle...
+        self._prettyTb.onDidChangeModelContent((e) => {
+            console.log("the change event", e);
+            console.log("the value", self._prettyTb.getValue());
+            self._modCmd = self._prettyTb.getValue();
+        });
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
-        // TODO: This should be ace probably instead of just text area / snippets is good idea...
-        var graphTextArea = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
-            .addClass('sql_text_editor')
-            .on('keydown', this, function(e) {
-                if((e.keyCode || e.which) == 9) {
-                    e.preventDefault();
-                    insertAtCursor(this, "  ");
-                }
-            });
+        // TODO: Rename this to graphcontainer graphtb ...
+        // Creating a monaco editor
+        var monacoContainer = document.createElement('div');
+        monacoContainer.id = 'tabgraph';
 
-        if(!self._script) {
-            graphTextArea.val(getDefaultScript());
-        } else {
-            graphTextArea.val(self._script);
-        }
-
-        self._graphEdits = [graphTextArea];
+        self._monacoEditor = monaco.editor.create(monacoContainer, {
+            value: getDefaultScript(self._script),
+            language: 'javascript'
+        });
 
         // TODO: This should be dynamic as we need to create new script tabs on the fly.
         var titleHeight = 26; // Default height it is recalculated later...
@@ -294,11 +292,7 @@ function insertAtCursor(myField, myValue) {
               .attr('id','tabflat')
               .append(self._flatTb)
             )
-            .append(
-              $('<div>')
-              .attr('id','tabpretty')
-              .append(self._prettyTb)
-            )
+            .append(prettyContainer)
             .append(
               $('<div>')
               .css('background-color', paramsBg)
@@ -307,11 +301,7 @@ function insertAtCursor(myField, myValue) {
               .attr('id','tabparams')
               .append(self._paramsDiv)
             )
-            .append(
-                $('<div>')
-                .attr('id','tabgraph')
-                .append(graphTextArea)
-            )
+            .append(monacoContainer)
             .css('position', 'absolute')
             .css('overflow', 'hidden')
             .css('top', '0')
@@ -328,7 +318,9 @@ function insertAtCursor(myField, myValue) {
                     if(self._runGraph) {
                         graphTabTitle.addClass("sql-tab-highlight");
                         pretttyTabTitle.removeClass("sql-tab-highlight");
+                        self._monacoEditor.layout();
                     } else {
+                        self._prettyTb.layout();
                         pretttyTabTitle.addClass("sql-tab-highlight");
                         graphTabTitle.removeClass("sql-tab-highlight");
                     }
@@ -394,15 +386,14 @@ function insertAtCursor(myField, myValue) {
         templates.onchange = (evt) => {
             var value = JSON.parse(evt.target.value);
             var text = value.application + " - " + value.name;
-            var selectedEditIdx = this._editDiv.tabs("option", "active") - tabPositions.GRAPH;
             if(templatesContent.hasOwnProperty(text)) {
                 console.log("content cached found for", text);
-                this._graphEdits[selectedEditIdx].val(templatesContent[text]);
+                this._monacoEditor.setValue(templatesContent[text]);
             } else {
                 ajaxCall(null, "get_d3_template", {get_d3_template: value}, 'get_d3_template', (content) => {
                     console.log("Content requested from server for", text);
                     templatesContent[text] = content;
-                    this._graphEdits[selectedEditIdx].val(templatesContent[text]);
+                    this._monacoEditor.setValue(templatesContent[text]);
                 });
             }
         };
@@ -996,15 +987,13 @@ function insertAtCursor(myField, myValue) {
     _getPlaneData: function() {
         var self = this;
         var planeToShow = 0;
-        var script = "";
+        var script = self._monacoEditor.getValue();
         if(self._runGraph) {
+            // TODO: Fix this as the plane_spec has to contain all definitions...
             planeToShow = 1;
-            script = self._graphEdits[planeToShow-1].val();
-            // TODO: Remove this as the plane_spec has to contain all definitions...
-            // planeToShow = self._editDiv.tabs("option", "active") - tabPositions.PARAMS;
-        } else if(self._graphEdits[0].val() != getDefaultScript()) {
-            console.log("saving script as it is different than template");
-            script = self._graphEdits[0].val();
+        } else if(script == getDefaultScript()) {
+            console.log("not saving script as it is the template");
+            script = "";
         }
         return {
             plane_specs: [{
@@ -1057,8 +1046,6 @@ function insertAtCursor(myField, myValue) {
                 break;
             case 1:
                 self._prettyTb.focus();
-                textBox = self._prettyTb[0];
-                textBox.selectionStart = textBox.selectionEnd = textBox.value.length;
                 break;
             case 2:
                 self._paramsDiv.focus();
@@ -1084,8 +1071,8 @@ function insertAtCursor(myField, myValue) {
             self._cmdFlat = self._flatTb.val();
         }
         if(_parsed.hasOwnProperty('pretty')) {
-            self._prettyTb.val(_parsed.pretty);
-            self._cmdPretty = self._prettyTb.val();
+            self._prettyTb.setValue(_parsed.pretty);
+            self._cmdPretty = _parsed.pretty;
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
                 self._editDiv.tabs("option", "active", tabPositions.PRETTY);
@@ -1110,6 +1097,7 @@ function insertAtCursor(myField, myValue) {
                     self._dlg.dialog("option", "position", newPos);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
+                self._prettyTb.layout();
             }
         }
         if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
@@ -1127,6 +1115,8 @@ function insertAtCursor(myField, myValue) {
             .dialog(self.options)
             .bind("dialogresizestop", function() {
                 self._refreshHistoryBoxSize();
+                self._monacoEditor.layout();
+                self._prettyTb.layout();
             });
 
         // Update title to add context menu handlers.
@@ -1148,6 +1138,9 @@ function insertAtCursor(myField, myValue) {
             this._editDiv.tabs("option", "active", tabPositions.PARAMS);
             this._cmdChanged = true;
         }
+        // TODO: Maybe layout refresh call should go to tabfocus ?
+        this._monacoEditor.layout();
+        this._prettyTb.layout();
         this._setTabFocus();
     },
 
@@ -1194,7 +1187,9 @@ function insertAtCursor(myField, myValue) {
   });
 }());
 
-function getDefaultScript() {
+function getDefaultScript(currentScript) {
+    if(currentScript) { return currentScript; }
+
     var graphScriptHelp =
     `function initGraph(container, width, height) {
         // This code is executed once and it should initialize the graph, the
