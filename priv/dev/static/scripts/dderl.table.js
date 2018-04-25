@@ -4529,11 +4529,9 @@ function openDefineBrowseDialog(colName, allColumns, callback) {
     let viewName = document.createElement('input');
     let searchView = document.createElement('button');
     searchView.appendChild(document.createTextNode('search view'));
-    let addParameter = document.createElement('button');
 
     headerDiv.appendChild(viewName);
     headerDiv.appendChild(searchView);
-    headerDiv.appendChild(addParameter);
 
     container.appendChild(headerDiv);
 
