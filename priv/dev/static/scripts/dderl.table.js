@@ -1802,6 +1802,9 @@ import * as tableSelection from './table-selection';
 
                 // TODO: Open position of browse data ...
                 openGraphView(browseDataDef.name, binds);
+                if(browseDataDef.replace) {
+                    self._dlg.dialog("close");
+                }
 
                 console.log("The data for this row", cells[0].data);
                 return;
@@ -4535,6 +4538,14 @@ function openDefineBrowseDialog(colName, allColumns, callback) {
 
     container.appendChild(headerDiv);
 
+    let replaceTableDiv = document.createElement('div');
+    let replaceTable = document.createElement('input');
+    replaceTable.type = 'checkbox';
+    let replaceTableLbl = document.createElement('label');
+    replaceTableLbl.appendChild(document.createTextNode('Replace current table'));
+    replaceTableDiv.appendChild(replaceTable);
+    replaceTableDiv.appendChild(replaceTableLbl);
+
     let footerDiv = document.createElement('div');
     let paramControls; // Will hold the controls for the parameters.
     let saveBtn = document.createElement('button');
@@ -4553,7 +4564,8 @@ function openDefineBrowseDialog(colName, allColumns, callback) {
         $container.dialog("close");
         callback({
             name: viewName.value,
-            binds: binds
+            binds: binds,
+            replace: replaceTable.checked
         });
     };
     saveBtn.disabled = true;
@@ -4563,6 +4575,7 @@ function openDefineBrowseDialog(colName, allColumns, callback) {
         $container.dialog("close");
         callback(undefined);
     };
+    footerDiv.appendChild(replaceTableDiv);
     footerDiv.appendChild(clearBtn);
     footerDiv.appendChild(saveBtn);
 
