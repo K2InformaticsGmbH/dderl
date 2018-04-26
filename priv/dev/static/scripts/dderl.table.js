@@ -4669,7 +4669,7 @@ function createParamControls(container, {types: types, pars: pars}, columns) {
         let colSelClone = colSel.cloneNode(true);
         let bindTypeSelClone = bindTypeSel.cloneNode(true);
         let valueInput = document.createElement('input');
-        valueInput.style = 'display:none';
+        valueInput.style.display = 'none';
 
         controls[p.name] = {
             dir: dirSelClone,
@@ -4681,20 +4681,20 @@ function createParamControls(container, {types: types, pars: pars}, columns) {
 
         bindTypeSelClone.onchange = (evt) => {
             if(evt.target.value === 'column') {
-                valueInput.style = 'display:none';
-                colSelClone.style = 'display:inline-block';
+                valueInput.style.display= 'none';
+                colSelClone.style.display= 'inline-block';
                 colSelClone.disabled = false;
             } else if(evt.target.value === 'value') {
-                colSelClone.style = 'display:none';
-                valueInput.style = 'display:inline-block';
+                colSelClone.style.display= 'none';
+                valueInput.style.display= 'inline-block';
                 valueInput.disabled = false;
             } else if(evt.target.value === 'unbound') {
                 valueInput.disabled = true;
                 colSelClone.disabled = true;
             } else {
                 console.log("Bind type not found, default to column, bind type:", evt.target.value);
-                valueInput.style = 'display:none';
-                colSelClone.style = 'display:inline-block';
+                valueInput.style.display= 'none';
+                colSelClone.style.display= 'inline-block';
                 colSelClone.disabled = false;
             }
         };
