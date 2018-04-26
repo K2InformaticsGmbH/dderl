@@ -2552,6 +2552,7 @@ import * as tableSelection from './table-selection';
         }
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
+            this._browseDataDef = extractBrowseDataDef(_table.column_layout);
         }
 
         if(_table.hasOwnProperty('table_layout')) {
@@ -2689,14 +2690,15 @@ import * as tableSelection from './table-selection';
                 cmdOrString.cmd,
                 null,
                 cmdOrString.view_id,
-                cmdOrString.table_layout);
+                cmdOrString.table_layout,
+                cmdOrString.column_layout);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
     },
 
-    _openFailedSql: function(title, cmd, optBinds, viewId, tbllay) {
-        openFailedSql(title, cmd, optBinds, viewId, tbllay);
+    _openFailedSql: function(title, cmd, optBinds, viewId, tbllay, clmlay) {
+        openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay);
     },
 
     _openImageEditor: function(dataImg) { // Data image encoded as base64 string
@@ -4205,14 +4207,11 @@ import * as tableSelection from './table-selection';
 
     hideSelection: function() {
         var self = this;
-        console.log("Hiding selection for", self.options.title);
-        console.log("the table div :D", self._tableDiv);
         self._tableDiv.addClass(tableSelection.hiddenSelectionClass);
     },
 
     enableSelection: function() {
         var self = this;
-        console.log("Enabling selection for", self.options.title);
         self._tableDiv.removeClass(tableSelection.hiddenSelectionClass);
     }
   });
@@ -4283,7 +4282,7 @@ function exportCsvPrompt(filename, callback) {
     return dlgDiv;
 }
 
-function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
+function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay) {
     var script = "";
     var viewLayout = {};
 
@@ -4309,6 +4308,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
             optBinds: optBinds,
             viewId: viewId,
             viewLayout: viewLayout,
+            columnLayout: clmlay,
             script: script // TODO: This should be multiple specs...
         })
         .sql('open');
@@ -4323,12 +4323,16 @@ export function renderNewTable(table, position, force) {
         viewId = table.view_id;
     }
 
+    if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
+        cl = table.column_layout;
+    }
+
     if(table.hasOwnProperty('error')) {
         alert_jq(table.error);
-        openFailedSql(table.name, table.content, null, viewId, tl);
+        openFailedSql(table.name, table.content, null, viewId, tl, cl);
         return;
     } else if(table.hasOwnProperty('binds')) {
-        openFailedSql(table.name, table.content, table.binds, viewId, tl);
+        openFailedSql(table.name, table.content, table.binds, viewId, tl, cl);
         return;
     }
 
@@ -4350,10 +4354,6 @@ export function renderNewTable(table, position, force) {
         of: "#main-body",
         collision: 'none'
     };
-
-    if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
-        cl = table.column_layout;
-    }
 
 
     var baseOptions = {

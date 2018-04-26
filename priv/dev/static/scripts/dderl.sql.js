@@ -140,7 +140,8 @@ function insertAtCursor(myField, myValue) {
         optBinds        : null,
         history         : [],
         viewId          : null,
-        viewLayout      : null
+        viewLayout      : null,
+        columnLayout    : null
     },
 
     _getToolbarSelectWidth: function() {
@@ -954,6 +955,7 @@ function insertAtCursor(myField, myValue) {
             initOptions.dderlSqlEditor = this._dlg;
             initOptions.title = this._title;
             initOptions.dderlViewId = this.options.viewId;
+            initOptions.dderlClmlay = this.options.columnLayout;
 
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>');
