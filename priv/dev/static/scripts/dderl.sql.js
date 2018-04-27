@@ -2,7 +2,7 @@ import $ from 'jquery';
 import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/tabs';
 import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
 import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
-import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlparams';
+import {result_out_params, clear_out_fields, sql_params_dlg, all_out_params} from './dderl.sqlparams';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 import * as monaco from 'monaco-editor';
 
@@ -141,7 +141,8 @@ function insertAtCursor(myField, myValue) {
         history         : [],
         viewId          : null,
         viewLayout      : null,
-        columnLayout    : null
+        columnLayout    : null,
+        autoExec        : false
     },
 
     _getToolbarSelectWidth: function() {
@@ -356,6 +357,7 @@ function insertAtCursor(myField, myValue) {
         // need the max footer with to set as dlg minWidth
         self._createDlgFooter();
         self._createDlg();
+        // TODO: This has to be replaced for monaco actions.
         self._addKeyEventHandlers();
         self._createContextMenus();
 
@@ -1139,6 +1141,10 @@ function insertAtCursor(myField, myValue) {
             sql_params_dlg(this._paramsDiv, this._optBinds, this._outParamInputs);
             this._editDiv.tabs("option", "active", tabPositions.PARAMS);
             this._cmdChanged = true;
+            //Run the query if there are only outparams
+            if(all_out_params(this._optBinds.pars) && this.options.autoExec) {
+                this._toolBarTblReload();
+            }
         }
         // TODO: Maybe layout refresh call should go to tabfocus ?
         this._monacoEditor.layout();

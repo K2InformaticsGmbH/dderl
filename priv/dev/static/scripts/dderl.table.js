@@ -4282,7 +4282,7 @@ function exportCsvPrompt(filename, callback) {
     return dlgDiv;
 }
 
-function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay) {
+function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay, autoExec = false) {
     var script = "";
     var viewLayout = {};
 
@@ -4309,6 +4309,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay) {
             viewId: viewId,
             viewLayout: viewLayout,
             columnLayout: clmlay,
+            autoExec: autoExec,
             script: script // TODO: This should be multiple specs...
         })
         .sql('open');
@@ -4332,7 +4333,7 @@ export function renderNewTable(table, position, force) {
         openFailedSql(table.name, table.content, null, viewId, tl, cl);
         return;
     } else if(table.hasOwnProperty('binds')) {
-        openFailedSql(table.name, table.content, table.binds, viewId, tl, cl);
+        openFailedSql(table.name, table.content, table.binds, viewId, tl, cl, true);
         return;
     }
 
