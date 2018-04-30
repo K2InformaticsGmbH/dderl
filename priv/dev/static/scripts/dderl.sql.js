@@ -2,7 +2,7 @@ import $ from 'jquery';
 import 'imports-loader?$=jquery,$.uiBackCompat=>false!jquery-ui/ui/widgets/tabs';
 import {alert_jq, prompt_jq, confirm_jq} from '../dialogs/dialogs';
 import {ajaxCall, dderlState, smartDialogPosition} from './dderl';
-import {result_out_params, clear_out_fields, sql_params_dlg} from './dderl.sqlparams';
+import {result_out_params, clear_out_fields, sql_params_dlg, all_out_params} from './dderl.sqlparams';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 import * as monaco from 'monaco-editor';
 
@@ -109,7 +109,9 @@ const tabPositions = Object.freeze({
         optBinds        : null,
         history         : [],
         viewId          : null,
-        viewLayout      : null
+        viewLayout      : null,
+        columnLayout    : null,
+        autoExec        : false
     },
 
     _getToolbarSelectWidth: function() {
@@ -264,6 +266,7 @@ const tabPositions = Object.freeze({
         // need the max footer with to set as dlg minWidth
         self._createDlgFooter();
         self._createDlg();
+        // TODO: This has to be replaced for monaco actions.
         self._addKeyEventHandlers();
         self._createContextMenus();
 
@@ -862,6 +865,7 @@ const tabPositions = Object.freeze({
             initOptions.dderlSqlEditor = this._dlg;
             initOptions.title = this._title;
             initOptions.dderlViewId = this.options.viewId;
+            initOptions.dderlClmlay = this.options.columnLayout;
 
             if(null === this._cmdOwner) {
                 this._cmdOwner = $('<div>');
@@ -1041,6 +1045,10 @@ const tabPositions = Object.freeze({
             sql_params_dlg(this._paramsDiv, this._optBinds, this._outParamInputs);
             this._editDiv.tabs("option", "active", tabPositions.PARAMS);
             this._cmdChanged = true;
+            //Run the query if there are only outparams
+            if(all_out_params(this._optBinds.pars) && this.options.autoExec) {
+                this._toolBarTblReload();
+            }
         }
         // TODO: Maybe layout refresh call should go to tabfocus ?
         console.log("calling the layout...");

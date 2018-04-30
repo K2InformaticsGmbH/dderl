@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.2.0 (Release Date 25.04.2018)
+======================================
+* Added monaco editor for sql and graph editor
+* Added define browse data to replace default behaviour by parameterized view
+* Imem to version 2.2.0
+
 Version 2.1.0 (Release Date 19.01.2018)
 ======================================
 * Imem 2.1.0 (including new sqlparse 4.0.0)

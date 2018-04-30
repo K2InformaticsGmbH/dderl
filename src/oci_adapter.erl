@@ -275,8 +275,9 @@ process_cmd({[<<"browse_data">>], ReqBody}, Sess, _UserId, From, #priv{connectio
                     case lists:member(Connection, Connections) of
                         true ->
                             ?Debug("ddView ~p", [V]),
-                            case {gen_adapter:opt_bind_json_obj(C#ddCmd.command, oci),
-                                  make_binds(proplists:get_value(<<"binds">>, BodyJson, null))} of
+                            CmdBinds = gen_adapter:opt_bind_json_obj(C#ddCmd.command, oci),
+                            ClientBinds = make_binds(proplists:get_value(<<"binds">>, BodyJson, null), CmdBinds),
+                            case {CmdBinds, ClientBinds} of
                                 {[], _} ->
                                     Resp = process_query(C#ddCmd.command, Connection, SessPid),
                                     RespJson = jsx:encode(
@@ -830,8 +831,18 @@ get_value_empty_default(Key, Proplist, Defaults) ->
 -spec get_deps() -> [atom()].
 get_deps() -> [erloci].
 
-make_binds(null) -> undefined;
-make_binds(Binds) ->
+make_binds(Binds) -> make_binds(Binds, []).
+
+make_binds(null, []) -> undefined;
+make_binds(null, [{<<"binds">>, ParamsProp}]) ->
+    case proplists:get_value(<<"pars">>, ParamsProp, []) of
+        [] -> undefined;
+        ParameterList ->
+            % Convert parameter properties to map to make it easier to extract
+            extract_rset_out([{Name, maps:from_list(Value)} || {Name, Value} <- ParameterList])
+    end;
+make_binds(null, _CmdBinds) -> undefined;
+make_binds(Binds, _CmdBinds) ->
     try
         {Vars, Values} = lists:foldr(
             fun({B, TV}, {NewBinds, NewVals}) ->
@@ -867,6 +878,17 @@ make_binds(Binds) ->
             ?Error("ST ~p", [erlang:get_stacktrace()]),
             {error, list_to_binary(io_lib:format("bind process error : ~p", [Exception]))}
     end.
+
+extract_rset_out(Parameters) -> extract_rset_out(Parameters, {[], []}).
+
+extract_rset_out([], Acc) -> Acc;
+extract_rset_out([{Name, #{<<"typ">> := <<"SQLT_RSET">>, <<"dir">> := <<"out">>}} | Rest], {Binds, Vals}) ->
+    NewAcc = {
+        [{Name, out, 'SQLT_RSET'} | Binds],
+        [list_to_binary(lists:duplicate(4400, 0)) | Vals]
+    },
+    extract_rset_out(Rest, NewAcc);
+extract_rset_out(_Bids, _Acc) -> undefined.
 
 logfun({Lvl, File, Func, Line, Msg}) ->
     case Lvl of
