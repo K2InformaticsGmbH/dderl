@@ -886,15 +886,7 @@ import * as tableSelection from './table-selection';
                     width = 1000;
                 }
             }
-            $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : sqlResult.title,
-                      width     : width,
-                      cmdOwner  : null,
-                      history   : this._cmdStrs
-                     })
-                .sql('open').sql('setFlatCmd', sqlResult.sql);
+            newSqlEditor(sqlResult.title, sqlResult.sql, null, this._cmdStrs);
         }
     },
 
@@ -4295,22 +4287,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay, autoExec = 
         }
         viewLayout = tbllay;
     }
-    $('<div>')
-        .appendTo(document.body)
-        .sql({
-            autoOpen: false,
-            title: title,
-            cmdOwner: null,
-            history: [],
-            cmdFlat: cmd,
-            optBinds: optBinds,
-            viewId: viewId,
-            viewLayout: viewLayout,
-            columnLayout: clmlay,
-            autoExec: autoExec,
-            script: script // TODO: This should be multiple specs...
-        })
-        .sql('open');
+    newSqlEditor(title, cmd, null, [], optBinds, script, viewId, viewLayout, clmlay, autoExec);
 }
 
 export function renderNewTable(table, position, force) {

@@ -6,7 +6,7 @@ import {result_out_params, clear_out_fields, sql_params_dlg, all_out_params} fro
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
 import * as monaco from 'monaco-editor';
 
-export function newSqlEditor(title = null, query = "", owner = null, history = [], optBinds = null, script = "") {
+export function newSqlEditor(title = null, query = "", owner = null, history = [], optBinds = null, script = "", viewId = null, viewLayout = null, columnLayout = null, autoExec = false) {
     return $('<div>')
         .appendTo(document.body)
         .sql({
@@ -16,7 +16,11 @@ export function newSqlEditor(title = null, query = "", owner = null, history = [
             query: query,
             history: history,
             optBinds: optBinds,
-            script: script
+            script: script,
+            viewId: viewId,
+            viewLayout: viewLayout,
+            columnLayout: columnLayout,
+            autoExec: autoExec
         })
         .sql('open');
 }
@@ -172,7 +176,8 @@ const tabPositions = Object.freeze({
         // Creating a monaco editor
         self._queryTb = monaco.editor.create(queryContainer, {
             value: self.options.query,
-            language: 'sql'
+            language: 'sql',
+            scrollBeyondLastLine: false
         });
 
         self._paramsDiv = $('<div>').css("display", "inline-block;");
@@ -182,16 +187,12 @@ const tabPositions = Object.freeze({
 
         self._graphTb = monaco.editor.create(graphContainer, {
             value: getDefaultScript(self._script),
-            language: 'javascript'
+            language: 'javascript',
+            scrollBeyondLastLine: false
         });
 
         var queryBg    = 'rgb(255,240,240)';
         var paramsBg    = '#FFFFD1';
-
-        // TODO: to set the auto height when first parsing :
-        // self.queryTb.getScrollHeight
-        // Or maybe with:
-        // const contentHeight = editor.getModel().getLineCount() * 19 ; // 19 is the line height of default theme.
 
         var titleHeight = 26; // Default height it is recalculated later...
         var ulTabs = $('<ul>');
@@ -338,10 +339,9 @@ const tabPositions = Object.freeze({
             self._dlg.dialog("open");
         }
 
-        if (self._cmdFlat) {
-            self._modCmd = self._cmdFlat;
+        if (self.options.query) {
             self.addWheel();
-            ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._cmdFlat}}, 'parse_stmt', 'parsedCmd');
+            ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr : self.options.query}}, 'parse_stmt', 'parsedCmd');
         }
     },
 
@@ -484,7 +484,7 @@ const tabPositions = Object.freeze({
             save_view : {
                 conn_id       : dderlState.connectionSelected.connection,
                 name          : viewName,
-                content       : self._modCmd,
+                content       : self._queryTb.getValue(),
                 table_layout  : this._getLayout()
             }
         };
@@ -594,6 +594,7 @@ const tabPositions = Object.freeze({
         self._footerWidth = self._addBtngrpToDiv(self._footerDiv);
     },
 
+    // TODO: Replace this using monaco actions.
     _addKeyEventHandlers: function() {
         var self = this;
         this.element.keydown(function(e) {
@@ -611,14 +612,7 @@ const tabPositions = Object.freeze({
         var self = this;
         self._title = self.options.title = newTitle;
         var newTitleHtml = $('<span>').text(newTitle).addClass('table-title');
-        self._dlg.dialog('option', 'title', newTitleHtml[0].outerHTML);
-        self._dlg.dialog("widget").find(".table-title").click(function(e) {
-            self._sqlTtlCnxtMnu.dom
-                .css("top", e.clientY - 10)
-                .css("left", e.clientX)
-                .data('cnxt', self)
-                .show();
-        });
+        self._setTitleHtml(newTitleHtml);
     },
 
 
@@ -646,8 +640,7 @@ const tabPositions = Object.freeze({
 
       addWheel : function()
       {
-          if(this._spinCounter < 0)
-              this._spinCounter = 0;
+          if(this._spinCounter < 0) { this._spinCounter = 0; }
           this._spinCounter++;
           var $dlgTitleObj = $(this._dlg.dialog('option', 'title'));
           if(this._spinCounter > 0 && this._dlg.hasClass('ui-dialog-content') &&
@@ -685,7 +678,7 @@ const tabPositions = Object.freeze({
         }
 
         // This is not dynamic as we only support one select for
-        // the history anyways - else if (self._toolsBtns[btnTxt].typ === 'sel') {
+        // the history anyways
         var sel = $('<select>')
             .width(100)
             .css('margin', '0px 0px 0px 0px')
@@ -718,9 +711,10 @@ const tabPositions = Object.freeze({
      */
     _toolBarValidate: function() {
         var self = this;
-        self._addToHistory(self._modCmd);
+        var query = self._queryTb.getValue();
+        self._addToHistory(query);
         self.addWheel();
-        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
+        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr: query}}, 'parse_stmt',
                 function (parse_stmt) {
                     self._renderParsed(parse_stmt, false);
                     if (parse_stmt.hasOwnProperty("binds")) {
@@ -777,10 +771,11 @@ const tabPositions = Object.freeze({
 
     _loadTable: function(button) {
         var self = this;
+        var query = self._queryTb.getValue();
         self._reloadBtn = button;
-        self._addToHistory(self._modCmd);
+        self._addToHistory(query);
         self.addWheel();
-        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr:self._modCmd}}, 'parse_stmt',
+        ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr : query}}, 'parse_stmt',
                 function (parse_stmt) {
                     if (self._optBinds !== null) {
                         self._reloadParsedCmd(parse_stmt);
@@ -803,7 +798,7 @@ const tabPositions = Object.freeze({
         var self = this;
         self._renderParsed(_parsed, false);
         if(_parsed.hasOwnProperty("flat_list")) {
-            self._pendingQueries = $.extend(true, {}, _parsed.flat_list); // deep copy
+            self._pendingQueries = $.extend(true, [], _parsed.flat_list); // deep copy
             self._execMultStmts();
         } else {
             clear_out_fields(self._outParamInputs);
@@ -818,17 +813,15 @@ const tabPositions = Object.freeze({
                 }
             }
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
-                self._modCmd = self._cmdFlat;
-                self._cmdOwner.table('cmdReload', self._modCmd, self._optBinds, self._reloadBtn, self._getPlaneData());
+                self._cmdOwner.table('cmdReload', self._queryTb.getValue(), self._optBinds, self._reloadBtn, self._getPlaneData());
             } else {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
                     connection: dderlState.connection,
-                    qstr: self._modCmd,
+                    qstr: self._queryTb.getValue(),
                     conn_id: dderlState.connectionSelected.connection,
                     binds: params
                 }}, 'query', 'resultStmt');
-                self._modCmd = self._cmdFlat;
             }
         }
     },
@@ -970,32 +963,23 @@ const tabPositions = Object.freeze({
     _renderParsed: function(_parsed, skipFocus) {
         var self = this;
 
-        if(!skipFocus) {
-            self._setTabFocus();
-        }
-        if(_parsed.hasOwnProperty('flat')) {
-            self._flatTb.val(_parsed.flat);
-            self._cmdFlat = self._flatTb.val();
-        }
         if(_parsed.hasOwnProperty('pretty')) {
             self._queryTb.setValue(_parsed.pretty);
-            self._cmdPretty = _parsed.pretty;
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
                 self._editDiv.tabs("option", "active", tabPositions.SQL);
-                if(!skipFocus) {
-                    self._setTabFocus();
-                }
-                var nlines = _parsed.pretty.split("\n").length;
                 var dialogPos = self._dlg.dialog("widget").position();
-                var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 16.8) + 62);
+                var newDialogHeight = Math.min($(window).height() * 0.8, self._queryTb.getScrollHeight() + 80); // +75 for header and footer 5 for extra margin.
                 var distanceToBottom = $(window).height() - (dialogPos.top + newDialogHeight) - 30;
+
+                var left = dialogPos.left;
+                if(left < 0) { left = 0; }
 
                 if(distanceToBottom < 0) {
                     var newTop = dialogPos.top + distanceToBottom - 20;
                     var newPos = {
                         my: "left top",
-                        at: "left+" + dialogPos.left + " top+" + newTop,
+                        at: "left+" + left + " top+" + newTop,
                         of: "#main-body",
                         collision : 'none'
                     };
@@ -1006,11 +990,15 @@ const tabPositions = Object.freeze({
                 self._dlg.dialog("option", "height", newDialogHeight);
                 self._queryTb.layout();
             }
+        } else if(_parsed.hasOwnProperty('flat')) {
+            self._queryTb.setValue(_parsed.flat);
         }
+
         if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
             self._setTitle(_parsed.sqlTitle);
             self._isDefaultTitle = false;
         }
+        if(!skipFocus) { self._setTabFocus(); }
     },
 
     _createDlg: function() {
@@ -1031,9 +1019,9 @@ const tabPositions = Object.freeze({
         self._setTitle(self.options.title);
     },
 
-    // translations to default dialog behavior
+    // traslations to default dialog behavior
     open: function() {
-        this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', collision : 'none'});
+        this._dlg.dialog("option", "position", {at : 'center center', my : 'center center', of: '#main-body', collision : 'none'});
         this._dlg.dialog("open").dialog("widget").draggable("option","containment","#main-body");
         if(this._cmdOwner !== null && this._cmdOwner.hasClass('ui-dialog-content')) {
             smartDialogPosition($("#main-body"), this._cmdOwner, this._dlg, ['center']);
@@ -1057,19 +1045,12 @@ const tabPositions = Object.freeze({
         this._setTabFocus();
     },
 
-    setFlatCmd: function(cmd) {
-        var self = this;
-        self._modCmd = cmd;
-        this._flatTb.val(cmd);
-    },
-
     close: function() { this._dlg.dialog("close"); },
 
     showCmd: function(cmd, skipFocus) {
         var self = this;
         var callback = 'parsedCmd';
-        self._modCmd = cmd;
-        self._flatTb.val(cmd);
+        self._queryTb.setValue(cmd);
         if(skipFocus) {
             callback = 'parsedSkipFocus';
         }
