@@ -1,7 +1,8 @@
 #!/bin/sh
 echo "===> dderl post_release"
 
-dderlDev=_build/prod/rel/$1/lib/dderl-*/priv/dev
+app=${1:-dderl}
+dderlDev=_build/prod/rel/${app}/lib/dderl-*/priv/dev
 if [ -d $dderlDev ]; then
     cd $dderlDev
     rm -rf node_modules
