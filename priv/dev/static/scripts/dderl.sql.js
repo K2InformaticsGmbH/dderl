@@ -59,6 +59,7 @@ const tabPositions = Object.freeze({
     _outParamInputs : null,
     _viewLayout     : null,
     _runGraph       : false,
+    _isFlatOnly     : false,
 
     // private event handlers
     _handlers       : { parsedCmd       : function(e, _parsed) { e.data._renderParsed      (_parsed, false); },
@@ -171,15 +172,40 @@ const tabPositions = Object.freeze({
         self.options.height = $(window).height() * 0.4;
 
         // Create container
-        var queryContainer = document.createElement('div');
-        queryContainer.id = 'tabquery';
+        var tabContainer = document.createElement('div');
+        tabContainer.id = 'tabquery';
+
         // Creating a monaco editor
+        var queryContainer = document.createElement('div');
+        queryContainer.className = 'monaco-query-container';
+        // Add container to the tab
+        tabContainer.appendChild(queryContainer);
         self._queryTb = monaco.editor.create(queryContainer, {
             value: self.options.query,
             language: 'sql',
             scrollBeyondLastLine: false
         });
 
+        self._queryTb.onMouseDown((e) => {
+            console.log("mouse down", e);
+        });
+
+        // Flat only checkbox flag
+        // TODO: Add toolbox for formatting and helper actions.
+        var flatSelectionSpan = document.createElement('span');
+        flatSelectionSpan.className = 'flat-only-select';
+
+        var flatCheckbox = document.createElement('input');
+        flatCheckbox.type = 'checkbox';
+        flatCheckbox.onchange = () => {
+            self._isFlatOnly = flatCheckbox.checked;
+            self.addWheel();
+            ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._queryTb.getValue() } }, 'parse_stmt', 'parsedCmd');
+        };
+        flatSelectionSpan.appendChild(flatCheckbox);
+        flatSelectionSpan.appendChild(document.createTextNode('flat only'));
+        tabContainer.appendChild(flatSelectionSpan);
+        
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
         var graphContainer = document.createElement('div');
@@ -208,7 +234,7 @@ const tabPositions = Object.freeze({
         self._editDiv =
             $('<div>')
             .append(ulTabs)
-            .append(queryContainer)
+            .append(tabContainer)
             .append(
               $('<div>')
               .css('background-color', paramsBg)
@@ -963,7 +989,7 @@ const tabPositions = Object.freeze({
     _renderParsed: function(_parsed, skipFocus) {
         var self = this;
 
-        if(_parsed.hasOwnProperty('pretty')) {
+        if(_parsed.hasOwnProperty('pretty') && !self._isFlatOnly) {
             self._queryTb.setValue(_parsed.pretty);
             if(!self._cmdChanged) {
                 self._cmdChanged = true;

@@ -37,6 +37,19 @@ table.params input.param {
     border:none;
 }
 
+.flat-only-select {
+    position: relative;
+    float: right;
+    top: -24px;
+    right: 10px;
+}
+
+.monaco-query-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
 .ui-tabs .ui-tabs-nav li {
     margin: 0 0 0 0;
 }
