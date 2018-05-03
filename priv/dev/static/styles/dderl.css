@@ -16,7 +16,17 @@ div#login-bg {
     z-index:99998;
 }
 
-body { font-family: 'Droid Sans Mono', sans-serif; font-size: 62.5%; }
+body { 
+    font-family: 'Droid Sans Mono', sans-serif;
+    font-size: 62.5%;
+    /* Next rules are required by monaco-editor 
+        https://github.com/Microsoft/monaco-editor#known-issues
+    */
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    margin: 0px;
+}
 input.text, textarea.text { width: 95%; padding: .4em; }
 textarea.d3labeledit { height: 120px }
 fieldset { padding:0; border:0; margin-top:25px; }
