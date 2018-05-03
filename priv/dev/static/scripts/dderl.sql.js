@@ -186,10 +186,6 @@ const tabPositions = Object.freeze({
             scrollBeyondLastLine: false
         });
 
-        self._queryTb.onMouseDown((e) => {
-            console.log("mouse down", e);
-        });
-
         // Flat only checkbox flag
         // TODO: Add toolbox for formatting and helper actions.
         var flatSelectionSpan = document.createElement('span');
@@ -255,6 +251,7 @@ const tabPositions = Object.freeze({
                 var selected = self._editDiv.tabs("option", "active");
 
                 if(selected === tabPositions.PARAMS) {
+                    self._toolBarValidate();
                 } else {
                     self._runGraph = (selected > tabPositions.PARAMS);
                     if(self._runGraph) {
