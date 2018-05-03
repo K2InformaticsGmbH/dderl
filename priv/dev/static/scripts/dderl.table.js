@@ -10,6 +10,7 @@ import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import {newSqlEditor} from "./dderl.sql";
 import * as tableSelection from './table-selection';
 
 (function() {
@@ -431,17 +432,14 @@ import * as tableSelection from './table-selection';
                 script = self._planeSpecs[0].script;
             }
 
-            self._divSqlEditor = $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : this.options.title,
-                      cmdOwner  : this._dlg,
-                      history   : this._cmdStrs,
-                      cmdFlat   : this._cmd,
-                      optBinds  : this._optBinds,
-                      script    : script // TODO: This should be multiple specs...
-                     })
-                .sql('open');
+            self._divSqlEditor = newSqlEditor(
+                this.options.title,
+                this._cmd,
+                this._dlg,
+                this._cmdStrs,
+                this._optBinds,
+                script
+            );
         }
     },
 
@@ -888,15 +886,7 @@ import * as tableSelection from './table-selection';
                     width = 1000;
                 }
             }
-            $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : sqlResult.title,
-                      width     : width,
-                      cmdOwner  : null,
-                      history   : this._cmdStrs
-                     })
-                .sql('open').sql('setFlatCmd', sqlResult.sql);
+            newSqlEditor(sqlResult.title, sqlResult.sql, null, this._cmdStrs);
         }
     },
 
@@ -4297,22 +4287,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay, autoExec = 
         }
         viewLayout = tbllay;
     }
-    $('<div>')
-        .appendTo(document.body)
-        .sql({
-            autoOpen: false,
-            title: title,
-            cmdOwner: null,
-            history: [],
-            cmdFlat: cmd,
-            optBinds: optBinds,
-            viewId: viewId,
-            viewLayout: viewLayout,
-            columnLayout: clmlay,
-            autoExec: autoExec,
-            script: script // TODO: This should be multiple specs...
-        })
-        .sql('open');
+    newSqlEditor(title, cmd, null, [], optBinds, script, viewId, viewLayout, clmlay, autoExec);
 }
 
 export function renderNewTable(table, position, force) {

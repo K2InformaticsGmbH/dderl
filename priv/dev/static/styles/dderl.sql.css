@@ -28,7 +28,7 @@ table.params input.param {
     bottom:21px;
 }
 
-#tabflat, #tabpretty, #tabbox, #tabparams, #tabgraph {
+#tabquery, #tabparams, #tabgraph {
     position: absolute;
     top:0;
     left:0;
@@ -37,7 +37,18 @@ table.params input.param {
     border:none;
 }
 
-#tabbox { overflow:auto; }
+.flat-only-select {
+    position: relative;
+    float: right;
+    top: -24px;
+    right: 10px;
+}
+
+.monaco-query-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
 
 .ui-tabs .ui-tabs-nav li {
     margin: 0 0 0 0;
