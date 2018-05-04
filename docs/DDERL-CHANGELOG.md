@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.3.0 (Release Date 03.05.2018)
+======================================
+* Merged flat and pretty into a single monaco editor
+* Fixed monaco editor mouse selection not working on I.E.
+* Fixed leak of fsm when pressing next on a long table with a filter that doesn't return rows.
+* Automatically validate sql parameters when changing to the parameters tab
+
 Version 2.2.0 (Release Date 25.04.2018)
 ======================================
 * Added monaco editor for sql and graph editor
