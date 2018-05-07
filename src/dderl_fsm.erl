@@ -677,7 +677,7 @@ filling(cast, {button, <<"restart">>, ReplyTo}, State0) ->
     % reject command because of uncommitted changes
     State1 = gui_nop(#gres{state=filling,beep=true,message= ?MustCommit},State0#state{replyToFun=ReplyTo}),
     {next_state, filling, State1};
-filling(cast, {button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) ->
+filling(cast, {button, Button, ReplyTo}=Cmd, #state{bufCnt=0}=State0) when Button =/= <<"close">> andalso Button =/= <<"stop">> ->
     % too quick, defer request .. when we have the first block of data
     State1 = reply_stack(filling, ReplyTo, State0),
     State2 = prefetch(filling,State1),
