@@ -222,8 +222,8 @@ init_interface() ->
       [{'_',
         [{"/swagger/", ?MODULE, swagger},
          {"/swagger/[...]", cowboy_static,
-          {dir, filename:join(dderl:priv_dir(), "swagger")}},
-         {"/dderlrest/"?API_VERSION"/", ?MODULE, spec},
+          {dir, filename:join([dderl:priv_dir(), "public", "swagger"])}},
+         {"/dderlrest/"?API_VERSION"/[dderlrest.json]", ?MODULE, spec},
          {"/dderlrest/"?API_VERSION"/:cmd/[:view]",
           [{cmd, function, fun cmd_constraint/1},
            {view, function, fun view_constraint/1}], ?MODULE, Opts}]

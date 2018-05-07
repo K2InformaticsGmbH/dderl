@@ -19,3 +19,4 @@ dderl.wiki/
 *.bkp
 tmp
 TEST*.xml
+priv/swagger/node_modules
