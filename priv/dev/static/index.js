@@ -30,6 +30,24 @@ req.keys().forEach(function(key){
     req(key);
 });
 
+window.MonacoEnvironment = {
+    getWorkerUrl: function(moduleId, label) {
+        if(label === 'json') {
+            return 'public/json.worker.js';
+        }
+        if(label === 'css') {
+            return 'public/css.worker.js';
+        }
+        if(label === 'html') {
+            return 'public/html.worker.js';
+        }
+        if(label === 'typescript' || label === 'javascript') {
+            return 'public/ts.worker.js';
+        }
+        return 'public/editor.worker.js';
+    }
+};
+
 $(document).ready(function () {
     let mainBody = $('#main-body');
     let menuBar = $('#main-menu-bar');

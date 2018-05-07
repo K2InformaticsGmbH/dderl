@@ -28,24 +28,30 @@ init() -> ok.
 add_conn_info(Priv, ConnInfo) when is_map(ConnInfo) -> Priv.
 
 -spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()]) -> [ddEntityId() | need_replace] | {error, binary()}.
-add_cmds_views(_, _, _, _, []) -> [];
-add_cmds_views(Sess, UserId, A, R, [{N,C,Con}|Rest]) ->
-    add_cmds_views(Sess, UserId, A, R, [{N,C,Con,#viewstate{}}|Rest]);
-add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest]) ->
+add_cmds_views(Sess, UserId, A, R, Views) -> add_cmds_views(Sess, UserId, A, R, Views, false).
+
+-spec add_cmds_views({atom(), pid()} | undefined, ddEntityId(), atom(), boolean(), [tuple()], boolean()) -> [ddEntityId() | need_replace] | {error, binary()}.
+add_cmds_views(_, _, _, _, [], _) -> [];
+add_cmds_views(Sess, UserId, A, R, [{N,C,Con}|Rest], ReplaceConns) ->
+    add_cmds_views(Sess, UserId, A, R, [{N,C,Con,#viewstate{}}|Rest], ReplaceConns);
+add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest], ReplaceConns) ->
     case dderl_dal:get_view(Sess, N, A, UserId) of
         {error, _} = Error -> Error;
         undefined ->
             Id = dderl_dal:add_command(Sess, UserId, A, N, C, Con, []),
             ViewId = dderl_dal:add_view(Sess, UserId, N, Id, V),
-            [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
+            [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest, ReplaceConns)];
         View ->
             if
                 Replace ->
-                    dderl_dal:update_command(Sess, View#ddView.cmd, UserId, N, C, []),
+                    case ReplaceConns of
+                        false -> dderl_dal:update_command(Sess, View#ddView.cmd, UserId, N, C, []);
+                        true -> dderl_dal:update_command(Sess, View#ddView.cmd, UserId, N, C, Con, [])
+                    end,
                     ViewId = dderl_dal:add_view(Sess, UserId, N, View#ddView.cmd, V),
-                    [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest)];
+                    [ViewId | add_cmds_views(Sess, UserId, A, Replace, Rest, ReplaceConns)];
                 true ->
-                    [need_replace | add_cmds_views(Sess, UserId, A, Replace, Rest)]
+                    [need_replace | add_cmds_views(Sess, UserId, A, Replace, Rest, ReplaceConns)]
             end
     end.
 
@@ -156,24 +162,37 @@ process_cmd({[<<"get_query">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv)
     From ! {reply, Res};
 process_cmd({[<<"save_view">>], ReqBody}, Adapter, Sess, UserId, From, _Priv) ->
     [{<<"save_view">>,BodyJson}] = ReqBody,
-    ConnIdBin = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
-    case string:to_integer(binary_to_list(ConnIdBin)) of
-        {ConnId, []} -> Conns = [ConnId];
-        _ -> Conns = undefined
+    Conns = case proplists:get_value(<<"selected_connections">>, BodyJson, undefined) of
+        undefined ->
+            ConnIdBin = proplists:get_value(<<"conn_id">>, BodyJson, <<>>),
+            case string:to_integer(binary_to_list(ConnIdBin)) of
+                {ConnId, []} -> [ConnId];
+                _ -> undefined
+            end;
+        SelectedConns -> SelectedConns
     end,
     Name = proplists:get_value(<<"name">>, BodyJson, <<>>),
     Query = proplists:get_value(<<"content">>, BodyJson, <<>>),
     TableLay = proplists:get_value(<<"table_layout">>, BodyJson, []),
     ColumLay = proplists:get_value(<<"column_layout">>, BodyJson, []),
     ReplaceView = proplists:get_value(<<"replace">>, BodyJson, false),
-    ?Info("save_view for ~p layout ~p", [Name, TableLay]),
-    case add_cmds_views(Sess, UserId, Adapter, ReplaceView, [{Name, Query, Conns, #viewstate{table_layout=TableLay, column_layout=ColumLay}}]) of
-        [need_replace] ->
-            Res = jsx:encode([{<<"save_view">>,[{<<"need_replace">>, Name}]}]);
-        [ViewId] ->
-            Res = jsx:encode([{<<"save_view">>,[{<<"name">>, Name}, {<<"view_id">>, ViewId}]}])
+    ViewParams = [{Name, Query, Conns, #viewstate{table_layout=TableLay, column_layout=ColumLay}}],
+    Res = case add_cmds_views(Sess, UserId, Adapter, ReplaceView, ViewParams, true) of
+        [need_replace] -> #{need_replace => Name, selected_connections => Conns};
+        [ViewId] -> #{name => Name, view_id => ViewId, selected_connections => Conns}
     end,
-    From ! {reply, Res};
+    From ! {reply, jsx:encode(#{save_view => Res})};
+process_cmd({[<<"get_view_connections">>], [{<<"id">>, ViewId}]}, _Adapter, Sess, _UserId, From, _Priv) ->
+    CurrentConns = case dderl_dal:get_view(Sess, ViewId) of
+        #ddView{cmd = CmdId} ->
+            case dderl_dal:get_command(Sess, CmdId) of
+                #ddCmd{conns = local} -> [];
+                #ddCmd{conns = Conns} -> Conns;
+                _ -> []
+            end;
+        _ -> []
+    end,
+    From ! {reply, jsx:encode(#{get_view_connections => #{conns => CurrentConns}})};
 process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
     [{<<"view_op">>,BodyJson}] = ReqBody,
     Operation = string:to_lower(binary_to_list(proplists:get_value(<<"operation">>, BodyJson, <<>>))),

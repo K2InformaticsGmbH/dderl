@@ -127,8 +127,7 @@ import * as tableSelection from './table-selection';
 
     // dialog context menus
     _dlgTtlCnxtMnu  : {'Edit SQL'       : '_editCmd',
-                       'Save ddView'    : '_saveView',
-                       'Save ddView As' : '_saveViewAs',
+                       'Save ddView'    : '_saveViewAs',
                        'Rename ddView'  : '_renameView',
                        'Delete ddView'  : '_deleteView',
                        'Export Csv'     : '_exportCsv',
@@ -457,17 +456,6 @@ import * as tableSelection from './table-selection';
     },
 
     /*
-     * Saving a table
-     */
-    _saveView: function() {
-        if(this._viewId) {
-            this._updateView(this._viewId, this.options.title);
-        } else {
-            this._saveNewView(this.options.title, false);
-        }
-    },
-
-    /*
      * Renaming a view
      */
     _renameView: function() {
@@ -527,13 +515,31 @@ import * as tableSelection from './table-selection';
 
     _saveViewAs: function() {
         var self = this;
-        promptSaveAs(self.options.title, self._toolbarButtons, self._startBtn, function (viewName, startBtn) {
-            console.log("saving view as", viewName, startBtn);
-            self._startBtn = startBtn;
-            if (viewName) {
-                self._saveViewWithName(viewName, false);
-            }
-        });
+        if(self._viewId) {
+            console.log("requesting view current connections", self._viewId);
+            var op = 'get_view_connections';
+            ajaxCall(null, op, { id: self._viewId }, op, function(resp) {
+                if(resp.error) {
+                    alert_jq('Unable to get view current connections: ' + resp.error);
+                } else if ($.isArray(resp.conns)) {
+                    openDialog(resp.conns);
+                } else {
+                    alert_jq('Invalid response from server');
+                }
+            });
+        } else {
+            openDialog([parseInt(dderlState.connectionSelected.connection)]);
+        }
+
+        function openDialog(initalSelectedConns) {
+            promptSaveAs(self.options.title, self._toolbarButtons, self._startBtn, initalSelectedConns, function (viewName, startBtn, selectedConns) {
+                console.log("saving view as", viewName, startBtn, selectedConns);
+                self._startBtn = startBtn;
+                if (viewName) {
+                    self._saveViewWithName(viewName, false, selectedConns);
+                }
+            });
+        }
     },
 
     _exportCsv: function() {
@@ -645,11 +651,12 @@ import * as tableSelection from './table-selection';
         self._ajax('update_view', updateView, 'update_view', 'saveViewResult');
     },
 
-    _saveViewWithName: function(_viewName, replace) {
+    _saveViewWithName: function(_viewName, replace, selectedConns) {
         var self = this;
 
         var saveView = self._getTableLayout(_viewName);
         saveView.save_view.replace = replace;
+        saveView.save_view.selected_connections = selectedConns;
 
         console.log('saving view '+JSON.stringify(saveView));
         self._ajax('save_view', saveView, 'save_view', 'saveViewResult');
@@ -2253,7 +2260,7 @@ import * as tableSelection from './table-selection';
                 buttons: {
                     "Replace the view": function() {
                         $( this ).dialog( "close" );
-                        self._saveViewWithName(_saveView.need_replace, true);
+                        self._saveViewWithName(_saveView.need_replace, true, _saveView.selected_connections);
                     },
                     Cancel: function() {
                         $( this ).dialog( "close" );
@@ -4316,7 +4323,7 @@ function areColumnsEqual(columnA, columnB) {
     return BaseColumnA === BaseColumnB;
 }
 
-function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
+function promptSaveAs(viewName, btnDefinitions, startBtn, currentCons, callback) {
     var form = $('<form id="prompt_form">').append('<fieldset>' +
         '<label for="prompt_save_as_input">ddView name: </label>' +
         '<input type="text" id="prompt_save_as_input" name="prompt_save_as_input" class="text ui-widget-content ui-corner-all" value="'+ viewName +'" autofocus/>' +
@@ -4356,18 +4363,38 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
             btn.addClass('ui-state-highlight');
             btn.removeClass('colorIcon');
         });
-
-
     });
     buttonsDiv.controlgroup(controlgroup_options());
     startBtnSelectionDiv.append(buttonsDiv);
 
+    var connSelectionDiv = $('<div class="conn-selection">');
+    connSelectionDiv.append($('<div class="section-title" title="Unselecting all means all current and future connections">')
+        .text("Connections - Unselect for all"));
+
+    var connList = $('<ul>').appendTo(connSelectionDiv);
+
+    dderlState.connections.forEach(function(conn) {
+        var checked = "";
+        if(currentCons.includes(conn.id)) {
+            checked = "checked";
+        }
+        var checkbox = $('<li><input type="checkbox" value="' + conn.id + '"' + checked + '>'+ conn.name + '(' + conn.owner + ')' + '</li>');
+        connList.append(checkbox);
+    });
 
     var execute_callback = function(dlg) {
         var inputValue = $("#prompt_save_as_input").val();
+        var selectedConns = [];
+        connList.find("input:checked").map(function() {
+            if(Number.parseInt(this.value, 10).toString() == this.value){
+                selectedConns.push(Number.parseInt(this.value, 10));
+            }
+            return this.value;
+        });
+
         if (inputValue) {
             dlg.dialog("close");
-            callback(inputValue, btnSelected);
+            callback(inputValue, btnSelected, selectedConns);
         }
     };
 
@@ -4375,12 +4402,18 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, callback) {
         $('<div>')
         .append(form)
         .append(startBtnSelectionDiv)
+        .append(connSelectionDiv)
         .dialog({
             modal:false,
             width: 300,
-            height: 300,
             title: "DDerl parameter input",
             appendTo: "#main-body",
+            position: {
+                my: "center top",
+                at: "center top+25",
+                of: "#main-body",
+                collision : 'none'
+            },
             close: function() {
                 //We have to remove the added child
                 dlgDiv.dialog('destroy');

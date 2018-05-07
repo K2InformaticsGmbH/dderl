@@ -3,6 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.1.0 (Release Date 19.01.2018)
+======================================
+* Imem 2.1.0 (including new sqlparse 4.0.0)
+* Remove highlight of selection when focus is not active in a table
+* Updated d3 version to 4.12.2
+* Add helper function to create multiline text labels in graph
+* Correctly set tail mode to false after restart table
+* Added button to stop current loop action
+
 Version 2.0.0 (Release Date 19.01.2018)
 ======================================
 * Imem 2.0.0

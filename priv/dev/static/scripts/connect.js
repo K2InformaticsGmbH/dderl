@@ -330,6 +330,13 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
                 // Setting up the global connection.
                 dderlState.connection = resp.conn;
                 dderlState.connected_user = conn.owner;
+                if($.isArray(connects)) {
+                    dderlState.connections = connects.filter(function(c) {
+                        return c.adapter == conn.adapter;
+                    });
+                } else {
+                    dderlState.connections = []; 
+                }
 
                 var newTitle = '';
                 if(dderlState.app) {

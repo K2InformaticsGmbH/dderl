@@ -962,7 +962,14 @@ open_view(Sess, Connection, SessPid, ConnId, Binds, #ddView{id = Id, name = Name
 
 -spec get_params(binary()) -> [binary()].
 get_params(Sql) ->
-    dderl_sql_params:get_params(Sql, []).
+    case sqlparse:parsetree(Sql) of
+        {ok,[{_ParseTree,_}]} ->
+            %% Do not assume the query is valid before calling this function
+            %% as parser doesn't handle errors and crashes.
+            dderl_sql_params:get_params(Sql, []);
+        _ ->
+            []
+    end.
 
 -spec get_deps() -> [atom()].
 get_deps() -> [erlimem, imem].

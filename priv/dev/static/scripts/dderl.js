@@ -21,6 +21,7 @@ export var dderlState = {
     currentViews: null,
     currentWindows: [],
     saveDashboardCounter: 0,
+    connections: [],  // List of available connections for the current adapter
     connectionSelected: null,
     copyMode: "normal",             // normal, header, json
     operationLogs: "",
@@ -343,7 +344,7 @@ export function show_about_dlg() {
             if(app === "dderl") {
                 var description = applications[app].description;
                 var p = '<p class="about-title">DDerl</p>';
-                p += '<p class="about-vsn">' + version + ' GUI 1.10.0</p>';
+                p += '<p class="about-vsn">' + version + ' GUI 2.1.0</p>';
                 p += '<p class="about-desc">' + description + '</p>';
                 p += '<hr>';
                 aboutDlg.prepend(p);

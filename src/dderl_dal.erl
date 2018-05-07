@@ -17,6 +17,7 @@
         ,add_adapter/2
         ,add_command/7
         ,update_command/6
+        ,update_command/7
         ,add_view/5
         ,update_view/4
         ,rename_view/3
@@ -125,6 +126,21 @@ update_command(Sess, Id, Owner, Name, Sql, Opts) ->
                  , adapters  = Cmd#ddCmd.adapters
                  , command   = Sql
                  , conns     = Cmd#ddCmd.conns
+                 , opts      = Opts},
+    Sess:run_cmd(write, [ddCmd, NewCmd]),
+    Id.
+
+-spec update_command({atom(), pid()} | undefined, ddEntityId(), ddEntityId(), binary(), binary(), list(), term()) -> ddEntityId().
+update_command(undefined, Id, Owner, Name, Sql, Conns, Opts) -> gen_server:call(?MODULE, {update_command, Id, Owner, Name, Sql, Conns, Opts});
+update_command(Sess, Id, Owner, Name, Sql, Conns, Opts) ->
+    ?Debug("update command ~p replacing id ~p", [Name, Id]),
+    {[Cmd], true} = Sess:run_cmd(select, [ddCmd, [{#ddCmd{id = Id, _='_'}, [], ['$_']}]]),
+    NewCmd = #ddCmd { id     = Id
+                 , name      = Name
+                 , owner     = Owner
+                 , adapters  = Cmd#ddCmd.adapters
+                 , command   = Sql
+                 , conns     = Conns
                  , opts      = Opts},
     Sess:run_cmd(write, [ddCmd, NewCmd]),
     Id.
@@ -443,6 +459,8 @@ handle_call({get_connects, UserSess, UserId}, _From, #state{sess = DalSess} = St
 
 handle_call({update_command, Id, Owner, Name, Sql, Opts}, _From, #state{sess=Sess} = State) ->
     {reply, update_command(Sess, Id, Owner, Name, Sql, Opts), State};
+handle_call({update_command, Id, Owner, Name, Sql, Conns, Opts}, _From, #state{sess=Sess} = State) ->
+    {reply, update_command(Sess, Id, Owner, Name, Sql, Conns, Opts), State};
 
 handle_call({add_command, Owner, Adapter, Name, Cmd, Conn, Opts}, _From, #state{sess=Sess} = State) ->
     {reply, add_command(Sess, Owner, Adapter, Name, Cmd, Conn, Opts), State};

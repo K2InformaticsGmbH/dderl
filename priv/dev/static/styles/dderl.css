@@ -920,3 +920,17 @@ ul.dropdown.floatNone ul li {
 .ui-tabs li.sql-tab-highlight {
     font-weight: bold;
 }
+
+.conn-selection {
+    margin-top: 20px;
+}
+
+.conn-selection ul {
+    list-style-type: none;
+    padding-left: 0px;
+    margin-top: 0px;
+}
+
+.conn-selection input {
+    margin-right: 10px;
+}
