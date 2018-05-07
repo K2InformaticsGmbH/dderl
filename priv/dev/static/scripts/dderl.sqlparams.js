@@ -162,3 +162,12 @@ export function sql_params_dlg(container, qpars, outInputs) {
             .appendTo(tab);
     });
 }
+
+export function all_out_params(pars) {
+    for(let p in pars) {
+        if(pars[p].dir === 'in') {
+            return false;
+        }
+    }
+    return true;
+}

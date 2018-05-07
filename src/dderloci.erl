@@ -52,6 +52,9 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
     {Sql, NewSql, TableName, RowIdAdded, SelectSections} =
         parse_sql(sqlparse:parsetree(OrigSql), OrigSql),
     case catch run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) of
+        {'EXIT', {{error, Error}, ST}} ->
+            ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
+            {error, Error};
         {'EXIT', {Error, ST}} ->
             ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
             {error, Error};

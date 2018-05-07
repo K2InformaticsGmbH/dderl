@@ -193,6 +193,12 @@ process_cmd({[<<"get_view_connections">>], [{<<"id">>, ViewId}]}, _Adapter, Sess
         _ -> []
     end,
     From ! {reply, jsx:encode(#{get_view_connections => #{conns => CurrentConns}})};
+process_cmd({[<<"get_view_params">>], [{<<"name">>, ViewName}]}, Adapter, Sess, UserId, From, _Priv) ->
+    Params = case get_view_params(Sess, ViewName, Adapter, UserId) of
+        #{error := <<"View not found">>} -> get_view_params(Sess, ViewName, Adapter, '_');
+        ViewParams -> ViewParams
+    end,
+    From ! {reply, jsx:encode(#{get_view_params => Params})};
 process_cmd({[<<"view_op">>], ReqBody}, _Adapter, Sess, _UserId, From, _Priv) ->
     [{<<"view_op">>,BodyJson}] = ReqBody,
     Operation = string:to_lower(binary_to_list(proplists:get_value(<<"operation">>, BodyJson, <<>>))),
@@ -510,6 +516,17 @@ process_query(Query, Connection, Params, SessPid) ->
     imem_adapter:process_query(Query, Connection, Params, SessPid).
 
 %%%%%%%%%%%%%%%
+
+-spec get_view_params({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> map().
+get_view_params(Sess, ViewName, Adapter, UserId) ->
+    case dderl_dal:get_view(Sess, ViewName, Adapter, UserId) of
+        #ddView{cmd = CmdId} ->
+            case dderl_dal:get_command(Sess, CmdId) of
+                #ddCmd{command = Sql} -> #{params => opt_bind_json_obj(Sql, Adapter)};
+                _ -> #{error => <<"Command not found">>}
+            end;
+        _ -> #{error => <<"View not found">>}
+    end.
 
 -spec get_pretty_tuple(term()) -> {binary(), binary()}.
 get_pretty_tuple(ParseTree) ->

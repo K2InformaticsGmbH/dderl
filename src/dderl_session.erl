@@ -556,6 +556,7 @@ process_call({[C], ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
       C =:= <<"get_query">>;
       C =:= <<"save_view">>;
       C =:= <<"get_view_connections">>;
+      C =:= <<"get_view_params">>;
       C =:= <<"view_op">>;
       C =:= <<"update_view">>;
       C =:= <<"save_dashboard">>;

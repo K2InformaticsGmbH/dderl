@@ -5,11 +5,12 @@ import 'jquery-dialogextend/build/jquery.dialogextend';
 import {alert_jq, prompt_jq, confirm_jq, alert_js_error} from '../dialogs/dialogs';
 import {addWindowFinder, dderlState, updateWindowTitle, saveDashboardWithCounter,
     smartDialogPosition, addToCurrentViews, ajaxCall, beep} from './dderl';
-import {evalD3Script} from '../graph/graph';
+import {evalD3Script, openGraphView} from '../graph/graph';
 import './dderl.termEditor';
 import './dderl.statsTable';
 import {createCopyTextBox} from '../slickgrid/plugins/slick.cellexternalcopymanager';
 import {controlgroup_options} from '../jquery-ui-helper/helper.js';
+import {newSqlEditor} from "./dderl.sql";
 import * as tableSelection from './table-selection';
 
 (function() {
@@ -39,6 +40,7 @@ import * as tableSelection from './table-selection';
     _tbllay         : null,
     _viewId         : null,
     _origcolumns    : null,
+    _browseDataDef  : null,
 
     _fetchIsTail    : false,
     _fetchIsPush    : false,
@@ -141,6 +143,7 @@ import * as tableSelection from './table-selection';
                        'Columns Hide Empty'  : '_hideEmpty',
                        'Columns Unhide'      : '_unhide',
                        'Column Shrink'       : '_shrinkColumn',
+                       'Define Browse Data'  : '_defineBrowseData',
                        'Distinct Count'      : '_showDistinctCount',
                        'Distinct Statistics' : '_showDistinctStatistics',
                        'Filter...'           : '_filterColumn',
@@ -230,6 +233,7 @@ import * as tableSelection from './table-selection';
         var self = this;
 
         self._origcolumns = {};
+        self._browseDataDef = {};
         self._gdata = [];
         self._graphDivs = [];
 
@@ -265,6 +269,9 @@ import * as tableSelection from './table-selection';
         if(self._cmd) {
             self._addToEditorHistory(self._cmd);
         }
+
+        self._browseDataDef = extractBrowseDataDef(self._clmlay);
+
 
         // dialog elements
 
@@ -385,7 +392,7 @@ import * as tableSelection from './table-selection';
             var data = null;
             switch(_menu) {
                 case '_slkHdrCnxtMnu':
-                    if((_action === "Distinct Count") || (_action === "Distinct Statistics")) {
+                    if((_action === "Distinct Count") || (_action === "Distinct Statistics") || (_action === "Define Browse Data")) {
                         let _ranges = this._grid.getSelectionModel().getSelectedRanges();
                         let _columnIds = [];
 
@@ -425,17 +432,14 @@ import * as tableSelection from './table-selection';
                 script = self._planeSpecs[0].script;
             }
 
-            self._divSqlEditor = $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : this.options.title,
-                      cmdOwner  : this._dlg,
-                      history   : this._cmdStrs,
-                      cmdFlat   : this._cmd,
-                      optBinds  : this._optBinds,
-                      script    : script // TODO: This should be multiple specs...
-                     })
-                .sql('open');
+            self._divSqlEditor = newSqlEditor(
+                this.options.title,
+                this._cmd,
+                this._dlg,
+                this._cmdStrs,
+                this._optBinds,
+                script
+            );
         }
     },
 
@@ -596,14 +600,17 @@ import * as tableSelection from './table-selection';
     },
 
     _getColumnsLayout: function() {
+        var self = this;
         var colnamesizes = [];
         var cols = this._grid.getColumns();
         for(var idx = 1; idx < cols.length; ++idx) {
-            var newColName = cols[idx].name + "_" + idx;
+            var colName = cols[idx].name;
+            var newColName = colName + "_" + idx;
             colnamesizes.push({
                 name: newColName,
                 width: cols[idx].width,
-                hidden: false
+                hidden: false,
+                browse_data: self._browseDataDef[colName]
             });
         }
         return colnamesizes;
@@ -879,15 +886,7 @@ import * as tableSelection from './table-selection';
                     width = 1000;
                 }
             }
-            $('<div>')
-                .appendTo(document.body)
-                .sql({autoOpen  : false,
-                      title     : sqlResult.title,
-                      width     : width,
-                      cmdOwner  : null,
-                      history   : this._cmdStrs
-                     })
-                .sql('open').sql('setFlatCmd', sqlResult.sql);
+            newSqlEditor(sqlResult.title, sqlResult.sql, null, this._cmdStrs);
         }
     },
 
@@ -1700,6 +1699,21 @@ import * as tableSelection from './table-selection';
         return filterspec;
     },
 
+    _defineBrowseData: function({columnIds: ids}) {
+        var self = this;
+        // ids is an array containing the selected columns
+        let id = ids.pop();
+        if(!id) { return; } // Nothing to do ...
+        console.log("Opening definition for column", id, this._origcolumns);
+
+        var cols = self._grid.getColumns();
+        var colName = cols[id].name;
+        openDefineBrowseDialog(colName, cols, function(args) {
+            self._browseDataDef[colName] = args;
+            console.log("the args", args);
+        });
+    },
+
     // table actions
     _browseCellData: function(ranges) {
         var self = this;
@@ -1715,7 +1729,9 @@ import * as tableSelection from './table-selection';
                     let column = self._grid.getColumns()[1];
                     cells.push({
                         row: data.id,
-                        col: self._origcolumns[column.field]
+                        col: self._origcolumns[column.field],
+                        name: column.name,
+                        data: data
                     });
                 }
             } else {
@@ -1725,7 +1741,9 @@ import * as tableSelection from './table-selection';
                         let column = self._grid.getColumns()[k];
                         cells.push({
                             row: data.id,
-                            col: self._origcolumns[column.field]
+                            col: self._origcolumns[column.field],
+                            name: column.name,
+                            data: data
                         });
                     }
                 }
@@ -1734,16 +1752,63 @@ import * as tableSelection from './table-selection';
         console.log("the cells", cells);
         if(cells.length > 10) {
             alert_jq("A maximum of 10 tables can be open simultaneously");
-        } else {
-            for(let i = 0; i < cells.length; ++i) {
-                self._ajax('browse_data',
-                       { browse_data: {connection : dderlState.connection,
-                                           conn_id : dderlState.connectionSelected.connection,
-                                           statement : self._stmt,
-                                           row : cells[i].row,
-                                           col : cells[i].col}},
-                       'browse_data', 'browseData');
+            return;
+        }
+
+        if(cells.length === 1) {
+            // Only special definition supported.
+            console.log("checking if we have definition for ", cells[0].name, self._browseDataDef);
+            if(self._browseDataDef[cells[0].name]) {
+                let browseDataDef = self._browseDataDef[cells[0].name];
+                let bindsDef = browseDataDef.binds;
+                let binds = {};
+                for(let bindName in bindsDef) {
+                    //Skip if this variable should remain unbound.
+                    if(bindsDef[bindName].bind_type == "unbound") { continue; }
+
+                    let value = bindsDef[bindName].value;
+                    if(bindsDef[bindName].bind_type == "column") {
+                        let cols = self._grid.getColumns();
+                        let found = false;
+                        for(let i = 0; i < cols.length; ++i) {
+                            if(cols[i].name === bindsDef[bindName].column) {
+                                value = cells[0].data[cols[i].field];
+                                found = true;
+                                break;
+                            }
+                        }
+                        if(!found) {
+                            console.log("Error column name not found", bindsDef[bindName].column);
+                            console.log("Unable to bind parameter", bindName);
+                            continue;
+                        }
+                    }
+                    binds[bindName] = {
+                        dir: bindsDef[bindName].dir,
+                        typ: bindsDef[bindName].type,
+                        val: value
+                    };
+                }
+
+                // TODO: Open position of browse data ...
+                openGraphView(browseDataDef.name, binds);
+                if(browseDataDef.replace) {
+                    self._dlg.dialog("close");
+                }
+
+                console.log("The data for this row", cells[0].data);
+                return;
             }
+        }
+
+        for(let i = 0; i < cells.length; ++i) {
+            self._ajax('browse_data',
+                    { browse_data: {connection : dderlState.connection,
+                                        conn_id : dderlState.connectionSelected.connection,
+                                        statement : self._stmt,
+                                        row : cells[i].row,
+                                        col : cells[i].col}},
+                    'browse_data', 'browseData');
         }
     },
 
@@ -2356,6 +2421,7 @@ import * as tableSelection from './table-selection';
         this._viewId = viewResult.view_id;
         if(viewResult.hasOwnProperty('column_layout') && viewResult.column_layout.length > 0) {
             this._clmlay = viewResult.column_layout;
+            this._browseDataDef = extractBrowseDataDef(viewResult.column_layout);
         }
         this._setTitleHtml($('<span>').text(viewResult.name).addClass('table-title'));
         this.options.title = viewResult.name;
@@ -2385,6 +2451,7 @@ import * as tableSelection from './table-selection';
         self._viewId = _views.view_id;
         if(_views.hasOwnProperty('column_layout') && _views.column_layout.length > 0) {
             self._clmlay = _views.column_layout;
+            self._browseDataDef = extractBrowseDataDef(_views.column_layout);
         }
         if(_views.hasOwnProperty('table_layout')  && _views.table_layout.hasOwnProperty('x')) {
             self._tbllay = _views.table_layout;
@@ -2475,6 +2542,7 @@ import * as tableSelection from './table-selection';
         }
         if(_table.hasOwnProperty('column_layout') && _table.column_layout.length > 0) {
             this._clmlay = _table.column_layout;
+            this._browseDataDef = extractBrowseDataDef(_table.column_layout);
         }
 
         if(_table.hasOwnProperty('table_layout')) {
@@ -2612,14 +2680,15 @@ import * as tableSelection from './table-selection';
                 cmdOrString.cmd,
                 null,
                 cmdOrString.view_id,
-                cmdOrString.table_layout);
+                cmdOrString.table_layout,
+                cmdOrString.column_layout);
         } else {
             self._openErlangTermEditor(cmdOrString);
         }
     },
 
-    _openFailedSql: function(title, cmd, optBinds, viewId, tbllay) {
-        openFailedSql(title, cmd, optBinds, viewId, tbllay);
+    _openFailedSql: function(title, cmd, optBinds, viewId, tbllay, clmlay) {
+        openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay);
     },
 
     _openImageEditor: function(dataImg) { // Data image encoded as base64 string
@@ -4128,14 +4197,11 @@ import * as tableSelection from './table-selection';
 
     hideSelection: function() {
         var self = this;
-        console.log("Hiding selection for", self.options.title);
-        console.log("the table div :D", self._tableDiv);
         self._tableDiv.addClass(tableSelection.hiddenSelectionClass);
     },
 
     enableSelection: function() {
         var self = this;
-        console.log("Enabling selection for", self.options.title);
         self._tableDiv.removeClass(tableSelection.hiddenSelectionClass);
     }
   });
@@ -4206,7 +4272,7 @@ function exportCsvPrompt(filename, callback) {
     return dlgDiv;
 }
 
-function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
+function openFailedSql(title, cmd, optBinds, viewId, tbllay, clmlay, autoExec = false) {
     var script = "";
     var viewLayout = {};
 
@@ -4221,20 +4287,7 @@ function openFailedSql(title, cmd, optBinds, viewId, tbllay) {
         }
         viewLayout = tbllay;
     }
-    $('<div>')
-        .appendTo(document.body)
-        .sql({
-            autoOpen: false,
-            title: title,
-            cmdOwner: null,
-            history: [],
-            cmdFlat: cmd,
-            optBinds: optBinds,
-            viewId: viewId,
-            viewLayout: viewLayout,
-            script: script // TODO: This should be multiple specs...
-        })
-        .sql('open');
+    newSqlEditor(title, cmd, null, [], optBinds, script, viewId, viewLayout, clmlay, autoExec);
 }
 
 export function renderNewTable(table, position, force) {
@@ -4246,12 +4299,16 @@ export function renderNewTable(table, position, force) {
         viewId = table.view_id;
     }
 
+    if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
+        cl = table.column_layout;
+    }
+
     if(table.hasOwnProperty('error')) {
         alert_jq(table.error);
-        openFailedSql(table.name, table.content, null, viewId, tl);
+        openFailedSql(table.name, table.content, null, viewId, tl, cl);
         return;
     } else if(table.hasOwnProperty('binds')) {
-        openFailedSql(table.name, table.content, table.binds, viewId, tl);
+        openFailedSql(table.name, table.content, table.binds, viewId, tl, cl, true);
         return;
     }
 
@@ -4273,10 +4330,6 @@ export function renderNewTable(table, position, force) {
         of: "#main-body",
         collision: 'none'
     };
-
-    if(table.hasOwnProperty('column_layout') && table.column_layout.length > 0) {
-        cl = table.column_layout;
-    }
 
 
     var baseOptions = {
@@ -4443,4 +4496,207 @@ function promptSaveAs(viewName, btnDefinitions, startBtn, currentCons, callback)
 
 function randomId() {
     return Math.random().toString(36).substr(2, 10);
+}
+
+function openDefineBrowseDialog(colName, allColumns, callback) {
+    console.log("the name", colName);
+    let container = document.createElement('div');
+    container.className = 'define-browser-dialog';
+    let $container = $(container);
+
+    let headerDiv = document.createElement('div');
+    let viewName = document.createElement('input');
+    let searchView = document.createElement('button');
+    searchView.appendChild(document.createTextNode('search view'));
+
+    headerDiv.appendChild(viewName);
+    headerDiv.appendChild(searchView);
+
+    container.appendChild(headerDiv);
+
+    let replaceTableDiv = document.createElement('div');
+    let replaceTable = document.createElement('input');
+    replaceTable.type = 'checkbox';
+    let replaceTableLbl = document.createElement('label');
+    replaceTableLbl.appendChild(document.createTextNode('Replace current table'));
+    replaceTableDiv.appendChild(replaceTable);
+    replaceTableDiv.appendChild(replaceTableLbl);
+
+    let footerDiv = document.createElement('div');
+    let paramControls; // Will hold the controls for the parameters.
+    let saveBtn = document.createElement('button');
+    saveBtn.appendChild(document.createTextNode('Save'));
+    saveBtn.onclick = () => {
+        let binds = {};
+        for(let pc in paramControls) {
+            binds[pc] = {
+                dir: paramControls[pc].dir.value,
+                type: paramControls[pc].typ.value,
+                bind_type: paramControls[pc].bind_type.value,
+                column: paramControls[pc].col.value,
+                value: paramControls[pc].val.value
+            };
+        }
+        $container.dialog("close");
+        callback({
+            name: viewName.value,
+            binds: binds,
+            replace: replaceTable.checked
+        });
+    };
+    saveBtn.disabled = true;
+    let clearBtn = document.createElement('button');
+    clearBtn.appendChild(document.createTextNode('Clear'));
+    clearBtn.onclick = () => {
+        $container.dialog("close");
+        callback(undefined);
+    };
+    footerDiv.appendChild(replaceTableDiv);
+    footerDiv.appendChild(clearBtn);
+    footerDiv.appendChild(saveBtn);
+
+    let paramsDiv = document.createElement('div');
+
+    container.appendChild(paramsDiv);
+    container.appendChild(footerDiv);
+
+    // Here we put the list of parameters after search for the view
+    searchView.onclick = () => {
+        console.log("searching view", viewName.value);
+        // Clear parametes list before adding new parameters.
+        paramControls = {};
+        while(paramsDiv.firstChild) {
+            paramsDiv.removeChild(paramsDiv.firstChild);
+        }
+        saveBtn.disabled = true;
+
+        var op = 'get_view_params';
+        ajaxCall(null, op, { name: viewName.value }, op, (resp) => {
+            if(resp.error) { return alert_jq(resp.error); }
+
+            console.log("The response", resp);
+
+            if(resp.params && resp.params.binds) {
+                console.log("Adding the params...");
+                paramControls = createParamControls(paramsDiv, resp.params.binds, allColumns);
+            }
+            saveBtn.disabled = false;
+        });
+
+    };
+
+     $container.dialog({
+        modal: false,
+        width: 500,
+        title: "Browse Data for " + colName,
+        appendTo: "#main-body",
+        collision: 'none'
+    });
+
+    $container.dialog("widget").draggable("option", "containment", "#main-body");
+}
+
+function createParamControls(container, {types: types, pars: pars}, columns) {
+    console.log("Create controls", types, pars, columns);
+    var controls = {};
+    var typeSel = document.createElement('select');
+    types.forEach(function(t) {
+        typeSel.appendChild(new Option(t, t));
+    });
+
+    var colSel = document.createElement('select');
+    columns.forEach(function(c) {
+        if(c.field == 'id') { return; } //Ignore id column
+        colSel.appendChild(new Option(c.name, c.name));
+    });
+
+    // TODO: Change this for radio or something with better design.
+    var bindTypeSel = document.createElement('select');
+    bindTypeSel.appendChild(new Option('column', 'column', true));
+    bindTypeSel.appendChild(new Option('value', 'value'));
+    bindTypeSel.appendChild(new Option('unbound', 'unbound'));
+
+    var dirSel = document.createElement('select');
+    dirSel.appendChild(new Option('in', 'in', true));
+    dirSel.appendChild(new Option('out', 'out'));
+    dirSel.appendChild(new Option('inout', 'inout'));
+
+    var params = [];
+    for (let p in pars) {
+        let param = pars[p];
+        param.name = p;
+        params.push(param);
+    }
+    console.log("The params", params);
+
+    params.sort(function(a, b) {
+        if(a.dir === b.dir) {
+            return a.name.localeCompare(b.name);
+        }
+        return a.dir.localeCompare(b.dir);
+    });
+
+    params.forEach(function(p) {
+        let paramRow = document.createElement('div');
+        let dirSelClone = dirSel.cloneNode(true);
+        dirSelClone.value = p.dir;
+        let typeSelClone = typeSel.cloneNode(true);
+        typeSelClone.value = p.typ;
+        let colSelClone = colSel.cloneNode(true);
+        let bindTypeSelClone = bindTypeSel.cloneNode(true);
+        let valueInput = document.createElement('input');
+        valueInput.style.display = 'none';
+
+        controls[p.name] = {
+            dir: dirSelClone,
+            typ: typeSelClone,
+            col: colSelClone,
+            val: valueInput,
+            bind_type: bindTypeSelClone
+        };
+
+        bindTypeSelClone.onchange = (evt) => {
+            if(evt.target.value === 'column') {
+                valueInput.style.display= 'none';
+                colSelClone.style.display= 'inline-block';
+                colSelClone.disabled = false;
+            } else if(evt.target.value === 'value') {
+                colSelClone.style.display= 'none';
+                valueInput.style.display= 'inline-block';
+                valueInput.disabled = false;
+            } else if(evt.target.value === 'unbound') {
+                valueInput.disabled = true;
+                colSelClone.disabled = true;
+            } else {
+                console.log("Bind type not found, default to column, bind type:", evt.target.value);
+                valueInput.style.display= 'none';
+                colSelClone.style.display= 'inline-block';
+                colSelClone.disabled = false;
+            }
+        };
+
+        paramRow.appendChild(document.createTextNode(p.name));
+        paramRow.appendChild(dirSelClone);
+        paramRow.appendChild(typeSelClone);
+        paramRow.appendChild(bindTypeSelClone);
+        paramRow.appendChild(colSelClone);
+        paramRow.appendChild(valueInput);
+
+        container.appendChild(paramRow);
+    });
+
+    return controls;
+}
+
+function extractBrowseDataDef(layout) {
+    let definition = {};
+    if(!layout) { return definition; }
+
+    layout.forEach((col) => {
+        let nameArrWithId = col.name.split("_");
+        nameArrWithId.pop(); // Remove the id
+        let name = nameArrWithId.join("_");
+        definition[name] = col.browse_data;
+    });
+    return definition;
 }
