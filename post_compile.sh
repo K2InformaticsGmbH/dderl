@@ -1,15 +1,18 @@
 #!/bin/sh
 . $(dirname $0)/common.sh
 
-dderlPriv=_build/default/lib/dderl/priv
-if [ ! -d $dderlPriv ]; then
-    dderlPriv=_checkouts/dderl/priv
+dderlRoot=$(readlink -f _build)
+if [ -d $dderlRoot/default/lib/dderl/priv ]; then
+    dderlPriv=$dderlRoot/default/lib/dderl/priv
+elif [ -d $dderlRoot/prod/lib/dderl/priv ]; then
+    dderlPriv=$dderlRoot/prod/lib/dderl/priv
+else
+    dderlPriv=$(readlink -f _checkouts)/dderl/priv
 fi
 
-dderlPriv=$(readlink -f $dderlPriv)
 dderlPrivPublic=$dderlPriv/public
 
-log green "post_compile mpro $(pwd)"
+log green "post_compile dderl $(pwd)"
 log lightgrey "dderlPriv ${dderlPriv}"
 
 if [ -d $dderlPrivPublic ]; then
@@ -42,7 +45,7 @@ else
     cd "$dderlPriv/dev"
     log green "npm run build
      $(pwd)"
-    npm run build-prod
+    npm run build
 
     log green "dderl front-end built!"
 fi

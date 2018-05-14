@@ -26,9 +26,9 @@ log green "npm run build-prod"
 cd $dderlPriv/dev
 npm run build-prod
 
-# cleanup
-rm -rf $dderlPriv/dev
-log green "dir 'dev' deleted"
-
-rm -rf $dderlPriv/swagger
-log green "dir 'swagger' deleted"
+# # cleanup
+# rm -rf $dderlPriv/dev
+# log green "dir 'dev' deleted"
+# 
+# rm -rf $dderlPriv/swagger
+# log green "dir 'swagger' deleted"

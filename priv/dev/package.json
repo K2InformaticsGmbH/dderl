@@ -40,7 +40,7 @@
   "scripts": {
     "build-dderl": "npm run lint && npm run clean && webpack --progress",
     "build": "npm run lint && npm run clean && webpack --progress && npm run build-swagger-dev",
-    "build-prod": "npm run lint && npm run clean && webpack --progress -p && npm run build-swagger",
+    "build-prod": "npm run lint && npm run clean && webpack -p && npm run build-swagger",
     "clean": "rimraf ../public",
     "env": "env",
     "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph static/slickgrid",
