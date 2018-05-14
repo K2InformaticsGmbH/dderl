@@ -1,35 +1,45 @@
-#!/bin/sh
+. $(dirname $0)/common.sh
+
 app=${1:-dderl}
-echo "===> post_release app"
+log green "post_release $app $(pwd)"
 
 dderlPriv=$(readlink -f _build/prod/rel/$1/lib/dderl-*/priv/)
-if [ -d "$dderlPriv/dev" ]; then
+
+if [ -d "$dderlPriv/public" ]; then
+    log blue "dderl(dev+swagger) already built!"
+else
+    if [ -d "$dderlPriv/dev" ]; then
+        cd $dderlPriv/dev
+        rm -rf node_modules
+        log purple "'dev/node_modules' deleted"
+    
+        log green "npm install (dev)"
+        npm install
+    else
+        log red "unable to build dderl(dev), missing $dderlPriv/dev"
+        exit 1
+    fi
+    
+    if [ -d "$dderlPriv/swagger" ]; then
+        cd $dderlPriv/swagger
+        rm -rf node_modules
+        log purple "'swagger/node_modules' deleted"
+    
+        log green "npm install (swagger)"
+        npm install
+    else
+        log red "unable to build dderl(swagger), missing $dderlPriv/swagger"
+        exit 1
+    fi
+
+    log green "npm run build-prod"
     cd $dderlPriv/dev
-    rm -rf node_modules
-    echo "===> dir 'dev/node_modules' deleted"
-else
-    echo "===> dderl-dev already built!"
-    exit 0
+    npm run build-prod
+
+    # cleanup
+    rm -rf $dderlPriv/dev
+    log green "dir 'dev' deleted"
+    
+    rm -rf $dderlPriv/swagger
+    log green "dir 'swagger' deleted"
 fi
-
-echo "===> npm install"
-npm install
-
-if [ -d "$dderlPriv/swagger" ]; then
-    cd $dderlPriv/swagger
-    rm -rf node_modules
-    echo "===> dir 'swagger/node_modules' deleted"
-else
-    echo "===> dderl-swagger already built!"
-    exit 0
-fi
-
-echo "===> npm run build-prod"
-cd $dderlPriv/dev
-npm run build-prod
-
-rm -rf $dderlPriv/dev
-echo "===> dir 'dev' deleted"
-
-rm -rf $dderlPriv/swagger
-echo "===> dir 'swagger' deleted"
