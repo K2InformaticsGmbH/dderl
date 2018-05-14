@@ -3,39 +3,28 @@
 app=${1:-dderl}
 log green "post_release $app $(pwd)"
 
-dderlPriv=$(readlink -f _build/prod/rel/$1/lib/dderl-*/priv/)
+dderlPriv=$(readlink -f _build/prod/rel/$app/lib/dderl-*/priv/)
+log lightgrey "path: $dderlPriv"
+
+if [ ! -d "$dderlPriv/dev/node_modules" ]; then
+    log red "unable to build dderl(dev), missing $dderlPriv/dev/node_modules"
+    exit 1
+fi
+
+if [ ! -d "$dderlPriv/swagger/node_modules" ]; then
+    log red "unable to build dderl(swagger), missing $dderlPriv/swagger/node_modules"
+    exit 1
+fi
 
 if [ -d "$dderlPriv/public" ]; then
-    log blue "dderl(dev+swagger) already built!"
-else
-    if [ -d "$dderlPriv/dev" ]; then
-        cd $dderlPriv/dev
-        rm -rf node_modules
-        log purple "'dev/node_modules' deleted"
-    
-        log green "npm install (dev)"
-        npm install
-    else
-        log red "unable to build dderl(dev), missing $dderlPriv/dev"
-        exit 1
-    fi
-    
-    if [ -d "$dderlPriv/swagger" ]; then
-        cd $dderlPriv/swagger
-        rm -rf node_modules
-        log purple "'swagger/node_modules' deleted"
-    
-        log green "npm install (swagger)"
-        npm install
-    else
-        log red "unable to build dderl(swagger), missing $dderlPriv/swagger"
-        exit 1
-    fi
-
-    log green "npm run build-prod"
-    cd $dderlPriv/dev
-    npm run build-prod
+    log blue "found dderl(dev+swagger) debug build"
+    rm -rf $dderlPriv/public
+    log purple "found $dderlPriv/public"
 fi
+
+log green "npm run build-prod"
+cd $dderlPriv/dev
+npm run build-prod
 
 # cleanup
 rm -rf $dderlPriv/dev
