@@ -28,7 +28,12 @@ log() {
     fi
 }
 
-dderlPriv=$(readlink -f _build/default/lib/dderl/priv)
+dderlPriv=_build/default/lib/dderl/priv
+if [ ! -d $dderlPriv ]; then
+    dderlPriv=_checkouts/dderl/priv
+fi
+
+dderlPriv=$(readlink -f $dderlPriv)
 dderlPrivPublic=$dderlPriv/public
 
 log green "post_compile mpro $(pwd)"
