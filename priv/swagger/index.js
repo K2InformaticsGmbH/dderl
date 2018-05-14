@@ -16,7 +16,7 @@ $(function () {
         if (brand.logo) {
             $('#brand_image').attr('src', brand.logo);
         } else {
-            $('#brand_image').hide();
+            $('#brand_image').remove();
         }
         SwaggerUI({
             dom_id: '#SwaggerUI',
