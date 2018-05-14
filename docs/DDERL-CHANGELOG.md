@@ -3,6 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.3.1 (Release Date 08.05.2018)
+======================================
+* Added configuration to build rpm
+
 Version 2.3.0 (Release Date 03.05.2018)
 ======================================
 * Merged flat and pretty into a single monaco editor

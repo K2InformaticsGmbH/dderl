@@ -1,11 +1,6 @@
 #!/bin/sh
-if [ -z "$1" ]
-then
-    app="dderl"
-else
-    app="$1"
-fi
-echo "===> post_release $1"
+app=${1:-dderl}
+echo "===> post_release app"
 
 dderlPriv=$(readlink -f _build/prod/rel/$1/lib/dderl-*/priv/)
 if [ -d "$dderlPriv/dev" ]; then
