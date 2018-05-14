@@ -13,7 +13,11 @@ $(function () {
         $('#brand_image').one('load', function () {
             $('#k2logo').css('height', $('#brand_image').height());
         });
-        $('#brand_image').attr('src', brand.logo);
+        if (brand.logo) {
+            $('#brand_image').attr('src', brand.logo);
+        } else {
+            $('#brand_image').hide();
+        }
         SwaggerUI({
             dom_id: '#SwaggerUI',
             url: window.location.origin + brand.spec
