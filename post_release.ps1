@@ -1,4 +1,6 @@
 Param([string]$app="dderl")
+Write-Host "===> -------------------------------------------------------------------------"
+Write-Host "===> post_release $app @ $pwd" -foregroundcolor green
 
 $root = (Resolve-Path "_build/prod/rel/$app/").Path
 cd $root
@@ -7,79 +9,38 @@ $erts = Get-ChildItem -Filter erts-* |
 $ertsIni = "$erts\bin\erl.ini"
 If (Test-Path $ertsIni) {
     Remove-Item $ertsIni
-    Write-Host "===> deleted $ertsIni" -foregroundcolor "magenta"
+    Write-Host "===> deleted $ertsIni" -foregroundcolor magenta
 }
 Else {
-    Write-Host "===> not found $ertsIni" -foregroundcolor "red"
+    Write-Host "===> not found $ertsIni" -foregroundcolor red
 }
 
 $dderlPriv = (Resolve-Path "$root\lib\dderl-*\priv").Path
-Write-Host "===> building dderl @ $dderlPriv ..." -foregroundcolor "magenta"
+Write-Host "===> building dderl @ $dderlPriv ..." -foregroundcolor gray
 
-If (Test-Path "$dderlPriv\dev") {
-    cd "$dderlPriv\dev"
-    Write-Host "===> building dderl (dev)@ $dderlPriv ..." -foregroundcolor "magenta"
-} Else {
-    Write-Host "===> dderl (dev) already built!" -foregroundcolor "magenta"
-    exit
+If (!(Test-Path "$dderlPriv\dev\node_modules")) {
+    throw "unable to build dderl (dev), $dderlPriv\dev\node_modules doesn't exist"
 }
 
-If (Test-Path node_modules) {
-    # Remove-Item node_modules -Force -Recurse
-    Write-Host "===> directory 'dev\node_modules' deleted" -foregroundcolor "magenta"
+If (!(Test-Path "$dderlPriv\swagger\node_modules")) {
+    throw "unable to build dderl (swager), $dderlPriv\swagger\node_modules doesn't exist"
 }
 
-Write-Host "===> npm install (dev)" -foregroundcolor "magenta"
-# npm install
-
-If (Test-Path "$dderlPriv\swagger") {
-    cd "$dderlPriv\swagger"
-    Write-Host "===> building dderl (swagger) @ $dderlPriv ..." -foregroundcolor "magenta"
-} Else {
-    Write-Host "===> dderl (swagger) already built!" -foregroundcolor "magenta"
-    exit
+If (Test-Path "$dderlPriv\public") {
+    Write-Host "===> found dderl(dev+swagger) debug build" -foregroundcolor blue
+    Remove-Item "$dderlPriv\public" -Force -Recurse
+    Write-Host "===> deleted $dderlPriv/public" -foregroundcolor magenta
 }
-
-If (Test-Path node_modules) {
-    Remove-Item node_modules -Force -Recurse
-    Write-Host "===> directory 'swagger\node_modules' deleted" -foregroundcolor "magenta"
-}
-
-Write-Host "===> npm install (swagger)" -foregroundcolor "magenta"
-npm install
 
 cd "$dderlPriv\dev"
-Write-Host "===> npm run build-prod" -foregroundcolor "magenta"
+Write-Host "===> npm run build-prod @ $pwd" -foregroundcolor green
 npm run build-prod
 
-Write-Host "===> clean up dev"
-If (Test-Path "$dderlPriv\dev") {
-    If (!(Get-ItemProperty "$dderlPriv\dev").Target) {
-        Remove-Item "$dderlPriv\dev" -Force -Recurse
-        Write-Host "===> directory $dderlPriv\dev deleted" -foregroundcolor "magenta"
-    } Else {
-        Write-Host "===> directory $dderlPriv\dev is a symbolic link - no cleanup" -foregroundcolor "magenta"
-        If (Test-Path "$dderlPriv\dev\node_modules") {
-            Remove-Item "$dderlPriv\dev\node_modules" -Force -Recurse
-            Write-Host "===> directory 'dev\node_modules' deleted" -foregroundcolor "magenta"
-        }
-    }
-} Else {
-        Write-Host "===> directory $dderlPriv\dev not found" -foregroundcolor "magenta"
-}
+# Cleanup
+Remove-Item "$dderlPriv\swagger" -Force -Recurse
+Write-Host "===> $dderlPriv/swagger deleted" -foregroundcolor green
 
-Write-Host "===> clean up swagger"
-If (Test-Path "$dderlPriv\swagger") {
-    If (!(Get-ItemProperty "$dderlPriv\swagger").Target) {
-        Remove-Item "$dderlPriv\swagger" -Force -Recurse
-        Write-Host "===> directory $dderlPriv\swagger deleted" -foregroundcolor "magenta"
-    } Else {
-        Write-Host "===> directory $dderlPriv\swagger is a symbolic link - no cleanup" -foregroundcolor "magenta"
-        If (Test-Path "$dderlPriv\swagger\node_modules") {
-            Remove-Item "$dderlPriv\swagger\node_modules" -Force -Recurse
-            Write-Host "===> directory 'swagger\node_modules' deleted" -foregroundcolor "magenta"
-        }
-    }
-} Else {
-        Write-Host "===> directory $dderlPriv\swagger not found" -foregroundcolor "magenta"
-}
+Remove-Item "$dderlPriv\dev" -Force -Recurse
+Write-Host "===> $dderlPriv/dev deleted" -foregroundcolor green
+
+Write-Host "===> ------------------------------------------------------------ post_release"

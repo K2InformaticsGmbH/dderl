@@ -12,6 +12,8 @@ fi
 
 dderlPrivPublic=$dderlPriv/public
 
+log green "-------------------------------------------------------------------------"
+
 log green "post_compile dderl $(pwd)"
 log lightgrey "dderlPriv ${dderlPriv}"
 
@@ -28,7 +30,7 @@ else
         log purple "'dev/node_modules' deleted"
     fi
 
-    log green "npm install (dev) $(pwd)"
+    log green "npm install (dev) @ $(pwd)"
     npm install
 
     cd "$dderlPriv/swagger"
@@ -38,14 +40,14 @@ else
         log purple "'swagger/node_modules' deleted"
     fi
     
-    log green "npm install (swagger) at $(pwd)"
+    log green "npm install (swagger) @ $(pwd)"
     npm install
 
     # builds both dderl and swagger
     cd "$dderlPriv/dev"
-    log green "npm run build
-     $(pwd)"
+    log green "npm run build @ $(pwd)"
     npm run build
 
     log green "dderl front-end built!"
 fi
+log green "------------------------------------------------------------ post_compile"

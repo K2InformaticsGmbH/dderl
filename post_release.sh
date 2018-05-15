@@ -1,10 +1,11 @@
 . $(dirname $0)/common.sh
 
+log green "-------------------------------------------------------------------------"
 app=${1:-dderl}
-log green "post_release $app $(pwd)"
+log green "post_release $app @ $(pwd)"
 
 dderlPriv=$(readlink -f _build/prod/rel/$app/lib/dderl-*/priv/)
-log lightgrey "path: $dderlPriv"
+log lightgrey "building dderl @ $dderlPriv"
 
 if [ -d "$dderlPriv/dev/node_modules" ]; then
     log blue "$dderlPriv/dev/node_modules already exists"
@@ -37,3 +38,4 @@ log green "dir 'dev' deleted"
 
 rm -rf $dderlPriv/swagger
 log green "dir 'swagger' deleted"
+log green "------------------------------------------------------------ post_release"
