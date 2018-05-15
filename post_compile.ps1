@@ -16,6 +16,8 @@ Write-Host "===> post_compile dderl $pwd" -foregroundcolor green
 Write-Host "===> dderlPriv $dderlPriv" -foregroundcolor gray
 If (Test-Path $dderlPrivPublic) {
 	Write-Host "===> dderl front-end already built!" -foregroundcolor magenta
+
+	Write-Host "===> ------------------------------------------------------------ post_compile"
 	exit
 }
 Else {

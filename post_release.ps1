@@ -37,6 +37,7 @@ Write-Host "===> npm run build-prod @ $pwd" -foregroundcolor green
 npm run build-prod
 
 # Cleanup
+cd ..
 Remove-Item "$dderlPriv\swagger" -Force -Recurse
 Write-Host "===> $dderlPriv/swagger deleted" -foregroundcolor green
 
