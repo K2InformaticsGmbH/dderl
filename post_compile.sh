@@ -7,7 +7,7 @@ if [ -d $dderlRoot/default/lib/dderl/priv ]; then
 elif [ -d $dderlRoot/prod/lib/dderl/priv ]; then
     dderlPriv=$dderlRoot/prod/lib/dderl/priv
 else
-    dderlPriv=$(readlink -f _checkouts)/dderl/priv
+    dderlPriv=$(readlink -f priv)
 fi
 
 dderlPrivPublic=$dderlPriv/public
