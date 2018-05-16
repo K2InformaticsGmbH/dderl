@@ -36,12 +36,27 @@ cd "$dderlPriv\dev"
 Write-Host "===> npm run build-prod @ $pwd" -foregroundcolor green
 npm run build-prod
 
+function Remove-Recursive-Force([string]$Root, [string]$Dir) {
+    Try {
+        Remove-Item "$Root\$Dir" -Force -Recurse -ea Stop
+        Write-Host "===> $Root\$Dir deleted" -foregroundcolor green
+    }
+    Catch {
+        Write-Host "===> failed to delete $Root\$Dir" -foregroundcolor red
+        md -Force C:\Temp
+        Write-Host "===> C:\Temp\ created (if didn't exist)" -foregroundcolor green
+        Remove-Item "C:\Temp\$Dir" -Force -Recurse
+        Write-Host "===> any existing C:\Temp\$Dir deleted" -foregroundcolor green
+        Move-Item -Path "$Root\$Dir" -Force -Destination C:\Temp
+        Write-Host "===> $Root\$Dir moved to C:\Temp\$Dir" -foregroundcolor green
+        Remove-Item "C:\Temp\$Dir" -Force -Recurse
+        Write-Host "===> C:\Temp\$Dir deleted" -foregroundcolor green
+    }
+}
+
 # Cleanup
 cd ..
-Remove-Item "$dderlPriv\swagger" -Force -Recurse
-Write-Host "===> $dderlPriv/swagger deleted" -foregroundcolor green
-
-Remove-Item "$dderlPriv\dev" -Force -Recurse
-Write-Host "===> $dderlPriv/dev deleted" -foregroundcolor green
+Remove-Recursive-Force $dderlPriv "swagger"
+Remove-Recursive-Force $dderlPriv "dev"
 
 Write-Host "===> ------------------------------------------------------------ post_release"
