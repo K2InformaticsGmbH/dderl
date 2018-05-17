@@ -1,10 +1,10 @@
 Write-Host "===> -------------------------------------------------------------------------"
-$dderlRoot = (Resolve-Path "_build").Path
-If (Test-Path "$dderlRoot/default/lib/dderl/priv") {
-	$dderlPriv="$dderlRoot/default/lib/dderl/priv"
+$dderlRoot = (Resolve-Path ".").Path
+If (Test-Path "$dderlRoot/_build/default/lib/dderl/priv") {
+	$dderlPriv="$dderlRoot/_build/default/lib/dderl/priv"
 }
-ElseIf (Test-Path "$dderlRoot/prod/lib/dderl/priv") {
-	$dderlPriv="$dderlRoot/prod/lib/dderl/priv"
+ElseIf (Test-Path "$dderlRoot/_build/prod/lib/dderl/priv") {
+	$dderlPriv="$dderlRoot/_build/prod/lib/dderl/priv"
 }
 Else {
     $dderlPriv= (Resolve-Path "priv").Path
