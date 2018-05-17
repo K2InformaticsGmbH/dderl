@@ -238,6 +238,13 @@ function init(container, width, height) {
                     var pos = d3.clientPoint(svg.node(), evt);
                     helper.createLabel(svg, pointTitle(d), pos[0], pos[1]);
                 }
+            }, 
+            {
+                label: "Copy",
+                icon: "copy",
+                cb: function(evt) {
+                    window.prompt("Copy to clipboard: Ctrl+C, Enter", JSON.stringify(d));
+                }
             }
         ];
         var pos = {x: d3.event.pageX - 15, y: d3.event.pageY - 20};
