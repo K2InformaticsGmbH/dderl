@@ -4,7 +4,7 @@ const webpack = require('webpack');
 const PATHS = {
     app: path.join(__dirname, 'static', 'index.js'),
     index: path.join(__dirname, 'static', 'index.html'),
-    public: path.join(__dirname, '../public'),
+    public: path.join(__dirname, '../public/dist'),
     static: path.join(__dirname, 'static')
 }
 
@@ -23,7 +23,7 @@ module.exports = {
     },
     output: {
         path: PATHS.public,
-        publicPath: "public/",
+        publicPath: "public/dist/",
         filename: '[name].js'
     },
     devtool: 'source-map',
@@ -33,15 +33,7 @@ module.exports = {
                 test: /\.(png|jpe?g|gif|svg|woff|woff2|ttf|eot|ico|mp3|ogg)$/,
                 loader: 'file-loader',
                 options: {
-                    name: '[path][name].[hash:6].[ext]'
-                }
-            },
-            {
-                // For font awesome the version is required.
-                test: /\.(svg|woff|woff2|ttf|eot)(\?v=[0-9]\.[0-9]\.[0-9])$/,
-                loader: 'file-loader',
-                options: {
-                    name: 'font-awesome/fonts/[name].[hash:6].ext'
+                    name: '[name].[hash:6].[ext]'
                 }
             },
             {
