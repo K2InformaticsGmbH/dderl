@@ -13,26 +13,11 @@
     }
   },
   "tags": [
-    {"name":"json", "description": "Swagger 2.0 JSON specification"},
     {"name":"views", "description": "Create, list or access DDErl views"},
     {"name":"sql", "description": "Execute SQL and fetch data"}
   ],
   "basePath": "/dderlrest/0.0.1",
   "paths": {
-    "/": {
-      "get": {
-        "tags": ["json"],
-        "summary": "download dderlrest.json",
-        "produces": ["application/json"],
-        "description": "Downloads API specification in Swagger 2.0 JSON format",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {"type": "file"}
-          }
-        }
-      }
-    },
     "/views/{view}": {
       "get": {
         "tags": ["views"],

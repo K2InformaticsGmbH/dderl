@@ -48,6 +48,33 @@ echo "--------------------------------------------------------"
 call rebar3 as prod erlpkg
 ```
 
+### shell script for Jenkins on CentOS building rpms
+```
+#!/bin/sh -e
+source ~/.bashrc
+echo "--------------------------------------------------------"
+echo "	PULL DEPENDENCIES"
+echo "--------------------------------------------------------"
+rebar3 as prod get-deps
+echo "--------------------------------------------------------"
+echo "	BUILD RELEASE"
+echo "--------------------------------------------------------" 
+rebar3 as prod release
+echo "--------------------------------------------------------"
+echo "	BUILD PACKAGE (RPM)"
+echo "--------------------------------------------------------" 
+rebar3 as prod erlpkg
+```
+
+with ``.bashrc`` as:
+```
+# cat /var/lib/jenkins/.bashrc 
+export PATH=$PATH:/usr/local/bin
+export INSTANT_CLIENT_INCLUDE_PATH=/usr/include/oracle/12.2/client64
+export INSTANT_CLIENT_LIB_PATH=/usr/lib/oracle/12.2/client64/lib/
+export ERL_INTERFACE_DIR=/usr/lib/erlang/lib/erl_interface-3.10.1
+```
+
 ### Certificates
 DDErl runs on SSL. A default certificate/key pair is [supplied](https://github.com/k2informatics/dderl/tree/master/priv/certs). This, however can be changed either by replacing these files atinstallation or modifying configuration in `ddConfig` table (`[{dderl,dderl,dderlSslOpts}]`). A sample configuration is given below:
 ```erlang

@@ -1,22 +1,42 @@
-#!/bin/sh
-echo "===> dderl post_release"
+. $(dirname $0)/common.sh
 
-dderlDev=_build/prod/rel/$1/lib/dderl-*/priv/dev
-if [ -d $dderlDev ]; then
-    cd $dderlDev
-    rm -rf node_modules
-    echo "===> dir 'node_modules' deleted"
-else
-    echo "===> dderl-npm already built!"
-    exit 0
+log green "-------------------------------------------------------------------------"
+app=${1:-dderl}
+log green "post_release $app @ $(pwd)"
+
+dderlPriv=$(readlink -f _build/prod/rel/$app/lib/dderl-*/priv/)
+log lightgrey "building dderl @ $dderlPriv"
+
+if [ -d "$dderlPriv/dev/node_modules" ]; then
+    log red "$dderlPriv/dev/node_modules already exists"
+	exit 1
 fi
 
-echo "===> npm install"
-npm install
+if [ -d "$dderlPriv/swagger/node_modules" ]; then
+	log red "$dderlPriv/swagger/node_modules already exists"
+    exit 1
+fi
 
-echo "===> npm run build-prod"
-npm run build
+if [ -d "$dderlPriv/public" ]; then
+    log red "$dderlPriv/public already exists"
+    exit 1
+fi
 
-cd ..
-echo "===> dir 'dev' deleted"
-rm -rf dev
+cd $dderlPriv/swagger
+log green "yarn @ $(pwd)"
+yarn
+
+cd $dderlPriv/dev
+log green "yarn @ $(pwd)"
+yarn
+log green "yarn run build-prod @ $(pwd)"
+yarn run build-prod
+
+# cleanup
+cd $dderlPriv
+rm -rf $dderlPriv/dev
+log green "dir $dderlPriv/dev deleted"
+
+rm -rf $dderlPriv/swagger
+log green "dir $dderlPriv/swagger deleted"
+log green "------------------------------------------------------------ post_release"

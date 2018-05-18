@@ -1,0 +1,41 @@
+{
+  "name": "swagger",
+  "version": "1.0.0",
+  "description": "K2 SwaggerUI",
+  "private": true,
+  "scripts": {
+    "start": "webpack-dev-server --open --config webpack.dev.js",
+    "build": "webpack -p --config webpack.prod.js",
+    "build-dev": "webpack -d --progress --colors --config webpack.dev.js"
+  },
+  "keywords": [
+    "swagger",
+    "rest",
+    "api"
+  ],
+  "author": "Bikram Chatterjee <chatterjee@bluewin.ch>",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.1.1",
+    "file-loader": "^1.1.11",
+    "jquery": "^3.3.1",
+    "popper.js": "^1.14.3",
+    "swagger-ui": "^3.14.0"
+  },
+  "devDependencies": {
+    "clean-webpack-plugin": "^0.1.19",
+    "copy-webpack-plugin": "^4.5.1",
+    "css-loader": "^0.28.11",
+    "favicons-webpack-plugin": "0.0.9",
+    "html-loader": "^0.5.5",
+    "html-webpack-plugin": "^3.2.0",
+    "node-sass": "^4.9.0",
+    "postcss-loader": "^2.1.4",
+    "sass-loader": "^7.0.1",
+    "style-loader": "^0.21.0",
+    "webpack": "^4.6.0",
+    "webpack-cli": "^2.1.2",
+    "webpack-dev-server": "^3.1.4",
+    "webpack-merge": "^4.1.2"
+  }
+}
