@@ -18,23 +18,27 @@ Else {
 $dderlPriv = (Resolve-Path "$root\lib\dderl-*\priv").Path
 Write-Host "===> building dderl @ $dderlPriv ..." -foregroundcolor gray
 
-If (!(Test-Path "$dderlPriv\dev\node_modules")) {
-    throw "unable to build dderl (dev), $dderlPriv\dev\node_modules doesn't exist"
+If (Test-Path "$dderlPriv\dev\node_modules") {
+    throw "$dderlPriv\dev\node_modules already exists"
 }
 
-If (!(Test-Path "$dderlPriv\swagger\node_modules")) {
-    throw "unable to build dderl (swager), $dderlPriv\swagger\node_modules doesn't exist"
+If (Test-Path "$dderlPriv\swagger\node_modules") {
+	throw "$dderlPriv\swagger\node_modules already exists"
 }
 
 If (Test-Path "$dderlPriv\public") {
-    Write-Host "===> found dderl(dev+swagger) debug build" -foregroundcolor blue
-    Remove-Item "$dderlPriv\public" -Force -Recurse
-    Write-Host "===> deleted $dderlPriv/public" -foregroundcolor magenta
+	throw "$dderlPriv\public already exists"
 }
 
-cd "$dderlPriv\dev"
-Write-Host "===> npm run build-prod @ $pwd" -foregroundcolor green
-npm run build-prod
+cd "$dderlPriv/swagger"
+Write-Host "===> yarn @ $pwd" -foregroundcolor green
+yarn
+
+cd "$dderlPriv/dev"
+Write-Host "===> yarn @ $pwd" -foregroundcolor green
+yarn
+Write-Host "===> yarn run build-prod @ $pwd" -foregroundcolor green
+yarn run build-prod
 
 function Remove-Recursive-Force([string]$Root, [string]$Dir) {
     Try {
@@ -55,7 +59,7 @@ function Remove-Recursive-Force([string]$Root, [string]$Dir) {
 }
 
 # Cleanup
-cd ..
+cd $dderlPriv
 Remove-Recursive-Force $dderlPriv "swagger"
 Remove-Recursive-Force $dderlPriv "dev"
 

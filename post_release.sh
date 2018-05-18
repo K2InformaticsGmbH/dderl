@@ -8,34 +8,35 @@ dderlPriv=$(readlink -f _build/prod/rel/$app/lib/dderl-*/priv/)
 log lightgrey "building dderl @ $dderlPriv"
 
 if [ -d "$dderlPriv/dev/node_modules" ]; then
-    log blue "$dderlPriv/dev/node_modules already exists"
-    log blue "this needs to be deleted and re-installed for lint to work..."
-    rm -rf $dderlPriv/dev/node_modules
-    log purple "deleted $dderlPriv/dev/node_modules"
+    log red "$dderlPriv/dev/node_modules already exists"
+	exit 1
 fi
-cd $dderlPriv/dev
-log green "npm install @ $(pwd)"
-npm install
 
-if [ ! -d "$dderlPriv/swagger/node_modules" ]; then
-    log red "unable to build dderl(swagger), missing $dderlPriv/swagger/node_modules"
+if [ -d "$dderlPriv/swagger/node_modules" ]; then
+	log red "$dderlPriv/swagger/node_modules already exists"
     exit 1
 fi
 
 if [ -d "$dderlPriv/public" ]; then
-    log blue "found dderl(dev+swagger) debug build"
-    rm -rf $dderlPriv/public
-    log purple "deleted $dderlPriv/public"
+    log red "$dderlPriv/public already exists"
+    exit 1
 fi
 
+cd $dderlPriv/swagger
+log green "yarn @ $(pwd)"
+yarn
+
 cd $dderlPriv/dev
-log green "npm run build-prod @ $(pwd)"
-npm run build-prod
+log green "yarn @ $(pwd)"
+yarn
+log green "yarn run build-prod @ $(pwd)"
+yarn run build-prod
 
 # cleanup
+cd $dderlPriv
 rm -rf $dderlPriv/dev
-log green "dir 'dev' deleted"
+log green "dir $dderlPriv/dev deleted"
 
 rm -rf $dderlPriv/swagger
-log green "dir 'swagger' deleted"
+log green "dir $dderlPriv/swagger deleted"
 log green "------------------------------------------------------------ post_release"
