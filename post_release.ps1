@@ -49,7 +49,7 @@ function Remove-Recursive-Force([string]$Root, [string]$Dir) {
         Write-Host "===> failed to delete $Root\$Dir" -foregroundcolor red
         md -Force C:\Temp
         Write-Host "===> C:\Temp\ created (if didn't exist)" -foregroundcolor green
-        Remove-Item "C:\Temp\$Dir" -Force -Recurse
+        Remove-Item "C:\Temp\$Dir" -Force -Recurse -ErrorAction SilentlyContinue
         Write-Host "===> any existing C:\Temp\$Dir deleted" -foregroundcolor green
         Move-Item -Path "$Root\$Dir" -Force -Destination C:\Temp
         Write-Host "===> $Root\$Dir moved to C:\Temp\$Dir" -foregroundcolor green
