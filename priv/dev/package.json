@@ -38,16 +38,13 @@
     "webpack": "3.10.0"
   },
   "scripts": {
-    "build-dderl": "npm run lint && npm run clean && webpack --progress",
-    "build": "npm run lint && npm run clean && webpack --progress && npm run build-swagger-dev",
-    "build-prod": "npm run lint && npm run clean && webpack -p && npm run build-swagger",
-    "clean": "rimraf ../public",
+    "build-dev": "npm run lint && npm run clean && webpack --progress",
+    "build-prod": "npm run lint && npm run clean && webpack -p",
+    "clean": "rimraf ../public/dist",
     "env": "env",
     "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph static/slickgrid",
     "test": "karma start karma.conf.js",
     "watch": "npm run clean && webpack --progress --watch",
-    "lint:d3_examples": "jshint --verbose d3_examples",
-    "build-swagger-dev": "cd ../swagger && npm run build-dev",
-    "build-swagger": "cd ../swagger && npm run build"
+    "lint:d3_examples": "jshint --verbose d3_examples"
   }
 }

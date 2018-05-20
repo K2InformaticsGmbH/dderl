@@ -1,0 +1,21 @@
+{
+  "name": "dderl",
+  "version": "1.0.0",
+  "description": "wrapper command interface",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/K2InformaticsGmbH/dderl.git"
+  },
+  "devDependencies": {
+    "rimraf": "^2.6.2"
+  },
+  "scripts": {
+    "build-all-dev": "yarn run build-dderl-dev && yarn run build-swagger-dev",
+    "build-all-prod": "yarn run build-dderl-prod && yarn run build-swagger-prod",
+    "build-dderl-dev": "cd dev/ && yarn && yarn build-dev",
+    "build-dderl-prod": "cd dev/ && yarn && yarn build-prod && cd .. && rimraf dev",
+    "build-swagger-dev": "cd swagger/ && yarn && yarn build-dev",
+    "build-swagger-prod": "cd swagger/ && yarn && yarn build-prod && cd .. && rimraf swagger"
+  }
+}
