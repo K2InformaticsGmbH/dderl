@@ -2,7 +2,6 @@ _build
 ebin
 log
 priv/certs/localhost*.*
-priv/dev/node_modules
 priv/public
 rebar.lock
 rebar3.crashdump
@@ -19,7 +18,8 @@ dderl.wiki/
 *.bkp
 tmp
 TEST*.xml
-priv/swagger/node_modules
 *.DCD
 *.DAT
 *.DCL
+node_modules/
+yarn.*
