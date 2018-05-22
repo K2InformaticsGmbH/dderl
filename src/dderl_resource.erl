@@ -36,13 +36,10 @@ process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     #{<<"dderl-adapter">> := Adapter, <<"fileToDownload">> := FileToDownload,
       <<"xsrfToken">> := XSRFToken} =
         maps:merge(
-            maps:from_list(ReqDataList),
             #{<<"dderl-adapter">> => <<>>, <<"fileToDownload">> => <<>>,
-            <<"xsrfToken">> => <<>>}
+              <<"xsrfToken">> => <<>>},
+            maps:from_list(ReqDataList)
         ),
-    % Adapter = dderl:keyfetch(<<"dderl-adapter">>, ReqDataList, <<>>),
-    % FileToDownload = dderl:keyfetch(<<"fileToDownload">>, ReqDataList, <<>>),
-    % XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
     case dderl:keyfetch(<<"exportAll">>, ReqDataList, <<"false">>) of
         <<"true">> ->
             QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
@@ -167,7 +164,7 @@ info(Message, Req, State) ->
 terminate(_Reason, Req, _State) ->
     #{accessLog := Log, reqTime := ReqTime,
       respSize := RespSize} =
-        maps:merge(Req, #{accessLog => 0, reqTime => 0, respSize => 0}),
+        maps:merge(#{accessLog => 0, reqTime => 0, respSize => 0}, Req),
     ReqSize = cowboy_req:body_length(Req),
     Size = ReqSize + RespSize,
     ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
