@@ -30,15 +30,9 @@ If (Test-Path "$dderlPriv\public") {
 	throw "$dderlPriv\public already exists"
 }
 
-cd "$dderlPriv/swagger"
-Write-Host "===> yarn @ $pwd" -foregroundcolor green
-yarn
-
-cd "$dderlPriv/dev"
-Write-Host "===> yarn @ $pwd" -foregroundcolor green
-yarn
-Write-Host "===> yarn run build-prod @ $pwd" -foregroundcolor green
-yarn run build-prod
+cd $dderlPriv
+Write-Host "===> yarn build-all-prod @ $pwd" -foregroundcolor green
+yarn build-all-prod
 
 function Remove-Recursive-Force([string]$Root, [string]$Dir) {
     Try {

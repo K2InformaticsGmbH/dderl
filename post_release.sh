@@ -22,15 +22,9 @@ if [ -d "$dderlPriv/public" ]; then
     exit 1
 fi
 
-cd $dderlPriv/swagger
-log green "yarn @ $(pwd)"
-yarn
-
-cd $dderlPriv/dev
-log green "yarn @ $(pwd)"
-yarn
-log green "yarn run build-prod @ $(pwd)"
-yarn run build-prod
+cd $dderlPriv
+log green "yarn build-all-prod @ $(pwd)"
+yarn build-all-prod
 
 # cleanup
 cd $dderlPriv
