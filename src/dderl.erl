@@ -158,7 +158,10 @@ reset_routes(Intf) ->
 -spec get_cookie(binary(), map(), term()) -> term().
 get_cookie(CookieName, Req, Default) ->
     Cookies = cowboy_req:parse_cookies(Req),
-    keyfetch(CookieName, Cookies, Default).
+    case maps:from_list(Cookies) of
+        #{CookieName := Value} -> Value;
+        _ -> Default
+    end.
 
 -spec keyfetch(term(), term(), list()) -> term().
 keyfetch(Key, List, Default) ->

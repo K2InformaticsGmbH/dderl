@@ -12,8 +12,6 @@
 
 -export([samlRelayStateHandle/2, conn_info/1]).
 
-% -define(DISP_REQ, 1).
-
 -record(state, {sessionToken}).
 
 init(Req0, []) ->
@@ -35,9 +33,16 @@ init(Req0, []) ->
 
 process_request(SessionToken, _, _Adapter, Req, [<<"download_query">>] = Typ) ->
     {ok, ReqDataList, Req1} = cowboy_req:read_urlencoded_body(Req),
-    Adapter = dderl:keyfetch(<<"dderl-adapter">>, ReqDataList, <<>>),
-    FileToDownload = dderl:keyfetch(<<"fileToDownload">>, ReqDataList, <<>>),
-    XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
+    #{<<"dderl-adapter">> := Adapter, <<"fileToDownload">> := FileToDownload,
+      <<"xsrfToken">> := XSRFToken} =
+        maps:merge(
+            maps:from_list(ReqDataList),
+            #{<<"dderl-adapter">> => <<>>, <<"fileToDownload">> => <<>>,
+            <<"xsrfToken">> => <<>>}
+        ),
+    % Adapter = dderl:keyfetch(<<"dderl-adapter">>, ReqDataList, <<>>),
+    % FileToDownload = dderl:keyfetch(<<"fileToDownload">>, ReqDataList, <<>>),
+    % XSRFToken = dderl:keyfetch(<<"xsrfToken">>, ReqDataList, <<>>),
     case dderl:keyfetch(<<"exportAll">>, ReqDataList, <<"false">>) of
         <<"true">> ->
             QueryToDownload = dderl:keyfetch(<<"queryToDownload">>, ReqDataList, <<>>),
@@ -160,9 +165,9 @@ info(Message, Req, State) ->
     {ok, Req, State, hibernate}.
 
 terminate(_Reason, Req, _State) ->
-    Log = maps:get(accessLog, Req, 0),
-    ReqTime = maps:get(reqTime, Req, 0),
-    RespSize = maps:get(respSize, Req, 0),
+    #{accessLog := Log, reqTime := ReqTime,
+      respSize := RespSize} =
+        maps:merge(Req, #{accessLog => 0, reqTime => 0, respSize => 0}),
     ReqSize = cowboy_req:body_length(Req),
     Size = ReqSize + RespSize,
     ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
