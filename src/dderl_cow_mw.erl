@@ -15,5 +15,5 @@ execute(Req, Env) ->
         _ ->
             Resp1 = cowboy_req:set_resp_headers(
                              RespHeaders#{<<"server">> => <<"dderl">>}, Req),
-            {ok, Resp1#{'_dderl' => true}, Env}
+            {ok, Resp1#{dderl => #{}}, Env}
     end.
