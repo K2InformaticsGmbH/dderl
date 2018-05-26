@@ -15,8 +15,8 @@
 -record(state, {sessionToken}).
 
 init(Req0, []) ->
-    Req = dderl:set_req_meta(dderl, reqTime, os:timestamp(), Req0),
-    Req1 = dderl:set_req_meta(dderl, accessLog, #{}, Req),
+    Req = ?COW_REQ_SET_META(reqTime, os:timestamp(), Req0),
+    Req1 = ?COW_REQ_SET_META(accessLog, #{}, Req),
     ?Debug("Request : ~p", [Req1]),
     case cowboy_req:has_body(Req1) of
         true ->
@@ -129,8 +129,8 @@ conn_info(Req) ->
     ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
               http => #{headers => Headers}}.
 info({access, Log}, Req, State) ->
-    OldLog = dderl:get_req_meta(dderl, accessLog, Req, 0),
-    Req1 = dderl:set_req_meta(dderl, accessLog, maps:merge(OldLog, Log), Req),
+    OldLog = ?COW_REQ_GET_META(accessLog, Req, 0),
+    Req1 = ?COW_REQ_SET_META(accessLog, maps:merge(OldLog, Log), Req),
     {ok, Req1, State, hibernate};
 info({spawn, SpawnFun}, Req, State) when is_function(SpawnFun) ->
     ?Debug("spawn fun~n to ~p", [State#state.sessionToken]),
@@ -163,9 +163,9 @@ info(Message, Req, State) ->
     {ok, Req, State, hibernate}.
 
 terminate(_Reason, Req, _State) ->
-    Log = dderl:get_req_meta(dderl, accessLog, Req, 0),
-    ReqTime = dderl:get_req_meta(dderl, reqTime, Req, 0),
-    RespSize = dderl:get_req_meta(dderl, respSize, Req, 0),
+    Log = ?COW_REQ_GET_META(accessLog, Req, 0),
+    ReqTime = ?COW_REQ_GET_META(reqTime, Req, 0),
+    RespSize = ?COW_REQ_GET_META(respSize, Req, 0),
     ReqSize = cowboy_req:body_length(Req),
     Size = ReqSize + RespSize,
     ProcessingTimeMicroS = timer:now_diff(os:timestamp(), ReqTime),
@@ -191,10 +191,10 @@ reply_200_json(Body, SessionToken, Req) ->
     cowboy_req:reply(200, 
           #{<<"content-encoding">> => <<"utf-8">>,
             <<"content-type">> => <<"application/json">>}
-        , Body, dderl:set_req_meta(dderl, respSize, byte_size(Body), Req1)).
+        , Body, ?COW_REQ_SET_META(respSize, byte_size(Body), Req1)).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
-    Size = dderl:get_req_meta(dderl, respSize, Req, 0),
+    Size = ?COW_REQ_GET_META(respSize, Req, 0),
     %% Status is fin or nofin
     {Req1, Status} =
     case ChunkIdx of
@@ -211,7 +211,7 @@ reply_csv(FileName, Chunk, ChunkIdx, Req) ->
     end,
     Size1 = Size + byte_size(Chunk),
     ok = cowboy_req:stream_body(Chunk, Status, Req1),
-    dderl:set_req_meta(dderl, respSize, Size1, Req1).
+    ?COW_REQ_SET_META(respSize, Size1, Req1).
 
 set_xsrf_cookie(Req, XSRFToken, XSRFToken) -> Req;
 set_xsrf_cookie(Req, _, XSRFToken) ->

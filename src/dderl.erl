@@ -21,7 +21,7 @@
 -export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
 
 %% Helper functions
--export([get_cookie/3, keyfetch/3, set_req_meta/4, get_req_meta/3, get_req_meta/4]).
+-export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -178,19 +178,15 @@ keyfetch(Key, Pos, List, Default) ->
 add_d3_templates_path(Application, Path) ->
     dderl_dal:add_d3_templates_path(Application, Path).
 
--spec get_req_meta(atom(), term(), map()) -> term() | undefined.
-get_req_meta(Application, Key, Req) ->
-    get_req_meta(Application, Key, Req, undefined).
-
--spec get_req_meta(atom(), term(), map(), term()) -> term() | undefined.
-get_req_meta(Application, Key, Req, Default) ->
+-spec cow_req_get_meta(atom(), term(), map(), term()) -> term() | undefined.
+cow_req_get_meta(Application, Key, Req, Default) ->
     case Req of
         #{Application := #{Key := Value}} -> Value;
         _ -> Default
     end.
 
--spec set_req_meta(atom(), term(), term(), map()) -> map().
-set_req_meta(Application, Key, Value, Req) ->
+-spec cow_req_set_meta(atom(), term(), term(), map()) -> map().
+cow_req_set_meta(Application, Key, Value, Req) ->
     case Req of
         #{Application := Meta} -> Req#{Application => Meta#{Key => Value}};
         _ -> Req#{Application => #{Key => Value}}
