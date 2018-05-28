@@ -5,6 +5,7 @@
 -behaviour(cowboy_loop).
  
 -include("dderl.hrl").
+-include("dderl_request.hrl").
 
 -export([init/2]).
 -export([info/3]).

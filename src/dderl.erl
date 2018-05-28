@@ -4,6 +4,7 @@
 -behaviour(application).
 
 -include("dderl.hrl").
+-include("dderl_request.hrl").
 
 %% Script interface for OTP application control
 -export([start/0, stop/0]).

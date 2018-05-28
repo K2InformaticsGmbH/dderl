@@ -1,5 +1,5 @@
 -module(dderl_cow_mw).
--include("dderl.hrl").
+-include("dderl_request.hrl").
 -behavior(cowboy_middleware).
 
 -export([execute/2]).
