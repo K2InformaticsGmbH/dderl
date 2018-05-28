@@ -241,10 +241,10 @@
 
 % Cowboy meta data set and get macros
 -define(COW_REQ_GET_META(Key, Req, Default),
-    dderl:cow_req_get_meta(element(2, application:get_application(?MODULE)), Key, Req, Default)
+    dderl:cow_req_get_meta(application:get_application(?MODULE), Key, Req, Default)
 ).
 -define(COW_REQ_SET_META(Key, Value, Req),
-    dderl:cow_req_set_meta(element(2, application:get_application(?MODULE)), Key, Value, Req)
+    dderl:cow_req_set_meta(application:get_application(?MODULE), Key, Value, Req)
 ).
 
 -endif.

@@ -1,4 +1,5 @@
 -module(dderl_cow_mw).
+-include("dderl.hrl").
 -behavior(cowboy_middleware).
 
 -export([execute/2]).
@@ -13,7 +14,7 @@ execute(Req, Env) ->
         nomatch ->
             {ok, cowboy_req:set_resp_headers(RespHeaders, Req), Env};
         _ ->
-            Resp1 = cowboy_req:set_resp_headers(
+            Req1 = cowboy_req:set_resp_headers(
                              RespHeaders#{<<"server">> => <<"dderl">>}, Req),
-            {ok, Resp1#{dderl => #{}}, Env}
+            {ok, ?COW_REQ_SET_META(dderl_request, true, Req1), Env}
     end.
