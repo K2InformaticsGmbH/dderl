@@ -121,8 +121,7 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
     end.
 
 conn_info(Req) ->
-    {PeerIp, PeerPort} = cowboy_req:peer(Req),
-    {LocalIp, LocalPort} = cowboy_req:sock(Req),
+    #{sock := {LocalIp, LocalPort}, peer := {PeerIp, PeerPort}} = Req,
     ConnTcpInfo = #{localip => LocalIp, localport => LocalPort,
                     peerip => PeerIp, peerport => PeerPort},
     Headers = cowboy_req:headers(Req),
