@@ -121,14 +121,11 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
     end.
 
 conn_info(Req) ->
-    {PeerIp, PeerPort} = cowboy_req:peer(Req),
-    {ok, LocalIp}   = application:get_env(dderl, interface),
-    {ok, LocalPort} = application:get_env(dderl, port),
-    ConnTcpInfo = #{localip => LocalIp, localport => LocalPort},
-    ConnInfo = #{tcp => ConnTcpInfo},
+    #{sock := {LocalIp, LocalPort}, peer := {PeerIp, PeerPort}} = Req,
+    ConnTcpInfo = #{localip => LocalIp, localport => LocalPort,
+                    peerip => PeerIp, peerport => PeerPort},
     Headers = cowboy_req:headers(Req),
-    ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
-              http => #{headers => Headers}}.
+    #{tcp => ConnTcpInfo, http => #{headers => Headers}}.
 info({access, Log}, Req, State) ->
     OldLog = ?COW_REQ_GET_META(accessLog, Req, 0),
     Req1 = ?COW_REQ_SET_META(accessLog, maps:merge(OldLog, Log), Req),
