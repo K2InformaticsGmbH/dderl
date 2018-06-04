@@ -4,12 +4,13 @@
 -behaviour(application).
 
 -include("dderl.hrl").
+-include("dderl_request.hrl").
 
 %% Script interface for OTP application control
 -export([start/0, stop/0]).
 
 %% Cowboy callbacks
--export([init/3, handle/2, terminate/3]).
+-export([init/2, terminate/3]).
 
 %% Private interfaces
 -export([encrypt/1, decrypt/1, insert_mw/2, insert_routes/2, remove_mw/2,
@@ -19,6 +20,10 @@
 -export([start/2, stop/1]).
 
 -export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
+
+%% Helper functions
+-export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
+         can_handle_request/1]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -50,13 +55,14 @@ start(_Type, _Args) ->
     DDerlRoutes = get_routes(),
     Dispatch = cowboy_router:compile([{'_', DDerlRoutes}]),
     SslOptions = get_ssl_options(),
-    {ok, _} = cowboy:start_https(
-                https, ?MAXACCEPTORS,
+    {ok, _} = cowboy:start_tls(
+                https,
                 [{ip, Interface}, {port, Port},
+                 {num_acceptors, ?MAXACCEPTORS},
                  {max_connections, ?MAXCONNS} | SslOptions],
-                [{compress, true},
-                 {env, [{dispatch, Dispatch}]},
-                 {middlewares, [cowboy_router, dderl_cow_mw, cowboy_handler]}]),
+                #{env => #{dispatch => Dispatch},
+                  stream_handlers => [cowboy_compress_h, cowboy_stream_h],
+                  middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
     ?Info(lists:flatten(["URL https://",
                          if is_list(Ip) -> Ip;
                             true -> io_lib:format("~p",[Ip])
@@ -90,28 +96,22 @@ stop(_State) ->
                        "</html>">>},
                     "Response given to the load balancer when the probeUrl is requested")).
 
-init(_Transport, Req, '$path_probe') ->
+init(Req, '$path_probe') ->
     {Code, Resp} = ?PROBE_RESP,
-    {ok, Req1} = cowboy_req:reply(Code, [], Resp, Req),
-    {shutdown, Req1, undefined};
-init(_Transport, Req, _Opts) -> {ok, Req, undefined}.
-
-handle(Req, State) ->
-    {Url, Req} = cowboy_req:url(Req),
-    {ok, Req1} = case binary:last(Url) of
-                     $/ ->
-                         Filename = filename:join([priv_dir(),
-                                                   "public", "dist",
-                                                   "index.html"]),
-                         {ok, Html} = file:read_file(Filename),
-                         cowboy_req:reply(
-                           200, [{<<"content-type">>, <<"text/html">>}],
-                           Html, Req);
-                     _ ->
-                         cowboy_req:reply(
-                           301, [{<<"Location">>, <<Url/binary,"/">>}],
-                           <<>>, Req)
-                 end,
+    {ok, cowboy_req:reply(Code, #{}, Resp, Req), undefined};
+init(Req, State) -> 
+    Url = iolist_to_binary(cowboy_req:uri(Req)),
+    Req1 = 
+    case binary:last(Url) of
+        $/ ->
+            Filename = filename:join([priv_dir(),
+                                    "public", "dist",
+                                    "index.html"]),
+            {ok, Html} = file:read_file(Filename),
+            cowboy_req:reply(200, #{<<"content-type">> => <<"text/html">>}, Html, Req);
+        _ ->
+            cowboy_req:reply(301, #{<<"location">> => <<Url/binary,"/">>}, Req)
+    end,
     {ok, Req1, State}.
 
 terminate(_Reason, _Req, _State) -> ok.
@@ -133,43 +133,70 @@ decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
 
 -spec insert_mw(atom(), atom()) -> atom().
 insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     [LastMod|RestMods] = lists:reverse(Middlewares),    
     ok = ranch:set_protocol_options(
-           https, [{middlewares, lists:reverse([LastMod, MwMod | RestMods])}
-                   | Opts1]).
+           https, Opts#{middlewares => lists:reverse([LastMod, MwMod | RestMods])}).
 
 -spec remove_mw(atom(), atom()) -> atom().
 remove_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {middlewares, Middlewares}, Opts1} = lists:keytake(middlewares,
-                                                               1, Opts),
+    #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{middlewares, Middlewares -- [MwMod]} | Opts1]).
+           https, Opts#{middlewares => Middlewares -- [MwMod]}).
 
 -spec insert_routes(atom(), list()) -> ok.
 insert_routes(Intf, [{'_',[],Dispatch}]) ->
-    Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,[{'_',[],OldDispatches}]}]}, Opts1}
-    = lists:keytake(env, 1, Opts),
+    #{env := #{dispatch := [{'_',[],OldDispatches}]}} = Opts = ranch:get_protocol_options(Intf),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],OldDispatches++Dispatch}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],OldDispatches++Dispatch}]}}).
 
 -spec reset_routes(atom()) -> ok.
 reset_routes(Intf) ->
     Opts = ranch:get_protocol_options(Intf),
-    {value, {env, [{dispatch,_}]}, Opts1} = lists:keytake(env, 1, Opts),
     [{'_',[],DefaultDispatches}] = cowboy_router:compile([{'_', get_routes()}]),
     ok = ranch:set_protocol_options(
-           https, [{env, [{dispatch,[{'_',[],DefaultDispatches}]}]}
-                   | Opts1]).
+           https, Opts#{env => #{dispatch => [{'_',[],DefaultDispatches}]}}).
+
+-spec get_cookie(binary(), map(), term()) -> term().
+get_cookie(CookieName, Req, Default) ->
+    Cookies = cowboy_req:parse_cookies(Req),
+    case maps:from_list(Cookies) of
+        #{CookieName := Value} -> Value;
+        _ -> Default
+    end.
+
+-spec keyfetch(term(), term(), list()) -> term().
+keyfetch(Key, List, Default) ->
+    keyfetch(Key, 1, List, Default).
+
+-spec keyfetch(term(), integer(), term(), list()) -> term().
+keyfetch(Key, Pos, List, Default) ->
+    case lists:keyfind(Key, Pos, List) of
+        false -> Default;
+        {Key, Val} -> Val
+    end.
 
 -spec add_d3_templates_path(atom(), string()) -> ok.
 add_d3_templates_path(Application, Path) ->
     dderl_dal:add_d3_templates_path(Application, Path).
+
+-spec cow_req_get_meta({ok, atom()}, term(), map(), term()) -> term() | undefined.
+cow_req_get_meta({ok, Application}, Key, Req, Default) ->
+    case Req of
+        #{Application := #{Key := Value}} -> Value;
+        _ -> Default
+    end.
+
+-spec cow_req_set_meta({ok, atom()}, term(), term(), map()) -> map().
+cow_req_set_meta({ok, Application}, Key, Value, Req) ->
+    case Req of
+        #{Application := Meta} -> Req#{Application => Meta#{Key => Value}};
+        _ -> Req#{Application => #{Key => Value}}
+    end.
+
+-spec can_handle_request(map()) -> boolean().
+can_handle_request(Req) ->
+    ?COW_REQ_GET_META(dderl_request, Req, false).
 
 %%-----------------------------------------------------------------------------
 

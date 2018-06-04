@@ -2,7 +2,7 @@ sudo: true
 
 language: erlang
 otp_release:
-  - 20.3
+# - 20.3 # disabling 20.3 as cowboy 2.0 is not supported with 20.3 and hence it has been blacklisted in rebar.config
   - 20.2
 
 

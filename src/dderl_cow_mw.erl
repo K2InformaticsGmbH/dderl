@@ -1,18 +1,20 @@
 -module(dderl_cow_mw).
+-include("dderl_request.hrl").
 -behavior(cowboy_middleware).
 
 -export([execute/2]).
 
-execute(Req0, Env) ->
-    {Path, Req0} = cowboy_req:path(Req0),
+execute(Req, Env) ->
+    Path = cowboy_req:path(Req),
     %% WARNING: changing x-frame-options from SAMEORIGIN to DENY will break the all file downloads through browsers (IE, Chrome).
-    Req1 = cowboy_req:set_resp_header(<<"x-frame-options">>, "SAMEORIGIN", Req0),
-    Req2 = cowboy_req:set_resp_header(<<"x-xss-protection">>, "1", Req1),
-    Req3 = cowboy_req:set_resp_header(<<"x-content-type-options">>, "nosniff", Req2),
+    RespHeaders = #{<<"x-frame-options">> => <<"SAMEORIGIN">>,
+                    <<"x-xss-protection">> => <<"1">>,
+                    <<"x-content-type-options">> => <<"nosniff">>},
     case re:run(Path, [$^ | dderl:get_url_suffix()]) of
         nomatch ->
-            {ok, Req3, Env};
+            {ok, cowboy_req:set_resp_headers(RespHeaders, Req), Env};
         _ ->
-            Req = cowboy_req:set_resp_header(<<"server">>, "dderl", Req3),
-            {ok, cowboy_req:set_meta(dderl, true, Req), Env}
+            Req1 = cowboy_req:set_resp_headers(
+                             RespHeaders#{<<"server">> => <<"dderl">>}, Req),
+            {ok, ?COW_REQ_SET_META(dderl_request, true, Req1), Env}
     end.
