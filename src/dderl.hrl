@@ -256,7 +256,7 @@
                                         ?GET_CONFIG(coldStartFun, [], _DefaultFun,
                                                     "Function which is called at every cold start of an application")
                         end,
-                dderl:exec_coldstart_cb(_App, _ShouldColdStart, _Nodes, _ColdStartFun)
+                dderl:exec_coldstart_cb(_App, _ShouldColdStart, _ColdStartFun)
          end)()
 ).
 

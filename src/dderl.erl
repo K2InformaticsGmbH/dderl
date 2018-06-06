@@ -23,7 +23,7 @@
 
 %% Helper functions
 -export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
-         can_handle_request/1, exec_coldstart_cb/4]).
+         can_handle_request/1, exec_coldstart_cb/3]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -199,10 +199,10 @@ cow_req_set_meta({ok, Application}, Key, Value, Req) ->
 can_handle_request(Req) ->
     ?COW_REQ_GET_META(dderl_request, Req, false).
 
--spec exec_coldstart_cb(atom() | tuple(), true | false, [atom()], atom() | binary()) -> any().
-exec_coldstart_cb({ok, App}, Enabled, Nodes, FunStr) ->
-    exec_coldstart_cb(App, Enabled, Nodes, FunStr);
-exec_coldstart_cb(App, true, [], FunStr) when is_binary(FunStr) ->
+-spec exec_coldstart_cb(atom() | tuple(), true | false, atom() | binary()) -> any().
+exec_coldstart_cb({ok, App}, Enabled, FunStr) ->
+    exec_coldstart_cb(App, Enabled, FunStr);
+exec_coldstart_cb(App, true, FunStr) when is_binary(FunStr) ->
     try
         Fun = imem_compiler:compile(FunStr),
         Ret = Fun(),
@@ -211,18 +211,18 @@ exec_coldstart_cb(App, true, [], FunStr) when is_binary(FunStr) ->
         ?Error("'~p' cold start : ~p:~p~nHook cold_start_fun : ~s~nStack ~p",
                [App, Class, Exception, FunStr, erlang:get_stacktrace()])
     end;
-exec_coldstart_cb(App, false, _, disabled) ->
+exec_coldstart_cb(App, false, disabled) ->
     ?Warn("'~p' cold start : cold_start hook disabled", [App]);
-exec_coldstart_cb(App, true, _, not_cold_start) ->
+exec_coldstart_cb(App, true, not_cold_start) ->
     ?Info("'~p' not cold start", [App]);
-exec_coldstart_cb(App, true, [], undefined) ->
+exec_coldstart_cb(App, true, undefined) ->
     ?Error("'~p' cold start : cold_start_fun hook not defined", [App]);
-exec_coldstart_cb(App, true, _, FunStr) ->
+exec_coldstart_cb(App, true, FunStr) ->
     ?Error("'~p' cold start : bad cold_start_fun hook '~p'", [App, FunStr]);
-exec_coldstart_cb(App, Enabled, Nodes, FunStr) ->
+exec_coldstart_cb(App, Enabled, FunStr) ->
     ?Warn("'~p' cold start : unhandled config, skipping..."
-          "Enabled ~p, Nodes ~p, FunStr ~p",
-          [App, Enabled, Nodes, FunStr]).
+          "Enabled ~p, FunStr ~p",
+          [App, Enabled, FunStr]).
 
 %%-----------------------------------------------------------------------------
 
