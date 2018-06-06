@@ -1,19 +1,17 @@
 %%-*- erlang -*-
 %% ex: ft=erlang
-{application, dderl,
- [
-  {description, "Web based tool for exploring databases"},
-  {vsn, "2.3.1"},
-  {registered, []},
-  {applications, [kernel,
-                  stdlib,
-                  imem,
-                  cowlib,
-                  cowboy,
-                  erlimem,
-                  erloci,
-                  esaml,
-                  mimetypes]},
-  {mod, {dderl, []}},
-  {env, [{interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []}]}
- ]}.
+{application, dderl, [
+    {description, "Web based tool for exploring databases"},
+    {vsn, "2.3.1"},
+    {registered, []},
+    {applications, [
+        kernel, stdlib, imem, cowlib, cowboy,
+        erlimem, erloci, esaml, mimetypes
+    ]},
+    {mod, {dderl, []}},
+    {env, [
+        {interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []},
+        {cold_start, true},
+        {cold_start_fun, <<"fun() -> \"example NOP return\" end">>}
+    ]}
+]}.
