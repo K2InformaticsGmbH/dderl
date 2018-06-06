@@ -11,7 +11,6 @@
     {mod, {dderl, []}},
     {env, [
         {interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []},
-        {cold_start, true},
-        {cold_start_fun, <<"fun() -> \"example NOP return\" end">>}
+        {cold_start, true}
     ]}
 ]}.

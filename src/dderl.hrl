@@ -239,14 +239,13 @@
 -define(IMEMREST_SSLOPTS,       ?GET_CONFIG(ssl,            [], '$no_ssl_conf',         "SSL listen socket options")).
 -define(IMEMREST_IPWHITELIST,   ?GET_CONFIG(ipWhiteLists,   [], [{127,0,0,1}],          "White listed IP address")).
 
--define(COLDSTART_CB,
+-define(COLDSTART_CB(_DefaultFun),
         (fun() ->
                 _App = case application:get_application(?MODULE) of
                         {ok, _A} -> _A;
                         _ -> undefined
                 end,
                 _ShouldColdStart = application:get_env(_App, cold_start, false),
-                _DefaultFun = application:get_env(_App, cold_start_fun, undefined),
                 _Nodes = imem_meta:data_nodes(),
                 _ColdStartFun =
                         if
@@ -256,7 +255,7 @@
                                         ?GET_CONFIG(coldStartFun, [], _DefaultFun,
                                                     "Function which is called at every cold start of an application")
                         end,
-                dderl:exec_coldstart_cb(_App, _ShouldColdStart, _ColdStartFun)
+                dderl:exec_coldstart_cb(_App, _ColdStartFun)
          end)()
 ).
 
