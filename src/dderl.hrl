@@ -247,11 +247,11 @@
                 end,
                 _ShouldColdStart = application:get_env(_App, cold_start, false),
                 _DefaultFun = application:get_env(_App, cold_start_fun, undefined),
-                _Nodes = imem_meta:nodes(),
+                _Nodes = imem_meta:data_nodes(),
                 _ColdStartFun =
                         if
                                 _ShouldColdStart == false -> disabled;
-                                length(_Nodes) > 0 -> not_cold_start;
+                                length(_Nodes) > 1 -> not_cold_start;
                                 true ->
                                         ?GET_CONFIG(coldStartFun, [], _DefaultFun,
                                                     "Function which is called at every cold start of an application")

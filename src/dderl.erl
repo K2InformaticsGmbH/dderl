@@ -200,8 +200,6 @@ can_handle_request(Req) ->
     ?COW_REQ_GET_META(dderl_request, Req, false).
 
 -spec exec_coldstart_cb(atom() | tuple(), true | false, atom() | binary()) -> any().
-exec_coldstart_cb({ok, App}, Enabled, FunStr) ->
-    exec_coldstart_cb(App, Enabled, FunStr);
 exec_coldstart_cb(App, true, FunStr) when is_binary(FunStr) ->
     try
         Fun = imem_compiler:compile(FunStr),
