@@ -187,8 +187,7 @@ reply_200_json(Body, SessionToken, Req) ->
             cowboy_req:set_resp_cookie(CookieName, SessToken, Req, Opts)
     end,
     cowboy_req:reply(200, 
-          #{<<"content-encoding">> => <<"utf-8">>,
-            <<"content-type">> => <<"application/json">>}
+          #{<<"content-type">> => <<"application/json; charset=utf-8">>}
         , Body, ?COW_REQ_SET_META(respSize, byte_size(Body), Req1)).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->
