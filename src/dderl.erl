@@ -208,12 +208,15 @@ can_handle_request(Req) ->
         ?GET_CONFIG(probeUrl,[], "/probe.html",
                     "Defines the url of the probe for the load balancer")).
 
+-define(PROMETHEUS_URL,
+        ?GET_CONFIG(probeUrl,[], "/metrics", "Prometheus metrics fetch url")).
+
 get_routes() ->
     PrivDir = priv_dir(),
     UrlPathPrefix = get_url_suffix(),
     [{?PROBE_URL, dderl, '$path_probe'},
+     {?PROMETHEUS_URL, dderl_prometheus, metrics},
      {UrlPathPrefix++"/", dderl, []},
-     {UrlPathPrefix++"/metrics", dderl_prometheus, metrics},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},
      {UrlPathPrefix++"/[...]", cowboy_static, {dir, PrivDir}}].
