@@ -31,59 +31,24 @@
 -define(METRICS, ?GET_CONFIG(prometheusMetrics, [], ?CONFIG,
                              "Prometheus Metrics")).
 -define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?VALUESFUN,
-                                 "Prometheus Metrics values function")).
+                                 "Prometheus Metrics values function, which "
+                                 "returns a map with all the metrics keys and "
+                                 "their corresponding values")).
+-define(AUTHORIZATION, ?GET_CONFIG(prometheusAuth, [],
+                                   #{user => "admin", password => "test"},
+                                   "Prometheus Scraper Basic credentials")).
 
-init(Metrics) ->
-    prometheus_registry:clear(),
-    maps:map(fun(Name, Info) ->
-        case get_metric(Name, Info) of
-            {error, not_valid} ->
-                ?Error("~p : ~p - not supported", [Name, Info]);
-            {MetricType, Spec} ->
-                MetricType:declare(Spec)
-        end
-    end, Metrics).
-
-init(#{method := <<"GET">>} = Req, metrics) ->
-    PMetrics = ?METRICS,
-    FunStr = ?METRICS_FUN,
-    CacheMetricsKey = {?MODULE, prometheusMetrics},
-    CacheFunKey = {?MODULE, prometheusFun, FunStr},
-    Metrics =
-    case imem_cache:read(CacheMetricsKey) of 
-        [PMetrics] -> PMetrics;
-        _ ->
-            imem_cache:write(CacheMetricsKey, PMetrics),
-            init(PMetrics),
-            PMetrics
-    end,
-    Fun =
-    case imem_cache:read(CacheFunKey) of
-        [] ->
-            case catch imem_compiler:compile(FunStr) of
-                NewFun when is_function(NewFun) -> 
-                    imem_cache:write(CacheFunKey, NewFun),
-                    NewFun;
-                CompileError ->
-                    ?Error("compileing fun : ~p", [CompileError]),
-                    error(CompileError)
-            end;
-        [OldFun] -> OldFun
-    end,
+init(#{headers := #{<<"authorization">> := Auth},
+       method := <<"GET">>} = Req, metrics) ->
     Req1 =
-    case catch Fun(Metrics) of
-        Results when is_map(Results) ->
-            maps:map(fun(Name, Spec) ->
-                case maps:get(Name, Results, none) of
-                    none -> ?Error("Required metric ~p not found", [Name]);
-                    Value -> set_metric_value(Name, Value, Spec)
-                end
-            end, Metrics),
-            cowboy_req:reply(200, #{<<"content-type">> => <<"text/plain">>}, 
-                             prometheus_text_format:format(), Req);
-        Error ->
-            ?Error("Invalid result from prometheus fun : ~p", [Error]),
-            cowboy_req:reply(500, #{}, <<>>, Req)
+    case check_auth(Auth) of
+        true ->
+            Metrics = get_metrics(),
+            case get_metrics_fun() of
+                {error, _Error} -> cowboy_req:reply(500, #{}, <<>>, Req);
+                {ok, Fun} -> execute_metrics_fun(Fun, Metrics, Req)
+            end;
+        false -> cowboy_req:reply(401, #{}, <<>>, Req)
     end,
     {ok, Req1, undefined};
 init(Req, _) ->
@@ -135,3 +100,62 @@ get_other_infos(Spec) ->
 set_fun(Type) when Type == gauge; Type == boolean -> set;
 set_fun(Type) when Type == summary; Type == histogram -> observe;
 set_fun(counter) -> inc.
+
+get_metrics() ->
+    PMetrics = ?METRICS,
+    CacheMetricsKey = {?MODULE, prometheusMetrics},
+    case imem_cache:read(CacheMetricsKey) of 
+        [PMetrics] -> PMetrics;
+        _ ->
+            imem_cache:write(CacheMetricsKey, PMetrics),
+            declare_metrics(PMetrics),
+            PMetrics
+    end.
+
+get_metrics_fun() ->
+    FunStr = ?METRICS_FUN,
+    CacheFunKey = {?MODULE, prometheusFun, FunStr},
+    case imem_cache:read(CacheFunKey) of
+        [] ->
+            case catch imem_compiler:compile(FunStr) of
+                NewFun when is_function(NewFun) -> 
+                    imem_cache:write(CacheFunKey, NewFun),
+                    {ok, NewFun};
+                Error ->
+                    ?Error("compileing fun : ~p", [Error]),
+                    {error, Error}
+            end;
+        [OldFun] -> {ok, OldFun}
+    end.
+
+declare_metrics(Metrics) ->
+    prometheus_registry:clear(),
+    maps:map(fun(Name, Info) ->
+        case get_metric(Name, Info) of
+            {error, not_valid} ->
+                ?Error("~p : ~p - not supported", [Name, Info]);
+            {MetricType, Spec} ->
+                MetricType:declare(Spec)
+        end
+    end, Metrics).
+
+execute_metrics_fun(Fun, Metrics, Req) ->
+    case catch Fun(Metrics) of
+        Results when is_map(Results) ->
+            maps:map(fun(Name, Spec) ->
+                case maps:get(Name, Results, none) of
+                    none -> ?Error("Required metric ~p not found", [Name]);
+                    Value -> set_metric_value(Name, Value, Spec)
+                end
+            end, Metrics),
+            cowboy_req:reply(200, #{<<"content-type">> => <<"text/plain">>},
+                            prometheus_text_format:format(), Req);
+        Error ->
+            ?Error("Invalid result from prometheus fun : ~p", [Error]),
+            cowboy_req:reply(500, #{}, <<>>, Req)
+    end.
+
+check_auth(<<"Basic ", Auth64/binary>>) ->
+    #{user := User, password := Password} = ?AUTHORIZATION,
+    list_to_binary([User, ":", Password]) == base64:decode(Auth64);
+check_auth(_) -> false.
