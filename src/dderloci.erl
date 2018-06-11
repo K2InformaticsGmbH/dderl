@@ -355,7 +355,7 @@ result_exec_stmt(Error, Statement, Sql, _Binds, Sql, _RowIdAdded, _Connection, _
     Statement:close(),
     error(Error);
 result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
-    ?Info("RowIdError ~p", [RowIdError]),
+    ?Debug("RowIdError ~p", [RowIdError]),
     Statement:close(),
     case Connection:prep_sql(Sql) of
         {error, {ErrorId,Msg}} ->
