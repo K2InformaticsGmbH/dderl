@@ -208,7 +208,8 @@ can_handle_request(Req) ->
                     "Defines the url of the probe for the load balancer")).
 
 -define(PROMETHEUS_URL,
-        ?GET_CONFIG(probeUrl,[], "/metrics", "Prometheus metrics fetch url")).
+        ?GET_CONFIG(prometheusMetricsUrl,[], "/metrics",
+                    "Prometheus metrics fetch url")).
 
 get_routes() ->
     PrivDir = priv_dir(),
