@@ -71,7 +71,6 @@ start(_Type, _Args) ->
                                               io_lib:format("~p",[NRP]))
                                             ||NRP<-DDerlRoutes], "\n")]),
     SupRef = dderl_sup:start_link(),
-    dderl_prometheus:init(),
     ?Info("restartable apps ~p", [dderl_dal:get_restartable_apps()]),
     ?Info("DDERL STARTED"),
     ?Info("---------------------------------------------------"),

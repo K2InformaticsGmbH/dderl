@@ -2,14 +2,12 @@
 
 -include("dderl.hrl").
 
--export([init/0]).
 -export([init/2]).
 
 -define(CONFIG,
         #{process_count => #{type => gauge, help => "Process Count"},
           port_count => #{type => gauge, help => "Number of Ports used"},
           run_queue => #{type => gauge, help => "Run Queue Size"},
-          reductions => #{type => gauge, help => "Number of Reductions"},
           memory => #{type => gauge, help => "Memory"},
           data_nodes => #{type => gauge, help => "Number of nodes in the cluster"}
          }).
@@ -24,7 +22,6 @@
           "         (process_count, _V, Acc) -> Acc#{process_count => Procs};"
           "         (port_count, _V, Acc) -> Acc#{port_count => Ports};"
           "         (run_queue, _V, Acc) -> Acc#{run_queue => RunQ};"
-          "         (reductions, _V, Acc) -> Acc#{reductions => imem_metrics:get_metric(reductions)};"
           "         (data_nodes, _V, Acc) -> Acc#{data_nodes => length(DNodes)};"
           "         (K, V, Acc) -> Acc"
           "      end, #{}, Config)"
@@ -36,7 +33,8 @@
 -define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?VALUESFUN,
                                  "Prometheus Metrics values function")).
 
-init() ->
+init(Metrics) ->
+    prometheus_registry:clear(),
     maps:map(fun(Name, Info) ->
         case get_metric(Name, Info) of
             {error, not_valid} ->
@@ -44,26 +42,40 @@ init() ->
             {MetricType, Spec} ->
                 MetricType:declare(Spec)
         end
-    end, ?METRICS).
+    end, Metrics).
 
 init(#{method := <<"GET">>} = Req, metrics) ->
+    PMetrics = ?METRICS,
     FunStr = ?METRICS_FUN,
-    CacheKey = {?MODULE, prometheusFunHash, FunStr},
+    CacheMetricsKey = {?MODULE, prometheusMetrics},
+    CacheFunKey = {?MODULE, prometheusFun, FunStr},
+    Metrics =
+    case imem_cache:read(CacheMetricsKey) of 
+        [PMetrics] -> PMetrics;
+        _ ->
+            imem_cache:write(CacheMetricsKey, PMetrics),
+            init(PMetrics),
+            PMetrics
+    end,
     Fun =
-    case imem_cache:read(CacheKey) of
+    case imem_cache:read(CacheFunKey) of
         [] ->
-            NewFun = imem_compiler:compile(FunStr),
-            imem_cache:write(CacheKey, NewFun),
-            NewFun;
+            case catch imem_compiler:compile(FunStr) of
+                NewFun when is_function(NewFun) -> 
+                    imem_cache:write(CacheFunKey, NewFun),
+                    NewFun;
+                CompileError ->
+                    ?Error("compileing fun : ~p", [CompileError]),
+                    error(CompileError)
+            end;
         [OldFun] -> OldFun
     end,
-    Metrics = ?METRICS,
     Req1 =
     case catch Fun(Metrics) of
         Results when is_map(Results) ->
             maps:map(fun(Name, Spec) ->
                 case maps:get(Name, Results, none) of
-                    none -> ?Error("Required metric ~p not found");
+                    none -> ?Error("Required metric ~p not found", [Name]);
                     Value -> set_metric_value(Name, Value, Spec)
                 end
             end, Metrics),
