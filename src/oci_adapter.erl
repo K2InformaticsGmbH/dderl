@@ -208,7 +208,8 @@ process_cmd({[<<"remote_apps">>], ReqBody}, _Sess, _UserId, From, #priv{connecti
     Connection = ?D2T(proplists:get_value(<<"connection">>, BodyJson, <<>>)),
     case lists:member(Connection, Connections) of
         true ->
-            Apps = Connection:run_cmd(which_applications, []),
+            % erloci instance is always in local node
+            Apps = application:which_applications(),
             Versions = dderl_session:get_apps_version(Apps, []),
             From ! {reply, jsx:encode([{<<"remote_apps">>, Versions}])},
             Priv;
