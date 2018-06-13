@@ -5,11 +5,11 @@
 -export([init/2]).
 
 -define(CONFIG,
-        #{process_count => #{type => gauge, help => "Process Count"},
-          port_count => #{type => gauge, help => "Number of Ports used"},
-          run_queue => #{type => gauge, help => "Run Queue Size"},
-          memory => #{type => gauge, help => "Memory"},
-          data_nodes => #{type => gauge, help => "Number of nodes in the cluster"}
+        #{process_count => #{type => gauge, help => "Process Count", labels => ["node","schema"]},
+          port_count => #{type => gauge, help => "Number of Ports used", labels => ["node","schema"]},
+          run_queue => #{type => gauge, help => "Run Queue Size", labels => ["node","schema"]},
+          memory => #{type => gauge, help => "Memory", labels => ["node","schema"]},
+          data_nodes => #{type => gauge, help => "Number of nodes in the cluster", labels => ["node","schema"]}
          }).
 
 -define(VALUESFUN,
@@ -17,17 +17,20 @@
           "  #{data_nodes := DNodes} = imem_metrics:get_metric(data_nodes),"
           "  #{port_count := Ports,process_count := Procs,erlang_memory := Memory,"
           "    run_queue := RunQ} = imem_metrics:get_metric(system_information),"
+          "  Labels = [node(), imem_meta:schema()],"
           "  maps:fold("
-          "      fun(memory, _V, Acc) -> Acc#{memory => Memory};"
-          "         (process_count, _V, Acc) -> Acc#{process_count => Procs};"
-          "         (port_count, _V, Acc) -> Acc#{port_count => Ports};"
-          "         (run_queue, _V, Acc) -> Acc#{run_queue => RunQ};"
-          "         (data_nodes, _V, Acc) -> Acc#{data_nodes => length(DNodes)};"
+          "      fun(memory, _V, Acc) -> Acc#{memory => {Labels, Memory}};"
+          "         (process_count, _V, Acc) -> Acc#{process_count => {Labels, Procs}};"
+          "         (port_count, _V, Acc) -> Acc#{port_count => {Labels, Ports}};"
+          "         (run_queue, _V, Acc) -> Acc#{run_queue => {Labels, RunQ}};"
+          "         (data_nodes, _V, Acc) -> Acc#{data_nodes => {Labels, length(DNodes)}};"
           "         (K, V, Acc) -> Acc"
           "      end, #{}, Config)"
           "end.">>
     ).
 
+-define(ISENABLED, ?GET_CONFIG(prometheusIsEnabled, [], false,
+                             "Prometheus Metrics Enable Flag")).
 -define(METRICS, ?GET_CONFIG(prometheusMetrics, [], ?CONFIG,
                              "Prometheus Metrics")).
 -define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?VALUESFUN,
@@ -38,20 +41,27 @@
                                    #{user => "admin", password => "test"},
                                    "Prometheus Scraper Basic credentials")).
 
+init(Req, metrics) ->
+    case ?ISENABLED of
+        true -> init(Req);
+        _ ->
+            Req1 = cowboy_req:reply(404, #{}, <<>>, Req),
+            {ok, Req1, undefined}
+    end.
+
 init(#{headers := #{<<"authorization">> := Auth},
-       method := <<"GET">>} = Req, metrics) ->
+       method := <<"GET">>} = Req) ->
     Req1 =
     case check_auth(Auth) of
         true ->
-            Metrics = get_metrics(),
             case get_metrics_fun() of
                 {error, _Error} -> cowboy_req:reply(500, #{}, <<>>, Req);
-                {ok, Fun} -> execute_metrics_fun(Fun, Metrics, Req)
+                {ok, Fun} -> execute_metrics_fun(Fun, get_metrics(), Req)
             end;
         false -> cowboy_req:reply(401, #{}, <<>>, Req)
     end,
     {ok, Req1, undefined};
-init(Req, _) ->
+init(Req) ->
     Req1 = cowboy_req:reply(404, #{}, <<>>, Req),
     {ok, Req1, undefined}.
 
