@@ -48,5 +48,5 @@ list_sessions() ->
 %% ===================================================================
 
 init([]) ->
-	SupFlags = {simple_one_for_one, 5, 10},
+    SupFlags = {simple_one_for_one, 5, 10},
     {ok, {SupFlags, [?CHILD(dderl_session)]}}.
