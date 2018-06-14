@@ -75,6 +75,44 @@ get_metrics(Req, State) ->
     {stop, Req1, State}.
 
 %private
+metrics_fun() ->
+    FunStr = ?METRICS_FUN,
+    CacheFunKey = {?MODULE, prometheusFun},
+    case imem_cache:read(CacheFunKey) of
+        [{FunStr, OldFun}] -> {ok, OldFun};
+        _ ->
+            case catch imem_compiler:compile(FunStr) of
+                Fun when is_function(Fun, 1) ->
+                    imem_cache:write(CacheFunKey, {FunStr, Fun}),
+                    {ok, Fun};
+                Error ->
+                    ?Error("compiling fun : ~p", [Error]),
+                    {error, Error}
+            end
+    end.
+
+metrics() ->
+    PMetrics = ?METRICS,
+    CacheMetricsKey = {?MODULE, prometheusMetrics},
+    case imem_cache:read(CacheMetricsKey) of 
+        [PMetrics] -> PMetrics;
+        _ ->
+            imem_cache:write(CacheMetricsKey, PMetrics),
+            declare_metrics(PMetrics),
+            PMetrics
+    end.
+
+declare_metrics(Metrics) ->
+    prometheus_registry:clear(),
+    maps:map(fun(Name, Info) ->
+        case metric(Name, Info) of
+            {error, not_valid} ->
+                ?Error("~p : ~p - not supported", [Name, Info]);
+            {MetricType, Spec} ->
+                MetricType:declare(Spec)
+        end
+    end, Metrics).
+
 metric(Name, #{type := Type, help := Help} = Spec) -> 
     case metric_type(Type) of
         not_valid -> {error, not_valid};
@@ -83,24 +121,6 @@ metric(Name, #{type := Type, help := Help} = Spec) ->
             {MetricType, [{name, Name}, {help, Help} | OtherInfos]}
     end;
 metric(_, _) -> {error, not_valid}.
-
-set_metric_value(Name, Value, Spec) ->
-    try set_metric(Name, Value, Spec)
-    catch
-        C:E ->
-            ?Error("Setting ~p with ~p for spec ~p resulted in ~p",
-                   [Name, Value, Spec, {C, E}])
-    end.
-
-set_metric(Name, Value, #{type := Type}) ->
-    MetricType = metric_type(Type),
-    SetterFun = set_fun(Type),
-    set_metric(MetricType, SetterFun, Name, Value).
-
-set_metric(MetricType, SetterFun, Name, {Labels, Value}) ->
-    MetricType:SetterFun(Name, Labels, Value);
-set_metric(MetricType, SetterFun, Name, Value) ->
-    MetricType:SetterFun(Name, Value).
 
 metric_type(gauge) -> prometheus_gauge;
 metric_type(boolean) -> prometheus_boolean;
@@ -117,48 +137,6 @@ get_other_infos(Spec) ->
            (_, _, Acc) -> Acc
         end, [], Spec).
 
-set_fun(Type) when Type == gauge; Type == boolean -> set;
-set_fun(Type) when Type == summary; Type == histogram -> observe;
-set_fun(counter) -> inc.
-
-metrics() ->
-    PMetrics = ?METRICS,
-    CacheMetricsKey = {?MODULE, prometheusMetrics},
-    case imem_cache:read(CacheMetricsKey) of 
-        [PMetrics] -> PMetrics;
-        _ ->
-            imem_cache:write(CacheMetricsKey, PMetrics),
-            declare_metrics(PMetrics),
-            PMetrics
-    end.
-
-metrics_fun() ->
-    FunStr = ?METRICS_FUN,
-    CacheFunKey = {?MODULE, prometheusFun, FunStr},
-    case imem_cache:read(CacheFunKey) of
-        [] ->
-            case catch imem_compiler:compile(FunStr) of
-                NewFun when is_function(NewFun) ->
-                    imem_cache:write(CacheFunKey, NewFun),
-                    {ok, NewFun};
-                Error ->
-                    ?Error("compiling fun : ~p", [Error]),
-                    {error, Error}
-            end;
-        [OldFun] -> {ok, OldFun}
-    end.
-
-declare_metrics(Metrics) ->
-    prometheus_registry:clear(),
-    maps:map(fun(Name, Info) ->
-        case metric(Name, Info) of
-            {error, not_valid} ->
-                ?Error("~p : ~p - not supported", [Name, Info]);
-            {MetricType, Spec} ->
-                MetricType:declare(Spec)
-        end
-    end, Metrics).
-
 execute_metrics_fun(Fun, Metrics, Req) ->
     case catch Fun(Metrics) of
         Results when is_map(Results) ->
@@ -174,3 +152,25 @@ execute_metrics_fun(Fun, Metrics, Req) ->
             ?Error("Invalid result from prometheus fun : ~p", [Error]),
             cowboy_req:reply(500, #{}, <<>>, Req)
     end.
+
+set_metric_value(Name, Value, Spec) ->
+    try set_metric(Name, Value, Spec)
+    catch
+        C:E ->
+            ?Error("Setting ~p with ~p for spec ~p resulted in ~p",
+                   [Name, Value, Spec, {C, E}])
+    end.
+
+set_metric(Name, Value, #{type := Type}) ->
+    MetricType = metric_type(Type),
+    SetterFun = set_fun(Type),
+    set_metric(MetricType, SetterFun, Name, Value).
+
+set_fun(Type) when Type == gauge; Type == boolean -> set;
+set_fun(Type) when Type == summary; Type == histogram -> observe;
+set_fun(counter) -> inc.
+
+set_metric(MetricType, SetterFun, Name, {Labels, Value}) ->
+    MetricType:SetterFun(Name, Labels, Value);
+set_metric(MetricType, SetterFun, Name, Value) ->
+    MetricType:SetterFun(Name, Value).
