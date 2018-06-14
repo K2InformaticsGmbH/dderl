@@ -42,15 +42,10 @@
                                    "Prometheus Scraper Basic credentials")).
 
 init(Req, metrics) ->
-    case ?ISENABLED of
-        true -> init(Req);
-        _ ->
-            Req1 = cowboy_req:reply(404, #{}, <<>>, Req),
-            {ok, Req1, undefined}
-    end.
+    handle_req(Req, ?ISENABLED).
 
-init(#{headers := #{<<"authorization">> := Auth},
-       method := <<"GET">>} = Req) ->
+handle_req(#{headers := #{<<"authorization">> := Auth},
+       method := <<"GET">>} = Req, true) ->
     Req1 =
     case check_auth(Auth) of
         true ->
@@ -61,7 +56,7 @@ init(#{headers := #{<<"authorization">> := Auth},
         false -> cowboy_req:reply(401, #{}, <<>>, Req)
     end,
     {ok, Req1, undefined};
-init(Req) ->
+handle_req(Req, _) ->
     Req1 = cowboy_req:reply(404, #{}, <<>>, Req),
     {ok, Req1, undefined}.
 
