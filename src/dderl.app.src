@@ -13,7 +13,8 @@
                   erlimem,
                   erloci,
                   esaml,
-                  mimetypes]},
+                  mimetypes,
+                  prometheus]},
   {mod, {dderl, []}},
   {env, [{interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []}]}
  ]}.
