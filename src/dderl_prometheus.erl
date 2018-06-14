@@ -1,13 +1,14 @@
 -module(dderl_prometheus).
 
--behavior(cowboy_handler).
+-behavior(cowboy_rest).
 
 -include("dderl.hrl").
 
 % cowboy_handler callback
--export([init/2]).
+-export([init/2, is_authorized/2, allowed_methods/2, content_types_provided/2,
+         get_metrics/2]).
 
--define(CONFIG,
+-define(DEFAULT_METRICS,
         #{process_count => #{type => gauge, help => "Process Count", labels => ["node","schema"]},
           port_count => #{type => gauge, help => "Number of Ports used", labels => ["node","schema"]},
           run_queue => #{type => gauge, help => "Run Queue Size", labels => ["node","schema"]},
@@ -15,7 +16,7 @@
           data_nodes => #{type => gauge, help => "Number of nodes in the cluster", labels => ["node","schema"]}
          }).
 
--define(VALUESFUN,
+-define(DEFAULT_METRICS_FUN,
         <<"fun(Config) ->"
           "  #{data_nodes := DNodes} = imem_metrics:get_metric(data_nodes),"
           "  #{port_count := Ports,process_count := Procs,erlang_memory := Memory,"
@@ -34,9 +35,9 @@
 
 -define(ISENABLED, ?GET_CONFIG(prometheusIsEnabled, [], false,
                              "Prometheus Metrics Enable Flag")).
--define(METRICS, ?GET_CONFIG(prometheusMetrics, [], ?CONFIG,
+-define(METRICS, ?GET_CONFIG(prometheusMetrics, [], ?DEFAULT_METRICS,
                              "Prometheus Metrics")).
--define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?VALUESFUN,
+-define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?DEFAULT_METRICS_FUN,
                                  "Prometheus Metrics values function, which "
                                  "returns a map with all the metrics keys and "
                                  "their corresponding values")).
@@ -45,33 +46,43 @@
                                    "Prometheus Scraper Basic credentials")).
 
 init(Req, metrics) ->
-    handle_req(Req, ?ISENABLED).
+    {cowboy_rest, Req, undefined}.
+
+is_authorized(#{headers := #{<<"authorization">> := <<"Basic ", Auth64/binary>>}} = Req, State) ->
+    #{user := User, password := Password} = ?AUTHORIZATION,
+    Auth = base64:decode(Auth64),
+    Result =
+    case list_to_binary([User, ":", Password]) of
+        Auth -> true;
+        _ -> {false, <<"Basic">>}
+    end,
+    {Result, Req, State};
+is_authorized(Req, State) ->
+    {{false, <<"Basic">>}, Req, State}.
+
+allowed_methods(Req, State) ->
+    {[<<"GET">>], Req, State}.
+
+content_types_provided(Req, State) ->
+    {[{<<"plain/text">>, get_metrics}], Req, State}.
+
+get_metrics(Req, State) ->
+    Req1 =
+    case metrics_fun() of
+        {error, _Error} -> cowboy_req:reply(500, #{}, <<>>, Req);
+        {ok, Fun} -> execute_metrics_fun(Fun, metrics(), Req)
+    end,
+    {stop, Req1, State}.
 
 %private
-handle_req(#{headers := #{<<"authorization">> := Auth},
-       method := <<"GET">>} = Req, true) ->
-    Req1 =
-    case check_auth(Auth) of
-        true ->
-            case get_metrics_fun() of
-                {error, _Error} -> cowboy_req:reply(500, #{}, <<>>, Req);
-                {ok, Fun} -> execute_metrics_fun(Fun, get_metrics(), Req)
-            end;
-        false -> cowboy_req:reply(401, #{}, <<>>, Req)
-    end,
-    {ok, Req1, undefined};
-handle_req(Req, _) ->
-    Req1 = cowboy_req:reply(404, #{}, <<>>, Req),
-    {ok, Req1, undefined}.
-
-get_metric(Name, #{type := Type, help := Help} = Spec) -> 
+metric(Name, #{type := Type, help := Help} = Spec) -> 
     case metric_type(Type) of
         not_valid -> {error, not_valid};
         MetricType ->
             OtherInfos = get_other_infos(Spec),
             {MetricType, [{name, Name}, {help, Help} | OtherInfos]}
     end;
-get_metric(_, _) -> {error, not_valid}.
+metric(_, _) -> {error, not_valid}.
 
 set_metric_value(Name, Value, Spec) ->
     try set_metric(Name, Value, Spec)
@@ -110,7 +121,7 @@ set_fun(Type) when Type == gauge; Type == boolean -> set;
 set_fun(Type) when Type == summary; Type == histogram -> observe;
 set_fun(counter) -> inc.
 
-get_metrics() ->
+metrics() ->
     PMetrics = ?METRICS,
     CacheMetricsKey = {?MODULE, prometheusMetrics},
     case imem_cache:read(CacheMetricsKey) of 
@@ -121,17 +132,17 @@ get_metrics() ->
             PMetrics
     end.
 
-get_metrics_fun() ->
+metrics_fun() ->
     FunStr = ?METRICS_FUN,
     CacheFunKey = {?MODULE, prometheusFun, FunStr},
     case imem_cache:read(CacheFunKey) of
         [] ->
             case catch imem_compiler:compile(FunStr) of
-                NewFun when is_function(NewFun) -> 
+                NewFun when is_function(NewFun) ->
                     imem_cache:write(CacheFunKey, NewFun),
                     {ok, NewFun};
                 Error ->
-                    ?Error("compileing fun : ~p", [Error]),
+                    ?Error("compiling fun : ~p", [Error]),
                     {error, Error}
             end;
         [OldFun] -> {ok, OldFun}
@@ -140,7 +151,7 @@ get_metrics_fun() ->
 declare_metrics(Metrics) ->
     prometheus_registry:clear(),
     maps:map(fun(Name, Info) ->
-        case get_metric(Name, Info) of
+        case metric(Name, Info) of
             {error, not_valid} ->
                 ?Error("~p : ~p - not supported", [Name, Info]);
             {MetricType, Spec} ->
@@ -163,8 +174,3 @@ execute_metrics_fun(Fun, Metrics, Req) ->
             ?Error("Invalid result from prometheus fun : ~p", [Error]),
             cowboy_req:reply(500, #{}, <<>>, Req)
     end.
-
-check_auth(<<"Basic ", Auth64/binary>>) ->
-    #{user := User, password := Password} = ?AUTHORIZATION,
-    list_to_binary([User, ":", Password]) == base64:decode(Auth64);
-check_auth(_) -> false.
