@@ -1,7 +1,10 @@
 -module(dderl_prometheus).
 
+-behavior(cowboy_handler).
+
 -include("dderl.hrl").
 
+% cowboy_handler callback
 -export([init/2]).
 
 -define(CONFIG,
@@ -44,6 +47,7 @@
 init(Req, metrics) ->
     handle_req(Req, ?ISENABLED).
 
+%private
 handle_req(#{headers := #{<<"authorization">> := Auth},
        method := <<"GET">>} = Req, true) ->
     Req1 =
