@@ -106,7 +106,7 @@ declare_metrics(Metrics) ->
     prometheus_registry:clear(),
     maps:map(fun(Name, Info) ->
         case metric(Name, Info) of
-            {error, not_valid} ->
+            {error, unknown} ->
                 ?Error("~p : ~p - not supported", [Name, Info]);
             {MetricType, Spec} ->
                 MetricType:declare(Spec)
@@ -114,20 +114,20 @@ declare_metrics(Metrics) ->
     end, Metrics).
 
 metric(Name, #{type := Type, help := Help} = Spec) -> 
-    case metric_type(Type) of
-        not_valid -> {error, not_valid};
+    case prometheous_mod(Type) of
+        unknown -> {error, unknown};
         MetricType ->
             OtherInfos = get_other_infos(Spec),
             {MetricType, [{name, Name}, {help, Help} | OtherInfos]}
     end;
 metric(_, _) -> {error, not_valid}.
 
-metric_type(gauge) -> prometheus_gauge;
-metric_type(boolean) -> prometheus_boolean;
-metric_type(summary) -> prometheus_summary;
-metric_type(counter) -> prometheus_counter;
-metric_type(histogram) -> prometheus_histogram;
-metric_type(_) -> not_valid.
+prometheous_mod(gauge) -> prometheus_gauge;
+prometheous_mod(boolean) -> prometheus_boolean;
+prometheous_mod(summary) -> prometheus_summary;
+prometheous_mod(counter) -> prometheus_counter;
+prometheous_mod(histogram) -> prometheus_histogram;
+prometheous_mod(_) -> unknown.
 
 get_other_infos(Spec) ->
     maps:fold(
@@ -162,9 +162,12 @@ set_metric_value(Name, Value, Spec) ->
     end.
 
 set_metric(Name, Value, #{type := Type}) ->
-    MetricType = metric_type(Type),
-    SetterFun = set_fun(Type),
-    set_metric(MetricType, SetterFun, Name, Value).
+    case prometheous_mod(Type) of
+        unknown -> no_op;
+        MetricType ->
+            SetterFun = set_fun(Type),
+            set_metric(MetricType, SetterFun, Name, Value)
+    end.
 
 set_fun(Type) when Type == gauge; Type == boolean -> set;
 set_fun(Type) when Type == summary; Type == histogram -> observe;
