@@ -219,6 +219,10 @@
 %% Screensaver config
 -define(SCREEN_SAVER_TIMEOUT, ?GET_CONFIG(screenSaverTimeout, [], 0, "Screen saver activation timeout in minutes, 0 = infinity")).
 
+%% Flag to log queries
+-define(LOG_SQL_REQUEST(__UserId), ?GET_CONFIG(logSqlRequest, [__UserId], true, "Flag defines if successful queries should be logged into dderlLog table")).
+-define(LOG_SQL_BINDS(__UserId), ?GET_CONFIG(logSqlBind, [__UserId], true, "Determines if parameters of the queries should logged with the request")).
+
 %% Access Log levels
 -define(LOGIN_CONNECT,  1).
 -define(CMD_NOARGS,     2).

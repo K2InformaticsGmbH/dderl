@@ -175,6 +175,18 @@ handle_info({set_id, SessionToken}, State) ->
     {noreply, State#state{id = SessionToken}};
 handle_info({download_done, Id}, #state{downloads = Downloads} = State) ->
     {noreply, State#state{downloads = [Id | Downloads]}};
+handle_info({log_query, Query, Parameters}, #state{user_id = UserId} = State) ->
+    case ?LOG_SQL_REQUEST(UserId) of
+        true ->
+            case ?LOG_SQL_BINDS(UserId) of
+                true ->
+                    ?Info("Query: ~n~p~nWith parameters:~n~p~nExecuted.", [Query, Parameters]);
+                false ->
+                    ?Info("Query: ~n~p~nExecuted.", [Query])
+            end;
+        _ -> ok
+    end,
+    {noreply, State};
 handle_info(Info, #state{user = User} = State) ->
     ?Error("~p received unknown msg ~p for ~p", [?MODULE, Info, User]),
     {noreply, State}.

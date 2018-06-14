@@ -667,11 +667,13 @@ process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
                   Query, [], Connection, SessPid).
 
 -spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
-process_query(ok, Query, _BindVals, Connection, _SessPid) ->
+process_query(ok, Query, BindVals, Connection, SessPid) ->
     ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
+    SessPid ! {log_query, Query, process_log_binds(BindVals)},
     [{<<"result">>, <<"ok">>}];
 process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName},
               Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->
+    SessPid ! {log_query, Query, process_log_binds(BindVals)},
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
     StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
     dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, StmtFsm),
@@ -684,14 +686,15 @@ process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt,
      {<<"sort_spec">>, JSortSpec},
      {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
      {<<"connection">>, ?E2B(Connection)}];
-process_query({ok, Values}, _Query, _BindVals, {oci_port, _, _} = Connection, _SessPid) ->
+process_query({ok, Values}, Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->
+    SessPid ! {log_query, Query, process_log_binds(BindVals)},
     [{<<"data">>, Values},
      {<<"connection">>, ?E2B(Connection)}];
-process_query({error, {Code, Msg}}, _Query, _BindVals, _Connection, _SessPid) when is_binary(Msg) ->
-    ?Error("query error ~p", [{Code, Msg}]),
+process_query({error, {Code, Msg}}, Query, BindVals, _Connection, _SessPid) when is_binary(Msg) ->
+    ?Error("query error ~p for ~p whith bind values ~p", [{Code, Msg}, Query, BindVals]),
     [{<<"error">>, Msg}];
-process_query(Error, _Query, _BindVals, _Connection, _SessPid) ->
-    ?Error("query error ~p", [Error]),
+process_query(Error, Query, BindVals, _Connection, _SessPid) ->
+    ?Error("query error ~p for ~p whith bind values ~p", [Error, Query, BindVals]),
     if
         is_binary(Error) ->
             [{<<"error">>, Error}];
@@ -731,6 +734,15 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
         false ->
             {error, invalid_connection}
     end.
+
+-spec process_log_binds({list(), list()} | []) -> list().
+process_log_binds([]) -> [];
+process_log_binds({[], _}) -> [];
+process_log_binds({[{Name, out,'SQLT_RSET'} | Vars], [_ | Values]}) ->
+    % Replaced the long binary for a placeholder text for log.
+    [{Name, out, 'SQLT_RSET', <<"placeholder">>} | process_log_binds({Vars, Values})];
+process_log_binds({[{Name, Dir, Type} | Vars], [Val | Values]}) ->
+    [{Name, Dir, Type, Val} | process_log_binds({Vars, Values})].
 
 -spec error_invalid_conn() -> term().
 error_invalid_conn() ->
