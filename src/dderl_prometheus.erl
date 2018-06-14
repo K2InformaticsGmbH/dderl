@@ -6,7 +6,7 @@
 
 % cowboy_handler callback
 -export([init/2, is_authorized/2, allowed_methods/2, content_types_provided/2,
-         get_metrics/2]).
+         get_metrics/2, service_available/2]).
 
 -define(DEFAULT_METRICS,
         #{process_count => #{type => gauge, help => "Process Count", labels => ["node","schema"]},
@@ -34,7 +34,7 @@
     ).
 
 -define(ISENABLED, ?GET_CONFIG(prometheusIsEnabled, [], false,
-                             "Prometheus Metrics Enable Flag")).
+                               "Prometheus Metrics Enable Flag")).
 -define(METRICS, ?GET_CONFIG(prometheusMetrics, [], ?DEFAULT_METRICS,
                              "Prometheus Metrics")).
 -define(METRICS_FUN, ?GET_CONFIG(prometheusMetricsFun, [], ?DEFAULT_METRICS_FUN,
@@ -62,6 +62,9 @@ is_authorized(Req, State) ->
 
 allowed_methods(Req, State) ->
     {[<<"GET">>], Req, State}.
+
+service_available(Req, State) ->
+    {?ISENABLED, Req, State}.
 
 content_types_provided(Req, State) ->
     {[{<<"plain/text">>, get_metrics}], Req, State}.
@@ -107,7 +110,7 @@ declare_metrics(Metrics) ->
     maps:map(fun(Name, Info) ->
         case metric(Name, Info) of
             {error, unknown} ->
-                ?Error("~p : ~p - not supported", [Name, Info]);
+                ?Error("~p does not support ~p", [Name, Info]);
             {MetricType, Spec} ->
                 MetricType:declare(Spec)
         end
