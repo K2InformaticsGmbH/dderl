@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import * as d3 from 'd3/build/d3.node';
+import * as d3 from 'd3/dist/d3.node';
 import 'd3-selection-multi';
 import 'jquery-dialogextend/build/jquery.dialogextend';
 import {alert_jq, prompt_jq, confirm_jq, alert_js_error} from '../dialogs/dialogs';

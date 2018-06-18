@@ -9,10 +9,10 @@
   },
   "devDependencies": {},
   "scripts": {
-    "build-all-dev": "yarn build-dderl-dev && yarn build-swagger-dev",
-    "build-all-prod": "yarn build-dderl-prod && yarn build-swagger-prod",
-    "build-dderl-dev": "cd dev/ && yarn && yarn build-dev",
-    "build-dderl-prod": "cd dev/ && yarn && yarn build-prod",
+    "build-all-dev": "npm run build-dderl-dev && yarn build-swagger-dev",
+    "build-all-prod": "npm run build-dderl-prod && yarn build-swagger-prod",
+    "build-dderl-dev": "cd dev/ && npm install && npm run build-dev",
+    "build-dderl-prod": "cd dev/ && npm install && npm run build-prod",
     "build-swagger-dev": "cd swagger/ && yarn && yarn build-dev",
     "build-swagger-prod": "cd swagger/ && yarn && yarn build-prod"
   }
