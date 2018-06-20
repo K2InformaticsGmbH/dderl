@@ -3,6 +3,7 @@
 
 -include_lib("esaml/include/esaml.hrl").
 -include("dderl.hrl").
+-include("dderl_request.hrl").
 
 -export([init/2, info/3, terminate/3]).
 
@@ -12,9 +13,9 @@
 
 -define(CERTKEYCACHE, samlCertKey).
 
-init(Req, _Args) ->
-    Req1 = Req#{reqTime => os:timestamp(),
-                accessLog => #{}},
+init(Req0, _Args) ->
+    Req = ?COW_REQ_SET_META(reqTime, os:timestamp(), Req0),
+    Req1 = ?COW_REQ_SET_META(accessLog, #{}, Req),
     HostUrl = iolist_to_binary(cowboy_req:uri(Req1, #{path => undefined, qs => undefined})),
     Url = iolist_to_binary(cowboy_req:uri(Req1)),
     {SP, IdpMeta} = initialize(HostUrl, Url),
@@ -45,8 +46,9 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
 info({reply, _Body}, Req, State) ->
     {ok, unauthorized(Req), State};
 info({access, Log}, Req, State) ->
-    OldLog = maps:get(accessLog, Req, #{}),
-    {ok, Req#{accessLog => maps:merge(OldLog, Log)}, State, hibernate};
+    OldLog = ?COW_REQ_GET_META(accessLog, Req, 0),
+    Req1 = ?COW_REQ_SET_META(accessLog, maps:merge(OldLog, Log), Req),
+    {ok, Req1, State, hibernate};
 info({terminateCallback, Fun}, Req, State) ->
     {ok, Req, State#state{terminateCallback = Fun}, hibernate}.
 
@@ -157,7 +159,7 @@ get_priv_key(KeyBin) ->
 
 unauthorized(Req) ->
     cowboy_req:reply(200, 
-            #{<<"Cache-Control">> => <<"no-cache">>,
-              <<"Pragma">> => <<"no-cache">>,
+            #{<<"cache-control">> => <<"no-cache">>,
+              <<"pragma">> => <<"no-cache">>,
               <<"content-type">> => <<"text/html">>}
         , ?UNAUTHORIZEDPAGE, Req).
