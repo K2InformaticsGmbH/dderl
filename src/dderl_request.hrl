@@ -8,5 +8,11 @@
 -define(COW_REQ_SET_META(Key, Value, Req),
     dderl:cow_req_set_meta(application:get_application(?MODULE), Key, Value, Req)
 ).
+-define(COW_REQ_GET_META(App, Key, Req, Default),
+    dderl:cow_req_get_meta({ok, App}, Key, Req, Default)
+).
+-define(COW_REQ_SET_META(App, Key, Value, Req),
+    dderl:cow_req_set_meta({ok, App}, Key, Value, Req)
+).
 
 -endif.
