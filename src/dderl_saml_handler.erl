@@ -46,9 +46,9 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
               <<"pragma">> => <<"no-cache">>,
               <<"location">> => TargetUrl},
         <<"Redirecting...">>, Req),
-    {ok, Req1, State};
+    {stop, Req1, State};
 info({reply, _Body}, Req, State) ->
-    {ok, unauthorized(Req), State};
+    {stop, unauthorized(Req), State};
 info({access, Log}, Req, #state{app = App} = State) ->
     OldLog = ?COW_REQ_GET_META(App, accessLog, Req, 0),
     Req1 = ?COW_REQ_SET_META(App, accessLog, maps:merge(OldLog, Log), Req),
