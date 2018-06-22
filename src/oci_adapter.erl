@@ -735,7 +735,8 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             {error, invalid_connection}
     end.
 
--spec process_log_binds({list(), list()} | []) -> list().
+-spec process_log_binds({list(), list()} | [] | undefined) -> list().
+process_log_binds(undefined) -> [];
 process_log_binds([]) -> [];
 process_log_binds({[], _}) -> [];
 process_log_binds({[{Name, out,'SQLT_RSET'} | Vars], [_ | Values]}) ->
