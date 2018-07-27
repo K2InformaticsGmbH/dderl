@@ -769,6 +769,7 @@ process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
 process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, Params)) of
         ok ->
+            SessPid ! {log_query, Query, Params},
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];
         {ok, #stmtResult{ stmtCols = Clms
@@ -776,6 +777,7 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
                         , stmtRef  = StmtRef
                         , sortFun  = SortFun
                         , sortSpec = SortSpec} = _StmtRslt} ->
+            SessPid ! {log_query, Query, Params},
             TableName = extract_table_name(Query),
             StmtFsm = dderl_fsm:start(
                                 #fsmctx{ id                         = "what is it?"
