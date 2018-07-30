@@ -204,8 +204,6 @@ exec_coldstart_cb(App, disabled) ->
     ?Warn("'~p' cold start : cold_start hook disabled", [App]);
 exec_coldstart_cb(App, not_cold_start) ->
     ?Info("'~p' not cold start", [App]);
-exec_coldstart_cb(App, undefined) ->
-    ?Error("'~p' cold start : cold_start_fun hook not defined", [App]);
 exec_coldstart_cb(App, Fun) when is_binary(Fun); is_function(Fun, 0) ->
     try
         Ret =
