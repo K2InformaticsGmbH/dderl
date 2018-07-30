@@ -23,7 +23,7 @@
 
 %% Helper functions
 -export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
-         can_handle_request/1]).
+         can_handle_request/1, exec_coldstart_cb/2]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -49,6 +49,7 @@ start(_Type, _Args) ->
           ),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
+    ?COLDSTART_CB(<<"fun() ->  end">>),
     {ok, Ip}   = application:get_env(dderl, interface),
     {ok, Port} = application:get_env(dderl, port),
     {ok, Interface} = inet:getaddr(Ip, inet),
@@ -197,6 +198,25 @@ cow_req_set_meta({ok, Application}, Key, Value, Req) ->
 -spec can_handle_request(map()) -> boolean().
 can_handle_request(Req) ->
     ?COW_REQ_GET_META(dderl_request, Req, false).
+
+-spec exec_coldstart_cb(atom(), atom() | binary()) -> any().
+exec_coldstart_cb(App, disabled) ->
+    ?Warn("'~p' cold start : cold_start hook disabled", [App]);
+exec_coldstart_cb(App, not_cold_start) ->
+    ?Info("'~p' not cold start", [App]);
+exec_coldstart_cb(App, Fun) when is_binary(Fun); is_function(Fun, 0) ->
+    try
+        Ret =
+            if is_function(Fun, 0) -> Fun();
+                true -> (imem_compiler:compile(Fun))()
+            end,
+        ?Info("'~p' cold start : cold_start_fun hook : ~p", [App, Ret])
+    catch Class:Exception ->
+        ?Error("'~p' cold start : ~p:~p~nHook cold_start_fun : ~p~nStack ~p",
+               [App, Class, Exception, Fun, erlang:get_stacktrace()])
+    end;
+exec_coldstart_cb(App, FunStr) ->
+    ?Error("'~p' cold start : bad cold_start_fun hook '~p'", [App, FunStr]).
 
 %%-----------------------------------------------------------------------------
 
