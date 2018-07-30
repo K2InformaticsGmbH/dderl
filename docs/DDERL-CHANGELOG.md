@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 2.4.0 (Release Date 14.06.2018)
+======================================
+* Cowboy 2.4.0 support
+* Prometheus metrics support
+* Log successful queries
+* Swagger 3.x
+
 Version 2.3.1 (Release Date 08.05.2018)
 ======================================
 * Added configuration to build rpm

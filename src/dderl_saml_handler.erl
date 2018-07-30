@@ -3,23 +3,28 @@
 
 -include_lib("esaml/include/esaml.hrl").
 -include("dderl.hrl").
+-include("dderl_request.hrl").
 
 -export([init/2, info/3, terminate/3]).
 
 -export([fwdUrl/3]).
 
--record(state, {sp, idp, terminateCallback}).
+-record(state, {sp, idp, terminateCallback, app}).
 
 -define(CERTKEYCACHE, samlCertKey).
 
-init(Req, _Args) ->
-    Req1 = Req#{reqTime => os:timestamp(),
-                accessLog => #{}},
+init(Req0, Args) ->
+    App = case Args of 
+        #{app := Application} -> Application;
+        _ -> dderl
+    end,
+    Req = ?COW_REQ_SET_META(App, reqTime, os:timestamp(), Req0),
+    Req1 = ?COW_REQ_SET_META(App, accessLog, #{}, Req),
     HostUrl = iolist_to_binary(cowboy_req:uri(Req1, #{path => undefined, qs => undefined})),
     Url = iolist_to_binary(cowboy_req:uri(Req1)),
     {SP, IdpMeta} = initialize(HostUrl, Url),
     Method = cowboy_req:method(Req1),
-    process_req(Method, Req1, #state{sp = SP, idp = IdpMeta}).
+    process_req(Method, Req1, #state{sp = SP, idp = IdpMeta, app = App}).
 
 process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
@@ -41,12 +46,13 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
               <<"pragma">> => <<"no-cache">>,
               <<"location">> => TargetUrl},
         <<"Redirecting...">>, Req),
-    {ok, Req1, State};
+    {stop, Req1, State};
 info({reply, _Body}, Req, State) ->
-    {ok, unauthorized(Req), State};
-info({access, Log}, Req, State) ->
-    OldLog = maps:get(accessLog, Req, #{}),
-    {ok, Req#{accessLog => maps:merge(OldLog, Log)}, State, hibernate};
+    {stop, unauthorized(Req), State};
+info({access, Log}, Req, #state{app = App} = State) ->
+    OldLog = ?COW_REQ_GET_META(App, accessLog, Req, 0),
+    Req1 = ?COW_REQ_SET_META(App, accessLog, maps:merge(OldLog, Log), Req),
+    {ok, Req1, State, hibernate};
 info({terminateCallback, Fun}, Req, State) ->
     {ok, Req, State#state{terminateCallback = Fun}, hibernate}.
 
@@ -157,7 +163,7 @@ get_priv_key(KeyBin) ->
 
 unauthorized(Req) ->
     cowboy_req:reply(200, 
-            #{<<"Cache-Control">> => <<"no-cache">>,
-              <<"Pragma">> => <<"no-cache">>,
+            #{<<"cache-control">> => <<"no-cache">>,
+              <<"pragma">> => <<"no-cache">>,
               <<"content-type">> => <<"text/html">>}
         , ?UNAUTHORIZEDPAGE, Req).

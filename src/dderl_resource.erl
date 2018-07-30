@@ -121,14 +121,11 @@ process_request_low(SessionToken, XSRFToken, Adapter, Req, Body, Typ) ->
     end.
 
 conn_info(Req) ->
-    {PeerIp, PeerPort} = cowboy_req:peer(Req),
-    {ok, LocalIp}   = application:get_env(dderl, interface),
-    {ok, LocalPort} = application:get_env(dderl, port),
-    ConnTcpInfo = #{localip => LocalIp, localport => LocalPort},
-    ConnInfo = #{tcp => ConnTcpInfo},
+    #{sock := {LocalIp, LocalPort}, peer := {PeerIp, PeerPort}} = Req,
+    ConnTcpInfo = #{localip => LocalIp, localport => LocalPort,
+                    peerip => PeerIp, peerport => PeerPort},
     Headers = cowboy_req:headers(Req),
-    ConnInfo#{tcp => ConnTcpInfo#{peerip => PeerIp, peerport => PeerPort},
-              http => #{headers => Headers}}.
+    #{tcp => ConnTcpInfo, http => #{headers => Headers}}.
 info({access, Log}, Req, State) ->
     OldLog = ?COW_REQ_GET_META(accessLog, Req, 0),
     Req1 = ?COW_REQ_SET_META(accessLog, maps:merge(OldLog, Log), Req),
@@ -190,8 +187,7 @@ reply_200_json(Body, SessionToken, Req) ->
             cowboy_req:set_resp_cookie(CookieName, SessToken, Req, Opts)
     end,
     cowboy_req:reply(200, 
-          #{<<"content-encoding">> => <<"utf-8">>,
-            <<"content-type">> => <<"application/json">>}
+          #{<<"content-type">> => <<"application/json; charset=utf-8">>}
         , Body, ?COW_REQ_SET_META(respSize, byte_size(Body), Req1)).
 
 reply_csv(FileName, Chunk, ChunkIdx, Req) ->

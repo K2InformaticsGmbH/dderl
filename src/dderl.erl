@@ -227,10 +227,15 @@ exec_coldstart_cb(App, FunStr) ->
         ?GET_CONFIG(probeUrl,[], "/probe.html",
                     "Defines the url of the probe for the load balancer")).
 
+-define(PROMETHEUS_URL,
+        ?GET_CONFIG(prometheusMetricsUrl,[], "/metrics",
+                    "Prometheus metrics fetch url")).
+
 get_routes() ->
     PrivDir = priv_dir(),
     UrlPathPrefix = get_url_suffix(),
     [{?PROBE_URL, dderl, '$path_probe'},
+     {?PROMETHEUS_URL, dderl_prometheus, metrics},
      {UrlPathPrefix++"/", dderl, []},
      {UrlPathPrefix++"/app/[...]", dderl_resource, []},
      {UrlPathPrefix++ get_sp_url_suffix(), dderl_saml_handler, []},

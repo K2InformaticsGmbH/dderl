@@ -6,8 +6,7 @@
           <<"cache-control">> => <<"no-cache, no-store, must-revalidate">>,
           <<"server">> => <<?SERVER>>}).
 -define(REPLY_JSON_HEADERS,
-        maps:merge(#{<<"content-encoding">> => <<"utf-8">>,
-                     <<"content-type">> => <<"application/json">>},
+        maps:merge(#{<<"content-type">> => <<"application/json; charset=utf-8">>},
                    ?REPLY_HEADERS)).
 -define(REPLY_JSON_SPEC_HEADERS,
         maps:merge(#{<<"connection">> => <<"close">>,

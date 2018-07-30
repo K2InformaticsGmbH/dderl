@@ -1,4 +1,4 @@
-import * as d3 from 'd3/build/d3.node';
+import * as d3 from 'd3/dist/d3.node';
 import $ from 'jquery';
 import {alert_js_error, alert_jq, dlg_fit_to_window} from '../dialogs/dialogs';
 import {dderlState, ajaxCall} from '../scripts/dderl';
