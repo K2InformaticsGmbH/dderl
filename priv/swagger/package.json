@@ -15,7 +15,7 @@
     "file-loader": "^1.1.11",
     "jquery": "^3.3.1",
     "popper.js": "^1.14.3",
-    "swagger-ui": "https://github.com/K2InformaticsGmbH/swagger-ui/archive/v3.18.0.tar.gz"
+    "swagger-ui": "^3.18.0"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^0.1.19",
