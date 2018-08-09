@@ -18,20 +18,16 @@ $(function () {
         } else {
             $('#brand_image').remove();
         }
-	var swaggerVersionFun = function () {
-	    if (versions && versions.swaggerUi && versions.swaggerUi.version) {
-	        $('#swagger_version').text(versions.swaggerUi.version);
-            }
-	} 
 
-	if (window.versions == undefined) {
-            setTimeout(swaggerVersionFun, 2000);
-	} else {
-	    swaggerVersionFun();
-	}
         SwaggerUI({
             dom_id: '#SwaggerUI',
             url: window.location.origin + brand.spec
         });
+
+        if (versions && versions.swaggerUi && versions.swaggerUi.version) {
+            $('#swagger_version').text(versions.swaggerUi.version);
+        } else {
+            console.info("Swagger-ui version is not available");
+        }
     });
 });
