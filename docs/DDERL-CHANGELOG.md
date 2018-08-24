@@ -10,6 +10,7 @@ Version 2.5.0 (Release Date 28.08.2018)
 * Swagger minor upgrade to 3.18 and version on top banner
 * [MP-18.01] Cold start call back hook framework
 * IMEM upgrade 3.0
+* erlimem upgare to 2.0.0
 
 Version 2.4.0 (Release Date 14.06.2018)
 ======================================
