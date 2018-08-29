@@ -496,7 +496,6 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                             dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
                             FsmStmt:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, FsmStmt, From)),
-                            FsmStmt:get_count(),
                             FsmStmt:refresh_session_ctx(FsmCtx);
                         _ ->
                             From ! {reply, jsx:encode([{<<"button">>, [{<<"error">>, <<"unable to refresh the table">>}]}])}

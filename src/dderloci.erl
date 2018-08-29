@@ -65,7 +65,7 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
                 _ -> ContainRowNum = true
             end,
             {ok, Pid} = gen_server:start(?MODULE, [SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum], []),
-            SortSpec = gen_server:call(Pid, build_sort_spec),
+            SortSpec = gen_server:call(Pid, build_sort_spec, ?ExecTimeout),
             %% Mask the internal stmt ref with our pid.
             {ok, StmtResult#stmtResult{stmtRef = Pid, sortSpec = SortSpec}, TableName};
         NoSelect ->
@@ -90,15 +90,15 @@ fetch_recs_async(Pid, Opts, Count) ->
 
 -spec fetch_close(pid()) -> ok.
 fetch_close(Pid) ->
-    gen_server:call(Pid, fetch_close).
+    gen_server:call(Pid, fetch_close, ?ExecTimeout).
 
 -spec filter_and_sort(pid(), tuple(), list(), list(), list(), binary()) -> {ok, binary(), fun()}.
 filter_and_sort(Pid, Connection, FilterSpec, SortSpec, Cols, Query) ->
-    gen_server:call(Pid, {filter_and_sort, Connection, FilterSpec, SortSpec, Cols, Query}).
+    gen_server:call(Pid, {filter_and_sort, Connection, FilterSpec, SortSpec, Cols, Query}, ?ExecTimeout).
 
 -spec close(pid()) -> term().
 close(Pid) ->
-    gen_server:call(Pid, close).
+    gen_server:call(Pid, close, ?ExecTimeout).
 
 -spec close_port(tuple()) -> term().
 close_port({OciMod, PortPid, _Conn}) -> close_port({OciMod, PortPid});

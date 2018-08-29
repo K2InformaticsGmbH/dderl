@@ -26,6 +26,7 @@
 -define(NoKey,{}).      %% placeholder for unavailable key tuple within RowKey tuple
 
 -define(TAIL_TIMEOUT, 10000). %% 10 Seconds.
+-define(BUFFER_WAIT_TIMEOUT, 1000). % 1 Second.
 
 %% --------------------------------------------------------------------
 %% erlimem_fsm interface
@@ -132,6 +133,7 @@
                 , sql = <<"">>        %% sql string
                 , tRef = undefined    %% ref to the timer that triggers the timeout to when tailing and there is no data
                 , colOrder = []       %% order of columns, list of column indices, [] = as defined in SQL
+                , lastFetchTime       %% keeps the system time in milliseconds of the last fetch.
                 }).
 
 -define(block_size,10).
@@ -223,7 +225,7 @@ stop({?MODULE,Pid}) ->
 refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
     Ctx = fsm_ctx(FsmCtx),
     ?Debug("Refreshing the session ctx"),
-    gen_statem:call(Pid, {refresh_ctx, Ctx}).
+    gen_statem:cast(Pid, {refresh_ctx, Ctx}).
 
 -spec gui_req(atom(), term(), fun(), {atom(), pid()}) -> ok.
 gui_req(button, <<"restart">>, ReplyTo, {?MODULE,Pid}) ->
@@ -321,18 +323,22 @@ delete({Rows,Completed},{?MODULE,Pid}) ->
     gen_statem:cast(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
-fetch(FetchMode,TailMode, #state{bufCnt = Count, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
+fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
         {FM,none} ->      [{fetch_mode,FM}];
         {FM,TM} ->        [{fetch_mode,FM},{tail_mode,TM}]
+    end,
+    FetchTime1 = case FetchTime0 of
+        undefined -> os:system_time(milli_seconds);
+        FetchTime0 -> FetchTime0
     end,
     case Fraf(Opts, Count) of
         %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
         %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
         ok ->
             % ?Info("fetch(~p, ~p, ~p) ok", [FetchMode, TailMode, State0#state.pfc+1]),
-            State0#state{pfc=State0#state.pfc+1};
+            State0#state{pfc=State0#state.pfc+1, lastFetchTime = FetchTime1};
         {_, Error} ->
             ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Error]),
             State0
@@ -655,6 +661,10 @@ empty(cast, {button, <<"">>, ReplyTo}, State0) ->
     State2 = gui_nop(#gres{state=empty}, State1),
     % make sure tailing is not active
     {next_state, empty, State2#state{tailMode=false}};
+empty(cast, {button, <<">">>, ReplyTo}, State0) ->
+    State1 = reply_stack(empty, ReplyTo, State0),
+    State2 = fetch(none,none, State1#state{tailMode=false}),
+    {next_state, filling, State2#state{stack={button,<<">">>,ReplyTo}}};
 empty({call, From}, Msg, State) ->
     handle_call(Msg, From, empty, State);
 empty(cast, Msg, State) ->
@@ -1181,6 +1191,23 @@ passthrough(info, Msg, State) ->
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 
+handle_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, SN, #state{ctx = OldCtx} = State) ->
+    %%Close the old statement
+    F = OldCtx#ctx.stmt_close_fun,
+    F(),
+    State0 = data_clear(State),
+    #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
+    State1 = State0#state{bl = BL
+        , gl            = gui_max(BL)
+        , ctx           = Ctx
+        , stmtColsCount = length(StmtCols)
+        , rowFun        = RowFun
+        , sortFun       = SortFun
+        , sortSpec      = SortSpec
+        , replyToFun    = ReplyTo
+    },
+    State2 = fetch(none,none,State1#state{pfc=0}),
+    {next_state, SN, State2};
 handle_event({error, Error}, SN, State) ->
     ?Error("Error on fsm ~p when State ~p Message: ~n~p", [self(), SN, Error]),
     ErrorMsg = iolist_to_binary(io_lib:format("~p", [Error])),
@@ -1200,10 +1227,6 @@ handle_event({_Op, _Arg, ReplyTo}, passthrough, State0) ->
     State1 = reply_stack(passthrough, ReplyTo, State0),
     State2 = gui_nop(#gres{state=passthrough,beep=true,message= ?PassThroughOnlyRestart},State1),
     {next_state, passthrough, State2};
-handle_event({button, <<">">>, ReplyTo}, empty, State0) ->
-    State1 = reply_stack(empty, ReplyTo, State0),
-    State2 = fetch(none,none, State1#state{tailMode=false}),
-    {next_state, filling, State2#state{stack={button,<<">">>,ReplyTo}}};
 handle_event({button, <<">">>, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     {next_state, SN, serve_fwd(SN, State1#state{tailLock=true})};
@@ -1600,23 +1623,6 @@ handle_call({distinct_statistics, ColumnId}, From, SN, #state{nav = Nav, tableId
         _:Error ->
             {next_state, SN, State, [{reply, From, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}}]}
     end;
-handle_call({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, From, SN, #state{ctx = OldCtx} = State) ->
-    %%Close the old statement
-    F = OldCtx#ctx.stmt_close_fun,
-    F(),
-    State0 = data_clear(State),
-    #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
-    State1 = State0#state{bl        = BL
-                   , gl            = gui_max(BL)
-                   , ctx           = Ctx
-                   , stmtColsCount = length(StmtCols)
-                   , rowFun        = RowFun
-                   , sortFun       = SortFun
-                   , sortSpec      = SortSpec
-                   , replyToFun    = ReplyTo
-                   },
-    State2 = fetch(none,none,State1#state{pfc=0}),
-    {next_state, SN, State2, [{reply, From, ok}]};
 handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=StmtCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
     FoldFun =
     fun(Row, Acc) ->
@@ -2281,15 +2287,28 @@ serve_stack(completed, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
 serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-
-serve_stack(filling, #state{nav=raw,stack={button,<<">">>,_},gl=GL,bufBot=BufBot,guiCnt=0}=State) when BufBot<GL ->
-    % delay serving received rows, trying to get a full block for first serve
-    % ?Info("skipping raw serve at ~p",[BufBot]),
-    State;
-serve_stack(filling, #state{nav=ind,stack={button,<<">">>,_},gl=GL,bufBot=_BufBot,indCnt=IndCnt,guiCnt=0}=State) when IndCnt<GL ->
-    % delay serving received rows, trying to get a full gui block of sorted data before first serve
-    % ?Info("skipping ind serve at ~p (~p)",[_BufBot,IndCnt]),
-    State;
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) when Lft =/= undefined ->
+    FetchElapsedTime = case Lft of
+        undefined -> 0;
+        Lft -> os:system_time(milli_seconds) - Lft
+    end,
+    case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
+        true ->
+            case Nav of
+                raw when BufBot < GL ->
+                    % delay serving received rows, trying to get a full block for first serve
+                    State;
+                ind when IndCnt < GL ->
+                    % delay serving received rows, trying to get a full gui block of sorted data before first serve
+                    State;
+                _ ->
+                    serve_top(filling,State#state{
+                        stack=undefined,replyToFun=RT,lastFetchTime=undefined})
+            end;
+        false ->
+            serve_top(filling,State#state{
+                stack=undefined,replyToFun=RT,lastFetchTime=undefined})
+    end;
 serve_stack(filling, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
     serve_top(filling,State0#state{stack=undefined,replyToFun=RT});
 % serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
