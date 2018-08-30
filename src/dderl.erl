@@ -212,9 +212,9 @@ exec_coldstart_cb(App, Fun) when is_binary(Fun); is_function(Fun, 0) ->
 exec_coldstart_cb(App, FunStr) ->
     ?Error("'~p' cold start : bad cold_start_fun hook '~p'", [App, FunStr]).
 
--spec log_table() -> fun().
+-spec log_table() -> atom().
 log_table() ->
-    fun() -> ?LOGTABLE end.
+    ?LOGTABLE.
 
 %%-----------------------------------------------------------------------------
 
