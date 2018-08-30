@@ -19,7 +19,8 @@
 %% OTP Application API
 -export([start/2, stop/1]).
 
--export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0, priv_dir/1]).
+-export([get_url_suffix/0, get_sp_url_suffix/0, format_path/1, priv_dir/0,
+         priv_dir/1, log_table/0]).
 
 %% Helper functions
 -export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
@@ -40,13 +41,6 @@ stop() ->
 %% Application Interface
 %%-----------------------------------------------------------------------------
 start(_Type, _Args) ->
-    % adding lager imem handler (after IMEM start)
-    ok = gen_event:add_handler(
-           lager_event, {imem_lager_backend, ?MODULE},
-           [{level,info},{tablefun, fun() -> ?LOGTABLE end},
-            {application, ?MODULE},
-            {tn_event,[{dderl,?MODULE,dderlLogTable}]}]
-          ),
     ?Info("---------------------------------------------------"),
     ?Info("STARTING DDERL"),
     ?COLDSTART_CB(<<"fun() ->  end">>),
@@ -217,6 +211,10 @@ exec_coldstart_cb(App, Fun) when is_binary(Fun); is_function(Fun, 0) ->
     end;
 exec_coldstart_cb(App, FunStr) ->
     ?Error("'~p' cold start : bad cold_start_fun hook '~p'", [App, FunStr]).
+
+-spec log_table() -> fun().
+log_table() ->
+    fun() -> ?LOGTABLE end.
 
 %%-----------------------------------------------------------------------------
 
