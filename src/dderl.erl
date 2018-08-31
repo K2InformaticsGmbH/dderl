@@ -213,7 +213,7 @@ exec_coldstart_cb(App, FunStr) ->
 
 -spec log_table() -> atom().
 log_table() ->
-    ?LOGTABLE.
+    ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@',"Rolling log table name").
 
 %%-----------------------------------------------------------------------------
 

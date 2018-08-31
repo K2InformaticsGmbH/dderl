@@ -167,7 +167,6 @@
 -define(URLSUFFIX, ?GET_CONFIG(urlsuffix,[],"/dderl","Suffix for access URL")).
 -define(MAXACCEPTORS, ?GET_CONFIG(maxNumberOfAcceptors, [], 100, "Maximum number of TCP acceptors")).
 -define(MAXCONNS, ?GET_CONFIG(maxNumberOfSockets, [], 5000, "Maximum number of simulteneous connections")).
--define(LOGTABLE, ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@',"Rolling log table name")).
 -define(SSLOPTS, ?GET_CONFIG(dderlSslOpts,[],'$no_ssl_conf',"SSL listen socket options")).
 -define(RESTARTAPPS(__CurrApp), ?GET_CONFIG(restartApplications, [], [__CurrApp], "Erlang applicationns to restart inside VM")).
 
