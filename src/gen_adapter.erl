@@ -20,6 +20,7 @@
         , opt_bind_json_obj/2
         , add_conn_info/2
         , make_csv_rows/4
+        , is_exec_query/1
         ]).
 
 init() -> ok.
@@ -139,11 +140,27 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             From ! {reply, ParseStmt}
                     end;
                 {parse_error, {PError, Tokens}} ->
-                    ?Error("parse_stmt error in parsetree ~p~n", [{PError, Tokens}]),
-                    ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [{PError, Tokens}])),
-                    From ! {reply, jsx:encode([{<<"parse_stmt">>,
-                                                [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}
-                                                 | opt_bind_json_obj(Sql, Adapter)]}])};
+                    case is_exec_query(Sql) of
+                        {multiple, FlatList} ->
+                            FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
+                            FlatListTuple = {<<"flat_list">>, FlatList},
+                            ParseStmt = jsx:encode([{<<"parse_stmt">>,
+                                [FlatTuple, FlatListTuple | opt_bind_json_obj(Sql, Adapter)]
+                            }]),
+                            From ! {reply, ParseStmt};
+                        {true, Flat} ->
+                            FlatTuple = {<<"flat">>, Flat},
+                            ParseStmt = jsx:encode([{<<"parse_stmt">>,
+                                [FlatTuple | opt_bind_json_obj(Sql, Adapter)]
+                            }]),
+                            From ! {reply, ParseStmt};
+                        false ->
+                            ?Error("parse_stmt error in parsetree ~p~n", [{PError, Tokens}]),
+                            ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [{PError, Tokens}])),
+                            From ! {reply, jsx:encode([{<<"parse_stmt">>,
+                                                        [{<<"error">>, ReasonBin}, {<<"flat">>, list_to_binary(Sql)}
+                                                        | opt_bind_json_obj(Sql, Adapter)]}])}
+                    end;
                 {lex_error, LError} ->
                     ?Error("lexer error in parsetree ~p~n", [LError]),
                     ReasonBin = iolist_to_binary(io_lib:format("Lexer error: ~p", [LError])),
@@ -935,3 +952,27 @@ should_escape(normal, ColSepChar, Cell) ->
     re:run(Cell, "^\"|[\r\n"++ColSepChar++"]") =/= nomatch;
 should_escape(_Other, ColSepChar, Cell) ->
     should_escape(normal, ColSepChar, Cell).
+
+-spec is_exec_query(list()) -> {true, binary()} | {multiple, [binary()]} | false.
+is_exec_query(Sql) ->
+    Sql0 = string:trim(Sql),
+    case string:split(Sql0, ";", all) of
+        [Sql0] -> process_exec_query(Sql0);
+        [Sql0, []] -> process_exec_query(Sql0);
+        SqlList -> process_exec_query_list(SqlList, [])
+    end.
+
+process_exec_query_list([], Acc) -> {multiple, lists:reverse(Acc)};
+process_exec_query_list([[]], Acc) -> {multiple, lists:reverse(Acc)};
+process_exec_query_list([Sql | Rest], Acc) ->
+    case process_exec_query(Sql) of
+        {true, ProcessedSql} -> process_exec_query_list(Rest, [ProcessedSql | Acc]);
+        false -> false
+    end.
+
+process_exec_query(Sql) ->
+    Sql0 = string:lowercase(string:trim(Sql)),
+    case Sql0 of
+        [$e,$x,$e,$c,32 | RestSql] -> {true, iolist_to_binary(["begin ", RestSql, "; end"])};
+        _ -> false
+    end.
