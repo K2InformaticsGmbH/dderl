@@ -3,14 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 2.5.0 (Release Date 28.08.2018)
+Version 2.5.0 (Release Date 31.08.2018)
 ======================================
 * [Bug Fixes](https://github.com/K2InformaticsGmbH/dderl/issues?q=is%3Aclosed+milestone%3A2.5.0)
 * D3 upgrade to 5.5
 * Swagger minor upgrade to 3.18 and version on top banner
 * [MP-18.01] Cold start call back hook framework
-* IMEM upgrade 3.0
-* erlimem upgare to 2.0.0
+* IMEM upgrade 3.0.0
+* erlimem upgarde to 2.0.0
+* lager upgrade related changes
 
 Version 2.4.0 (Release Date 14.06.2018)
 ======================================
