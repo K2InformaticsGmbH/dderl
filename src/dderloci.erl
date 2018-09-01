@@ -574,6 +574,14 @@ cols_to_rec([{Alias,'SQLT_NUM',_Len,_Prec,Scale}|Rest], Fields) ->
              , len = undefined
              , prec = Scale
              , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+cols_to_rec([{Alias,'SQLT_TIMESTAMP',Len,_Prec,Scale}|Rest], Fields) ->
+    {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
+    [#stmtCol{ tag = Tag
+             , alias = Alias
+             , type = 'SQLT_TIMESTAMP'
+             , len = Len
+             , prec = Scale
+             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,Type,Len,Prec,_Scale}|Rest], Fields) ->
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
     [#stmtCol{ tag = Tag
@@ -591,6 +599,8 @@ get_alias([#stmtCol{alias = A} | Rest]) ->
 translate_datatype(_Stmt, [], []) -> [];
 translate_datatype(Stmt, [<<>> | RestRow], [#stmtCol{} | RestCols]) ->
     [<<>> | translate_datatype(Stmt, RestRow, RestCols)];
+translate_datatype(Stmt, [R | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) ->
+    [dderloci_utils:ora_to_dderlts(R) | translate_datatype(Stmt, RestRow, RestCols)];
 translate_datatype(Stmt, [R | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) ->
     [dderloci_utils:ora_to_dderltime(R) | translate_datatype(Stmt, RestRow, RestCols)];
 translate_datatype(Stmt, [null | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
@@ -664,6 +674,8 @@ fix_format([Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Len,  prec = P
     FormattedNumber = imem_datatype:decimal_to_io(Mantissa, Exponent),
     [imem_datatype:io_to_decimal(FormattedNumber, Len, Prec) | fix_format(RestRow, RestCols)];
 fix_format([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
+    [<<>> | fix_format(RestRow, RestCols)];
+fix_format([<<0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Null format for timestamp.
     [<<>> | fix_format(RestRow, RestCols)];
 fix_format([Cell | RestRow], [#stmtCol{} | RestCols]) ->
     [Cell | fix_format(RestRow, RestCols)].

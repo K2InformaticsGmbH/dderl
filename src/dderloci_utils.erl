@@ -1,7 +1,8 @@
 -module(dderloci_utils).
 
 -export([oranumber_decode/1, oranumber_encode/1, ora_to_dderltime/1,
-         dderltime_to_ora/1, apply_scale/2, clean_dynamic_prec/1, to_ora/2]).
+         dderltime_to_ora/1, apply_scale/2, clean_dynamic_prec/1, to_ora/2,
+         ora_to_dderlts/1, dderlts_to_ora/1]).
 
 -spec to_ora(atom(), any()) -> any().
 to_ora('SQLT_INT', <<>>) -> <<>>;
@@ -16,6 +17,7 @@ to_ora('SQLT_FLT', V) -> case catch binary_to_float(V) of
 to_ora(T, V) when T=='SQLT_FLT'; T=='SQLT_INT'; T=='SQLT_UIN'; T=='SQLT_VNU';
                   T=='SQLT_NUM' -> oranumber_encode(V);
 to_ora('SQLT_DAT', V) -> dderltime_to_ora(V);
+to_ora('SQLT_TIMESTAMP', V) -> dderlts_to_ora(V);
 % all erlang-oci transparent types
 to_ora(_T,V) -> V.
 
@@ -134,6 +136,32 @@ dderltime_to_ora(DDerlTime) when is_binary(DDerlTime) ->
     oci_util:to_dts(imem_datatype:io_to_datetime(DDerlTime));
 dderltime_to_ora(DateTime) when is_tuple(DateTime) ->
     oci_util:to_dts(DateTime).
+
+-spec ora_to_dderlts(binary()) -> binary().
+ora_to_dderlts(<<>>) -> <<>>;
+ora_to_dderlts(<<OraDateTime:7/binary, IntFracSecs:32>>) ->
+    case string:trim(integer_to_list(IntFracSecs), trailing, "0") of
+        [] -> ora_to_dderltime(OraDateTime);
+        FracSecs -> iolist_to_binary([ora_to_dderltime(OraDateTime), $., FracSecs])
+    end.
+
+-spec dderlts_to_ora(binary() | tuple()) -> binary().
+dderlts_to_ora(<<>>) -> <<>>;
+dderlts_to_ora(Value) ->
+    {DateTime, IntFracSecs} = case imem_datatype:io_to_timestamp(Value) of
+        {_Secs, 0, _Node, _Seq} -> % Fractional second not present.
+            {Value, 0};
+        _ ->
+            [DateTimeList, FracSecs] = string:split(binary_to_list(Value), ".", trailing),
+            {list_to_binary(DateTimeList), list_to_integer(fix_length_frac_sec(FracSecs))}
+    end,
+    <<(dderltime_to_ora(DateTime)):7/binary, IntFracSecs:32>>.
+
+-spec fix_length_frac_sec(list()) -> list().
+fix_length_frac_sec(FracSecs) when length(FracSecs) >= 9 ->
+    string:slice(FracSecs, 0, 10);
+fix_length_frac_sec(FracSecs) ->
+    FracSecs ++ lists:duplicate(9 - length(FracSecs), $0).
 
 -spec apply_scale(binary(), integer()) -> binary().
 apply_scale(Value, Scale) ->

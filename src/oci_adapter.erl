@@ -872,6 +872,7 @@ make_binds(Binds, _CmdBinds) ->
                                          'SQLT_INT' -> 0;
                                          'SQLT_DAT' -> list_to_binary(lists:duplicate(7,0));
                                          'SQLT_VNU' -> list_to_binary(lists:duplicate(22,0));
+                                         'SQLT_TIMESTAMP' -> list_to_binary(lists:duplicate(11,0));
                                          _ -> list_to_binary(lists:duplicate(4400, 0))
                                      end;
                                  true -> V

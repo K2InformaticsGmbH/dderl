@@ -340,32 +340,27 @@ create_changedkey_vals([Value | Rest], [#stmtCol{type = 'SQLT_NUM', len = Scale,
     Number = imem_datatype:io_to_decimal(Value, undefined, Scale),
     [Number | create_changedkey_vals(Rest, RestCols)];
 create_changedkey_vals([Value | Rest], [#stmtCol{type = Type, len = Len, prec = Prec} | RestCols]) ->
-    case Type of
-        'SQLT_DAT' ->
-            [dderloci_utils:dderltime_to_ora(Value) | create_changedkey_vals(Rest, RestCols)];
-        'SQLT_NUM' ->
-            Number = imem_datatype:io_to_decimal(Value, Len, Prec),
-            [Number | create_changedkey_vals(Rest, RestCols)];
-        'SQLT_BIN' ->
-            [imem_datatype:binary_to_io(Value) | create_bind_vals(Rest, RestCols)];
-        _ ->
-            [Value | create_changedkey_vals(Rest, RestCols)]
-    end.
+    FormattedValue = case Type of
+        'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
+        'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
+        'SQLT_NUM' -> imem_datatype:io_to_decimal(Value, Len, Prec);
+        'SQLT_BIN' -> imem_datatype:binary_to_io(Value);
+        _ -> Value 
+    end,
+    [FormattedValue | create_changedkey_vals(Rest, RestCols)].
 
 create_bind_vals([], _Cols) -> [];
 create_bind_vals([<<>> | Rest], [_Col | RestCols]) ->
     [<<>> | create_bind_vals(Rest, RestCols)];
 create_bind_vals([Value | Rest], [#stmtCol{type = Type, len = Len} | RestCols]) ->
-    case Type of
-        'SQLT_DAT' ->
-            [dderloci_utils:dderltime_to_ora(Value) | create_bind_vals(Rest, RestCols)];
-        'SQLT_NUM' ->
-            [dderloci_utils:oranumber_encode(Value) | create_bind_vals(Rest, RestCols)];
-        'SQLT_BIN' ->
-            [imem_datatype:io_to_binary(Value, Len) | create_bind_vals(Rest, RestCols)];
-        _ ->
-            [Value | create_bind_vals(Rest, RestCols)]
-    end.
+    FormattedValue = case Type of
+        'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
+        'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
+        'SQLT_NUM' -> dderloci_utils:oranumber_encode(Value);
+        'SQLT_BIN' -> imem_datatype:io_to_binary(Value, Len);
+        _ -> Value
+    end,
+    [FormattedValue | create_bind_vals(Rest, RestCols)].
 
 bind_types_map('SQLT_NUM') -> 'SQLT_VNU';
 %% There is no really support for this types at the moment so use string to send the data...
@@ -418,6 +413,13 @@ get_modified_cols([<<>> | RestOrig], [_Value | RestValues], [#stmtCol{} | Column
     [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)];
 get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_DAT'} | Columns], Pos) ->
     case dderloci_utils:ora_to_dderltime(OrigVal) of
+        Value ->
+            get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
+        _ ->
+            [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
+    end;
+get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_TIMESTAMP'} | Columns], Pos) ->
+    case dderloci_utils:ora_to_dderlts(OrigVal) of
         Value ->
             get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
         _ ->
