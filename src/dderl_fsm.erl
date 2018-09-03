@@ -2287,7 +2287,7 @@ serve_stack(completed, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
 serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) when Lft =/= undefined ->
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
         Lft -> os:system_time(milli_seconds) - Lft
@@ -2309,8 +2309,28 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
             serve_top(filling,State#state{
                 stack=undefined,replyToFun=RT,lastFetchTime=undefined})
     end;
-serve_stack(filling, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
-    serve_top(filling,State0#state{stack=undefined,replyToFun=RT});
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
+    FetchElapsedTime = case Lft of
+        undefined -> 0;
+        Lft -> os:system_time(milli_seconds) - Lft
+    end,
+    case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
+        true ->
+            case Nav of
+                raw when BufBot < GL ->
+                    % delay serving received rows, trying to get a full block for first serve
+                    State;
+                ind when IndCnt < GL ->
+                    % delay serving received rows, trying to get a full gui block of sorted data before first serve
+                    State;
+                _ ->
+                    serve_bot(filling, <<>>, State#state{
+                        stack=undefined,replyToFun=RT,lastFetchTime=undefined})
+            end;
+        false ->
+            serve_bot(filling, <<>>, State#state{
+                        stack=undefined,replyToFun=RT,lastFetchTime=undefined})
+    end;
 % serve_stack(SN, #state{stack={button,<<">">>,RT},bl=BL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
 %     KeysBefore = keys_before(BufBot,BL-1,State0),
 %     IsMember = KeysBefore == [] orelse lists:member(GuiBot, keys_before(BufBot,BL-1,State0)),
