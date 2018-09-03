@@ -33,18 +33,18 @@ req.keys().forEach(function(key){
 window.MonacoEnvironment = {
     getWorkerUrl: function(moduleId, label) {
         if(label === 'json') {
-            return 'public/json.worker.js';
+            return 'public/dist/json.worker.js';
         }
         if(label === 'css') {
-            return 'public/css.worker.js';
+            return 'public/dist/css.worker.js';
         }
         if(label === 'html') {
-            return 'public/html.worker.js';
+            return 'public/dist/html.worker.js';
         }
         if(label === 'typescript' || label === 'javascript') {
-            return 'public/ts.worker.js';
+            return 'public/dist/ts.worker.js';
         }
-        return 'public/editor.worker.js';
+        return 'public/dist/editor.worker.js';
     }
 };
 
