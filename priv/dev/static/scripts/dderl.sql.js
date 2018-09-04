@@ -171,20 +171,16 @@ const tabPositions = Object.freeze({
         self.options.width = $(window).width() * 0.4;
         self.options.height = $(window).height() * 0.4;
 
+        
+        
         // Create container
         var tabContainer = document.createElement('div');
         tabContainer.id = 'tabquery';
 
-        // Creating a monaco editor
         var queryContainer = document.createElement('div');
         queryContainer.className = 'monaco-query-container';
-        // Add container to the tab
+
         tabContainer.appendChild(queryContainer);
-        self._queryTb = monaco.editor.create(queryContainer, {
-            value: self.options.query,
-            language: 'sql',
-            scrollBeyondLastLine: false
-        });
 
         // Flat only checkbox flag
         // TODO: Add toolbox for formatting and helper actions.
@@ -196,12 +192,20 @@ const tabPositions = Object.freeze({
         flatCheckbox.onchange = () => {
             self._isFlatOnly = flatCheckbox.checked;
             self.addWheel();
-            ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._queryTb.getValue() } }, 'parse_stmt', 'parsedCmd');
+            ajaxCall(self, 'parse_stmt', { parse_stmt: { qstr: self._queryTb.val() } }, 'parse_stmt', 'parsedCmd');
         };
         flatSelectionSpan.appendChild(flatCheckbox);
         flatSelectionSpan.appendChild(document.createTextNode('flat only'));
         tabContainer.appendChild(flatSelectionSpan);
-        
+
+        self._queryTb = $('<textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">')
+            .addClass('sql_text_editor')
+            .addClass('sql_text_pretty')
+            .val(self.options.query);
+
+        // Add the query textarea.
+        $(queryContainer).append(self._queryTb);
+
         self._paramsDiv = $('<div>').css("display", "inline-block;");
 
         var graphContainer = document.createElement('div');
@@ -257,11 +261,9 @@ const tabPositions = Object.freeze({
                     if(self._runGraph) {
                         graphTabTitle.addClass("sql-tab-highlight");
                         queryTabTitle.removeClass("sql-tab-highlight");
-                        self._graphTb.layout();
                     } else {
                         queryTabTitle.addClass("sql-tab-highlight");
                         graphTabTitle.removeClass("sql-tab-highlight");
-                        self._queryTb.layout();
                     }
                     self._setTabFocus();
                 }
@@ -507,7 +509,7 @@ const tabPositions = Object.freeze({
             save_view : {
                 conn_id       : dderlState.connectionSelected.connection,
                 name          : viewName,
-                content       : self._queryTb.getValue(),
+                content       : self._queryTb.val(),
                 table_layout  : this._getLayout()
             }
         };
@@ -734,7 +736,7 @@ const tabPositions = Object.freeze({
      */
     _toolBarValidate: function() {
         var self = this;
-        var query = self._queryTb.getValue();
+        var query = self._queryTb.val();
         self._addToHistory(query);
         self.addWheel();
         ajaxCall(self, 'parse_stmt', {parse_stmt: {qstr: query}}, 'parse_stmt',
@@ -794,7 +796,7 @@ const tabPositions = Object.freeze({
 
     _loadTable: function(button) {
         var self = this;
-        var query = self._queryTb.getValue();
+        var query = self._queryTb.val();
         self._reloadBtn = button;
         self._addToHistory(query);
         self.addWheel();
@@ -836,12 +838,12 @@ const tabPositions = Object.freeze({
                 }
             }
             if(self._cmdOwner && self._cmdOwner.hasClass('ui-dialog-content')) {
-                self._cmdOwner.table('cmdReload', self._queryTb.getValue(), self._optBinds, self._reloadBtn, self._getPlaneData());
+                self._cmdOwner.table('cmdReload', self._queryTb.val(), self._optBinds, self._reloadBtn, self._getPlaneData());
             } else {
                 self.addWheel();
                 ajaxCall(self, 'query', {query: {
                     connection: dderlState.connection,
-                    qstr: self._queryTb.getValue(),
+                    qstr: self._queryTb.val(),
                     conn_id: dderlState.connectionSelected.connection,
                     binds: params
                 }}, 'query', 'resultStmt');
@@ -987,12 +989,14 @@ const tabPositions = Object.freeze({
         var self = this;
 
         if(_parsed.hasOwnProperty('pretty') && !self._isFlatOnly) {
-            self._queryTb.setValue(_parsed.pretty);
+            self._queryTb.val(_parsed.pretty);
             if(!self._cmdChanged) {
                 self._cmdChanged = true;
                 self._editDiv.tabs("option", "active", tabPositions.SQL);
+
+                var nlines = _parsed.pretty.split("\n").length;
                 var dialogPos = self._dlg.dialog("widget").position();
-                var newDialogHeight = Math.min($(window).height() * 0.8, self._queryTb.getScrollHeight() + 80); // +75 for header and footer 5 for extra margin.
+                var newDialogHeight = Math.min($(window).height() * 0.8, Math.round(nlines * 20) + 80);
                 var distanceToBottom = $(window).height() - (dialogPos.top + newDialogHeight) - 30;
 
                 var left = dialogPos.left;
@@ -1011,10 +1015,9 @@ const tabPositions = Object.freeze({
                     self._dlg.dialog("option", "position", newPos);
                 }
                 self._dlg.dialog("option", "height", newDialogHeight);
-                self._queryTb.layout();
             }
         } else if(_parsed.hasOwnProperty('flat')) {
-            self._queryTb.setValue(_parsed.flat);
+            self._queryTb.val(_parsed.flat);
         }
 
         if(_parsed.hasOwnProperty('sqlTitle') && self._isDefaultTitle) {
@@ -1035,7 +1038,6 @@ const tabPositions = Object.freeze({
                 self._refreshHistoryBoxSize();
                 console.log("calling the layout...");
                 self._graphTb.layout();
-                self._queryTb.layout();
             });
 
         // Update title to add context menu handlers.
@@ -1064,7 +1066,6 @@ const tabPositions = Object.freeze({
         // TODO: Maybe layout refresh call should go to tabfocus ?
         console.log("calling the layout...");
         this._graphTb.layout();
-        this._queryTb.layout();
         this._setTabFocus();
     },
 
@@ -1073,7 +1074,7 @@ const tabPositions = Object.freeze({
     showCmd: function(cmd, skipFocus) {
         var self = this;
         var callback = 'parsedCmd';
-        self._queryTb.setValue(cmd);
+        self._queryTb.val(cmd);
         if(skipFocus) {
             callback = 'parsedSkipFocus';
         }
