@@ -261,6 +261,7 @@ const tabPositions = Object.freeze({
                     if(self._runGraph) {
                         graphTabTitle.addClass("sql-tab-highlight");
                         queryTabTitle.removeClass("sql-tab-highlight");
+                        self._graphTb.layout();
                     } else {
                         queryTabTitle.addClass("sql-tab-highlight");
                         graphTabTitle.removeClass("sql-tab-highlight");
