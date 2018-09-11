@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.0.0 (Release Date 11.10.2018)
+======================================
+* monaco editor version updated to 0.14.3
+* fsm send rows when gui count is not empty to take into account the fetch elapsed timer
+* monaco-editor worker path missing reference to dist directory.
+* added lager_handler as a build variable config 
+
 Version 2.5.0 (Release Date 31.08.2018)
 ======================================
 * [Bug Fixes](https://github.com/K2InformaticsGmbH/dderl/issues?q=is%3Aclosed+milestone%3A2.5.0)
