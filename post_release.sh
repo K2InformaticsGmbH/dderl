@@ -12,25 +12,18 @@ if [ -d "$dderlPriv/dev/node_modules" ]; then
 	exit 1
 fi
 
-if [ -d "$dderlPriv/swagger/node_modules" ]; then
-	log red "$dderlPriv/swagger/node_modules already exists"
-    exit 1
-fi
-
 if [ -d "$dderlPriv/public" ]; then
     log red "$dderlPriv/public already exists"
     exit 1
 fi
 
-cd $dderlPriv
-log green "yarn build-all-prod @ $(pwd)"
-yarn build-all-prod
+cd $dderlPriv/dev
+log green "npm run install-build-prod @ $(pwd)"
+npm run install-build-prod
 
 # cleanup
 cd $dderlPriv
 rm -rf $dderlPriv/dev
 log green "dir $dderlPriv/dev deleted"
 
-rm -rf $dderlPriv/swagger
-log green "dir $dderlPriv/swagger deleted"
 log green "------------------------------------------------------------ post_release"

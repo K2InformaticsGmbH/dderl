@@ -38,6 +38,7 @@
     "webpack": "3.10.0"
   },
   "scripts": {
+    "install-build-prod": "npm install && npm run build-prod",
     "build-dev": "npm run lint && npm run clean && webpack --progress",
     "build-prod": "npm run lint && npm run clean && webpack -p",
     "clean": "rimraf ../public/dist",
