@@ -343,6 +343,7 @@ create_changedkey_vals([Value | Rest], [#stmtCol{type = Type, len = Len, prec = 
     FormattedValue = case Type of
         'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
         'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
+        'SQLT_TIMESTAMP_TZ' -> dderloci_utils:dderltstz_to_ora(Value);
         'SQLT_NUM' -> imem_datatype:io_to_decimal(Value, Len, Prec);
         'SQLT_BIN' -> imem_datatype:binary_to_io(Value);
         _ -> Value 
@@ -356,6 +357,7 @@ create_bind_vals([Value | Rest], [#stmtCol{type = Type, len = Len} | RestCols]) 
     FormattedValue = case Type of
         'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
         'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
+        'SQLT_TIMESTAMP_TZ' -> dderloci_utils:dderltstz_to_ora(Value);
         'SQLT_NUM' -> dderloci_utils:oranumber_encode(Value);
         'SQLT_BIN' -> imem_datatype:io_to_binary(Value, Len);
         _ -> Value
@@ -420,6 +422,13 @@ get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = '
     end;
 get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_TIMESTAMP'} | Columns], Pos) ->
     case dderloci_utils:ora_to_dderlts(OrigVal) of
+        Value ->
+            get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
+        _ ->
+            [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
+    end;
+get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | Columns], Pos) ->
+    case dderloci_utils:ora_to_dderltstz(OrigVal) of
         Value ->
             get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
         _ ->

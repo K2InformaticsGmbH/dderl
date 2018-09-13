@@ -2,7 +2,7 @@
 
 -export([oranumber_decode/1, oranumber_encode/1, ora_to_dderltime/1,
          dderltime_to_ora/1, apply_scale/2, clean_dynamic_prec/1, to_ora/2,
-         ora_to_dderlts/1, dderlts_to_ora/1]).
+         ora_to_dderlts/1, dderlts_to_ora/1, ora_to_dderltstz/1, dderltstz_to_ora/1]).
 
 -spec to_ora(atom(), any()) -> any().
 to_ora('SQLT_INT', <<>>) -> <<>>;
@@ -18,6 +18,7 @@ to_ora(T, V) when T=='SQLT_FLT'; T=='SQLT_INT'; T=='SQLT_UIN'; T=='SQLT_VNU';
                   T=='SQLT_NUM' -> oranumber_encode(V);
 to_ora('SQLT_DAT', V) -> dderltime_to_ora(V);
 to_ora('SQLT_TIMESTAMP', V) -> dderlts_to_ora(V);
+to_ora('SQLT_TIMESTAMP_TZ', V) -> dderltstz_to_ora(V);
 % all erlang-oci transparent types
 to_ora(_T,V) -> V.
 
@@ -156,6 +157,65 @@ dderlts_to_ora(Value) ->
             {list_to_binary(DateTimeList), list_to_integer(fix_length_frac_sec(FracSecs))}
     end,
     <<(dderltime_to_ora(DateTime)):7/binary, IntFracSecs:32>>.
+
+-spec ora_to_dderltstz(binary()) -> binary().
+ora_to_dderltstz(<<>>) -> <<>>;
+ora_to_dderltstz(<<TS:11/binary, H, M>>) ->
+    iolist_to_binary([ora_to_dderlts(TS), format_tz(H-20, M)]).
+
+-spec dderltstz_to_ora(binary()) -> binary().
+dderltstz_to_ora(<<>>) -> <<>>;
+dderltstz_to_ora(Value) ->
+    ValueList = binary_to_list(Value),
+    case string:split(ValueList, "+", trailing) of
+        [TS, Offset] ->
+            <<(dderlts_to_ora(list_to_binary(TS))):11/binary, (parse_tz(Offset, positive)):2/binary>>;
+        _ ->
+            case string:split(ValueList, "-", trailing) of
+                [TS, Offset] ->
+                    <<(dderlts_to_ora(list_to_binary(TS))):11/binary, (parse_tz(Offset, negative)):2/binary>>;
+                _ ->
+                    throw("Optional timezone is not suported")
+            end
+    end.
+
+-spec format_tz(integer(), integer()) -> list().
+format_tz(TZOffset, M) when TZOffset >= 0 ->
+    [$+, pad_tz(TZOffset), integer_to_list(TZOffset), $:, pad_tz(M-60), integer_to_list(M-60)];
+format_tz(TZOffset, M) ->
+    AbsOffset = abs(TZOffset),
+    [$-, pad_tz(AbsOffset), integer_to_list(AbsOffset), $:, pad_tz(60-M), integer_to_list(60-M)].
+
+-spec pad_tz(integer()) -> [] | [$0].
+pad_tz(TzDigit) when TzDigit < 10 -> [$0];
+pad_tz(_) -> []. 
+
+-spec parse_tz(list(), positive | negative) -> binary().
+parse_tz(Offset, positive) ->
+    {H, M} = parse_tz(Offset),
+    <<(H+20):8, (60+M)>>;
+parse_tz(Offset, negative) ->
+    {H, M} = parse_tz(Offset),
+    <<(20-H):8, (60-M)>>.
+
+-spec parse_tz(list()) -> {integer(), integer()}.
+parse_tz(Offset) ->
+    case string:split(Offset, ":") of
+        [HList, MList] ->
+            H = list_to_integer(HList),
+            M = list_to_integer(MList),
+            case check_tz_range(H, M) of
+                ok -> {H, M};
+                invalid -> throw("Timezone range error -12:00 < TZ < 14:00")
+            end;
+        _ ->
+            throw("Timezone format not supported")
+    end.
+
+-spec check_tz_range(integer(), integer()) -> ok | invalid.
+check_tz_range(H, M) when H >= -12 andalso H < 14 andalso M >= 0 andalso M =< 59 -> ok;
+check_tz_range(H, M) when H =:= 14 andalso M =:= 0 -> ok;
+check_tz_range(_, _) -> invalid.
 
 -spec fix_length_frac_sec(list()) -> list().
 fix_length_frac_sec(FracSecs) when length(FracSecs) >= 9 ->
