@@ -22,17 +22,13 @@ If (Test-Path "$dderlPriv\dev\node_modules") {
     throw "$dderlPriv\dev\node_modules already exists"
 }
 
-If (Test-Path "$dderlPriv\swagger\node_modules") {
-	throw "$dderlPriv\swagger\node_modules already exists"
-}
-
 If (Test-Path "$dderlPriv\public") {
 	throw "$dderlPriv\public already exists"
 }
 
-cd $dderlPriv
-Write-Host "===> yarn build-all-prod @ $pwd" -foregroundcolor green
-yarn build-all-prod
+cd $dderlPriv\dev
+Write-Host "===> npm run install-build-prod @ $pwd" -foregroundcolor green
+npm run install-build-prod
 
 function Remove-Recursive-Force([string]$Root, [string]$Dir) {
     Try {
@@ -54,7 +50,6 @@ function Remove-Recursive-Force([string]$Root, [string]$Dir) {
 
 # Cleanup
 cd $dderlPriv
-Remove-Recursive-Force $dderlPriv "swagger"
 Remove-Recursive-Force $dderlPriv "dev"
 
 Write-Host "===> ------------------------------------------------------------ post_release"
