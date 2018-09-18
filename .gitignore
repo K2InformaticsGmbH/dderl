@@ -2,7 +2,7 @@ _build
 ebin
 log
 priv/certs/localhost*.*
-priv/public
+priv/public/dist
 rebar.lock
 rebar3.crashdump
 snapshot
