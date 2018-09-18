@@ -22,8 +22,8 @@ If (Test-Path "$dderlPriv\dev\node_modules") {
     throw "$dderlPriv\dev\node_modules already exists"
 }
 
-If (Test-Path "$dderlPriv\public") {
-	throw "$dderlPriv\public already exists"
+If (Test-Path "$dderlPriv\public\dist") {
+	throw "$dderlPriv\public\dist already exists"
 }
 
 cd $dderlPriv\dev
