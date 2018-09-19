@@ -123,7 +123,8 @@ function initGraph(container, width, height) {
             .enter()
             .append('td')
             .text(function(d) { return d.value; })
-            .style('padding', '2px 4px');
+            .style('padding', '2px 4px')
+            .style('white-space', 'pre');
     }
 
     return {
