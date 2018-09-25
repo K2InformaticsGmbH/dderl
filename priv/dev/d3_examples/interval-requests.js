@@ -11,7 +11,7 @@ function initGraph(container, width, height) {
 
     var inputId = "interval_" + Math.random().toString(36).substr(2, 14);
 
-    var label = intervalDiv
+    intervalDiv
         .append('label')
         .attr("for", inputId)
         .text("Refresh interval (Seconds): ");
@@ -19,6 +19,7 @@ function initGraph(container, width, height) {
     var intervalInput = intervalDiv
         .append('input')
         .attr("id", inputId)
+        .attr("value", "1")
         .style("border", "solid 1px black")
         .style("border-radius", "3px")
         .style("padding", "1px 0px 1px 4px");
@@ -30,7 +31,8 @@ function initGraph(container, width, height) {
     var tableDiv = container
         .append('div')
         .style('padding', '0px 10px')
-        .style('overflow-y', 'auto');
+        .style('overflow-y', 'auto')
+        .style('height', 'calc(100% - 50px)');
 
     var table = tableDiv.append('table')
         .style('border-collapse', 'collapse')
@@ -125,8 +127,13 @@ function initGraph(container, width, height) {
             .text(function(d) { return d.value; })
             .style('padding', '2px 4px')
             .style('white-space', 'pre');
+
+        var tableDivElement = tableDiv.node();
+        tableDivElement.scrollTop = tableDivElement.scrollHeight;
     }
 
+    //Data fetch is started by default
+    startInterval();
     return {
         on_data: function(data) {
             // Process data and add draw here.
