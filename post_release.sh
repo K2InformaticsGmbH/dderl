@@ -12,8 +12,8 @@ if [ -d "$dderlPriv/dev/node_modules" ]; then
 	exit 1
 fi
 
-if [ -d "$dderlPriv/public" ]; then
-    log red "$dderlPriv/public already exists"
+if [ -d "$dderlPriv/public/dist" ]; then
+    log red "$dderlPriv/public/dist already exists"
     exit 1
 fi
 
