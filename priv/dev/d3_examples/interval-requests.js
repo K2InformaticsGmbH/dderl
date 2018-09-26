@@ -81,12 +81,19 @@ function initGraph(container, width, height) {
                 // Close the stmt.
                 closeFn();
                 appendRows(data);
-                timeoutId = setTimeout(function() {
-                    helper.runView(viewName, cb);
-                }, interval * 1000);
+
+                // Check if view is still waiting for the results.
+                if(document.body.contains(inp)) {
+                    timeoutId = setTimeout(function() {
+                        helper.runView(viewName, cb);
+                    }, interval * 1000);
+                } else {
+                    console.log("Interval request dom element not found stopping.")
+                }
+
             }
             runBtn.text("Stop");
-            helper.runView('test_interval_req', cb);
+            helper.runView(viewName, cb);
         }
     }
 
@@ -104,12 +111,8 @@ function initGraph(container, width, height) {
 
         tbody.selectAll('tr')
             .style('background-color', function(d, i) {
-                console.log("the i", i);
-                    if(i % 2 == 0) {
-                        return '#f2f2f2';
-                    } else {
-                        return 'white';
-                    }
+                    if(i % 2 == 0) { return '#f2f2f2'; }
+                    else { return 'white'; }
                 });
 
         rows.selectAll('td')
