@@ -141,7 +141,12 @@ dderltime_to_ora(DateTime) when is_tuple(DateTime) ->
 -spec ora_to_dderlts(binary()) -> binary().
 ora_to_dderlts(<<>>) -> <<>>;
 ora_to_dderlts(<<OraDateTime:7/binary, IntFracSecs:32>>) ->
-    case string:trim(integer_to_list(IntFracSecs), trailing, "0") of
+    ListFracSecs = case integer_to_list(IntFracSecs) of
+        NeedPad when length(NeedPad) < 9 ->
+            lists:duplicate(9 - length(NeedPad), $0) ++ NeedPad;
+        FullPrec -> FullPrec
+    end, 
+    case string:trim(ListFracSecs, trailing, "0") of
         [] -> ora_to_dderltime(OraDateTime);
         FracSecs -> iolist_to_binary([ora_to_dderltime(OraDateTime), $., FracSecs])
     end.
