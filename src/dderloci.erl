@@ -638,15 +638,8 @@ translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_BLO
             [AsIO | translate_datatype(Stmt, RestRow, RestCols)]
     end;
 translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_CLOB'} | RestCols]) ->
-    if
-        Size > ?PREFETCH_SIZE ->
-            {lob, Trunc} = Stmt:lob(Pointer, 1, ?PREFETCH_SIZE),
-            SizeBin = integer_to_binary(Size),
-            [<<Trunc/binary, $., $., 32, $[, SizeBin/binary, $]>> | translate_datatype(Stmt, RestRow, RestCols)];
-        true ->
-            {lob, Full} = Stmt:lob(Pointer, 1, Size),
-            [Full | translate_datatype(Stmt, RestRow, RestCols)]
-    end;
+    {lob, Full} = Stmt:lob(Pointer, 1, Size),
+    [Full | translate_datatype(Stmt, RestRow, RestCols)];
 translate_datatype(Stmt, [Raw | RestRow], [#stmtCol{type = 'SQLT_BIN'} | RestCols]) ->
     [imem_datatype:binary_to_io(Raw) | translate_datatype(Stmt, RestRow, RestCols)];
 translate_datatype(Stmt, [R | RestRow], [#stmtCol{} | RestCols]) ->
