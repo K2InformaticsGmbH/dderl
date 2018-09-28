@@ -368,6 +368,7 @@ bind_types_map('SQLT_NUM') -> 'SQLT_VNU';
 %% There is no really support for this types at the moment so use string to send the data...
 bind_types_map('SQLT_INT') -> 'SQLT_STR';
 bind_types_map('SQLT_FLT') -> 'SQLT_STR';
+bind_types_map('SQLT_CLOB') -> 'SQLT_STR';
 bind_types_map(Type) -> Type.
 
 -spec inserted_changed_keys([binary()], [#row{}], list()) -> [tuple()].

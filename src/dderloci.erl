@@ -17,7 +17,7 @@
     run_table_cmd/3,
     cols_to_rec/2,
     get_alias/1,
-    fix_row_format/3,
+    fix_row_format/4,
     create_rowfun/3
 ]).
 
@@ -152,7 +152,7 @@ handle_cast({fetch_recs_async, false, _}, #qry{fsm_ref = FsmRef, stmt_result = S
     #stmtResult{stmtRef = StmtRef, stmtCols = Clms} = StmtResult,
     case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
         {{rows, Rows}, Completed} ->
-            try FsmRef:rows({fix_row_format(Rows, Clms, ContainRowId), Completed}) of
+            try FsmRef:rows({fix_row_format(StmtRef, Rows, Clms, ContainRowId), Completed}) of
                 ok -> ok
             catch
                 _Class:Result ->
@@ -174,7 +174,7 @@ handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = St
     end,
     case StmtRef:fetch_rows(RowsToFetch) of
         {{rows, Rows}, Completed} ->
-            RowsFixed = fix_row_format(Rows, Clms, ContainRowId),
+            RowsFixed = fix_row_format(StmtRef, Rows, Clms, ContainRowId),
             NewNRows = NRows + length(RowsFixed),
             if
                 Completed -> FsmRef:rows({RowsFixed, Completed});
@@ -637,24 +637,14 @@ translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_BLO
             AsIO = imem_datatype:binary_to_io(Full),
             [AsIO | translate_datatype(Stmt, RestRow, RestCols)]
     end;
-translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_CLOB'} | RestCols]) ->
-    if
-        Size > ?PREFETCH_SIZE ->
-            {lob, Trunc} = Stmt:lob(Pointer, 1, ?PREFETCH_SIZE),
-            SizeBin = integer_to_binary(Size),
-            [<<Trunc/binary, $., $., 32, $[, SizeBin/binary, $]>> | translate_datatype(Stmt, RestRow, RestCols)];
-        true ->
-            {lob, Full} = Stmt:lob(Pointer, 1, Size),
-            [Full | translate_datatype(Stmt, RestRow, RestCols)]
-    end;
 translate_datatype(Stmt, [Raw | RestRow], [#stmtCol{type = 'SQLT_BIN'} | RestCols]) ->
     [imem_datatype:binary_to_io(Raw) | translate_datatype(Stmt, RestRow, RestCols)];
 translate_datatype(Stmt, [R | RestRow], [#stmtCol{} | RestCols]) ->
     [R | translate_datatype(Stmt, RestRow, RestCols)].
 
--spec fix_row_format([list()], [#stmtCol{}], boolean()) -> [tuple()].
-fix_row_format([], _, _) -> [];
-fix_row_format([Row | Rest], Columns, ContainRowId) ->
+-spec fix_row_format(term(), [list()], [#stmtCol{}], boolean()) -> [tuple()].
+fix_row_format(_Stmt, [], _, _) -> [];
+fix_row_format(Stmt, [Row | Rest], Columns, ContainRowId) ->
     %% TODO: we have to add the table name at the start of the rows i.e
     %  rows [
     %        {{temp,1,2,3},{}},
@@ -667,36 +657,42 @@ fix_row_format([Row | Rest], Columns, ContainRowId) ->
     if
         ContainRowId ->
             {RestRow, [RowId]} = lists:split(length(Row) - 1, Row),
-            [{{}, list_to_tuple(fix_format(RestRow, Columns) ++ [RowId])} | fix_row_format(Rest, Columns, ContainRowId)];
+            [{{}, list_to_tuple(fix_format(Stmt, RestRow, Columns) ++ [RowId])} | fix_row_format(Stmt, Rest, Columns, ContainRowId)];
         true ->
-            [{{}, list_to_tuple(fix_format(Row, Columns))} | fix_row_format(Rest, Columns, ContainRowId)]
+            [{{}, list_to_tuple(fix_format(Stmt, Row, Columns))} | fix_row_format(Stmt, Rest, Columns, ContainRowId)]
     end.
 
-fix_format([], []) -> [];
-fix_format([<<0:8, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
-    [null | fix_format(RestRow, RestCols)];
-fix_format([Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
+fix_format(_Stmt, [], []) -> [];
+fix_format(Stmt, [<<0:8, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
+    [null | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
     {Mantissa, Exponent} = dderloci_utils:oranumber_decode(Number),
     FormattedNumber = imem_datatype:decimal_to_io(Mantissa, Exponent),
-    [imem_datatype:io_to_decimal(FormattedNumber, undefined, Scale) | fix_format(RestRow, RestCols)];
-fix_format([Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Len,  prec = Prec} | RestCols]) ->
+    [imem_datatype:io_to_decimal(FormattedNumber, undefined, Scale) | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Len,  prec = Prec} | RestCols]) ->
     {Mantissa, Exponent} = dderloci_utils:oranumber_decode(Number),
     FormattedNumber = imem_datatype:decimal_to_io(Mantissa, Exponent),
-    [imem_datatype:io_to_decimal(FormattedNumber, Len, Prec) | fix_format(RestRow, RestCols)];
-fix_format([<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
-    [<<>> | fix_format(RestRow, RestCols)];
-fix_format([<<Date:7/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Trim to expected binary size.
-    [Date | fix_format(RestRow, RestCols)];
-fix_format([<<0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Null format for timestamp.
-    [<<>> | fix_format(RestRow, RestCols)];
-fix_format([<<TimeStamp:11/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Trim to expected binary size.
-    [TimeStamp | fix_format(RestRow, RestCols)];
-fix_format([<<0,0,0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Null format for timestamp.
-    [<<>> | fix_format(RestRow, RestCols)];
-fix_format([<<TimeStampTZ:13/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Trim to expected binary size.
-    [TimeStampTZ | fix_format(RestRow, RestCols)];
-fix_format([Cell | RestRow], [#stmtCol{} | RestCols]) ->
-    [Cell | fix_format(RestRow, RestCols)].
+    [imem_datatype:io_to_decimal(FormattedNumber, Len, Prec) | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
+    [<<>> | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<Date:7/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Trim to expected binary size.
+    [Date | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Null format for timestamp.
+    [<<>> | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<TimeStamp:11/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Trim to expected binary size.
+    [TimeStamp | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Null format for timestamp.
+    [<<>> | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [<<TimeStampTZ:13/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Trim to expected binary size.
+    [TimeStampTZ | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_CLOB'} | RestCols]) ->
+%% TODO: This is a workaround as there is no real support for CLOB in dderl or the current
+%%       driver, so we read full text here and treat it as a normal STR, Oracle is smart
+%%       to do the conversion into CLOB on the way in.
+    {lob, Full} = Stmt:lob(Pointer, 1, Size),
+    [Full | fix_format(Stmt, RestRow, RestCols)];
+fix_format(Stmt, [Cell | RestRow], [#stmtCol{} | RestCols]) ->
+    [Cell | fix_format(Stmt, RestRow, RestCols)].
 
 -spec run_table_cmd(tuple(), atom(), binary()) -> ok | {error, term()}. %% %% !! Fix this to properly use statments.
 run_table_cmd({oci_port, _, _} = _Connection, restore_table, _TableName) -> {error, <<"Command not implemented">>};
