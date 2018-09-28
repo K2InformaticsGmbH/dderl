@@ -52,7 +52,7 @@ start() {
             for n in $(seq 1 10); do
                 sleep 1
                 PID=$(su --session-command="$DAEMON pid" $NAME)
-                if [[ $PID =~ ^[0-9]+* ]]; then
+                if [[ $PID =~ ^[1-9][0-9]+$ ]]; then
                     echo $PID > $PIDFILE
                     break
                 fi
