@@ -3,7 +3,15 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 3.0.0 (Release Date 11.10.2018)
+Version 3.0.1 (Release Date 04.10.2018)
+======================================
+* [oci] timestamp (with fractions), timezone support improved
+* [oci] CLOB support improved
+* [d3] interval request graph
+* swagger as pre-build package
+* service script update
+
+Version 3.0.0 (Release Date 11.09.2018)
 ======================================
 * monaco editor version updated to 0.14.3
 * fsm send rows when gui count is not empty to take into account the fetch elapsed timer
