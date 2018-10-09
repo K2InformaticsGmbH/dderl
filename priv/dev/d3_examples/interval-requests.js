@@ -80,7 +80,7 @@ function initGraph(container, width, height) {
             var cb = function(data, closeFn) {
                 // Close the stmt.
                 closeFn();
-                appendRows(data);
+                if(data.length > 0) { appendRows(data); }
 
                 // Check if view is still waiting for the results.
                 if(document.body.contains(inp)) {
