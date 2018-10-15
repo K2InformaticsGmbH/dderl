@@ -164,6 +164,9 @@ if (typeof Slick === "undefined") {
     var counter_rows_rendered = 0;
     var counter_rows_removed = 0;
 
+    // to avoid header selection on resize.
+    // from(https://github.com/6pac/SlickGrid/pull/142/files)
+    var columnResizeDragging = false;
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Initialization
@@ -521,6 +524,7 @@ if (typeof Slick === "undefined") {
 
     function setupColumnSort() {
       $headers.click(function (e) {
+        if (columnResizeDragging) { return; }
         // temporary workaround for a bug in jQuery 1.7.1 (http://bugs.jquery.com/ticket/11328)
         e.metaKey = e.metaKey || e.ctrlKey;
 
@@ -707,6 +711,7 @@ if (typeof Slick === "undefined") {
               minPageX = pageX - Math.min(shrinkLeewayOnLeft, stretchLeewayOnRight);
             })
             .bind("drag", function (e) {
+              columnResizeDragging = true; 
               var actualMinWidth, d = Math.min(maxPageX, Math.max(minPageX, e.pageX)) - pageX, x;
               if (d < 0) { // shrink column
                 x = d;
@@ -790,6 +795,7 @@ if (typeof Slick === "undefined") {
               updateCanvasWidth(true);
               render();
               trigger(self.onColumnsResized, {});
+              setTimeout(function () { columnResizeDragging = false; }, 300);
             });
       });
     }
@@ -1990,6 +1996,7 @@ if (typeof Slick === "undefined") {
     }
 
     function handleHeaderClick(e) {
+      if (columnResizeDragging) { return; }
       var $header = $(e.target).closest(".slick-header-column", ".slick-header-columns");
       var column = $header && $header.data("column");
       if (column) {
