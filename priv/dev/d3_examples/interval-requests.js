@@ -71,7 +71,6 @@ function initGraph(container, width, height) {
 
     function startInterval() {
         var inp = intervalInput.node();
-        console.log("the value", inp.value);
         stopInterval();
         var interval = parseInt(inp.value);
 
@@ -124,7 +123,7 @@ function initGraph(container, width, height) {
 
             // Check for ctrl+c
             if(ctrlDown && c === 67) {
-                console.log("ctrl+C detected inside");
+                console.log("ctrl+C detected inside interval graph");
                 var selection = window.getSelection();
                 // Validate is a valid selection and not collapsed.
                 if(selection.rangeCount != 1) { return; }
