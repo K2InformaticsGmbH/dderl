@@ -1694,7 +1694,7 @@ import * as tableSelection from './table-selection';
         }
         if (filterspec[type].length === 0) {
             delete filterspec[type];
-            filterspec['undefined'] = [];
+            filterspec.undefined = [];
         }
         return filterspec;
     },

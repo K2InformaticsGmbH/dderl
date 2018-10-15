@@ -367,6 +367,9 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
                 alert_jq(JSON.stringify(resp));
                 $('#btn-login').button('enable');
             }
+        }, function() {
+            delete dderlState.connecting;
+            $('#btn-login').button('enable');
         });
     } else {
         console.log("already trying to login");

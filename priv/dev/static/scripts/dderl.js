@@ -115,8 +115,7 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                         throw('unsupported success event '+_successevt+' for '+_url);
                     }
                 }
-            }
-            else if(_data.hasOwnProperty('error')) {
+            } else if(_data.hasOwnProperty('error')) {
                 if(_url == 'app/ping') {
                     dderlState.isLoggedIn = false;
                     dderlState.connection = null;
@@ -135,11 +134,15 @@ export function ajaxCall(_ref,_url,_data,_resphead,_successevt, _errorevt) {
                     if($.isFunction(_errorevt)) {
                         _errorevt(_data.error);
                     }
-                } else if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
-                    dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
+                } else {
+                    if(!dderlState.currentErrorAlert || !dderlState.currentErrorAlert.hasClass('ui-dialog-content')) {
+                        dderlState.currentErrorAlert = alert_jq('Error : '+_data.error);
+                    }
+                    if($.isFunction(_errorevt)) {
+                        _errorevt(_data.error);
+                    }
                 }
-            }
-            else {
+            } else {
                 console.log(_data);
                 throw('resp doesn\'t match the request '+_url);
             }
