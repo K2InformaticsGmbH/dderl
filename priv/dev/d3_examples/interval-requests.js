@@ -222,7 +222,7 @@ function initGraph(container, width, height) {
                 var result = [];
                 for(k in row) {
                     if(k != 'id' && k != 'op') {
-                        result.push({value: rowCounter + ' ' + row[k]});
+                        result.push({value: row[k]});
                     }
                 }
                 return result;
