@@ -98,8 +98,109 @@ function initGraph(container, width, height) {
         }
     }
 
+    tbodyElement = tbody.node();
+    tbodyElement.onkeydown = function(e) {
+        var c = e.keyCode;
+        var ctrlDown = e.ctrlKey || e.metaKey;
+
+        // Check for ctrl+c
+        if(ctrlDown && c === 67) {
+            console.log("ctrl+C detected inside interval graph");
+            var selection = window.getSelection();
+            // Validate is a valid selection and not collapsed.
+            if(selection.rangeCount != 1) { return; }
+            var range = selection.getRangeAt(0);
+            if(range.collapsed) { return; }
+
+            var start = range.startOffset;
+            var length = range.endOffset - start;
+            if(length < 1) {
+                console.log("invalid length on selection...", length);
+                return;
+            }
+
+            if(range.startContainer.parentNode.nodeName != 'TD' ||
+            range.endContainer.parentNode.nodeName != 'TD') {
+                console.log("Selection should be only on the table, something went wrong...");
+                return;
+            }
+
+            // User parentNode for the test as textNodes do not count
+            // on IE11 for contains test.
+            if(!tbodyElement.contains(range.startContainer.parentNode) ||
+            !tbodyElement.contains(range.endContainer.parentNode)) {
+                console.log("selection starts or end outside of tbody");
+                return;
+            }
+
+            e.stopPropagation();
+            if(range.startContainer != range.endContainer) {
+                console.log("Making selection 2D");
+                //TODO: This only works if there is one column...
+                //      multiple column support could be added calculating
+                //      td index using node.previousElementSibling if ever required.
+                var currentEl = range.startContainer;
+                var endEl = range.endContainer;
+                var start = range.startOffset;
+                var end = range.endOffset;
+
+                // Commented out for now, own highlight / selection is required as
+                // there is no support for multiple range selection in chrome or I.E
+                // selection.removeAllRanges();
+                var textContent = "";
+                while(currentEl != endEl && currentEl) {
+                    /*var newRange = document.createRange();
+                    newRange.setStart(currentEl, start);
+                    newRange.setEnd(currentEl, end);
+                    // this doesn't work on ie or chrome or IE...
+                    selection.addRange(newRange); */
+                    var line = currentEl.textContent;
+                    textContent += (line.substring(start, end) + "\r\n");
+                    var currentTR = currentEl.parentNode.parentNode.nextElementSibling;
+                    currentEl = currentTR.firstChild.firstChild;
+                }
+                // Add last line
+                if(currentEl) {
+                    var line = currentEl.textContent;
+                    // Note: Here a new line can be added to the end of the copy.
+                    textContent += line.substring(start, end);
+                }
+                copyText(textContent, selection, range);
+            }
+        }
+    }
+
+    function createCopyTextBox(innerText) {
+        var ta = document.createElement('textarea');
+        ta.style.position = 'absolute';
+        ta.style.left = '-1000px';
+        ta.style.top = document.body.scrollTop + 'px';
+        ta.value = innerText;
+        document.body.appendChild(ta);
+        ta.select();
+
+        return ta;
+    }
+
+    function copyText(innerText, selection, range) {
+        var focusElement = document.activeElement;
+        selection.removeAllRanges();
+        var ta = createCopyTextBox(innerText);
+        ta.focus();
+
+        setTimeout(function() {
+            document.body.removeChild(ta);
+            // restore focus
+            if (focusElement) {
+                focusElement.focus();
+                selection.addRange(range);
+            }
+        }, 100);
+    }
+
     var firstData = true;
     var rowCounter = 0;
+    var longestLine = 0;
 
     function appendRows(data) {
         var rows = tbody.selectAll('tr')
@@ -116,113 +217,19 @@ function initGraph(container, width, height) {
                 else { return 'white'; }
             });
 
-        tbodyElement = tbody.node();
-        tbodyElement.onkeydown = function(e) {
-            var c = e.keyCode;
-            var ctrlDown = e.ctrlKey || e.metaKey;
-
-            // Check for ctrl+c
-            if(ctrlDown && c === 67) {
-                console.log("ctrl+C detected inside interval graph");
-                var selection = window.getSelection();
-                // Validate is a valid selection and not collapsed.
-                if(selection.rangeCount != 1) { return; }
-                var range = selection.getRangeAt(0);
-                if(range.collapsed) { return; }
-
-                var start = range.startOffset;
-                var length = range.endOffset - start;
-                if(length < 1) {
-                    console.log("invalid length on selection...", length);
-                    return;
-                }
-
-                if(range.startContainer.parentNode.nodeName != 'TD' ||
-                range.endContainer.parentNode.nodeName != 'TD') {
-                    console.log("Selection should be only on the table, something went wrong...");
-                    return;
-                }
-
-                // User parentNode for the test as textNodes do not count
-                // on IE11 for contains test.
-                if(!tbodyElement.contains(range.startContainer.parentNode) ||
-                !tbodyElement.contains(range.endContainer.parentNode)) {
-                    console.log("selection starts or end outside of tbody");
-                    return;
-                }
-
-                e.stopPropagation();
-                if(range.startContainer != range.endContainer) {
-                    console.log("Making selection 2D");
-                    //TODO: This only works if there is one column...
-                    //      multiple column support could be added calculating
-                    //      td index using node.previousElementSibling if ever required.
-                    var currentEl = range.startContainer;
-                    var endEl = range.endContainer;
-                    var start = range.startOffset;
-                    var end = range.endOffset;
-
-                    // Commented out for now, own highlight / selection is required as
-                    // there is no support for multiple range selection in chrome or I.E
-                    // selection.removeAllRanges();
-                    var textContent = "";
-                    while(currentEl != endEl && currentEl) {
-                        /*var newRange = document.createRange();
-                        newRange.setStart(currentEl, start);
-                        newRange.setEnd(currentEl, end);
-                        // this doesn't work on ie or chrome or IE...
-                        selection.addRange(newRange); */
-                        var line = currentEl.textContent;
-                        textContent += (line.substring(start, end) + "\r\n");
-                        var currentTR = currentEl.parentNode.parentNode.nextElementSibling;
-                        currentEl = currentTR.firstChild.firstChild;
-                    }
-                    // Add last line
-                    if(currentEl) {
-                        var line = currentEl.textContent;
-                        // Note: Here a new line can be added to the end of the copy.
-                        textContent += line.substring(start, end);
-                    }
-                    copyText(textContent, selection, range);
-
-                }
-            }
-        }
-
-        function copyText(innerText, selection, range) {
-            var focusElement = document.activeElement;
-            selection.removeAllRanges();
-            var ta = createCopyTextBox(innerText);
-            ta.focus();
-
-            setTimeout(function() {
-                document.body.removeChild(ta);
-                // restore focus
-                if (focusElement) {
-                    focusElement.focus();
-                    selection.addRange(range);
-                }
-            }, 100);
-        }
-
-        function createCopyTextBox(innerText) {
-            var ta = document.createElement('textarea');
-            ta.style.position = 'absolute';
-            ta.style.left = '-1000px';
-            ta.style.top = document.body.scrollTop + 'px';
-            ta.value = innerText;
-            document.body.appendChild(ta);
-            ta.select();
-
-            return ta;
-        }
-
         rows.selectAll('td')
             .data(function(row) {
                 var result = [];
+                var pad = '';
                 for(k in row) {
                     if(k != 'id' && k != 'op') {
-                        result.push({value: row[k]});
+                        if(row[k].length >= longestLine) {
+                            longestLine = row[k].length;
+                            result.push({value: row[k]});
+                        } else {
+                            pad = new Array(longestLine - row[k].length + 1).join(' ');
+                            result.push({value: row[k] + pad});
+                        }
                     }
                 }
                 return result;
@@ -259,6 +266,7 @@ function initGraph(container, width, height) {
             stopInterval();
             firstData = true;
             rowCounter = 0;
+            longestLine = 0;
             tbody.selectAll('tr').remove();
         },
         on_close: function() {
