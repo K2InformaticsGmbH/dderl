@@ -100,7 +100,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
         true ->
             case sqlparse:parsetree(Sql) of
                 {ok, ParseTrees} ->
-                    case ptlist_to_string(ParseTrees) of
+                    case ptlist_to_string(ParseTrees, format_options(Adapter)) of
                         {error, Reason} ->
                             ?Error("parse_stmt error in fold ~p~n", [Reason]),
                             ReasonBin = iolist_to_binary(io_lib:format("Error parsing the sql: ~p", [Reason])),
@@ -113,7 +113,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             SqlTitle = get_sql_title(FirstPt),
                             FlatTuple = {<<"flat">>, iolist_to_binary([[Flat, ";\n"] || Flat <- FlatList])}, %% Add ;\n after each statement.
                             FlatListTuple = {<<"flat_list">>, FlatList},
-                            PrettyTuple = get_pretty_tuple_multiple(PtList),
+                            PrettyTuple = get_pretty_tuple_multiple(PtList, Adapter),
                             ParseStmt = jsx:encode([{<<"parse_stmt">>,
                                 case SqlTitle of
                                     <<>> ->
@@ -127,7 +127,7 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             [{ParseTree, _}] = ParseTrees,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
-                            PrettyTuple = get_pretty_tuple(ParseTree),
+                            PrettyTuple = get_pretty_tuple(ParseTree, Adapter),
                             ParseStmt = jsx:encode([{<<"parse_stmt">>,
                                 case SqlTitle of
                                     <<>> ->
@@ -545,9 +545,14 @@ get_view_params(Sess, ViewName, Adapter, UserId) ->
         _ -> #{error => <<"View not found">>}
     end.
 
--spec get_pretty_tuple(term()) -> {binary(), binary()}.
-get_pretty_tuple(ParseTree) ->
-    try sqlparse_fold:top_down(sqlparse_format_pretty, ParseTree, []) of
+-spec format_options(oci | imem) -> list().
+format_options(oci) -> [];
+format_options(imem) -> [{case_keyword, lower}].
+
+-spec get_pretty_tuple(term(), oci | imem) -> {binary(), binary()}.
+get_pretty_tuple(ParseTree, Adapter) ->
+    Opts = format_options(Adapter),
+    try sqlparse_fold:top_down(sqlparse_format_pretty, ParseTree, Opts) of
         {error, PrettyReason} ->
             ?Debug("Error ~p trying to get the pretty of the parse tree ~p",
                    [PrettyReason, ParseTree]),
@@ -561,16 +566,16 @@ get_pretty_tuple(ParseTree) ->
             {<<"prettyerror">>, iolist_to_binary(io_lib:format("~p:~p", [Class1, Error1]))}
     end.
 
--spec get_pretty_tuple_multiple(list()) -> {binary(), binary()}.
-get_pretty_tuple_multiple(ParseTrees) ->
-    get_pretty_tuple_multiple(ParseTrees, []).
+-spec get_pretty_tuple_multiple(list(), oci | imem) -> {binary(), binary()}.
+get_pretty_tuple_multiple(ParseTrees, Adapter) ->
+    get_pretty_tuple_multiple(ParseTrees, [], Adapter).
 
--spec get_pretty_tuple_multiple(list(), list()) -> {binary(), binary()}.
-get_pretty_tuple_multiple([], Result) ->
+-spec get_pretty_tuple_multiple(list(), list(), oci | imem) -> {binary(), binary()}.
+get_pretty_tuple_multiple([], Result, _Adapter) ->
     %% Same as the flat we add ; and new line after each statement.
     {<<"pretty">>, iolist_to_binary([[Pretty, ";\n"] || Pretty <- lists:reverse(Result)])};
-get_pretty_tuple_multiple([ParseTree | Rest], Result) ->
-    case get_pretty_tuple(ParseTree) of
+get_pretty_tuple_multiple([ParseTree | Rest], Result, Adapter) ->
+    case get_pretty_tuple(ParseTree, Adapter) of
         {<<"prettyerror">>, _} = Error -> Error;
         {<<"pretty">>, Pretty} -> get_pretty_tuple_multiple(Rest, [Pretty | Result])
     end.
@@ -773,12 +778,11 @@ get_sql_title({select, Args}) ->
     Result;
 get_sql_title(_) -> <<>>.
 
-%% TODO: Implement ptlist_to_string for multiple statements when it is supported byt the sqlparse.
-ptlist_to_string([{ParseTree,_}]) ->
-    sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, []);
-ptlist_to_string(Input) when is_list(Input) ->
+ptlist_to_string([{ParseTree,_}], Opts) ->
+    sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, Opts);
+ptlist_to_string(Input, Opts) when is_list(Input) ->
     PtList = [Pt || {Pt, _Extra} <- Input],
-    FlatList = [sqlparse_fold:top_down(sqlparse_format_flat, Pt, []) || Pt <- PtList],
+    FlatList = [sqlparse_fold:top_down(sqlparse_format_flat, Pt, Opts) || Pt <- PtList],
     {multiple, FlatList, PtList}.
 
 -spec decrypt_to_term(binary()) -> any().
