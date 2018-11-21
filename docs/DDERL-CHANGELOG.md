@@ -3,6 +3,17 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.1.0 (Release Date 21.11.2018)
+======================================
+* Column width adjustment destroys selection #503
+* Login button remains greyed out after login failed because of crash #513
+* Example graph interval improvements. #555
+* CLOB support for oracle. #554
+* Timestamp not padding fractional seconds properly. #552
+* Trailing semicolon not properly handled #545
+* 008871 (dderl patch pipelined timestamps) - Support for Timestamp with timezone #547
+* 008871 (dderl patch pipelined timestamps) oracle date attribute failure if querie4s through TABLE functions #546
+
 Version 3.0.1 (Release Date 04.10.2018)
 ======================================
 * [oci] timestamp (with fractions), timezone support improved
