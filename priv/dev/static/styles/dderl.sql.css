@@ -38,7 +38,7 @@ table.params input.param {
 }
 
 .flat-only-select {
-    position: relative;
+    position: absolute;
     float: right;
     top: -24px;
     right: 10px;

@@ -107,6 +107,20 @@ export function result_out_params(data, outInputs) {
 export function sql_params_dlg(container, qpars, outInputs) {
     container.empty();
 
+    var addParamSpan = document.createElement('span');
+    addParamSpan.className = 'flat-only-select';
+
+    var addParamBtn = document.createElement('span');
+    addParamBtn.className = 'ui-icon ui-icon-circle-plus';
+    addParamBtn.style.margin = '3px';
+    addParamBtn.style.cursor = 'pointer';
+    addParamBtn.onclick = () => {
+        console.log("add a parameter...");
+    };
+    addParamBtn.appendChild(document.createTextNode("Add Parameter"));
+    addParamSpan.appendChild(addParamBtn);
+    container.append(addParamSpan);
+
     var tab = $('<table/>')
         .addClass('params')
         .appendTo(container);
@@ -119,6 +133,15 @@ export function sql_params_dlg(container, qpars, outInputs) {
     qpars.types.forEach(function(v) {
         sel.append($('<option/>', {value:v}).html(v));
     });
+
+    var dirSel = $('<select/>')
+        .css('font-family', 'inherit')
+        .css('font-weight', 'inherit')
+        .css('font-size', 'inherit');
+
+    dirSel.append($('<option/>', {value: 'in'}).html('in'));
+    dirSel.append($('<option/>', {value: 'out'}).html('out'));
+    dirSel.append($('<option/>', {value: 'inout'}).html('inout'));
 
     var inp = $('<input type="text"/>')
         .addClass('param')
@@ -141,12 +164,14 @@ export function sql_params_dlg(container, qpars, outInputs) {
         return a.dir.localeCompare(b.dir);
     });
 
-    params.forEach(function(param) {
+    function addParam(param) {
         let s = sel.clone();
         let i = inp.clone();
+        let d = dirSel.clone();
 
         addUpdParamHandlers(s, param, "typ");
         addUpdParamHandlers(i, param, "val");
+        addUpdParamHandlers(d, param, "dir");
 
         if(param.dir === "out") { outInputs.push({name: param.name, inp: i}); }
 
@@ -155,12 +180,16 @@ export function sql_params_dlg(container, qpars, outInputs) {
             .on('contextmenu', buildCtxHandler(container, i));
         
         s.find('option[value="'+param.typ+'"]').attr('selected','selected');
+        d.find('option[value="'+param.dir+'"]').attr('selected','selected');
         $('<tr/>')
             .append($('<td>' + param.name + '</td>').addClass('fit-content'))
+            .append($('<td/>').addClass('fit-content').append(d))
             .append($('<td/>').addClass('fit-content').append(s))
             .append($('<td/>').append(i))
             .appendTo(tab);
-    });
+    }
+
+    params.forEach(addParam);
 }
 
 export function all_out_params(pars) {

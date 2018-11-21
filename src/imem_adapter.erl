@@ -968,7 +968,7 @@ get_params(Sql) ->
         {ok,[{_ParseTree,_}]} ->
             %% Do not assume the query is valid before calling this function
             %% as parser doesn't handle errors and crashes.
-            dderl_sql_params:get_params(Sql, []);
+            dderl_sql_params:get_params(Sql);
         _ ->
             []
     end.

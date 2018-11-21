@@ -26,25 +26,19 @@
 -export([
     finalize/2,
     fold/5,
-    get_params/2,
+    get_params/1,
     init/1
 ]).
 
-get_params(Sql, RegEx) ->
-    sqlparse_fold:top_down(dderl_sql_params, Sql, RegEx).
+get_params(Sql) ->
+    sqlparse_fold:top_down(dderl_sql_params, Sql, []).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Setting up parameters.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec init(RegEx :: iodata() | unicode:charlist()) ->
-    {re_pattern, term(), term(), term(), term()} | list().
-init(RegEx) when is_list(RegEx) ->
-    case length(RegEx) > 0 of
-        true -> {ok, MP_I} = re:compile(RegEx),
-            MP_I;
-        _ -> []
-    end.
+-spec init([]) -> [].
+init([]) -> [].
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Postprocessing of the result.
@@ -66,42 +60,42 @@ finalize(_MP, CtxIn) when is_list(CtxIn) ->
 % param
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-fold(MP, _FunState, Ctx, {param, Param} = _PTree, FoldState)
+fold(_MP, _FunState, Ctx, {param, Param} = _PTree, FoldState)
     when element(2, FoldState) == start ->
-    add_param(MP, Param, Ctx);
+    add_param(Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {param, _}
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-fold(MP, _FunState, Ctx, {{param, Param}, _} = _PTree, FoldState)
+fold(_MP, _FunState, Ctx, {{param, Param}, _} = _PTree, FoldState)
     when element(2, FoldState) == start ->
-    add_param(MP, Param, Ctx);
+    add_param(Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, param, param}
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-fold(MP, _FunState, Ctx, {Op, {param, Param1}, {param, Param2}} =
+fold(_MP, _FunState, Ctx, {Op, {param, Param1}, {param, Param2}} =
     _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    add_param(MP, Param2, add_param(MP, Param1, Ctx));
+    add_param(Param2, add_param(Param1, Ctx));
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, param, _}
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-fold(MP, _FunState, Ctx, {Op, {param, Param}, _} = _PTree, FoldState)
+fold(_MP, _FunState, Ctx, {Op, {param, Param}, _} = _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    add_param(MP, Param, Ctx);
+    add_param(Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % {atom, _, param}
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-fold(MP, _FunState, Ctx, {Op, _, {param, Param}} = _PTree, FoldState)
+fold(_MP, _FunState, Ctx, {Op, _, {param, Param}} = _PTree, FoldState)
     when is_atom(Op), element(2, FoldState) == start ->
-    add_param(MP, Param, Ctx);
+    add_param(Param, Ctx);
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % NO ACTION.
@@ -114,11 +108,4 @@ fold(_MP, _FunState, Ctx, _PTree, _FoldState) ->
 % Helper functions.
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-add_param(MP, Param, Ctx) ->
-    case MP of
-        [] -> [Param | Ctx];
-        _ -> case re:run(Param, MP, [global, {capture, [0, 1, 2], binary}]) of
-                 {match, Prms} -> Prms ++ Ctx;
-                 _ -> Ctx
-             end
-    end.
+add_param(Param, Ctx) -> [Param | Ctx].

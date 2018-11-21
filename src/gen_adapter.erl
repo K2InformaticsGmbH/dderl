@@ -59,7 +59,7 @@ add_cmds_views(Sess, UserId, A, Replace, [{N,C,Con,#viewstate{}=V}|Rest], Replac
 opt_bind_json_obj(Sql, Adapter) ->
     AdapterMod = list_to_existing_atom(atom_to_list(Adapter) ++ "_adapter"),
     Types = AdapterMod:bind_arg_types(),
-    case sql_params(Sql, Types) of
+    case sql_params(Sql, Types, Adapter) of
         {match, []} -> [];
         {match, Parameters} ->
             [{<<"binds">>,
@@ -80,15 +80,30 @@ opt_bind_json_obj(Sql, Adapter) ->
         _ -> []
     end.
 
-sql_params(Sql, Types) ->
+sql_params(Sql, Types, Adapter) ->
     RegEx = "[^a-zA-Z0-9() =><]*:(" ++ string:join([binary_to_list(T) || T <- Types], "|")
         ++ ")((_IN_|_OUT_|_INOUT_){0,1})[^ ,\)\n\r;]+",
     try
-        {match, dderl_sql_params:get_params(Sql, RegEx)}
+        ParamsList = dderl_sql_params:get_params(Sql),
+        ?Info("The params list ~p", [ParamsList]),
+        ParamsWithType = get_param_type(ParamsList, RegEx, default_type(Adapter)),
+        ?Info("The params with Type ~p", [ParamsWithType]),
+        {match, ParamsWithType}
     catch C:R ->
         ?Warn("~p~n~p", [{C,R}, erlang:get_stacktrace()]),
         re:run(Sql, RegEx, [global,{capture, [0,1,2], binary}])
     end.
+
+default_type(imem) -> <<"binstr">>;
+default_type(oci) -> <<"SQLT_STR">>.
+
+get_param_type([], _RegEx, _Default) -> [];
+get_param_type([Param | Params], RegEx, DefaultType) ->
+    Result = case re:run(Param, RegEx, [global, {capture, [0, 1, 2], binary}]) of
+        {match, [ParamMatch]} -> ParamMatch;
+        _ -> [Param, DefaultType, <<>>]
+    end,
+    [Result | get_param_type(Params, RegEx, DefaultType)].
 
 -spec process_cmd({[binary()], [{binary(), list()}]}, atom(), {atom(), pid()}, ddEntityId(), pid(), term()) -> term().
 process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv) ->

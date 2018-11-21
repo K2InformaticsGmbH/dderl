@@ -234,8 +234,6 @@ const tabPositions = Object.freeze({
             .append(
               $('<div>')
               .css('background-color', paramsBg)
-              .css("overflow-x", "hidden")
-              .css("overflow-y", "auto")
               .attr('id','tabparams')
               .append(self._paramsDiv)
             )
