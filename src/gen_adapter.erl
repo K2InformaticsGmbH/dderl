@@ -577,7 +577,7 @@ get_pretty_tuple_multiple([], Result, _Adapter) ->
 get_pretty_tuple_multiple([ParseTree | Rest], Result, Adapter) ->
     case get_pretty_tuple(ParseTree, Adapter) of
         {<<"prettyerror">>, _} = Error -> Error;
-        {<<"pretty">>, Pretty} -> get_pretty_tuple_multiple(Rest, [Pretty | Result])
+        {<<"pretty">>, Pretty} -> get_pretty_tuple_multiple(Rest, [Pretty | Result], Adapter)
     end.
 
 -spec format_json_or_term(boolean(), binary(), pid(), term()) -> term().
