@@ -3,7 +3,7 @@
 {application, dderl,
  [
   {description, "Web based tool for exploring databases"},
-  {vsn, "3.1.0"},
+  {vsn, "3.2.0"},
   {registered, []},
   {applications, [kernel,
                   stdlib,

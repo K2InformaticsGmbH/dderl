@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.2.0 (Release Date 18.01.2019)
+======================================
+* Missing adapter argument when formatting multiple sql queries. #564
+* imem version 3.2.0
+
 Version 3.1.0 (Release Date 21.11.2018)
 ======================================
 * Column width adjustment destroys selection #503
