@@ -51,4 +51,4 @@ script:
 # - ./rebar3 dialyzer                     % TBD, currently ===> Warnings occurred running dialyzer: 352.
   - ./rebar3 as test geas
   - ./rebar3 as prod release
-  - ./rebar3 as prod erlpkg
+#  - ./rebar3 as prod erlpkg
