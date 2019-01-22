@@ -5,6 +5,38 @@ dderl
 
 WEB DataBase Browser Application.
 
+### Build (Supported erlnag OTP version 20.2)
+
+1. `git clone https://github.com/K2InformaticsGmbH/dderl` in `$ROOT`
+1. cd `$ROOT\dderl`
+1. `NO_OCI=true rebar3 compile`
+1. To compile with erloci follow setup instruction at https://github.com/K2InformaticsGmbH/erloci and execute the above two commands without `NO_OCI=true
+1. cd `priv\dev`
+1. `npm run install-build-prod`
+1. cd `$ROOT\dderl`
+1. `./start.sh`
+
+### Features
+
+1. Browse mnesia and oracle tables in the browser
+2. Add and update data
+3. Import and Export data
+4. Send and receive data from one desitination to other on the same session
+5. SQL support for queries
+6. Filter, Sort, Distinct and Statistics on data
+7. Multifactor authentication support (SMS, SAML and username/password)
+8. JSON parsing with SQL 
+9. Tailing of tables (for log tables)
+10. Log table rotation
+11. Snapshot and restore table
+12. Cluster backup and restore
+13. Configuration encryption for ssl certificates and passwords
+14. D3 graph support to plot graphs
+15. Save views of tables 
+16. Query history support
+17. Connect to other imem server over TCP with SSL
+
+
 ### Certificates
 DDErl runs on SSL. A default certificate/key pair is [supplied](https://github.com/k2informatics/dderl/tree/master/priv/certs). This, however can be changed either by replacing these files at installation or modifying configuration in `ddConfig` table (`[{dderl,dderl,dderlSslOpts}]`). A sample configuration is given below:
 ```erlang
