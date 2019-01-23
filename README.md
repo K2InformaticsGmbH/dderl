@@ -5,16 +5,17 @@ dderl
 
 WEB DataBase Browser Application.
 
-### Build (Supported erlnag OTP version 20.2)
+### Build (Supported erlnag OTP version - 20.2)
 
 1. `git clone https://github.com/K2InformaticsGmbH/dderl` in `$ROOT`
-1. cd `$ROOT\dderl`
+1. cd `$ROOT/dderl`
 1. `NO_OCI=true rebar3 compile`
 1. To compile with erloci follow setup instruction at https://github.com/K2InformaticsGmbH/erloci and execute the above two commands without `NO_OCI=true
-1. cd `priv\dev`
+1. cd `priv/dev`
 1. `npm run install-build-prod`
-1. cd `$ROOT\dderl`
+1. cd `$ROOT/dderl`
 1. `./start.sh`
+1. go to https://127.0.0.1:8443/dderl in your browser
 
 ### Features
 
