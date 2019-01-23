@@ -26,8 +26,8 @@ WEB DataBase Browser Application.
 6. Filter, Sort, Distinct and Statistics on data
 7. Multifactor authentication support (SMS, SAML and username/password)
 8. JSON parsing with SQL 
-9. Tailing of tables (for log tables)
-10. Log table rotation
+9. Tailing of tables 
+10. Log table rotation and purging
 11. Snapshot and restore table
 12. Cluster backup and restore
 13. Configuration encryption for ssl certificates and passwords
@@ -35,6 +35,9 @@ WEB DataBase Browser Application.
 15. Save views of tables 
 16. Query history support
 17. Connect to other imem server over TCP with SSL
+18. CSV file parsing
+
+![screenshot](https://github.com/K2InformaticsGmbH/dderl/blob/master/docs/dderl_screenshot.png)
 
 
 ### Certificates
