@@ -18,8 +18,8 @@ if [ -d "$dderlPriv/public/dist" ]; then
 fi
 
 cd $dderlPriv/dev
-log green "npm run install-build-prod @ $(pwd)"
-npm run install-build-prod
+log green "yarn install-build-prod @ $(pwd)"
+yarn install-build-prod
 
 # cleanup
 cd $dderlPriv

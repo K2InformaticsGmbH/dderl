@@ -27,8 +27,8 @@ If (Test-Path "$dderlPriv\public\dist") {
 }
 
 cd $dderlPriv\dev
-Write-Host "===> npm run install-build-prod @ $pwd" -foregroundcolor green
-npm run install-build-prod
+Write-Host "===> yarn install-build-prod @ $pwd" -foregroundcolor green
+yarn install-build-prod
 
 function Remove-Recursive-Force([string]$Root, [string]$Dir) {
     Try {

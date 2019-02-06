@@ -38,14 +38,15 @@
     "webpack": "3.10.0"
   },
   "scripts": {
-    "install-build-prod": "npm install && npm run build-prod",
-    "build-dev": "npm run lint && npm run clean && webpack --progress",
-    "build-prod": "npm run lint && npm run clean && webpack -p",
+    "install-build-prod": "yarn install && yarn build-prod",
+    "build": "yarn build-dev",
+    "build-dev": "yarn lint && yarn clean && webpack --progress",
+    "build-prod": "yarn lint && yarn clean && webpack -p",
     "clean": "rimraf ../public/dist",
     "env": "env",
     "lint": "jshint --verbose static/index.js static/scripts static/dashboard static/dialogs static/graph static/slickgrid",
     "test": "karma start karma.conf.js",
-    "watch": "npm run clean && webpack --progress --watch",
+    "watch": "yarn clean && webpack --progress --watch",
     "lint:d3_examples": "jshint --verbose d3_examples"
   }
 }
