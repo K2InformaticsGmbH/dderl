@@ -174,7 +174,7 @@ function display(layout) {
         autoOpen: false,
         minHeight: 70,
         height: 'auto',
-        width: 200,
+        width: 220,
         resizable: false,
         modal: false,
         position: { my: "left top", at: "left+50 top+20", of: "#login-bg" },
