@@ -663,6 +663,12 @@ process_cmd({[<<"restore_tables_as">>], BodyJson}, _Sess, _UserId, From, #priv{c
     Results = [process_table_cmd(restore_table_as, TableName, BodyJson, Connections) || TableName <- TableNames],
     send_result_table_cmd(From, <<"restore_tables_as">>, Results),
     Priv;
+process_cmd({[<<"term_diff">>], ReqBody}, Sess, _UserId, From, Priv, SessPid) ->
+    [{<<"term_diff">>, BodyJson}] = ReqBody,
+    % Can't be handled directly as SessPid is not given to gen_adapter.
+    gen_adapter:term_diff(BodyJson, Sess, SessPid, From),
+    Priv;
+
 % unsupported gui actions
 process_cmd({Cmd, BodyJson}, _Sess, _UserId, From, Priv, _SessPid) ->
     ?Error("unsupported command ~p content ~p and priv ~p", [Cmd, BodyJson, Priv]),

@@ -21,6 +21,7 @@
         , add_conn_info/2
         , make_csv_rows/4
         , is_exec_query/1
+        , term_diff/4
         ]).
 
 init() -> ok.
@@ -534,6 +535,16 @@ process_query(Query, Connection, Params, SessPid) ->
 
 %%%%%%%%%%%%%%%
 
+-spec term_diff(list(), term(), pid(), pid()) -> term().
+term_diff(BodyJson, Sess, SessPid, From) ->
+    ?Info("Term diff ~p", [BodyJson]),
+    Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
+    {LeftType, LeftValue} = get_cell_value(proplists:get_value(<<"left">>, BodyJson, 0), Statement),
+    {RightType, RightValue} = get_cell_value(proplists:get_value(<<"right">>, BodyJson, 0), Statement),
+    ?Info("The left and right values: ~n~p~n~p:", [LeftValue, RightValue]),
+    Result = dderl_diff:term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue),
+    From ! { reply, jsx:encode(#{term_diff => Result}) }.
+
 -spec get_view_params({atom(), pid()} | undefined, binary(), atom(), ddEntityId()) -> map().
 get_view_params(Sess, ViewName, Adapter, UserId) ->
     case dderl_dal:get_view(Sess, ViewName, Adapter, UserId) of
@@ -980,3 +991,14 @@ process_exec_query(Sql) ->
         [$e,$x,$e,$c,32 | RestSql] -> {true, iolist_to_binary(["begin ", RestSql, "; end"])};
         _ -> false
     end.
+
+-spec get_cell_value([{binary(), integer()}], term()) -> {atom(), binary()}.
+get_cell_value(Cell, Statement) ->
+    % Get a proplist with row and column and get the value from a statement.
+    Row = proplists:get_value(<<"row">>, Cell, 0),
+    Col = proplists:get_value(<<"col">>, Cell, 0),
+    R = Statement:row_with_key(Row),
+    ?Info("The row ~p", [R]),
+    #stmtCol{type = Type} = lists:nth(Col, Statement:get_columns()),
+    ?Info("The column type ~p", [Type]),
+    {Type, element(3 + Col, R)}.

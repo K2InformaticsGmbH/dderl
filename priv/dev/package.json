@@ -39,6 +39,7 @@
   },
   "scripts": {
     "install-build-prod": "npm install && npm run build-prod",
+    "build": "npm run build-dev",
     "build-dev": "npm run lint && npm run clean && webpack --progress",
     "build-prod": "npm run lint && npm run clean && webpack -p",
     "clean": "rimraf ../public/dist",
