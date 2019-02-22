@@ -99,7 +99,7 @@ import * as tableSelection from './table-selection';
                         filterResult    : function(e, _result) { e.data._renderRows             (_result); },
                         sortResult      : function(e, _result) { e.data._renderRows             (_result); },
                         reorderResult   : function(e, _result) { e.data._renderRows             (_result); },
-                        truncateResult  : function(e, _result) { e.data._reloadOnSuccess        (_result); },
+                        truncateResult  : function(e, _result) { e.data._noReloadOnSuccess      (_result); },
                         dropResult      : function(e, _result) { e.data._reloadOnSuccess        (_result); },
                         snapshotResult  : function(e, _result) { e.data._noReloadOnSuccess      (_result); },
                         restoreResult   : function(e, _result) { e.data._reloadOnSuccess        (_result); },
