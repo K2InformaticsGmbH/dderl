@@ -12,7 +12,7 @@
 term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
     ?Info("Term diff ~p", [{LeftType, LeftValue, RightType, RightValue}]),
     %% TODO: Replace this for the real call:
-    case Sess:run_cmd(term_diff, [LeftType, LeftValue, RightType, RightValue, [ignore_whitespaces]]) of
+    case Sess:run_cmd(term_diff, [LeftType, LeftValue, RightType, RightValue, [ignore_whitespace]]) of
         {error, {{Ex, M}, Stacktrace} = Error} ->
             ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
