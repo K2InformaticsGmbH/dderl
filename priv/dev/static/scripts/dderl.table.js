@@ -108,7 +108,8 @@ import * as tableSelection from './table-selection';
                         getSqlResult    : function(e, _result) { e.data._openSqlEditor          (_result); },
                         activateSender  : function(e, _result) { e.data._activateSenderResult   (_result); },
                         activateReceiver: function(e, _result) { e.data._activateReceiverResult (_result); },
-                        cacheResult     : function(e, _result) { e.data._cacheResult            (_result); }
+                        cacheResult     : function(e, _result) { e.data._cacheResult            (_result); },
+                        termDiff        : function(e, _result) { e.data._renderNewTable         (_result); }
                       },
 
     _toolbarButtons : {'restart'  : {tip: 'Reload',                typ : 'btn', icn : 'refresh',               clk : '_toolBarReload',   dom: '_tbReload' },
@@ -158,6 +159,7 @@ import * as tableSelection from './table-selection';
                        'Filter'           : '_filterCell',
                        'Filter...'        : '_filterCellDialog',
                        'Edit'             : '_editErlangTerm',
+                       'Diff'             : '_termDiff',
                        'Truncate Table'   : '_truncateTable',
                        'Statistics'       : '_showStatistics',
                        'Drop Table'       : '_dropTable',
@@ -322,7 +324,7 @@ import * as tableSelection from './table-selection';
 
     _init: function() {
         // default dialog open behavior
-    	if ( this.options.autoOpen ) {
+        if ( this.options.autoOpen ) {
             this._dlg.dialog("open");
         }
     },
@@ -1719,36 +1721,7 @@ import * as tableSelection from './table-selection';
         var self = this;
         console.log('_browseCellData for '+ ranges.length + ' slick range(s)');
 
-        var cells = [];
-        for(let i = 0; i < ranges.length; ++i) {
-            // For complete rows use the first column only
-            if(ranges[i].fromCell <= 1 &&
-                ranges[i].toCell === self._grid.getColumns().length - 1) {
-                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
-                    let data = self._gridDataView.getItem(j);
-                    let column = self._grid.getColumns()[1];
-                    cells.push({
-                        row: data.id,
-                        col: self._origcolumns[column.field],
-                        name: column.name,
-                        data: data
-                    });
-                }
-            } else {
-                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
-                    for(let k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
-                        let data = self._gridDataView.getItem(j);
-                        let column = self._grid.getColumns()[k];
-                        cells.push({
-                            row: data.id,
-                            col: self._origcolumns[column.field],
-                            name: column.name,
-                            data: data
-                        });
-                    }
-                }
-            }
-        }
+        let cells = self._getSelectedCells(ranges);
         console.log("the cells", cells);
         if(cells.length > 10) {
             alert_jq("A maximum of 10 tables can be open simultaneously");
@@ -1825,6 +1798,7 @@ import * as tableSelection from './table-selection';
         self._grid.resetActiveCell();
         self._grid.setSelectedRows([]);
     },
+
     _get_range_values: function(ranges) {
         var self = this;
         var columns = self._grid.getColumns();
@@ -1841,6 +1815,59 @@ import * as tableSelection from './table-selection';
             }
         }
         return rangeValues;
+    },
+
+    _getSelectedCells: function(ranges) {
+        let self = this;
+        var cells = [];
+        for(let i = 0; i < ranges.length; ++i) {
+            // For complete rows use the first column only
+            if(ranges[i].fromCell <= 1 &&
+                ranges[i].toCell === self._grid.getColumns().length - 1) {
+                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    let data = self._gridDataView.getItem(j);
+                    let column = self._grid.getColumns()[1];
+                    cells.push({
+                        row: data.id,
+                        col: self._origcolumns[column.field],
+                        name: column.name,
+                        data: data
+                    });
+                }
+            } else {
+                for (let j = ranges[i].fromRow; j <= ranges[i].toRow; ++j) {
+                    for(let k = Math.max(ranges[i].fromCell, 1); k <= ranges[i].toCell; ++k) {
+                        let data = self._gridDataView.getItem(j);
+                        let column = self._grid.getColumns()[k];
+                        cells.push({
+                            row: data.id,
+                            col: self._origcolumns[column.field],
+                            name: column.name,
+                            data: data
+                        });
+                    }
+                }
+            }
+        }
+        return cells;
+    },
+
+    _termDiff: function(ranges) {
+        let self = this;
+        let cells = self._getSelectedCells(ranges);
+        if(cells.length != 2) {
+            alert_jq("Please select 2 cells to compare.");
+            return;
+        }
+        console.log("The selected cells:", cells);
+
+        self._ajax('term_diff', { term_diff: {
+            connection : dderlState.connection,
+            conn_id : dderlState.connectionSelected.connection,
+            statement : self._stmt,
+            left : {row: cells[0].row, col: cells[0].col},
+            right : {row: cells[1].row, col: cells[1].col}
+        }}, 'term_diff', 'termDiff');
     },
 
     _truncateTable: function(ranges) {

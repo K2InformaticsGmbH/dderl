@@ -222,7 +222,7 @@ is_agregation([{as, Table, Alias} | Rest]) when is_binary(Alias), is_binary(Tabl
     is_agregation(Rest);
 is_agregation(_) -> true.
 
--spec inject_rowid(atom(), list(), binary()) -> {binary(), binary()}.
+-spec inject_rowid(atom(), list(), binary()) -> {binary(), binary(), boolean()}.
 inject_rowid(agregation, Args, Sql) ->
     {from, [FirstTable|_]=_Forms} = lists:keyfind(from, 1, Args),
     %% Do not add rowid on agregation.
