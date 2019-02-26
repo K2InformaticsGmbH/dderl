@@ -2844,8 +2844,8 @@ import * as tableSelection from './table-selection';
                 }
             })
             .bind("dialogfocus", function() {
-                // If the table is disabled or showing the graph do not set the focus.
-                if(self._divDisable || self._planeToShow > 0) {
+                // If the table is disabled do not set the focus.
+                if(self._divDisable) {
                     return;
                 }
                 var cellEditor = self._grid.getCellEditor();

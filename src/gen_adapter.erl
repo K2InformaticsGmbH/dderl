@@ -537,11 +537,10 @@ process_query(Query, Connection, Params, SessPid) ->
 
 -spec term_diff(list(), term(), pid(), pid()) -> term().
 term_diff(BodyJson, Sess, SessPid, From) ->
-    ?Info("Term diff ~p", [BodyJson]),
+    ?Debug("Term diff called with args: ~p", [BodyJson]),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
     {LeftType, LeftValue} = get_cell_value(proplists:get_value(<<"left">>, BodyJson, 0), Statement),
     {RightType, RightValue} = get_cell_value(proplists:get_value(<<"right">>, BodyJson, 0), Statement),
-    ?Info("The left and right values: ~n~p~n~p:", [LeftValue, RightValue]),
     Result = dderl_diff:term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue),
     From ! { reply, jsx:encode(#{term_diff => Result}) }.
 
@@ -998,7 +997,5 @@ get_cell_value(Cell, Statement) ->
     Row = proplists:get_value(<<"row">>, Cell, 0),
     Col = proplists:get_value(<<"col">>, Cell, 0),
     R = Statement:row_with_key(Row),
-    ?Info("The row ~p", [R]),
     #stmtCol{type = Type} = lists:nth(Col, Statement:get_columns()),
-    ?Info("The column type ~p", [Type]),
     {Type, element(3 + Col, R)}.

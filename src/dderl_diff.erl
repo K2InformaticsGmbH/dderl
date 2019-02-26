@@ -10,8 +10,6 @@
 
 -spec term_diff(term(), pid(), atom(), binary(), atom(), binary()) -> binary().
 term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
-    ?Info("Term diff ~p", [{LeftType, LeftValue, RightType, RightValue}]),
-    %% TODO: Replace this for the real call:
     case Sess:run_cmd(term_diff, [LeftType, LeftValue, RightType, RightValue, [ignore_whitespace,ignore_casing,ignore_dquotes]]) of
         {error, {{Ex, M}, Stacktrace} = Error} ->
             ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], Stacktrace),
@@ -28,7 +26,7 @@ term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
             Err = list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))),
             #{<<"error">> => Err};
         DiffResult ->
-            ?Info("The diff result ~p", [DiffResult]),
+            ?Debug("The diff result ~p", [DiffResult]),
             FsmCtx = get_fsmctx(DiffResult),
             StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
             Columns = gen_adapter:build_column_json(lists:reverse(get_columns())),
@@ -89,10 +87,7 @@ get_columns() -> [
 
 -spec get_rowfun() -> fun().
 get_rowfun() ->
-    fun({{}, Row}) ->
-        ?Info("The row ~p", [Row]),
-        [fix_format(Col) || Col <- tuple_to_list(Row)]
-    end.
+    fun({{}, Row}) -> [fix_format(Col) || Col <- tuple_to_list(Row)] end.
 
 -spec get_sortfun() -> fun().
 get_sortfun() ->
