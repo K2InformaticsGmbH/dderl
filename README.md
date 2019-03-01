@@ -1,7 +1,12 @@
 dderl
 =====
 
-[![Build Status](https://travis-ci.org/K2InformaticsGmbH/dderl.svg?branch=master)](https://travis-ci.org/K2InformaticsGmbH/dderl) [![Coverage Status](https://coveralls.io/repos/github/K2InformaticsGmbH/dderl/badge.svg?branch=master)](https://coveralls.io/github/K2InformaticsGmbH/dderl?branch=master)
+![Travis (.org)](https://img.shields.io/travis/K2InformaticsGmbH/dderl.svg)
+![Coveralls github](https://img.shields.io/coveralls/github/K2InformaticsGmbH/dderl.svg)
+![GitHub](https://img.shields.io/github/license/K2InformaticsGmbH/dderl.svg)
+![GitHub release](https://img.shields.io/github/release/K2InformaticsGmbH/dderl.svg)
+![GitHub Release Date](https://img.shields.io/github/release-date/K2InformaticsGmbH/dderl.svg)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/K2InformaticsGmbH/dderl/3.2.0.svg)
 
 WEB DataBase Browser Application.
 
