@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.3.0 (Release Date 04.03.2019)
+======================================
+* Using yarn instead of npm to manage front end dependencies
+* Implemented term diff context menu
+* Imem version 3.3.0
+
 Version 3.2.0 (Release Date 18.01.2019)
 ======================================
 * Missing adapter argument when formatting multiple sql queries. #564
