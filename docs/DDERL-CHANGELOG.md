@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.3.1 (Release Date 13.03.2019)
+======================================
+* Shield github badges added
+* Imem version 3.3.1
+
 Version 3.3.0 (Release Date 04.03.2019)
 ======================================
 * Using yarn instead of npm to manage front end dependencies
