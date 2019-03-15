@@ -3,8 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
-Version 3.3.1 (Release Date 13.03.2019)
+Version 3.3.1 (Release Date 15.03.2019)
 ======================================
+* git URL injection for local releases ONLY
+* erlpkg-1.2.0
 * Shield github badges added
 * Imem version 3.3.1
 
