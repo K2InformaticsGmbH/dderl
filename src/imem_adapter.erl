@@ -631,15 +631,15 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
-        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
+        {ok, #stmtResults{stmtCols = Clms, stmtRefs = StmtRefs, rowFun = RowFun}} ->
             Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                produce_csv_rows(UserId, Connection, From, StmtRef, RowFun)
+                produce_csv_rows(UserId, Connection, From, StmtRefs, RowFun)
             end),
-            Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
-            Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
-            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
+            Connection:add_stmt_fsm(StmtRefs, {?MODULE, ProducerPid}),
+            [Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], SR]) || SR <- StmtRefs],
+            ?Debug("process_query created statements ~p for ~p", [ProducerPid, Query]);
         {error, {{Ex, M}, Stacktrace} = Error} ->
             ?Error("query error ~p", [Error], Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
@@ -773,36 +773,35 @@ process_query(Query, Connection, {ConnId, Adapter}, Params, SessPid) ->
 process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
     process_query(Query, Connection, {ConnId, Adapter}, [], SessPid);
 process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
+    SessPid ! {log_query, Query, Params},
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, Params)) of
         ok ->
-            SessPid ! {log_query, Query, Params},
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];
-        {ok, #stmtResult{ stmtCols = Clms
-                        , rowFun   = RowFun
-                        , stmtRef  = StmtRef
-                        , sortFun  = SortFun
-                        , sortSpec = SortSpec} = _StmtRslt} ->
-            SessPid ! {log_query, Query, Params},
-            TableName = extract_table_name(Query),
+        {ok, #stmtResults{ stmtRefs = StmtRefs
+                         , stmtCols = Clms
+                         , rowFun   = RowFun
+                         , sortFun  = SortFun
+                         , sortSpec = SortSpec
+                         , tableNames = TableNames}} ->
             StmtFsm = dderl_fsm:start(
-                                #fsmctx{ id                         = "what is it?"
-                                       , stmtCols                   = Clms
-                                       , rowFun                     = RowFun
-                                       , sortFun                    = SortFun
-                                       , sortSpec                   = SortSpec
-                                       , orig_qry                   = Query
-                                       , bind_vals                  = Params
-                                       , table_name                 = TableName
-                                       , block_length               = ?DEFAULT_ROW_SIZE
-                                       , fetch_recs_async_fun       = imem_adapter_funs:fetch_recs_async(Connection, StmtRef)
-                                       , fetch_close_fun            = imem_adapter_funs:fetch_close(Connection, StmtRef)
-                                       , stmt_close_fun             = imem_adapter_funs:stmt_close(Connection, StmtRef)
-                                       , filter_and_sort_fun        = imem_adapter_funs:filter_and_sort(Connection, StmtRef)
-                                       , update_cursor_prepare_fun  = imem_adapter_funs:update_cursor_prepare(Connection, StmtRef)
-                                       , update_cursor_execute_fun  = imem_adapter_funs:update_cursor_execute(Connection, StmtRef)
-                                       }, SessPid),
-            Connection:add_stmt_fsm(StmtRef, StmtFsm),
+                                #fsmctxs{ stmtRefs                   = StmtRefs
+                                        , stmtCols                   = Clms
+                                        , rowFun                     = RowFun
+                                        , sortFun                    = SortFun
+                                        , sortSpec                   = SortSpec
+                                        , orig_qry                   = Query
+                                        , bind_vals                  = Params
+                                        , table_names                = TableNames
+                                        , block_length               = ?DEFAULT_ROW_SIZE
+                                        , fetch_recs_async_funs      = imem_adapter_funs:fetch_recs_async(Connection, StmtRefs)
+                                        , fetch_close_funs           = imem_adapter_funs:fetch_close(Connection, StmtRefs)
+                                        , stmt_close_funs            = imem_adapter_funs:stmt_close(Connection, StmtRefs)
+                                        , filter_and_sort_funs       = imem_adapter_funs:filter_and_sort(Connection, StmtRefs)
+                                        , update_cursor_prepare_funs = imem_adapter_funs:update_cursor_prepare(Connection, StmtRefs)
+                                        , update_cursor_execute_funs = imem_adapter_funs:update_cursor_execute(Connection, StmtRefs)
+                                        }, SessPid),
+            Connection:add_stmt_fsm(StmtRefs, StmtFsm),
             ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
             Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
             JSortSpec = build_srtspec_json(SortSpec),
@@ -923,7 +922,7 @@ check_fun_vsn(_) ->
     false.
 
 -spec check_funs(term()) -> term().
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
+check_funs({ok, #stmtResults{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
         ValidFuns -> {ok, StmtRslt};

@@ -58,7 +58,7 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
         {'EXIT', {Error, ST}} ->
             ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
             {error, Error};
-        {ok, #stmtResult{} = StmtResult, ContainRowId} ->
+        {ok, #stmtResults{} = StmtResult, ContainRowId} ->
             LowerSql = string:to_lower(binary_to_list(Sql)),
             case string:str(LowerSql, "rownum") of
                 0 -> ContainRowNum = false;
@@ -67,7 +67,7 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
             {ok, Pid} = gen_server:start(?MODULE, [SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum], []),
             SortSpec = gen_server:call(Pid, build_sort_spec, ?ExecTimeout),
             %% Mask the internal stmt ref with our pid.
-            {ok, StmtResult#stmtResult{stmtRef = Pid, sortSpec = SortSpec}, TableName};
+            {ok, StmtResult#stmtResults{stmtRefs = [Pid], sortSpec = SortSpec}, TableName};
         NoSelect ->
             NoSelect
     end.
@@ -114,12 +114,12 @@ init([SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum]) ->
             contain_rownum = ContainRowNum}}.
 
 handle_call({filter_and_sort, Connection, FilterSpec, SortSpec, Cols, Query}, _From, #qry{stmt_result = StmtResult} = State) ->
-    #stmtResult{stmtCols = StmtCols} = StmtResult,
+    #stmtResults{stmtCols = StmtCols} = StmtResult,
     %% TODO: improve this to use/update parse tree from the state.
     Res = filter_and_sort_internal(Connection, FilterSpec, SortSpec, Cols, Query, StmtCols),
     {reply, Res, State};
 handle_call(build_sort_spec, _From, #qry{stmt_result = StmtResult, select_sections = SelectSections} = State) ->
-    #stmtResult{stmtCols = StmtCols} = StmtResult,
+    #stmtResults{stmtCols = StmtCols} = StmtResult,
     SortSpec = build_sort_spec(SelectSections, StmtCols),
     {reply, SortSpec, State};
 handle_call(get_state, _From, State) ->
@@ -127,12 +127,12 @@ handle_call(get_state, _From, State) ->
 handle_call(fetch_close, _From, #qry{} = State) ->
     {reply, ok, State#qry{pushlock = true}};
 handle_call(close, _From, #qry{stmt_result = StmtResult} = State) ->
-    #stmtResult{stmtRef = StmtRef} = StmtResult,
-    try StmtRef:close()
+    #stmtResults{stmtRefs = StmtRefs} = StmtResult,
+    [try SR:close()
     catch
         exit:{noproc,_} -> ok %trying to close an already closed statement.
-    end,
-    {stop, normal, ok, State#qry{stmt_result = StmtResult#stmtResult{stmtRef = undefined}}};
+    end || SR <- StmtRefs],
+    {stop, normal, ok, State#qry{stmt_result = StmtResult#stmtResults{stmtRefs = []}}};
 handle_call(_Ignored, _From, State) ->
     {noreply, State}.
 
@@ -149,10 +149,10 @@ handle_cast({fetch_recs_async, true, FsmNRows}, #qry{max_rowcount = MaxRowCount}
     gen_server:cast(self(), {fetch_push, 0, RowsToRequest}),
     {noreply, State};
 handle_cast({fetch_recs_async, false, _}, #qry{fsm_ref = FsmRef, stmt_result = StmtResult, contain_rowid = ContainRowId} = State) ->
-    #stmtResult{stmtRef = StmtRef, stmtCols = Clms} = StmtResult,
-    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+    #stmtResults{stmtRefs = StmtRefs, stmtCols = Clms} = StmtResult,
+    [case SR:fetch_rows(?DEFAULT_ROW_SIZE) of
         {{rows, Rows}, Completed} ->
-            try FsmRef:rows({fix_row_format(StmtRef, Rows, Clms, ContainRowId), Completed}) of
+            try FsmRef:rows({fix_row_format(SR, Rows, Clms, ContainRowId), Completed}) of
                 ok -> ok
             catch
                 _Class:Result ->
@@ -160,11 +160,11 @@ handle_cast({fetch_recs_async, false, _}, #qry{fsm_ref = FsmRef, stmt_result = S
             end;
         {error, Error} ->
             FsmRef:rows({error, Error})
-    end,
+    end || SR <- StmtRefs],
     {noreply, State};
 handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = StmtResult} = State) ->
     #qry{contain_rowid = ContainRowId, contain_rownum = ContainRowNum} = State,
-    #stmtResult{stmtRef = StmtRef, stmtCols = Clms} = StmtResult,
+    #stmtResults{stmtRefs = StmtRefs, stmtCols = Clms} = StmtResult,
     MissingRows = Target - NRows,
     if
         MissingRows > ?DEFAULT_ROW_SIZE ->
@@ -172,9 +172,9 @@ handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = St
         true ->
             RowsToFetch = MissingRows
     end,
-    case StmtRef:fetch_rows(RowsToFetch) of
+    [case SR:fetch_rows(RowsToFetch) of
         {{rows, Rows}, Completed} ->
-            RowsFixed = fix_row_format(StmtRef, Rows, Clms, ContainRowId),
+            RowsFixed = fix_row_format(SR, Rows, Clms, ContainRowId),
             NewNRows = NRows + length(RowsFixed),
             if
                 Completed -> FsmRef:rows({RowsFixed, Completed});
@@ -185,16 +185,16 @@ handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = St
             end;
         {error, Error} ->
             FsmRef:rows({error, Error})
-    end,
+    end || SR <- StmtRefs],
     {noreply, State};
-handle_cast(_Ignored, State) ->
+handle_cast(_Ignored, State ) ->
     {noreply, State}.
 
 handle_info(_Info, State) ->
 	{noreply, State}.
 
-terminate(_Reason, #qry{stmt_result = #stmtResult{stmtRef = undefined}}) -> ok;
-terminate(_Reason, #qry{stmt_result = #stmtResult{stmtRef = StmtRef}}) -> StmtRef:close().
+terminate(_Reason, #qry{stmt_result = #stmtResults{stmtRefs = []}}) -> ok;
+terminate(_Reason, #qry{stmt_result = #stmtResults{stmtRefs = StmtRefs}}) -> [SR:close() || SR <- StmtRefs].
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
@@ -294,7 +294,7 @@ run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
                              SelectSections)
     end.
 
-result_exec_stmt({cols, Clms}, Statement, _Sql, _Binds, NewSql, RowIdAdded, _Connection, SelectSections) ->
+result_exec_stmt({cols, Clms}, StmtRefs, _Sql, _Binds, NewSql, RowIdAdded, _Connection, SelectSections) ->
     if
         RowIdAdded -> % ROWID is hidden from columns
             [_|ColumnsR] = lists:reverse(Clms),
@@ -305,30 +305,32 @@ result_exec_stmt({cols, Clms}, Statement, _Sql, _Binds, NewSql, RowIdAdded, _Con
     Fields = proplists:get_value(fields, SelectSections, []),
     NewClms = cols_to_rec(Columns, Fields),
     SortFun = build_sort_fun(NewSql, NewClms),
-    {ok
-     , #stmtResult{ stmtCols = NewClms
-                    , rowFun   =
+    { ok
+    , #stmtResults{ stmtCols=NewClms
+                  , rowFun=
                         fun({{}, Row}) ->
-                                if
-                                    RowIdAdded ->
-                                        [_|NewRowR] = lists:reverse(tuple_to_list(Row)),
-                                        translate_datatype(Statement, lists:reverse(NewRowR), NewClms);
-                                    true ->
-                                        translate_datatype(Statement, tuple_to_list(Row), NewClms)
-                                end
+                            if
+                                RowIdAdded ->
+                                    [_|NewRowR] = lists:reverse(tuple_to_list(Row)),
+                                    translate_datatype(hd(StmtRefs), lists:reverse(NewRowR), NewClms);
+                                true ->
+                                    translate_datatype(hd(StmtRefs), tuple_to_list(Row), NewClms)
+                            end
                         end
-                    , stmtRef  = Statement
-                    , sortFun  = SortFun
-                    , sortSpec = []}
-     , RowIdAdded};
-result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+                  , stmtRefs=StmtRefs
+                  , sortFun=SortFun
+                  , sortSpec=[]
+                  }
+    , RowIdAdded
+    };
+result_exec_stmt({rowids, _}, StmtRefs, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     ok;
-result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+result_exec_stmt({executed, _}, StmtRefs, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     ok;
-result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
-    Stmt:close(),
+result_exec_stmt({executed, 1, [{Var, Val}]}, StmtRefs, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     case lists:keyfind(Var, 1, Binds) of
         {Var,out,'SQLT_RSET'} ->
             result_exec_stmt(Val:exec_stmt(), Val, Sql, undefined, NewSql, false, Conn, []);
@@ -337,7 +339,7 @@ result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, fal
         _ ->
             {ok, [{Var, Val}]}
     end;
-result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+result_exec_stmt({executed,_,Values}, StmtRefs, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     NewValues =
     lists:foldl(
       fun({Var, Val}, Acc) ->
@@ -349,30 +351,37 @@ result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _Ne
       end, [], Values),
     ?Debug("Values ~p", [Values]),
     ?Debug("Binds ~p", [Binds]),
-    Statement:close(),
+    [SR:close() || SR <- StmtRefs],
     {ok, NewValues};
-result_exec_stmt(Error, Statement, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+result_exec_stmt(Error, StmtRefs, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     error(Error);
-result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
+result_exec_stmt(RowIdError, StmtRefs, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
     ?Debug("RowIdError ~p", [RowIdError]),
-    Statement:close(),
+    [SR:close() || SR <- StmtRefs],
     case Connection:prep_sql(Sql) of
         {error, {ErrorId,Msg}} ->
             error({ErrorId,Msg});
-        Statement1 ->
-            case bind_exec_stmt(Statement1, Binds) of
+        StmtRefs1 ->
+            case bind_exec_stmt(StmtRefs1, Binds) of
                 {cols, Clms} ->
                     Fields = proplists:get_value(fields, SelectSections, []),
                     NewClms = cols_to_rec(Clms, Fields),
                     SortFun = build_sort_fun(Sql, NewClms),
-                    {ok, #stmtResult{ stmtCols = NewClms, stmtRef  = Statement1, sortFun  = SortFun,
-                                      rowFun   = fun({{}, Row}) ->
-                                                         translate_datatype(Statement, tuple_to_list(Row), NewClms)
-                                                 end, sortSpec = []}
-                     , false};
+                    { ok
+                    , #stmtResults{ stmtCols=NewClms
+                                  , stmtRefs=StmtRefs1
+                                  , sortFun=SortFun
+                                  , rowFun=
+                                      fun({{}, Row}) ->
+                                          translate_datatype(hd(StmtRefs1), tuple_to_list(Row), NewClms)
+                                      end
+                                  , sortSpec = []
+                                  }
+                    , false
+                    };
                 Error ->
-                    Statement1:close(),
+                    [SR:close() || SR <- StmtRefs1],
                     error(Error)
             end
     end.

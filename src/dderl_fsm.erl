@@ -72,22 +72,22 @@
         ]).
 
 -record(ctx,    { %% session context
-                  id
+                  stmtRefs
                 , bl                  %% block length -> State
                 , stmtCols            %% number of statement columns
                 , rowFun              %% RowFun -> State
                 , sortFun             %% SortFun -> State
                 , sortSpec            %% SortSpec [{Ti1,Ci1'asc'}..{TiN,CiN,'desc'}]
                 , replyToFun          %% reply fun
-                , fetch_recs_async_fun
-                , fetch_close_fun
-                , stmt_close_fun
-                , filter_and_sort_fun
-                , update_cursor_prepare_fun
-                , update_cursor_execute_fun
+                , fetch_recs_async_funs
+                , fetch_close_funs
+                , stmt_close_funs
+                , filter_and_sort_funs
+                , update_cursor_prepare_funs
+                , update_cursor_execute_funs
                 , orig_qry
                 , bind_vals
-                , table_name
+                , table_names
                 }).
 
 -record(state,  { %% fsm combined state
@@ -171,59 +171,59 @@
 %% External functions
 %% ====================================================================
 
--spec start(#fsmctx{}, pid()) -> {atom(), pid()}.
-start(#fsmctx{} = FsmCtx, SessPid) ->
-    Ctx = fsm_ctx(FsmCtx),
+-spec start(#fsmctxs{}, pid()) -> {atom(), pid()}.
+start(#fsmctxs{} = FsmCtxs, SessPid) ->
+    Ctx = fsm_ctx(FsmCtxs),
 	{ok,Pid} = gen_statem:start(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
--spec start_link(#fsmctx{}, pid()) -> {atom(), pid()}.
-start_link(#fsmctx{} = FsmCtx, SessPid) ->
-    Ctx = fsm_ctx(FsmCtx),
+-spec start_link(#fsmctxs{}, pid()) -> {atom(), pid()}.
+start_link(#fsmctxs{} = FsmCtxs, SessPid) ->
+    Ctx = fsm_ctx(FsmCtxs),
 	{ok, Pid} = gen_statem:start_link(?MODULE, {Ctx, SessPid}, []),
     {?MODULE,Pid}.
 
--spec fsm_ctx(#fsmctx{}) -> #ctx{}.
-fsm_ctx(#fsmctx{ id                         = Id
-               , stmtCols                   = StmtCols
-               , rowFun                     = RowFun
-               , sortFun                    = SortFun
-               , sortSpec                   = SortSpec
-               , block_length               = BL
-               , fetch_recs_async_fun       = Fraf
-               , fetch_close_fun            = Fcf
-               , stmt_close_fun             = Scf
-               , filter_and_sort_fun        = Fasf
-               , update_cursor_prepare_fun  = Ucpf
-               , update_cursor_execute_fun  = Ucef
-               , orig_qry                   = Qry
-               , bind_vals                  = BindVals
-               , table_name                 = TableName
-               }) ->
-    #ctx{ id                        = Id
+-spec fsm_ctx(#fsmctxs{}) -> #ctx{}.
+fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
+                , stmtCols                   = StmtCols
+                , rowFun                     = RowFun
+                , sortFun                    = SortFun
+                , sortSpec                   = SortSpec
+                , block_length               = BL
+                , fetch_recs_async_funs      = Fraf
+                , fetch_close_funs           = Fcf
+                , stmt_close_funs            = Scf
+                , filter_and_sort_funs       = Fasf
+                , update_cursor_prepare_funs = Ucpf
+                , update_cursor_execute_funs = Ucef
+                , orig_qry                   = Qry
+                , bind_vals                  = BindVals
+                , table_names                = TableNames
+                }) ->
+    #ctx{ stmtRefs                  = StmtRefs
         , bl                        = BL
         , stmtCols                  = StmtCols
         , rowFun                    = RowFun
         , sortFun                   = SortFun
         , sortSpec                  = SortSpec
-        , fetch_recs_async_fun      = Fraf
-        , fetch_close_fun           = Fcf
-        , stmt_close_fun            = Scf
-        , filter_and_sort_fun       = Fasf
-        , update_cursor_prepare_fun = Ucpf
-        , update_cursor_execute_fun = Ucef
+        , fetch_recs_async_funs     = Fraf
+        , fetch_close_funs          = Fcf
+        , stmt_close_funs           = Scf
+        , filter_and_sort_funs      = Fasf
+        , update_cursor_prepare_funs= Ucpf
+        , update_cursor_execute_funs= Ucef
         , orig_qry                  = Qry
         , bind_vals                 = BindVals
-        , table_name                = TableName
+        , table_names               = TableNames
         }.
 
 -spec stop({atom(), pid()}) -> ok.
 stop({?MODULE,Pid}) ->
 	gen_statem:cast(Pid,stop).
 
--spec refresh_session_ctx(#fsmctx{}, {atom(), pid()}) -> ok.
-refresh_session_ctx(#fsmctx{} = FsmCtx, {?MODULE, Pid}) ->
-    Ctx = fsm_ctx(FsmCtx),
+-spec refresh_session_ctx(#fsmctxs{}, {atom(), pid()}) -> ok.
+refresh_session_ctx(#fsmctxs{} = FsmCtxs, {?MODULE, Pid}) ->
+    Ctx = fsm_ctx(FsmCtxs),
     ?Debug("Refreshing the session ctx"),
     gen_statem:cast(Pid, {refresh_ctx, Ctx}).
 
@@ -323,7 +323,7 @@ delete({Rows,Completed},{?MODULE,Pid}) ->
     gen_statem:cast(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
-fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx = #ctx{fetch_recs_async_fun = Fraf}}=State0) ->
+fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx = #ctx{fetch_recs_async_funs = Fraf}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
         {FM,none} ->      [{fetch_mode,FM}];
@@ -333,16 +333,14 @@ fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx
         undefined -> os:system_time(milli_seconds);
         FetchTime0 -> FetchTime0
     end,
-    case Fraf(Opts, Count) of
-        %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
-        %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
-        ok ->
-            % ?Info("fetch(~p, ~p, ~p) ok", [FetchMode, TailMode, State0#state.pfc+1]),
-            State0#state{pfc=State0#state.pfc+1, lastFetchTime = FetchTime1};
-        {_, Error} ->
-            ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Error]),
-            State0
-    end.
+    Result = [F(Opts, Count) || F <- Fraf],
+    %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
+    %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
+    case lists:usort(Result) of
+        [ok] -> ok;
+        _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Result])
+    end,
+    State0#state{pfc=State0#state.pfc+1, lastFetchTime = FetchTime1}.
 
 -spec prefetch(atom(), #state{}) -> #state{}.
 prefetch(filling,#state{pfc=0}=State) ->  fetch(none,none,State);
@@ -350,79 +348,83 @@ prefetch(filling,State) ->                State;
 prefetch(_,State) ->                      State.
 
 -spec fetch_close(#state{}) -> #state{}.
-fetch_close(#state{ctx = #ctx{fetch_close_fun = Fcf}}=State) ->
-    Result = Fcf(),
+fetch_close(#state{ctx = #ctx{fetch_close_funs = Fcf}}=State) ->
+    Result = [F() || F <- Fcf],
     ?NoDbLog(debug, [], "fetch_close -- ~p", [Result]),
     State#state{pfc=0}.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
-filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fun = Fasf}}) ->
-    case Fasf(FilterSpec, SortSpec, Cols) of
+filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_funs = Fasf}}) ->
+    Result = [F(FilterSpec, SortSpec, Cols) || F <- Fasf],
+    case  lists:usort(Result) of
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
-        {ok, NewSql, NewSortFun} ->
+        [{ok, NewSql, NewSortFun}] ->
             ?NoDbLog(debug, [], "filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
             {ok, NewSql, NewSortFun};
-        {_, Error} ->
-            ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Error]),
-            {error, Error};
         Else ->
-            ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
+            ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Result]),
             {error, Else}
     end.
 
 -spec update_cursor_prepare(list(), #state{}) -> ok | {ok, term()} | {error, term()}.
-update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf}}) ->
-    case Ucpf(ChangeList) of
+update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_funs = Ucpf}}) ->
+    Result = [F(ChangeList) || F <- Ucpf],
+    case  lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_prepare()
         %% driver session maps to imem_meta:update_cursor_prepare()
-        ok ->
+        [ok] ->
             ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
             ok;
-        {ok, UpdRef} ->
+        [{ok, UpdRef}|_] ->
             ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
             {ok, UpdRef};
-        {_, {{error, {'ClientError', M}}, _St} = Error} ->
+        [{_, {{error, {'ClientError', M}}, _St} = Error}|_] ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
             {error, M};
-        {_, {{error, M}, _St} = Error} ->
+        [{_, {{error, M}, _St} = Error}|_] ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
             {error, M};
-        {_, Error} ->
+        [{_, Error}|_] ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
-            {error, Error}
+            {error, Error};
+        _ -> 
+            ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Result]),
+            {error, Result}
     end.
 
 -spec update_cursor_execute(atom(), #state{}, term()) -> list() | {error, term()}.
-update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}, UpdRef) ->
-    case Ucef(Lock, UpdRef) of
+update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}, UpdRef) ->
+    Result = [F(Lock, UpdRef) || F <- Ucef],
+    case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
-        {_, Error} ->
+        [{_, Error}|_] ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
             ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
-            ChangedKeys
+            lists:sort(lists:flatten(ChangedKeys))
     end.
 
 -spec update_cursor_execute(atom(), #state{}) -> list() | {error, term()}.
-update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_fun = Ucef}}) ->
-    case Ucef(Lock) of
+update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}) ->
+    Result = [F(Lock) || F <- Ucef],
+    case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
-        {_, {{error, {'ClientError', M}, _St}, _St1} = Error} ->
+        [{_, {{error, {'ClientError', M}, _St}, _St1} = Error}|_] ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, M};
-        {_, {{error, M, _St}, _St1} = Error} ->
+        [{_, {{error, M, _St}, _St1} = Error}|_] ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, M};
-        {_, Error} ->
+        [{_, Error}|_] ->
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
             ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
-            ChangedKeys
+            lists:sort(lists:flatten(ChangedKeys))
     end.
 
 -spec navigation_type(fun(), {atom() | integer(), term()}) -> {raw | ind, boolean()}.
@@ -1193,8 +1195,7 @@ passthrough(info, Msg, State) ->
 
 handle_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, SN, #state{ctx = OldCtx} = State) ->
     %%Close the old statement
-    F = OldCtx#ctx.stmt_close_fun,
-    F(),
+    [F() || F <- OldCtx#ctx.stmt_close_funs],
     State0 = data_clear(State),
     #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
     State1 = State0#state{bl = BL
@@ -1429,14 +1430,14 @@ handle_call(get_count, From, SN, #state{bufCnt = Count} = State) ->
 handle_call(get_query, From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
     {next_state, SN, State, [{reply, From, Qry}]};
-handle_call(get_table_name, From, SN, #state{ctx=#ctx{table_name=TableName}}=State) ->
+handle_call(get_table_name, From, SN, #state{ctx=#ctx{table_names=[TableName]}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
     {next_state, SN, State, [{reply, From, TableName}]};
 handle_call(get_sender_params, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = Columns}} = State) ->
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
     {next_state, SN, State, [{reply, From, SenderParams}]};
-handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}} = State) ->
+handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}} = State) ->
     ReceiverParams = {Ucpf, Ucef, Columns},
     ?Debug("get_receiver_params ~p", [ReceiverParams]),
     {next_state, SN, State, [{reply, From, ReceiverParams}]};
@@ -1771,8 +1772,7 @@ handle_info(Unknown, SN, State) ->
 %% --------------------------------------------------------------------
 terminate(Reason, _SN, #state{ctx=Ctx}) ->
     ?Debug("fsm ~p terminating reason: ~p", [self(), Reason]),
-    F= Ctx#ctx.stmt_close_fun,
-    F().
+    [F() || F <- Ctx#ctx.stmt_close_funs].
 
 %% --------------------------------------------------------------------
 %% Func: code_change/4
@@ -2966,22 +2966,25 @@ change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)].
 
 -spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
-write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef}}) ->
+write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}}) ->
     %% TODO: Read and update maybe is needed for multiple topic subscription.
     SubsKey = imem_json:encode([<<"register">>, <<"focus">>, [atom_to_binary(node(), utf8), list_to_binary(pid_to_list(self()))]]),
     Value = imem_json:encode([[Topic, Key]]),
     Hash = <<>>,
     SubscriptionRow = [[undefined, ins, {{},{}}, SubsKey, Value, Hash]],
-    case Ucpf(SubscriptionRow) of
-        ok ->
-            case Ucef(none) of
-                {_, Error} -> {error, Error};
+    Results = [F(SubscriptionRow) || F <- Ucpf],
+    case lists:usort(Results) of
+        [ok] ->
+            Results1 = [F1(none) || F1 <- Ucef], 
+            case lists:usort(Results1) of
+                [{_, Error}|_] -> {error, Error};
                 _ChangedKeys -> ok
             end;
-        {ok, UpdtRef} ->
-            case Ucef(none, UpdtRef) of
-                {_, Error} -> {error, Error};
+        [{ok, UpdtRef}|_] ->
+            Results2 = [F2(none, UpdtRef) || F2 <- Ucef], 
+            case lists:usort(Results2) of
+                [{_, Error}|_] -> {error, Error};
                 _ChangedKeys -> ok
             end;
-        {_, Error} -> {error, Error}
+        [{_, Error}|_] -> {error, Error}
     end.
