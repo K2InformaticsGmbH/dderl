@@ -640,8 +640,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
             Connection:add_stmt_fsm(StmtRefs, {?MODULE, ProducerPid}),
             [Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], SR]) || SR <- StmtRefs],
             ?Debug("process_query created statements ~p for ~p", [ProducerPid, Query]);
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("query error ~p", [Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("query error ~p", [Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
@@ -811,8 +811,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("Error on query ~p: ~p", [Query, Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("Error on query ~p: ~p", [Query, Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
@@ -864,11 +864,11 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
                     ok;
-                {error, {{_Ex, {_M, E}}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, {_M, E}}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, {TableName, E}};
-                {error, {{_Ex, _M}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, TableName};
                 {error, {Ex, M}} ->
                     ?Error("query error ~p", [{Ex,M}]),
@@ -931,21 +931,21 @@ check_funs({ok, #stmtResults{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
 check_funs(Error) ->
     Error.
 
--spec extract_table_name(binary()) -> binary().
-extract_table_name(Query) ->
-    case sqlparse:parsetree(Query) of
-        {ok,[{{select, SelectSections},_}]} ->
-            {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
-            case FirstTable of
-                {as, Tab, _Alias} -> Tab;
-                {{as, Tab, _Alias}, _} -> Tab;
-                {Tab, _} -> Tab;
-                Tab when is_binary(Tab) -> Tab;
-                _ -> <<>>
-            end;
-        _ ->
-            <<>>
-    end.
+% -spec extract_table_name(binary()) -> binary().
+% extract_table_name(Query) ->
+%     case sqlparse:parsetree(Query) of
+%         {ok,[{{select, SelectSections},_}]} ->
+%             {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
+%             case FirstTable of
+%                 {as, Tab, _Alias} -> Tab;
+%                 {{as, Tab, _Alias}, _} -> Tab;
+%                 {Tab, _} -> Tab;
+%                 Tab when is_binary(Tab) -> Tab;
+%                 _ -> <<>>
+%             end;
+%         _ ->
+%             <<>>
+%     end.
 
 -spec open_view({atom(), pid()}, {atom(), pid()}, pid(), binary(), [tuple()], undefined | {error, binary()}) -> list().
 open_view(_Sess, _Connection, _SessPid, _ConnId, _Binds, undefined) -> [{<<"error">>, <<"view not found">>}];

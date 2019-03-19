@@ -11,8 +11,8 @@
 -spec term_diff(term(), pid(), atom(), binary(), atom(), binary()) -> binary().
 term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
     case Sess:run_cmd(term_diff, [LeftType, LeftValue, RightType, RightValue, [ignore_whitespace,ignore_casing,ignore_dquotes]]) of
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             #{<<"error">> => Err};
