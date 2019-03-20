@@ -3,6 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.3.2 (Release Date 20.03.2019)
+======================================
+* Imem version 3.3.2
+
 Version 3.3.1 (Release Date 15.03.2019)
 ======================================
 * git URL injection for local releases ONLY
