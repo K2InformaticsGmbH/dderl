@@ -41,16 +41,16 @@ term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
 -spec get_fsmctx([{ddTermDiff, integer(), binary(), binary(), binary()}]) -> #fsmctxs{}.
 get_fsmctx(Result) ->
     % <<Id:32>> = crypto:strong_rand_bytes(4),
-    StmtCols = get_columns(),
-    FullMap = build_full_map(StmtCols),
-    #fsmctxs{stmtCols      = StmtCols
-            ,rowFun        = get_rowfun()
-            ,sortFun       = get_sortfun()
-            ,sortSpec      = []
-            ,orig_qry      = <<>>
-            ,bind_vals     = []
-            ,table_names   = [<<"term_diff">>]
-            ,block_length  = ?DEFAULT_ROW_SIZE
+    RowCols = get_columns(),
+    FullMap = build_full_map(RowCols),
+    #fsmctxs{stmtTables     = [<<"term_diff">>]
+            ,rowCols        = RowCols
+            ,rowFun         = get_rowfun()
+            ,sortFun        = get_sortfun()
+            ,sortSpec       = []
+            ,orig_qry       = <<>>
+            ,bind_vals      = []
+            ,block_length   = ?DEFAULT_ROW_SIZE
             ,fetch_recs_async_funs = 
                 [fun(_Opts, _Count) ->
                     Rows = [{{}, {RowId, Left, Cmp, Right}} || {ddTermDiff, RowId, Left, Cmp, Right} <- Result],
@@ -76,12 +76,12 @@ get_fsmctx(Result) ->
                 end]
     }.
 
--spec get_columns() -> [#stmtCol{}].
+-spec get_columns() -> [#rowCol{}].
 get_columns() -> [
-    #stmtCol{tag = 1, alias = <<"id">>, type = integer, readonly = false},
-    #stmtCol{tag = 2, alias = <<"left">>, type = binstr, readonly = false},
-    #stmtCol{tag = 3, alias = <<"cmp">>, type = binstr, readonly = false},
-    #stmtCol{tag = 4, alias = <<"right">>, type = binstr, readonly = false}
+    #rowCol{tag=1, alias= <<"id">>, type=integer, readonly=false},
+    #rowCol{tag=2, alias= <<"left">>, type=binstr, readonly=false},
+    #rowCol{tag=3, alias= <<"cmp">>, type=binstr, readonly=false},
+    #rowCol{tag=4, alias= <<"right">>, type=binstr, readonly=false}
 ].
 
 -spec get_rowfun() -> fun().
@@ -108,4 +108,4 @@ build_full_map(Clms) ->
         , type = Type
         , len = Len
         , prec = undefined
-    } || #stmtCol{tag = Tag, alias = Alias, type = Type, len = Len} <- Clms].
+    } || #rowCol{tag=Tag, alias=Alias, type=Type, len=Len} <- Clms].

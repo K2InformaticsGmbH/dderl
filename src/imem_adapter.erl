@@ -631,8 +631,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
-        {ok, #stmtResults{stmtCols = Clms, stmtRefs = StmtRefs, rowFun = RowFun}} ->
-            Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
+        {ok, #stmtResults{rowCols=RowCols, stmtRefs=StmtRefs, rowFun=RowFun}} ->
+            Columns = gen_adapter:build_column_csv(UserId, imem, RowCols),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(UserId, Connection, From, StmtRefs, RowFun)
@@ -779,20 +779,20 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];
         {ok, #stmtResults{ stmtRefs = StmtRefs
-                         , stmtCols = Clms
+                         , stmtTables = StmtTables
+                         , rowCols  = RowCols
                          , rowFun   = RowFun
                          , sortFun  = SortFun
-                         , sortSpec = SortSpec
-                         , tableNames = TableNames}} ->
+                         , sortSpec = SortSpec}} ->
             StmtFsm = dderl_fsm:start(
                                 #fsmctxs{ stmtRefs                   = StmtRefs
-                                        , stmtCols                   = Clms
+                                        , stmtTables                 = StmtTables
+                                        , rowCols                    = RowCols
                                         , rowFun                     = RowFun
                                         , sortFun                    = SortFun
                                         , sortSpec                   = SortSpec
                                         , orig_qry                   = Query
                                         , bind_vals                  = Params
-                                        , table_names                = TableNames
                                         , block_length               = ?DEFAULT_ROW_SIZE
                                         , fetch_recs_async_funs      = imem_adapter_funs:fetch_recs_async(Connection, StmtRefs)
                                         , fetch_close_funs           = imem_adapter_funs:fetch_close(Connection, StmtRefs)
@@ -802,8 +802,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
                                         , update_cursor_execute_funs = imem_adapter_funs:update_cursor_execute(Connection, StmtRefs)
                                         }, SessPid),
             Connection:add_stmt_fsm(StmtRefs, StmtFsm),
-            ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-            Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
+            ?Debug("StmtRslt ~p ~p", [RowCols, SortSpec]),
+            Columns = gen_adapter:build_column_json(lists:reverse(RowCols)),
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
             ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),

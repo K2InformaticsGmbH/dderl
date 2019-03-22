@@ -380,7 +380,7 @@ process_cmd({[<<"statistics">>], ReqBody}, _Adapter, _Sess, _UserId, From, _Priv
             ?Error("Stats error ~p", [Error], _St),
             jsx:encode([{<<"statistics">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _ -> float end, readonly = true}
+            ColRecs = [#rowCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _ -> float end, readonly = true}
                       || C <- Cols],
             ?Debug("statistics rows ~p, cols ~p", [StatsRows, ColRecs]),
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
@@ -413,7 +413,7 @@ process_cmd({[<<"statistics_full">>], ReqBody}, _Adapter, _Sess, _UserId, From, 
             ?Error("Stats error ~p", [Error], _St),
             jsx:encode([{<<"statistics_full">>, [{error, Error}]}]);
         {Total, Cols, StatsRows, SN} ->
-            ColRecs = [#stmtCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _  -> float end, readonly = true}
+            ColRecs = [#rowCol{alias = C, type = case C of <<"column">> -> binstr; <<"count">> -> binstr; _  -> float end, readonly = true}
                       || C <- Cols],
             StatsJson = gui_resp(#gres{ operation    = <<"rpl">>
                                       , cnt          = Total
@@ -623,18 +623,18 @@ format_json_or_term(_, StringToFormat, From, BodyJson) ->
                                         [{<<"string">>, Formatted}, {<<"isFormatted">>, true}]}])}
     end.
 
--spec col2json([#stmtCol{}]) -> [binary()].
+-spec col2json([#rowCol{}]) -> [binary()].
 col2json(Cols) -> col2json(lists:reverse(Cols), [], length(Cols)).
 
--spec col2json([#stmtCol{}], [binary()], integer()) -> [binary()].
+-spec col2json([#rowCol{}], [binary()], integer()) -> [binary()].
 col2json([], JCols, _Counter) -> [<<"id">>,<<"op">>|JCols];
 col2json([C|Cols], JCols, Counter) ->
-    Nm = C#stmtCol.alias,
+    Nm = C#rowCol.alias,
     BinCounter = integer_to_binary(Counter),
     Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
     col2json(Cols, [Nm1 | JCols], Counter - 1).
 
--spec gui_resp(#gres{}, [#stmtCol{}]) -> [{binary(), term()}].
+-spec gui_resp(#gres{}, [#rowCol{}]) -> [{binary(), term()}].
 gui_resp(#gres{} = Gres, Columns) ->
     JCols = col2json(Columns),
     ?NoDbLog(debug, [], "processing resp ~p cols ~p jcols ~p", [Gres, Columns, JCols]),
@@ -705,7 +705,7 @@ r2jsn([Row|Rows], JCols, NewRows) ->
         || {C, R} <- lists:zip(JCols, Row)]
     | NewRows]).
 
--spec build_resp_fun(binary(), [#stmtCol{}], pid()) -> fun().
+-spec build_resp_fun(binary(), [#rowCol{}], pid()) -> fun().
 build_resp_fun(Cmd, Clms, From) ->
     fun(#gres{} = GuiResp) ->
         GuiRespJson = gui_resp(GuiResp, Clms),
@@ -719,11 +719,11 @@ build_resp_fun(Cmd, Clms, From) ->
         end
     end.
 
--spec build_column_json([#stmtCol{}]) -> list().
+-spec build_column_json([#rowCol{}]) -> list().
 build_column_json(Cols) ->
     build_column_json(Cols, [], length(Cols)).
 
--spec build_column_json([#stmtCol{}], list(), integer()) -> list().
+-spec build_column_json([#rowCol{}], list(), integer()) -> list().
 build_column_json([], JCols, _Counter) ->
     [[{<<"id">>, <<"sel">>},
       {<<"name">>, <<"">>},
@@ -737,10 +737,10 @@ build_column_json([], JCols, _Counter) ->
       {<<"sortable">>, false},
       {<<"selectable">>, false}] | JCols];
 build_column_json([C|Cols], JCols, Counter) ->
-    Nm = C#stmtCol.alias,
+    Nm = C#rowCol.alias,
     BinCounter = integer_to_binary(Counter),
     Nm1 = <<Nm/binary, $_, BinCounter/binary>>,
-    case C#stmtCol.type of
+    case C#rowCol.type of
         integer -> Type = <<"numeric">>;
         float   -> Type = <<"numeric">>;
         decimal -> Type = <<"numeric">>;
@@ -764,7 +764,7 @@ build_column_json([C|Cols], JCols, Counter) ->
           {<<"resizable">>, true},
           {<<"sortable">>, false},
           {<<"selectable">>, true}],
-    JCol = if C#stmtCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
+    JCol = if C#rowCol.readonly =:= false -> [{<<"editor">>, <<"true">>} | JC]; true -> JC end,
     build_column_json(Cols, [JCol | JCols], Counter - 1).
 
 -spec extract_modified_rows([]) -> [{undefined | integer(), atom(), list()}].
@@ -803,14 +803,14 @@ decrypt_to_term(Bin) when is_binary(Bin) ->
 encrypt_to_binary(Term) ->
     ?Encrypt(term_to_binary(Term)).
 
--spec generate_sql(binary(), binary(), [tuple()], [#stmtCol{}], [integer()], atom()) -> binary().
+-spec generate_sql(binary(), binary(), [tuple()], [#rowCol{}], [integer()], atom()) -> binary().
 generate_sql(TableName, <<"upd">>, Rows, Columns, ColumnIds, Adapter) ->
     iolist_to_binary(generate_upd_sql(TableName, Rows, Columns, ColumnIds, Adapter));
 generate_sql(TableName, <<"ins">>, Rows, Columns, ColumnIds, Adapter) ->
     InsCols = generate_ins_cols(Columns, ColumnIds),
     iolist_to_binary(generate_ins_sql(TableName, Rows, InsCols, Columns, ColumnIds, Adapter)).
 
--spec generate_ins_sql(binary(), [tuple()], iolist(), [#stmtCol{}], [integer()], atom()) -> iolist().
+-spec generate_ins_sql(binary(), [tuple()], iolist(), [#rowCol{}], [integer()], atom()) -> iolist().
 generate_ins_sql(_, [], _, _, _, _) -> [];
 generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds, Adapter) ->
     [<<"insert into ">>, TableName, <<" (">>,
@@ -820,30 +820,30 @@ generate_ins_sql(TableName, [Row | Rest], InsCols, Columns, ColumnIds, Adapter) 
      <<");\n">>,
      generate_ins_sql(TableName, Rest, InsCols, Columns, ColumnIds, Adapter)].
 
--spec generate_ins_cols([#stmtCol{}], [integer()]) -> iolist().
+-spec generate_ins_cols([#rowCol{}], [integer()]) -> iolist().
 generate_ins_cols(_, []) -> [];
 generate_ins_cols(Columns, [ColId]) ->
     Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
+    ColName = Col#rowCol.alias,
     [ColName];
 generate_ins_cols(Columns, [ColId | Rest]) ->
     Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
+    ColName = Col#rowCol.alias,
     [ColName, ",", generate_ins_cols(Columns, Rest)].
 
--spec generate_ins_values(tuple(), [#stmtCol{}], [integer()], atom()) -> iolist().
+-spec generate_ins_values(tuple(), [#rowCol{}], [integer()], atom()) -> iolist().
 generate_ins_values(_, _, [], _) -> [];
 generate_ins_values(Row, Columns, [ColId], Adapter) ->
     Col = lists:nth(ColId, Columns),
     Value = element(3 + ColId, Row),
-    [add_function_type(Col#stmtCol.type, Value, Adapter)];
+    [add_function_type(Col#rowCol.type, Value, Adapter)];
 generate_ins_values(Row, Columns, [ColId | Rest], Adapter) ->
     Col = lists:nth(ColId, Columns),
     Value = element(3 + ColId, Row),
-    [add_function_type(Col#stmtCol.type, Value, Adapter)
+    [add_function_type(Col#rowCol.type, Value, Adapter)
     ,", ", generate_ins_values(Row, Columns, Rest, Adapter)].
 
--spec generate_upd_sql(binary(), [tuple()], [#stmtCol{}], [integer()], atom()) -> iolist().
+-spec generate_upd_sql(binary(), [tuple()], [#rowCol{}], [integer()], atom()) -> iolist().
 generate_upd_sql(_, [], _, _, _) -> [];
 generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds, Adapter) ->
     [<<"update ">>, TableName, <<" set ">>,
@@ -853,18 +853,18 @@ generate_upd_sql(TableName, [Row | Rest], Columns, ColumnIds, Adapter) ->
      <<";\n">>,
      generate_upd_sql(TableName, Rest, Columns, ColumnIds, Adapter)].
 
--spec generate_set_value(tuple(), [#stmtCol{}], [integer()], atom()) -> iolist().
+-spec generate_set_value(tuple(), [#rowCol{}], [integer()], atom()) -> iolist().
 generate_set_value(_, _, [], _) -> [];
 generate_set_value(Row, Columns, [ColId], Adapter) ->
     Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
+    ColName = Col#rowCol.alias,
     Value = element(3 + ColId, Row),
-    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value, Adapter)];
+    [ColName, <<" = ">>, add_function_type(Col#rowCol.type, Value, Adapter)];
 generate_set_value(Row, Columns, [ColId | Rest], Adapter) ->
     Col = lists:nth(ColId, Columns),
-    ColName = Col#stmtCol.alias,
+    ColName = Col#rowCol.alias,
     Value = element(3 + ColId, Row),
-    [ColName, <<" = ">>, add_function_type(Col#stmtCol.type, Value, Adapter)
+    [ColName, <<" = ">>, add_function_type(Col#rowCol.type, Value, Adapter)
     , ", ", generate_set_value(Row, Columns, Rest, Adapter)].
 
 -spec add_function_type(atom(), binary(), atom()) -> binary().
@@ -916,14 +916,14 @@ list_d3_templates([{Application, Path} | Rest]) ->
 -spec get_deps() -> [atom()].
 get_deps() -> [sqlparse].
 
--spec build_column_csv(integer(), atom(),[#stmtCol{}]) -> binary().
+-spec build_column_csv(integer(), atom(),[#rowCol{}]) -> binary().
 build_column_csv(UserId, Adapter, Cols) ->
     <<(case catch unicode:encoding_to_bom(?CSV_BOM(UserId, Adapter)) of
            {'EXIT', _} -> <<>>;
            Bom when is_binary(Bom) -> Bom
        end)/binary,
       (unicode:characters_to_binary(
-         [csv_row([C#stmtCol.alias || C <- Cols],
+         [csv_row([C#rowCol.alias || C <- Cols],
                   ?COL_SEP_CHAR(UserId, Adapter),
                   ?CSV_ESCAPE(UserId, Adapter)),
           ?ROW_SEP_CHAR(UserId, Adapter)],
@@ -997,5 +997,5 @@ get_cell_value(Cell, Statement) ->
     Row = proplists:get_value(<<"row">>, Cell, 0),
     Col = proplists:get_value(<<"col">>, Cell, 0),
     R = Statement:row_with_key(Row),
-    #stmtCol{type = Type} = lists:nth(Col, Statement:get_columns()),
+    #rowCol{type = Type} = lists:nth(Col, Statement:get_columns()),
     {Type, element(3 + Col, R)}.

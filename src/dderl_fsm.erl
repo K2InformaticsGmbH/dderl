@@ -71,23 +71,23 @@
         , close/1
         ]).
 
--record(ctx,    { %% session context
-                  stmtRefs
-                , bl                  %% block length -> State
-                , stmtCols            %% number of statement columns
-                , rowFun              %% RowFun -> State
-                , sortFun             %% SortFun -> State
-                , sortSpec            %% SortSpec [{Ti1,Ci1'asc'}..{TiN,CiN,'desc'}]
-                , replyToFun          %% reply fun
+-record(ctx,    { %% fsm session context
+                  stmtRefs            %% statement pids
+                , stmtTables          %% table names per statement (fetch source)
                 , fetch_recs_async_funs
                 , fetch_close_funs
                 , stmt_close_funs
                 , filter_and_sort_funs
                 , update_cursor_prepare_funs
                 , update_cursor_execute_funs
+                , rowCols             %% query column type info
+                , rowFun              %% RowFun -> State
+                , sortFun             %% SortFun -> State
+                , sortSpec            %% SortSpec [{Ti1,Ci1'asc'}..{TiN,CiN,'desc'}]
+                , replyToFun          %% reply fun
                 , orig_qry
                 , bind_vals
-                , table_names
+                , bl                  %% block length -> State
                 }).
 
 -record(state,  { %% fsm combined state
@@ -96,7 +96,7 @@
                 , indexId             %% ets index table id
                 , bl                  %% block_length (passed .. init)
                 , gl                  %% gui max length (row count) = gui_max(#state.bl)
-                , stmtColsCount       %% number of statement columns
+                , columnCount       %% number of columns
                 , rowFun              %% RowFun
                 , sortSpec            %% from imem statement, changed by gui events
                 , sortFun             %% from imem statement, follows sortSpec (calculated by imem statement)
@@ -185,11 +185,7 @@ start_link(#fsmctxs{} = FsmCtxs, SessPid) ->
 
 -spec fsm_ctx(#fsmctxs{}) -> #ctx{}.
 fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
-                , stmtCols                   = StmtCols
-                , rowFun                     = RowFun
-                , sortFun                    = SortFun
-                , sortSpec                   = SortSpec
-                , block_length               = BL
+                , stmtTables                 = StmtTables
                 , fetch_recs_async_funs      = Fraf
                 , fetch_close_funs           = Fcf
                 , stmt_close_funs            = Scf
@@ -197,15 +193,15 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
                 , update_cursor_prepare_funs = Ucpf
                 , update_cursor_execute_funs = Ucef
                 , orig_qry                   = Qry
+                , rowCols                    = RowCols
+                , rowFun                     = RowFun
+                , sortFun                    = SortFun
+                , sortSpec                   = SortSpec
                 , bind_vals                  = BindVals
-                , table_names                = TableNames
+                , block_length               = BL
                 }) ->
     #ctx{ stmtRefs                  = StmtRefs
-        , bl                        = BL
-        , stmtCols                  = StmtCols
-        , rowFun                    = RowFun
-        , sortFun                   = SortFun
-        , sortSpec                  = SortSpec
+        , stmtTables                = StmtTables
         , fetch_recs_async_funs     = Fraf
         , fetch_close_funs          = Fcf
         , stmt_close_funs           = Scf
@@ -213,8 +209,12 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
         , update_cursor_prepare_funs= Ucpf
         , update_cursor_execute_funs= Ucef
         , orig_qry                  = Qry
+        , rowCols                   = RowCols
+        , rowFun                    = RowFun
+        , sortFun                   = SortFun
+        , sortSpec                  = SortSpec
         , bind_vals                 = BindVals
-        , table_names               = TableNames
+        , bl                        = BL
         }.
 
 -spec stop({atom(), pid()}) -> ok.
@@ -311,7 +311,7 @@ cache_data({?MODULE, Pid}) ->
 rows({error, _} = Error, {?MODULE, Pid}) ->
     gen_statem:cast(Pid, Error);
 rows({Rows,Completed},{?MODULE,Pid}) ->
-    % ?Debug("rows ~p ~p", [length(Rows), Completed]),
+    ?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
     gen_statem:cast(Pid,{rows, {Rows,Completed}}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
@@ -605,7 +605,7 @@ init({#ctx{} = Ctx, SessPid}) ->
     true = link(SessPid),
     #ctx{ bl                            = BL
          , replyToFun                   = ReplyTo
-         , stmtCols                     = StmtCols
+         , rowCols                      = RowCols
          , rowFun                       = RowFun
          , sortFun                      = SortFun
          , sortSpec                     = SortSpec
@@ -618,7 +618,7 @@ init({#ctx{} = Ctx, SessPid}) ->
                  , ctx                          = Ctx
                  , tableId                      = TableId
                  , indexId                      = IndexId
-                 , stmtColsCount                = length(StmtCols)
+                 , columnCount                  = length(RowCols)
                  , rowFun                       = RowFun
                  , sortFun                      = SortFun
                  , sortSpec                     = SortSpec
@@ -1197,11 +1197,11 @@ handle_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, SN, #stat
     %%Close the old statement
     [F() || F <- OldCtx#ctx.stmt_close_funs],
     State0 = data_clear(State),
-    #ctx{stmtCols = StmtCols, rowFun = RowFun, sortFun = SortFun, sortSpec = SortSpec} = Ctx,
+    #ctx{rowCols=RowCols, rowFun=RowFun, sortFun=SortFun, sortSpec=SortSpec} = Ctx,
     State1 = State0#state{bl = BL
         , gl            = gui_max(BL)
         , ctx           = Ctx
-        , stmtColsCount = length(StmtCols)
+        , columnCount   = length(RowCols)
         , rowFun        = RowFun
         , sortFun       = SortFun
         , sortSpec      = SortSpec
@@ -1421,7 +1421,7 @@ callback_mode() ->
 %%          {stop, Reason, NewStateData}                          |
 %%          {stop, Reason, NewStateData, Reply}
 %% --------------------------------------------------------------------
-handle_call({"get_columns"}, From, SN, #state{ctx=#ctx{stmtCols=Columns}}=State) ->
+handle_call({"get_columns"}, From, SN, #state{ctx=#ctx{rowCols=Columns}}=State) ->
     ?NoDbLog(debug, [], "get_columns ~p", [Columns]),
     {next_state, SN, State, [{reply, From, Columns}]};
 handle_call(get_count, From, SN, #state{bufCnt = Count} = State) ->
@@ -1430,14 +1430,14 @@ handle_call(get_count, From, SN, #state{bufCnt = Count} = State) ->
 handle_call(get_query, From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
     {next_state, SN, State, [{reply, From, Qry}]};
-handle_call(get_table_name, From, SN, #state{ctx=#ctx{table_names=[TableName]}}=State) ->
+handle_call(get_table_name, From, SN, #state{ctx=#ctx{stmtTables=[TableName]}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
     {next_state, SN, State, [{reply, From, TableName}]};
-handle_call(get_sender_params, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = Columns}} = State) ->
+handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, ctx=#ctx{rowCols=Columns}} = State) ->
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
     {next_state, SN, State, [{reply, From, SenderParams}]};
-handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{stmtCols = Columns, update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}} = State) ->
+handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}} = State) ->
     ReceiverParams = {Ucpf, Ucef, Columns},
     ?Debug("get_receiver_params ~p", [ReceiverParams]),
     {next_state, SN, State, [{reply, From, ReceiverParams}]};
@@ -1448,12 +1448,12 @@ handle_call({"row_with_key", RowId}, From, SN, #state{tableId=TableId}=State) ->
 handle_call(_Evt, From, passthrough, State) ->
     {next_state, passthrough, State, [{reply, From, {error, ?PassThroughOnlyRestart, []}}]};
 % Full column(s)
-handle_call({statistics, ColumnIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({statistics, ColumnIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{rowCols=RowCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
     end,
-    ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
+    ColNames = [(lists:nth(ColId, RowCols))#rowCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p names ~p", [ColumnIds, ColNames]),
 
     StatsFun =
@@ -1479,12 +1479,12 @@ handle_call({statistics, ColumnIds}, From, SN, #state{nav = Nav, tableId = Table
     StatColumns = [<<"column">>, <<"count">>, <<"min">>, <<"max">>, <<"sum">>, <<"avg">>, <<"median">>, <<"std_dev">>, <<"variance">>, <<"hash">>],
     {next_state, SN, State, [{reply, From, {MaxCount, StatColumns, StatsRows, atom_to_binary(SN, utf8)}}]};
 % Selected rows(s) of one column
-handle_call({statistics, ColumnIds, RowIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({statistics, ColumnIds, RowIds}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{rowCols=RowCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
     end,
-    ColNames = [(lists:nth(ColId, StmtCols))#stmtCol.alias || ColId <- ColumnIds],
+    ColNames = [(lists:nth(ColId, RowCols))#rowCol.alias || ColId <- ColumnIds],
     ?Debug("Getting the stats for the columns ~p and rows ~p columns ~p", [ColumnIds, RowIds, ColNames]),
     Rows = tuple_to_list(ets:foldl(fun(Row, SelectRows) ->
             RealRow = case Row of
@@ -1539,7 +1539,7 @@ handle_call({statistics, ColumnIds, RowIds}, From, SN, #state{nav = Nav, tableId
         _:Error ->
             {next_state, SN, State, [{reply, From, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}}]}
     end;
-handle_call({distinct_count, ColumnId}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx=#ctx{stmtCols=StmtCols}} = State) ->
+handle_call({distinct_count, ColumnId}, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, ctx=#ctx{rowCols=RowCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ ->   TableUsed = IndexId
@@ -1577,12 +1577,12 @@ handle_call({distinct_count, ColumnId}, From, SN, #state{nav = Nav, tableId = Ta
     end,
     DistinctCountRowsSort = lists:sort(SortFun,DistinctCountRows),
     DistinctCountRowsWithId = [[Idx | lists:nth(Idx, DistinctCountRowsSort)] || Idx <- lists:seq(1, length(DistinctCountRowsSort))],
-    ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
+    ColInfo = [#rowCol{alias = (lists:nth(Column, RowCols))#rowCol.alias, type = binstr, readonly = true} || Column <- ColumnId],
     DistinctCountColumns = ColInfo ++
-        [#stmtCol{alias = <<"count">>, type = float, readonly = true}
-        ,#stmtCol{alias = <<"pct">>, type = float, readonly = true}],
+        [#rowCol{alias = <<"count">>, type=float, readonly=true}
+        ,#rowCol{alias = <<"pct">>, type=float, readonly=true}],
     {next_state, SN, State, [{reply, From, {Total, DistinctCountColumns, DistinctCountRowsWithId, atom_to_binary(SN, utf8)}}]};
-handle_call({distinct_statistics, ColumnId}, From, SN, #state{nav = Nav, tableId = TableId, indexId = IndexId, rowFun = RowFun, ctx = #ctx{stmtCols = StmtCols}} = State) ->
+handle_call({distinct_statistics, ColumnId}, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, ctx=#ctx{rowCols=RowCols}} = State) ->
     case Nav of
         raw -> TableUsed = TableId;
         _ -> TableUsed = IndexId
@@ -1607,24 +1607,25 @@ handle_call({distinct_statistics, ColumnId}, From, SN, #state{nav = Nav, tableId
     ResultsGrouped = group_distinct_statistics(Result, GColumns, SColumn, maps:new()),
     ResultsCalculated = calculate_distinct_statistics(ResultsGrouped, []),
     ResultRowsWithId = [[Idx | lists:nth(Idx, ResultsCalculated)] || Idx <- lists:seq(1, length(ResultsCalculated))],
-    ColInfo = [#stmtCol{alias = (lists:nth(Column, StmtCols))#stmtCol.alias, type = binstr, readonly = true} || Column <- lists:sublist(ColumnId, 1, GColumns)],
+    ColInfo = [#rowCol{alias=(lists:nth(Column, RowCols))#rowCol.alias, type=binstr, readonly=true} || Column <- lists:sublist(ColumnId, 1, GColumns)],
     ResultColumns = ColInfo ++
-        [#stmtCol{alias = <<"count">>, type = binstr, readonly = true}
-            , #stmtCol{alias = <<"min">>, type = binstr, readonly = true}
-            , #stmtCol{alias = <<"max">>, type = binstr, readonly = true}
-            , #stmtCol{alias = <<"sum">>, type = float, readonly = true}
-            , #stmtCol{alias = <<"avg">>, type = float, readonly = true}
-            , #stmtCol{alias = <<"median">>, type = float, readonly = true}
-            , #stmtCol{alias = <<"std_dev">>, type = float, readonly = true}
-            , #stmtCol{alias = <<"variance">>, type = float, readonly = true}
-            , #stmtCol{alias = <<"hash">>, type = float, readonly = true}],
+        [ #rowCol{alias = <<"count">>, type=binstr, readonly=true}
+        , #rowCol{alias = <<"min">>, type=binstr, readonly=true}
+        , #rowCol{alias = <<"max">>, type=binstr, readonly=true}
+        , #rowCol{alias = <<"sum">>, type=float, readonly=true}
+        , #rowCol{alias = <<"avg">>, type=float, readonly=true}
+        , #rowCol{alias = <<"median">>, type=float, readonly=true}
+        , #rowCol{alias = <<"std_dev">>, type=float, readonly=true}
+        , #rowCol{alias = <<"variance">>, type=float, readonly=true}
+        , #rowCol{alias = <<"hash">>, type=float, readonly=true}
+        ],
     try
         {next_state, SN, State, [{reply, From, {Total, ResultColumns, ResultRowsWithId, atom_to_binary(SN, utf8)}}]}
     catch
         _:Error ->
             {next_state, SN, State, [{reply, From, {error, iolist_to_binary(io_lib:format("~p", [Error])), erlang:get_stacktrace()}}]}
     end;
-handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=StmtCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
+handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{rowCols=RowCols, orig_qry=Qry, bind_vals=BindVals}} = State) ->
     FoldFun =
     fun(Row, Acc) ->
         RowKey = element(3, Row),
@@ -1637,7 +1638,7 @@ handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{stmtCols=St
         _ -> Qry
     end,
     Key = {dbTest, NormQry, BindVals},
-    imem_cache:write(Key, {StmtCols, QueryResult}),
+    imem_cache:write(Key, {RowCols, QueryResult}),
     {next_state, SN, State, [{reply, From, ok}]};
 handle_call(_Event, _From, empty, State) ->
     {next_state, empty, State}.
@@ -1749,6 +1750,7 @@ sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT)
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 handle_info({_Pid,{Rows,Completed}}, SN, State) ->
+    ?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[_Pid, length(Rows), Completed]),
     Fsm = {?MODULE,self()},
     Fsm:rows({Rows,Completed}),
     {next_state, SN, State};
@@ -2722,8 +2724,8 @@ data_index(SortFun,FilterSpec, #state{tableId=TableId,indexId=IndexId,rowFun=Row
         ,indCnt=IndCnt,indTop=IndTop,indBot=IndBot}).
 
 -spec data_update(atom(), list(), #state{}) -> #state{}.
-data_update(SN,ChangeList,#state{stmtColsCount=StmtColsCount}=State0) ->
-    {State1,InsRows} = data_update_rows(ChangeList,StmtColsCount,State0,[]),
+data_update(SN,ChangeList,#state{columnCount=ColumnCount}=State0) ->
+    {State1,InsRows} = data_update_rows(ChangeList,ColumnCount,State0,[]),
     ?Debug("InsRows ~p",[InsRows]),
     gui_ins(#gres{state=SN,rows=InsRows}, State1).
 

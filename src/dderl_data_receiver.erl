@@ -21,7 +21,7 @@
 
 -record(state,
         {statement                 :: {atom, pid()}
-        ,columns                   :: [#stmtCol{}]
+        ,columns                   :: [#rowCol{}]
         ,column_pos                :: [integer()]
         ,fsm_monitor               :: reference()
         ,update_cursor_prepare_fun :: fun()
@@ -49,7 +49,7 @@ start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
 get_status(ReceiverPid, ReplyToPid) ->
     gen_server:cast(ReceiverPid, {status, ReplyToPid}).
 
--spec data_info(pid(), {[#stmtCol{}], non_neg_integer()}) -> ok.
+-spec data_info(pid(), {[#rowCol{}], non_neg_integer()}) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
     gen_server:cast(ReceiverPid, {data_info, DataInfo}).
 
@@ -90,7 +90,7 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
     %% TODO: Check for column names and types instead of only count.
     if
         length(ColumnPos) =:= length(SenderColumns) ->
-            SenderColumnNames = [ColAlias || #stmtCol{alias = ColAlias} <- SenderColumns],
+            SenderColumnNames = [ColAlias || #rowCol{alias=ColAlias} <- SenderColumns],
             %% TODO: Change this for a callback and add information about sender columns
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SenderColumnNames}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
@@ -103,7 +103,7 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
 handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender"),
     {noreply, State#state{is_complete = true}, ?RESPONSE_TIMEOUT};
-handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows, errors = Errors} = State) ->
+handle_cast({data, Rows}, #state{sender_pid=SenderPid, received_rows=ReceivedRows, errors=Errors} = State) ->
     ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
     case add_rows_to_statement(Rows, State) of
         ok -> 
@@ -153,7 +153,7 @@ add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_curs
         {_, Error} -> {error, Error}
     end.
 
--spec prepare_rows([[binary()]], [#stmtCol{}], [binary()], pos_integer()) -> [list()].
+-spec prepare_rows([[binary()]], [#rowCol{}], [binary()], pos_integer()) -> [list()].
 prepare_rows([], _Columns, _ColumnPos, _RowId) -> [];
 prepare_rows([Row | RestRows], Columns, ColumnPos, RowId) ->
     NColumns = length(Columns),

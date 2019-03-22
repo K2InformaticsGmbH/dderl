@@ -552,8 +552,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, SessPi
                                 end,
     Id = proplists:get_value(<<"id">>, BodyJson, <<>>),
     case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
-        {ok, #stmtResults{stmtCols=Clms, stmtRefs=[StmtRef], rowFun=RowFun}, _} ->
-            Columns = gen_adapter:build_column_csv(UserId, oci, Clms),
+        {ok, #stmtResults{rowCols=RowCols, stmtRefs=[StmtRef], rowFun=RowFun}, _} ->
+            Columns = gen_adapter:build_column_csv(UserId, oci, RowCols),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(UserId, From, StmtRef, RowFun)
@@ -676,14 +676,14 @@ process_query(ok, Query, BindVals, _Connection, SessPid) ->
     ?Debug([{session, _Connection}], "query ~p -> ok", [Query]),
     SessPid ! {log_query, Query, process_log_binds(BindVals)},
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResults{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName},
+process_query({ok, #stmtResults{sortSpec = SortSpec, rowCols = RowCols} = StmtRslt, TableName},
               Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->
     SessPid ! {log_query, Query, process_log_binds(BindVals)},
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
     StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
     dderloci:add_fsm(hd(StmtRslt#stmtResults.stmtRefs), StmtFsm),
-    ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-    Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
+    ?Debug("StmtRslt ~p ~p", [RowCols, SortSpec]),
+    Columns = gen_adapter:build_column_json(lists:reverse(RowCols)),
     JSortSpec = build_srtspec_json(SortSpec),
     ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
     ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
@@ -804,19 +804,19 @@ check_funs(Error) ->
 
 -spec generate_fsmctx_oci(#stmtResults{}, binary(), list(), tuple(), term()) -> #fsmctxs{}.
 generate_fsmctx_oci(#stmtResults{
-                  stmtCols = Clms
+                  rowCols  = RowCols
                 , rowFun   = RowFun
                 , stmtRefs = [StmtRef]
                 , sortFun  = SortFun
                 , sortSpec = SortSpec}, Query, BindVals, {oci_port, _, _} = Connection, TableName) ->
     #fsmctxs{stmtRefs      = [StmtRef]
-            ,stmtCols      = Clms
+            ,stmtTables    = [TableName]
+            ,rowCols       = RowCols
             ,rowFun        = RowFun
             ,sortFun       = SortFun
             ,sortSpec      = SortSpec
             ,orig_qry      = Query
             ,bind_vals     = BindVals
-            ,table_names   = [TableName]
             ,block_length  = ?DEFAULT_ROW_SIZE
             ,fetch_recs_async_funs = [fun(Opts, Count) -> dderloci:fetch_recs_async(StmtRef, Opts, Count) end]
             ,fetch_close_funs = [fun() -> dderloci:fetch_close(StmtRef) end]
@@ -828,7 +828,7 @@ generate_fsmctx_oci(#stmtResults{
             ,update_cursor_prepare_funs =
                 [fun(ChangeList) ->
                     ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
-                    dderloci_stmt:prepare(TableName, ChangeList, Connection, Clms)
+                    dderloci_stmt:prepare(TableName, ChangeList, Connection, RowCols)
                 end]
             ,update_cursor_execute_funs =
                 [fun(_Lock, PrepStmt) ->
