@@ -167,24 +167,19 @@ update_file_term(FileHandle, ConfigFolder, File, Configs) ->
             ?L("{~s} read success from ~s", [File, FilePath]),
             {ok, TClean, _} = erl_scan:string(
                                 binary_to_list(FileBin),0,[]),
-            {ok, Tok, _} = erl_scan:string(
-                             binary_to_list(FileBin),0,[return]),
             {ok, Pt} = erl_parse:parse_term(TClean),
             NewPt = modify_nested_proplist(FileHandle, File, Pt, Configs),
-            NewSc = lists:flatten(io_lib:format("~p.", [NewPt])),
-            %?L("{~s} before ->~n~p", [File, Pt]),
-            %?L("{~s} after ->~n~p", [File, NewPt]),
-            {ok, TNewSc, _} = erl_scan:string(NewSc,0,[]),
-            TMerge = merge_toks(TNewSc, Tok),
-            NewFileStr = build_string(TMerge),
-            FileStr = binary_to_list(FileBin),
-            if NewFileStr =/= FileStr ->
+            NewSc =     
+                <<"%% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-\n",
+                  "%% ex: ft=erlang ts=4 sw=4 et\n",
+                  (list_to_binary(io_lib:format("~p.", [NewPt])))/binary>>,
+            if NewSc =/= FileBin ->
                    {ok, _} = file:copy(
                                FilePath
                                , filename:join(ConfigFolder
                                                , File ++ "."
                                                ++ dtstr())),
-                   ok = file:write_file(FilePath, NewFileStr);
+                   ok = file:write_file(FilePath, NewSc);
                true ->
                    ?L("{~s} unmodified at ~s", [File, FilePath])
             end;
@@ -247,63 +242,6 @@ modify_nested_proplist(FileHandle, File, Term, [{Path, Match, Change}|Config]) -
     ?L("{~s} at ~s", [File, string:join([atom_to_list(P) || P <- Path], "/")]),
     NewTerm = modify_nested_proplist(FileHandle, File, Term, {Path, Match, Change}),
     modify_nested_proplist(FileHandle, File, NewTerm, Config).
-
-build_string(TMerge) ->
-    build_string(TMerge, "").
-build_string([], Str) -> Str;
-build_string([Tok|T], Str) ->
-    NewStr = Str
-    ++ case Tok of
-           {white_space, _, WS}     -> WS;
-           {comment, _, Cmt}        -> Cmt;
-           {string,_,S}             -> lists:flatten(io_lib:format("~p",[S]));
-           {atom, _, A}             -> lists:flatten(io_lib:format("~p",[A]));
-           {char, _, C}             -> [C];
-           {float, _, F}            -> float_to_list(F);
-           {integer, _, I}          -> integer_to_list(I);
-           {var, _, V}              -> lists:flatten(io_lib:format("~p",[V]));
-           {dot, _}                 -> ".";
-           {Pc, _} when is_atom(Pc) -> atom_to_list(Pc)
-    end,
-    build_string(T, NewStr).
-
-merge_toks(T1, T2) ->
-    merge_toks(T1, T2, []).
-merge_toks([], [], Acc) -> lists:reverse(Acc);
-merge_toks([{A,_} = T|R1], [{B,_} = T1|R2], Acc) ->
-    if
-        A =:= B ->
-            %io:format("[~p] ~p -> ~p~n", [?LINE, T, T1]),
-            merge_toks(R1,R2,[T|Acc]);
-        (A =:= ',') andalso (B =/= ',') ->
-            %io:format("[~p] shift R1 ~p -> ~p~n", [?LINE, T, T1]),
-            merge_toks(R1,[T1|R2],[T|Acc]);
-        (A =/= ',') andalso (B =:= ',') ->
-            %io:format("[~p] red R2 ~p -> ~p~n", [?LINE, T, T1]),
-            merge_toks([T|R1],R2,Acc);
-        true ->
-            %io:format("[~p] ERROR ~p -> ~p~n", [?LINE, T, T1]),
-            throw({error, marge_failed, {?LINE, [T|R1], [T1|R2], Acc}})
-    end;
-merge_toks(R1, [{white_space,_,_} = ET|R2], Acc) ->
-    merge_toks(R1,R2,[ET|Acc]);
-merge_toks(R1, [{comment,_,_} = ET|R2], Acc) ->
-    merge_toks(R1,R2,[ET|Acc]);
-merge_toks([{_,_} = _T|_] = R1, [{_,_,_} = _T1|R2], Acc) ->
-    %io:format("[~p] red R2 ~p -> ~p~n", [?LINE, T, T1]),
-    merge_toks(R1,R2,Acc);
-merge_toks([{_,_,_} = T|R1], [{_,_} = _T1|_] = R2, Acc) ->
-    %io:format("[~p] shift R1 ~p -> ~p~n", [?LINE, T, T1]),
-    merge_toks(R1,R2,[T|Acc]);
-merge_toks([{A,_,_} = T|R1], [{A,_,_} = _T1|R2], Acc) ->
-    %io:format("[~p] ~p -> ~p~n", [?LINE, T, T1]),
-    merge_toks(R1,R2,[T|Acc]);
-merge_toks(R1, R2, Acc) ->
-    %io:format("Bailing...~n", []),
-    %io:format("R1 = ~n~p~n", [R1]),
-    %io:format("R2 = ~n~p~n", [R2]),
-    %io:format("Acc = ~n~p~n", [lists:reverse(Acc)]),
-    throw({error, marge_failed, {?LINE, R1, R2, Acc}}).
 
 update_file(FileHandle, ConfigFolder, File, Changes) ->
     FilePath = filename:join(ConfigFolder, File),
