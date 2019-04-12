@@ -3,6 +3,17 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.3.2 (Release Date 20.03.2019)
+======================================
+* Imem version 3.3.2
+
+Version 3.3.1 (Release Date 15.03.2019)
+======================================
+* git URL injection for local releases ONLY
+* erlpkg-1.2.0
+* Shield github badges added
+* Imem version 3.3.1
+
 Version 3.3.0 (Release Date 04.03.2019)
 ======================================
 * Using yarn instead of npm to manage front end dependencies

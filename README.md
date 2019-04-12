@@ -6,7 +6,7 @@ dderl
 ![GitHub](https://img.shields.io/github/license/K2InformaticsGmbH/dderl.svg)
 ![GitHub release](https://img.shields.io/github/release/K2InformaticsGmbH/dderl.svg)
 ![GitHub Release Date](https://img.shields.io/github/release-date/K2InformaticsGmbH/dderl.svg)
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/K2InformaticsGmbH/dderl/3.3.0.svg)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/K2InformaticsGmbH/dderl/3.3.1.svg)
 
 WEB DataBase Browser Application.
 
@@ -17,7 +17,7 @@ WEB DataBase Browser Application.
 1. `NO_OCI=true rebar3 compile`
 1. To compile with erloci follow setup instruction at https://github.com/K2InformaticsGmbH/erloci and execute the above two commands without `NO_OCI=true
 1. cd `priv/dev`
-1. `npm run install-build-prod`
+1. `yarn install-build-prod`
 1. cd `$ROOT/dderl`
 1. `./start.sh`
 1. go to https://127.0.0.1:8443/dderl in your browser
