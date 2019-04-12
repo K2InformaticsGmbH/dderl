@@ -134,6 +134,7 @@
                 , tRef = undefined    %% ref to the timer that triggers the timeout to when tailing and there is no data
                 , colOrder = []       %% order of columns, list of column indices, [] = as defined in SQL
                 , lastFetchTime       %% keeps the system time in milliseconds of the last fetch.
+                , fetchResults = []   %% one per statement
                 }).
 
 -define(block_size,10).
@@ -310,9 +311,9 @@ cache_data({?MODULE, Pid}) ->
 -spec rows({_, _}, {atom(), pid()}) -> ok.
 rows({error, _} = Error, {?MODULE, Pid}) ->
     gen_statem:cast(Pid, Error);
-rows({Rows,Completed},{?MODULE,Pid}) ->
-    ?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
-    gen_statem:cast(Pid,{rows, {Rows,Completed}}).
+rows({StmtRef,Rows,Completed},{?MODULE,Pid}) ->
+    ?Info("dderl_fsm:rows ~p ~p ~p", [StmtRef, length(Rows), Completed]),
+    gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
@@ -323,7 +324,10 @@ delete({Rows,Completed},{?MODULE,Pid}) ->
     gen_statem:cast(Pid,{delete, {Rows,Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
-fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx = #ctx{fetch_recs_async_funs = Fraf}}=State0) ->
+fetch(FetchMode,TailMode, #state{ bufCnt=Count
+                                , lastFetchTime=FetchTime0
+                                , fetchResults=FetchResults
+                                , ctx=#ctx{fetch_recs_async_funs=Fraf}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
         {FM,none} ->      [{fetch_mode,FM}];
@@ -340,7 +344,7 @@ fetch(FetchMode,TailMode, #state{bufCnt = Count, lastFetchTime = FetchTime0, ctx
         [ok] -> ok;
         _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Result])
     end,
-    State0#state{pfc=State0#state.pfc+1, lastFetchTime = FetchTime1}.
+    State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1}.
 
 -spec prefetch(atom(), #state{}) -> #state{}.
 prefetch(filling,#state{pfc=0}=State) ->  fetch(none,none,State);
@@ -623,6 +627,7 @@ init({#ctx{} = Ctx, SessPid}) ->
                  , sortFun                      = SortFun
                  , sortSpec                     = SortSpec
                  , replyToFun                   = ReplyTo
+                 , fetchResults  = lists:duplicate(length(Ctx#ctx.stmtRefs), undefined)
                  },
     State1 = data_index(SortFun,FilterSpec,State0),
     {ok, empty, reset_buf_counters(State1)}.
@@ -744,7 +749,7 @@ filling(cast, {button, <<"stop">>, ReplyTo}, State0) ->
     State2 = gui_nop(#gres{state=filling}, State1),
     % make sure tailing is not active
     {next_state, filling, State2#state{tailMode=false}};
-filling(cast, {rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
+filling(cast, {rows, {StmtRef,Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
     State1 = data_append(filling, {Recs,false},State0),
     % ?Debug("Target ~p", [Target]),
@@ -758,7 +763,7 @@ filling(cast, {rows, {Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}
             State1
     end,
     {next_state, filling, State2};
-filling(cast, {rows, {Recs,false}}, #state{stack={button,Button,_}}=State0) ->
+filling(cast, {rows, {StmtRef,Recs,false}}, #state{stack={button,Button,_}}=State0) ->
     % receive and store data, prefetch if a 'button sprint' is ongoing (only necessary for Nav=ind)
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
@@ -785,7 +790,7 @@ filling(cast, {rows, {Recs,false}}, State0) ->
     %    true ->                     State1
     %end,
     {next_state, filling, State1};
-filling(cast, {rows, {Recs,true}}, State0) ->
+filling(cast, {rows, {StmtRef,Recs,true}}, State0) ->
     % receive and store data, close the fetch and switch state, no prefetch needed here
     State1 = fetch_close(State0),
     State2 = data_append(completed, {Recs,true},State1),
@@ -867,16 +872,16 @@ autofilling(cast, {button, <<"stop">>, ReplyTo}, State0) ->
     State3 = gui_nop(#gres{state=aborted}, State2),
     % make sure tailing is not active
     {next_state, aborted, State3#state{tailMode=false}};
-autofilling(cast, {rows, {Recs,false}}, State0) ->
+autofilling(cast, {rows, {StmtRef,Recs,false}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(autofilling,{Recs,false},State0),
     {next_state, autofilling, State1#state{pfc=0}};
-autofilling(cast, {rows, {Recs,true}}, #state{tailMode=false}=State0) ->
+autofilling(cast, {rows, {StmtRef,Recs,true}}, #state{tailMode=false}=State0) ->
     % revceive and store last input from DB, close fetch, switch state
     State1 = fetch_close(State0),
     State2 = data_append(completed,{Recs,true},State1),
     {next_state, completed, State2#state{pfc=0}};
-autofilling(cast, {rows, {Recs,true}}, State0) ->
+autofilling(cast, {rows, {StmtRef,Recs,true}}, State0) ->
     % revceive and store last input from DB, switch state .. tail mode
     % ?Debug("Rows received complete and tailing:~nState: ~p", [State0]),
     State1= data_append(tailing,{Recs,true},State0),
@@ -947,7 +952,7 @@ tailing(cast, {button, <<">|">>, ReplyTo}, State0) ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"">>, State1),
     {next_state, tailing, State2#state{tailLock=true}};
-% tailing(cast, {rows, {[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
+% tailing(cast, {rows, {StmtRef,[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
 %     % ?Info("tracking -- row~n", []),
 %     PKey = guard_wrap(element(2,element(1,Rec))),
 %     case ets:select(TableId,[{'$1',[{'==',{element,2,{element,1,{element,3,'$1'}}},PKey}],['$_']}]) of
@@ -969,7 +974,7 @@ tailing(cast, {button, <<"stop">>, ReplyTo}, State0) ->
 tailing(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete,del},State0),
     {next_state, tailing, State1#state{pfc=0}};
-tailing(cast, {rows, {Recs,Complete}}, State0) ->
+tailing(cast, {rows, {StmtRef,Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete},State0),
     {next_state, tailing, State1#state{pfc=0}};
 tailing({call, From}, Msg, State) ->
@@ -1176,7 +1181,7 @@ passthrough(cast, {button, <<"stop">>, ReplyTo}, State0) ->
 passthrough(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete,del},State0),
     {next_state, passthrough, State1#state{pfc=0}};
-passthrough(cast, {rows, {Recs,Complete}}, State0) ->
+passthrough(cast, {rows, {StmtRef,Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete},State0),
     {next_state, passthrough, State1#state{pfc=0}};
 passthrough({call, From}, Msg, State) ->
@@ -1193,7 +1198,7 @@ passthrough(info, Msg, State) ->
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 
-handle_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, SN, #state{ctx = OldCtx} = State) ->
+handle_event({refresh_ctx, #ctx{bl=BL, replyToFun=ReplyTo} = Ctx}, SN, #state{ctx=OldCtx} = State) ->
     %%Close the old statement
     [F() || F <- OldCtx#ctx.stmt_close_funs],
     State0 = data_clear(State),
@@ -1206,6 +1211,7 @@ handle_event({refresh_ctx, #ctx{bl = BL, replyToFun = ReplyTo} = Ctx}, SN, #stat
         , sortFun       = SortFun
         , sortSpec      = SortSpec
         , replyToFun    = ReplyTo
+        , fetchResults  = lists:duplicate(length(Ctx#ctx.stmtRefs), undefined)
     },
     State2 = fetch(none,none,State1#state{pfc=0}),
     {next_state, SN, State2};
@@ -1749,10 +1755,10 @@ sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT)
 %%          {next_state, NextSN, NextStateData, Timeout} |
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
-handle_info({_Pid,{Rows,Completed}}, SN, State) ->
-    ?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[_Pid, length(Rows), Completed]),
+handle_info({StmtRef,{Rows,Completed}}, SN, State) ->
+    ?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[StmtRef, length(Rows), Completed]),
     Fsm = {?MODULE,self()},
-    Fsm:rows({Rows,Completed}),
+    Fsm:rows({StmtRef,Rows,Completed}),
     {next_state, SN, State};
 handle_info(cmd_stack_timeout, SN, #state{stack={button, <<"tail">>, RT}}=State)
     when SN =:= tailing; SN =:= passthrough ->

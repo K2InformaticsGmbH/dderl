@@ -43,7 +43,8 @@ get_fsmctx(Result) ->
     % <<Id:32>> = crypto:strong_rand_bytes(4),
     RowCols = get_columns(),
     FullMap = build_full_map(RowCols),
-    #fsmctxs{stmtTables     = [<<"term_diff">>]
+    #fsmctxs{stmtRefs       = [self()]
+            ,stmtTables     = [<<"term_diff">>]
             ,rowCols        = RowCols
             ,rowFun         = get_rowfun()
             ,sortFun        = get_sortfun()
@@ -56,7 +57,7 @@ get_fsmctx(Result) ->
                     Rows = [{{}, {RowId, Left, Cmp, Right}} || {ddTermDiff, RowId, Left, Cmp, Right} <- Result],
                     % This seems hackish but we don't want to keep a process here.
                     % TODO: Revisit after tuple calls have been removed.
-                    dderl_fsm:rows({Rows, true}, {dderl_fsm, self()})
+                    dderl_fsm:rows({self(), Rows, true}, {dderl_fsm, self()})
                 end]
             ,fetch_close_funs = [fun() -> ok end]
             ,stmt_close_funs  = [fun() -> ok end]
