@@ -833,7 +833,7 @@ expand_rows([FullRowTuple | RestRows], TableId, RowFun, ColumnPos) ->
 
 -spec is_proxy(list(), map()) -> boolean().
 is_proxy(AppId, NetCtx) ->
-    ProxyCheckFun = ?GET_CONFIG(isProxyCheckFun, AppId, <<"fun(NetCtx) -> false end">>, "Function checks if user is coming through a proxy or not"),
+    ProxyCheckFun = ?GET_CONFIG(isProxyCheckFun, [AppId], <<"fun(NetCtx) -> false end">>, "Function checks if user is coming through a proxy or not"),
     CacheKey = {?MODULE, isProxyCheckFun, ProxyCheckFun},
     case imem_cache:read(CacheKey) of
         [] ->
