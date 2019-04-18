@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.4.0 (Release Date 18.04.2019)
+======================================
+* Imem version 3.4.0
+* Git source diff functionality
+* http interface in imem_client
+
 Version 3.3.2 (Release Date 20.03.2019)
 ======================================
 * Imem version 3.3.2
