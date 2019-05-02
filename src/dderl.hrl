@@ -101,16 +101,11 @@
 
 -define(ddRole, [userid,list,list,list]).
 
--ifndef(LOG_TAG).
--define(LOG_TAG, "_DDRL_").
--endif.
-
 -define(NoDbLog(__L,__M,__F,__A),
-        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
+        lager:__L(__M, __F, __A)).
 -ifndef(TEST). % LAGER Enabled
 -define(Log(__L,__M,__F,__A,__S),
-        lager:__L([{stacktrace,__S}|__M], "["++?LOG_TAG++"] ~p "++__F,
-                   [{?MODULE,?LINE}|__A])).
+        lager:__L([{stacktrace,__S}|__M], __F, __A)).
 -else. % TEST
         -define(__T,
                 (fun() ->
