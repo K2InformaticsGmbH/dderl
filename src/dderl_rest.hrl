@@ -5,11 +5,13 @@
         #{<<"access-control-allow-origin">> => <<"*">>,
           <<"cache-control">> => <<"no-cache, no-store, must-revalidate">>,
           <<"server">> => <<?SERVER>>}).
+
 -define(REPLY_JSON_HEADERS,
         maps:merge(#{<<"content-type">> => <<"application/json; charset=utf-8">>},
                    ?REPLY_HEADERS)).
+
 -define(REPLY_JSON_SPEC_HEADERS, ?REPLY_JSON_SPEC_HEADERS(?SPEC_FILE)).
-       
+
 -define(REPLY_OPT_HEADERS,
         maps:merge(#{<<"connection">> => <<"close">>}, ?REPLY_HEADERS)).
 
