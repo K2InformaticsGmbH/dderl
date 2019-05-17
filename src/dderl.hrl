@@ -115,7 +115,7 @@
                                                 [__DD,__MM,__YYYY,__H,__M,__S,__McS]))
                 end)()).
         -define(N(__X), case lists:reverse(__X) of [$n,$~|_] -> __X; _ -> __X++"~n" end).
-        -define(Log(__L,__M,__F,__A,__S), io:format(user, ?__T++" [~p] ["++?LOG_TAG++"] {~p,~p} "++?N(__F),
+        -define(Log(__L,__M,__F,__A,__S), io:format(user, ?__T++" [~p] {~p,~p} "++?N(__F),
                                                 [__L, ?MODULE,?LINE|__A])).
 -endif.
 
