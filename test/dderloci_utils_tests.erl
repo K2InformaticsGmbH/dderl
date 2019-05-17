@@ -176,30 +176,33 @@ clean_dynamic_prec_test_() ->
     ].
 
 timestamp_test_() ->
-    [
-        %% Encode
-        ?_assertEqual(<<120,117,1,8,11,6,39,0,0,0,0>>, dderloci_utils:dderlts_to_ora(<<"08.01.2017 10:05:38">>)),
-        ?_assertEqual(<<120,117,5,18,11,6,39,5,245,225,0>>, dderloci_utils:dderlts_to_ora(<<"18.05.2017 10:05:38.1">>)),
-        ?_assertEqual(<<120,118,10,18,11,6,39,7,84,212,192>>, dderloci_utils:dderlts_to_ora(<<"18.10.2018 10:05:38.123">>)),
-        ?_assertEqual(<<120,117,8,8,11,6,39,0,152,150,128>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.01">>)),
-        ?_assertEqual(<<120,117,8,8,9,6,39,6,127,53,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 08:05:38.109000">>)),
-        ?_assertEqual(<<120,117,8,8,6,6,39,0,137,84,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 05:05:38.009">>)),
-        ?_assertEqual(<<120,117,8,8,11,6,39,0,137,84,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.009000">>)),
-        ?_assertEqual(<<120,117,8,8,11,6,39,0,0,3,232>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.000001">>)),
-        ?_assertEqual(<<120,117,8,8,11,6,39,7,91,205,21>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.123456789">>)),
-        ?_assertEqual(<<120,117,8,8,9,6,39,59,154,198,24>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 08:05:38.999999">>)),
+    case os:getenv("NO_OCI") of
+        "true" -> [];
+        _ -> [
+            %% Encode
+            ?_assertEqual(<<120,117,1,8,11,6,39,0,0,0,0>>, dderloci_utils:dderlts_to_ora(<<"08.01.2017 10:05:38">>)),
+            ?_assertEqual(<<120,117,5,18,11,6,39,5,245,225,0>>, dderloci_utils:dderlts_to_ora(<<"18.05.2017 10:05:38.1">>)),
+            ?_assertEqual(<<120,118,10,18,11,6,39,7,84,212,192>>, dderloci_utils:dderlts_to_ora(<<"18.10.2018 10:05:38.123">>)),
+            ?_assertEqual(<<120,117,8,8,11,6,39,0,152,150,128>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.01">>)),
+            ?_assertEqual(<<120,117,8,8,9,6,39,6,127,53,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 08:05:38.109000">>)),
+            ?_assertEqual(<<120,117,8,8,6,6,39,0,137,84,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 05:05:38.009">>)),
+            ?_assertEqual(<<120,117,8,8,11,6,39,0,137,84,64>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.009000">>)),
+            ?_assertEqual(<<120,117,8,8,11,6,39,0,0,3,232>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.000001">>)),
+            ?_assertEqual(<<120,117,8,8,11,6,39,7,91,205,21>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 10:05:38.123456789">>)),
+            ?_assertEqual(<<120,117,8,8,9,6,39,59,154,198,24>>, dderloci_utils:dderlts_to_ora(<<"08.08.2017 08:05:38.999999">>)),
 
-        %% Decode
-        ?_assertEqual(<<"08.01.2017 10:05:38">>, dderloci_utils:ora_to_dderlts(<<120,117,1,8,11,6,39,0,0,0,0>>)),
-        ?_assertEqual(<<"18.05.2017 10:05:38.1">>, dderloci_utils:ora_to_dderlts(<<120,117,5,18,11,6,39,5,245,225,0>>)),
-        ?_assertEqual(<<"18.10.2018 10:05:38.123">>, dderloci_utils:ora_to_dderlts(<<120,118,10,18,11,6,39,7,84,212,192>>)),
-        ?_assertEqual(<<"08.08.2017 10:05:38.01">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,152,150,128>>)),
-        ?_assertEqual(<<"08.08.2017 08:05:38.109">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,9,6,39,6,127,53,64>>)),
-        ?_assertEqual(<<"08.08.2017 05:05:38.009">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,6,6,39,0,137,84,64>>)),
-        ?_assertEqual(<<"08.08.2017 10:05:38.009">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,137,84,64>>)),
-        ?_assertEqual(<<"08.08.2017 10:05:38.000001">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,0,3,232>>)),
-        ?_assertEqual(<<"08.08.2017 10:05:38.123456789">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,7,91,205,21>>)),
-        ?_assertEqual(<<"08.08.2017 08:05:38.999999">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,9,6,39,59,154,198,24>>))
-    ].
+            %% Decode
+            ?_assertEqual(<<"08.01.2017 10:05:38">>, dderloci_utils:ora_to_dderlts(<<120,117,1,8,11,6,39,0,0,0,0>>)),
+            ?_assertEqual(<<"18.05.2017 10:05:38.1">>, dderloci_utils:ora_to_dderlts(<<120,117,5,18,11,6,39,5,245,225,0>>)),
+            ?_assertEqual(<<"18.10.2018 10:05:38.123">>, dderloci_utils:ora_to_dderlts(<<120,118,10,18,11,6,39,7,84,212,192>>)),
+            ?_assertEqual(<<"08.08.2017 10:05:38.01">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,152,150,128>>)),
+            ?_assertEqual(<<"08.08.2017 08:05:38.109">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,9,6,39,6,127,53,64>>)),
+            ?_assertEqual(<<"08.08.2017 05:05:38.009">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,6,6,39,0,137,84,64>>)),
+            ?_assertEqual(<<"08.08.2017 10:05:38.009">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,137,84,64>>)),
+            ?_assertEqual(<<"08.08.2017 10:05:38.000001">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,0,0,3,232>>)),
+            ?_assertEqual(<<"08.08.2017 10:05:38.123456789">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,11,6,39,7,91,205,21>>)),
+            ?_assertEqual(<<"08.08.2017 08:05:38.999999">>, dderloci_utils:ora_to_dderlts(<<120,117,8,8,9,6,39,59,154,198,24>>))
+        ]
+    end.
 
 -endif.
