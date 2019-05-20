@@ -55,6 +55,7 @@ imem_opts=$imem_opts" mnesia_node_type $imemtyp"
 imem_opts=$imem_opts" erl_cluster_mgrs ['$cmname']"
 imem_opts=$imem_opts" mnesia_schema_name dderl"
 imem_opts=$imem_opts" tcp_port $port"
+imem_opts=$imem_opts" cold_start_recover false"
 
 # dderl opts
 dderl_opts="-dderl"
