@@ -101,16 +101,11 @@
 
 -define(ddRole, [userid,list,list,list]).
 
--ifndef(LOG_TAG).
--define(LOG_TAG, "_DDRL_").
--endif.
-
 -define(NoDbLog(__L,__M,__F,__A),
-        lager:__L(__M, "["++?LOG_TAG++"] ~p "++__F, [{?MODULE,?LINE}|__A])).
+        lager:__L(__M, __F, __A)).
 -ifndef(TEST). % LAGER Enabled
 -define(Log(__L,__M,__F,__A,__S),
-        lager:__L([{stacktrace,__S}|__M], "["++?LOG_TAG++"] ~p "++__F,
-                   [{?MODULE,?LINE}|__A])).
+        lager:__L([{stacktrace,__S}|__M], __F, __A)).
 -else. % TEST
         -define(__T,
                 (fun() ->
@@ -120,8 +115,12 @@
                                                 [__DD,__MM,__YYYY,__H,__M,__S,__McS]))
                 end)()).
         -define(N(__X), case lists:reverse(__X) of [$n,$~|_] -> __X; _ -> __X++"~n" end).
-        -define(Log(__L,__M,__F,__A,__S), io:format(user, ?__T++" [~p] ["++?LOG_TAG++"] {~p,~p} "++?N(__F),
-                                                [__L, ?MODULE,?LINE|__A])).
+        -define(Log(__L,__M,__F,__A,__S),
+                case code:is_loaded(lager) of
+                        false -> io:format(user, ?__T++" [~p] {~p,~p} "++?N(__F),
+                                           [__L, ?MODULE,?LINE|__A]);
+                        _ -> lager:__L([{stacktrace,__S}|__M], __F, __A)
+                end).
 -endif.
 
 -define(Debug(__M,__F,__A),        ?Log(debug,__M,__F,__A,[])).
