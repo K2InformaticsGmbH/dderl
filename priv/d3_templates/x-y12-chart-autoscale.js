@@ -5,6 +5,7 @@ function init(container, width, height) {
     var tParseEu = helper.tParseEu;    // timeParse without msec
     var tParseInt = helper.tParseInt;    // timeParse international format without msec
     var tParseIntL = helper.tParseIntL; // timeParse international format
+    var yAxisInverted = false; // set it to true to set the 0,0 at the top left
 
     function setup() {
         xDom = dom.lin;         // dom.lin | dom.log | dom.time 
@@ -512,13 +513,15 @@ function init(container, width, height) {
             xScale = xScaleTemplate.domain([xMin, xMax]).range([0, cWidth]);
         }
 
+        var range = yAxisInverted ? [0, cHeight] : [cHeight, 0];
+
         if (yMin >= yMax) {
-            yScale = yScaleTemplate.domain([yMax-1, yMin+1]).range([cHeight, 0]);
+            yScale = yScaleTemplate.domain([yMax-1, yMin+1]).range(range);
         } else {
-            yScale = yScaleTemplate.domain([yMin, yMax]).range([cHeight, 0]);
+            yScale = yScaleTemplate.domain([yMin, yMax]).range(range);
         }
         xAxis = d3.axisBottom(xScale).ticks(xTickCount, xTickFormatSpecifier);
-        yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);          
+        yAxis = d3.axisLeft(yScale).ticks(yTickCount, yTickFormatSpecifier);
     }
 
     setup();
@@ -544,27 +547,27 @@ function init(container, width, height) {
                 yTexts = [y1Var];
                 y1Var = y1Var + '_2';
                 printLegendCircle(0,0,circleStyles1(data[0]));
-                printLegendText(dxLeg,0,yTexts[0]);                 
+                printLegendText(dxLeg,0,yTexts[0]);
                 if (yCount >= 2) {
                     y2Var = yAxisVar(2,data[0]);
                     yTexts.push(y2Var);
                     y2Var = y2Var + '_3';
                     printLegendSquare(0,dyLeg,squareStyles2(data[0]));
-                    printLegendText(dxLeg,dyLeg,yTexts[1]);                 
+                    printLegendText(dxLeg,dyLeg,yTexts[1]);
                 };
                 if (yCount >= 3) {
                     y3Var = yAxisVar(3,data[0]);
                     yTexts.push(y3Var);
                     y3Var = y3Var + '_4';
                     printLegendCircle(0,dyLeg+dyLeg,circleStyles3(data[0]));
-                    printLegendText(dxLeg,dyLeg+dyLeg,yTexts[2]);                 
+                    printLegendText(dxLeg,dyLeg+dyLeg,yTexts[2]);
                 };
                 if (yCount >= 4) {
                     y4Var = yAxisVar(4,data[0]);
                     yTexts.push(y4Var);
                     y4Var = y4Var + '_5';
                     printLegendSquare(0,dyLeg+dyLeg+dyLeg,squareStyles4(data[0]));
-                    printLegendText(dxLeg,dyLeg+dyLeg+dyLeg,yTexts[3]);                 
+                    printLegendText(dxLeg,dyLeg+dyLeg+dyLeg,yTexts[3]);
                 };
                 gLeg.attr("transform", "translate(" + xLeg + "," + yLeg + ")");
                 printHorTitle(width-margin.right,height-dyLeg,xText);
