@@ -339,8 +339,8 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
                 }
 
                 var newTitle = '';
-                if(dderlState.app) {
-                    newTitle += dderlState.app + ' ';
+                if(dderlState.node) {
+                    newTitle += dderlState.node + ' ';
                 }
                 if(resp.hasOwnProperty('extra') && resp.extra.hasOwnProperty('node')) {
                     newTitle += resp.extra.node;

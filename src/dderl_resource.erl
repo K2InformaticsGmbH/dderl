@@ -219,8 +219,8 @@ set_xsrf_cookie(Req, _, XSRFToken) ->
     cowboy_req:set_resp_cookie(XSRFCookie, XSRFToken1, Req, Opts).
 
 cookie_name(Name) ->
-    HostApp = dderl_dal:get_host_app(),
-    list_to_binary([HostApp, Name]).
+    [Node, _] = binary:split(atom_to_binary(node(), utf8), <<"@">>),
+    list_to_binary([Node, Name]).
 
 get_cookie_opts(delete_cookie, Opts) -> {<<>>, Opts#{max_age => 0}};
 get_cookie_opts(Cookie, Opts) -> {Cookie, Opts}.

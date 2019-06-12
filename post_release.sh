@@ -1,8 +1,8 @@
 . $(dirname $0)/common.sh
+app=${1:-dderl}
+rel=${2:-prod}
 
 log green "-------------------------------------------------------------------------"
-rel=${1:-prod}
-app=${2:-dderl}
 log green "post_release $rel/$app @ $(pwd)"
 
 dderlPriv=$(readlink -f _build/$rel/rel/$app/lib/dderl-*/priv/)

@@ -1,5 +1,7 @@
-Param([string]$rel="prod")
-Param([string]$app="dderl")
+Param(
+    [string]$rel="prod",
+    [string]$app="dderl"
+)
 
 Write-Host "===> -------------------------------------------------------------------------"
 Write-Host "===> post_release $rel/$app @ $pwd" -foregroundcolor green
