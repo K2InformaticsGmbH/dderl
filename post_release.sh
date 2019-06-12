@@ -1,10 +1,11 @@
 . $(dirname $0)/common.sh
 
 log green "-------------------------------------------------------------------------"
-app=${1:-dderl}
-log green "post_release $app @ $(pwd)"
+rel=${1:-prod}
+app=${2:-dderl}
+log green "post_release $rel/$app @ $(pwd)"
 
-dderlPriv=$(readlink -f _build/prod/rel/$app/lib/dderl-*/priv/)
+dderlPriv=$(readlink -f _build/$rel/rel/$app/lib/dderl-*/priv/)
 log lightgrey "building dderl @ $dderlPriv"
 
 if [ -d "$dderlPriv/dev/node_modules" ]; then
