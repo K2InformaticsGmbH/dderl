@@ -3,6 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.5.0 (Release Date 17.06.2019)
+======================================
+* Cookie with node instead of app
+
 Version 3.4.1 (Release Date 30.04.2019)
 ======================================
 * Imem version 3.4.1
