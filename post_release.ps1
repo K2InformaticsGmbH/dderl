@@ -1,8 +1,12 @@
-Param([string]$app="dderl")
-Write-Host "===> -------------------------------------------------------------------------"
-Write-Host "===> post_release $app @ $pwd" -foregroundcolor green
+Param(
+    [string]$rel="prod",
+    [string]$app="dderl"
+)
 
-$root = (Resolve-Path "_build/prod/rel/$app/").Path
+Write-Host "===> -------------------------------------------------------------------------"
+Write-Host "===> post_release $rel/$app @ $pwd" -foregroundcolor green
+
+$root = (Resolve-Path "_build/$rel/rel/$app/").Path
 cd $root
 $erts = Get-ChildItem -Filter erts-* |
         Select-Object -First 1 -Expand FullName

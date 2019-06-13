@@ -722,8 +722,9 @@ login(ReqData, From, SrcIp, State) ->
     #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
     HostApp = dderl_dal:get_host_app(),
     {ok, Vsn} = application:get_key(dderl, vsn),
+    [Node, Host] = binary:split(atom_to_binary(node(), utf8), <<"@">>),
     Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp,
-               node => list_to_binary(imem_meta:node_shard()),
+               node => Node, host => Host,
                rowNumLimit => imem_sql_expr:rownum_limit()},
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->

@@ -31,6 +31,7 @@ export var dderlState = {
     app: "",
     vsn: "",
     node: "",
+    host: "",
     rowNumLimit: 10000
 };
 
