@@ -47,7 +47,7 @@ function loginCb(resp) {
         dderlState.node = resp.node;
     }
     if (resp.hasOwnProperty('host')) {
-        dderlState.host = resp.gost;
+        dderlState.host = resp.host;
     }
     if (resp.hasOwnProperty('app')) {
         dderlState.app = resp.app;
