@@ -6,7 +6,7 @@ dderl
 ![GitHub](https://img.shields.io/github/license/K2InformaticsGmbH/dderl.svg)
 ![GitHub release](https://img.shields.io/github/release/K2InformaticsGmbH/dderl.svg)
 ![GitHub Release Date](https://img.shields.io/github/release-date/K2InformaticsGmbH/dderl.svg)
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/K2InformaticsGmbH/dderl/3.5.0.svg)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/K2InformaticsGmbH/dderl/3.5.1.svg)
 
 WEB DataBase Browser Application.
 
