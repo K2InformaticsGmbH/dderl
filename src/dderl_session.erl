@@ -387,7 +387,6 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
             case dderl_dal:get_connects(Sess, UserId) of
                 {error, Reason} when is_binary(Reason) -> #{error => Reason};
                 UnsortedConns when is_list(UnsortedConns) ->
-                    ?Info("The adapters ~p", [Adapters]),
                     % Filter connections depending on the available adapters.
                     Connections = filter_conns(lists:sort(
                         fun(#ddConn{name = Name}, #ddConn{name = Name2}) ->
