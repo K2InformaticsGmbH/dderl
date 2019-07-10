@@ -4404,11 +4404,15 @@ function areColumnsEqual(columnA, columnB) {
 }
 
 function promptSaveAs(viewName, btnDefinitions, startBtn, currentCons, callback) {
-    var form = $('<form id="prompt_form">').append('<fieldset>' +
+    var form = $('<form id="prompt_form">');
+    var fieldset = $('<fieldset>' +
         '<label for="prompt_save_as_input">ddView name: </label>' +
-        '<input type="text" id="prompt_save_as_input" name="prompt_save_as_input" class="text ui-widget-content ui-corner-all" value="'+ viewName +'" autofocus/>' +
         '</fieldset>'
     );
+    var promptSaveAsInput = $('<input type="text" id="prompt_save_as_input" name="prompt_save_as_input" class="text ui-widget-content ui-corner-all" autofocus/>');
+    promptSaveAsInput.val(viewName);
+    fieldset.append(promptSaveAsInput);
+    form.append(fieldset);
 
     var buttons = ['>', '->|', 'pt', '>|', '>|...', '...'];
     var startBtnSelectionDiv = $('<div id="start-btn-selection-div">')
