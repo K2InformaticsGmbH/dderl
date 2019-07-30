@@ -176,7 +176,7 @@
 -define(RESPONSE_TIMEOUT, ?GET_CONFIG(responseTimeout,[],100000,"Response timeout of data receiver")).
 
 %% OCI Adapter configs
--define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{languange   => <<"GERMAN">>,
+-define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{language   => <<"GERMAN">>,
                                             territory   => <<"SWITZERLAND">>,
                                             charset     => <<"AL32UTF8">>}, "OCI NSL Language connect option")).
 %% CSV Configs

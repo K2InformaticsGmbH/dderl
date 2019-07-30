@@ -94,9 +94,10 @@ process_cmd({[<<"connect">>], BodyJson5, _SessionId}, Sess, UserId, From,
     Method    = proplists:get_value(<<"method">>, BodyJson, <<"service">>),
     User      = proplists:get_value(<<"user">>, BodyJson, <<>>),
     Defaults  = ?NLSLANG,
-    Language  = get_value_empty_default(<<"languange">>, BodyJson, Defaults),
-    Territory = get_value_empty_default(<<"territory">>, BodyJson, Defaults),
-    Charset   = get_value_empty_default(<<"charset">>, BodyJson, Defaults),
+    
+    Language  = get_value_empty_default(<<"language">>, BodyJson, get_nls_lang_default(<<"language">>, Defaults)),
+    Territory = get_value_empty_default(<<"territory">>, BodyJson, get_nls_lang_default(<<"territory">>, Defaults)),
+    Charset   = maps:get(charset, Defaults, <<>>),
     NLS_LANG  = binary_to_list(<<Language/binary, $_, Territory/binary, $., Charset/binary>>),
 
     TNS
@@ -838,14 +839,14 @@ generate_fsmctx_oci(#stmtResult{
                 end
            }.
 
-get_value_empty_default(Key, Proplist, Defaults) ->
-    proplists:get_value(
-      Key, Proplist,
-      case Key of
-          <<"languange">> -> maps:get(languange, Defaults, <<>>);
-          <<"territory">> -> maps:get(territory, Defaults, <<>>);
-          <<"charset">> -> maps:get(charset, Defaults, <<>>)
-      end).
+get_value_empty_default(Key, Proplist, Default) ->
+    case proplists:get_value(Key, Proplist, <<>>) of
+        <<>> -> Default;
+        Value -> Value
+    end.
+
+get_nls_lang_default(<<"language">>, Defaults) -> maps:get(language, Defaults, <<>>);
+get_nls_lang_default(<<"territory">>, Defaults) -> maps:get(territory, Defaults, <<>>).
 
 -spec get_deps() -> [atom()].
 get_deps() -> [erloci].
