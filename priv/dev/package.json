@@ -12,7 +12,7 @@
     "d3": "5.5.0",
     "d3-selection-multi": "1.0.1",
     "font-awesome": "4.7.0",
-    "jquery": "3.2.1",
+    "jquery": "^3.4.1",
     "jquery-dialogextend": "git+https://github.com/K2InformaticsGmbH/jquery-dialogextend.git#585a7e2d59925481b32f4e7800d49aeced3a3d35",
     "jquery-ui": "1.12.1",
     "monaco-editor": "0.14.3"
@@ -21,7 +21,7 @@
     "babel-core": "6.26.0",
     "babel-loader": "7.1.2",
     "babel-preset-env": "1.6.1",
-    "css-loader": "0.28.9",
+    "css-loader": "0.28.11",
     "extract-loader": "1.0.2",
     "file-loader": "1.1.6",
     "html-loader": "0.5.5",

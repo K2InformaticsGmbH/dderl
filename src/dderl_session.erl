@@ -380,52 +380,51 @@ process_call({[<<"about">>], _ReqData}, _Adapter, From, {SrcIp,_}, State) ->
 process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
              #state{sess=Sess, user_id=UserId, user = User} = State) ->
     act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "connect_info"}, State),
-    ConnInfo
-    = case dderl_dal:get_adapters(Sess) of
-          {error, Reason} when is_binary(Reason) -> #{error => Reason};
-          Adapters when is_list(Adapters) ->
-              case dderl_dal:get_connects(Sess, UserId) of
-                  {error, Reason} when is_binary(Reason) -> #{error => Reason};
-                  UnsortedConns when is_list(UnsortedConns) ->
-                      Connections
-                      = lists:foldl(
-                          fun(C,Cl) ->
-                                  Adapter = list_to_existing_atom(
-                                              atom_to_list(C#ddConn.adapter)++"_adapter"),
-                                  [Adapter:connect_map(C)|Cl]
-                          end, [],
-                          lists:sort(fun(#ddConn{name = Name},
-                                         #ddConn{name = Name2}) ->
-                                             Name > Name2
-                                     end, UnsortedConns)
-                         ),
-                      CInfo = #{adapters =>
-                                  [#{id => jsq(A#ddAdapter.id),
-                                     fullName => A#ddAdapter.fullName}
-                                   || A <- Adapters],
-                                  connections => Connections},
-                      #{connect_info =>
-                        CInfo#{connections =>
-                               Connections ++
-                               case [A || #{adapter := A} <- Connections, A == <<"oci">>] of
-                                   [] -> [#{adapter => <<"oci">>,
-                                            id => null,
-                                            name => <<"template oracle">>,
-                                            owner => User,
-                                            method => <<"tns">>}];
-                                   _ -> []
-                               end ++
-                               case [A || #{adapter := A} <- Connections, A == <<"imem">>] of
-                                   [] -> [#{adapter => <<"imem">>,
-                                            id => null,
-                                            name => <<"template imem">>,
-                                            schema => atom_to_binary(imem_meta:schema(),utf8),
-                                            owner => User,
-                                            method => <<"tcp">>}];
-                                   _ -> []
-                               end
-                              }
-                       }
+    ConnInfo = case dderl_dal:get_adapters(Sess) of
+        {error, Reason} when is_binary(Reason) -> #{error => Reason};
+        AllAdapters when is_list(AllAdapters) ->
+            Adapters = available_adapters(AllAdapters),
+            case dderl_dal:get_connects(Sess, UserId) of
+                {error, Reason} when is_binary(Reason) -> #{error => Reason};
+                UnsortedConns when is_list(UnsortedConns) ->
+                    % Filter connections depending on the available adapters.
+                    Connections = filter_conns(lists:sort(
+                        fun(#ddConn{name = Name}, #ddConn{name = Name2}) ->
+                            Name > Name2
+                        end,
+                    UnsortedConns)),
+                    CInfo = #{
+                        adapters =>
+                            [
+                                #{
+                                    id => jsq(A#ddAdapter.id),
+                                    fullName => A#ddAdapter.fullName
+                                } || A <- Adapters
+                            ],
+                        connections => Connections
+                    },
+                    #{connect_info =>
+                      CInfo#{connections =>
+                        Connections ++
+                            case [A || #{adapter := A} <- Connections, A == <<"oci">>] of
+                                [] -> [#{adapter => <<"oci">>,
+                                        id => null,
+                                        name => <<"template oracle">>,
+                                        owner => User,
+                                        method => <<"tns">>}];
+                                _ -> []
+                            end ++
+                            case [A || #{adapter := A} <- Connections, A == <<"imem">>] of
+                                [] -> [#{adapter => <<"imem">>,
+                                        id => null,
+                                        name => <<"template imem">>,
+                                        schema => atom_to_binary(imem_meta:schema(),utf8),
+                                        owner => User,
+                                        method => <<"tcp">>}];
+                                _ -> []
+                            end
+                        }
+                    }
               end
       end,
     reply(From, ConnInfo, self()),
@@ -703,6 +702,29 @@ adapter_name(AdaptMod) ->
     [BinAdapter|_] = binary:split(atom_to_binary(AdaptMod, utf8), <<"_">>),
     binary_to_existing_atom(BinAdapter, utf8).
 
+filter_conns([]) -> [];
+filter_conns([Conn | Rest]) ->
+    case is_adapter_available(Conn#ddConn.adapter) of
+        true ->
+            Adapter = list_to_atom(atom_to_list(Conn#ddConn.adapter)++"_adapter"),
+            [Adapter:connect_map(Conn) | filter_conns(Rest)];
+        false -> filter_conns(Rest)
+    end.
+
+available_adapters([]) -> [];
+available_adapters([#ddAdapter{id = AdapterId} = Adapter | Rest]) ->
+    case is_adapter_available(AdapterId) of
+        true -> [Adapter | available_adapters(Rest)];
+        false -> available_adapters(Rest)
+    end.
+
+is_adapter_available(AdapterId) ->
+    try list_to_existing_atom(atom_to_list(AdapterId)++"_adapter") of
+        Adapter -> erlang:function_exported(Adapter, connect_map, 1)
+    catch % Ignored if atom doesn't exist.
+        _Class:_Error -> false
+    end.
+
 find_deps_app_seq(App) -> find_deps_app_seq(App, []).
 find_deps_app_seq(App,Chain) ->
     case lists:foldl(
@@ -722,8 +744,9 @@ login(ReqData, From, SrcIp, State) ->
     #state{id = Id, sess = ErlImemSess, conn_info = ConnInfo} = State,
     HostApp = dderl_dal:get_host_app(),
     {ok, Vsn} = application:get_key(dderl, vsn),
+    [Node, Host] = binary:split(atom_to_binary(node(), utf8), <<"@">>),
     Reply0 = #{vsn => list_to_binary(Vsn), app => HostApp,
-               node => list_to_binary(imem_meta:node_shard()),
+               node => Node, host => Host,
                rowNumLimit => imem_sql_expr:rownum_limit()},
     case catch ErlImemSess:run_cmd(login,[]) of
         {error,{{'SecurityException',{?PasswordChangeNeeded,_}},ST}} ->

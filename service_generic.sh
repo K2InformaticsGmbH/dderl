@@ -4,14 +4,14 @@ cmd=$0
 argscount=$#
 
 function usage {
-    echo "usage: $1 add app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
-    echo "       $1 remove app_name"
-    echo "       $1 start app_name"
-    echo "       $1 stop app_name"
-    echo "       $1 list app_name"
+    echo "usage: $1 add service_name app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
+    echo "       $1 remove service_name"
+    echo "       $1 start service_name"
+    echo "       $1 stop service_name"
+    echo "       $1 list service_name"
     echo "       $1 attach node_name node_host cookie"
-    echo "       $1 gui app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
-    echo "       $1 txt app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
+    echo "       $1 gui service_name app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
+    echo "       $1 txt service_name app_name node_name node_host cluster_name cluster_host cookie dderlip dderlport imemip imemport imemtype imemschema"
     echo "       $1 check node_name node_host cookie"
     echo "       $1 escript script_file_path_name node_name node_host cookie"
 }
@@ -43,19 +43,20 @@ kernellogfile=$PWD/log/kernel.txt
 path2win kernellogfile
 kernelconfig="-kernel inet_dist_listen_min 7000 -kernel inet_dist_listen_max 7020 -proto_dist imem_inet_tcp"
 kernelconfigsrv="$kernelconfig -kernel error_logger {file,\\\"""$kernellogfile\\\"""}"
-app_name=$2
-node_name=$3
-node_host=$4
-cluster_name=$5
-cluster_host=$6
-cookie=$7
-dderlip=$8
-dderlport=$9
-imemip=${10}
-imemport=${11}
-imemtype=${12}
-imemschema=${13}
-lagerconfig=${14}
+service_name=$2
+app_name=$3
+node_name=$4
+node_host=$5
+cluster_name=$6
+cluster_host=$7
+cookie=$8
+dderlip=$9
+dderlport=${10}
+imemip=${11}
+imemport=${12}
+imemtype=${13}
+imemschema=${14}
+lagerconfig=${15}
 
 # dderl opts
 dderl_opts="-dderl"
@@ -96,12 +97,12 @@ case $1 in
         else
             exename="start //MAX werl.exe"
         fi
-        echo "Starting $app_name local GUI with '$exename $name $kernelconfig $commonparams'"
+        echo "Starting $service_name local GUI with '$exename $name $kernelconfig $commonparams'"
         $exename $name $kernelconfig $commonparams
         ;;
     "txt" )
         check_arg_count 6
-        echo "Starting $app_name local TEXT with 'erl.exe -name $name $kernelconfig $commonparams'"
+        echo "Starting $service_name local TEXT with 'erl.exe -name $name $kernelconfig $commonparams'"
         unamestr=`uname`
         if [[ "$unamestr" == 'Linux' ]]; then
             exename=erl
@@ -112,27 +113,27 @@ case $1 in
         ;;
     "add" )
         check_arg_count 6
-        echo "Adding $app_name service erlsrv.exe add $app_name -c \"$app_name Service\" -stopaction \"init:stop().\" -debugtype new -w $PWD $name -args \"$kernelconfigsrv $commonparams\""
-        erlsrv.exe add $app_name -c "$app_name Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $common_srv_params"
+        echo "Adding $service_name service erlsrv.exe add $service_name -c \"$service_name Service\" -stopaction \"init:stop().\" -debugtype new -w $PWD $name -args \"$kernelconfigsrv $commonparams\""
+        erlsrv.exe add $service_name -c "$service_name Service" -stopaction "init:stop()." -debugtype new -w $PWD $name -args "$kernelconfigsrv $common_srv_params"
         ;;
     "remove" )
 	    check_arg_count 1
-        echo Removing $app_name service
-        erlsrv.exe remove $app_name
+        echo Removing $service_name service
+        erlsrv.exe remove $service_name
         ;;
     "start" )
 	    check_arg_count 1
-        echo Starting $app_name service
-        erlsrv.exe start $app_name
+        echo Starting $service_name service
+        erlsrv.exe start $service_name
         ;;
     "stop" )
 	    check_arg_count 1
-        echo Stopping $app_name service
-        erlsrv.exe stop $app_name
+        echo Stopping $service_name service
+        erlsrv.exe stop $service_name
         ;;
     "list" )
 	    check_arg_count 1
-        erlsrv.exe list $app_name
+        erlsrv.exe list $service_name
         ;;
     "escript" )
 	    check_arg_count 4
@@ -160,7 +161,7 @@ case $1 in
         start //MAX werl.exe -remsh $node -name remsh_$node -setcookie $cookie_service
         ;;
     *)
-        erlsrv.exe list $app_name
+        erlsrv.exe list $service_name
         echo
         if [ ! -z "$1" -a "$1" != " " ]; then
             echo Bad Argument : "'"$1"'"

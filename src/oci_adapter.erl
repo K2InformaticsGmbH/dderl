@@ -74,7 +74,7 @@ add_conn_extra(#ddConn{access = Access}, Conn0) when is_list(Access), is_map(Con
 
 -define(LogOci(__L,__File,__Func,__Line,__Msg),
     begin
-        lager:__L(__File, "[" ++ ?LOG_TAG ++ "] {~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg])
+        lager:__L(__File, "{~s:~s:~p} ~ts", [__File,__Func,__Line,__Msg])
     end).
 
 -spec process_cmd({[binary()], term()}, {atom(), pid()}, ddEntityId(), pid(),

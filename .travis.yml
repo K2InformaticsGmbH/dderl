@@ -7,11 +7,11 @@ otp_release:
 
 
 env:
-  global:
+#  global:
 #   - ORACLE_LOGIN_userid=
-    - secure: q8zvxcvWiWmLl3BmMTDkZnLBKLK3H3vwUP1GnFrBxItC538tuSP6rPUi5kr/sRGwkV1GN7cipos6dofvQAUKEUQoAWhJNwoRFcjrUJS7dlnLByKM9Vg15RRClXAx9au4sYn84jT1tjtb9WHLyNDvGi47Z+andYEsHchZTfd1FBSkoWxsIMoCSYq/QucO9Be2H+wh+0UPzawH2qw2atSx5paTEqJ3CG1mAT3VZLEbHUN7U8PvyuuPBow1PWzv23yeX++uaanMcZq6CAnrQAg0evXr2A36PEfF0qUddUly9W1CIjJFwm4o6WRKQqrql35DZU8Ono9CH8NsW2N1zsfYrFPFIVduEh0cGmXtTyany5GOBENTh6110hmPnzwGaAYw8EMjrbJISF2SaK2dGpGcjciY6PRRAG9HciQm+cMJ1HLn8GxqgSJVHYV1lOUUlWSCIaH06obxE3GbTAq8xXmm8ahODS6eAenyf0cdN/5Wwv8suyWX8aArvVZ6Rm/p1Gg6EpbfXFzOGAImDDXMe5jMX+DmpI3uujTFix4lThERFtoz3HA/JReVb+kZhAlkTpVhPqLjnW2K8nIDV0ppVZ/zFqY6upP5EpI5rGQrI+dKgrp9Inwh3l1txW+GQPJNZP+IAfQ0uspTrtkbQsF1e3iaz0+OSHHIK1+NxzMJwIsD2Qg=
+#    - secure: q8zvxcvWiWmLl3BmMTDkZnLBKLK3H3vwUP1GnFrBxItC538tuSP6rPUi5kr/sRGwkV1GN7cipos6dofvQAUKEUQoAWhJNwoRFcjrUJS7dlnLByKM9Vg15RRClXAx9au4sYn84jT1tjtb9WHLyNDvGi47Z+andYEsHchZTfd1FBSkoWxsIMoCSYq/QucO9Be2H+wh+0UPzawH2qw2atSx5paTEqJ3CG1mAT3VZLEbHUN7U8PvyuuPBow1PWzv23yeX++uaanMcZq6CAnrQAg0evXr2A36PEfF0qUddUly9W1CIjJFwm4o6WRKQqrql35DZU8Ono9CH8NsW2N1zsfYrFPFIVduEh0cGmXtTyany5GOBENTh6110hmPnzwGaAYw8EMjrbJISF2SaK2dGpGcjciY6PRRAG9HciQm+cMJ1HLn8GxqgSJVHYV1lOUUlWSCIaH06obxE3GbTAq8xXmm8ahODS6eAenyf0cdN/5Wwv8suyWX8aArvVZ6Rm/p1Gg6EpbfXFzOGAImDDXMe5jMX+DmpI3uujTFix4lThERFtoz3HA/JReVb+kZhAlkTpVhPqLjnW2K8nIDV0ppVZ/zFqY6upP5EpI5rGQrI+dKgrp9Inwh3l1txW+GQPJNZP+IAfQ0uspTrtkbQsF1e3iaz0+OSHHIK1+NxzMJwIsD2Qg=
 #   - ORACLE_LOGIN_pass=
-    - secure: jsUHuR3SrkIyOVl6Y6yggbSPeyHIyLTqKbs3G9pRHCr9TZZEpQ5ACvJA1WnUnBT/0GOivvmO7EERmbwas7MQcmQlNWrlGuSUsCGaMnXG6hsIEtE8oKQNYeIfs1+cf8SlXnCLIX3RL350OU9O5Ol4VbfcDmZF7IAfHhMeJhlwWtiuWilkn4i7WTfJuQVF0/DP0I1QSQjFZdI4aMLoVNPX+roT5xTIXmq3t201G6Qm9chrS5gmBjQIRbkzkd3Y6ydL/ZuFQEd+ZIdkD+ZJS5trSFR63yamu6vvp61ccrssAgbi1gtcuqfBhlOYCbBOl7dxNofkfmXFpbnfJ6NL36n6ZJ4zSzjRAXZTwwm8f74jWUvi9W4sk1TnP6HZIV4F98WI9k5/gH+dBH4GzqhI+puhSOucO/1E4GfEmebIrW3Zp2B4XFywXm7bKKWQFN0fugfNrAljAL6mmAGYshB0BtDtaMLXAFjwvwq1eaizfsSaCkT7d+3BkCUsqBUQ7a+bK8L5q4CZWyII5RmSrhelh9hYNxc9hV+vMmm0nZgXND5NA+wjONRHRhesW6jUtoNHzizVldAZF2DUJvxJrznhKZk/Im0/+PYmE2yR14dwyhRTgPKxBN9h9gUNsOmdHb0eaPJJB/CtamsWfFFHqD7SHGJLRT7i5z7XjD14H8nnSxT3wYk=
+#    - secure: jsUHuR3SrkIyOVl6Y6yggbSPeyHIyLTqKbs3G9pRHCr9TZZEpQ5ACvJA1WnUnBT/0GOivvmO7EERmbwas7MQcmQlNWrlGuSUsCGaMnXG6hsIEtE8oKQNYeIfs1+cf8SlXnCLIX3RL350OU9O5Ol4VbfcDmZF7IAfHhMeJhlwWtiuWilkn4i7WTfJuQVF0/DP0I1QSQjFZdI4aMLoVNPX+roT5xTIXmq3t201G6Qm9chrS5gmBjQIRbkzkd3Y6ydL/ZuFQEd+ZIdkD+ZJS5trSFR63yamu6vvp61ccrssAgbi1gtcuqfBhlOYCbBOl7dxNofkfmXFpbnfJ6NL36n6ZJ4zSzjRAXZTwwm8f74jWUvi9W4sk1TnP6HZIV4F98WI9k5/gH+dBH4GzqhI+puhSOucO/1E4GfEmebIrW3Zp2B4XFywXm7bKKWQFN0fugfNrAljAL6mmAGYshB0BtDtaMLXAFjwvwq1eaizfsSaCkT7d+3BkCUsqBUQ7a+bK8L5q4CZWyII5RmSrhelh9hYNxc9hV+vMmm0nZgXND5NA+wjONRHRhesW6jUtoNHzizVldAZF2DUJvxJrznhKZk/Im0/+PYmE2yR14dwyhRTgPKxBN9h9gUNsOmdHb0eaPJJB/CtamsWfFFHqD7SHGJLRT7i5z7XjD14H8nnSxT3wYk=
   matrix:
 #    - NO_OCI=false
     - NO_OCI=true
@@ -39,7 +39,7 @@ install:
 #  - sudo dpkg -i oracle-instantclient12.1-devel_12.1.0.2.0-2_amd64.deb
 
 script:
-  - export ERL_INTERFACE_DIR=$(ls -d /home/travis/otp/${TRAVIS_OTP_RELEASE}/lib/erl_interface-*)
+#  - export ERL_INTERFACE_DIR=$(ls -d /home/travis/otp/${TRAVIS_OTP_RELEASE}/lib/erl_interface-*)
 #  - export INSTANT_CLIENT_LIB_PATH="/usr/lib/oracle/12.1/client64/lib/"
 #  - export INSTANT_CLIENT_INCLUDE_PATH="/usr/include/oracle/12.1/client64/"
 
@@ -49,6 +49,6 @@ script:
   - ./rebar3 cover
   - ./rebar3 as test coveralls send
 # - ./rebar3 dialyzer                     % TBD, currently ===> Warnings occurred running dialyzer: 352.
-  - ./rebar3 as test geas
-  - ./rebar3 as prod release
+#  - ./rebar3 as test geas
+#  - ./rebar3 as prod release
 #  - ./rebar3 as prod erlpkg

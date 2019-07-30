@@ -49,6 +49,12 @@ div#users-contain table td, div#users-contain table th { border: 1px solid #eee;
     margin-top: -0.5em;
 }
 
+/* Notification icon top bar */
+#beep-notification {
+    margin-right: 10px;
+    display: none;
+}
+
 .button-dialog-connect.ui-icon[class*=" fa-"] {
     font-size: 1.5em;
 }

@@ -3,6 +3,26 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.5.1 (Release Date 28.06.2019)
+======================================
+* Updated esaml to version 2.3.0
+
+Version 3.5.0 (Release Date 17.06.2019)
+======================================
+* Cookie with node instead of app
+* Replaced no result sound with visual indication
+* Updated jquery to 3.4.1
+
+Version 3.4.1 (Release Date 30.04.2019)
+======================================
+* Imem version 3.4.1
+
+Version 3.4.0 (Release Date 18.04.2019)
+======================================
+* Imem version 3.4.0
+* Git source diff functionality
+* http interface in imem_client
+
 Version 3.3.2 (Release Date 20.03.2019)
 ======================================
 * Imem version 3.3.2

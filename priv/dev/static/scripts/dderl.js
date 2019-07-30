@@ -31,6 +31,7 @@ export var dderlState = {
     app: "",
     vsn: "",
     node: "",
+    host: "",
     rowNumLimit: 10000
 };
 
@@ -405,48 +406,14 @@ export function show_about_dlg() {
     });
 }
 
+let beepTimeout;
 export function beep() {
-    var beepStorage = sessionStorage.getItem("beep-sound");
-    var beep = $("#beep-sound")[0];
-
-    if (beepStorage) {
-        // Reuse existing Data URL from sessionStorage
-        beep.setAttribute("src", beepStorage);
-        beep.load();
-        beep.play();
-    } else if (typeof(FileReader) === "function" && beep.currentSrc) { //I.E. 9 doesn't support FileReader
-        // Create XHR and FileReader objects
-        var xhr = new XMLHttpRequest();
-        var fileReader = new FileReader();
-
-        xhr.open("GET", beep.currentSrc, true);
-        // Set the responseType to blob
-        xhr.responseType = "blob";
-
-        xhr.addEventListener("load", function () {
-            if (xhr.status === 200) {
-                // onload needed since Google Chrome doesn't support addEventListener for FileReader
-                fileReader.onload = function (evt) {
-                    // Read out file contents as a Data URL
-                    var result = evt.target.result;
-                    beep.setAttribute("src", result);
-                    // Store Data URL in sessionStorage
-                    try {
-                        sessionStorage.setItem("beep-sound", result);
-                    }
-                    catch (e) {
-                        console.log("Storage failed: " + e);
-                    }
-                };
-                // Load blob as Data URL
-                fileReader.readAsDataURL(xhr.response);
-            }
-        }, false);
-        // Send XHR
-        xhr.send();
-        beep.load();
-        beep.play();
-    }
+    let notificationEl = document.getElementById('beep-notification');
+    notificationEl.style.display = 'inline-block';
+    if(beepTimeout) { clearTimeout(beepTimeout); }
+    beepTimeout = setTimeout(() => {
+        notificationEl.style.display = 'none';
+    }, 1000);
 }
 
 $(".grid-header .g-ui-icon").addClass("ui-state-default ui-corner-all");
