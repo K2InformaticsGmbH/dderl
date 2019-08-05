@@ -185,7 +185,9 @@ dderltstz_to_ora(Value) ->
     end.
 
 -spec format_tz(integer(), integer()) -> list().
-format_tz(TZOffset, M) when TZOffset >= 0 ->
+format_tz(TZOffset, M) when TZOffset > 0 ->
+    [$+, pad_tz(TZOffset), integer_to_list(TZOffset), $:, pad_tz(M-60), integer_to_list(M-60)];
+format_tz(TZOffset, M) when TZOffset =:= 0, M >= 60 ->
     [$+, pad_tz(TZOffset), integer_to_list(TZOffset), $:, pad_tz(M-60), integer_to_list(M-60)];
 format_tz(TZOffset, M) ->
     AbsOffset = abs(TZOffset),
