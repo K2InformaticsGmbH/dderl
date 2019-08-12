@@ -448,9 +448,13 @@ process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_},
     act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
     [{<<"activate_sender">>, BodyJson}] = jsx:decode(ReqData),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
+    SenderType = binary_to_existing_atom(proplists:get_value(<<"sender_type">>, BodyJson, <<"table">>), utf8),
+    Data = case SenderType of
+        stats -> proplists:get_value(<<"data">>, BodyJson, []);
+        table -> proplists:get_value(<<"column_positions">>, BodyJson, [])
+    end,
     %% TODO: Add options to override default parameters
-    case dderl_data_sender_sup:start_sender(Statement, ColumnPositions) of
+    case dderl_data_sender_sup:start_sender(Statement, Data, SenderType) of
         {ok, Pid} ->
             reply(From, [{<<"activate_sender">>, <<"ok">>}], self()),
             State#state{active_sender = Pid};

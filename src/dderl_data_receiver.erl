@@ -49,8 +49,10 @@ start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
 get_status(ReceiverPid, ReplyToPid) ->
     gen_server:cast(ReceiverPid, {status, ReplyToPid}).
 
--spec data_info(pid(), {[#stmtCol{}], non_neg_integer()}) -> ok.
+-spec data_info(pid(), {[#stmtCol{}], non_neg_integer()} | {stats, non_neg_integer(), non_neg_integer()}) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
+    gen_server:cast(ReceiverPid, {data_info, DataInfo});
+data_info(ReceiverPid, {stats, _ColumnCount, _Size} = DataInfo) ->
     gen_server:cast(ReceiverPid, {data_info, DataInfo}).
 
 -spec data(pid(), list() | '$end_of_table') -> ok.
@@ -84,6 +86,18 @@ handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Erro
     Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}, {<<"continue">>, true}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
+handle_cast({data_info, {stats, SndColsCount, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
+    {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
+    if
+        length(ColumnPos) =:= SndColsCount ->
+            Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SndColsCount}],
+            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
+            dderl_data_sender:fetch_first_block(SenderPid),
+            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
+        true ->
+            BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
+            {stop, {shutdown, <<"Columns mismatch">>}, State}
+    end;
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
     {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),

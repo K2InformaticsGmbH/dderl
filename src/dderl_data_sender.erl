@@ -4,7 +4,7 @@
 -include("dderl.hrl").
 -include_lib("imem/include/imem_meta.hrl"). %% Included for config access
 
--export([start_link/2
+-export([start_link/3
         ,connect/2
         ,get_data_info/1
         ,fetch_first_block/1
@@ -25,6 +25,8 @@
                ,nav              :: raw | ind
                ,continuation     :: ets:continuation()
                ,skip             :: non_neg_integer()
+               ,type             :: table | stats
+               ,data             :: [list()]
                ,row_fun          :: fun()
                ,fsm_monitor      :: reference()
                ,receiver_pid     :: pid()
@@ -39,10 +41,10 @@
 % fetch_first_block: Async request, to initialize the data request process
 % more_data : Async request of a block of data.
 
--spec start_link({atom(), pid()}, [integer()]) -> {ok, pid()} | {error, term()} | ignore.
-start_link(Statement, ColumnPositions) ->
+-spec start_link({atom(), pid()}, [integer()] | [list()], table | stats) -> {ok, pid()} | {error, term()} | ignore.
+start_link(Statement, Data, Type) ->
     ?Info("~p starting...~n", [?MODULE]),
-	case gen_server:start_link(?MODULE, [Statement, ColumnPositions], []) of
+    case gen_server:start_link(?MODULE, [Statement, Data, Type], []) of
         {ok, _} = Success ->
             ?Info("~p started!~n", [?MODULE]),
             Success;
@@ -68,13 +70,16 @@ more_data(SenderPid) ->
     gen_server:cast(SenderPid, more_data).
 
 %% Gen server callbacks
-init([{dderl_fsm, StmtPid} = Statement, ColumnPositions]) ->
+init([{dderl_fsm, StmtPid} = Statement, ColumnPositions, table]) ->
     FsmMonitorRef = erlang:monitor(process, StmtPid),
     State = #state{statement   = Statement
                   ,column_pos  = ColumnPositions
                   ,fsm_monitor = FsmMonitorRef
+                  ,type        = table
                   ,skip        = 0},
-    {ok, State, ?CONNECT_TIMEOUT}.
+    {ok, State, ?CONNECT_TIMEOUT};
+init([_Stmt, Data, stats]) ->
+    {ok, #state{data = Data, type = stats, skip = 0}}.
 
 handle_call({connect, ReceiverPid}, _From, #state{receiver_monitor = undefined} = State) ->
     ?Info("Connect request received from ~p", [ReceiverPid]),
@@ -87,6 +92,9 @@ handle_call(Req, _From, State) ->
     ?Info("~p received Unexpected call ~p", [self(), Req]),
     {reply, {not_supported, Req}, State}.
 
+%% Stats process separatelly as data is in the state.
+handle_cast(Cmd, #state{type = stats} = State) ->
+    process_stats_cmd(Cmd, State);
 handle_cast(get_data_info, #state{statement = Statement, receiver_pid = ReceiverPid, column_pos = ColumnPos} = State) ->
     %% TODO: Maybe we will need sql to check for same table sender-receiver.
     {TableId, IndexId, Nav, RowFun, Columns} = Statement:get_sender_params(),
@@ -171,3 +179,22 @@ retry_more_data(#state{statement = {_, StmtFsmPid}} = State) ->
         _ -> timer:sleep(500), %% retry after 0.5 seconds.
             more_data(self())
     end.
+
+%% Stats process data functions.
+process_stats_cmd(get_data_info, #state{receiver_pid = ReceiverPid, data = Data} = State) ->
+    [R0 | _] =  Data, %Get first row to count the columns.
+    dderl_data_receiver:data_info(ReceiverPid, {stats, length(R0), length(Data)}),
+    {noreply, State};
+process_stats_cmd(Cmd, #state{receiver_pid=ReceiverPid, data=Data}=State) when
+        Cmd =:= fetch_first_block; Cmd =:= more_data ->
+    case lists:split(erlang:min(length(Data), ?BLOCK_SIZE), Data) of
+        {[], _} ->
+            dderl_data_receiver:data(ReceiverPid, '$end_of_table'),
+            {noreply, State#state{data=[]}};
+        {Rows, Rest} ->
+            dderl_data_receiver:data(ReceiverPid, Rows),
+            {noreply, State#state{data=Rest}}
+    end;
+process_stats_cmd(Req, State) ->
+    ?Info("~p received unknown cast ~p", [self(), Req]),
+    {noreply, State}.
