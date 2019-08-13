@@ -908,7 +908,10 @@ import * as tableSelection from './table-selection';
         if(activationResult.hasOwnProperty('error')) {
             alert_jq(activationResult.error);
         } else {
-            alert_jq("sender activated");
+            let dlg = alert_jq("Sender activated, it will wait for up to 100 seconds for a receiver");
+            setTimeout(() => {
+                dlg.dialog("close");
+            }, 5000);
         }
     },
 
