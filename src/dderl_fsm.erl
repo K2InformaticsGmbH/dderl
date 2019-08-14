@@ -187,12 +187,12 @@ start_link(#fsmctxs{} = FsmCtxs, SessPid) ->
 -spec fsm_ctx(#fsmctxs{}) -> #ctx{}.
 fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
                 , stmtTables                 = StmtTables
-                , fetch_recs_async_funs      = Fraf
-                , fetch_close_funs           = Fcf
-                , stmt_close_funs            = Scf
-                , filter_and_sort_funs       = Fasf
-                , update_cursor_prepare_funs = Ucpf
-                , update_cursor_execute_funs = Ucef
+                , fetch_recs_async_funs      = Frafs
+                , fetch_close_funs           = Fcfs
+                , stmt_close_funs            = Scfs
+                , filter_and_sort_funs       = Fasfs
+                , update_cursor_prepare_funs = Ucpfs
+                , update_cursor_execute_funs = Ucefs
                 , orig_qry                   = Qry
                 , rowCols                    = RowCols
                 , rowFun                     = RowFun
@@ -203,12 +203,12 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
                 }) ->
     #ctx{ stmtRefs                  = StmtRefs
         , stmtTables                = StmtTables
-        , fetch_recs_async_funs     = Fraf
-        , fetch_close_funs          = Fcf
-        , stmt_close_funs           = Scf
-        , filter_and_sort_funs      = Fasf
-        , update_cursor_prepare_funs= Ucpf
-        , update_cursor_execute_funs= Ucef
+        , fetch_recs_async_funs     = Frafs
+        , fetch_close_funs          = Fcfs
+        , stmt_close_funs           = Scfs
+        , filter_and_sort_funs      = Fasfs
+        , update_cursor_prepare_funs= Ucpfs
+        , update_cursor_execute_funs= Ucefs
         , orig_qry                  = Qry
         , rowCols                   = RowCols
         , rowFun                    = RowFun
@@ -308,12 +308,17 @@ get_receiver_params({?MODULE, Pid}) ->
 cache_data({?MODULE, Pid}) ->
     gen_statem:call(Pid, cache_data).
 
--spec rows({_, _}, {atom(), pid()}) -> ok.
-rows({error, _} = Error, {?MODULE, Pid}) ->
-    gen_statem:cast(Pid, Error);
-rows({StmtRef,Rows,Completed},{?MODULE,Pid}) ->
+-spec rows({pid(), {_, _}} | {_, _}, {atom(), pid()}) -> ok.
+rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
+    gen_statem:cast(Pid, {StmtRef,Error});
+rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) ->       % from erlimem/imem_server
     ?Info("dderl_fsm:rows ~p ~p ~p", [StmtRef, length(Rows), Completed]),
-    gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}}).
+    gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
+rows({error, _} = Error, {?MODULE, Pid}) ->             % from dderloci (single source)
+    gen_statem:cast(Pid, {self(),Error});
+rows({Rows,Completed},{?MODULE,Pid}) ->                 % from dderloci (single source)
+    ?Info("dderl_fsm:rows ~p ~p ~p", [self(), length(Rows), Completed]),
+    gen_statem:cast(Pid,{rows, {self(),Rows,Completed}}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
@@ -327,22 +332,22 @@ delete({Rows,Completed},{?MODULE,Pid}) ->
 fetch(FetchMode,TailMode, #state{ bufCnt=Count
                                 , lastFetchTime=FetchTime0
                                 , fetchResults=FetchResults
-                                , ctx=#ctx{fetch_recs_async_funs=Fraf}}=State0) ->
+                                , ctx=#ctx{fetch_recs_async_funs=Frafs}}=State0) ->
     Opts = case {FetchMode,TailMode} of
         {none,none} ->    [];
         {FM,none} ->      [{fetch_mode,FM}];
         {FM,TM} ->        [{fetch_mode,FM},{tail_mode,TM}]
     end,
     FetchTime1 = case FetchTime0 of
-        undefined -> os:system_time(milli_seconds);
+        undefined -> erlang:system_time(milli_seconds);
         FetchTime0 -> FetchTime0
     end,
-    Result = [F(Opts, Count) || F <- Fraf],
+    Results = [F(Opts, Count) || F <- Frafs],  % ToDo: skip fetch depending on erlier results 
     %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
     %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
-    case lists:usort(Result) of
+    case lists:usort(Results) of
         [ok] -> ok;
-        _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Result])
+        _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Results])
     end,
     State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1}.
 
@@ -655,7 +660,7 @@ empty(cast, {button, <<"...">>, ReplyTo}, State0) ->
     State1 = fetch(skip,true, State0#state{tailMode=true,tailLock=false}),
     {next_state, tailing, State1#state{stack={button,<<"...">>,ReplyTo}}};
 empty(cast, {button, <<"pt">>, ReplyTo}, #state{nav=ind}=State0) ->
-    % reject command because of uncommitted changes
+    % reject passthrough command because of uncommitted changes
     State1 = gui_nop(#gres{state=empty,beep=true,message= ?PtNoSort},State0#state{replyToFun=ReplyTo}),
     {next_state, empty, State1};
 empty(cast, {button, <<"pt">>, ReplyTo}, State0) ->
@@ -778,7 +783,7 @@ filling(cast, {rows, {StmtRef,Recs,false}}, #state{stack={button,Button,_}}=Stat
         true ->                     State1
     end,
     {next_state, filling, State2};
-filling(cast, {rows, {Recs,false}}, State0) ->
+filling(cast, {rows, {StmtRef,Recs,false}}, State0) ->
     % receive and store data, no prefetch needed here
     State1 = data_append(filling, {Recs,false},State0),
     %TODO: This needs to be analyzed
@@ -952,19 +957,6 @@ tailing(cast, {button, <<">|">>, ReplyTo}, State0) ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"">>, State1),
     {next_state, tailing, State2#state{tailLock=true}};
-% tailing(cast, {rows, {StmtRef,[Rec],tail}}, #state{bl=BL,tailLock=false,rawCnt=RawCnt,tableId=TableId}=State0) when RawCnt =< BL->
-%     % ?Info("tracking -- row~n", []),
-%     PKey = guard_wrap(element(2,element(1,Rec))),
-%     case ets:select(TableId,[{'$1',[{'==',{element,2,{element,1,{element,3,'$1'}}},PKey}],['$_']}]) of
-%         [Row] ->
-%             ?Info("insert tracking -- row~n~p~n", [Row]),
-%             State1 = data_append(tailing,{[Rec],tail},State0),      %% REPLACE $$$$$$$$$
-%             {next_state, tailing, State1#state{pfc=0}};             %% REPLACE $$$$$$$$$
-%         _ ->
-%             ?Info("fallback to tailing -- row~n~p~n", [Rec]),
-%             State1 = data_append(tailing,{[Rec],tail},State0),
-%             {next_state, tailing, State1#state{pfc=0}}
-%     end;
 tailing(cast, {button, <<"stop">>, ReplyTo}, State0) ->
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -1755,6 +1747,11 @@ sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT)
 %%          {next_state, NextSN, NextStateData, Timeout} |
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
+handle_info({StmtRef,{error,Reason}}, SN, State) ->
+    ?Info("dderl_fsm:handle_info from ~p ~p",[StmtRef, {error,Reason}]),
+    Fsm = {?MODULE,self()},
+    Fsm:rows({StmtRef,{error,Reason}}),
+    {next_state, SN, State};
 handle_info({StmtRef,{Rows,Completed}}, SN, State) ->
     ?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[StmtRef, length(Rows), Completed]),
     Fsm = {?MODULE,self()},
@@ -1793,12 +1790,6 @@ code_change(_OldVsn, SN, StateData, _Extra) ->
 %% --------------------------------------------------------------------
 %%% Internal functions
 %% --------------------------------------------------------------------
-
-% guard_wrap(L) when is_list(L) ->
-%     [guard_wrap(Item) || Item <- L];
-% guard_wrap(T) when is_tuple(T) ->
-%     {const,list_to_tuple(guard_wrap(tuple_to_list(T)))};
-% guard_wrap(E) -> E.
 
 -spec gui_max(integer()) -> integer().
 gui_max(BL) when BL < 10 -> 30;
@@ -2298,7 +2289,7 @@ serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
 serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
-        Lft -> os:system_time(milli_seconds) - Lft
+        Lft -> erlang:system_time(milli_seconds) - Lft
     end,
     case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
         true ->
@@ -2320,7 +2311,7 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
 serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
-        Lft -> os:system_time(milli_seconds) - Lft
+        Lft -> erlang:system_time(milli_seconds) - Lft
     end,
     case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
         true ->
