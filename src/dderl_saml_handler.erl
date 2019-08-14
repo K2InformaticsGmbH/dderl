@@ -14,19 +14,23 @@
 -define(CERTKEYCACHE, samlCertKey).
 
 init(Req0, Args) ->
-    App = case Args of 
-        #{app := Application} -> Application;
-        _ -> dderl
-    end,
-    Req = ?COW_REQ_SET_META(App, reqTime, os:timestamp(), Req0),
-    Req1 = ?COW_REQ_SET_META(App, accessLog, #{}, Req),
-    HostUrl = iolist_to_binary(cowboy_req:uri(Req1, #{path => undefined, qs => undefined})),
-    Url = iolist_to_binary(cowboy_req:uri(Req1)),
-    {SP, IdpMeta} = initialize(HostUrl, Url),
-    Method = cowboy_req:method(Req1),
-    process_req(Method, Req1, #state{sp = SP, idp = IdpMeta, app = App}).
+    case cowboy_req:method(Req0) of
+        <<"POST">> ->
+            App = case Args of
+                #{app := Application} -> Application;
+                _ -> dderl
+            end,
+            Req = ?COW_REQ_SET_META(App, reqTime, os:timestamp(), Req0),
+            Req1 = ?COW_REQ_SET_META(App, accessLog, #{}, Req),
+            HostUrl = iolist_to_binary(cowboy_req:uri(Req1, #{path => undefined, qs => undefined})),
+            Url = iolist_to_binary(cowboy_req:uri(Req1)),
+            {SP, IdpMeta} = initialize(HostUrl, Url),
+            process_req(Req1, #state{sp = SP, idp = IdpMeta, app = App});
+        _ ->
+            {ok, unauthorized(Req0), Args}
+    end.
 
-process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
+process_req(Req, S = #state{sp = SP}) ->
     case esaml_cowboy:validate_assertion(SP, fun esaml_util:check_dupe_ets/2, Req) of
         {ok, Assertion, RelayState, Req1} ->
             Fun = binary_to_term(base64:decode(http_uri:decode(binary_to_list(RelayState)))),
@@ -34,7 +38,7 @@ process_req(<<"POST">>, Req, S = #state{sp = SP}) ->
             {cowboy_loop, Req1, S, hibernate};
         {error, Reason, Req2} ->
             Req3 = unauthorized(Req2),
-            ?Error("SAML - Auth error : ~p", [Reason]),
+            ?Warn("SAML - Auth error : ~p", [Reason]),
             {ok, Req3, S}
     end.
 
