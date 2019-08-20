@@ -401,7 +401,8 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
                                     fullName => A#ddAdapter.fullName
                                 } || A <- Adapters
                             ],
-                        connections => Connections
+                        connections => Connections,
+                        classes => ?CONN_ClASS
                     },
                     #{connect_info =>
                       CInfo#{connections =>
@@ -441,6 +442,13 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, {SrcIp,_},
         Error -> [{<<"error">>, list_to_binary(lists:flatten(io_lib:format("~p", [Error])))}]
     end,
     reply(From, [{<<"del_con">>, Resp}], self()),
+    State;
+
+process_call({[<<"background_color">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "background_color", args => ReqData}, State),
+    [{<<"background_color">>, BodyJson}] = jsx:decode(ReqData),
+    Class = binary_to_existing_atom(proplists:get_value(<<"class">>, BodyJson, <<"prod">>), utf8),
+    reply(From, [{<<"background_color">>, ?BACKGROUND_COLOR(Class)}], self()),
     State;
 
 process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_},

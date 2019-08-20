@@ -175,6 +175,13 @@
 %% TODO: Timeout should be defined by options
 -define(RESPONSE_TIMEOUT, ?GET_CONFIG(responseTimeout,[],100000,"Response timeout of data receiver")).
 
+%% Background color per connection configurations.
+-define(CONN_ClASS, ?GET_CONFIG(connectionClasses,[],[test,mgmt,stag,inte,prod],
+                "Connection class used to get the background color used")).
+-define(BACKGROUND_COLOR(__ConnClass),
+        ?GET_CONFIG(backgroundColor, [__ConnClass], <<"rgb(220,220,220)">>,
+                "Background color of dderl for a particular connection class")).
+
 %% OCI Adapter configs
 -define(NLSLANG, ?GET_CONFIG(nls_lang, [], #{language   => <<"GERMAN">>,
                                             territory   => <<"SWITZERLAND">>,
