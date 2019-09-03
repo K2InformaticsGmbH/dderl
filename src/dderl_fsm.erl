@@ -311,14 +311,16 @@ cache_data({?MODULE, Pid}) ->
 -spec rows({pid(), {_, _}} | {_, _}, {atom(), pid()}) -> ok.
 rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
     gen_statem:cast(Pid, {StmtRef,Error});
-rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) ->       % from erlimem/imem_server
+rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
     ?Info("dderl_fsm:rows ~p ~p ~p", [StmtRef, length(Rows), Completed]),
     gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
-rows({error, _} = Error, {?MODULE, Pid}) ->             % from dderloci (single source)
-    gen_statem:cast(Pid, {self(),Error});
-rows({Rows,Completed},{?MODULE,Pid}) ->                 % from dderloci (single source)
+rows({Rows,Completed},{?MODULE,Pid}) when is_list(Rows) ->  % from dderloci (single source)
     ?Info("dderl_fsm:rows ~p ~p ~p", [self(), length(Rows), Completed]),
-    gen_statem:cast(Pid,{rows, {self(),Rows,Completed}}).
+    gen_statem:cast(Pid,{rows, {self(),Rows,Completed}});
+rows({StmtRef, Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
+    gen_statem:cast(Pid, {StmtRef,{error,Error}});
+rows(Error, {?MODULE, Pid}) ->             % from dderloci (single source)
+    gen_statem:cast(Pid, {self(),Error}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
 rows_limit(NRows, Recs, {?MODULE, Pid}) ->
@@ -339,8 +341,8 @@ fetch(FetchMode,TailMode, #state{ bufCnt=Count
         {FM,TM} ->        [{fetch_mode,FM},{tail_mode,TM}]
     end,
     FetchTime1 = case FetchTime0 of
-        undefined -> erlang:system_time(milli_seconds);
-        FetchTime0 -> FetchTime0
+        undefined ->    erlang:system_time(millisecond);
+        FetchTime0 ->   FetchTime0
     end,
     Results = [F(Opts, Count) || F <- Frafs],  % ToDo: skip fetch depending on erlier results 
     %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
@@ -350,6 +352,14 @@ fetch(FetchMode,TailMode, #state{ bufCnt=Count
         _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Results])
     end,
     State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1}.
+
+fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults) ->
+    fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults, []).
+
+fetch_loop(O, C, [], [], [], Acc) -> lists:reverse(Acc);
+fetch_loop(O, C, [StmtRef|StmtRefs], [F|Frafs], [FR|FetchResults], Acc) when FR==undefined;FR==->
+
+
 
 -spec prefetch(atom(), #state{}) -> #state{}.
 prefetch(filling,#state{pfc=0}=State) ->  fetch(none,none,State);
@@ -1173,7 +1183,7 @@ passthrough(cast, {button, <<"stop">>, ReplyTo}, State0) ->
 passthrough(cast, {delete, {Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete,del},State0),
     {next_state, passthrough, State1#state{pfc=0}};
-passthrough(cast, {rows, {StmtRef,Recs,Complete}}, State0) ->
+passthrough(cast, {rows, {_StmtRef,Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete},State0),
     {next_state, passthrough, State1#state{pfc=0}};
 passthrough({call, From}, Msg, State) ->
