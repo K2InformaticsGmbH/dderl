@@ -377,10 +377,24 @@ prefetch(filling,State) ->                State;
 prefetch(_,State) ->                      State.
 
 -spec fetch_close(#state{}) -> #state{}.
-fetch_close(#state{ctx = #ctx{fetch_close_funs = Fcf}}=State) ->
-    Result = [F() || F <- Fcf],
-    ?NoDbLog(debug, [], "fetch_close -- ~p", [Result]),
-    State#state{pfc=0}.
+fetch_close(#state{fetchResults=FetchResults, ctx = #ctx{fetch_close_funs = Fcf}}=State) ->
+    NewFetchResults = [fetch_close_if_open(S,F) || {S,F} <- lists:zip(FetchResults, Fcf)],
+    State#state{pfc=0, fetchResults=NewFetchResults}.
+
+fetch_close_if_open(ok, FetchCloseFun) -> 
+    FetchCloseFun(),
+    closed;
+fetch_close_if_open(S, _FetchCloseFun) -> S.
+
+-spec fetch_close(pid(), #state{}) -> #state{}.
+fetch_close(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtRefs, fetch_close_funs=Fcf}} = State) ->
+    NewFetchResults = [fetch_close_if_open(StmtRef,P,S,F) || {P,S,F} <- lists:zip(StmtRefs,FetchResults,Fcf)],
+    State#state{pfc=0, fetchResults=NewFetchResults}.
+
+fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> 
+    FetchCloseFun(),
+    closed;
+fetch_close_if_open(_StmtRef, _, S, _FetchCloseFun) -> S.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
 filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_funs = Fasf}}) ->
@@ -815,9 +829,10 @@ filling(cast, {rows, {StmtRef,Recs,false}}, State0) ->
     %    true ->                     State1
     %end,
     {next_state, filling, State1};
-filling(cast, {rows, {StmtRef,Recs,true}}, State0) ->
-    % receive and store data, close the fetch and switch state, no prefetch needed here
-    State1 = fetch_close(State0),
+filling(cast, {rows, {StmtRef,Recs,true}}, #state{}=State0) ->
+    % receive and store data
+    % if this is the last open fetch then close the fetch and switch state, no prefetch needed here
+    State1 = fetch_close(StmtRef, State0),
     State2 = data_append(completed, {Recs,true},State1),
     {next_state, completed, State2};
 filling({call, From}, Msg, State) ->
@@ -903,7 +918,7 @@ autofilling(cast, {rows, {StmtRef,Recs,false}}, State0) ->
     {next_state, autofilling, State1#state{pfc=0}};
 autofilling(cast, {rows, {StmtRef,Recs,true}}, #state{tailMode=false}=State0) ->
     % revceive and store last input from DB, close fetch, switch state
-    State1 = fetch_close(State0),
+    State1 = fetch_close(StmtRef, State0),
     State2 = data_append(completed,{Recs,true},State1),
     {next_state, completed, State2#state{pfc=0}};
 autofilling(cast, {rows, {StmtRef,Recs,true}}, State0) ->
