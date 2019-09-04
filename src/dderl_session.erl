@@ -640,7 +640,14 @@ process_call({Cmd, ReqData}, Adapter, From, {SrcIp,_}, #state{sess = Sess, user_
     State.
 
 spawn_process_call(Adapter, CurrentPriv, From, Cmd, BodyJson, Sess, UserId, SelfPid) ->
-    try
+    try 
+        ?Info("Adapter ~p",[Adapter]),
+        ?Info("CurrentPriv ~p",[CurrentPriv]),
+        ?Info("Cmd ~p",[Cmd]),
+        ?Info("BodyJson ~p",[BodyJson]),
+        ?Info("Sess ~p",[Sess]),
+        ?Info("UserId ~p",[UserId]),
+        ?Info("SelfPid ~p",[SelfPid]),
         Adapter:process_cmd({Cmd, BodyJson}, Sess, UserId, From, CurrentPriv, SelfPid),
         SelfPid ! rearm_session_idle_timer
     catch Class:Error ->

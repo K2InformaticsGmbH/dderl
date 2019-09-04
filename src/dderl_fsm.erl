@@ -353,11 +353,11 @@ fetch(FetchMode,TailMode, #state{ bufCnt=Count
     end,
     State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1}.
 
-fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults) ->
-    fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults, []).
+% fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults) ->
+%     fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults, []).
 
-fetch_loop(O, C, [], [], [], Acc) -> lists:reverse(Acc);
-fetch_loop(O, C, [StmtRef|StmtRefs], [F|Frafs], [FR|FetchResults], Acc) when FR==undefined;FR==->
+% fetch_loop(O, C, [], [], [], Acc) -> lists:reverse(Acc);
+% fetch_loop(O, C, [StmtRef|StmtRefs], [F|Frafs], [FR|FetchResults], Acc) when FR==undefined;FR==->
 
 
 
