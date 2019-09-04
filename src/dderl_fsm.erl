@@ -344,22 +344,32 @@ fetch(FetchMode,TailMode, #state{ bufCnt=Count
         undefined ->    erlang:system_time(millisecond);
         FetchTime0 ->   FetchTime0
     end,
-    Results = [F(Opts, Count) || F <- Frafs],  % ToDo: skip fetch depending on erlier results 
+    % Results = [F(Opts, Count) || F <- Frafs],  % ToDo: skip fetch depending on erlier results
+    NewFetchResults = fetch_loop(Opts, Count, Frafs, FetchResults),
     %% driver session maps to imem_sec:fetch_recs_async(SKey, Opts, Pid, Sock)
     %% driver session maps to imem_meta:fetch_recs_async(Opts, Pid, Sock)
-    case lists:usort(Results) of
-        [ok] -> ok;
-        _ ->    ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, Results])
+    case lists:member(error, NewFetchResults) of
+        false ->    ok;
+        true ->     ?Error("fetch(~p, ~p) -> ~p", [FetchMode, TailMode, NewFetchResults])
     end,
-    State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1}.
+    State0#state{pfc=State0#state.pfc+1, lastFetchTime=FetchTime1, fetchResults=NewFetchResults}.
 
-% fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults) ->
-%     fetch_loop(Opts, Count, StmtRefs, Frafs, FetchResults, []).
+fetch_loop(Opts, Count, Frafs, FetchResults) ->
+    fetch_loop(Opts, Count, Frafs, FetchResults, []).
 
-% fetch_loop(O, C, [], [], [], Acc) -> lists:reverse(Acc);
-% fetch_loop(O, C, [StmtRef|StmtRefs], [F|Frafs], [FR|FetchResults], Acc) when FR==undefined;FR==->
-
-
+fetch_loop(_, _, [], [], Acc) -> lists:reverse(Acc);
+fetch_loop(O, C, [_|Frafs], [complete|FetchResults], Acc) ->
+    fetch_loop(O, C, Frafs, FetchResults, [complete|Acc]);
+fetch_loop(O, C, [_|Frafs], [error|FetchResults], Acc) ->
+    fetch_loop(O, C, Frafs, FetchResults, [complete|Acc]);
+fetch_loop(O, C, [F|Frafs], [FR|FetchResults], Acc) when FR==undefined;FR==ok ->
+    case F(O, C) of
+        ok ->
+            fetch_loop(O, C, Frafs, FetchResults, [ok|Acc]);
+        Error ->
+            ?Info("Fetch error ~p",[Error]),
+            fetch_loop(O, C, Frafs, FetchResults, [error|Acc])
+    end.
 
 -spec prefetch(atom(), #state{}) -> #state{}.
 prefetch(filling,#state{pfc=0}=State) ->  fetch(none,none,State);
