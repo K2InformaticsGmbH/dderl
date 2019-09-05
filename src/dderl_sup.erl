@@ -38,6 +38,7 @@ init([]) ->
           [?CHILD(dderloci_sup, supervisor, []),
            ?CHILD(dderl_dal, worker, []),
            ?CHILD(dderl_rest, worker, []),
+           ?CHILD(dderl_metrics, worker, []),
            ?CHILD(dderl_session_sup, supervisor, []),
            ?CHILD(dderl_data_sender_sup, supervisor, []),
            ?CHILD(dderl_data_receiver_sup, supervisor, [])]}}.
