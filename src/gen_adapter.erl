@@ -125,7 +125,10 @@ process_cmd({[<<"parse_stmt">>], ReqBody}, Adapter, _Sess, _UserId, From, _Priv)
                             end}]),
                             From ! {reply, ParseStmt};
                         Flat ->
-                            [{ParseTree, _}] = ParseTrees,
+                            ParseTree = case ParseTrees of
+                                [{PT, _}] -> PT;
+                                {plsql_body, _} = PT -> PT
+                            end,
                             SqlTitle = get_sql_title(ParseTree),
                             FlatTuple = {<<"flat">>, Flat},
                             PrettyTuple = get_pretty_tuple(ParseTree, Adapter),
@@ -788,6 +791,8 @@ get_sql_title({select, Args}) ->
     Result;
 get_sql_title(_) -> <<>>.
 
+ptlist_to_string(ParseTree, Opts) when is_tuple(ParseTree) ->
+    sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, Opts);
 ptlist_to_string([{ParseTree,_}], Opts) ->
     sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, Opts);
 ptlist_to_string(Input, Opts) when is_list(Input) ->
