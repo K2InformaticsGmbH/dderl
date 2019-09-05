@@ -791,7 +791,7 @@ get_sql_title({select, Args}) ->
     Result;
 get_sql_title(_) -> <<>>.
 
-ptlist_to_string(ParseTree, Opts) when is_tuple(ParseTree) ->
+ptlist_to_string({plsql_body, _} = ParseTree, Opts) ->
     sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, Opts);
 ptlist_to_string([{ParseTree,_}], Opts) ->
     sqlparse_fold:top_down(sqlparse_format_flat, ParseTree, Opts);
