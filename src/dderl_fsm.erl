@@ -404,21 +404,21 @@ fetch_tailing(StmtRef, StmtRef, ok, _FetchCloseFun) ->  tailing;
 fetch_tailing(_StmtRef, _, S, _FetchCloseFun) ->        S.
 
 -spec filter_and_sort([{atom() | integer(), term()}], [{integer() | binary(),boolean()}], list(), #state{}) -> {ok, list(), fun()}.
-filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_funs = Fasf}}) ->
-    Result = [F(FilterSpec, SortSpec, Cols) || F <- Fasf],
-    case  lists:usort(Result) of
+filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_funs=Fasfs}}) ->
+    Fasf = hd(Fasfs),   % use same filter_and_sort_fun for all statements
+    case  Fasf(FilterSpec, SortSpec, Cols) of 
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
-        [{ok, NewSql, NewSortFun}] ->
-            ?NoDbLog(debug, [], "filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
+        {ok, NewSql, NewSortFun} ->
+            ?Info("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
             {ok, NewSql, NewSortFun};
         Else ->
-            ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Result]),
+            ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
             {error, Else}
     end.
 
 -spec update_cursor_prepare(list(), #state{}) -> ok | {ok, term()} | {error, term()}.
-update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_funs = Ucpf}}) ->
+update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_funs=Ucpf}}) ->
     Result = [F(ChangeList) || F <- Ucpf],
     case  lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_prepare()
@@ -1491,7 +1491,7 @@ handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexI
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
     {next_state, SN, State, [{reply, From, SenderParams}]};
-handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}} = State) ->
+handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, update_cursor_prepare_funs=Ucpf, update_cursor_execute_funs=Ucef}} = State) ->
     ReceiverParams = {Ucpf, Ucef, Columns},
     ?Debug("get_receiver_params ~p", [ReceiverParams]),
     {next_state, SN, State, [{reply, From, ReceiverParams}]};
@@ -2344,7 +2344,7 @@ serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
 serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
-        Lft -> erlang:system_time(milliseconds) - Lft
+        Lft -> erlang:system_time(millisecond) - Lft
     end,
     case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
         true ->
@@ -2366,7 +2366,7 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
 serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
-        Lft -> erlang:system_time(milliseconds) - Lft
+        Lft -> erlang:system_time(millisecond) - Lft
     end,
     case FetchElapsedTime < ?BUFFER_WAIT_TIMEOUT of
         true ->
@@ -3020,7 +3020,7 @@ change_list(TableId, DirtyCnt, DirtyTop, DirtyBot) ->
     [tuple_to_list(R) || R <- change_tuples(TableId, DirtyCnt, DirtyTop, DirtyBot)].
 
 -spec write_subscription(binary(), binary(), #state{}) -> ok | {error, term()}.
-write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_funs = Ucpf, update_cursor_execute_funs = Ucef}}) ->
+write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_funs=Ucpf, update_cursor_execute_funs=Ucef}}) ->
     %% TODO: Read and update maybe is needed for multiple topic subscription.
     SubsKey = imem_json:encode([<<"register">>, <<"focus">>, [atom_to_binary(node(), utf8), list_to_binary(pid_to_list(self()))]]),
     Value = imem_json:encode([[Topic, Key]]),
