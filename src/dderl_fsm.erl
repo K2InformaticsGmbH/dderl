@@ -97,9 +97,9 @@
                   ctx                 %% statement & fetch context
                 , tableId             %% ets raw buffer table id
                 , indexId             %% ets index table id
-                , bl                  %% block_length (passed .. init)
+                , bl                  %% block_length (passed in init)
                 , gl                  %% gui max length (row count) = gui_max(#state.bl)
-                , columnCount       %% number of columns
+                , columnCount         %% number of columns
                 , rowFun              %% RowFun
                 , sortSpec            %% from imem statement, changed by gui events
                 , sortFun             %% from imem statement, follows sortSpec (calculated by imem statement)
@@ -140,11 +140,11 @@
                 , fetchResults = []   %% one per statement
                 }).
 
--define(block_size,10).
 -define(MustCommit,<<"Please commit or rollback changes before clearing data">>).
 -define(MustCommitSort,<<"Please commit or rollback changes before sorting or filtering data">>).
 -define(UnknownCommand,<<"Unknown command">>).
 -define(NoPendingUpdates,<<"No pending changes">>).
+-define(ReadOnlyPartitionQueries,<<"Partition queries cannot be edited (yet).">>).
 -define(PassThroughOnlyRestart,<<"Only restart & passthrough are allowed in passthrough state">>).
 -define(PtNoSort,<<"Passthrough can't be used in sorted tables">>).
 
@@ -324,7 +324,7 @@ rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_serv
     gen_statem:cast(Pid, {StmtRef,Error});
 rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
     %?Info("dderl_fsm:rows from ~p ~p ~p", [StmtRef, length(Rows), Completed]),
-    ?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
+   %?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
     gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
 rows({Rows,Completed},{?MODULE,Pid}) when is_list(Rows) ->  % from dderloci (single source)
     %?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
@@ -437,10 +437,10 @@ update_cursor_prepare(ChangeList, #state{ctx = #ctx{stmtRefs=StmtRefs,update_cur
         %% driver session maps to imem_sec:update_cursor_prepare()
         %% driver session maps to imem_meta:update_cursor_prepare()
         [ok] ->
-            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
+            %?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
             ok;
         [{ok, UpdRef}|_] ->
-            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
+            %?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
             {ok, UpdRef};
         [{_, {{error, {'ClientError', M}}, _St} = Error}|_] ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
@@ -461,7 +461,7 @@ patch_ins_changes(ChangeList, StmtRefs) ->
 
 patch_ins_changes([], _StmtRefs, Acc) -> 
     Res = lists:reverse(Acc),
-    ?Info("patched ChangeList~n~p", [Res]),
+    %?Info("patched ChangeList~n~p", [Res]),
     Res;
 patch_ins_changes([[ID,ins,{{},{}}|Rest]|ChangeList], StmtRefs, Acc) ->
     Node = node(hd(StmtRefs)),
@@ -472,7 +472,7 @@ patch_ins_changes([Ch|ChangeList], StmtRefs, Acc) ->
 -spec update_cursor_execute(atom(), #state{}, term()) -> list() | {error, term()}.
 update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}, UpdRef) ->
     Result = [F(Lock, UpdRef) || F <- Ucef],
-    ?Info("update_cursor_execute result for UpdRef ~p~n~p)",[UpdRef,Result]),
+   %?Info("update_cursor_execute result for UpdRef ~p~n~p)",[UpdRef,Result]),
     case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
@@ -480,14 +480,14 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}
             ?Error("update_cursor_execute(~p) -> ~p", [Lock,Error]),
             {error, Error};
         ChangedKeys ->
-            ?Debug("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
+            %?Info("update_cursor_execute(~p) -> ~p", [Lock,ChangedKeys]),
             lists:sort(lists:flatten(ChangedKeys))
     end.
 
 -spec update_cursor_execute(atom(), #state{}) -> list() | {error, term()}.
 update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}) ->
     Result = [F(Lock) || F <- Ucef],
-    ?Info("update_cursor_execute result~n~p)",[Result]),
+   %?Info("update_cursor_execute result~n~p)",[Result]),
     case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
@@ -1303,7 +1303,7 @@ handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
     State3 = gui_close(#gres{state=SN},State2),
     {stop, normal, State3#state{tailLock=true}};
 handle_event({reorder, ColOrder, ReplyTo}, SN, State0) ->
-    ?Info("handle_event reorder"),
+   %?Info("handle_event reorder"),
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_reorder(SN, ColOrder, State1),
     {next_state, SN, State2};
@@ -1337,10 +1337,17 @@ handle_event({button, <<"commit">>, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) wh
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = gui_nop(#gres{state=SN,beep=true,message= ?NoPendingUpdates},State1),
     {next_state, SN, State2#state{tailLock=true}};
-handle_event({button, <<"commit">>, ReplyTo}, SN, State0) ->
-    State1 = reply_stack(SN, ReplyTo, State0),
-    {NewSN,State2} = data_commit(SN, State1),
-    {next_state, NewSN, State2#state{tailLock=true}};
+handle_event({button, <<"commit">>, ReplyTo}, SN, #state{ctx=Ctx}=State0) ->
+    case lists:member($P, binary_to_list(Ctx#ctx.stmtClass)) of
+        false ->
+            State1 = reply_stack(SN, ReplyTo, State0),
+            {NewSN,State2} = data_commit(SN, State1),
+            {next_state, NewSN, State2#state{tailLock=true}};
+        true ->
+            State1 = reply_stack(SN, ReplyTo, State0),
+            State2 = gui_nop(#gres{state=SN,beep=true,message= ?ReadOnlyPartitionQueries},State1),
+            {next_state, SN, State2}
+    end;
 handle_event({button, <<"rollback">>, ReplyTo}, SN, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = gui_nop(#gres{state=SN,beep=true,message= ?NoPendingUpdates},State1),
@@ -1852,8 +1859,8 @@ handle_info(cmd_stack_timeout, SN, #state{stack={button, <<"tail">>, RT}}=State)
     %?Info("Timeout, replying with nop in state ~p", [SN]),
     State1 = gui_nop(#gres{state=SN, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
     {next_state, SN, State1};
-handle_info({'EXIT', _Pid, Reason} = ExitMsg, _SN, State) ->
-    ?Info("~p received exit message ~p", [self(), ExitMsg]),
+handle_info({'EXIT', _Pid, Reason} = _ExitMsg, _SN, State) ->
+    %?Info("~p received exit message ~p", [self(), _ExitMsg]),
     {stop, Reason, State};
 handle_info(Unknown, SN, State) ->
     ?Info("unknown handle info ~p", [Unknown]),
@@ -2374,10 +2381,11 @@ serve_stack(completed, #state{stack={button,But,RT}}=State0) when But== <<"|<">>
     serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(completed, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
     serve_top(completed,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
+serve_stack(completed, #state{stack={button,_Button,RT},bufCnt=BufCnt}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
+    ?Info("stack serving resumed after ~p rows",[BufCnt]),
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
         Lft -> erlang:system_time(millisecond) - Lft
@@ -2387,11 +2395,14 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
             case Nav of
                 raw when BufBot < GL ->
                     % delay serving received rows, trying to get a full block for first serve
+                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 ind when IndCnt < GL ->
                     % delay serving received rows, trying to get a full gui block of sorted data before first serve
+                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 _ ->
+                    ?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     serve_top(filling,State#state{
                         stack=undefined,replyToFun=RT,lastFetchTime=undefined})
             end;
@@ -2399,7 +2410,7 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
             serve_top(filling,State#state{
                 stack=undefined,replyToFun=RT,lastFetchTime=undefined})
     end;
-serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
         Lft -> erlang:system_time(millisecond) - Lft
@@ -2409,11 +2420,14 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
             case Nav of
                 raw when BufBot < GL ->
                     % delay serving received rows, trying to get a full block for first serve
+                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 ind when IndCnt < GL ->
                     % delay serving received rows, trying to get a full gui block of sorted data before first serve
+                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 _ ->
+                    ?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     serve_bot(filling, <<>>, State#state{
                         stack=undefined,replyToFun=RT,lastFetchTime=undefined})
             end;
@@ -2443,14 +2457,16 @@ serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiT
                     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
             end
     end;
-serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
+serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     case lists:member(GuiBot,keys_before(BufBot,GL-1,State0)) of
         false ->    % deferred forward can be executed now
+                    ?Info("stack serving resumed at ~p rows",[BufCnt]),
                     serve_bot(SN,<<"">>,State0#state{tailLock=true,stack=undefined, replyToFun=RT});
         true ->     State0#state{tailLock=true}  % buffer has not grown by 1 max gui length yet, keep the stack
     end;
 serve_stack(SN, #state{bufCnt=BufCnt,stack={button,Target,RT}}=State0) when is_integer(Target), (BufCnt>=Target) ->
     % deferred target can be executed now
+    ?Info("stack serving target resumed at ~p rows",[BufCnt]),
     serve_target(SN,Target,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(tailing, #state{stack={button,<<">|...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
@@ -2511,7 +2527,7 @@ serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
             gui_append(#gres{state = filling, loop = integer_to_binary(Target), focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
 serve_stack(_SN , #state{stack = _Stack} = State) ->
-    ?Info("~p serve_stack nop~p", [_SN, _Stack]),
+   %?Info("~p serve_stack nop~p", [_SN, _Stack]),
     State.
 
 -spec rows_after(integer(), integer(), #state{}) -> list().
@@ -2888,11 +2904,11 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun,guiTop=GuiTop0
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot}=State0) ->
     ChangeList = change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),
-    ?Info("ChangeList length ~p DirtyCnt ~p",[length(ChangeList),DirtyCnt]),
-    ?Info("ChangeList:~n~p",[ChangeList]),
+    %?Info("ChangeList length ~p DirtyCnt ~p",[length(ChangeList),DirtyCnt]),
+    %?Info("ChangeList:~n~p",[ChangeList]),
     case update_cursor_prepare(ChangeList,State0) of
         ok ->
-            ?Info("update_cursor_prepare ok"),
+            %?Info("update_cursor_prepare ok"),
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0) of
                 {error, ExecErr} ->
@@ -2920,7 +2936,7 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                     end
             end;
         {ok, UpdRef} ->
-            ?Info("update_cursor_prepare ~p",[{ok, UpdRef}]),
+            %?Info("update_cursor_prepare ~p",[{ok, UpdRef}]),
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0, UpdRef) of
                 {error, Msg} when is_binary(Msg) ->

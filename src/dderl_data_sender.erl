@@ -42,6 +42,7 @@
 -spec start_link({atom(), pid()}, [integer()]) -> {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, ColumnPositions) ->
     ?Info("~p starting...~n", [?MODULE]),
+    ?Info("Statement ~p", [Statement]),
 	case gen_server:start_link(?MODULE, [Statement, ColumnPositions], []) of
         {ok, _} = Success ->
             ?Info("~p started!~n", [?MODULE]),

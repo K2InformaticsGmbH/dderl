@@ -78,7 +78,7 @@ handle_call(Req, _From, State) ->
 handle_cast({status, ReplyToPid}, #state{is_complete = true, received_rows = RowCount} = State) ->
     Response = [{<<"received_rows">>, RowCount}, {<<"is_complete">>, true}, {<<"continue">>, false}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    ?Info("Terminating after respoding completed to receiver_status"),
+    ?Info("Terminating in state completed"),
     {stop, normal, State};
 handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Errors} = State) ->
     Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}, {<<"continue">>, true}],
@@ -86,7 +86,7 @@ handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Erro
     {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
-    {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
+    {Ucpfs, Ucefs, Columns} = Statement:get_receiver_params(),
     %% TODO: Check for column names and types instead of only count.
     if
         length(ColumnPos) =:= length(SenderColumns) ->
@@ -95,7 +95,7 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SenderColumnNames}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = hd(Ucpfs), update_cursor_execute_fun = hd(Ucefs), columns = Columns}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
