@@ -780,6 +780,7 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             [{<<"result">>, <<"ok">>}];
         {ok, #stmtResults{ stmtRefs = StmtRefs
                          , stmtTables = StmtTables
+                         , stmtClass = StmtClass    % string() here
                          , rowCols  = RowCols
                          , rowFun   = RowFun
                          , sortFun  = SortFun
@@ -787,6 +788,7 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
             StmtFsm = dderl_fsm:start(
                                 #fsmctxs{ stmtRefs                   = StmtRefs
                                         , stmtTables                 = StmtTables
+                                        , stmtClass                  = list_to_binary(StmtClass--"L")
                                         , rowCols                    = RowCols
                                         , rowFun                     = RowFun
                                         , sortFun                    = SortFun

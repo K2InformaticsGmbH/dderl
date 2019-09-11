@@ -90,6 +90,7 @@
                 , orig_qry
                 , bind_vals
                 , bl                  %% block length -> State
+                , stmtClass = <<>>    %% <<>> = local query 
                 }).
 
 -record(state,  { %% fsm combined state
@@ -202,6 +203,7 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
                 , sortSpec                   = SortSpec
                 , bind_vals                  = BindVals
                 , block_length               = BL
+                , stmtClass                  = StmtClass
                 }) ->
     #ctx{ stmtRefs                  = StmtRefs
         , stmtTables                = StmtTables
@@ -218,6 +220,7 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
         , sortSpec                  = SortSpec
         , bind_vals                 = BindVals
         , bl                        = BL
+        , stmtClass                 = StmtClass
         }.
 
 -spec stop({atom(), pid()}) -> ok.
@@ -1888,20 +1891,20 @@ gui_response_log(Gres) ->
     ?NoDbLog(debug, [], "gui_response ~p", [Gres#gres.sql]).
 
 -spec gui_response(#gres{}, #state{}) -> #state{}.
-gui_response(#gres{state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql}=State0) ->
-    Gres1 = gres(SN,RawCnt,integer_to_list(RawCnt),Sql,DirtyCnt,false,Gres0),
+gui_response(#gres{state=SN}=Gres0, #state{nav=raw,rawCnt=RawCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql,ctx=Ctx}=State0) ->
+    Gres1 = gres(SN,RawCnt,integer_to_list(RawCnt),Sql,DirtyCnt,false,Gres0,Ctx#ctx.stmtClass),
     ReplyTo(Gres1),
     gui_response_log(Gres1),
     State0#state{sql= <<"">>};
-gui_response(#gres{state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql,guiCol=GuiCol}=State0) ->
+gui_response(#gres{state=SN}=Gres0, #state{nav=ind,rawCnt=RawCnt,indCnt=IndCnt,dirtyCnt=DirtyCnt,replyToFun=ReplyTo,sql=Sql,guiCol=GuiCol,ctx=Ctx}=State0) ->
     ToolTip = integer_to_list(RawCnt) ++ [$/] ++ integer_to_list(IndCnt),
-    Gres1 = gres(SN,IndCnt,ToolTip,Sql,DirtyCnt,GuiCol,Gres0),
+    Gres1 = gres(SN,IndCnt,ToolTip,Sql,DirtyCnt,GuiCol,Gres0,Ctx#ctx.stmtClass),
     ReplyTo(Gres1),
     gui_response_log(Gres1),
     State0#state{sql= <<"">>}.
 
--spec gres(atom(), integer(), list(), binary(), integer(), boolean(), #gres{}) -> #gres{}.
-gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0) ->
+-spec gres(atom(), integer(), list(), binary(), integer(), boolean(), #gres{}, binary()) -> #gres{}.
+gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0,StmtClass) ->
     Disable = case DirtyCount of
         0 ->
             [{<<"commit">>,<<"nothing to commit">>},{<<"rollback">>,<<"nothing to rollback">>}|Gres0#gres.disable];
@@ -1918,7 +1921,10 @@ gres(SN,Cnt,ToolTip,Sql,DirtyCount,GuiCol,Gres0) ->
     end,
     SNbin = list_to_binary(atom_to_list(SN)),
     TTbin = list_to_binary(ToolTip),
-    Gres0#gres{state=SNbin,cnt=Cnt,toolTip=TTbin,sql=Sql,disable=empty_override(Disable),promote=empty_override(Promo)}.
+    Gres0#gres{ state=SNbin, cnt=Cnt, toolTip=TTbin, sql=Sql
+              , disable=empty_override(Disable)
+              , promote=empty_override(Promo)
+              , stmtClass=StmtClass}.
 
 -spec empty_override(list()) -> list().
 empty_override([]) -> [{}];
