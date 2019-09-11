@@ -652,6 +652,7 @@ gui_resp(#gres{} = Gres, Columns) ->
     ,{<<"sql">>,        Gres#gres.sql}
     ,{<<"disable">>,    Gres#gres.disable}
     ,{<<"promote">>,    Gres#gres.promote}
+    ,{<<"stmtClass">>,  Gres#gres.stmtClass}
     ,{<<"max_width_vec">>, lists:flatten(r2jsn([widest_cell_per_clm(Gres#gres.rows)], JCols))}
     ].
 

@@ -15,6 +15,7 @@
                 , sql = <<"">>        %% new sql string (only present if it changes)
                 , disable = []        %% list of {<<"button name">>, <<"Comment">>} to be disabled
                 , promote = []        %% list of {<<"button name">>, <<"Comment">>} promoted to the user
+                , stmtClass = "L"     %% statement class "L" = local
                 }).
 
 -record(fsmctxs,{ % fsm interfaces to multiple statements
