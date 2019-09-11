@@ -34,6 +34,8 @@
 -export([ start/2
         , start_link/2
         , stop/1
+        , inspect_status/1
+        , inspect_state/1
         ]).
 
 -export([ rows/2        %% incoming rows          [RowList,true] | [RowList,false] | [RowList,tail]    RowList=list(KeyTuples)
@@ -222,6 +224,11 @@ fsm_ctx(#fsmctxs{ stmtRefs                   = StmtRefs
 stop({?MODULE,Pid}) ->
 	gen_statem:cast(Pid,stop).
 
+inspect_status(Pid) -> gen_statem:call(Pid, inspect_status).
+
+inspect_state(Pid) -> gen_statem:call(Pid, inspect_state).
+
+
 -spec refresh_session_ctx(#fsmctxs{}, {atom(), pid()}) -> ok.
 refresh_session_ctx(#fsmctxs{} = FsmCtxs, {?MODULE, Pid}) ->
     Ctx = fsm_ctx(FsmCtxs),
@@ -310,19 +317,20 @@ cache_data({?MODULE, Pid}) ->
 
 -spec rows({pid(), {_, _}} | {_, _}, {atom(), pid()}) -> ok.
 rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
-    ?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
+    %?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
     gen_statem:cast(Pid, {StmtRef,Error});
 rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
-    ?Info("dderl_fsm:rows from ~p ~p ~p", [StmtRef, length(Rows), Completed]),
+    %?Info("dderl_fsm:rows from ~p ~p ~p", [StmtRef, length(Rows), Completed]),
+    ?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
     gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
 rows({Rows,Completed},{?MODULE,Pid}) when is_list(Rows) ->  % from dderloci (single source)
-    ?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
+    %?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
     gen_statem:cast(Pid,{rows, {self(),Rows,Completed}});
 rows({StmtRef, Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
-    ?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
+    %?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
     gen_statem:cast(Pid, {StmtRef,{error,Error}});
 rows(Error, {?MODULE, Pid}) ->             % from dderloci (single source)
-    ?Info("dderl_fsm:rows ~p", [Error]),
+    %?Info("dderl_fsm:rows ~p", [Error]),
     gen_statem:cast(Pid, {self(),Error}).
 
 -spec rows_limit(integer(), list(), {atom(), pid()}) -> ok.
@@ -379,7 +387,7 @@ prefetch(_,State) ->                      State.
 
 -spec fetch_close(#state{}) -> #state{}.
 fetch_close(#state{fetchResults=FetchResults, ctx = #ctx{fetch_close_funs = Fcf}}=State) ->
-    NewFetchResults = [fetch_close_if_open(S,F) || {S,F} <- lists:zip(FetchResults, Fcf)],
+    NewFetchResults = [fetch_clear(fetch_close_if_open(S,F)) || {S,F} <- lists:zip(FetchResults, Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
 
 fetch_close_if_open(ok, FetchCloseFun) -> 
@@ -391,6 +399,8 @@ fetch_close_if_open(S, _FetchCloseFun) -> S.
 fetch_close(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtRefs, fetch_close_funs=Fcf}} = State) ->
     NewFetchResults = [fetch_close_if_open(StmtRef,P,S,F) || {P,S,F} <- lists:zip3(StmtRefs,FetchResults,Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
+
+fetch_clear(_FetchStatus) -> undefined.
 
 fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> FetchCloseFun(), closed;
 fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> S.
@@ -410,7 +420,7 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
         %% driver session maps to imem_sec:filter_and_sort(SKey, Pid, FilterSpec, SortSpec, Cols)
         %% driver session maps to imem_meta:filter_and_sort(Pid, FilterSpec, SortSpec, Cols)
         {ok, NewSql, NewSortFun} ->
-            ?Info("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
+            %?Info("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, {ok, NewSql, NewSortFun}]),
             {ok, NewSql, NewSortFun};
         Else ->
             ?Error("filter_and_sort(~p, ~p, ~p) -> ~p", [FilterSpec, SortSpec, Cols, Else]),
@@ -418,16 +428,16 @@ filter_and_sort(FilterSpec, SortSpec, Cols, #state{ctx = #ctx{filter_and_sort_fu
     end.
 
 -spec update_cursor_prepare(list(), #state{}) -> ok | {ok, term()} | {error, term()}.
-update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_funs=Ucpf}}) ->
-    Result = [F(ChangeList) || F <- Ucpf],
+update_cursor_prepare(ChangeList, #state{ctx = #ctx{stmtRefs=StmtRefs,update_cursor_prepare_funs=Ucpf}}) ->
+    Result = [F(patch_ins_changes(ChangeList,StmtRefs)) || F <- Ucpf],
     case  lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_prepare()
         %% driver session maps to imem_meta:update_cursor_prepare()
         [ok] ->
-            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
+            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, ok]),
             ok;
         [{ok, UpdRef}|_] ->
-            ?Debug("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
+            ?Info("update_cursor_prepare(~p) -> ~p", [ChangeList, {ok, UpdRef}]),
             {ok, UpdRef};
         [{_, {{error, {'ClientError', M}}, _St} = Error}|_] ->
             ?Error("update_cursor_prepare(~p) -> ~p", [ChangeList, Error]),
@@ -443,9 +453,23 @@ update_cursor_prepare(ChangeList, #state{ctx = #ctx{update_cursor_prepare_funs=U
             {error, Result}
     end.
 
+patch_ins_changes(ChangeList, StmtRefs) -> 
+    patch_ins_changes(ChangeList, StmtRefs,[]).
+
+patch_ins_changes([], _StmtRefs, Acc) -> 
+    Res = lists:reverse(Acc),
+    ?Info("patched ChangeList~n~p", [Res]),
+    Res;
+patch_ins_changes([[ID,ins,{{},{}}|Rest]|ChangeList], StmtRefs, Acc) ->
+    Node = node(hd(StmtRefs)),
+    patch_ins_changes(ChangeList, StmtRefs, [[ID,ins,{{0,Node},{}}|Rest]|Acc]);
+patch_ins_changes([Ch|ChangeList], StmtRefs, Acc) ->
+    patch_ins_changes(ChangeList, StmtRefs, [Ch|Acc]).
+
 -spec update_cursor_execute(atom(), #state{}, term()) -> list() | {error, term()}.
 update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}, UpdRef) ->
     Result = [F(Lock, UpdRef) || F <- Ucef],
+    ?Info("update_cursor_execute result for UpdRef ~p~n~p)",[UpdRef,Result]),
     case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
@@ -460,6 +484,7 @@ update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}
 -spec update_cursor_execute(atom(), #state{}) -> list() | {error, term()}.
 update_cursor_execute(Lock, #state{ctx = #ctx{update_cursor_execute_funs = Ucef}}) ->
     Result = [F(Lock) || F <- Ucef],
+    ?Info("update_cursor_execute result~n~p)",[Result]),
     case lists:usort(Result) of
         %% driver session maps to imem_sec:update_cursor_execute()
         %% driver session maps to imem_meta:update_cursor_execute()
@@ -814,7 +839,7 @@ filling(cast, {rows, {_StmtRef,Recs,false}}, #state{stack={button,Button,_}}=Sta
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
     NewGuiBot = State1#state.guiBot,
-    % ?Info("filling rows false ~p ~p ~p",[length(Recs),NewBufBot,NewGuiBot]),
+    %?Info("filling rows false ~p ~p ~p",[length(Recs),NewBufBot,NewGuiBot]),
     State2 = if
         (Button == <<">">>) ->      prefetch(filling,State1);
         (Button == <<">>">>) ->     prefetch(filling,State1);
@@ -839,7 +864,7 @@ filling(cast, {rows, {_StmtRef,Recs,false}}, State0) ->
 filling(cast, {rows, {StmtRef,Recs,true}}, #state{}=State0) ->
     % receive and store data
     % if this is the last open fetch then close the fetch and switch state, no prefetch needed here
-    ?Info("filling cast rows ~p",[{StmtRef,Recs,true}]),
+    %?Info("filling cast rows ~p",[{StmtRef,Recs,true}]),
     #state{fetchResults=FetchResults} = State1 = fetch_close(StmtRef, State0),
     case lists:member(ok, FetchResults) of
         true ->
@@ -909,7 +934,7 @@ autofilling(cast, {button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=Sta
             {next_state, autofilling, State1#state{tailLock=true,stack=Cmd}}
     end;
 autofilling(cast, {button, <<"more">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
-    % ?Info("autofilling more",[]),
+    %?Info("autofilling more",[]),
     if
         (TailMode == true) ->
             % too late .. revoke tail mode now
@@ -1032,10 +1057,10 @@ tailing(cast, Msg, State) ->
 tailing(info, Msg, State) ->
     handle_info(Msg, tailing, State).
 
-completed(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
-    State1 = reply_stack(completed, ReplyTo, State0),
-    State2 = gui_replace_from(GuiTop,BL,#gres{state=completed,focus=1},State1),
-    {next_state, completed, State2#state{tailMode=false}};
+% completed(cast, {button, <<"restart">>, ReplyTo}, #state{bl=BL,guiTop=GuiTop,guiCol=true}=State0) ->
+%     State1 = reply_stack(completed, ReplyTo, State0),
+%     State2 = gui_replace_from(GuiTop,BL,#gres{state=completed,focus=1},State1),
+%     {next_state, completed, State2#state{tailMode=false}};
 completed(cast, {button, <<"restart">>, ReplyTo}, #state{dirtyCnt=DC}=State0) when DC==0 ->
     State1 = reply_stack(completed, ReplyTo, State0),
     State2 = fetch_close(State1),
@@ -1275,6 +1300,7 @@ handle_event({button, <<"close">>, ReplyTo}, SN, State0) ->
     State3 = gui_close(#gres{state=SN},State2),
     {stop, normal, State3#state{tailLock=true}};
 handle_event({reorder, ColOrder, ReplyTo}, SN, State0) ->
+    ?Info("handle_event reorder"),
     State1 = reply_stack(SN, ReplyTo, State0),
     State2 = data_reorder(SN, ColOrder, State1),
     {next_state, SN, State2};
@@ -1484,7 +1510,7 @@ handle_call(get_count, From, SN, #state{bufCnt = Count} = State) ->
 handle_call(get_query, From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
     ?Debug("get_query ~p", [Qry]),
     {next_state, SN, State, [{reply, From, Qry}]};
-handle_call(get_table_name, From, SN, #state{ctx=#ctx{stmtTables=[TableName]}}=State) ->
+handle_call(get_table_name, From, SN, #state{ctx=#ctx{stmtTables=[TableName|_]}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
     {next_state, SN, State, [{reply, From, TableName}]};
 handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, ctx=#ctx{rowCols=Columns}} = State) ->
@@ -1694,6 +1720,10 @@ handle_call(cache_data, From, SN, #state{tableId = TableId, ctx=#ctx{rowCols=Row
     Key = {dbTest, NormQry, BindVals},
     imem_cache:write(Key, {RowCols, QueryResult}),
     {next_state, SN, State, [{reply, From, ok}]};
+handle_call(inspect_status, From, SN, State) ->
+    {next_state, SN, State, [{reply, From, SN}]};
+handle_call(inspect_state, From, SN, State) ->
+    {next_state, SN, State, [{reply, From, State}]};
 handle_call(_Event, _From, empty, State) ->
     {next_state, empty, State}.
 
@@ -1804,23 +1834,23 @@ sort_distinct_count_rows([_ | XT], [_ | YT]) -> sort_distinct_count_rows(XT, YT)
 %%          {stop, Reason, NewStateData}
 %% --------------------------------------------------------------------
 handle_info({StmtRef,{error,Reason}}, SN, State) ->
-    ?Info("dderl_fsm:handle_info from ~p ~p",[StmtRef, {error,Reason}]),
+    %?Info("dderl_fsm:handle_info from ~p ~p",[StmtRef, {error,Reason}]),
     Fsm = {?MODULE,self()},
     Fsm:rows({StmtRef,{error,Reason}}),
     {next_state, SN, State};
 handle_info({StmtRef,{Rows,Completed}}, SN, State) ->
-    ?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[StmtRef, length(Rows), Completed]),
+    %?Info("dderl_fsm:handle_info from ~p Rows ~p completed ~p",[StmtRef, length(Rows), Completed]),
     Fsm = {?MODULE,self()},
     Fsm:rows({StmtRef,Rows,Completed}),
     {next_state, SN, State};
 handle_info(cmd_stack_timeout, SN, #state{stack={button, <<"tail">>, RT}}=State)
     when SN =:= tailing; SN =:= passthrough ->
     % we didn't get any new data to send, so we reply with nop.
-    ?NoDbLog(debug, [], "Tail timeout, replying with nop", []),
+    %?Info("Timeout, replying with nop in state ~p", [SN]),
     State1 = gui_nop(#gres{state=SN, loop= <<"tail">>, focus=-1},State#state{stack=undefined,replyToFun=RT,tRef=undefined}),
     {next_state, SN, State1};
 handle_info({'EXIT', _Pid, Reason} = ExitMsg, _SN, State) ->
-    ?Debug("~p received exit message ~p", [self(), ExitMsg]),
+    ?Info("~p received exit message ~p", [self(), ExitMsg]),
     {stop, Reason, State};
 handle_info(Unknown, SN, State) ->
     ?Info("unknown handle info ~p", [Unknown]),
@@ -2097,7 +2127,7 @@ gui_append(GuiResult,#state{nav=ind,bl=BL,gl=GL,tableId=TableId,guiCnt=GuiCnt,gu
 
 -spec serve_top(atom(), #state{}) -> #state{}.
 serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
-    % ?Info("serve_top (~p) ~p ~p",[SN, BufCnt, BufTop]),
+    %?Info("serve_top (~p) ~p ~p",[SN, BufCnt, BufTop]),
     if
         (BufCnt == 0) ->
             %% no data, serve empty page
@@ -2114,7 +2144,7 @@ serve_top(SN,#state{bl=BL,bufCnt=BufCnt,bufTop=BufTop}=State0) ->
 
 -spec serve_fwd(atom(), #state{}) -> #state{}.
 serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
-    % ?Info("serve_fwd (~p) ~p ~p ~p ~p",[SN, BufCnt, BufBot, GuiCnt, GuiBot]),
+    %?Info("serve_fwd (~p) ~p ~p ~p ~p",[SN, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
         (BufCnt == 0) andalso (SN == filling) ->
             ?Debug("~p waiting for the fetch to complete ~p", [SN, <<">">>]),
@@ -2149,7 +2179,7 @@ serve_fwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiB
 
 -spec serve_ffwd(atom(), #state{}) -> #state{}.
 serve_ffwd(SN,#state{nav=Nav,bl=BL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,replyToFun=ReplyTo}=State0) ->
-    % ?Info("serve_ffwd (~p) ~p ~p ~p ~p",[SN, BufCnt, BufBot, GuiCnt, GuiBot]),
+    %?Info("serve_ffwd (~p) ~p ~p ~p ~p",[SN, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
         (BufCnt == 0) andalso (SN == filling) ->
             ?Debug("~p waiting for fetch to complete ~p", [SN, <<">>">>]),
@@ -2235,7 +2265,7 @@ serve_fbwd(SN,#state{bl=BL,srt=Srt,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,gui
 
 -spec serve_target(atom(), integer(), #state{}) -> #state{}.
 serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufCnt=BufCnt,bufTop=BufTop,guiCnt=GuiCnt,replyToFun=ReplyTo}=State0) when is_integer(Target) ->
-    % ?Info("serve_target (~p) ~p ~p ~p",[SN, BufCnt, BufTop, GuiCnt]),
+    %?Info("serve_target (~p) ~p ~p ~p",[SN, BufCnt, BufTop, GuiCnt]),
     if
         (BufCnt == 0) ->
             %% no data, serve empty gui
@@ -2278,7 +2308,7 @@ serve_target(SN,Target,#state{nav=Nav,bl=BL,tableId=TableId,indexId=IndexId,bufC
 
 -spec serve_bot(atom(), binary(), #state{}) -> #state{}.
 serve_bot(SN, Loop, #state{nav=Nav,gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,bufTop=BufTop,guiTop=GuiTop,guiCol=GuiCol}=State0) ->
-    % ?Info("serve_bot (~p ~p) ~p ~p ~p ~p ~p ~p",[SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot, GuiTop, BufTop]),
+    %?Info("serve_bot (~p ~p) ~p ~p ~p ~p ~p ~p",[SN, Loop, BufCnt, BufBot, GuiCnt, GuiBot, GuiTop, BufTop]),
     if
         (BufCnt == 0) ->
             %% no data, serve empty
@@ -2331,7 +2361,7 @@ serve_stack(completed, #state{nav=ind,bufBot=B,guiBot=B,stack={button,Button,RT}
       Button =:= <<"more">> ->
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
 % serve_stack( _SN, #state{nav=ind,bufBot=B,guiBot=B}=State) ->
-%     % ?Info("serve_stack at end of buffer ~p (NOP)",[B]),
+%     %?Info("serve_stack at end of buffer ~p (NOP)",[B]),
 %     % gui is current at the end of the buffer, no new interesting data, nothing to do
 %     State;
 serve_stack(completed, #state{stack={button,But,RT}}=State0) when But== <<"|<">>; But== <<"<">>; But== <<"<<">> ->
@@ -2391,9 +2421,9 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBo
 %     case IsMember of
 %         false ->    % deferred forward can be executed now
 %                     ?NoDbLog(debug, [], "~p stack exec ~p", [SN,<<">">>]),
-%                     ?Info("gui_append at ~p",[BufBot]),
+%                     %?Info("gui_append at ~p",[BufBot]),
 %                     gui_append(#gres{state=SN},State0#state{tailLock=true,stack=undefined,replyToFun=RT});
-%         true ->     ?Info("skip serve at ~p",[BufBot]),
+%         true ->     %?Info("skip serve at ~p",[BufBot]),
 %                     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
 %     end;
 serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiTop}=State0) ->
@@ -2442,7 +2472,7 @@ serve_stack(passthrough, #state{bufCnt=BufCnt,bufBot=BufBot,guiBot=GuiBot,guiCol
             gui_append(#gres{state=passthrough,loop= <<"tail">>,focus=-1},State0#state{stack=undefined,replyToFun=RT})
     end;
 serve_stack(autofilling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=GuiBot,guiCol=GuiCol, stack = {button, <<"more">>, ReplyTo}} = State) ->
-    % ?Info("serve_stack (~p) ~p ~p ~p ~p",[autofilling, BufCnt, BufBot, GuiCnt, GuiBot]),
+    %?Info("serve_stack (~p) ~p ~p ~p ~p",[autofilling, BufCnt, BufBot, GuiCnt, GuiBot]),
     if
         (BufCnt == 0) -> State;                                    % no data, nothing to do, keep stack
         (BufBot == GuiBot) andalso (GuiCol == false) -> State;     % no new data, nothing to do, keep stack
@@ -2475,7 +2505,7 @@ serve_stack(filling, #state{bufCnt=BufCnt,bufBot=BufBot,guiCnt=GuiCnt,guiBot=Gui
             gui_append(#gres{state = filling, loop = integer_to_binary(Target), focus = -1}, State#state{stack = undefined, replyToFun=ReplyTo})
     end;
 serve_stack(_SN , #state{stack = _Stack} = State) ->
-    % ?Info("~p serve_stack nop~p", [_SN, _Stack]),
+    ?Info("~p serve_stack nop~p", [_SN, _Stack]),
     State.
 
 -spec rows_after(integer(), integer(), #state{}) -> list().
@@ -2639,7 +2669,7 @@ data_append(SN, {Rows,Status}, State) ->
     data_append(SN, {Rows, Status, nop}, State);
 data_append(SN, {[],_Complete,_Op},#state{nav=_Nav,rawBot=_RawBot}=State0) ->
     NewPfc=State0#state.pfc-1,
-    % ?Info("data_append -~p- count ~p bufBottom ~p pfc ~p", [_Nav,0,_RawBot,NewPfc]),
+    %?Info("data_append -~p- count ~p bufBottom ~p pfc ~p", [_Nav,0,_RawBot,NewPfc]),
     serve_stack(SN, State0#state{pfc=NewPfc});
 data_append(SN, {Recs,_Complete,Op},#state{nav=raw,tableId=TableId,rawCnt=RawCnt,rawTop=RawTop,rawBot=RawBot}=State0) ->
     NewPfc=State0#state.pfc-1,
@@ -2647,7 +2677,7 @@ data_append(SN, {Recs,_Complete,Op},#state{nav=raw,tableId=TableId,rawCnt=RawCnt
     NewRawCnt = RawCnt+Cnt,
     NewRawTop = min(RawTop,RawBot+1),   % initialized .. 1 and then changed only in delete or clear
     NewRawBot = RawBot+Cnt,
-    % ?Info("data_append (~p) count ~p bufBot ~p pfc ~p", [SN,Cnt,NewRawBot,NewPfc]),
+    %?Info("data_append (~p) count ~p bufBot ~p pfc ~p", [SN,Cnt,NewRawBot,NewPfc]),
     ets:insert(TableId, [list_to_tuple([I,Op|[R]])||{I,R}<-lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)]),
     serve_stack(SN, set_buf_counters(State0#state{pfc=NewPfc,rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot}));
 data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=IndexId
@@ -2662,7 +2692,7 @@ data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=Index
     RawRows = [raw_row_expand({I,Op,RK}, RowFun) || {I,RK} <- lists:zip(lists:seq(RawBot+1, NewRawBot), Recs)],
     ets:insert(TableId, RawRows),
     IndRows = [?IndRec(R,SortFun) || R <- lists:filter(FilterFun,RawRows)],
-    % ?Info("data_append (~p) -IndRows- ~p", [SN,IndRows]),
+    %?Info("data_append (~p) -IndRows- ~p", [SN,IndRows]),
     FunCol = fun({X,_},{IT,IB,C}) ->  {IT,IB,(C orelse ((X>IT) and (X<IB)))}  end,
     {_,_,Collision} = lists:foldl(FunCol, {GuiTop, GuiBot, false}, IndRows),    %% detect data collisions with gui content
     ets:insert(IndexId, IndRows),
@@ -2672,7 +2702,7 @@ data_append(SN, {Recs,_Complete,Op},#state{nav=ind,tableId=TableId,indexId=Index
         _ ->    {ets:first(IndexId),ets:last(IndexId)}
     end,
     NewGuiCol = (GuiCol or Collision),
-    % ?Info("data_append (~p) count ~p bufBot ~p pfc=~p stale=~p", [SN,Cnt,NewRawBot,NewPfc,NewGuiCol]),
+    %?Info("data_append (~p) count ~p bufBot ~p pfc=~p stale=~p", [SN,Cnt,NewRawBot,NewPfc,NewGuiCol]),
     serve_stack(SN, set_buf_counters(State0#state{ pfc=NewPfc
                                                 , rawCnt=NewRawCnt,rawTop=NewRawTop,rawBot=NewRawBot
                                                 , indCnt=NewIndCnt,indTop=NewIndTop,indBot=NewIndBot
@@ -2852,10 +2882,11 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                       ,rowFun=RowFun,sortFun=SortFun,filterFun=FilterFun,guiTop=GuiTop0
                       ,dirtyCnt=DirtyCnt,dirtyTop=DirtyTop,dirtyBot=DirtyBot}=State0) ->
     ChangeList = change_list(TableId, DirtyCnt, DirtyTop, DirtyBot),
-    ?Debug("ChangeList length must match DirtyCnt~n~p ~p",[length(ChangeList),DirtyCnt]),
-    ?Debug("ChangeList~n~p",[ChangeList]),
+    ?Info("ChangeList length ~p DirtyCnt ~p",[length(ChangeList),DirtyCnt]),
+    ?Info("ChangeList:~n~p",[ChangeList]),
     case update_cursor_prepare(ChangeList,State0) of
         ok ->
+            ?Info("update_cursor_prepare ok"),
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0) of
                 {error, ExecErr} ->
@@ -2883,6 +2914,7 @@ data_commit(SN, #state{nav=Nav,gl=GL,tableId=TableId,indexId=IndexId
                     end
             end;
         {ok, UpdRef} ->
+            ?Info("update_cursor_prepare ~p",[{ok, UpdRef}]),
             NewSN = data_commit_state_name(SN),
             case update_cursor_execute(optimistic, State0, UpdRef) of
                 {error, Msg} when is_binary(Msg) ->
