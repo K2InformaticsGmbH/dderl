@@ -2969,6 +2969,9 @@ const stmtClassToolTip = {
 
             self._stmtClass = $('<span>')
                 .css('cursor', 'auto')
+                .css('width', '16px')
+                .css('height', '16px')
+                .css('vertical-align', 'sub')
                 .attr('title', "")
                 .text("");
 
@@ -2977,7 +2980,9 @@ const stmtClassToolTip = {
                 .append(self._stmtClass);
 
             // converting the title text to a link
-            self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
+            self._setTitleHtml(
+                $('<span>').text(self.options.title).addClass('table-title')
+            );
 
             // If this is a view we add it to the current views
             if (self._viewId) {
