@@ -324,7 +324,7 @@ rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_serv
     gen_statem:cast(Pid, {StmtRef,Error});
 rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
     %?Info("dderl_fsm:rows from ~p ~p ~p", [StmtRef, length(Rows), Completed]),
-   %?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
+    %?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
     gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
 rows({Rows,Completed},{?MODULE,Pid}) when is_list(Rows) ->  % from dderloci (single source)
     %?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
@@ -405,12 +405,8 @@ fetch_close(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtR
     NewFetchResults = [fetch_close_if_open(StmtRef,P,S,F) || {P,S,F} <- lists:zip3(StmtRefs,FetchResults,Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
 
-fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> 
-    ?Info("fetch_close_if_open closing ~p ~p",[StmtRef, StmtRef]),
-    FetchCloseFun(), closed;
-fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> 
-    ?Info("fetch_close_if_open keeping ~p ~p ~p",[S, _StmtRef1, _StmtRef2]),
-    S.
+fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> FetchCloseFun(), closed;
+fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> S.
 
 -spec fetch_tailing(pid(), #state{}) -> #state{}.
 %% fetch from given statement if in state 'ok'
@@ -831,8 +827,6 @@ filling(cast, {button, <<"stop">>, ReplyTo}, State0) ->
 filling(cast, {rows, {_StmtRef,Recs,false}}, #state{nav=Nav,bl=BL,stack={button,Target,_}}=State0) when is_integer(Target) ->
     % receive and store data, prefetch if a 'target sprint' is ongoing
     State1 = data_append(filling, {Recs,false},State0),
-    % ?Debug("Target ~p", [Target]),
-    % ?Debug("BufCnt ~p", [State1#state.bufCnt]),
     State2 = if
         (Nav == ind) andalso (Target > State1#state.bufCnt) ->
             prefetch(filling,State1);
@@ -847,7 +841,6 @@ filling(cast, {rows, {_StmtRef,Recs,false}}, #state{stack={button,Button,_}}=Sta
     State1 = data_append(filling, {Recs,false},State0),
     NewBufBot = State1#state.bufBot,
     NewGuiBot = State1#state.guiBot,
-    %?Info("filling rows false ~p ~p ~p",[length(Recs),NewBufBot,NewGuiBot]),
     State2 = if
         (Button == <<">">>) ->      prefetch(filling,State1);
         (Button == <<">>">>) ->     prefetch(filling,State1);
@@ -872,12 +865,10 @@ filling(cast, {rows, {_StmtRef,Recs,false}}, State0) ->
 filling(cast, {rows, {StmtRef,Recs,true}}, #state{}=State0) ->
     % receive and store data
     % if this is the last open fetch then close the fetch and switch state, no prefetch needed here
-    %?Info("filling cast rows ~p",[{StmtRef,Recs,true}]),
     #state{fetchResults=FetchResults} = State1 = fetch_close(StmtRef, State0),
-    ?Info("FetchResults ~p",[FetchResults]),
     case lists:member(ok, FetchResults) of
         true ->
-            State2 = data_append(completed, {Recs,false}, State1),
+            State2 = data_append(filling, {Recs,false}, State1),
             {next_state, filling, State2};
         false ->
             State2 = fetch_close(State1),
@@ -921,7 +912,7 @@ autofilling(cast, {button, <<"...">>, ReplyTo}, State0) ->
 autofilling(cast, {button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
     if
         (TailMode == false) ->
-            % too late .. change .. seamless tail mode now
+            % too late to change to seamless tail mode now
             State1 = gui_nop(#gres{state=autofilling,beep=true},State0#state{replyToFun=ReplyTo}),
             {next_state, autofilling, State1};
         true ->
@@ -934,7 +925,7 @@ autofilling(cast, {button, <<">|...">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=
 autofilling(cast, {button, <<">|">>, ReplyTo}=Cmd, #state{tailMode=TailMode}=State0) ->
     if
         (TailMode == true) ->
-            % too late .. revoke tail mode now
+            % too late to revoke tail mode now
             State1 = gui_nop(#gres{state=autofilling,beep=true},State0#state{replyToFun=ReplyTo}),
             {next_state, autofilling, State1};
         true ->
@@ -966,22 +957,23 @@ autofilling(cast, {rows, {_StmtRef,Recs,false}}, State0) ->
     State1 = data_append(autofilling,{Recs,false},State0),
     {next_state, autofilling, State1#state{pfc=0}};
 autofilling(cast, {rows, {StmtRef,Recs,true}}, #state{tailMode=false}=State0) ->
-    % revceive and store last input from DB, close fetch, switch state
+    % receive and store data
+    % if this is the last open fetch then close the fetch and switch state, no prefetch needed here
     #state{fetchResults=FetchResults} = State1 = fetch_close(StmtRef, State0),
-    State2 = data_append(completed,{Recs,true},State1),
-    case lists:member(ok, FetchResults) orelse lists:member(tailing, FetchResults) of
-        true ->     {next_state, autofilling, State2};
-        false ->    {next_state, completed, State2#state{pfc=0}}
+    case lists:member(ok, FetchResults) of
+        true ->
+            State2 = data_append(autofilling, {Recs,false}, State1),
+            {next_state, autofilling, State2};
+        false ->
+            State2 = fetch_close(State1),
+            State3 = data_append(completed, {Recs,true}, State2),
+            {next_state, completed, State3}
     end;
 autofilling(cast, {rows, {StmtRef,Recs,true}}, State0) ->
-    % revceive and store last input from DB, switch state .. tail mode
-    % ?Debug("Rows received complete and tailing:~nState: ~p", [State0]),
-    #state{fetchResults=FetchResults} = State1 = fetch_tailing(StmtRef, State0),
+    % revceive and store last input from DB, switch state to tail mode
+    State1 = fetch_tailing(StmtRef, State0),
     State2= data_append(tailing,{Recs,true},State1),
-    case lists:member(ok, FetchResults) of
-        false ->    {next_state, tailing, State2#state{pfc=0}};
-        true ->     {next_state, autofilling, State2}
-    end;
+    {next_state, tailing, State2#state{pfc=0}};
 autofilling(cast, {rows_limit, {_NRows, Recs}}, State0) ->
     % revceive and store input from DB
     State1 = data_append(filling,{Recs,false},State0),
@@ -1025,18 +1017,15 @@ tailing(cast, {button, <<">|...">>, ReplyTo}, State0) ->
     {next_state, tailing, State2#state{tailLock=false}};
 tailing(cast, {button, <<"tail">>, ReplyTo}=Cmd, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) when GuiBot==BufBot ->
     State1 = reply_stack(tailing, ReplyTo, State0),
-    ?NoDbLog(debug, [], "tailing stack 'tail'", []),
     {ok, NewTRef} = timer:send_after(?TAIL_TIMEOUT, cmd_stack_timeout),
     {next_state, tailing, State1#state{stack=Cmd, tRef=NewTRef}};
-tailing(cast, {button, <<"tail">>, ReplyTo}, #state{tailLock=false,bufBot=BufBot,guiBot=GuiBot}=State0) ->
+tailing(cast, {button, <<"tail">>, ReplyTo}, #state{tailLock=false}=State0) ->
     % continue tailing
-    ?NoDbLog(debug, [], "tailing button in state ~n~p guibot: ~p bufbot: ~p", [tailing, GuiBot, BufBot]),
     State1 = reply_stack(tailing, ReplyTo, State0),
     State2 = serve_bot(tailing, <<"tail">>, State1),
     {next_state, tailing, State2};
 tailing(cast, {button, <<"tail">>, ReplyTo}, State0) ->
     % ignore loop command, stop tailing
-    % ?Debug("tailing stopped~n", []),
     State1 = gui_nop(#gres{state=tailing},State0#state{replyToFun=ReplyTo}),
     {next_state, tailing, State1};
 tailing(cast, {button, <<">|">>, ReplyTo}, #state{bufCnt=0}=State0) ->
@@ -2389,11 +2378,10 @@ serve_stack(completed, #state{stack={button,But,RT}}=State0) when But== <<"|<">>
     serve_top(completed,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(completed, #state{guiCnt=0,stack={button,<<">">>,RT}}=State0) ->
     serve_top(completed,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(completed, #state{stack={button,_Button,RT},bufCnt=BufCnt}=State0) ->
+serve_stack(completed, #state{stack={button,_Button,RT}}=State0) ->
     % deferred button can be executed for forward buttons <<">">> <<">>">> <<">|">> <<">|...">>
-    ?Info("stack serving resumed after ~p rows",[BufCnt]),
     serve_bot(completed,<<>>,State0#state{stack=undefined,replyToFun=RT});
-serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,guiCnt=0,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
         Lft -> erlang:system_time(millisecond) - Lft
@@ -2403,14 +2391,14 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCn
             case Nav of
                 raw when BufBot < GL ->
                     % delay serving received rows, trying to get a full block for first serve
-                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 ind when IndCnt < GL ->
                     % delay serving received rows, trying to get a full gui block of sorted data before first serve
-                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 _ ->
-                    ?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     serve_top(filling,State#state{
                         stack=undefined,replyToFun=RT,lastFetchTime=undefined})
             end;
@@ -2418,7 +2406,7 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCn
             serve_top(filling,State#state{
                 stack=undefined,replyToFun=RT,lastFetchTime=undefined})
     end;
-serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
+serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufBot=BufBot,indCnt=IndCnt,lastFetchTime=Lft}=State) ->
     FetchElapsedTime = case Lft of
         undefined -> 0;
         Lft -> erlang:system_time(millisecond) - Lft
@@ -2428,14 +2416,14 @@ serve_stack(filling, #state{nav=Nav,stack={button,<<">">>,RT},gl=GL,bufCnt=BufCn
             case Nav of
                 raw when BufBot < GL ->
                     % delay serving received rows, trying to get a full block for first serve
-                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 ind when IndCnt < GL ->
                     % delay serving received rows, trying to get a full gui block of sorted data before first serve
-                    ?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack serving delayed at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     State;
                 _ ->
-                    ?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
+                    %?Info("stack served at ~p elapsed fetch time and ~p rows",[FetchElapsedTime, BufCnt]),
                     serve_bot(filling, <<>>, State#state{
                         stack=undefined,replyToFun=RT,lastFetchTime=undefined})
             end;
@@ -2465,16 +2453,14 @@ serve_stack(SN, #state{stack={button,<<"<">>,RT},bl=BL,bufTop=BufTop,guiTop=GuiT
                     State0#state{tailLock=true}  % buffer has not grown by 1 full block yet, keep the stack
             end
     end;
-serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufCnt=BufCnt,bufBot=BufBot,guiBot=GuiBot}=State0) ->
+serve_stack(SN, #state{stack={button,<<">>">>,RT},gl=GL,bufBot=BufBot,guiBot=GuiBot}=State0) ->
     case lists:member(GuiBot,keys_before(BufBot,GL-1,State0)) of
         false ->    % deferred forward can be executed now
-                    ?Info("stack serving resumed at ~p rows",[BufCnt]),
                     serve_bot(SN,<<"">>,State0#state{tailLock=true,stack=undefined, replyToFun=RT});
         true ->     State0#state{tailLock=true}  % buffer has not grown by 1 max gui length yet, keep the stack
     end;
 serve_stack(SN, #state{bufCnt=BufCnt,stack={button,Target,RT}}=State0) when is_integer(Target), (BufCnt>=Target) ->
     % deferred target can be executed now
-    ?Info("stack serving target resumed at ~p rows",[BufCnt]),
     serve_target(SN,Target,State0#state{tailLock=true,stack=undefined,replyToFun=RT});
 serve_stack(tailing, #state{stack={button,<<">|...">>,RT}}=State0) ->
     serve_stack(tailing, State0#state{stack={button,<<"tail">>,RT}});
