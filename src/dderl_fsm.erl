@@ -397,7 +397,7 @@ fetch_close(#state{fetchResults=FetchResults, ctx = #ctx{fetch_close_funs = Fcf}
 fetch_close_if_open_and_clear(ok, FetchCloseFun) -> 
     FetchCloseFun(),
     undefined;
-fetch_close_if_open_and_clear(_FetchStatus) -> undefined.
+fetch_close_if_open_and_clear(_, _FetchStatus) -> undefined.
 
 -spec fetch_close(pid(), #state{}) -> #state{}.
 %% close fetch for given statement if open
