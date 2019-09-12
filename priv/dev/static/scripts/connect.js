@@ -13,6 +13,7 @@ import './dderl.combobox';
 var adapters = null;
 var owners = null;
 var connects = null;
+var classes = null;
 
 export function connect_dlg()
 {
@@ -51,6 +52,7 @@ export function connect_dlg()
     var adapter_list = $('<select class="ui-widget-content ui-corner-all">');
     var owners_list = $('<select class="ui-widget-content ui-corner-all">');
     var connection_list = $('<select class="ui-widget-content ui-corner-all">');
+    var class_list = $('<select class="ui-widget-content ui-corner-all">');
 
     connect_common.append(
         $('<tr>').append(
@@ -70,6 +72,12 @@ export function connect_dlg()
                 .append("Connection Name"),
             $('<td>').attr({valign: 'bottom'})
                 .append(connection_list)
+        ),
+        $('<tr>').append(
+            $('<td>').attr({align: 'right', valign: 'center'})
+                .append("Connection Class"),
+            $('<td>').attr({valign: 'bottom'})
+                .append(class_list)
         )
     );
 
@@ -95,7 +103,7 @@ export function connect_dlg()
                 id : 'btn-login',
                 text:'Login / Save',
                 click: function() {
-                    login_save($(this), connection_list, adapter_list, owners_list);
+                    login_save($(this), connection_list, adapter_list, owners_list, class_list);
                 },
                 icon: "fa fa-sign-in button-dialog-connect",
                 iconPosition: "end",
@@ -161,7 +169,7 @@ export function connect_dlg()
     .on('adapter_change', function() {
         console.log("empty the owners_list");
         owners_list.empty();
-        owners_list.change();        
+        owners_list.change();
     })
     .change(function() {
         if(owners_list.children().length < 1) {
@@ -192,7 +200,7 @@ export function connect_dlg()
     connection_list
     .on('owner_change', function() {
         connection_list.empty();
-        connection_list.change();        
+        connection_list.change();
     })
     .change(function() {
         if(connection_list.children().length < 1) {
@@ -233,17 +241,26 @@ export function connect_dlg()
                 .val(connection_list.find('option:selected').text());
         }
         load_connect_option(connection_list, connect_options);
+        
+        let connClass = connection_list.find("option:selected").data('connect').class;
+        
+        if(connClass) { 
+            class_list.val(connClass);
+            class_list.parent().find('input').val(connClass);
+        }
+
         connect_options.find('input:text,input:password,textarea')
             .keypress(function(e) {
                 if(e.which == 13) {
-                    login_save(dlg, connection_list, adapter_list, owners_list);
+                    login_save(dlg, connection_list, adapter_list, owners_list, class_list);
                 }
             });
     });
-    
+
     ajaxCall(null, 'connect_info', {}, 'connect_info', function(connect_info) {
         adapters = connect_info.adapters;
         connects = connect_info.connections;
+        classes = connect_info.classes;
         owners = {};
         var ownersUnique = {};
         for(var id in connects) {
@@ -257,13 +274,20 @@ export function connect_dlg()
             }
         }
 
-        adapter_list.empty();        
-        adapter_list.change();
+        for(var i=0; i < classes.length; ++i) {
+            class_list.append($('<option>', {
+                value: classes[i],
+                text : classes[i]
+            }));
+            class_list.combobox();
+        }
 
+        adapter_list.empty();
+        adapter_list.change();
     });
 }
 
-function login_save(dlg, connection_list, adapter_list, owners_list) {
+function login_save(dlg, connection_list, adapter_list, owners_list, class_list) {
     if(dderlState.connecting === undefined) {
         $('#btn-login').button('disable');
         dderlState.connecting = true;
@@ -275,6 +299,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
         conn.adapter = adapter_list.val();
         conn.owner   = owners_list.parent().find('input').val();
         conn.method  = $("input:radio[name=method]:checked").val();
+        conn.class   = class_list.val();
         if(conn.adapter == 'imem') {
             if(conn.method == 'local') {
                 conn.schema = $('#schema').val();
@@ -319,6 +344,7 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
                 dlg.dialog("close");
                 initDashboards();
                 show_qry_files(false);
+                set_background_color(conn.class);
             }
             
             delete dderlState.connecting;
@@ -374,6 +400,15 @@ function login_save(dlg, connection_list, adapter_list, owners_list) {
     } else {
         console.log("already trying to login");
     }
+}
+
+function set_background_color(connection_class) {
+    ajaxCall(null, 'background_color', {'background_color': {class: connection_class}}, 'background_color',
+        (color) => {
+            let body = document.getElementById('main-body');
+            body.style.backgroundColor = color;
+        }
+    );
 }
 
 function load_connect_option(connection_list, connect_options) {
