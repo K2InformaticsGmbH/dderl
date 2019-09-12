@@ -389,26 +389,27 @@ prefetch(filling,State) ->                State;
 prefetch(_,State) ->                      State.
 
 -spec fetch_close(#state{}) -> #state{}.
+%% close all open fetches and rearm fetch state to 'undefined' for re-fetching the same cursor
 fetch_close(#state{fetchResults=FetchResults, ctx = #ctx{fetch_close_funs = Fcf}}=State) ->
-    NewFetchResults = [fetch_clear(fetch_close_if_open(S,F)) || {S,F} <- lists:zip(FetchResults, Fcf)],
+    NewFetchResults = [fetch_close_if_open_and_clear(S,F) || {S,F} <- lists:zip(FetchResults, Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
 
-fetch_close_if_open(ok, FetchCloseFun) -> 
+fetch_close_if_open_and_clear(ok, FetchCloseFun) -> 
     FetchCloseFun(),
-    closed;
-fetch_close_if_open(S, _FetchCloseFun) -> S.
+    undefined;
+fetch_close_if_open_and_clear(_FetchStatus) -> undefined.
 
 -spec fetch_close(pid(), #state{}) -> #state{}.
+%% close fetch for given statement if open
 fetch_close(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtRefs, fetch_close_funs=Fcf}} = State) ->
     NewFetchResults = [fetch_close_if_open(StmtRef,P,S,F) || {P,S,F} <- lists:zip3(StmtRefs,FetchResults,Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
-
-fetch_clear(_FetchStatus) -> undefined.
 
 fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> FetchCloseFun(), closed;
 fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> S.
 
 -spec fetch_tailing(pid(), #state{}) -> #state{}.
+%% fetch from given statement if in state 'ok'
 fetch_tailing(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtRefs, fetch_close_funs=Fcf}} = State) ->
     NewFetchResults = [fetch_tailing(StmtRef,P,S,F) || {P,S,F} <- lists:zip3(StmtRefs,FetchResults,Fcf)],
     State#state{fetchResults=NewFetchResults}.
@@ -869,13 +870,15 @@ filling(cast, {rows, {StmtRef,Recs,true}}, #state{}=State0) ->
     % if this is the last open fetch then close the fetch and switch state, no prefetch needed here
     %?Info("filling cast rows ~p",[{StmtRef,Recs,true}]),
     #state{fetchResults=FetchResults} = State1 = fetch_close(StmtRef, State0),
+    ?Info("FetchResults ~p",[FetchResults]),
     case lists:member(ok, FetchResults) of
         true ->
             State2 = data_append(completed, {Recs,false}, State1),
             {next_state, filling, State2};
         false ->
-            State2 = data_append(completed, {Recs,true}, State1),
-            {next_state, completed, State2}
+            State2 = fetch_close(State1),
+            State3 = data_append(completed, {Recs,true}, State2),
+            {next_state, completed, State3}
     end;
 filling({call, From}, Msg, State) ->
     handle_call(Msg, From, filling, State);
