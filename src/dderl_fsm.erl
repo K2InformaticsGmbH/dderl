@@ -1530,8 +1530,9 @@ handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexI
     SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
     ?Debug("get_sender_params ~p", [SenderParams]),
     {next_state, SN, State, [{reply, From, SenderParams}]};
-handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, update_cursor_prepare_funs=Ucpf, update_cursor_execute_funs=Ucef}} = State) ->
-    ReceiverParams = {Ucpf, Ucef, Columns},
+handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, stmtRefs=StmtRefs, update_cursor_prepare_funs=Ucpf, update_cursor_execute_funs=Ucef}} = State) ->
+    Node = node(hd(StmtRefs)),
+    ReceiverParams = {Ucpf, Ucef, Columns, Node},
     ?Debug("get_receiver_params ~p", [ReceiverParams]),
     {next_state, SN, State, [{reply, From, ReceiverParams}]};
 handle_call({"row_with_key", RowId}, From, SN, #state{tableId=TableId}=State) ->
