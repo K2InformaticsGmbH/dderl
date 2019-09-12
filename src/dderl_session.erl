@@ -401,7 +401,8 @@ process_call({[<<"connect_info">>], _ReqData}, _Adapter, From, {SrcIp,_},
                                     fullName => A#ddAdapter.fullName
                                 } || A <- Adapters
                             ],
-                        connections => Connections
+                        connections => Connections,
+                        classes => ?CONN_ClASS
                     },
                     #{connect_info =>
                       CInfo#{connections =>
@@ -443,14 +444,25 @@ process_call({[<<"del_con">>], ReqData}, _Adapter, From, {SrcIp,_},
     reply(From, [{<<"del_con">>, Resp}], self()),
     State;
 
+process_call({[<<"background_color">>], ReqData}, _Adapter, From, {SrcIp,_}, #state{} = State) ->
+    act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "background_color", args => ReqData}, State),
+    [{<<"background_color">>, BodyJson}] = jsx:decode(ReqData),
+    Class = binary_to_existing_atom(proplists:get_value(<<"class">>, BodyJson, <<"prod">>), utf8),
+    reply(From, [{<<"background_color">>, ?BACKGROUND_COLOR(Class)}], self()),
+    State;
+
 process_call({[<<"activate_sender">>], ReqData}, _Adapter, From, {SrcIp,_},
              #state{active_sender = undefined} = State) ->
     act_log(From, ?CMD_NOARGS, #{src => SrcIp, cmd => "activate_sender", args => ReqData}, State),
     [{<<"activate_sender">>, BodyJson}] = jsx:decode(ReqData),
     Statement = binary_to_term(base64:decode(proplists:get_value(<<"statement">>, BodyJson, <<>>))),
-    ColumnPositions = proplists:get_value(<<"column_positions">>, BodyJson, []),
+    SenderType = binary_to_existing_atom(proplists:get_value(<<"sender_type">>, BodyJson, <<"table">>), utf8),
+    Data = case SenderType of
+        stats -> proplists:get_value(<<"data">>, BodyJson, []);
+        table -> proplists:get_value(<<"column_positions">>, BodyJson, [])
+    end,
     %% TODO: Add options to override default parameters
-    case dderl_data_sender_sup:start_sender(Statement, ColumnPositions) of
+    case dderl_data_sender_sup:start_sender(Statement, Data, SenderType) of
         {ok, Pid} ->
             reply(From, [{<<"activate_sender">>, <<"ok">>}], self()),
             State#state{active_sender = Pid};

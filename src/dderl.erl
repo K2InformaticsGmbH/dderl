@@ -98,11 +98,25 @@ init(Req, State) ->
     Req1 = 
     case binary:last(Url) of
         $/ ->
-            Filename = filename:join([priv_dir(),
-                                    "public", "dist",
-                                    "index.html"]),
-            {ok, Html} = file:read_file(Filename),
-            cowboy_req:reply(200, #{<<"content-type">> => <<"text/html">>}, Html, Req);
+            Priv = priv_dir(),
+            Filename = filename:join([Priv, "public", "dist", "index.html"]),
+            case file:read_file(Filename) of
+                {ok, Html} ->
+                    cowboy_req:reply(
+                        200, #{<<"content-type">> => <<"text/html">>}, Html,
+                        Req
+                    );
+                {error, Error} ->
+                    ?Error("unable to read ~s : ~p", [Filename, Error]),
+                    cowboy_req:reply(
+                        500, #{<<"content-type">> => <<"text/html">>},
+                        <<
+                            "<p><b style='color:red'>ERROR</b> ",
+                            (list_to_binary(Filename))/binary, " not found</p>"
+                        >>,
+                        Req
+                    )
+            end;
         _ ->
             cowboy_req:reply(301, #{<<"location">> => <<Url/binary,"/">>}, Req)
     end,

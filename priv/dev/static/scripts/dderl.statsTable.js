@@ -29,11 +29,15 @@ import * as tableSelection from './table-selection';
         _handlers : {queryResult        : function(e, _result) { e.data._createDistinctCount(_result); },
                      updateData         : function(e, _result) { e.data._updatePlot(_result); },
                      statsResult        : function(e, _result) { e.data._reload(_result); },
+                     activateSender     : function(e, _result) { e.data._activateSenderResult(_result); },
                      statsLoadResult    : function(e, _result) { e.data.open(_result); }
                     },
 
         _toolbarButtons : {'restart'  : {tip: 'Reload', typ : 'btn', icn : 'refresh', clk : '_toolBarReload',   dom: '_tbReload' },
                            'textBox'  : {tip: '',       typ : 'txt',                  clk : '_toolBarTxtBox',   dom: '_tbTxtBox' }},
+
+                           // dialog context menus
+        _statsDlgTtlCnxtMnu  : {'Send Data' : '_activateSender'},
 
         // slick context menus
         _statsSlkHdrCnxtMnu  : {'Hide'       : '_hide',
@@ -158,8 +162,12 @@ import * as tableSelection from './table-selection';
                 .css('border-color', 'lightblue')
                 .appendTo(self.element);
 
+            // convert title into html
+            self._setTitleHtml($('<span>').text(self.options.title).addClass('table-title'));
+
             self._createSlickGrid();
             self._cnxtMenu('_statsSlkHdrCnxtMnu');
+            self._cnxtMenu('_statsDlgTtlCnxtMnu');
 
             // setting up the event handlers last to aid debuggin
             for(var fun in self._handlers) {
@@ -361,7 +369,6 @@ import * as tableSelection from './table-selection';
             var fun = $.proxy(this[funName], this);
             if($.isFunction(fun)) {
                 var data = this._grid.getSelectionModel().getSelectedRanges();
-                //console.log('applying fun '+funName+' for \''+_action+ '\' in '+_menu+' for '+data);
                 fun(data);
             } else {
                 throw('unimplimented fun '+funName+' for \''+_action+ '\' in '+_menu);
@@ -788,6 +795,47 @@ import * as tableSelection from './table-selection';
             ajaxCall(this, url, data, resp, callback);
         },
 
+        _getSenderData: function() {
+            let self = this;
+            console.log("raw:", self._gdata);
+            let cols = self._grid.getColumns();
+            console.log("The cols", cols);
+            let result = [];
+            self._gdata.forEach((row) => {
+                let dataRow = [];
+                // Starts as 1 as id colums is the index 0.
+                for(let i = 1; i < cols.length; ++i) {
+                    dataRow.push(row[cols[i].field]);
+                }
+                result.push(dataRow);
+            });
+            console.log("result data", result);
+            return result;
+        },
+
+        _activateSender: function() {
+            var self = this;
+            self._ajax('activate_sender', {
+                activate_sender: {
+                    connection: dderlState.connection,
+                    statement: self._stmt,
+                    data: self._getSenderData(),
+                    sender_type: 'stats'
+                }
+            }, 'activate_sender', 'activateSender');
+        },
+
+        _activateSenderResult: function(activationResult) {
+            if(activationResult.hasOwnProperty('error')) {
+                alert_jq(activationResult.error);
+            } else {
+                let dlg = alert_jq("Sender activated, it will wait for up to 100 seconds for a receiver");
+                setTimeout(() => {
+                    dlg.dialog("close");
+                }, 5000);
+            }
+        },
+
         _createSlickGrid: function() {
             var self = this;
 
@@ -867,7 +915,6 @@ import * as tableSelection from './table-selection';
             var self = this;
 
             // Column Data
-            var fldWidth = 0;
             self._origcolumns = {};
             columns[0].formatter = Slick.Formatters.IdFormatter;
             columns[0].headerCssClass = "numeric";
@@ -890,7 +937,6 @@ import * as tableSelection from './table-selection';
                 } else {
                     columns[i].formatter = Slick.Formatters.BinStringText;
                 }
-                fldWidth = self._txtlen.text(columns[i].name).width()+45;
                 if(columns[i].hasOwnProperty('editor')) {
                     columns[i].editor = Slick.Editors.ControlChars;
                 }
@@ -1314,6 +1360,23 @@ import * as tableSelection from './table-selection';
 
             self._grid.invalidate();
             self._grid.scrollRowIntoView(1);
+        },
+
+        _setTitleHtml: function(newTitle) {
+            var self = this;
+            self._dlg.dialog('option', 'title', newTitle[0].outerHTML);
+            self._dlg.dialog("widget").find(".table-title").on("contextmenu click", function(e) {
+                if(self._dlgMinimized) {
+                    self._dlg.dialogExtend("restore");
+                } else {
+                    self._statsDlgTtlCnxtMnu.dom
+                        .css("top", e.clientY - 10)
+                        .css("left", e.clientX)
+                        .data('cnxt', self)
+                        .show();
+                }
+                return false;
+            });
         },
 
         /*

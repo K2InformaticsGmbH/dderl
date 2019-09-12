@@ -284,13 +284,13 @@ run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
                     error({ErrorId,Msg});
                 Statement ->
                     StmtExecResult = bind_exec_stmt(Statement, Binds),
-                    result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,
+                    result_exec_stmt(StmtExecResult,[Statement],Sql,Binds,NewSql,RowIdAdded,
                                      Connection,SelectSections)
             end;
         {error, {ErrorId,Msg}} -> error({ErrorId,Msg});
         Statement ->
             StmtExecResult = bind_exec_stmt(Statement, Binds),
-            result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,Connection,
+            result_exec_stmt(StmtExecResult,[Statement],Sql,Binds,NewSql,RowIdAdded,Connection,
                              SelectSections)
     end.
 
@@ -356,32 +356,38 @@ result_exec_stmt({executed,_,Values}, StmtRefs, _Sql, {Binds, _BindValues}, _New
 result_exec_stmt(Error, StmtRefs, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
     [SR:close() || SR <- StmtRefs],
     error(Error);
-result_exec_stmt(RowIdError, StmtRefs, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
+result_exec_stmt(
+    RowIdError, StmtRefs, Sql, Binds, _NewSql, _RowIdAdded, Connection,
+    SelectSections
+) ->
     ?Debug("RowIdError ~p", [RowIdError]),
     [SR:close() || SR <- StmtRefs],
     case Connection:prep_sql(Sql) of
         {error, {ErrorId,Msg}} ->
             error({ErrorId,Msg});
-        StmtRefs1 ->
-            case bind_exec_stmt(StmtRefs1, Binds) of
+        StmtRef ->
+            case bind_exec_stmt(StmtRef, Binds) of
                 {cols, Clms} ->
                     Fields = proplists:get_value(fields, SelectSections, []),
                     NewClms = cols_to_rec(Clms, Fields),
                     SortFun = build_sort_fun(Sql, NewClms),
-                    { ok
-                    , #stmtResults{ rowCols=NewClms
-                                  , stmtRefs=StmtRefs1
-                                  , sortFun=SortFun
-                                  , rowFun=
-                                      fun({{}, Row}) ->
-                                          translate_datatype(hd(StmtRefs1), tuple_to_list(Row), NewClms)
-                                      end
-                                  , sortSpec = []
-                                  }
-                    , false
+                    {
+                        ok,
+                        #stmtResults{
+                            rowCols = NewClms, stmtRefs = [StmtRef],
+                            sortFun = SortFun, sortSpec = [],
+                            rowFun =
+                                fun({{}, Row}) ->
+                                    translate_datatype(
+                                        StmtRef, tuple_to_list(Row),
+                                        NewClms
+                                    )
+                                end
+                        },
+                        false
                     };
                 Error ->
-                    [SR:close() || SR <- StmtRefs1],
+                    StmtRef:close(),
                     error(Error)
             end
     end.

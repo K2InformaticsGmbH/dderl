@@ -4,7 +4,7 @@
 
 %% API
 -export([start_link/0
-        ,start_sender/2
+        ,start_sender/3
         ,terminate_sender/1
         ,list_senders/0]).
 
@@ -21,9 +21,9 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
--spec start_sender({atom(), pid()}, [integer()]) -> {error, term()} | {ok, pid()}.
-start_sender(Statement, ColumnPositions) ->
-	supervisor:start_child(?MODULE, [Statement, ColumnPositions]).
+-spec start_sender({atom(), pid()}, list(), table | stats) -> {error, term()} | {ok, pid()}.
+start_sender(Statement, Data, Type) ->
+    supervisor:start_child(?MODULE, [Statement, Data, Type]).
 
 -spec terminate_sender(pid()) -> ok | {error, not_found | simple_one_for_one}.
 terminate_sender(SenderPid) ->
