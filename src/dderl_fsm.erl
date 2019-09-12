@@ -405,8 +405,12 @@ fetch_close(StmtRef, #state{fetchResults=FetchResults, ctx = #ctx{stmtRefs=StmtR
     NewFetchResults = [fetch_close_if_open(StmtRef,P,S,F) || {P,S,F} <- lists:zip3(StmtRefs,FetchResults,Fcf)],
     State#state{pfc=0, fetchResults=NewFetchResults}.
 
-fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> FetchCloseFun(), closed;
-fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> S.
+fetch_close_if_open(StmtRef, StmtRef, ok, FetchCloseFun) -> 
+    ?Info("fetch_close_if_open closing ~p ~p",[StmtRef, StmtRef]),
+    FetchCloseFun(), closed;
+fetch_close_if_open(_StmtRef1, _StmtRef2, S, _FetchCloseFun) -> 
+    ?Info("fetch_close_if_open keeping ~p ~p ~p",[S, _StmtRef1, _StmtRef2]),
+    S.
 
 -spec fetch_tailing(pid(), #state{}) -> #state{}.
 %% fetch from given statement if in state 'ok'
