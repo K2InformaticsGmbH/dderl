@@ -26,6 +26,7 @@
         ,fsm_monitor               :: reference()
         ,update_cursor_prepare_fun :: fun()
         ,update_cursor_execute_fun :: fun()
+        ,node                      :: node()
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
         ,received_rows = 0         :: integer()
@@ -91,20 +92,20 @@ handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Erro
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {stats, SndColsCount, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
-    {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
+    {Ucpf, Ucef, Columns, Node} = Statement:get_receiver_params(),
     if
         length(ColumnPos) =:= SndColsCount ->
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SndColsCount}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
     end;
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
-    {Ucpfs, Ucefs, Columns} = Statement:get_receiver_params(),
+    {Ucpfs, Ucefs, Columns, Node} = Statement:get_receiver_params(),
     %% TODO: Check for column names and types instead of only count.
     if
         length(ColumnPos) =:= length(SenderColumns) ->
@@ -113,7 +114,7 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SenderColumnNames}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = hd(Ucpfs), update_cursor_execute_fun = hd(Ucefs), columns = Columns}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = hd(Ucpfs), update_cursor_execute_fun = hd(Ucefs), columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
@@ -155,8 +156,8 @@ terminate(Reason, #state{}) ->
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 -spec add_rows_to_statement([[binary()]], #state{}) -> ok | {error, term()}.
-add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns}) ->
-    PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1),
+add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns, node = Node}) ->
+    PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1, Node),
     case Ucpf(PreparedRows) of
         ok ->
             case Ucef(none) of
@@ -171,12 +172,12 @@ add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_curs
         {_, Error} -> {error, Error}
     end.
 
--spec prepare_rows([[binary()]], [#rowCol{}], [binary()], pos_integer()) -> [list()].
-prepare_rows([], _Columns, _ColumnPos, _RowId) -> [];
-prepare_rows([Row | RestRows], Columns, ColumnPos, RowId) ->
+-spec prepare_rows([[binary()]], [#rowCol{}], [binary()], pos_integer(), node()) -> [list()].
+prepare_rows([], _Columns, _ColumnPos, _RowId, _Node) -> [];
+prepare_rows([Row | RestRows], Columns, ColumnPos, RowId, Node) ->
     NColumns = length(Columns),
     ValuesToInsert = set_column_value(list_to_tuple(lists:duplicate(NColumns, <<>>)), ColumnPos, Row),
-    [[RowId, ins, {{},{}} | ValuesToInsert] | prepare_rows(RestRows, Columns, ColumnPos, RowId + 1)].
+    [[RowId, ins, {{RowId, Node},{}} | ValuesToInsert] | prepare_rows(RestRows, Columns, ColumnPos, RowId + 1, Node)].
 
 -spec set_column_value(tuple(), [integer()], [binary()]) -> [binary()].
 set_column_value(NewRow, [], []) -> tuple_to_list(NewRow);
