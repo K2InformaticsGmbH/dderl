@@ -3,6 +3,14 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.6.0 (Release Date 13.09.2019)
+======================================
+* Updated imem to version 3.6.0
+* Cluster Query Support
+* saml url handling all methods #600
+* backend color per connection #611
+* dderl_metrics with support for session_count metric
+
 Version 3.5.1 (Release Date 28.06.2019)
 ======================================
 * Updated esaml to version 2.3.0
