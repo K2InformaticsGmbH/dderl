@@ -21,11 +21,12 @@
 
 -record(state,
         {statement                 :: {atom, pid()}
-        ,columns                   :: [#stmtCol{}]
+        ,columns                   :: [#rowCol{}]
         ,column_pos                :: [integer()]
         ,fsm_monitor               :: reference()
         ,update_cursor_prepare_fun :: fun()
         ,update_cursor_execute_fun :: fun()
+        ,node                      :: node()
         ,sender_pid                :: pid()
         ,sender_monitor            :: reference()
         ,received_rows = 0         :: integer()
@@ -49,7 +50,11 @@ start_link(Statement, ColumnPositions, PidSender, BrowserPid) ->
 get_status(ReceiverPid, ReplyToPid) ->
     gen_server:cast(ReceiverPid, {status, ReplyToPid}).
 
--spec data_info(pid(), {[#stmtCol{}], non_neg_integer()} | {stats, non_neg_integer(), non_neg_integer()}) -> ok.
+-spec data_info(
+    pid(),
+    {[#rowCol{}], non_neg_integer()}
+     | {stats, non_neg_integer(), non_neg_integer()}
+) -> ok.
 data_info(ReceiverPid, {_Columns, _Size} = DataInfo) ->
     gen_server:cast(ReceiverPid, {data_info, DataInfo});
 data_info(ReceiverPid, {stats, _ColumnCount, _Size} = DataInfo) ->
@@ -80,36 +85,36 @@ handle_call(Req, _From, State) ->
 handle_cast({status, ReplyToPid}, #state{is_complete = true, received_rows = RowCount} = State) ->
     Response = [{<<"received_rows">>, RowCount}, {<<"is_complete">>, true}, {<<"continue">>, false}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
-    ?Info("Terminating after respoding completed to receiver_status"),
+    ?Info("Terminating in state completed"),
     {stop, normal, State};
 handle_cast({status, ReplyToPid}, #state{received_rows = RowCount, errors = Errors} = State) ->
     Response = [{<<"received_rows">>, RowCount}, {<<"errors">>, Errors}, {<<"continue">>, true}],
     ReplyToPid ! {reply, jsx:encode([{<<"receiver_status">>, Response}])},
     {noreply, State#state{errors = []}, ?RESPONSE_TIMEOUT};
 handle_cast({data_info, {stats, SndColsCount, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
-    {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
+    {Ucpf, Ucef, Columns, Node} = Statement:get_receiver_params(),
     if
         length(ColumnPos) =:= SndColsCount ->
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SndColsCount}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
     end;
 handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = SenderPid, browser_pid = BrowserPid, statement = Statement, column_pos = ColumnPos} = State) ->
     ?Debug("data information from sender, columns ~n~p~n, Available rows: ~p", [SenderColumns, AvailableRows]),
-    {Ucpf, Ucef, Columns} = Statement:get_receiver_params(),
+    {Ucpfs, Ucefs, Columns, Node} = Statement:get_receiver_params(),
     %% TODO: Check for column names and types instead of only count.
     if
         length(ColumnPos) =:= length(SenderColumns) ->
-            SenderColumnNames = [ColAlias || #stmtCol{alias = ColAlias} <- SenderColumns],
+            SenderColumnNames = [ColAlias || #rowCol{alias=ColAlias} <- SenderColumns],
             %% TODO: Change this for a callback and add information about sender columns
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SenderColumnNames}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = hd(Ucpfs), update_cursor_execute_fun = hd(Ucefs), columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
@@ -117,7 +122,7 @@ handle_cast({data_info, {SenderColumns, AvailableRows}}, #state{sender_pid = Sen
 handle_cast({data, '$end_of_table'}, State) ->
     ?Info("End of table reached in sender"),
     {noreply, State#state{is_complete = true}, ?RESPONSE_TIMEOUT};
-handle_cast({data, Rows}, #state{sender_pid = SenderPid, received_rows = ReceivedRows, errors = Errors} = State) ->
+handle_cast({data, Rows}, #state{sender_pid=SenderPid, received_rows=ReceivedRows, errors=Errors} = State) ->
     ?Debug("got ~p rows from the data sender, adding it to fsm and asking for more", [length(Rows)]),
     case add_rows_to_statement(Rows, State) of
         ok -> 
@@ -151,8 +156,8 @@ terminate(Reason, #state{}) ->
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 -spec add_rows_to_statement([[binary()]], #state{}) -> ok | {error, term()}.
-add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns}) ->
-    PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1),
+add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, column_pos = ColumnPos, columns = Columns, node = Node}) ->
+    PreparedRows = prepare_rows(Rows, Columns, ColumnPos, 1, Node),
     case Ucpf(PreparedRows) of
         ok ->
             case Ucef(none) of
@@ -167,12 +172,12 @@ add_rows_to_statement(Rows, #state{update_cursor_prepare_fun = Ucpf, update_curs
         {_, Error} -> {error, Error}
     end.
 
--spec prepare_rows([[binary()]], [#stmtCol{}], [binary()], pos_integer()) -> [list()].
-prepare_rows([], _Columns, _ColumnPos, _RowId) -> [];
-prepare_rows([Row | RestRows], Columns, ColumnPos, RowId) ->
+-spec prepare_rows([[binary()]], [#rowCol{}], [binary()], pos_integer(), node()) -> [list()].
+prepare_rows([], _Columns, _ColumnPos, _RowId, _Node) -> [];
+prepare_rows([Row | RestRows], Columns, ColumnPos, RowId, Node) ->
     NColumns = length(Columns),
     ValuesToInsert = set_column_value(list_to_tuple(lists:duplicate(NColumns, <<>>)), ColumnPos, Row),
-    [[RowId, ins, {{},{}} | ValuesToInsert] | prepare_rows(RestRows, Columns, ColumnPos, RowId + 1)].
+    [[RowId, ins, {{RowId, Node},{}} | ValuesToInsert] | prepare_rows(RestRows, Columns, ColumnPos, RowId + 1, Node)].
 
 -spec set_column_value(tuple(), [integer()], [binary()]) -> [binary()].
 set_column_value(NewRow, [], []) -> tuple_to_list(NewRow);

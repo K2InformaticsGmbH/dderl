@@ -631,17 +631,17 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, _SessP
         ok ->
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             From ! {reply_csv, FileName, <<>>, single};
-        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}} ->
-            Columns = gen_adapter:build_column_csv(UserId, imem, Clms),
+        {ok, #stmtResults{rowCols=RowCols, stmtRefs=StmtRefs, rowFun=RowFun}} ->
+            Columns = gen_adapter:build_column_csv(UserId, imem, RowCols),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
-                produce_csv_rows(UserId, Connection, From, StmtRef, RowFun)
+                produce_csv_rows(UserId, Connection, From, StmtRefs, RowFun)
             end),
-            Connection:add_stmt_fsm(StmtRef, {?MODULE, ProducerPid}),
-            Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], StmtRef]),
-            ?Debug("process_query created statement ~p for ~p", [ProducerPid, Query]);
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("query error ~p", [Error], Stacktrace),
+            Connection:add_stmt_fsm(StmtRefs, {?MODULE, ProducerPid}),
+            [Connection:run_cmd(fetch_recs_async, [[{fetch_mode,push}], SR]) || SR <- StmtRefs],
+            ?Debug("process_query created statements ~p for ~p", [ProducerPid, Query]);
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("query error ~p", [Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             From ! {reply_csv, FileName, Err, single};
@@ -773,38 +773,39 @@ process_query(Query, Connection, {ConnId, Adapter}, Params, SessPid) ->
 process_query(Query, Connection, {ConnId, Adapter}, SessPid) ->
     process_query(Query, Connection, {ConnId, Adapter}, [], SessPid);
 process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
+    SessPid ! {log_query, Query, Params},
     case check_funs(Connection:exec(Query, ?DEFAULT_ROW_SIZE, Params)) of
         ok ->
-            SessPid ! {log_query, Query, Params},
             ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
             [{<<"result">>, <<"ok">>}];
-        {ok, #stmtResult{ stmtCols = Clms
-                        , rowFun   = RowFun
-                        , stmtRef  = StmtRef
-                        , sortFun  = SortFun
-                        , sortSpec = SortSpec} = _StmtRslt} ->
-            SessPid ! {log_query, Query, Params},
-            TableName = extract_table_name(Query),
+        {ok, #stmtResults{ stmtRefs = StmtRefs
+                         , stmtTables = StmtTables
+                         , stmtClass = StmtClass    % string() here
+                         , rowCols  = RowCols
+                         , rowFun   = RowFun
+                         , sortFun  = SortFun
+                         , sortSpec = SortSpec}} ->
             StmtFsm = dderl_fsm:start(
-                                #fsmctx{ id                         = "what is it?"
-                                       , stmtCols                   = Clms
-                                       , rowFun                     = RowFun
-                                       , sortFun                    = SortFun
-                                       , sortSpec                   = SortSpec
-                                       , orig_qry                   = Query
-                                       , bind_vals                  = Params
-                                       , table_name                 = TableName
-                                       , block_length               = ?DEFAULT_ROW_SIZE
-                                       , fetch_recs_async_fun       = imem_adapter_funs:fetch_recs_async(Connection, StmtRef)
-                                       , fetch_close_fun            = imem_adapter_funs:fetch_close(Connection, StmtRef)
-                                       , stmt_close_fun             = imem_adapter_funs:stmt_close(Connection, StmtRef)
-                                       , filter_and_sort_fun        = imem_adapter_funs:filter_and_sort(Connection, StmtRef)
-                                       , update_cursor_prepare_fun  = imem_adapter_funs:update_cursor_prepare(Connection, StmtRef)
-                                       , update_cursor_execute_fun  = imem_adapter_funs:update_cursor_execute(Connection, StmtRef)
-                                       }, SessPid),
-            Connection:add_stmt_fsm(StmtRef, StmtFsm),
-            ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-            Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
+                                #fsmctxs{ stmtRefs                   = StmtRefs
+                                        , stmtTables                 = StmtTables
+                                        , stmtClass                  = list_to_binary(StmtClass--"L")
+                                        , rowCols                    = RowCols
+                                        , rowFun                     = RowFun
+                                        , sortFun                    = SortFun
+                                        , sortSpec                   = SortSpec
+                                        , orig_qry                   = Query
+                                        , bind_vals                  = Params
+                                        , block_length               = ?DEFAULT_ROW_SIZE
+                                        , fetch_recs_async_funs      = imem_adapter_funs:fetch_recs_async(Connection, StmtRefs)
+                                        , fetch_close_funs           = imem_adapter_funs:fetch_close(Connection, StmtRefs)
+                                        , stmt_close_funs            = imem_adapter_funs:stmt_close(Connection, StmtRefs)
+                                        , filter_and_sort_funs       = imem_adapter_funs:filter_and_sort(Connection, StmtRefs)
+                                        , update_cursor_prepare_funs = imem_adapter_funs:update_cursor_prepare(Connection, StmtRefs)
+                                        , update_cursor_execute_funs = imem_adapter_funs:update_cursor_execute(Connection, StmtRefs)
+                                        }, SessPid),
+            Connection:add_stmt_fsm(StmtRefs, StmtFsm),
+            ?Debug("StmtRslt ~p ~p", [RowCols, SortSpec]),
+            Columns = gen_adapter:build_column_json(lists:reverse(RowCols)),
             JSortSpec = build_srtspec_json(SortSpec),
             ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
             ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
@@ -812,8 +813,8 @@ process_query(Query, {_,_ConPid}=Connection, Params, SessPid) ->
              {<<"sort_spec">>, JSortSpec},
              {<<"statement">>, base64:encode(term_to_binary(StmtFsm))},
              {<<"connection">>, ?E2B(Connection)}];
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("Error on query ~p: ~p", [Query, Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("Error on query ~p: ~p", [Query, Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             [{<<"error">>, Err}];
@@ -865,11 +866,11 @@ process_table_cmd(Cmd, TableName, BodyJson, Connections) ->
             case Connection:run_cmd(Cmd, [TableName]) of
                 ok ->
                     ok;
-                {error, {{_Ex, {_M, E}}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, {_M, E}}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, {TableName, E}};
-                {error, {{_Ex, _M}, Stacktrace} = Error} ->
-                    ?Error("query error ~p", [Error], Stacktrace),
+                {error, {{_Ex, _M}, _Stacktrace} = Error} ->
+                    ?Error("query error ~p", [Error], _Stacktrace),
                     {error, TableName};
                 {error, {Ex, M}} ->
                     ?Error("query error ~p", [{Ex,M}]),
@@ -923,7 +924,7 @@ check_fun_vsn(_) ->
     false.
 
 -spec check_funs(term()) -> term().
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
+check_funs({ok, #stmtResults{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
         ValidFuns -> {ok, StmtRslt};
@@ -932,21 +933,21 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt}) ->
 check_funs(Error) ->
     Error.
 
--spec extract_table_name(binary()) -> binary().
-extract_table_name(Query) ->
-    case sqlparse:parsetree(Query) of
-        {ok,[{{select, SelectSections},_}]} ->
-            {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
-            case FirstTable of
-                {as, Tab, _Alias} -> Tab;
-                {{as, Tab, _Alias}, _} -> Tab;
-                {Tab, _} -> Tab;
-                Tab when is_binary(Tab) -> Tab;
-                _ -> <<>>
-            end;
-        _ ->
-            <<>>
-    end.
+% -spec extract_table_name(binary()) -> binary().
+% extract_table_name(Query) ->
+%     case sqlparse:parsetree(Query) of
+%         {ok,[{{select, SelectSections},_}]} ->
+%             {from, [FirstTable|_]} = lists:keyfind(from, 1, SelectSections),
+%             case FirstTable of
+%                 {as, Tab, _Alias} -> Tab;
+%                 {{as, Tab, _Alias}, _} -> Tab;
+%                 {Tab, _} -> Tab;
+%                 Tab when is_binary(Tab) -> Tab;
+%                 _ -> <<>>
+%             end;
+%         _ ->
+%             <<>>
+%     end.
 
 -spec open_view({atom(), pid()}, {atom(), pid()}, pid(), binary(), [tuple()], undefined | {error, binary()}) -> list().
 open_view(_Sess, _Connection, _SessPid, _ConnId, _Binds, undefined) -> [{<<"error">>, <<"view not found">>}];

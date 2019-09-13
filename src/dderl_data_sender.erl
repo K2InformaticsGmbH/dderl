@@ -41,9 +41,10 @@
 % fetch_first_block: Async request, to initialize the data request process
 % more_data : Async request of a block of data.
 
--spec start_link({atom(), pid()}, [integer()] | [list()], table | stats) -> {ok, pid()} | {error, term()} | ignore.
+-spec start_link({atom(), pid()}, [integer()] | [list()], table | stats) ->
+    {ok, pid()} | {error, term()} | ignore.
 start_link(Statement, Data, Type) ->
-    ?Info("~p starting...~n", [?MODULE]),
+    ?Info("~p starting (statement ~p)...~n", [?MODULE, Statement]),
     case gen_server:start_link(?MODULE, [Statement, Data, Type], []) of
         {ok, _} = Success ->
             ?Info("~p started!~n", [?MODULE]),

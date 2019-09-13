@@ -58,7 +58,7 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
         {'EXIT', {Error, ST}} ->
             ?Error("run_query(~s,~p,~s)~n{~p,~p}", [Sql, Binds, NewSql, Error, ST]),
             {error, Error};
-        {ok, #stmtResult{} = StmtResult, ContainRowId} ->
+        {ok, #stmtResults{} = StmtResult, ContainRowId} ->
             LowerSql = string:to_lower(binary_to_list(Sql)),
             case string:str(LowerSql, "rownum") of
                 0 -> ContainRowNum = false;
@@ -67,7 +67,7 @@ exec({oci_port, _, _} = Connection, OrigSql, Binds, MaxRowCount) ->
             {ok, Pid} = gen_server:start(?MODULE, [SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum], []),
             SortSpec = gen_server:call(Pid, build_sort_spec, ?ExecTimeout),
             %% Mask the internal stmt ref with our pid.
-            {ok, StmtResult#stmtResult{stmtRef = Pid, sortSpec = SortSpec}, TableName};
+            {ok, StmtResult#stmtResults{stmtRefs = [Pid], sortSpec = SortSpec}, TableName};
         NoSelect ->
             NoSelect
     end.
@@ -114,25 +114,25 @@ init([SelectSections, StmtResult, ContainRowId, MaxRowCount, ContainRowNum]) ->
             contain_rownum = ContainRowNum}}.
 
 handle_call({filter_and_sort, Connection, FilterSpec, SortSpec, Cols, Query}, _From, #qry{stmt_result = StmtResult} = State) ->
-    #stmtResult{stmtCols = StmtCols} = StmtResult,
+    #stmtResults{rowCols=RowCols} = StmtResult,
     %% TODO: improve this to use/update parse tree from the state.
-    Res = filter_and_sort_internal(Connection, FilterSpec, SortSpec, Cols, Query, StmtCols),
+    Res = filter_and_sort_internal(Connection, FilterSpec, SortSpec, Cols, Query, RowCols),
     {reply, Res, State};
 handle_call(build_sort_spec, _From, #qry{stmt_result = StmtResult, select_sections = SelectSections} = State) ->
-    #stmtResult{stmtCols = StmtCols} = StmtResult,
-    SortSpec = build_sort_spec(SelectSections, StmtCols),
+    #stmtResults{rowCols=RowCols} = StmtResult,
+    SortSpec = build_sort_spec(SelectSections, RowCols),
     {reply, SortSpec, State};
 handle_call(get_state, _From, State) ->
     {reply, State, State};
 handle_call(fetch_close, _From, #qry{} = State) ->
     {reply, ok, State#qry{pushlock = true}};
 handle_call(close, _From, #qry{stmt_result = StmtResult} = State) ->
-    #stmtResult{stmtRef = StmtRef} = StmtResult,
-    try StmtRef:close()
+    #stmtResults{stmtRefs = StmtRefs} = StmtResult,
+    [try SR:close()
     catch
         exit:{noproc,_} -> ok %trying to close an already closed statement.
-    end,
-    {stop, normal, ok, State#qry{stmt_result = StmtResult#stmtResult{stmtRef = undefined}}};
+    end || SR <- StmtRefs],
+    {stop, normal, ok, State#qry{stmt_result = StmtResult#stmtResults{stmtRefs = []}}};
 handle_call(_Ignored, _From, State) ->
     {noreply, State}.
 
@@ -149,10 +149,10 @@ handle_cast({fetch_recs_async, true, FsmNRows}, #qry{max_rowcount = MaxRowCount}
     gen_server:cast(self(), {fetch_push, 0, RowsToRequest}),
     {noreply, State};
 handle_cast({fetch_recs_async, false, _}, #qry{fsm_ref = FsmRef, stmt_result = StmtResult, contain_rowid = ContainRowId} = State) ->
-    #stmtResult{stmtRef = StmtRef, stmtCols = Clms} = StmtResult,
-    case StmtRef:fetch_rows(?DEFAULT_ROW_SIZE) of
+    #stmtResults{stmtRefs=StmtRefs, rowCols=RowCols} = StmtResult,
+    [case SR:fetch_rows(?DEFAULT_ROW_SIZE) of
         {{rows, Rows}, Completed} ->
-            try FsmRef:rows({fix_row_format(StmtRef, Rows, Clms, ContainRowId), Completed}) of
+            try FsmRef:rows({fix_row_format(SR, Rows, RowCols, ContainRowId), Completed}) of
                 ok -> ok
             catch
                 _Class:Result ->
@@ -160,11 +160,11 @@ handle_cast({fetch_recs_async, false, _}, #qry{fsm_ref = FsmRef, stmt_result = S
             end;
         {error, Error} ->
             FsmRef:rows({error, Error})
-    end,
+    end || SR <- StmtRefs],
     {noreply, State};
 handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = StmtResult} = State) ->
     #qry{contain_rowid = ContainRowId, contain_rownum = ContainRowNum} = State,
-    #stmtResult{stmtRef = StmtRef, stmtCols = Clms} = StmtResult,
+    #stmtResults{stmtRefs=StmtRefs, rowCols=RowCols} = StmtResult,
     MissingRows = Target - NRows,
     if
         MissingRows > ?DEFAULT_ROW_SIZE ->
@@ -172,9 +172,9 @@ handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = St
         true ->
             RowsToFetch = MissingRows
     end,
-    case StmtRef:fetch_rows(RowsToFetch) of
+    [case SR:fetch_rows(RowsToFetch) of
         {{rows, Rows}, Completed} ->
-            RowsFixed = fix_row_format(StmtRef, Rows, Clms, ContainRowId),
+            RowsFixed = fix_row_format(SR, Rows, RowCols, ContainRowId),
             NewNRows = NRows + length(RowsFixed),
             if
                 Completed -> FsmRef:rows({RowsFixed, Completed});
@@ -185,16 +185,16 @@ handle_cast({fetch_push, NRows, Target}, #qry{fsm_ref = FsmRef, stmt_result = St
             end;
         {error, Error} ->
             FsmRef:rows({error, Error})
-    end,
+    end || SR <- StmtRefs],
     {noreply, State};
-handle_cast(_Ignored, State) ->
+handle_cast(_Ignored, State ) ->
     {noreply, State}.
 
 handle_info(_Info, State) ->
 	{noreply, State}.
 
-terminate(_Reason, #qry{stmt_result = #stmtResult{stmtRef = undefined}}) -> ok;
-terminate(_Reason, #qry{stmt_result = #stmtResult{stmtRef = StmtRef}}) -> StmtRef:close().
+terminate(_Reason, #qry{stmt_result = #stmtResults{stmtRefs = []}}) -> ok;
+terminate(_Reason, #qry{stmt_result = #stmtResults{stmtRefs = StmtRefs}}) -> [SR:close() || SR <- StmtRefs].
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
@@ -284,17 +284,17 @@ run_query(Connection, Sql, Binds, NewSql, RowIdAdded, SelectSections) ->
                     error({ErrorId,Msg});
                 Statement ->
                     StmtExecResult = bind_exec_stmt(Statement, Binds),
-                    result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,
+                    result_exec_stmt(StmtExecResult,[Statement],Sql,Binds,NewSql,RowIdAdded,
                                      Connection,SelectSections)
             end;
         {error, {ErrorId,Msg}} -> error({ErrorId,Msg});
         Statement ->
             StmtExecResult = bind_exec_stmt(Statement, Binds),
-            result_exec_stmt(StmtExecResult,Statement,Sql,Binds,NewSql,RowIdAdded,Connection,
+            result_exec_stmt(StmtExecResult,[Statement],Sql,Binds,NewSql,RowIdAdded,Connection,
                              SelectSections)
     end.
 
-result_exec_stmt({cols, Clms}, Statement, _Sql, _Binds, NewSql, RowIdAdded, _Connection, SelectSections) ->
+result_exec_stmt({cols, Clms}, StmtRefs, _Sql, _Binds, NewSql, RowIdAdded, _Connection, SelectSections) ->
     if
         RowIdAdded -> % ROWID is hidden from columns
             [_|ColumnsR] = lists:reverse(Clms),
@@ -305,30 +305,32 @@ result_exec_stmt({cols, Clms}, Statement, _Sql, _Binds, NewSql, RowIdAdded, _Con
     Fields = proplists:get_value(fields, SelectSections, []),
     NewClms = cols_to_rec(Columns, Fields),
     SortFun = build_sort_fun(NewSql, NewClms),
-    {ok
-     , #stmtResult{ stmtCols = NewClms
-                    , rowFun   =
+    { ok
+    , #stmtResults{ rowCols=NewClms
+                  , rowFun=
                         fun({{}, Row}) ->
-                                if
-                                    RowIdAdded ->
-                                        [_|NewRowR] = lists:reverse(tuple_to_list(Row)),
-                                        translate_datatype(Statement, lists:reverse(NewRowR), NewClms);
-                                    true ->
-                                        translate_datatype(Statement, tuple_to_list(Row), NewClms)
-                                end
+                            if
+                                RowIdAdded ->
+                                    [_|NewRowR] = lists:reverse(tuple_to_list(Row)),
+                                    translate_datatype(hd(StmtRefs), lists:reverse(NewRowR), NewClms);
+                                true ->
+                                    translate_datatype(hd(StmtRefs), tuple_to_list(Row), NewClms)
+                            end
                         end
-                    , stmtRef  = Statement
-                    , sortFun  = SortFun
-                    , sortSpec = []}
-     , RowIdAdded};
-result_exec_stmt({rowids, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+                  , stmtRefs=StmtRefs
+                  , sortFun=SortFun
+                  , sortSpec=[]
+                  }
+    , RowIdAdded
+    };
+result_exec_stmt({rowids, _}, StmtRefs, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     ok;
-result_exec_stmt({executed, _}, Statement, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+result_exec_stmt({executed, _}, StmtRefs, _Sql, _Binds, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     ok;
-result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
-    Stmt:close(),
+result_exec_stmt({executed, 1, [{Var, Val}]}, StmtRefs, Sql, {Binds, _}, NewSql, false, Conn, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     case lists:keyfind(Var, 1, Binds) of
         {Var,out,'SQLT_RSET'} ->
             result_exec_stmt(Val:exec_stmt(), Val, Sql, undefined, NewSql, false, Conn, []);
@@ -337,7 +339,7 @@ result_exec_stmt({executed, 1, [{Var, Val}]}, Stmt, Sql, {Binds, _}, NewSql, fal
         _ ->
             {ok, [{Var, Val}]}
     end;
-result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
+result_exec_stmt({executed,_,Values}, StmtRefs, _Sql, {Binds, _BindValues}, _NewSql, _RowIdAdded, _Connection, _SelectSections) ->
     NewValues =
     lists:foldl(
       fun({Var, Val}, Acc) ->
@@ -349,30 +351,43 @@ result_exec_stmt({executed,_,Values}, Statement, _Sql, {Binds, _BindValues}, _Ne
       end, [], Values),
     ?Debug("Values ~p", [Values]),
     ?Debug("Binds ~p", [Binds]),
-    Statement:close(),
+    [SR:close() || SR <- StmtRefs],
     {ok, NewValues};
-result_exec_stmt(Error, Statement, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
-    Statement:close(),
+result_exec_stmt(Error, StmtRefs, Sql, _Binds, Sql, _RowIdAdded, _Connection, _SelectSections) ->
+    [SR:close() || SR <- StmtRefs],
     error(Error);
-result_exec_stmt(RowIdError, Statement, Sql, Binds, _NewSql, _RowIdAdded, Connection, SelectSections) ->
+result_exec_stmt(
+    RowIdError, StmtRefs, Sql, Binds, _NewSql, _RowIdAdded, Connection,
+    SelectSections
+) ->
     ?Debug("RowIdError ~p", [RowIdError]),
-    Statement:close(),
+    [SR:close() || SR <- StmtRefs],
     case Connection:prep_sql(Sql) of
         {error, {ErrorId,Msg}} ->
             error({ErrorId,Msg});
-        Statement1 ->
-            case bind_exec_stmt(Statement1, Binds) of
+        StmtRef ->
+            case bind_exec_stmt(StmtRef, Binds) of
                 {cols, Clms} ->
                     Fields = proplists:get_value(fields, SelectSections, []),
                     NewClms = cols_to_rec(Clms, Fields),
                     SortFun = build_sort_fun(Sql, NewClms),
-                    {ok, #stmtResult{ stmtCols = NewClms, stmtRef  = Statement1, sortFun  = SortFun,
-                                      rowFun   = fun({{}, Row}) ->
-                                                         translate_datatype(Statement, tuple_to_list(Row), NewClms)
-                                                 end, sortSpec = []}
-                     , false};
+                    {
+                        ok,
+                        #stmtResults{
+                            rowCols = NewClms, stmtRefs = [StmtRef],
+                            sortFun = SortFun, sortSpec = [],
+                            rowFun =
+                                fun({{}, Row}) ->
+                                    translate_datatype(
+                                        StmtRef, tuple_to_list(Row),
+                                        NewClms
+                                    )
+                                end
+                        },
+                        false
+                    };
                 Error ->
-                    Statement1:close(),
+                    StmtRef:close(),
                     error(Error)
             end
     end.
@@ -523,7 +538,7 @@ build_full_map(Clms) ->
               , type = to_imem_type(OciType)
               , len = Len
               , prec = undefined }
-     || {T, #stmtCol{alias = Alias, type = OciType, len = Len}} <- lists:zip(lists:seq(1,length(Clms)), Clms)].
+     || {T, #rowCol{alias=Alias, type=OciType, len=Len}} <- lists:zip(lists:seq(1,length(Clms)), Clms)].
 
 %   Tables = case lists:keyfind(from, 1, SelectSections) of
 %       {_, TNames} ->  Tabs = [imem_sql:table_qname(T) || T <- TNames],
@@ -539,93 +554,93 @@ build_full_map(Clms) ->
 build_sort_fun(_Sql, _Clms) ->
     fun(_Row) -> {} end.
 
--spec cols_to_rec([tuple()], list()) -> [#stmtCol{}].
+-spec cols_to_rec([tuple()], list()) -> [#rowCol{}].
 cols_to_rec([], _) -> [];
 cols_to_rec([{Alias,'SQLT_NUM',_Len,63,-127}|Rest], Fields) ->
     %% Real type
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = 'SQLT_NUM'
-             , len = 19
-             , prec = dynamic
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = 'SQLT_NUM'
+            , len = 19
+            , prec = dynamic
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,'SQLT_NUM',_Len,_Prec,-127}|Rest], Fields) ->
     %% Float type or unlimited number.
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = 'SQLT_NUM'
-             , len = 38
-             , prec = dynamic
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = 'SQLT_NUM'
+            , len = 38
+            , prec = dynamic
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,'SQLT_NUM',_Len,0,0}|Rest], Fields) ->
-    [#stmtCol{ tag = Alias
-             , alias = Alias
-             , type = 'SQLT_NUM'
-             , len = 38
-             , prec = dynamic
-             , readonly = true} | cols_to_rec(Rest, Fields)];
+    [#rowCol{ tag = Alias
+            , alias = Alias
+            , type = 'SQLT_NUM'
+            , len = 38
+            , prec = dynamic
+            , readonly = true} | cols_to_rec(Rest, Fields)];
 cols_to_rec([{Alias,'SQLT_NUM',_Len,_Prec,Scale}|Rest], Fields) ->
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = 'SQLT_NUM'
-             , len = undefined
-             , prec = Scale
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = 'SQLT_NUM'
+            , len = undefined
+            , prec = Scale
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,'SQLT_TIMESTAMP',Len,_Prec,Scale}|Rest], Fields) ->
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = 'SQLT_TIMESTAMP'
-             , len = Len
-             , prec = Scale
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = 'SQLT_TIMESTAMP'
+            , len = Len
+            , prec = Scale
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,'SQLT_TIMESTAMP_TZ',Len,_Prec,Scale}|Rest], Fields) ->
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = 'SQLT_TIMESTAMP_TZ'
-             , len = Len
-             , prec = Scale
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = 'SQLT_TIMESTAMP_TZ'
+            , len = Len
+            , prec = Scale
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)];
 cols_to_rec([{Alias,Type,Len,Prec,_Scale}|Rest], Fields) ->
     {Tag, ReadOnly, NewFields} = find_original_field(Alias, Fields),
-    [#stmtCol{ tag = Tag
-             , alias = Alias
-             , type = Type
-             , len = Len
-             , prec = Prec
-             , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)].
+    [#rowCol{ tag = Tag
+            , alias = Alias
+            , type = Type
+            , len = Len
+            , prec = Prec
+            , readonly = ReadOnly} | cols_to_rec(Rest, NewFields)].
 
--spec get_alias([#stmtCol{}]) -> [binary()].
+-spec get_alias([#rowCol{}]) -> [binary()].
 get_alias([]) -> [];
-get_alias([#stmtCol{alias = A} | Rest]) ->
+get_alias([#rowCol{alias = A} | Rest]) ->
     [A | get_alias(Rest)].
 
 translate_datatype(_Stmt, [], []) -> [];
-translate_datatype(Stmt, [<<>> | RestRow], [#stmtCol{} | RestCols]) ->
+translate_datatype(Stmt, [<<>> | RestRow], [#rowCol{} | RestCols]) ->
     [<<>> | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [R | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) ->
+translate_datatype(Stmt, [R | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) ->
     [dderloci_utils:ora_to_dderltstz(R) | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [R | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) ->
+translate_datatype(Stmt, [R | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP'} | RestCols]) ->
     [dderloci_utils:ora_to_dderlts(R) | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [R | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) ->
+translate_datatype(Stmt, [R | RestRow], [#rowCol{type = 'SQLT_DAT'} | RestCols]) ->
     [dderloci_utils:ora_to_dderltime(R) | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [null | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
+translate_datatype(Stmt, [null | RestRow], [#rowCol{type = 'SQLT_NUM'} | RestCols]) ->
     [<<>> | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [Mantissa | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
+translate_datatype(Stmt, [Mantissa | RestRow], [#rowCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
     %% Float / Real type or unlimited numbers.
     Number = dderloci_utils:clean_dynamic_prec(imem_datatype:decimal_to_io(Mantissa, Scale)),
     [Number | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [Mantissa | RestRow], [#stmtCol{type = 'SQLT_NUM', prec = Prec} | RestCols]) ->
+translate_datatype(Stmt, [Mantissa | RestRow], [#rowCol{type = 'SQLT_NUM', prec = Prec} | RestCols]) ->
     Number = imem_datatype:decimal_to_io(Mantissa, Prec),
     [Number | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [{_Pointer, Size, Path, Name} | RestRow], [#stmtCol{type = 'SQLT_BFILEE'} | RestCols]) ->
+translate_datatype(Stmt, [{_Pointer, Size, Path, Name} | RestRow], [#rowCol{type = 'SQLT_BFILEE'} | RestCols]) ->
     SizeBin = integer_to_binary(Size),
     [<<Path/binary, $#, Name/binary, 32, $[, SizeBin/binary, $]>> | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_BLOB'} | RestCols]) ->
+translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#rowCol{type = 'SQLT_BLOB'} | RestCols]) ->
     if
         Size > ?PREFETCH_SIZE ->
             {lob, Trunc} = Stmt:lob(Pointer, 1, ?PREFETCH_SIZE),
@@ -637,12 +652,12 @@ translate_datatype(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_BLO
             AsIO = imem_datatype:binary_to_io(Full),
             [AsIO | translate_datatype(Stmt, RestRow, RestCols)]
     end;
-translate_datatype(Stmt, [Raw | RestRow], [#stmtCol{type = 'SQLT_BIN'} | RestCols]) ->
+translate_datatype(Stmt, [Raw | RestRow], [#rowCol{type = 'SQLT_BIN'} | RestCols]) ->
     [imem_datatype:binary_to_io(Raw) | translate_datatype(Stmt, RestRow, RestCols)];
-translate_datatype(Stmt, [R | RestRow], [#stmtCol{} | RestCols]) ->
+translate_datatype(Stmt, [R | RestRow], [#rowCol{} | RestCols]) ->
     [R | translate_datatype(Stmt, RestRow, RestCols)].
 
--spec fix_row_format(term(), [list()], [#stmtCol{}], boolean()) -> [tuple()].
+-spec fix_row_format(term(), [list()], [#rowCol{}], boolean()) -> [tuple()].
 fix_row_format(_Stmt, [], _, _) -> [];
 fix_row_format(Stmt, [Row | Rest], Columns, ContainRowId) ->
     %% TODO: we have to add the table name at the start of the rows i.e
@@ -663,35 +678,35 @@ fix_row_format(Stmt, [Row | Rest], Columns, ContainRowId) ->
     end.
 
 fix_format(_Stmt, [], []) -> [];
-fix_format(Stmt, [<<0:8, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_NUM'} | RestCols]) ->
+fix_format(Stmt, [<<0:8, _/binary>> | RestRow], [#rowCol{type = 'SQLT_NUM'} | RestCols]) ->
     [null | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
+fix_format(Stmt, [Number | RestRow], [#rowCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
     {Mantissa, Exponent} = dderloci_utils:oranumber_decode(Number),
     FormattedNumber = imem_datatype:decimal_to_io(Mantissa, Exponent),
     [imem_datatype:io_to_decimal(FormattedNumber, undefined, Scale) | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [Number | RestRow], [#stmtCol{type = 'SQLT_NUM', len = Len,  prec = Prec} | RestCols]) ->
+fix_format(Stmt, [Number | RestRow], [#rowCol{type = 'SQLT_NUM', len = Len,  prec = Prec} | RestCols]) ->
     {Mantissa, Exponent} = dderloci_utils:oranumber_decode(Number),
     FormattedNumber = imem_datatype:decimal_to_io(Mantissa, Exponent),
     [imem_datatype:io_to_decimal(FormattedNumber, Len, Prec) | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
+fix_format(Stmt, [<<0, 0, 0, 0, 0, 0, 0, _/binary>> | RestRow], [#rowCol{type = 'SQLT_DAT'} | RestCols]) -> %% Null format for date.
     [<<>> | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<Date:7/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_DAT'} | RestCols]) -> %% Trim to expected binary size.
+fix_format(Stmt, [<<Date:7/binary, _/binary>> | RestRow], [#rowCol{type = 'SQLT_DAT'} | RestCols]) -> %% Trim to expected binary size.
     [Date | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Null format for timestamp.
+fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Null format for timestamp.
     [<<>> | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<TimeStamp:11/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Trim to expected binary size.
+fix_format(Stmt, [<<TimeStamp:11/binary, _/binary>> | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP'} | RestCols]) -> %% Trim to expected binary size.
     [TimeStamp | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Null format for timestamp.
+fix_format(Stmt, [<<0,0,0,0,0,0,0,0,0,0,0,0,0,_/binary>> | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Null format for timestamp.
     [<<>> | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [<<TimeStampTZ:13/binary, _/binary>> | RestRow], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Trim to expected binary size.
+fix_format(Stmt, [<<TimeStampTZ:13/binary, _/binary>> | RestRow], [#rowCol{type = 'SQLT_TIMESTAMP_TZ'} | RestCols]) -> %% Trim to expected binary size.
     [TimeStampTZ | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [{Pointer, Size} | RestRow], [#stmtCol{type = 'SQLT_CLOB'} | RestCols]) ->
+fix_format(Stmt, [{Pointer, Size} | RestRow], [#rowCol{type = 'SQLT_CLOB'} | RestCols]) ->
 %% TODO: This is a workaround as there is no real support for CLOB in dderl or the current
 %%       driver, so we read full text here and treat it as a normal STR, Oracle is smart
 %%       to do the conversion into CLOB on the way in.
     {lob, Full} = Stmt:lob(Pointer, 1, Size),
     [Full | fix_format(Stmt, RestRow, RestCols)];
-fix_format(Stmt, [Cell | RestRow], [#stmtCol{} | RestCols]) ->
+fix_format(Stmt, [Cell | RestRow], [#rowCol{} | RestCols]) ->
     [Cell | fix_format(Stmt, RestRow, RestCols)].
 
 -spec run_table_cmd(tuple(), atom(), binary()) -> ok | {error, term()}. %% %% !! Fix this to properly use statments.

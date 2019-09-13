@@ -15,24 +15,26 @@
                 , sql = <<"">>        %% new sql string (only present if it changes)
                 , disable = []        %% list of {<<"button name">>, <<"Comment">>} to be disabled
                 , promote = []        %% list of {<<"button name">>, <<"Comment">>} promoted to the user
+                , stmtClass = <<>>    %% statement class "L" = local
                 }).
 
--record(fsmctx, { % fsm interface
-                  id
-                , stmtCols
-                , rowFun
-                , sortFun
-                , sortSpec
-                , block_length
-                , fetch_recs_async_fun
-                , fetch_close_fun
-                , stmt_close_fun
-                , filter_and_sort_fun
-                , update_cursor_prepare_fun
-                , update_cursor_execute_fun
-                , orig_qry
-                , bind_vals
-                , table_name
+-record(fsmctxs,{ % fsm interfaces to multiple statements
+                  stmtRefs                   %% one per statement
+                , stmtTables                 %% one per statement
+                , fetch_recs_async_funs      %% one per statement
+                , fetch_close_funs           %% one per statement
+                , stmt_close_funs            %% one per statement
+                , filter_and_sort_funs       %% one per statement
+                , update_cursor_prepare_funs %% one per statement
+                , update_cursor_execute_funs %% one per statement
+                , orig_qry                   %% same for all statements
+                , rowCols                    %% same for all statements
+                , rowFun                     %% same for all statements
+                , sortFun                    %% same for all statements
+                , sortSpec                   %% same for all statements
+                , block_length               %% same for all statements
+                , bind_vals                  %% same for all statements
+                , stmtClass = <<>>           %% same for all statements
                 }).
 
 -endif.

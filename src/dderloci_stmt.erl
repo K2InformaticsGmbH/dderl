@@ -204,7 +204,7 @@ create_stmts([{ins, InsList} | Rest], TableName, Connection, Columns, ResultStmt
 -spec process_delete(term(), list(), list()) -> {ok, list()} | {error, term()}.
 process_delete(undefined, [], _Columns) -> {ok, []};
 process_delete(PrepStmt, Rows, _Columns) ->
-    RowsToDelete = [list_to_tuple(create_bind_vals([Row#row.id], [#stmtCol{type = 'SQLT_STR'}])) || Row <- Rows],
+    RowsToDelete = [list_to_tuple(create_bind_vals([Row#row.id], [#rowCol{type = 'SQLT_STR'}])) || Row <- Rows],
     case PrepStmt:exec_stmt(RowsToDelete, ?NoCommit) of
         {rowids, _RowIds} -> %% TODO: Check if the modified rows are the correct.
             ChangedKeys = [{Row#row.pos, {{}, {}}} || Row <- Rows],
@@ -213,7 +213,7 @@ process_delete(PrepStmt, Rows, _Columns) ->
             {error, ErrorMsg}
     end.
 
--spec process_update(list(), list(), [#stmtCol{}]) -> {ok, list()} | {error, term()}.
+-spec process_update(list(), list(), [#rowCol{}]) -> {ok, list()} | {error, term()}.
 process_update(undefined, [], _Columns) -> {ok, []};
 process_update([], [], _Colums) -> {ok, []};
 process_update([PrepStmt | RestStmts], [{ModifiedCols, Rows} | RestRows], Columns) ->
@@ -231,15 +231,15 @@ process_update([PrepStmt | RestStmts], [{ModifiedCols, Rows} | RestRows], Column
             Error
     end.
 
--spec process_one_update(term(), [#row{}], [#stmtCol{}], [#row{}], [#stmtCol{}]) -> {ok, list()} | {error, term()}.
+-spec process_one_update(term(), [#row{}], [#rowCol{}], [#row{}], [#rowCol{}]) -> {ok, list()} | {error, term()}.
 process_one_update(PrepStmt, FilterRows, FilterColumns, Rows, Columns) ->
     %% TODO: Implement updates using the old values on the where clause, (optimistic locking).
-    RowsToUpdate = [list_to_tuple(create_bind_vals([Row#row.id | Row#row.values], [#stmtCol{type = 'SQLT_STR'} | FilterColumns])) || Row <- FilterRows],
+    RowsToUpdate = [list_to_tuple(create_bind_vals([Row#row.id | Row#row.values], [#rowCol{type = 'SQLT_STR'} | FilterColumns])) || Row <- FilterRows],
     case PrepStmt:exec_stmt(RowsToUpdate, ?NoCommit) of
         {rowids, RowIds} ->
             case check_rowid(RowIds, Rows) of
                 true->
-                    ChangedKeys = [{Row#row.pos, {{}, list_to_tuple(create_changedkey_vals(Row#row.values ++ [Row#row.id], Columns ++ [#stmtCol{type = 'SQLT_STR'}]))}} || Row <- Rows],
+                    ChangedKeys = [{Row#row.pos, {{}, list_to_tuple(create_changedkey_vals(Row#row.values ++ [Row#row.id], Columns ++ [#rowCol{type = 'SQLT_STR'}]))}} || Row <- Rows],
                     {ok, ChangedKeys};
                 false ->
                     {error, <<"Unknown error updating the rows.">>};
@@ -267,7 +267,7 @@ process_insert([PrepStmt | RestStmts], [{NonEmptyCols, Rows} | RestRows], Column
             Error
     end.
 
--spec process_one_insert(term(), [#row{}], [#stmtCol{}], [#row{}], [#stmtCol{}]) -> {ok, list()} | {error, term()}.
+-spec process_one_insert(term(), [#row{}], [#rowCol{}], [#row{}], [#rowCol{}]) -> {ok, list()} | {error, term()}.
 process_one_insert(PrepStmt, FilterRows, FilterColumns, Rows, Columns) ->
     RowsToInsert = [list_to_tuple(create_bind_vals(Row#row.values, FilterColumns)) || Row <- FilterRows],
     case PrepStmt:exec_stmt(RowsToInsert, ?NoCommit) of
@@ -320,26 +320,26 @@ filter_columns(ModifiedCols, Columns) ->
     ModifiedColsList = tuple_to_list(ModifiedCols),
     [lists:nth(ColIdx, Columns) || ColIdx <- ModifiedColsList].
 
-create_upd_vars([#stmtCol{} = Col]) -> [Col#stmtCol.tag, " = :", "\"", Col#stmtCol.tag, "\""];
-create_upd_vars([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, " = :", "\"", Col#stmtCol.tag, "\"", ", ", create_upd_vars(Rest)].
+create_upd_vars([#rowCol{} = Col]) -> [Col#rowCol.tag, " = :", "\"", Col#rowCol.tag, "\""];
+create_upd_vars([#rowCol{} = Col | Rest]) -> [Col#rowCol.tag, " = :", "\"", Col#rowCol.tag, "\"", ", ", create_upd_vars(Rest)].
 
 create_bind_types([]) -> [];
-create_bind_types([#stmtCol{} = Col | Rest]) ->
-    [{iolist_to_binary([":", "\"", Col#stmtCol.tag, "\""]), bind_types_map(Col#stmtCol.type)} | create_bind_types(Rest)].
+create_bind_types([#rowCol{} = Col | Rest]) ->
+    [{iolist_to_binary([":", "\"", Col#rowCol.tag, "\""]), bind_types_map(Col#rowCol.type)} | create_bind_types(Rest)].
 
-create_ins_columns([#stmtCol{} = Col]) -> [Col#stmtCol.tag];
-create_ins_columns([#stmtCol{} = Col | Rest]) -> [Col#stmtCol.tag, ", ", create_ins_columns(Rest)].
+create_ins_columns([#rowCol{} = Col]) -> [Col#rowCol.tag];
+create_ins_columns([#rowCol{} = Col | Rest]) -> [Col#rowCol.tag, ", ", create_ins_columns(Rest)].
 
-create_ins_vars([#stmtCol{} = Col]) -> [":", "\"", Col#stmtCol.tag, "\""];
-create_ins_vars([#stmtCol{} = Col | Rest]) -> [":", "\"", Col#stmtCol.tag, "\"", ", ", create_ins_vars(Rest)].
+create_ins_vars([#rowCol{} = Col]) -> [":", "\"", Col#rowCol.tag, "\""];
+create_ins_vars([#rowCol{} = Col | Rest]) -> [":", "\"", Col#rowCol.tag, "\"", ", ", create_ins_vars(Rest)].
 
 create_changedkey_vals([], _Cols) -> [];
-create_changedkey_vals([<<>> | Rest], [#stmtCol{} | RestCols]) ->
+create_changedkey_vals([<<>> | Rest], [#rowCol{} | RestCols]) ->
     [<<>> | create_changedkey_vals(Rest, RestCols)];
-create_changedkey_vals([Value | Rest], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
+create_changedkey_vals([Value | Rest], [#rowCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | RestCols]) ->
     Number = imem_datatype:io_to_decimal(Value, undefined, Scale),
     [Number | create_changedkey_vals(Rest, RestCols)];
-create_changedkey_vals([Value | Rest], [#stmtCol{type = Type, len = Len, prec = Prec} | RestCols]) ->
+create_changedkey_vals([Value | Rest], [#rowCol{type = Type, len = Len, prec = Prec} | RestCols]) ->
     FormattedValue = case Type of
         'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
         'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
@@ -353,7 +353,7 @@ create_changedkey_vals([Value | Rest], [#stmtCol{type = Type, len = Len, prec = 
 create_bind_vals([], _Cols) -> [];
 create_bind_vals([<<>> | Rest], [_Col | RestCols]) ->
     [<<>> | create_bind_vals(Rest, RestCols)];
-create_bind_vals([Value | Rest], [#stmtCol{type = Type, len = Len} | RestCols]) ->
+create_bind_vals([Value | Rest], [#rowCol{type = Type, len = Len} | RestCols]) ->
     FormattedValue = case Type of
         'SQLT_DAT' -> dderloci_utils:dderltime_to_ora(Value);
         'SQLT_TIMESTAMP' -> dderloci_utils:dderlts_to_ora(Value);
@@ -374,11 +374,11 @@ bind_types_map(Type) -> Type.
 -spec inserted_changed_keys([binary()], [#row{}], list()) -> [tuple()].
 inserted_changed_keys([], [], _) -> [];
 inserted_changed_keys([RowId | RestRowIds], [Row | RestRows], Columns) ->
-    [{Row#row.pos, {{}, list_to_tuple(create_changedkey_vals(Row#row.values ++ [RowId], Columns ++ [#stmtCol{type = 'SQLT_STR'}]))}} | inserted_changed_keys(RestRowIds, RestRows, Columns)];
+    [{Row#row.pos, {{}, list_to_tuple(create_changedkey_vals(Row#row.values ++ [RowId], Columns ++ [#rowCol{type = 'SQLT_STR'}]))}} | inserted_changed_keys(RestRowIds, RestRows, Columns)];
 inserted_changed_keys(_, _, _) ->
     {error, <<"Invalid row keys returned by the oracle driver">>}.
 
--spec split_by_columns_mod([#row{}], [#stmtCol{}], [{tuple(), [#row{}]}]) -> [{tuple(), [#row{}]}].
+-spec split_by_columns_mod([#row{}], [#rowCol{}], [{tuple(), [#row{}]}]) -> [{tuple(), [#row{}]}].
 split_by_columns_mod([], _Columns, Result) -> Result;
 split_by_columns_mod([#row{} = Row | RestRows], Columns, Result) ->
     case list_to_tuple(get_modified_cols(Row, Columns)) of
@@ -394,7 +394,7 @@ split_by_columns_mod([#row{} = Row | RestRows], Columns, Result) ->
     end,
     split_by_columns_mod(RestRows, Columns, NewResult).
 
--spec get_modified_cols(#row{}, [#stmtCol{}]) -> [integer()].
+-spec get_modified_cols(#row{}, [#rowCol{}]) -> [integer()].
 get_modified_cols(#row{index = Index, values = Values}, Columns) ->
     {{}, OriginalValuesTuple} = Index,
     [_RowId | OriginalValuesR] = lists:reverse(tuple_to_list(OriginalValuesTuple)),
@@ -406,40 +406,40 @@ get_modified_cols(#row{index = Index, values = Values}, Columns) ->
 
 %% TODO: This should apply the same functions used by the rowfun to avoid repeating the code here again
 %% null -> <<>> should be the default convertion .
--spec get_modified_cols([binary()], [binary()], [#stmtCol{}], pos_integer()) -> [integer()].
+-spec get_modified_cols([binary()], [binary()], [#rowCol{}], pos_integer()) -> [integer()].
 get_modified_cols([], [], [], _) -> [];
-get_modified_cols([_Orig | RestOrig], [_Value | RestValues], [#stmtCol{readonly=true} | Columns], Pos) ->
+get_modified_cols([_Orig | RestOrig], [_Value | RestValues], [#rowCol{readonly=true} | Columns], Pos) ->
     get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
-get_modified_cols([<<>> | RestOrig], [<<>> | RestValues], [#stmtCol{} | Columns], Pos) ->
+get_modified_cols([<<>> | RestOrig], [<<>> | RestValues], [#rowCol{} | Columns], Pos) ->
     get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
-get_modified_cols([<<>> | RestOrig], [_Value | RestValues], [#stmtCol{} | Columns], Pos) ->
+get_modified_cols([<<>> | RestOrig], [_Value | RestValues], [#rowCol{} | Columns], Pos) ->
     [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)];
-get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_DAT'} | Columns], Pos) ->
+get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#rowCol{type = 'SQLT_DAT'} | Columns], Pos) ->
     case dderloci_utils:ora_to_dderltime(OrigVal) of
         Value ->
             get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
         _ ->
             [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
     end;
-get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_TIMESTAMP'} | Columns], Pos) ->
+get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#rowCol{type = 'SQLT_TIMESTAMP'} | Columns], Pos) ->
     case dderloci_utils:ora_to_dderlts(OrigVal) of
         Value ->
             get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
         _ ->
             [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
     end;
-get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_TIMESTAMP_TZ'} | Columns], Pos) ->
+get_modified_cols([OrigVal | RestOrig], [Value | RestValues], [#rowCol{type = 'SQLT_TIMESTAMP_TZ'} | Columns], Pos) ->
     case dderloci_utils:ora_to_dderltstz(OrigVal) of
         Value ->
             get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
         _ ->
             [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
     end;
-get_modified_cols([null | RestOrig], [<<>> | RestValues], [#stmtCol{type = 'SQLT_NUM'} | Columns], Pos) ->
+get_modified_cols([null | RestOrig], [<<>> | RestValues], [#rowCol{type = 'SQLT_NUM'} | Columns], Pos) ->
     get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
-get_modified_cols([null | RestOrig], [_Value | RestValues], [#stmtCol{type = 'SQLT_NUM'} | Columns], Pos) ->
+get_modified_cols([null | RestOrig], [_Value | RestValues], [#rowCol{type = 'SQLT_NUM'} | Columns], Pos) ->
     [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)];
-get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | Columns], Pos) ->
+get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#rowCol{type = 'SQLT_NUM', len = Scale, prec = dynamic} | Columns], Pos) ->
     Number = dderloci_utils:clean_dynamic_prec(imem_datatype:decimal_to_io(Mantissa, Scale)),
     if
         Number =:= Value ->
@@ -447,7 +447,7 @@ get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#stmtCol{type = 
         true ->
             [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
     end;
-get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#stmtCol{type = 'SQLT_NUM', prec = Prec} | Columns], Pos) ->
+get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#rowCol{type = 'SQLT_NUM', prec = Prec} | Columns], Pos) ->
     Number = imem_datatype:decimal_to_io(Mantissa, Prec),
     if
         Number =:= Value ->
@@ -455,9 +455,9 @@ get_modified_cols([Mantissa | RestOrig], [Value | RestValues], [#stmtCol{type = 
         true ->
             [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)]
     end;
-get_modified_cols([OrigVal | RestOrig], [OrigVal | RestValues], [#stmtCol{} | Columns], Pos) ->
+get_modified_cols([OrigVal | RestOrig], [OrigVal | RestValues], [#rowCol{} | Columns], Pos) ->
     get_modified_cols(RestOrig, RestValues, Columns, Pos + 1);
-get_modified_cols([_OrigVal | RestOrig], [_Value | RestValues], [#stmtCol{} | Columns], Pos) ->
+get_modified_cols([_OrigVal | RestOrig], [_Value | RestValues], [#rowCol{} | Columns], Pos) ->
     [Pos | get_modified_cols(RestOrig, RestValues, Columns, Pos + 1)].
 
 -spec split_by_non_empty([#row{}], [{tuple(),[#row{}]}]) -> [{tuple(), [#row{}]}].

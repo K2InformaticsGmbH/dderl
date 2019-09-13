@@ -11,8 +11,8 @@
 -spec term_diff(term(), pid(), atom(), binary(), atom(), binary()) -> binary().
 term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
     case Sess:run_cmd(term_diff, [LeftType, LeftValue, RightType, RightValue, [ignore_whitespace,ignore_casing,ignore_dquotes]]) of
-        {error, {{Ex, M}, Stacktrace} = Error} ->
-            ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], Stacktrace),
+        {error, {{Ex, M}, _Stacktrace} = Error} ->
+            ?Error("Error on term_diff ~p: ~p", [{LeftType, LeftValue, RightType, RightValue}, Error], _Stacktrace),
             Err = list_to_binary(atom_to_list(Ex) ++ ": " ++
                                      lists:flatten(io_lib:format("~p", [M]))),
             #{<<"error">> => Err};
@@ -38,51 +38,51 @@ term_diff(Sess, SessPid, LeftType, LeftValue, RightType, RightValue) ->
             }
     end.
 
--spec get_fsmctx([{ddTermDiff, integer(), binary(), binary(), binary()}]) -> #fsmctx{}.
+-spec get_fsmctx([{ddTermDiff, integer(), binary(), binary(), binary()}]) -> #fsmctxs{}.
 get_fsmctx(Result) ->
-    <<Id:32>> = crypto:strong_rand_bytes(4),
-    StmtCols = get_columns(),
-    FullMap = build_full_map(StmtCols),
-    #fsmctx{id            = Id
-           ,stmtCols      = StmtCols
-           ,rowFun        = get_rowfun()
-           ,sortFun       = get_sortfun()
-           ,sortSpec      = []
-           ,orig_qry      = <<>>
-           ,bind_vals     = []
-           ,table_name    = <<"term_diff">>
-           ,block_length  = ?DEFAULT_ROW_SIZE
-           ,fetch_recs_async_fun = 
-                fun(_Opts, _Count) ->
+    % <<Id:32>> = crypto:strong_rand_bytes(4),
+    RowCols = get_columns(),
+    FullMap = build_full_map(RowCols),
+    #fsmctxs{stmtRefs       = [self()]
+            ,stmtTables     = [<<"term_diff">>]
+            ,rowCols        = RowCols
+            ,rowFun         = get_rowfun()
+            ,sortFun        = get_sortfun()
+            ,sortSpec       = []
+            ,orig_qry       = <<>>
+            ,bind_vals      = []
+            ,block_length   = ?DEFAULT_ROW_SIZE
+            ,fetch_recs_async_funs = 
+                [fun(_Opts, _Count) ->
                     Rows = [{{}, {RowId, Left, Cmp, Right}} || {ddTermDiff, RowId, Left, Cmp, Right} <- Result],
                     % This seems hackish but we don't want to keep a process here.
                     % TODO: Revisit after tuple calls have been removed.
-                    dderl_fsm:rows({Rows, true}, {dderl_fsm, self()})
-                end
-           ,fetch_close_fun = fun() -> ok end
-           ,stmt_close_fun  = fun() -> ok end
-           ,filter_and_sort_fun =
-                fun(_FilterSpec, SortSpec, _Cols) ->
+                    dderl_fsm:rows({self(), Rows, true}, {dderl_fsm, self()})
+                end]
+            ,fetch_close_funs = [fun() -> ok end]
+            ,stmt_close_funs  = [fun() -> ok end]
+            ,filter_and_sort_funs =
+                [fun(_FilterSpec, SortSpec, _Cols) ->
                     SortSpecExplicit = [{Col, Dir} || {Col, Dir} <- SortSpec, is_integer(Col)],
                     NewSortFun = imem_sql_expr:sort_spec_fun(SortSpecExplicit, FullMap, FullMap),
                     {ok, <<>>, NewSortFun}
-                end
-           ,update_cursor_prepare_fun =
-                fun(_ChangeList) ->
+                end]
+            ,update_cursor_prepare_funs =
+                [fun(_ChangeList) ->
                     {error, <<"Updates not implmented for diff result table.">>}
-                end
-           ,update_cursor_execute_fun =
-                fun(_Lock, _PrepStmt) ->
+                end]
+            ,update_cursor_execute_funs =
+                [fun(_Lock, _PrepStmt) ->
                     {error, <<"Updates not implmented for diff result table.">>}
-                end
+                end]
     }.
 
--spec get_columns() -> [#stmtCol{}].
+-spec get_columns() -> [#rowCol{}].
 get_columns() -> [
-    #stmtCol{tag = 1, alias = <<"id">>, type = integer, readonly = false},
-    #stmtCol{tag = 2, alias = <<"left">>, type = binstr, readonly = false},
-    #stmtCol{tag = 3, alias = <<"cmp">>, type = binstr, readonly = false},
-    #stmtCol{tag = 4, alias = <<"right">>, type = binstr, readonly = false}
+    #rowCol{tag=1, alias= <<"id">>, type=integer, readonly=false},
+    #rowCol{tag=2, alias= <<"left">>, type=binstr, readonly=false},
+    #rowCol{tag=3, alias= <<"cmp">>, type=binstr, readonly=false},
+    #rowCol{tag=4, alias= <<"right">>, type=binstr, readonly=false}
 ].
 
 -spec get_rowfun() -> fun().
@@ -109,4 +109,4 @@ build_full_map(Clms) ->
         , type = Type
         , len = Len
         , prec = undefined
-    } || #stmtCol{tag = Tag, alias = Alias, type = Type, len = Len} <- Clms].
+    } || #rowCol{tag=Tag, alias=Alias, type=Type, len=Len} <- Clms].

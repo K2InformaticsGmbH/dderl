@@ -493,8 +493,8 @@ process_cmd({[<<"button">>], ReqBody}, _Sess, _UserId, From, Priv, _SessPid) ->
                                    BindVals0 -> BindVals0
                                end,
                     case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
-                        {ok, #stmtResult{} = StmtRslt, TableName} ->
-                            dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, FsmStmt),
+                        {ok, #stmtResults{} = StmtRslt, TableName} ->
+                            dderloci:add_fsm(hd(StmtRslt#stmtResults.stmtRefs), FsmStmt),
                             FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
                             FsmStmt:gui_req(button, <<"restart">>, gui_resp_cb_fun(<<"button">>, FsmStmt, From)),
                             FsmStmt:refresh_session_ctx(FsmCtx);
@@ -553,8 +553,8 @@ process_cmd({[<<"download_query">>], ReqBody}, _Sess, UserId, From, Priv, SessPi
                                 end,
     Id = proplists:get_value(<<"id">>, BodyJson, <<>>),
     case dderloci:exec(Connection, Query, BindVals, imem_sql_expr:rownum_limit()) of
-        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef, rowFun = RowFun}, _} ->
-            Columns = gen_adapter:build_column_csv(UserId, oci, Clms),
+        {ok, #stmtResults{rowCols=RowCols, stmtRefs=[StmtRef], rowFun=RowFun}, _} ->
+            Columns = gen_adapter:build_column_csv(UserId, oci, RowCols),
             From ! {reply_csv, FileName, Columns, first},
             ProducerPid = spawn(fun() ->
                 produce_csv_rows(UserId, From, StmtRef, RowFun)
@@ -673,18 +673,18 @@ process_query(Query, {oci_port, _, _} = Connection, SessPid) ->
                   Query, [], Connection, SessPid).
 
 -spec process_query(term(), binary(), list(), tuple(), pid()) -> list().
-process_query(ok, Query, BindVals, Connection, SessPid) ->
-    ?Debug([{session, Connection}], "query ~p -> ok", [Query]),
+process_query(ok, Query, BindVals, _Connection, SessPid) ->
+    ?Debug([{session, _Connection}], "query ~p -> ok", [Query]),
     SessPid ! {log_query, Query, process_log_binds(BindVals)},
     [{<<"result">>, <<"ok">>}];
-process_query({ok, #stmtResult{sortSpec = SortSpec, stmtCols = Clms} = StmtRslt, TableName},
+process_query({ok, #stmtResults{sortSpec = SortSpec, rowCols = RowCols} = StmtRslt, TableName},
               Query, BindVals, {oci_port, _, _} = Connection, SessPid) ->
     SessPid ! {log_query, Query, process_log_binds(BindVals)},
     FsmCtx = generate_fsmctx_oci(StmtRslt, Query, BindVals, Connection, TableName),
     StmtFsm = dderl_fsm:start(FsmCtx, SessPid),
-    dderloci:add_fsm(StmtRslt#stmtResult.stmtRef, StmtFsm),
-    ?Debug("StmtRslt ~p ~p", [Clms, SortSpec]),
-    Columns = gen_adapter:build_column_json(lists:reverse(Clms)),
+    dderloci:add_fsm(hd(StmtRslt#stmtResults.stmtRefs), StmtFsm),
+    ?Debug("StmtRslt ~p ~p", [RowCols, SortSpec]),
+    Columns = gen_adapter:build_column_json(lists:reverse(RowCols)),
     JSortSpec = build_srtspec_json(SortSpec),
     ?Debug("JColumns~n ~s~n JSortSpec~n~s", [jsx:prettify(jsx:encode(Columns)), jsx:prettify(jsx:encode(JSortSpec))]),
     ?Debug("process_query created statement ~p for ~p", [StmtFsm, Query]),
@@ -794,7 +794,7 @@ check_fun_vsn(Something) ->
     false.
 
 -spec check_funs(term()) -> term().
-check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName}) ->
+check_funs({ok, #stmtResults{rowFun = RowFun, sortFun = SortFun} = StmtRslt, TableName}) ->
     ValidFuns = check_fun_vsn(RowFun) andalso check_fun_vsn(SortFun),
     if
         ValidFuns -> {ok, StmtRslt, TableName};
@@ -803,41 +803,41 @@ check_funs({ok, #stmtResult{rowFun = RowFun, sortFun = SortFun} = StmtRslt, Tabl
 check_funs(Error) ->
     Error.
 
--spec generate_fsmctx_oci(#stmtResult{}, binary(), list(), tuple(), term()) -> #fsmctx{}.
-generate_fsmctx_oci(#stmtResult{
-                  stmtCols = Clms
+-spec generate_fsmctx_oci(#stmtResults{}, binary(), list(), tuple(), term()) -> #fsmctxs{}.
+generate_fsmctx_oci(#stmtResults{
+                  rowCols  = RowCols
                 , rowFun   = RowFun
-                , stmtRef  = StmtRef
+                , stmtRefs = [StmtRef]
                 , sortFun  = SortFun
                 , sortSpec = SortSpec}, Query, BindVals, {oci_port, _, _} = Connection, TableName) ->
-    #fsmctx{id            = "what is it?"
-           ,stmtCols      = Clms
-           ,rowFun        = RowFun
-           ,sortFun       = SortFun
-           ,sortSpec      = SortSpec
-           ,orig_qry      = Query
-           ,bind_vals     = BindVals
-           ,table_name    = TableName
-           ,block_length  = ?DEFAULT_ROW_SIZE
-           ,fetch_recs_async_fun = fun(Opts, Count) -> dderloci:fetch_recs_async(StmtRef, Opts, Count) end
-           ,fetch_close_fun = fun() -> dderloci:fetch_close(StmtRef) end
-           ,stmt_close_fun  = fun() -> dderloci:close(StmtRef) end
-           ,filter_and_sort_fun =
-                fun(FilterSpec, SrtSpec, Cols) ->
-                        dderloci:filter_and_sort(StmtRef, Connection, FilterSpec, SrtSpec, Cols, Query)
-                end
-           ,update_cursor_prepare_fun =
-                fun(ChangeList) ->
-                        ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
-                        dderloci_stmt:prepare(TableName, ChangeList, Connection, Clms)
-                end
-           ,update_cursor_execute_fun =
-                fun(_Lock, PrepStmt) ->
+    #fsmctxs{stmtRefs      = [StmtRef]
+            ,stmtTables    = [TableName]
+            ,rowCols       = RowCols
+            ,rowFun        = RowFun
+            ,sortFun       = SortFun
+            ,sortSpec      = SortSpec
+            ,orig_qry      = Query
+            ,bind_vals     = BindVals
+            ,block_length  = ?DEFAULT_ROW_SIZE
+            ,fetch_recs_async_funs = [fun(Opts, Count) -> dderloci:fetch_recs_async(StmtRef, Opts, Count) end]
+            ,fetch_close_funs = [fun() -> dderloci:fetch_close(StmtRef) end]
+            ,stmt_close_funs  = [fun() -> dderloci:close(StmtRef) end]
+            ,filter_and_sort_funs = 
+                [fun(FilterSpec, SrtSpec, Cols) ->
+                    dderloci:filter_and_sort(StmtRef, Connection, FilterSpec, SrtSpec, Cols, Query)
+                end]
+            ,update_cursor_prepare_funs =
+                [fun(ChangeList) ->
+                    ?Debug("The stmtref ~p, the table name: ~p and the change list: ~n~p", [StmtRef, TableName, ChangeList]),
+                    dderloci_stmt:prepare(TableName, ChangeList, Connection, RowCols)
+                end]
+            ,update_cursor_execute_funs =
+                [fun(_Lock, PrepStmt) ->
                         Result = dderloci_stmt:execute(PrepStmt),
                         ?Debug("The result from the exec ~p", [Result]),
                         Result
-                end
-           }.
+                end]
+            }.
 
 get_value_empty_default(Key, Proplist, Default) ->
     case proplists:get_value(Key, Proplist, <<>>) of

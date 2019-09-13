@@ -137,16 +137,16 @@ handle_cast(#{reply := RespPid, cmd := sql,
             RespPid ! {reply, {400, #{<<"x-irest-conn">> => Connection},
                                list_to_binary(io_lib:format("~p", [Exception]))}},
             {noreply, State};
-        {ok, #stmtResult{stmtCols = Clms, stmtRef = StmtRef} = StmtRslt} ->
-            ok = Connection:add_stmt_fsm(StmtRef, {?MODULE, StmtRef, self()}),
-            ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),
+        {ok, #stmtResults{rowCols=RowCols, stmtRefs=StmtRefs} = StmtRslt} ->
+            Connection:add_stmt_fsm(StmtRefs, {?MODULE, StmtRefs, self()}),
+            [Connection:run_cmd(fetch_recs_async, [[], SR]) || SR <- StmtRefs],
             ClmsJson = [maps:from_list(C)
-                        || C <- gen_adapter:build_column_json(lists:reverse(Clms))],
+                        || C <- gen_adapter:build_column_json(lists:reverse(RowCols))],
             {noreply,
              State#state{
                stmts =
-               (State#state.stmts)#{StmtRef =>
-                                    #{stmtResult => StmtRslt#stmtResult{stmtCols = ClmsJson},
+               (State#state.stmts)#{StmtRefs =>
+                                    #{stmtResults => StmtRslt#stmtResults{rowCols = ClmsJson},
                                       connection => Connection,
                                       respPid => {first, RespPid}}}
               }}
@@ -161,17 +161,17 @@ handle_cast(Request, State) ->
 handle_info({rows, StmtRef, {Rows, EOT}}, #state{stmts = Stmts} = State) when is_list(Rows) ->
     case maps:get(StmtRef, Stmts) of
         #{respPid := {first, RespPid}, connection := Connection,
-          stmtResult := #stmtResult{rowFun = RowFun, stmtCols = Clms}} ->
+          stmtResult := #stmtResults{rowFun=RowFun, rowCols=RowCols}} ->
             RowsJson = [RowFun(R) || R <- Rows],
             RespPid ! {reply,
                        {200,
                         #{<<"x-irest-conn">> => Connection},
                         #{rows => RowsJson,
-                          clms => Clms,
+                          clms => RowCols,
                           more => not EOT,
                           stmt => base64:encode(term_to_binary(StmtRef))}}};
         #{respPid := {more, RespPid}, connection := Connection,
-          stmtResult := #stmtResult{rowFun = RowFun}} ->
+          stmtResult := #stmtResults{rowFun = RowFun}} ->
             if length(Rows) == 0 andalso EOT == false ->
                    gen_server:cast(
                      ?MODULE,
