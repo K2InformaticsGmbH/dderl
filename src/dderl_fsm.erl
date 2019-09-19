@@ -341,8 +341,8 @@ rows_limit(NRows, Recs, {?MODULE, Pid}) ->
     gen_statem:cast(Pid, {rows_limit, {NRows, Recs}}).
 
 -spec delete({list(), _}, {atom(), pid()}) -> ok.
-delete({Rows,Completed},{?MODULE,Pid}) ->
-    gen_statem:cast(Pid,{delete, {Rows,Completed}}).
+delete({StmtRef, {Rows, Completed}}, {?MODULE,Pid}) ->
+    gen_statem:cast(Pid, {delete, {StmtRef, Rows, Completed}}).
 
 -spec fetch(atom(), atom(), #state{}) -> #state{}.
 fetch(FetchMode,TailMode, #state{ bufCnt=Count
@@ -1043,7 +1043,7 @@ tailing(cast, {button, <<"stop">>, ReplyTo}, State0) ->
     State3 = gui_nop(#gres{state=aborted}, State2),
     % make sure tailing is not active
     {next_state, aborted, State3#state{tailMode=false}};
-tailing(cast, {delete, {Recs,Complete}}, State0) ->
+tailing(cast, {delete, {_StmtRef,Recs,Complete}}, State0) ->
     State1 = data_append(tailing,{Recs,Complete,del},State0),
     {next_state, tailing, State1#state{pfc=0}};
 tailing(cast, {rows, {_StmtRef,Recs,Complete}}, State0) ->
@@ -1250,7 +1250,7 @@ passthrough(cast, {button, <<"stop">>, ReplyTo}, State0) ->
     State3 = gui_nop(#gres{state=aborted}, State2),
     % make sure tailing is not active
     {next_state, aborted, State3#state{tailMode=false}};
-passthrough(cast, {delete, {Recs,Complete}}, State0) ->
+passthrough(cast, {delete, {_StmtRef,Recs,Complete}}, State0) ->
     State1 = data_append(passthrough,{Recs,Complete,del},State0),
     {next_state, passthrough, State1#state{pfc=0}};
 passthrough(cast, {rows, {_StmtRef,Recs,Complete}}, State0) ->
