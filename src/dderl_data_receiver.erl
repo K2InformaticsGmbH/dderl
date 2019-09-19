@@ -98,7 +98,7 @@ handle_cast({data_info, {stats, SndColsCount, AvailableRows}}, #state{sender_pid
             Response = [{<<"available_rows">>, AvailableRows}, {<<"sender_columns">>, SndColsCount}],
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, Response}])},
             dderl_data_sender:fetch_first_block(SenderPid),
-            {noreply, State#state{update_cursor_prepare_fun = Ucpf, update_cursor_execute_fun = Ucef, columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
+            {noreply, State#state{update_cursor_prepare_fun = hd(Ucpf), update_cursor_execute_fun = hd(Ucef), columns = Columns, node = Node}, ?RESPONSE_TIMEOUT};
         true ->
             BrowserPid ! {reply, jsx:encode([{<<"activate_receiver">>, [{<<"error">>, <<"Columns are not compatible">>}]}])},
             {stop, {shutdown, <<"Columns mismatch">>}, State}
