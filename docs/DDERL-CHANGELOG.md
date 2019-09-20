@@ -3,6 +3,11 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.6.1 (Release Date 20.09.2019)
+======================================
+* Send recive fixed for aggregator window #624
+* tailing on a table does not show deletions #623
+
 Version 3.6.0 (Release Date 13.09.2019)
 ======================================
 * Updated imem to version 3.6.0
