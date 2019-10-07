@@ -16,5 +16,5 @@
                   mimetypes,
                   prometheus]},
   {mod, {dderl, []}},
-  {env, [{interface, "127.0.0.1"}, {port, 8443}, {ssl_opts, []}]}
+  {env, [{interface, "0.0.0.0"}, {port, 8443}, {ssl_opts, []}]}
  ]}.
