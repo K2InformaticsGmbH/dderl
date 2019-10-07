@@ -26,7 +26,7 @@
 
 %% DB connection
 -record(ddConn,
-                  { id                      ::ddEntityId()       
+                  { id                      ::ddEntityId()
                   , name                    ::binary()          %% connection name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapter                 ::atom()            %% oci | imem | ets | os_text | dfs_text | hdfs_text
@@ -37,7 +37,7 @@
 
 %% DB command
 -record(ddCmd,
-                  { id                      ::ddEntityId()       
+                  { id                      ::ddEntityId()
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
@@ -50,7 +50,7 @@
 %% user representation of a db command including rendering parameters
 -record(ddView,
                   { id                      ::ddEntityId()
-                  , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , interface               ::atom()            %% interface plugin (ddjson for now)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , cmd                     ::ddEntityId()      %% db command id
@@ -61,7 +61,7 @@
 %% user representation of a dashboard (collection of views)
 -record(ddDash,
                   { id                      ::ddEntityId()
-                  , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , interface               ::atom()            %% interface plugin (ddjson for now)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , views                   ::list()            %% array of proplists with view layout
@@ -243,10 +243,10 @@
 
 % IMEM REST interface
 -define(IMEMREST,               ?GET_CONFIG(active,         [], true,                   "Enable disable IMEM REST service")).
--define(IMEMREST_IPS,           ?GET_CONFIG(listenIntfs,    [], [{{127,0,0,1}, element(2, application:get_env(dderl, port)) + 1000}],
+-define(IMEMREST_IPS,           ?GET_CONFIG(listenIntfs,    [], [{{0,0,0,0}, element(2, application:get_env(dderl, port)) + 1000}],
                                             "Listen IPs and TCP ports")).
 -define(IMEMREST_SSLOPTS,       ?GET_CONFIG(ssl,            [], '$no_ssl_conf',         "SSL listen socket options")).
--define(IMEMREST_IPWHITELIST,   ?GET_CONFIG(ipWhiteLists,   [], [{127,0,0,1}],          "White listed IP address")).
+-define(IMEMREST_IPWHITELIST,   ?GET_CONFIG(ipWhiteLists,   [], [{0,0,0,0}],          "White listed IP address")).
 
 -define(COLDSTART_CB(_DefaultFun),
         (fun() ->

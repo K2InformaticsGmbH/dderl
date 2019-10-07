@@ -120,7 +120,7 @@ handle_cast(#{cmd := views, params := #{stmt := _}} = Req, State) ->
 handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
               opts := #{session := Connection}},
             #state{stmts = Stmts} = State) ->
-    ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),    
+    ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),
     #{stmtResult := StmtRslt} = maps:get(StmtRef, Stmts),
     {noreply,
      State#state{
@@ -260,7 +260,7 @@ local_ips(Listeners) ->
     local_ips(
       Listeners,
       lists:usort(
-        [{127,0,0,1} |
+        [{0,0,0,0} |
          [proplists:get_value(addr, P)
           || {_Nm, P} <- PhyIntfs]]), []).
 local_ips([], _LocalIps, Acc) -> Acc;

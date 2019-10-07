@@ -17,7 +17,7 @@ unamestr=`uname`
 host=`hostname`
 hostArrayIn=(${host//./ })
 host=${hostArrayIn[0]}
-host=127.0.0.1
+host=0.0.0.0
 name=dderl$nid@$host
 cmname=dderl$cid@$host
 imemtyp=disc
@@ -61,11 +61,11 @@ imem_opts=$imem_opts" cold_start_recover false"
 dderl_opts="-dderl"
 dderl_opts=$dderl_opts" port $dderlport"
 
-lager_config="dderl.config" 
+lager_config="dderl.config"
 
 # sasl opts
 sasl_opts="-sasl"
-sasl_opts=$sasl_opts"  sasl_error_logger false" 
+sasl_opts=$sasl_opts"  sasl_error_logger false"
 
 start_opts="$paths $cookie $node_name $dist_opts $kernel_opts $imem_opts $dderl_opts $sasl_opts -config $lager_config"
 
