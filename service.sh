@@ -3,9 +3,9 @@
 # Change below to use specific hosts
 app_name=dderl
 node_name=dderl
-node_host=0.0.0.0
+node_host=127.0.0.1
 cluster_name=dderl
-cluster_host=0.0.0.0
+cluster_host=127.0.0.1
 cookie=zdss4d2_6tP
 
 
