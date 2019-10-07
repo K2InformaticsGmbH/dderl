@@ -14,8 +14,7 @@ WEB DataBase Browser Application.
 
 1. `git clone https://github.com/K2InformaticsGmbH/dderl` in `$ROOT`
 1. cd `$ROOT/dderl`
-1. `NO_OCI=true` 
-1. `rebar3 compile`
+1. `NO_OCI=true rebar3 compile`
 1. To compile with erloci follow setup instruction at https://github.com/K2InformaticsGmbH/erloci and execute the above two commands without `NO_OCI=true
 1. cd `priv/dev`
 1. `yarn install-build-prod`

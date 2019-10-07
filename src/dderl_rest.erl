@@ -260,7 +260,7 @@ local_ips(Listeners) ->
     local_ips(
       Listeners,
       lists:usort(
-        [{0,0,0,0} |
+        [{127,0,0,1} |
          [proplists:get_value(addr, P)
           || {_Nm, P} <- PhyIntfs]]), []).
 local_ips([], _LocalIps, Acc) -> Acc;
