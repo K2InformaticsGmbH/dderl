@@ -120,7 +120,7 @@ handle_cast(#{cmd := views, params := #{stmt := _}} = Req, State) ->
 handle_cast(#{reply := RespPid, cmd := sql, params := #{stmt := StmtRef},
               opts := #{session := Connection}},
             #state{stmts = Stmts} = State) ->
-    ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),    
+    ok = Connection:run_cmd(fetch_recs_async, [[], StmtRef]),
     #{stmtResult := StmtRslt} = maps:get(StmtRef, Stmts),
     {noreply,
      State#state{

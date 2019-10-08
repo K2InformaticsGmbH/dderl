@@ -26,7 +26,7 @@
 
 %% DB connection
 -record(ddConn,
-                  { id                      ::ddEntityId()       
+                  { id                      ::ddEntityId()
                   , name                    ::binary()          %% connection name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapter                 ::atom()            %% oci | imem | ets | os_text | dfs_text | hdfs_text
@@ -37,7 +37,7 @@
 
 %% DB command
 -record(ddCmd,
-                  { id                      ::ddEntityId()       
+                  { id                      ::ddEntityId()
                   , name                    ::binary()          %% command template name (mutable)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , adapters                ::[atom()]          %% can be used for this list of ddAdap
@@ -50,7 +50,7 @@
 %% user representation of a db command including rendering parameters
 -record(ddView,
                   { id                      ::ddEntityId()
-                  , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , interface               ::atom()            %% interface plugin (ddjson for now)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , cmd                     ::ddEntityId()      %% db command id
@@ -61,7 +61,7 @@
 %% user representation of a dashboard (collection of views)
 -record(ddDash,
                   { id                      ::ddEntityId()
-                  , interface               ::atom()            %% interface plugin (ddjson for now)  
+                  , interface               ::atom()            %% interface plugin (ddjson for now)
                   , owner                   ::ddEntityId()      %% account.id of creator / owner
                   , name                    ::binary()          %% should default to command name
                   , views                   ::list()            %% array of proplists with view layout

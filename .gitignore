@@ -14,7 +14,6 @@ snapshot
 *.swo
 package-lock.json
 dderl.dderl@*
-dderl.wiki/
 *.bkp
 tmp
 TEST*.xml

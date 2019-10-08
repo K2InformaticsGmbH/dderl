@@ -10,7 +10,7 @@ dderl
 
 WEB DataBase Browser Application.
 
-### Build (Supported erlnag OTP version - 20.2)
+### Build (Supported erlang OTP version - 20.2)
 
 1. `git clone https://github.com/K2InformaticsGmbH/dderl` in `$ROOT`
 1. cd `$ROOT/dderl`
