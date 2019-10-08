@@ -59,7 +59,7 @@ imem_opts=$imem_opts" cold_start_recover false"
 
 # dderl opts
 dderl_opts="-dderl"
-dderl_opts=$dderl_opts" interface \"0.0.0.0\" port $dderlport"
+dderl_opts=$dderl_opts" port $dderlport"
 
 lager_config="dderl.config"
 
