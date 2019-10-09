@@ -1,60 +1,43 @@
-FROM alpine:3.9
+#Dockerfile for DDERL only
+FROM centos:7
 
-ENV OTP_VERSION="20.2"
+RUN yum group install -y "Development Tools" 
 
-RUN set -xe \
-	&& apk add --no-cache --virtual .fetch-deps \
-		curl \
-		ca-certificates \
-	&& curl -fSL -o otp-src.tar.gz "http://www.erlang.org/download/otp_src_20.2.tar.gz" \
-	&& apk add --no-cache --virtual .build-deps \
-		dpkg-dev dpkg \
-		gcc \
-		g++ \
-		libc-dev \
-		linux-headers \
-		make \
-		autoconf \
-		ncurses-dev \
-		openssl-dev \
-		unixodbc-dev \
-		lksctp-tools-dev \
-		tar \
-    nodejs \
-    git \
-    yarn \
-	&& export ERL_TOP="/usr/src/otp_src_${OTP_VERSION%%@*}" \
-	&& mkdir -vp $ERL_TOP \
-	&& tar -xzf otp-src.tar.gz -C $ERL_TOP --strip-components=1 \
-	&& rm otp-src.tar.gz \
-	&& ( cd $ERL_TOP \
-	  && ./otp_build autoconf \
-	  && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-	  && ./configure --build="$gnuArch" \
-	  && make -j$(getconf _NPROCESSORS_ONLN) \
-	  && make install ) \
-	&& rm -rf $ERL_TOP \
-	&& find /usr/local -regex '/usr/local/lib/erlang/\(lib/\|erts-\).*/\(man\|doc\|obj\|c_src\|emacs\|info\|examples\)' | xargs rm -rf \
-	&& find /usr/local -name src | xargs -r find | grep -v '\.hrl$' | xargs rm -v || true \
-	&& find /usr/local -name src | xargs -r find | xargs rmdir -vp || true \
-	&& scanelf --nobanner -E ET_EXEC -BF '%F' --recursive /usr/local | xargs -r strip --strip-all \
-	&& scanelf --nobanner -E ET_DYN -BF '%F' --recursive /usr/local | xargs -r strip --strip-unneeded \
-	&& runDeps="$( \
-		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
-			| tr ',' '\n' \
-			| sort -u \
-			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-	)" \
-	&& REBAR3_DOWNLOAD_URL="https://s3.amazonaws.com/rebar3/rebar3" \
-	&& curl -fSL -o rebar3 "$REBAR3_DOWNLOAD_URL" \
-	&& mkdir -p /usr/src/rebar3-src \
-	&& mv rebar3 /usr/src/rebar3-src \
-	&& cd /usr/src/rebar3-src \
-	&& install -v ./rebar3 /usr/local/bin/ \
-	&& rm -rf /usr/src/rebar3-src \
-	&& apk add --virtual .erlang-rundeps \
-		$runDeps \
-		lksctp-tools \
-		ca-certificates
+#ERLANG and a few other things
+RUN yum install -y epel-release wget git bash coreutils
+RUN wget https://packages.erlang-solutions.com/erlang-solutions-1.0-1.noarch.rpm && rpm -Uvh erlang-solutions-1.0-1.noarch.rpm  && yum install -y esl-erlang-20.2.2-1
+RUN yum install -y libevent libevent-devel libaio
+RUN wget https://nodejs.org/download/release/v10.15.1/node-v10.15.1-linux-x64.tar.xz && VERSION=v10.15.1 && DISTRO=linux-x64 && mkdir -p /usr/local/lib/nodejs && tar -xJvf node-$VERSION-$DISTRO.tar.xz -C /usr/local/lib/nodejs 
+RUN curl --silent --location https://dl.yarnpkg.com/rpm/yarn.repo | tee /etc/yum.repos.d/yarn.repo
+RUN yum install -y yarn
 
-CMD ["erl"]
+RUN wget https://s3.amazonaws.com/rebar3/rebar3 && mv rebar3 /usr/local/bin/ && chmod +x /usr/local/bin/rebar3
+
+ADD runStart.sh /root
+
+RUN cd ~ && git clone https://github.com/K2InformaticsGmbH/dderl
+
+# removing Oracle dependency (erloci) by manipulating rebar.config.script
+RUN echo -e "begin\n\
+    Deps = proplists:get_value(deps, CONFIG),\n\
+    NewDeps = lists:keydelete(erloci, 1, Deps),\n\
+    {ok, [{application, dderl, Props}]}\n\
+    = file:consult(\"src/dderl.app.src\"),\n\
+    Apps = proplists:get_value(applications, Props) -- [erloci],\n\
+    NewAppSrc = {application, dderl, lists:keyreplace(applications, 1, Props, {applications, Apps})},\n\
+    file:write_file(\"src/dderl.app.src\", list_to_binary(io_lib:format(\"~p.\",[NewAppSrc]))),\n\
+    lists:keyreplace(deps, 1, CONFIG, {deps, NewDeps})\n\
+end." > ~/dderl/rebar.config.script
+
+#replace the 127.0.0.1 with the container's own IP address (found using "awk 'END{print $1}' /etc/hosts"), so we can forward a port on the docker host to the container holding the DDERL
+RUN MYIP=`awk 'END{print $1}' /etc/hosts` && sed -i "s/127.0.0.1/${MYIP}/g" ~/dderl/start.sh ~/dderl/service.sh ~/dderl/rebar.config ~/dderl/src/dderl.app.src ~/dderl/config/sys_shell.config ~/dderl/config/vars.config 
+RUN MYIP=`awk 'END{print $1}' /etc/hosts | sed -e 's/\./,/g'` && sed -i "s/127,0,0,1/${MYIP}/g" ~/dderl/config/sys_shell.config ~/dderl/src/dderl_rest.erl ~/dderl/src/dderl.hrl
+
+#DDERL compilation
+RUN cd ~/dderl/ && rebar3 get-deps && rebar3 compile
+RUN cd ~/dderl/priv/dev && npm install && npm run build 
+
+EXPOSE 8443/tcp
+EXPOSE 9443/tcp
+
+ENTRYPOINT ["sh", "/root/runStart.sh"]
