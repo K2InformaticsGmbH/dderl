@@ -58,10 +58,13 @@ start(_Type, _Args) ->
                 #{env => #{dispatch => Dispatch},
                   stream_handlers => [cowboy_compress_h, cowboy_stream_h],
                   middlewares => [cowboy_router, dderl_cow_mw, cowboy_handler]}),
-    ?Info(lists:flatten(["URL https://",
-                         if is_list(Ip) -> Ip;
-                            true -> io_lib:format("~p",[Ip])
-                         end, ":~p~s"]), [Port,get_url_suffix()]),
+    IpStr = case Ip of
+                "0.0.0.0"            -> "127.0.0.1";
+                {0,0,0,0}            -> "127.0.0.1";
+                Ip when is_list(Ip)  -> Ip;
+                Ip when is_tuple(Ip) -> inet:ntoa(Ip)
+            end,
+    ?Info("URL https://~s:~p~s", [IpStr , Port, get_url_suffix()]),
     ?Info("Routes:~n~s~n---", [string:join([lists:flatten(
                                               io_lib:format("~p",[NRP]))
                                             ||NRP<-DDerlRoutes], "\n")]),
@@ -93,9 +96,9 @@ stop(_State) ->
 init(Req, '$path_probe') ->
     {Code, Resp} = ?PROBE_RESP,
     {ok, cowboy_req:reply(Code, #{}, Resp, Req), undefined};
-init(Req, State) -> 
+init(Req, State) ->
     Url = iolist_to_binary(cowboy_req:uri(Req)),
-    Req1 = 
+    Req1 =
     case binary:last(Url) of
         $/ ->
             Priv = priv_dir(),
@@ -142,7 +145,7 @@ decrypt(BinOrStr) when is_binary(BinOrStr); is_list(BinOrStr) ->
 -spec insert_mw(atom(), atom()) -> atom().
 insert_mw(Intf, MwMod) when is_atom(Intf), is_atom(MwMod) ->
     #{middlewares := Middlewares} = Opts = ranch:get_protocol_options(Intf),
-    [LastMod|RestMods] = lists:reverse(Middlewares),    
+    [LastMod|RestMods] = lists:reverse(Middlewares),
     ok = ranch:set_protocol_options(
            https, Opts#{middlewares => lists:reverse([LastMod, MwMod | RestMods])}).
 
