@@ -929,7 +929,7 @@ ul.dropdown.floatNone ul li {
     background: #d0d0d0 url(../assets/jquery-ui-images/ui-bg_glass_75_d0d0d0_1x400.png) 50% 50% repeat-x;
 }
 
-#receiverErrors {
+.receiverErrors {
     color: red;
 }
 

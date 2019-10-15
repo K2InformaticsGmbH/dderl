@@ -99,7 +99,11 @@ handle_cast(Cmd, #state{type = stats} = State) ->
 handle_cast(get_data_info, #state{statement = Statement, receiver_pid = ReceiverPid, column_pos = ColumnPos} = State) ->
     %% TODO: Maybe we will need sql to check for same table sender-receiver.
     {TableId, IndexId, Nav, RowFun, Columns} = Statement:get_sender_params(),
-    Size = ets:info(TableId, size),
+    EtsTable = case Nav of
+        raw -> TableId;
+        ind -> IndexId
+    end,
+    Size = ets:info(EtsTable, size),
     SelectedColumns = [lists:nth(Col, Columns) || Col <- ColumnPos],
     ?Debug("The parameters from the fsm ~p", [{TableId, IndexId, Nav, RowFun, SelectedColumns, Size}]),
     dderl_data_receiver:data_info(ReceiverPid, {SelectedColumns, Size}),
