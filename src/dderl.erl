@@ -234,11 +234,17 @@ log_table() ->
 
 local_ipv4s() ->
     {ok, PhyIntfs} = inet:getifaddrs(),
-    lists:usort(lists:flatten(
-        [{127,0,0,1} |
-            [[IPv4 || {addr, {_,_,_,_} = IPv4} <- P]
-                || {_Nm, P} <- PhyIntfs]]
-    )).
+    lists:usort([{127,0,0,1} | local_ipv4s(PhyIntfs, [])]).
+local_ipv4s([], IPv4s) -> IPv4s;
+local_ipv4s([{_Nm, Props}|Rest], IPv4s) ->
+    case get_ipv4(Props) of
+        {_,_,_,_} = IPv4 -> local_ipv4s(Rest, [IPv4 | IPv4s]);
+        _ -> local_ipv4s(Rest, IPv4s)
+    end.
+
+get_ipv4([]) -> undefined;
+get_ipv4([{addr, {_,_,_,_} = IPv4}|_]) -> IPv4;
+get_ipv4([_|Rest]) -> get_ipv4(Rest).
 
 %%-----------------------------------------------------------------------------
 
