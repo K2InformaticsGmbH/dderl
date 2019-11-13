@@ -93,6 +93,9 @@ const stmtClassToolTip = {
         // flag to continue looping on scan to end
         _scanToEnd: true,
 
+        // send recive progress id
+        _sendReciveProgressId: null,
+
         // private event handlers
         _handlers: {
             loadViews: function (e, _result) { e.data._renderViews(_result); },
@@ -963,10 +966,14 @@ const stmtClassToolTip = {
                     msg += ",<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
                     msg += activationResult.sender_columns[i];
                 }
-                msg += "<br>Progress: <span id='receivedRows'>0</span><div id='progressbar'></div><br><div id='receiverErrors'></div>";
+                var randomId = Math.floor((Math.random() * 1000) + 1);
+                this._sendReciveProgressId = randomId;
+                msg += "<br>Progress: <span id='receivedRows" + randomId + "'>0</span> \
+                        <div id='progressbar" + randomId + "'></div><br> \
+                        <div class='receiverErrors' id='receiverErrors" + randomId + "'></div>";
                 this._receiverStatus(activationResult.available_rows);
                 alert_jq(msg);
-                $("#progressbar").progressbar({
+                $("#progressbar" + randomId).progressbar({
                     max: activationResult.available_rows,
                     enable: true
                 });
@@ -974,31 +981,36 @@ const stmtClassToolTip = {
         },
 
         _receiverStatus: function (maxRows) {
+            var randomId = this._sendReciveProgressId;
             this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
                 if (receiverStatus.errors) {
                     for (let error of receiverStatus.errors) {
-                        $("#receiverErrors").append(`<span>Error : ${error}</span><br>`);
+                        $("#receiverErrors" + randomId).append(
+                            `<span>Error : ${error}</span><br>`
+                        );
                     }
                 }
                 var receivedRows = receiverStatus.received_rows;
                 if (receiverStatus.is_complete) {
-                    $("#receivedRows").text(`completed, Rows successfully inserted : ${receivedRows}`);
-                    $("#progressbar").progressbar({
+                    $("#receivedRows" + randomId).text(
+                        `completed, Rows successfully inserted : ${receivedRows}`
+                    );
+                    $("#progressbar" + randomId).progressbar({
                         value: receivedRows
                     });
                 } else {
                     if (Number.isInteger(receivedRows)) {
                         if (receivedRows <= maxRows) {
-                            $("#progressbar").progressbar({
+                            $("#progressbar" + randomId).progressbar({
                                 value: receivedRows
                             });
                         } else {
-                            $("#progressbar").progressbar({
+                            $("#progressbar" + randomId).progressbar({
                                 disable: true
                             });
-                            $("#progressbar").hide();
+                            $("#progressbar" + randomId).hide();
                         }
-                        $("#receivedRows").text(`Rows ${receivedRows}`);
+                        $("#receivedRows" + randomId).text(`Rows ${receivedRows}`);
                     }
                 }
 

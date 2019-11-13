@@ -1519,8 +1519,8 @@ handle_call(get_query, From, SN, #state{ctx=#ctx{orig_qry=Qry}}=State) ->
 handle_call(get_table_name, From, SN, #state{ctx=#ctx{stmtTables=[TableName|_]}}=State) ->
     ?Debug("get_table_name ~p", [TableName]),
     {next_state, SN, State, [{reply, From, TableName}]};
-handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, ctx=#ctx{rowCols=Columns}} = State) ->
-    SenderParams = {TableId, IndexId, Nav, RowFun, Columns},
+handle_call(get_sender_params, From, SN, #state{nav=Nav, tableId=TableId, indexId=IndexId, rowFun=RowFun, filterSpec=FilterSpec, ctx=#ctx{rowCols=Columns}} = State) ->
+    SenderParams = {TableId, IndexId, Nav, RowFun, Columns, FilterSpec},    
     ?Debug("get_sender_params ~p", [SenderParams]),
     {next_state, SN, State, [{reply, From, SenderParams}]};
 handle_call(get_receiver_params, From, SN, #state{ctx = #ctx{rowCols=Columns, stmtRefs=StmtRefs, update_cursor_prepare_funs=Ucpf, update_cursor_execute_funs=Ucef}} = State) ->

@@ -30,7 +30,8 @@
                ,row_fun          :: fun()
                ,fsm_monitor      :: reference()
                ,receiver_pid     :: pid()
-               ,receiver_monitor :: reference()}).
+               ,receiver_monitor :: reference()
+               ,filter_spec      :: tuple()}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API Sender-Receiver Communication (Sender API)
@@ -98,42 +99,29 @@ handle_cast(Cmd, #state{type = stats} = State) ->
     process_stats_cmd(Cmd, State);
 handle_cast(get_data_info, #state{statement = Statement, receiver_pid = ReceiverPid, column_pos = ColumnPos} = State) ->
     %% TODO: Maybe we will need sql to check for same table sender-receiver.
-    {TableId, IndexId, Nav, RowFun, Columns} = Statement:get_sender_params(),
-    Size = ets:info(TableId, size),
+    {TableId, IndexId, Nav, RowFun, Columns, FilterSpec} = Statement:get_sender_params(),
+    EtsTable = case Nav of
+        raw -> TableId;
+        ind -> IndexId
+    end,
+    Size = ets:info(EtsTable, size),
     SelectedColumns = [lists:nth(Col, Columns) || Col <- ColumnPos],
     ?Debug("The parameters from the fsm ~p", [{TableId, IndexId, Nav, RowFun, SelectedColumns, Size}]),
     dderl_data_receiver:data_info(ReceiverPid, {SelectedColumns, Size}),
-    {noreply, State#state{table_id = TableId, index_id = IndexId, nav = Nav, row_fun = RowFun}};
+    {noreply, State#state{table_id = TableId, index_id = IndexId, nav = Nav,
+                          row_fun = RowFun,filter_spec = FilterSpec}};
 handle_cast(fetch_first_block, #state{nav = Nav, table_id = TableId, index_id = IndexId} = State) ->
     case Nav of
         raw -> UsedTable = TableId;
         ind -> UsedTable = IndexId
     end,
     FirstKey = ets:first(UsedTable),
-    case dderl_dal:rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) of
-        '$end_of_table' ->
-            retry_more_data(State),
-            {noreply, State};
-        {Rows, '$end_of_table'} ->
-            NewState = send_rows(Rows, State),
-            {noreply, NewState};
-        {Rows, Continuation} ->
-            send_rows(Rows, State),
-            {noreply, State#state{continuation = Continuation, skip = 0}}
-    end;
+    GetDataFun = fun() -> dderl_dal:rows_from(UsedTable, FirstKey, ?BLOCK_SIZE) end,
+    execute_get_data(GetDataFun, State);
 handle_cast(more_data, #state{continuation = undefined} = State) -> handle_cast(fetch_first_block, State);
 handle_cast(more_data, #state{continuation = Continuation} = State) ->
-    case ets:select(Continuation) of
-        '$end_of_table' ->
-            retry_more_data(State),
-            {noreply, State};
-        {Rows, '$end_of_table'} ->
-            NewState = send_rows(Rows, State),
-            {noreply, NewState};
-        {Rows, NewContinuation} ->
-            send_rows(Rows, State),
-            {noreply, State#state{continuation = NewContinuation, skip = 0}}
-    end;
+    GetDataFun = fun() -> ets:select(Continuation) end,
+    execute_get_data(GetDataFun, State);
 handle_cast(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
     {noreply, State}.
@@ -199,3 +187,22 @@ process_stats_cmd(Cmd, #state{receiver_pid=ReceiverPid, data=Data}=State) when
 process_stats_cmd(Req, State) ->
     ?Info("~p received unknown cast ~p", [self(), Req]),
     {noreply, State}.
+
+execute_get_data(GetDataFun, #state{statement = Statement, filter_spec = FilterSpec} = State) ->
+    case Statement:get_sender_params() of
+        {_, _, _, _, _, FilterSpec} ->
+            case GetDataFun() of
+                '$end_of_table' ->
+                    retry_more_data(State),
+                    {noreply, State};
+                {Rows, '$end_of_table'} ->
+                    NewState = send_rows(Rows, State),
+                    {noreply, NewState};
+                {Rows, NewContinuation} ->
+                    send_rows(Rows, State),
+                    {noreply, State#state{continuation = NewContinuation, skip = 0}}
+            end;
+        _ ->
+            ?Info("Sender filter changed, stopping sender"),
+            {stop, {shutdown, filter_changed}, State}
+     end.
