@@ -256,13 +256,7 @@ init_interface() ->
       end, local_ips(?IMEMREST_IPS)).
 
 local_ips(Listeners) ->
-    {ok, PhyIntfs} = inet:getifaddrs(),
-    local_ips(
-      Listeners,
-      lists:usort(
-        [{127,0,0,1} |
-         [proplists:get_value(addr, P)
-          || {_Nm, P} <- PhyIntfs]]), []).
+    local_ips(Listeners, dderl:local_ipv4s(), []).
 local_ips([], _LocalIps, Acc) -> Acc;
 local_ips([{Ip, _} = Ep | Rest], LocalIps, Acc) ->
     local_ips(

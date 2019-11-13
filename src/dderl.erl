@@ -24,7 +24,7 @@
 
 %% Helper functions
 -export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
-         can_handle_request/1, exec_coldstart_cb/2]).
+         can_handle_request/1, exec_coldstart_cb/2, local_ipv4s/0]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -231,6 +231,21 @@ exec_coldstart_cb(App, FunStr) ->
 -spec log_table() -> atom().
 log_table() ->
     ?GET_CONFIG(dderlLogTable,[],'dderlLog_86400@',"Rolling log table name").
+
+local_ipv4s() ->
+    {ok, PhyIntfs} = inet:getifaddrs(),
+    lists:usort([{127,0,0,1} | local_ipv4s(PhyIntfs, [])]).
+
+local_ipv4s([], IPv4s) -> IPv4s;
+local_ipv4s([{_Nm, Props}|Rest], IPv4s) ->
+    case get_ipv4(Props) of
+        {_,_,_,_} = IPv4 -> local_ipv4s(Rest, [IPv4 | IPv4s]);
+        _ -> local_ipv4s(Rest, IPv4s)
+    end.
+
+get_ipv4([]) -> undefined;
+get_ipv4([{addr, {_,_,_,_} = IPv4}|_]) -> IPv4;
+get_ipv4([_|Rest]) -> get_ipv4(Rest).
 
 %%-----------------------------------------------------------------------------
 
