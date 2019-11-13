@@ -968,7 +968,9 @@ const stmtClassToolTip = {
                 }
                 var randomId = Math.floor((Math.random() * 1000) + 1);
                 this._sendReciveProgressId = randomId;
-                msg += "<br>Progress: <span id='receivedRows" + randomId + "'>0</span><div id='progressbar" + randomId + "'></div><br><div class='receiverErrors' id='receiverErrors" + randomId + "'></div>";
+                msg += "<br>Progress: <span id='receivedRows" + randomId + "'>0</span> \
+                        <div id='progressbar" + randomId + "'></div><br> \
+                        <div class='receiverErrors' id='receiverErrors" + randomId + "'></div>";
                 this._receiverStatus(activationResult.available_rows);
                 alert_jq(msg);
                 $("#progressbar" + randomId).progressbar({
@@ -983,12 +985,16 @@ const stmtClassToolTip = {
             this._ajax('receiver_status', {}, 'receiver_status', (receiverStatus) => {
                 if (receiverStatus.errors) {
                     for (let error of receiverStatus.errors) {
-                        $("#receiverErrors" + randomId).append(`<span>Error : ${error}</span><br>`);
+                        $("#receiverErrors" + randomId).append(
+                            `<span>Error : ${error}</span><br>`
+                        );
                     }
                 }
                 var receivedRows = receiverStatus.received_rows;
                 if (receiverStatus.is_complete) {
-                    $("#receivedRows" + randomId).text(`completed, Rows successfully inserted : ${receivedRows}`);
+                    $("#receivedRows" + randomId).text(
+                        `completed, Rows successfully inserted : ${receivedRows}`
+                    );
                     $("#progressbar" + randomId).progressbar({
                         value: receivedRows
                     });
