@@ -3,6 +3,10 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.7.1 (Release Date 22.11.2019)
+======================================
+* IMEM version changed to 3.7.1
+
 Version 3.7.0 (Release Date 15.11.2019)
 ======================================
 * API to get local IPv4 addresses #635
