@@ -24,7 +24,8 @@
 
 %% Helper functions
 -export([get_cookie/3, keyfetch/3, cow_req_set_meta/4, cow_req_get_meta/4,
-         can_handle_request/1, exec_coldstart_cb/2, local_ipv4s/0]).
+         can_handle_request/1, exec_coldstart_cb/2, local_ipv4s/0,
+         unauthorized/2]).
 
 %%-----------------------------------------------------------------------------
 %% Console Interface
@@ -246,6 +247,13 @@ local_ipv4s([{_Nm, Props}|Rest], IPv4s) ->
 get_ipv4([]) -> undefined;
 get_ipv4([{addr, {_,_,_,_} = IPv4}|_]) -> IPv4;
 get_ipv4([_|Rest]) -> get_ipv4(Rest).
+
+unauthorized(Req, Module) ->
+    cowboy_req:reply(200, 
+            #{<<"cache-control">> => <<"no-cache">>,
+              <<"pragma">> => <<"no-cache">>,
+              <<"content-type">> => <<"text/html">>}
+        , ?UNAUTHORIZEDPAGE(Module), Req).
 
 %%-----------------------------------------------------------------------------
 

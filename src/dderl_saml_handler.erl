@@ -27,7 +27,7 @@ init(Req0, Args) ->
             {SP, IdpMeta} = initialize(HostUrl, Url),
             process_req(Req1, #state{sp = SP, idp = IdpMeta, app = App});
         _ ->
-            {ok, unauthorized(Req0), Args}
+            {ok, dderl:unauthorized(Req0, ?MODULE), Args}
     end.
 
 process_req(Req, S = #state{sp = SP}) ->
@@ -37,7 +37,7 @@ process_req(Req, S = #state{sp = SP}) ->
             Fun(Req1, Assertion#esaml_assertion.attributes),
             {cowboy_loop, Req1, S, hibernate};
         {error, Reason, Req2} ->
-            Req3 = unauthorized(Req2),
+            Req3 = dderl:unauthorized(Req2, ?MODULE),
             ?Warn("SAML - Auth error : ~p", [Reason]),
             {ok, Req3, S}
     end.
@@ -52,7 +52,7 @@ info({reply, {saml, UrlSuffix}}, Req, State) ->
         <<"Redirecting...">>, Req),
     {stop, Req1, State};
 info({reply, _Body}, Req, State) ->
-    {stop, unauthorized(Req), State};
+    {stop, dderl:unauthorized(Req, ?MODULE), State};
 info({access, Log}, Req, #state{app = App} = State) ->
     OldLog = ?COW_REQ_GET_META(App, accessLog, Req, 0),
     Req1 = ?COW_REQ_SET_META(App, accessLog, maps:merge(OldLog, Log), Req),
@@ -164,10 +164,3 @@ get_priv_key(KeyBin) ->
             public_key:der_decode('RSAPrivateKey', KeyDataBin);
         Other -> Other
     end.
-
-unauthorized(Req) ->
-    cowboy_req:reply(200, 
-            #{<<"cache-control">> => <<"no-cache">>,
-              <<"pragma">> => <<"no-cache">>,
-              <<"content-type">> => <<"text/html">>}
-        , ?UNAUTHORIZEDPAGE, Req).
