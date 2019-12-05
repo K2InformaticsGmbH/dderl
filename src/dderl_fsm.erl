@@ -319,16 +319,16 @@ cache_data({?MODULE, Pid}) ->
     gen_statem:call(Pid, cache_data).
 
 -spec rows({pid(), {_, _}} | {_, _}, {atom(), pid()}) -> ok.
-rows({StmtRef,{error, _} = Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
-    %?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
-    gen_statem:cast(Pid, {StmtRef,Error});
-rows({StmtRef,{Rows,Completed}},{?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
+rows({StmtRef, {error, Error}}, {?MODULE, Pid}) ->   % from erlimem/imem_server
+    %?Info("dderl_fsm:rows from ~p ~p", [StmtRef, {error, Error}]),
+    gen_statem:cast(Pid, {StmtRef, {error, Error}});
+rows({StmtRef, {Rows,Completed}}, {?MODULE,Pid}) when is_list(Rows) ->  % from erlimem/imem_server
     %?Info("dderl_fsm:rows from ~p ~p ~p", [StmtRef, length(Rows), Completed]),
     %?Info("dderl_fsm:rows from ~p ~p~n~p", [StmtRef, length(Rows), Rows]),
-    gen_statem:cast(Pid,{rows, {StmtRef,Rows,Completed}});
+    gen_statem:cast(Pid, {rows, {StmtRef,Rows,Completed}});
 rows({Rows,Completed},{?MODULE,Pid}) when is_list(Rows) ->  % from dderloci (single source)
     %?Info("dderl_fsm:rows ~p ~p", [length(Rows), Completed]),
-    gen_statem:cast(Pid,{rows, {self(),Rows,Completed}});
+    gen_statem:cast(Pid, {rows, {self(),Rows,Completed}});
 rows({StmtRef, Error}, {?MODULE, Pid}) ->   % from erlimem/imem_server
     %?Info("dderl_fsm:rows from ~p ~p", [StmtRef, Error]),
     gen_statem:cast(Pid, {StmtRef,{error,Error}});
