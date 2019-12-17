@@ -3,6 +3,13 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.7.2 (Release Date 17.12.2019)
+======================================
+* IMEM version changed to 3.7.2
+* download csv badmatch error fixed (#638)
+* increase the hold back time for first query results to 5 seconds
+* moved unauthorized fun to dderl.erl (#637)
+
 Version 3.7.1 (Release Date 22.11.2019)
 ======================================
 * IMEM version changed to 3.7.1
