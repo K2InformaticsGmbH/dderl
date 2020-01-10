@@ -1358,9 +1358,11 @@ handle_event({button, <<"rollback">>, ReplyTo}, SN, State0) ->
 handle_event({subscribe, {Topic, Key}, ReplyTo}, SN, State0) ->
     State1 = reply_stack(SN, ReplyTo, State0),
     Result = case write_subscription(Topic, Key, State1) of
-        ok -> <<"ok">>;
+        ok ->
+            ?Info("write_subscription(~p, ~p, ..) succeeded", [Topic, Key]),
+            <<"ok">>;
         {error, Error} ->
-            ?Error("Unable to write subscription row ~p", [Error]),
+            ?Error("write_subscription(~p, ~p, ..) failed with ~p", [Topic, Key, Error]),
             <<"error">>
     end,
     State2 = gui_nop(#gres{state=SN, beep=true, message=Result}, State1),
@@ -3050,7 +3052,8 @@ write_subscription(Topic, Key, #state{ctx = #ctx{update_cursor_prepare_funs=Ucpf
     SubsKey = imem_json:encode([<<"register">>, <<"focus">>, [atom_to_binary(node(), utf8), list_to_binary(pid_to_list(self()))]]),
     Value = imem_json:encode([[Topic, Key]]),
     Hash = <<>>,
-    SubscriptionRow = [[undefined, ins, {{},{}}, SubsKey, Value, Hash]],
+    %% TODO: Use an imem function to create default meta tuple instead of {0,node()}
+    SubscriptionRow = [[undefined, ins, {{0,node()},{}}, SubsKey, Value, Hash]],
     Results = [F(SubscriptionRow) || F <- Ucpf],
     case lists:usort(Results) of
         [ok] ->
