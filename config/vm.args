@@ -7,6 +7,9 @@
 ## Distribution protocol
 -proto_dist {{ proto_dist }}
 
+## KERNEL
+-kernel inet_dist_listen_min {{epmd_min}} inet_dist_listen_max {{epmd_max}}
+
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
 ##-heart
