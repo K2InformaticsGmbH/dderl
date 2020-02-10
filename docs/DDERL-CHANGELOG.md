@@ -3,6 +3,12 @@ Application dderl
 
 Release history with new or improved features and bugfixes
 
+Version 3.8.0 (Release Date 10.02.2020)
+======================================
+* IMEM version changed to 3.8.0
+* fix broken dashboard focus and improve logging for write_subscripotion
+* moved epmd ports (#640)
+
 Version 3.7.2 (Release Date 17.12.2019)
 ======================================
 * IMEM version changed to 3.7.2
