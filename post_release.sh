@@ -5,6 +5,7 @@ rel=${2:-prod}
 log green "-------------------------------------------------------------------------"
 log green "post_release $rel/$app @ $(pwd)"
 
+rm -rf _build/$rel/rel/$app/erts-*/bin/erl.ini
 dderlPriv=$(readlink -f _build/$rel/rel/$app/lib/dderl-*/priv/)
 log lightgrey "building dderl @ $dderlPriv"
 
