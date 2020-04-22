@@ -22,6 +22,16 @@ WEB DataBase Browser Application.
 1. `./start.sh`
 1. go to https://127.0.0.1:8443/dderl in your browser
 
+### Build and run with docker
+
+You can also build and run dderl with docker to avoid installing all the dependencies on your system:
+
+1. `git clone https://github.com/K2InformaticsGmbH/dderl` in `$ROOT`
+1. cd `$ROOT/dderl`
+1. `docker build . -t dderl:3.6.1`
+1. `docker run -p 8443:8443 -ti dderl:3.6.1`
+1. go to https://127.0.0.1:8443/dderl in your browser
+
 ### Features
 
 1. Browse mnesia and oracle tables in the browser
