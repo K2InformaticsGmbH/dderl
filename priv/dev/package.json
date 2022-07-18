@@ -14,7 +14,7 @@
     "font-awesome": "4.7.0",
     "jquery": "^3.4.1",
     "jquery-dialogextend": "git+https://github.com/K2InformaticsGmbH/jquery-dialogextend.git#585a7e2d59925481b32f4e7800d49aeced3a3d35",
-    "jquery-ui": "1.12.1",
+    "jquery-ui": "1.13.2",
     "monaco-editor": "0.14.3"
   },
   "devDependencies": {
